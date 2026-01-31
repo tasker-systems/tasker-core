@@ -351,4 +351,218 @@ mod tests {
             FinalizationAction::Reenqueued
         ));
     }
+
+    /// Helper to create a task in DB and return a Task struct.
+    async fn create_test_task(pool: &sqlx::PgPool) -> Result<Task, Box<dyn std::error::Error>> {
+        let task_uuid = Uuid::now_v7();
+        let named_task_uuid = Uuid::now_v7();
+        let correlation_id = Uuid::now_v7();
+
+        sqlx::query(
+            "INSERT INTO tasker.task_namespaces (name, description, created_at, updated_at) \
+             VALUES ('state_handler_test_ns', 'Test', NOW(), NOW()) \
+             ON CONFLICT (name) DO NOTHING",
+        )
+        .execute(pool)
+        .await?;
+
+        let namespace_id: (Uuid,) = sqlx::query_as(
+            "SELECT task_namespace_uuid FROM tasker.task_namespaces WHERE name = 'state_handler_test_ns'",
+        )
+        .fetch_one(pool)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO tasker.named_tasks (named_task_uuid, task_namespace_uuid, name, description, version, created_at, updated_at) \
+             VALUES ($1, $2, 'state_handler_test', 'Test', 1, NOW(), NOW()) \
+             ON CONFLICT (task_namespace_uuid, name, version) DO UPDATE SET named_task_uuid = $1",
+        )
+        .bind(named_task_uuid)
+        .bind(namespace_id.0)
+        .execute(pool)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO tasker.tasks (task_uuid, named_task_uuid, complete, requested_at, identity_hash, priority, created_at, updated_at, correlation_id) \
+             VALUES ($1, $2, false, NOW(), $3, 0, NOW(), NOW(), $4)",
+        )
+        .bind(task_uuid)
+        .bind(named_task_uuid)
+        .bind(format!("state_handler_test_{}", task_uuid))
+        .bind(correlation_id)
+        .execute(pool)
+        .await?;
+
+        Ok(Task {
+            task_uuid,
+            named_task_uuid,
+            complete: false,
+            requested_at: chrono::Utc::now().naive_utc(),
+            initiator: None,
+            source_system: None,
+            reason: None,
+            tags: None,
+            context: None,
+            identity_hash: format!("state_handler_test_{}", task_uuid),
+            priority: 0,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+            correlation_id,
+            parent_correlation_id: None,
+        })
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_processing_state_returns_no_action(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let step_enqueuer = Arc::new(StepEnqueuerService::new(context.clone()).await?);
+        let handlers = StateHandlers::new(context, step_enqueuer);
+
+        let task = create_test_task(&pool).await?;
+        let exec_context = TaskExecutionContext {
+            task_uuid: task.task_uuid,
+            named_task_uuid: task.named_task_uuid,
+            status: "steps_in_process".to_string(),
+            total_steps: 10,
+            pending_steps: 0,
+            in_progress_steps: 5,
+            completed_steps: 5,
+            failed_steps: 0,
+            ready_steps: 0,
+            execution_status: ExecutionStatus::Processing,
+            recommended_action: None,
+            completion_percentage: bigdecimal::BigDecimal::from(50),
+            health_status: "processing".to_string(),
+            enqueued_steps: 10,
+        };
+
+        let result = handlers
+            .handle_processing_state(task, Some(exec_context), Uuid::new_v4())
+            .await;
+
+        assert!(result.is_ok(), "handle_processing_state should succeed: {:?}", result.err());
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::NoAction));
+        assert_eq!(result.completion_percentage, Some(50.0));
+        assert_eq!(result.total_steps, Some(10));
+        assert_eq!(result.reason, Some("Steps in progress".to_string()));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_processing_state_without_context(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let step_enqueuer = Arc::new(StepEnqueuerService::new(context.clone()).await?);
+        let handlers = StateHandlers::new(context, step_enqueuer);
+
+        let task = create_test_task(&pool).await?;
+
+        let result = handlers
+            .handle_processing_state(task, None, Uuid::new_v4())
+            .await;
+
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::NoAction));
+        assert!(result.completion_percentage.is_none());
+        assert!(result.total_steps.is_none());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_unclear_state_transitions_to_error(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::core::task_transition::{NewTaskTransition, TaskTransition};
+
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let step_enqueuer = Arc::new(StepEnqueuerService::new(context.clone()).await?);
+        let handlers = StateHandlers::new(context, step_enqueuer);
+
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        // Put task in EvaluatingResults so error_task can transition it
+        TaskTransition::create(
+            &pool,
+            NewTaskTransition {
+                task_uuid,
+                to_state: "evaluating_results".to_string(),
+                from_state: Some("steps_in_process".to_string()),
+                processor_uuid: Some(Uuid::new_v4()),
+                metadata: Some(serde_json::json!({"setup": "test"})),
+            },
+        )
+        .await?;
+
+        let result = handlers
+            .handle_unclear_state(task, None, Uuid::new_v4())
+            .await;
+
+        assert!(result.is_ok(), "handle_unclear_state should succeed: {:?}", result.err());
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::Failed));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_waiting_state_blocked_by_failures(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::core::task_transition::{NewTaskTransition, TaskTransition};
+
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let step_enqueuer = Arc::new(StepEnqueuerService::new(context.clone()).await?);
+        let handlers = StateHandlers::new(context, step_enqueuer);
+
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        // Put task in EvaluatingResults state for error_task to work
+        TaskTransition::create(
+            &pool,
+            NewTaskTransition {
+                task_uuid,
+                to_state: "evaluating_results".to_string(),
+                from_state: Some("steps_in_process".to_string()),
+                processor_uuid: Some(Uuid::new_v4()),
+                metadata: Some(serde_json::json!({"setup": "test"})),
+            },
+        )
+        .await?;
+
+        let exec_context = TaskExecutionContext {
+            task_uuid: task.task_uuid,
+            named_task_uuid: task.named_task_uuid,
+            status: "evaluating_results".to_string(),
+            total_steps: 5,
+            pending_steps: 0,
+            in_progress_steps: 0,
+            completed_steps: 3,
+            failed_steps: 2,
+            ready_steps: 0,
+            execution_status: ExecutionStatus::BlockedByFailures,
+            recommended_action: None,
+            completion_percentage: bigdecimal::BigDecimal::from(60),
+            health_status: "degraded".to_string(),
+            enqueued_steps: 5,
+        };
+
+        let result = handlers
+            .handle_waiting_state(task, Some(exec_context), Uuid::new_v4())
+            .await;
+
+        assert!(result.is_ok(), "handle_waiting_state should succeed: {:?}", result.err());
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::Failed));
+
+        Ok(())
+    }
 }
