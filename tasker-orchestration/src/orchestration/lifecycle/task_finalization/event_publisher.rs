@@ -236,4 +236,98 @@ mod tests {
         assert_eq!(event_data["status"], "failed");
         assert!(event_data["timestamp"].is_string());
     }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_publish_task_completed_success(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let publisher = EventPublisher::new(context);
+        let task_uuid = Uuid::now_v7();
+
+        let result = publisher.publish_task_completed(task_uuid, &None).await;
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_publish_task_completed_with_execution_context(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::orchestration::{ExecutionStatus, TaskExecutionContext};
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let publisher = EventPublisher::new(context);
+        let task_uuid = Uuid::now_v7();
+
+        let exec_context = TaskExecutionContext {
+            task_uuid,
+            named_task_uuid: Uuid::now_v7(),
+            status: "complete".to_string(),
+            total_steps: 5,
+            pending_steps: 0,
+            in_progress_steps: 0,
+            completed_steps: 5,
+            failed_steps: 0,
+            ready_steps: 0,
+            execution_status: ExecutionStatus::AllComplete,
+            recommended_action: None,
+            completion_percentage: bigdecimal::BigDecimal::from(100),
+            health_status: "healthy".to_string(),
+            enqueued_steps: 5,
+        };
+
+        let result = publisher
+            .publish_task_completed(task_uuid, &Some(exec_context))
+            .await;
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_publish_task_failed_success(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let publisher = EventPublisher::new(context);
+        let task_uuid = Uuid::now_v7();
+
+        let result = publisher.publish_task_failed(task_uuid, &None).await;
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_publish_task_failed_with_execution_context(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::orchestration::{ExecutionStatus, TaskExecutionContext};
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let publisher = EventPublisher::new(context);
+        let task_uuid = Uuid::now_v7();
+
+        let exec_context = TaskExecutionContext {
+            task_uuid,
+            named_task_uuid: Uuid::now_v7(),
+            status: "error".to_string(),
+            total_steps: 5,
+            pending_steps: 0,
+            in_progress_steps: 0,
+            completed_steps: 3,
+            failed_steps: 2,
+            ready_steps: 0,
+            execution_status: ExecutionStatus::BlockedByFailures,
+            recommended_action: None,
+            completion_percentage: bigdecimal::BigDecimal::from(60),
+            health_status: "degraded".to_string(),
+            enqueued_steps: 5,
+        };
+
+        let result = publisher
+            .publish_task_failed(task_uuid, &Some(exec_context))
+            .await;
+        assert!(result.is_ok());
+        Ok(())
+    }
 }
