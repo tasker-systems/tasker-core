@@ -316,3 +316,69 @@ This pattern means the service layer can have unit tests that:
 7. **The actor/service separation pattern (TAS-46) pays off at testing time.** Every actor in the codebase delegates to a service struct. The `CommandProcessingService` extraction followed this established pattern. The service can be constructed with test doubles (in-memory messaging, mock actors) while the actor remains a thin routing layer. This is the same pattern used by `TaskInitializer`, `StepEnqueuerService`, `TaskFinalizer`, etc.
 
 8. **Lifecycle flow organization is self-documenting.** Grouping methods by flow (Direct → FromMessage → FromEvent) rather than by entity (task init → step result → finalization) makes the provider boundary visible in the source code. A reader immediately sees which methods are provider-agnostic and which require PGMQ.
+
+---
+
+## Coverage Push Phase (January 31, 2026)
+
+### What Was Accomplished
+
+After the refactoring phase exhausted pure-unit-test opportunities, the coverage push targeted the remaining gap through systematic breadth-first testing across infrastructure-dependent modules. The work progressed through five distinct rounds:
+
+| Round | Tests Added | Coverage Delta | Strategy |
+|-------|-------------|----------------|----------|
+| Quick-win unit + result processing pipeline | 71 | +3.42 pp (37.58% → 41.0%) | Pure unit tests for statistics/classifier + DB integration for result pipeline |
+| Staleness detector + backoff calculator | 38 | +0.64 pp (41.0% → 41.64%) | Pure unit tests for last remaining logic-heavy modules |
+| DB integration: hydration + finalization | 22 | +1.03 pp (41.64% → 42.67%) | `#[sqlx::test]` for step hydration and task completion flows |
+| Broad push rounds 1-3 | 128 | +2.21 pp (42.67% → 44.88%) | Breadth-first targeting of 12 below-55% files |
+
+**Final state**: 44.88% line coverage, 40.41% function coverage, 942 tests (+518 from baseline of 424).
+
+### Lessons from the Coverage Push
+
+9. **Breadth-first beats depth-first for coverage percentage.** When many files are below target, adding 5-10 tests to each of 12 files produces more coverage lift than adding 50 tests to one file. Each file has low-hanging fruit (config defaults, error Display impls, Debug/Clone assertions, serde round-trips) that covers many lines cheaply. The broad push across 12 files added 128 tests for +2.21 pp — comparable to the 71-test quick-win round (+3.42 pp) but targeting harder-to-reach code.
+
+10. **`PgPool::connect_lazy()` unlocks async test contexts without a database.** Several test helpers construct objects that hold a `PgPool` field. Using `PgPool::connect_lazy("postgres://localhost/fake")` creates a valid pool handle that satisfies type requirements without establishing a connection. This requires `#[tokio::test]` (not `#[test]`) since `connect_lazy` needs a Tokio runtime. We converted 7 existing `#[sqlx::test]` tests in `backoff_calculator.rs` to `#[tokio::test]` using this technique, eliminating their PostgreSQL dependency while maintaining the exact same assertions.
+
+11. **Serde `rename_all` silently changes assertion expectations.** Structs tagged with `#[serde(tag = "type", rename_all = "snake_case")]` serialize enum variants differently than their Rust names. `BatchProcessingOutcome::NoBatches` serializes as `"no_batches"`, not `"NoBatches"`. String-contains assertions on serialized JSON must match the serde output format, not the Rust variant name. This caused a test failure that was non-obvious because the serialization itself was correct — only the assertion was wrong.
+
+12. **Struct construction gotchas compound in test code.** Two patterns caused repeated compilation failures:
+    - `StateMachineError::InvalidTransition` has fields `from: Option<String>` and `to: String` — not `event: String` as one might guess from the name. The `Option` wrapper on `from` is because transitions can originate from a "no state" condition.
+    - `BatchConfiguration` does not implement `Default` because `worker_template: String` has no sensible default value. Every test constructing one needs all 5 fields explicitly: `batch_size`, `parallelism`, `cursor_field`, `worker_template`, `failure_strategy`.
+
+    These are the kind of errors that waste time in test development because the fix is trivial but the diagnosis requires reading source definitions. Documenting struct construction patterns near test modules (or in test helper functions) prevents the same discovery cost on every test addition.
+
+13. **Circuit breaker testing is straightforward with real DB pools.** The `WebDatabaseCircuitBreaker` and `TaskReadinessCircuitBreaker` types have simple `record_failure()`/`record_success()`/`is_circuit_open()` APIs. Testing them against `#[sqlx::test]` pools is more valuable than mocking because it validates the actual health check SQL queries. The key test pattern:
+
+    ```rust
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_circuit_breaker_interaction(pool: sqlx::PgPool) {
+        let cb = WebDatabaseCircuitBreaker::new(5, Duration::from_secs(30), "test");
+        // Verify healthy state with real DB
+        let status = evaluate_db_status(&pool, &cb, &config).await;
+        assert!(status.is_connected);
+
+        // Force circuit open, verify detection
+        for _ in 0..5 { cb.record_failure(); }
+        assert!(cb.is_circuit_open());
+        let status = evaluate_db_status(&pool, &cb, &config).await;
+        assert!(!status.is_connected); // Circuit breaker overrides DB health
+    }
+    ```
+
+14. **Coverage percentage gains slow down predictably.** The first 183 unit tests provided +3.91 pp (0.021 pp/test). The final 128 broad-push tests provided +2.21 pp (0.017 pp/test). This ~20% decline per phase is expected: early tests target files with the most coverable lines and simplest test paths, while later tests hit files with more infrastructure dependencies and smaller coverable surfaces. The implication is that reaching 55% from the current 44.88% will require roughly 600 additional tests — predominantly `#[sqlx::test]` and messaging integration tests — across the remaining gap files (viable step discovery, bootstrap, event systems, gRPC layer).
+
+15. **Test helper FK chains are essential for `#[sqlx::test]` in orchestration.** Unlike `tasker-shared` where `TaskFactory` and `WorkflowStepFactory` handle test data setup, orchestration-level DB tests often need hand-crafted FK chains because the test targets span multiple domain boundaries. The pattern that worked reliably:
+
+    ```rust
+    // Create FK chain: namespace → named_task → task → named_step → workflow_step
+    sqlx::query("INSERT INTO task_namespace ...")
+        .execute(&pool).await?;
+    sqlx::query("INSERT INTO named_tasks ...")
+        .execute(&pool).await?;
+    // ... then test the actual orchestration logic
+    ```
+
+    Using `sqlx::query()` (runtime-checked) rather than `sqlx::query!()` (compile-time-checked) avoids needing to update the `.sqlx/` cache for test-only queries. This is acceptable because test SQL is simple INSERT statements, not complex business logic.
+
+16. **Six files crossed the 55% threshold during the broad push.** Tracking which files cross target thresholds helps prioritize remaining work. The files that crossed 55% were: `db_status.rs` (78.6%), `step_enqueuer.rs` (70.9%), `state_handlers.rs` (63.2%), `batch_processor.rs` (61.7%), `task_request_processor.rs` (59.6%), and `task_readiness/fallback_poller.rs` (59.3%). Combined with files already above target from earlier phases, 18 of the original 30+ below-target files now meet or exceed 55%.
