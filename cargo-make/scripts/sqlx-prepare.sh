@@ -11,6 +11,7 @@ CRATES=(
   "tasker-orchestration"
   "tasker-worker"
   "tasker-client"
+  "tasker-cli"
   "tasker-pgmq"
   "workers/ruby/ext/tasker_core"
   "workers/rust"

@@ -2,14 +2,18 @@
 //!
 //! Command-line interface for interacting with Tasker orchestration and worker APIs.
 //! Provides task management, worker monitoring, and system health checking capabilities.
+//!
+//! This is the CLI binary crate. The API client library lives in `tasker-client`.
 
-mod cli;
+pub mod commands;
+#[cfg(feature = "docs-gen")]
+pub mod docs;
 
 use clap::{Parser, Subcommand};
 use tasker_client::ClientConfig;
 use tracing::info;
 
-use cli::{
+use commands::{
     handle_auth_command, handle_config_command, handle_dlq_command, handle_docs_command,
     handle_system_command, handle_task_command, handle_worker_command,
 };

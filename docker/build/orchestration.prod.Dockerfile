@@ -38,6 +38,7 @@ COPY src/ ./src/
 COPY tasker-orchestration/ ./tasker-orchestration/
 COPY tasker-shared/ ./tasker-shared/
 COPY tasker-client/ ./tasker-client/
+COPY tasker-cli/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
 COPY migrations/ ./migrations/
 
@@ -77,6 +78,7 @@ COPY src/ ./src/
 COPY tasker-orchestration/ ./tasker-orchestration/
 COPY tasker-shared/ ./tasker-shared/
 COPY tasker-client/ ./tasker-client/
+COPY tasker-cli/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
 COPY migrations/ ./migrations/
 

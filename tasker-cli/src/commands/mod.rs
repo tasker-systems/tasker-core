@@ -1,6 +1,6 @@
 //! Command handlers for the Tasker CLI
 //!
-//! This module contains all command handler implementations, decomposed by command category.
+//! Each module handles a specific command group, delegating to `tasker-client` for API operations.
 
 pub mod auth;
 pub mod config;

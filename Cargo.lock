@@ -5775,29 +5775,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df7f62577c25e07834649fc3b39fafdc597c0a3527dc1c60129201ccfcbaa50c"
 
 [[package]]
-name = "tasker-client"
+name = "tasker-cli"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "askama",
- "async-trait",
  "chrono",
  "clap",
- "config",
- "criterion",
- "dirs",
- "dotenvy",
- "futures",
- "once_cell",
- "prost-types 0.14.3",
  "rand 0.9.2",
  "regex",
- "reqwest 0.12.26",
  "rsa",
  "serde",
  "serde_json",
  "serde_yaml",
  "serial_test",
+ "tasker-client",
+ "tasker-shared",
+ "tempfile",
+ "tokio",
+ "toml 0.9.5",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "tasker-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "config",
+ "dirs",
+ "dotenvy",
+ "futures",
+ "once_cell",
+ "prost-types 0.14.3",
+ "reqwest 0.12.26",
+ "serde",
+ "serde_json",
  "tasker-shared",
  "tempfile",
  "thiserror 2.0.18",
