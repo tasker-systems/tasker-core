@@ -424,3 +424,102 @@ impl std::fmt::Display for OrchestrationCoreStatus {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_orchestration_core_status_display_created() {
+        let status = OrchestrationCoreStatus::Created;
+        assert_eq!(format!("{}", status), "Created");
+    }
+
+    #[test]
+    fn test_orchestration_core_status_display_starting() {
+        let status = OrchestrationCoreStatus::Starting;
+        assert_eq!(format!("{}", status), "Starting");
+    }
+
+    #[test]
+    fn test_orchestration_core_status_display_running() {
+        let status = OrchestrationCoreStatus::Running;
+        assert_eq!(format!("{}", status), "Running");
+    }
+
+    #[test]
+    fn test_orchestration_core_status_display_stopping() {
+        let status = OrchestrationCoreStatus::Stopping;
+        assert_eq!(format!("{}", status), "Stopping");
+    }
+
+    #[test]
+    fn test_orchestration_core_status_display_stopped() {
+        let status = OrchestrationCoreStatus::Stopped;
+        assert_eq!(format!("{}", status), "Stopped");
+    }
+
+    #[test]
+    fn test_orchestration_core_status_display_error() {
+        let status = OrchestrationCoreStatus::Error("connection failed".to_string());
+        assert_eq!(format!("{}", status), "Error: connection failed");
+    }
+
+    #[test]
+    fn test_orchestration_core_status_partial_eq() {
+        assert_eq!(
+            OrchestrationCoreStatus::Created,
+            OrchestrationCoreStatus::Created
+        );
+        assert_eq!(
+            OrchestrationCoreStatus::Running,
+            OrchestrationCoreStatus::Running
+        );
+        assert_ne!(
+            OrchestrationCoreStatus::Running,
+            OrchestrationCoreStatus::Stopped
+        );
+        assert_eq!(
+            OrchestrationCoreStatus::Error("test".to_string()),
+            OrchestrationCoreStatus::Error("test".to_string())
+        );
+        assert_ne!(
+            OrchestrationCoreStatus::Error("a".to_string()),
+            OrchestrationCoreStatus::Error("b".to_string())
+        );
+    }
+
+    #[test]
+    fn test_orchestration_core_status_debug() {
+        let status = OrchestrationCoreStatus::Running;
+        let debug_str = format!("{:?}", status);
+        assert!(debug_str.contains("Running"));
+    }
+
+    #[test]
+    fn test_orchestration_core_status_clone() {
+        let status = OrchestrationCoreStatus::Error("clone test".to_string());
+        let cloned = status.clone();
+        assert_eq!(status, cloned);
+    }
+
+    #[test]
+    fn test_orchestration_core_status_all_variants() {
+        // Ensure all variants exist and are distinct
+        let variants = vec![
+            OrchestrationCoreStatus::Created,
+            OrchestrationCoreStatus::Starting,
+            OrchestrationCoreStatus::Running,
+            OrchestrationCoreStatus::Stopping,
+            OrchestrationCoreStatus::Stopped,
+            OrchestrationCoreStatus::Error("err".to_string()),
+        ];
+
+        // All should be unique
+        for i in 0..variants.len() {
+            for j in (i + 1)..variants.len() {
+                assert_ne!(variants[i], variants[j]);
+            }
+        }
+    }
+}

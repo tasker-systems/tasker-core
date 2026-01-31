@@ -796,4 +796,220 @@ mod tests {
         assert_eq!(result.steps_failed, 0);
         assert!(result.warnings.is_empty());
     }
+
+    #[test]
+    fn test_step_enqueue_result_serialization() {
+        let task_uuid = Uuid::now_v7();
+        let step1 = Uuid::now_v7();
+        let step2 = Uuid::now_v7();
+
+        let mut namespace_breakdown = HashMap::new();
+        namespace_breakdown.insert(
+            "default".to_string(),
+            NamespaceEnqueueStats {
+                steps_enqueued: 2,
+                steps_failed: 0,
+                queue_name: "worker_default_queue".to_string(),
+            },
+        );
+
+        let result = StepEnqueueResult {
+            task_uuid,
+            steps_discovered: 3,
+            steps_enqueued: 2,
+            steps_failed: 1,
+            processing_duration_ms: 250,
+            namespace_breakdown,
+            warnings: vec!["step3 failed to enqueue".to_string()],
+            step_uuids: vec![step1, step2],
+        };
+
+        let json = serde_json::to_string(&result).expect("should serialize");
+        let deserialized: StepEnqueueResult =
+            serde_json::from_str(&json).expect("should deserialize");
+
+        assert_eq!(deserialized.task_uuid, task_uuid);
+        assert_eq!(deserialized.steps_discovered, 3);
+        assert_eq!(deserialized.steps_enqueued, 2);
+        assert_eq!(deserialized.steps_failed, 1);
+        assert_eq!(deserialized.processing_duration_ms, 250);
+        assert_eq!(deserialized.warnings.len(), 1);
+        assert_eq!(deserialized.step_uuids.len(), 2);
+        assert!(deserialized.namespace_breakdown.contains_key("default"));
+    }
+
+    #[test]
+    fn test_step_enqueue_result_clone() {
+        let task_uuid = Uuid::now_v7();
+        let result = StepEnqueueResult {
+            task_uuid,
+            steps_discovered: 5,
+            steps_enqueued: 4,
+            steps_failed: 1,
+            processing_duration_ms: 100,
+            namespace_breakdown: HashMap::new(),
+            warnings: vec!["warn".to_string()],
+            step_uuids: vec![Uuid::now_v7()],
+        };
+
+        let cloned = result.clone();
+        assert_eq!(cloned.task_uuid, result.task_uuid);
+        assert_eq!(cloned.steps_enqueued, result.steps_enqueued);
+        assert_eq!(cloned.warnings.len(), 1);
+        assert_eq!(cloned.step_uuids.len(), 1);
+    }
+
+    #[test]
+    fn test_step_enqueue_result_debug() {
+        let result = StepEnqueueResult {
+            task_uuid: Uuid::now_v7(),
+            steps_discovered: 2,
+            steps_enqueued: 2,
+            steps_failed: 0,
+            processing_duration_ms: 50,
+            namespace_breakdown: HashMap::new(),
+            warnings: vec![],
+            step_uuids: vec![],
+        };
+
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("StepEnqueueResult"));
+        assert!(debug_str.contains("steps_discovered: 2"));
+    }
+
+    #[test]
+    fn test_namespace_enqueue_stats_serialization() {
+        let stats = NamespaceEnqueueStats {
+            steps_enqueued: 10,
+            steps_failed: 2,
+            queue_name: "worker_fulfillment_queue".to_string(),
+        };
+
+        let json = serde_json::to_string(&stats).expect("should serialize");
+        let deserialized: NamespaceEnqueueStats =
+            serde_json::from_str(&json).expect("should deserialize");
+
+        assert_eq!(deserialized.steps_enqueued, 10);
+        assert_eq!(deserialized.steps_failed, 2);
+        assert_eq!(deserialized.queue_name, "worker_fulfillment_queue");
+    }
+
+    #[test]
+    fn test_namespace_enqueue_stats_clone() {
+        let stats = NamespaceEnqueueStats {
+            steps_enqueued: 5,
+            steps_failed: 1,
+            queue_name: "worker_test_queue".to_string(),
+        };
+
+        let cloned = stats.clone();
+        assert_eq!(cloned.steps_enqueued, stats.steps_enqueued);
+        assert_eq!(cloned.steps_failed, stats.steps_failed);
+        assert_eq!(cloned.queue_name, stats.queue_name);
+    }
+
+    #[test]
+    fn test_step_enqueue_result_with_multiple_namespaces() {
+        let task_uuid = Uuid::now_v7();
+        let mut namespace_breakdown = HashMap::new();
+
+        namespace_breakdown.insert(
+            "fulfillment".to_string(),
+            NamespaceEnqueueStats {
+                steps_enqueued: 3,
+                steps_failed: 0,
+                queue_name: "worker_fulfillment_queue".to_string(),
+            },
+        );
+        namespace_breakdown.insert(
+            "billing".to_string(),
+            NamespaceEnqueueStats {
+                steps_enqueued: 2,
+                steps_failed: 1,
+                queue_name: "worker_billing_queue".to_string(),
+            },
+        );
+
+        let result = StepEnqueueResult {
+            task_uuid,
+            steps_discovered: 6,
+            steps_enqueued: 5,
+            steps_failed: 1,
+            processing_duration_ms: 300,
+            namespace_breakdown,
+            warnings: vec![],
+            step_uuids: vec![],
+        };
+
+        assert_eq!(result.namespace_breakdown.len(), 2);
+        assert_eq!(
+            result.namespace_breakdown["fulfillment"].steps_enqueued,
+            3
+        );
+        assert_eq!(result.namespace_breakdown["billing"].steps_failed, 1);
+    }
+
+    #[test]
+    fn test_step_enqueue_result_empty() {
+        let task_uuid = Uuid::now_v7();
+        let result = StepEnqueueResult {
+            task_uuid,
+            steps_discovered: 0,
+            steps_enqueued: 0,
+            steps_failed: 0,
+            processing_duration_ms: 1,
+            namespace_breakdown: HashMap::new(),
+            warnings: vec!["No viable steps found for enqueueing".to_string()],
+            step_uuids: Vec::new(),
+        };
+
+        assert_eq!(result.steps_discovered, 0);
+        assert_eq!(result.steps_enqueued, 0);
+        assert_eq!(result.warnings.len(), 1);
+        assert!(result.step_uuids.is_empty());
+    }
+
+    #[test]
+    fn test_step_enqueuer_config_customization() {
+        let config = StepEnqueuerConfig {
+            max_steps_per_task: 200,
+            enqueue_delay_seconds: 5,
+            enable_detailed_logging: true,
+            enqueue_timeout_seconds: 60,
+        };
+
+        assert_eq!(config.max_steps_per_task, 200);
+        assert_eq!(config.enqueue_delay_seconds, 5);
+        assert!(config.enable_detailed_logging);
+        assert_eq!(config.enqueue_timeout_seconds, 60);
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_step_enqueuer_creation(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let enqueuer = StepEnqueuer::new(context).await?;
+
+        // Verify configuration is loaded
+        let config = enqueuer.config();
+        assert!(config.max_steps_per_task > 0);
+        assert!(config.enqueue_timeout_seconds > 0);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_step_enqueuer_config_access(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let enqueuer = StepEnqueuer::new(context).await?;
+
+        let config = enqueuer.config();
+        // Default config values should be reasonable
+        assert!(config.max_steps_per_task > 0);
+        assert_eq!(config.enqueue_delay_seconds, 0);
+        assert!(!config.enable_detailed_logging);
+        Ok(())
+    }
 }

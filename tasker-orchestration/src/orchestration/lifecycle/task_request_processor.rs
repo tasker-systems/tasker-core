@@ -355,4 +355,101 @@ mod tests {
         assert_eq!(parsed.task_request.version, "1.0.0");
         assert_eq!(parsed.metadata.requester, "api_gateway");
     }
+
+    #[test]
+    fn test_config_customization() {
+        let config = TaskRequestProcessorConfig {
+            request_queue_name: "custom_requests".to_string(),
+            batch_size: 20,
+            visibility_timeout_seconds: 600,
+            polling_interval_seconds: 5,
+            max_processing_attempts: 5,
+        };
+
+        assert_eq!(config.request_queue_name, "custom_requests");
+        assert_eq!(config.batch_size, 20);
+        assert_eq!(config.visibility_timeout_seconds, 600);
+        assert_eq!(config.polling_interval_seconds, 5);
+        assert_eq!(config.max_processing_attempts, 5);
+    }
+
+    #[test]
+    fn test_config_debug() {
+        let config = TaskRequestProcessorConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("TaskRequestProcessorConfig"));
+        assert!(debug_str.contains("orchestration_task_requests"));
+    }
+
+    #[test]
+    fn test_config_clone() {
+        let config = TaskRequestProcessorConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.request_queue_name, config.request_queue_name);
+        assert_eq!(cloned.batch_size, config.batch_size);
+    }
+
+    #[test]
+    fn test_task_request_processor_stats_construction() {
+        let stats = TaskRequestProcessorStats {
+            request_queue_size: 42,
+            request_queue_name: "orchestration_task_requests".to_string(),
+        };
+
+        assert_eq!(stats.request_queue_size, 42);
+        assert_eq!(stats.request_queue_name, "orchestration_task_requests");
+    }
+
+    #[test]
+    fn test_task_request_processor_stats_debug() {
+        let stats = TaskRequestProcessorStats {
+            request_queue_size: 10,
+            request_queue_name: "test_queue".to_string(),
+        };
+
+        let debug_str = format!("{:?}", stats);
+        assert!(debug_str.contains("TaskRequestProcessorStats"));
+        assert!(debug_str.contains("10"));
+    }
+
+    #[test]
+    fn test_task_request_processor_stats_clone() {
+        let stats = TaskRequestProcessorStats {
+            request_queue_size: 5,
+            request_queue_name: "test".to_string(),
+        };
+
+        let cloned = stats.clone();
+        assert_eq!(cloned.request_queue_size, stats.request_queue_size);
+        assert_eq!(cloned.request_queue_name, stats.request_queue_name);
+    }
+
+    #[test]
+    fn test_task_request_processor_stats_negative_queue_size() {
+        // Queue size can be -1 when stats query fails
+        let stats = TaskRequestProcessorStats {
+            request_queue_size: -1,
+            request_queue_name: "orchestration_task_requests".to_string(),
+        };
+
+        assert_eq!(stats.request_queue_size, -1);
+    }
+
+    #[test]
+    fn test_task_request_message_minimal() {
+        use tasker_shared::models::core::task_request::TaskRequest;
+
+        // Create a minimal task request (only required fields)
+        let task_request =
+            TaskRequest::new("simple_task".to_string(), "default".to_string());
+
+        let request = TaskRequestMessage::new(task_request, "test".to_string());
+
+        let serialized = serde_json::to_value(&request).unwrap();
+        let parsed: TaskRequestMessage = serde_json::from_value(serialized).unwrap();
+
+        assert_eq!(parsed.task_request.namespace, "default");
+        assert_eq!(parsed.task_request.name, "simple_task");
+        assert!(!parsed.task_request.version.is_empty()); // has default version
+    }
 }
