@@ -1,10 +1,10 @@
 # Coverage Analysis: tasker-orchestration
 
-**Current Coverage**: 41.64% line (16,685 / 40,066), 38.04% function (2,147 / 5,644) — as of Jan 31, 2026 — 792 tests
+**Current Coverage**: 42.67% line (17,315 / 40,578), 38.66% function (2,190 / 5,664) — as of Jan 31, 2026 — 814 tests
 **Baseline Coverage**: 31.60% line (11,790 / 37,306), 28.57% function (1,509 / 5,282)
 **Target**: 55%
-**Gap**: 13.36 percentage points remaining (was 23.4 pp at baseline)
-**Progress**: +10.04 pp line coverage, +368 tests added (183 unit + 41 integration + 35 refactoring-phase + 71 quick-win/pipeline + 38 staleness/backoff)
+**Gap**: 12.33 percentage points remaining (was 23.4 pp at baseline)
+**Progress**: +11.07 pp line coverage, +390 tests added (183 unit + 41 integration + 35 refactoring-phase + 71 quick-win/pipeline + 38 staleness/backoff + 22 DB integration)
 
 ---
 
@@ -46,14 +46,14 @@ These 23 files have zero test coverage. Together they represent 1,771 coverable 
 
 | File | Lines (coverable) | Covered | Coverage % | Description |
 |------|-------------------|---------|-----------|-------------|
-| `orchestration/hydration/step_result_hydrator.rs` | 149 | 3 | 2.0% | Hydrates full StepExecutionResult from lightweight PGMQ messages via database lookup. |
+| ~~`orchestration/hydration/step_result_hydrator.rs`~~ | ~~230~~ | ~~186~~ | **80.87%** | 10 DB integration tests added. Above target. |
 | `orchestration/viable_step_discovery.rs` | 342 | 25 | 7.3% | SQL-driven step readiness discovery with state machine verification and dependency analysis. |
 | `orchestration/lifecycle/result_processing/message_handler.rs` | 271 | 161 | **59.37%** | Routes step result messages to appropriate handlers. 6 pipeline integration tests added. |
 | `orchestration/lifecycle/batch_processing/service.rs` | 203 | 18 | 8.9% | Dynamic batch worker instance creation: dataset analysis, cursor generation, transactional step creation. |
 | `orchestration/bootstrap.rs` | 444 | 43 | 9.7% | Unified orchestration system bootstrap across all deployment modes with lifecycle management. |
-| `orchestration/hydration/finalization_hydrator.rs` | 63 | 7 | 11.1% | Extracts and validates task_uuid from PGMQ finalization messages. |
+| ~~`orchestration/hydration/finalization_hydrator.rs`~~ | ~~198~~ | ~~189~~ | **95.45%** | Inline tests now measured. Well above target. |
 | `orchestration/lifecycle/result_processing/metadata_processor.rs` | 80 | 65 | **81.11%** | 6 pipeline integration tests added. Now above target. |
-| `orchestration/hydration/task_request_hydrator.rs` | 50 | 7 | 14.0% | Hydrates task request data from queue messages. |
+| ~~`orchestration/hydration/task_request_hydrator.rs`~~ | ~~186~~ | ~~177~~ | **95.16%** | Inline tests now measured. Well above target. |
 | `orchestration/lifecycle/result_processing/state_transition_handler.rs` | 162 | 91 | **56.17%** | 10 pipeline integration tests added. Above target. |
 | `orchestration/lifecycle/decision_point/service.rs` | 255 | 41 | 16.1% | Decision point processing: dynamic workflow step creation from decision outcomes. |
 | ~~`orchestration/state_manager.rs`~~ | ~~442~~ | ~~77~~ | **Deleted** | Removed — 11/14 methods were dead code. 3 used methods inlined into callers. |
@@ -61,7 +61,7 @@ These 23 files have zero test coverage. Together they represent 1,771 coverable 
 | `orchestration/staleness_detector.rs` | 490 | 312 | **63.67%** | 20 pure unit tests added. Above target. |
 | `orchestration/lifecycle/result_processing/task_coordinator.rs` | 108 | 81 | **75.21%** | 4 pipeline integration tests added. Above target. |
 | `orchestration/core.rs` | 221 | 54 | 24.4% | OrchestrationCore: command-pattern bootstrap, channel setup, health monitoring. |
-| `orchestration/lifecycle/task_finalization/state_handlers.rs` | 216 | 56 | 25.9% | Task execution state handlers during finalization (all-complete, has-errors, in-progress). |
+| ~~`orchestration/lifecycle/task_finalization/state_handlers.rs`~~ | ~~270~~ | ~~225~~ | **83.33%** | 4 DB integration tests added. Above target. |
 | `health/db_status.rs` | 90 | 24 | 26.7% | Database health status checks. |
 | `orchestration/event_systems/task_readiness_event_system.rs` | 86 | 26 | 30.2% | Task readiness event system using LISTEN/NOTIFY for event-driven step discovery. |
 | `orchestration/lifecycle/step_result_processor.rs` | 69 | 22 | 31.9% | Delegates step result processing to the result processing module. |
@@ -73,7 +73,7 @@ These 23 files have zero test coverage. Together they represent 1,771 coverable 
 | `orchestration/lifecycle/task_finalization/event_publisher.rs` | 143 | 54 | 37.8% | Publishes task completion/error events to messaging queues. |
 | `orchestration/lifecycle/step_enqueuer_services/state_handlers.rs` | 164 | 66 | 40.2% | Step state handling during enqueueing (pending, ready, blocked). |
 | `orchestration/task_readiness/fallback_poller.rs` | 129 | 53 | 41.1% | Fallback poller for task readiness with circuit breaker integration. |
-| `orchestration/lifecycle/task_finalization/completion_handler.rs` | 331 | 147 | 44.4% | Task completion logic: all-steps-complete evaluation, error aggregation, final state transitions. |
+| ~~`orchestration/lifecycle/task_finalization/completion_handler.rs`~~ | ~~405~~ | ~~341~~ | **84.20%** | 8 DB integration tests added. Above target. |
 | ~~`orchestration/event_systems/orchestration_statistics.rs`~~ | ~~172~~ | ~~0~~ | **81.37%** | 12 pure unit tests added. Now above target. |
 | ~~`orchestration/error_classifier.rs`~~ | ~~804~~ | ~~727~~ | **90.42%** | 25 pure unit tests added. Well above target. |
 | `services/template_query_service.rs` | 171 | 85 | 49.7% | Template query service: listing, filtering, caching for task templates. |
@@ -389,9 +389,10 @@ Extend coverage on already-partially-covered modules, targeting the 55-85% range
 | **Completed** | **Refactoring (denominator reduction + testability)** | **~2,700 lines removed/restructured** | **+~1.88 pp** | **37.58%** |
 | **Completed** | **Quick-win unit + result processing pipeline** | **71 tests (45 pure unit + 26 integration)** | **+3.42 pp** | **41.0%** |
 | **Completed** | **Staleness detector + backoff calculator** | **38 tests (pure unit)** | **+0.64 pp** | **41.64%** |
-| Phase 2 | DB integration tests (viable steps, finalization, hydration) | ~2,000 | +6.0 pp | ~47.6% |
-| Phase 3 | Messaging + event system integration | ~1,500 | +4.0 pp | ~51.6% |
-| Phase 4 | gRPC, API layer, and final push | ~1,500 | +3.4 pp | ~55.0% |
+| **Completed** | **DB integration: hydration + finalization pipeline** | **22 tests (#[sqlx::test])** | **+1.03 pp** | **42.67%** |
+| Phase 2 | DB integration tests (decision point, batch processing, viable steps) | ~1,500 | +5.0 pp | ~47.7% |
+| Phase 3 | Messaging + event system integration | ~1,500 | +4.0 pp | ~51.7% |
+| Phase 4 | gRPC, API layer, and final push | ~1,500 | +3.3 pp | ~55.0% |
 
 **Key constraints**:
 - Many critical modules (state_manager, viable_step_discovery, hydration, result processing) require a live database connection for meaningful integration tests, since they use `sqlx::query!` macros and SQL function calls.
@@ -493,3 +494,17 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 | `error_handling_service.rs` | 0% | 41.97% | +42.0 pp |
 
 **Pure unit test opportunities exhausted**: After this phase, remaining coverage gains require infrastructure (PostgreSQL, messaging, gRPC). The next phase targets database integration tests with `#[sqlx::test]`.
+
+### DB Integration: Hydration + Finalization Pipeline (Jan 31, 2026)
+
+**Database integration tests** added 22 `#[sqlx::test]` tests across 3 files, targeting the step result hydration and task finalization pipeline with real PostgreSQL transactions:
+
+- `step_result_hydrator.rs`: 10 tests — full hydration flow from PgmqMessage and QueuedMessage, missing step error, no results error, invalid results JSON deserialization failure, invalid message format, Debug impl (2.0% → 80.87%)
+- `completion_handler.rs`: 8 tests — complete_task from StepsInProcess (two-step transition through EvaluatingResults), from Initializing (no-steps), from Pending (error rejection), already-complete idempotent, with TaskExecutionContext data, error_task from EvaluatingResults → BlockedByFailures, from BlockedByFailures → Error terminal, already-Error idempotent (44.4% → 84.20%)
+- `state_handlers.rs`: 4 tests — handle_processing_state NoAction with/without context, handle_unclear_state delegation to error_task, handle_waiting_state blocked-by-failures delegation (25.9% → 83.33%)
+
+**Key technique**: Test helper functions using `sqlx::query()` (runtime-checked, no cache update needed) create complete FK dependency chains (namespace → named_task → task → named_step → workflow_step) for each test. `SystemContext::with_pool(pool)` provides the full orchestration context from the test pool.
+
+**Side effect**: finalization_hydrator.rs rose to 95.45% and task_request_hydrator.rs to 95.16% — their inline tests were already comprehensive but weren't counted in the previous measurement because coverage was run with fewer tests.
+
+**Coverage impact**: 41.64% → 42.67% (+1.03 pp), 792 → 814 tests
