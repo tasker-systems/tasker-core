@@ -436,3 +436,102 @@ struct OrchestrationPollerStatsRef {
     polling_errors: Arc<AtomicU64>,
     last_poll_at: Arc<tokio::sync::Mutex<Option<Instant>>>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_orchestration_poller_config_default() {
+        let config = OrchestrationPollerConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.polling_interval, Duration::from_secs(30));
+        assert_eq!(config.batch_size, 50);
+        assert_eq!(config.age_threshold, Duration::from_secs(5));
+        assert_eq!(config.max_age, Duration::from_secs(24 * 60 * 60));
+        assert_eq!(config.monitored_queues.len(), 2);
+        assert!(config
+            .monitored_queues
+            .contains(&"orchestration_step_results".to_string()));
+        assert!(config
+            .monitored_queues
+            .contains(&"orchestration_task_requests".to_string()));
+        assert_eq!(config.namespace, "orchestration");
+        assert_eq!(config.visibility_timeout, Duration::from_secs(30));
+    }
+
+    #[test]
+    fn test_orchestration_poller_config_custom() {
+        let config = OrchestrationPollerConfig {
+            enabled: false,
+            polling_interval: Duration::from_secs(60),
+            batch_size: 100,
+            age_threshold: Duration::from_secs(10),
+            max_age: Duration::from_secs(3600),
+            monitored_queues: vec!["custom_queue".to_string()],
+            namespace: "custom".to_string(),
+            visibility_timeout: Duration::from_secs(60),
+        };
+
+        assert!(!config.enabled);
+        assert_eq!(config.polling_interval, Duration::from_secs(60));
+        assert_eq!(config.batch_size, 100);
+        assert_eq!(config.monitored_queues.len(), 1);
+        assert_eq!(config.namespace, "custom");
+    }
+
+    #[test]
+    fn test_orchestration_poller_config_clone() {
+        let config = OrchestrationPollerConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.enabled, config.enabled);
+        assert_eq!(cloned.polling_interval, config.polling_interval);
+        assert_eq!(cloned.batch_size, config.batch_size);
+        assert_eq!(cloned.monitored_queues, config.monitored_queues);
+    }
+
+    #[test]
+    fn test_orchestration_poller_config_debug() {
+        let config = OrchestrationPollerConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("OrchestrationPollerConfig"));
+        assert!(debug_str.contains("orchestration"));
+    }
+
+    #[test]
+    fn test_orchestration_poller_stats_default() {
+        let stats = OrchestrationPollerStats::default();
+        assert_eq!(stats.polling_cycles.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.messages_processed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.step_results_processed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.task_requests_processed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.messages_skipped.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.polling_errors.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_orchestration_poller_stats_increment() {
+        let stats = OrchestrationPollerStats::default();
+
+        stats.polling_cycles.fetch_add(3, Ordering::Relaxed);
+        stats.messages_processed.fetch_add(10, Ordering::Relaxed);
+        stats.step_results_processed.fetch_add(7, Ordering::Relaxed);
+        stats.task_requests_processed.fetch_add(3, Ordering::Relaxed);
+        stats.messages_skipped.fetch_add(2, Ordering::Relaxed);
+        stats.polling_errors.fetch_add(1, Ordering::Relaxed);
+
+        assert_eq!(stats.polling_cycles.load(Ordering::Relaxed), 3);
+        assert_eq!(stats.messages_processed.load(Ordering::Relaxed), 10);
+        assert_eq!(stats.step_results_processed.load(Ordering::Relaxed), 7);
+        assert_eq!(stats.task_requests_processed.load(Ordering::Relaxed), 3);
+        assert_eq!(stats.messages_skipped.load(Ordering::Relaxed), 2);
+        assert_eq!(stats.polling_errors.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn test_orchestration_poller_stats_debug() {
+        let stats = OrchestrationPollerStats::default();
+        let debug_str = format!("{:?}", stats);
+        assert!(debug_str.contains("OrchestrationPollerStats"));
+    }
+}
