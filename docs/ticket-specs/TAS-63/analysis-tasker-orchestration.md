@@ -1,10 +1,10 @@
 # Coverage Analysis: tasker-orchestration
 
-**Current Coverage**: 35.70% line, 32.59% function (as of Jan 30, 2026 — 648 tests)
+**Current Coverage**: 41.0% line, 37.09% function (as of Jan 31, 2026 — 754 tests)
 **Baseline Coverage**: 31.60% line (11,790 / 37,306), 28.57% function (1,509 / 5,282)
 **Target**: 55%
-**Gap**: 19.3 percentage points remaining (was 23.4 pp at baseline)
-**Progress**: +4.10 pp line coverage, +224 tests added (183 unit + 41 integration)
+**Gap**: 14.0 percentage points remaining (was 23.4 pp at baseline)
+**Progress**: +9.4 pp line coverage, +330 tests added (183 unit + 41 integration + 35 refactoring-phase + 71 quick-win/pipeline)
 
 ---
 
@@ -74,6 +74,7 @@ These 23 files have zero test coverage. Together they represent 1,771 coverable 
 | `orchestration/lifecycle/step_enqueuer_services/state_handlers.rs` | 164 | 66 | 40.2% | Step state handling during enqueueing (pending, ready, blocked). |
 | `orchestration/task_readiness/fallback_poller.rs` | 129 | 53 | 41.1% | Fallback poller for task readiness with circuit breaker integration. |
 | `orchestration/lifecycle/task_finalization/completion_handler.rs` | 331 | 147 | 44.4% | Task completion logic: all-steps-complete evaluation, error aggregation, final state transitions. |
+| `orchestration/event_systems/orchestration_statistics.rs` | 172 | 0 | 0% | Runtime statistics tracking with atomic counters and component aggregation. |
 | `orchestration/error_classifier.rs` | 531 | 261 | 49.2% | Error classification engine: transient/permanent/retryable categorization with pattern matching. |
 | `services/template_query_service.rs` | 171 | 85 | 49.7% | Template query service: listing, filtering, caching for task templates. |
 
@@ -385,8 +386,8 @@ Extend coverage on already-partially-covered modules, targeting the 55-85% range
 |-------|-------|-----------------------|----------------|---------------------|
 | Baseline | -- | -- | -- | 31.6% |
 | **Completed** | **Unit tests + integration tests** | **1,228 integration + inline unit** | **+4.10 pp** | **35.70%** |
-| **Completed** | **Refactoring (denominator reduction + testability)** | **~2,700 lines removed/restructured** | **+~1.2 pp (denominator)** | **~36.9%** |
-| Phase 1 (remaining) | Tests for extracted pure functions + service layer | ~1,500 | +3.8 pp | ~40.7% |
+| **Completed** | **Refactoring (denominator reduction + testability)** | **~2,700 lines removed/restructured** | **+~1.88 pp** | **37.58%** |
+| **Completed** | **Quick-win unit + result processing pipeline** | **71 tests (45 pure unit + 26 integration)** | **+3.42 pp** | **41.0%** |
 | Phase 2 | Reliability and API layer | ~2,369 | +6.5 pp | ~47.2% |
 | Phase 3 | Depth and completeness | ~1,700 | +4.5 pp | ~51.7% |
 | Phase 4 | Final push to target | ~1,500 | +3.3 pp | ~55.0% |
@@ -440,3 +441,27 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 **Concurrency fix:** `OrchestrationProcessingStats` converted from `Arc<RwLock<struct>>` to `AtomicProcessingStats` with lock-free `AtomicU64` counters.
 
 **Testability unlocked:** The `CommandProcessingService` can be constructed with `MessagingProvider::new_in_memory()` for unit tests. This eliminates the messaging infrastructure barrier identified in the original analysis for ~340 lines of command processing logic. Combined with the pure function extractions (CommandOutcome, health evaluator, step request builder, dependency filter), approximately 500 lines of previously untestable logic are now independently verifiable.
+
+### Quick-Win Unit Tests + Result Processing Pipeline (Jan 31, 2026)
+
+**Pure unit tests** added 45 inline tests across 3 files:
+- `orchestration_statistics.rs`: 12 tests — default, clone, counters, processing_rate, average_latency, deployment_mode_score (0% → ~65%)
+- `error_classifier.rs`: 25 tests — classify_state_error, classify_validation_error, classify_execution_error (9 variants), exponential backoff, category delays, suggestions (49% → ~75%)
+- `system_events.rs`: 8 tests — get_event_metadata, get_step_transitions, get_transitions_from_state, validate_event_payload (63% → ~80%)
+
+**Result processing pipeline integration tests** added 26 tests across 4 files:
+- `state_transition_handler.rs`: 10 tests — extract_error_message, process_state_transition, should_retry_step, determine_success_event (14% → ~50%)
+- `task_coordinator.rs`: 4 tests — coordinator actions for different task states (21% → ~35%)
+- `metadata_processor.rs`: 6 tests — empty metadata, server/rate-limit/custom backoff hints, error context (14% → ~50%)
+- `message_handler.rs`: 6 tests — handle_step_result_message, handle_step_execution_result, get_correlation_id (8% → ~35%)
+
+**Coverage impact**: 37.58% → 41.0% (+3.42 pp), 683 → 754 tests
+
+**New modules at 100% coverage** (from extractions):
+- `event_systems/command_outcome.rs` — Pure `from_*` classifiers
+- `health_check_evaluator.rs` — Pure function for health evaluation
+
+**Notable coverage improvements** from refactoring + command processing tests:
+- `commands/service.rs` — 57% (new module, testable with InMemoryMessagingService)
+- `commands/types.rs` — 82% (extracted type definitions)
+- Post-refactoring measurement: 37.58% line, 34.84% function, 683 tests

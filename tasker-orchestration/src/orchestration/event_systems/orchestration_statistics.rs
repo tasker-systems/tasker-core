@@ -169,3 +169,181 @@ pub struct OrchestrationComponentStatistics {
     /// Current deployment mode
     pub deployment_mode: DeploymentMode,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_statistics_zeroed() {
+        let stats = OrchestrationStatistics::default();
+        assert_eq!(stats.events_processed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.events_failed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.operations_coordinated.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            stats.last_processing_time_epoch_nanos.load(Ordering::Relaxed),
+            0
+        );
+        assert!(stats.processing_latencies.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_clone_preserves_counter_values() {
+        let stats = OrchestrationStatistics::default();
+        stats.events_processed.store(42, Ordering::Relaxed);
+        stats.events_failed.store(7, Ordering::Relaxed);
+        stats.operations_coordinated.store(100, Ordering::Relaxed);
+        stats
+            .last_processing_time_epoch_nanos
+            .store(999, Ordering::Relaxed);
+
+        let cloned = stats.clone();
+
+        assert_eq!(cloned.events_processed.load(Ordering::Relaxed), 42);
+        assert_eq!(cloned.events_failed.load(Ordering::Relaxed), 7);
+        assert_eq!(cloned.operations_coordinated.load(Ordering::Relaxed), 100);
+        assert_eq!(
+            cloned
+                .last_processing_time_epoch_nanos
+                .load(Ordering::Relaxed),
+            999
+        );
+    }
+
+    #[test]
+    fn test_clone_preserves_latencies() {
+        let stats = OrchestrationStatistics::default();
+        {
+            let mut latencies = stats.processing_latencies.lock().unwrap();
+            latencies.push_back(Duration::from_millis(10));
+            latencies.push_back(Duration::from_millis(20));
+            latencies.push_back(Duration::from_millis(30));
+        }
+
+        let cloned = stats.clone();
+        let cloned_latencies = cloned.processing_latencies.lock().unwrap();
+        assert_eq!(cloned_latencies.len(), 3);
+        assert_eq!(cloned_latencies[0], Duration::from_millis(10));
+        assert_eq!(cloned_latencies[1], Duration::from_millis(20));
+        assert_eq!(cloned_latencies[2], Duration::from_millis(30));
+    }
+
+    #[test]
+    fn test_events_processed_counter() {
+        let stats = OrchestrationStatistics::default();
+        stats.events_processed.fetch_add(5, Ordering::Relaxed);
+        assert_eq!(stats.events_processed(), 5);
+
+        stats.events_processed.fetch_add(3, Ordering::Relaxed);
+        assert_eq!(stats.events_processed(), 8);
+    }
+
+    #[test]
+    fn test_events_failed_counter() {
+        let stats = OrchestrationStatistics::default();
+        stats.events_failed.fetch_add(2, Ordering::Relaxed);
+        assert_eq!(stats.events_failed(), 2);
+
+        stats.events_failed.fetch_add(1, Ordering::Relaxed);
+        assert_eq!(stats.events_failed(), 3);
+    }
+
+    #[test]
+    fn test_processing_rate_empty_returns_zero() {
+        let stats = OrchestrationStatistics::default();
+        assert_eq!(stats.processing_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_processing_rate_with_known_latencies() {
+        let stats = OrchestrationStatistics::default();
+        {
+            let mut latencies = stats.processing_latencies.lock().unwrap();
+            // 10 events, each taking 100ms = 1 second total → 10 events/sec
+            for _ in 0..10 {
+                latencies.push_back(Duration::from_millis(100));
+            }
+        }
+
+        let rate = stats.processing_rate();
+        // 10 events / 1.0 sec = 10.0 events/sec
+        assert!((rate - 10.0).abs() < 0.01, "Expected ~10.0, got {}", rate);
+    }
+
+    #[test]
+    fn test_average_latency_empty_returns_zero() {
+        let stats = OrchestrationStatistics::default();
+        assert_eq!(stats.average_latency_ms(), 0.0);
+    }
+
+    #[test]
+    fn test_average_latency_calculation() {
+        let stats = OrchestrationStatistics::default();
+        {
+            let mut latencies = stats.processing_latencies.lock().unwrap();
+            latencies.push_back(Duration::from_millis(10));
+            latencies.push_back(Duration::from_millis(20));
+            latencies.push_back(Duration::from_millis(30));
+        }
+
+        let avg = stats.average_latency_ms();
+        // (10 + 20 + 30) / 3 = 20.0
+        assert!((avg - 20.0).abs() < 0.01, "Expected ~20.0, got {}", avg);
+    }
+
+    #[test]
+    fn test_deployment_mode_score_no_events() {
+        let stats = OrchestrationStatistics::default();
+        // No events yet → returns 1.0 (assume perfect)
+        assert_eq!(stats.deployment_mode_score(), 1.0);
+    }
+
+    #[test]
+    fn test_deployment_mode_score_all_success_low_latency() {
+        let stats = OrchestrationStatistics::default();
+        stats.events_processed.store(100, Ordering::Relaxed);
+        // No failures
+        {
+            let mut latencies = stats.processing_latencies.lock().unwrap();
+            // Very low latency: 1ms each
+            for _ in 0..100 {
+                latencies.push_back(Duration::from_millis(1));
+            }
+        }
+
+        let score = stats.deployment_mode_score();
+        // success_rate = 100/100 = 1.0
+        // avg_latency = 1.0ms
+        // latency_score = min(100.0 / 1.0, 1.0) = 1.0
+        // score = (1.0 + 1.0) / 2.0 = 1.0
+        assert!(
+            (score - 1.0).abs() < 0.01,
+            "Expected ~1.0, got {}",
+            score
+        );
+    }
+
+    #[test]
+    fn test_deployment_mode_score_with_failures() {
+        let stats = OrchestrationStatistics::default();
+        stats.events_processed.store(50, Ordering::Relaxed);
+        stats.events_failed.store(50, Ordering::Relaxed);
+        {
+            let mut latencies = stats.processing_latencies.lock().unwrap();
+            for _ in 0..50 {
+                latencies.push_back(Duration::from_millis(1));
+            }
+        }
+
+        let score = stats.deployment_mode_score();
+        // success_rate = 50/100 = 0.5
+        // avg_latency = 1.0ms
+        // latency_score = min(100.0 / 1.0, 1.0) = 1.0
+        // score = (0.5 + 1.0) / 2.0 = 0.75
+        assert!(
+            (score - 0.75).abs() < 0.01,
+            "Expected ~0.75, got {}",
+            score
+        );
+    }
+}

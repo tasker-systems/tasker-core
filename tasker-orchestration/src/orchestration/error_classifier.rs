@@ -914,6 +914,390 @@ mod tests {
         assert!(classification.is_final_attempt);
     }
 
+    // ── classify_state_error ──
+
+    #[test]
+    fn test_state_error_concurrent_is_retryable() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::StateTransitionFailed {
+            entity_type: "WorkflowStep".to_string(),
+            entity_uuid: context.step_uuid,
+            reason: "concurrent modification detected".to_string(),
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(
+            classification.error_category,
+            ErrorCategory::StateInconsistency
+        );
+        assert!(classification.is_retryable);
+        assert!(classification.retry_delay.is_some());
+        assert_eq!(classification.error_code, "STATE_TRANSITION_ERROR");
+    }
+
+    #[test]
+    fn test_state_error_lock_contention_is_retryable() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::StateTransitionFailed {
+            entity_type: "WorkflowStep".to_string(),
+            entity_uuid: context.step_uuid,
+            reason: "lock contention on row".to_string(),
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(
+            classification.error_category,
+            ErrorCategory::StateInconsistency
+        );
+        assert!(classification.is_retryable);
+    }
+
+    #[test]
+    fn test_state_error_permanent_when_no_conflict_keyword() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::StateTransitionFailed {
+            entity_type: "WorkflowStep".to_string(),
+            entity_uuid: context.step_uuid,
+            reason: "invalid state transition".to_string(),
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Permanent);
+        assert!(!classification.is_retryable);
+        assert!(classification.retry_delay.is_none());
+    }
+
+    // ── classify_validation_error ──
+
+    #[test]
+    fn test_validation_error_is_permanent() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ValidationError {
+            field: "email".to_string(),
+            reason: "invalid format".to_string(),
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Permanent);
+        assert!(!classification.is_retryable);
+        assert!(classification.retry_delay.is_none());
+        assert_eq!(classification.error_code, "VALIDATION_ERROR");
+        assert!(classification.is_final_attempt);
+    }
+
+    #[test]
+    fn test_validation_error_metadata_includes_field() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ValidationError {
+            field: "amount".to_string(),
+            reason: "must be positive".to_string(),
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(
+            classification.metadata.get("validation_field"),
+            Some(&serde_json::json!("amount"))
+        );
+        assert_eq!(
+            classification.metadata.get("validation_reason"),
+            Some(&serde_json::json!("must be positive"))
+        );
+    }
+
+    // ── classify_execution_error ──
+
+    #[test]
+    fn test_execution_error_timeout_keyword() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::StepExecutionFailed {
+                step_uuid: context.step_uuid,
+                reason: "operation timeout after 30s".to_string(),
+                error_code: None,
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Timeout);
+        assert!(classification.is_retryable);
+    }
+
+    #[test]
+    fn test_execution_error_network_keyword() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::StepExecutionFailed {
+                step_uuid: context.step_uuid,
+                reason: "network connection refused".to_string(),
+                error_code: None,
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Network);
+        assert!(classification.is_retryable);
+    }
+
+    #[test]
+    fn test_execution_error_rate_limit_keyword() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::StepExecutionFailed {
+                step_uuid: context.step_uuid,
+                reason: "rate limit exceeded".to_string(),
+                error_code: Some("429".to_string()),
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::RateLimit);
+        assert!(classification.is_retryable);
+    }
+
+    #[test]
+    fn test_execution_error_resource_keyword() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::StepExecutionFailed {
+                step_uuid: context.step_uuid,
+                reason: "out of memory".to_string(),
+                error_code: None,
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(
+            classification.error_category,
+            ErrorCategory::ResourceExhaustion
+        );
+        assert!(classification.is_retryable);
+    }
+
+    #[test]
+    fn test_execution_error_permission_keyword() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::StepExecutionFailed {
+                step_uuid: context.step_uuid,
+                reason: "permission denied".to_string(),
+                error_code: None,
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Configuration);
+        assert!(!classification.is_retryable);
+    }
+
+    #[test]
+    fn test_execution_error_generic_reason() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::StepExecutionFailed {
+                step_uuid: context.step_uuid,
+                reason: "something unexpected happened".to_string(),
+                error_code: None,
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Transient);
+        assert!(classification.is_retryable);
+    }
+
+    #[test]
+    fn test_execution_error_execution_timeout_variant() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::ExecutionTimeout {
+                step_uuid: context.step_uuid,
+                timeout_duration: Duration::from_secs(60),
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Timeout);
+        assert!(classification.is_retryable);
+        assert_eq!(classification.error_code, "EXECUTION_TIMEOUT");
+    }
+
+    #[test]
+    fn test_execution_error_retry_limit_exceeded() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::RetryLimitExceeded {
+                step_uuid: context.step_uuid,
+                max_attempts: 5,
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Permanent);
+        assert!(!classification.is_retryable);
+        assert!(classification.is_final_attempt);
+        assert_eq!(classification.error_code, "RETRY_LIMIT_EXCEEDED");
+        assert_eq!(classification.confidence, 1.0);
+    }
+
+    #[test]
+    fn test_execution_error_generic_variant() {
+        let classifier = StandardErrorClassifier::new();
+        let context = create_test_context();
+        let error = OrchestrationError::ExecutionError {
+            error: ExecutionError::NoResultReturned {
+                step_uuid: context.step_uuid,
+            },
+        };
+
+        let classification = classifier.classify_error(&error, &context);
+
+        assert_eq!(classification.error_category, ErrorCategory::Transient);
+        assert!(classification.is_retryable);
+        assert_eq!(classification.error_code, "EXECUTION_ERROR");
+    }
+
+    // ── calculate_exponential_backoff ──
+
+    #[test]
+    fn test_exponential_backoff_first_attempt() {
+        let config = ErrorClassifierConfig {
+            jitter_factor: 0.0, // Disable jitter for deterministic test
+            ..Default::default()
+        };
+        let classifier = StandardErrorClassifier::with_config(config);
+
+        let delay = classifier.calculate_exponential_backoff(1);
+        // attempt 1: base_delay * 2^0 = 1s * 1 = 1s
+        assert_eq!(delay, Duration::from_secs(1));
+    }
+
+    #[test]
+    fn test_exponential_backoff_increases_with_attempts() {
+        let config = ErrorClassifierConfig {
+            jitter_factor: 0.0,
+            ..Default::default()
+        };
+        let classifier = StandardErrorClassifier::with_config(config);
+
+        let delay_1 = classifier.calculate_exponential_backoff(1);
+        let delay_3 = classifier.calculate_exponential_backoff(3);
+
+        // attempt 3 > attempt 1
+        assert!(delay_3 > delay_1);
+        // attempt 3: base * 2^2 = 1s * 4 = 4s
+        assert_eq!(delay_3, Duration::from_secs(4));
+    }
+
+    #[test]
+    fn test_exponential_backoff_capped_at_max() {
+        let config = ErrorClassifierConfig {
+            jitter_factor: 0.0,
+            max_retry_delay: Duration::from_secs(300),
+            ..Default::default()
+        };
+        let classifier = StandardErrorClassifier::with_config(config);
+
+        // Very high attempt: 2^19 = 524288 seconds, should be capped at 300s
+        let delay = classifier.calculate_exponential_backoff(20);
+        assert_eq!(delay, Duration::from_secs(300));
+    }
+
+    // ── calculate_category_specific_delay ──
+
+    #[test]
+    fn test_category_delay_rate_limit() {
+        let classifier = StandardErrorClassifier::new();
+        let delay = classifier.calculate_category_specific_delay(ErrorCategory::RateLimit, 1);
+        assert_eq!(delay, Duration::from_secs(60)); // config.rate_limit_delay default
+    }
+
+    #[test]
+    fn test_category_delay_network() {
+        let classifier = StandardErrorClassifier::new();
+        let delay = classifier.calculate_category_specific_delay(ErrorCategory::Network, 3);
+        // network_error_delay (5s) * attempt (3) = 15s
+        assert_eq!(delay, Duration::from_secs(15));
+    }
+
+    #[test]
+    fn test_category_delay_resource_exhaustion() {
+        let classifier = StandardErrorClassifier::new();
+        let delay =
+            classifier.calculate_category_specific_delay(ErrorCategory::ResourceExhaustion, 1);
+        assert_eq!(delay, Duration::from_secs(30)); // config.resource_exhaustion_delay default
+    }
+
+    #[test]
+    fn test_category_delay_timeout() {
+        let classifier = StandardErrorClassifier::new();
+        let delay = classifier.calculate_category_specific_delay(ErrorCategory::Timeout, 1);
+        assert_eq!(delay, Duration::from_secs(30)); // config.default_timeout default
+    }
+
+    #[test]
+    fn test_category_delay_other_falls_through() {
+        let config = ErrorClassifierConfig {
+            jitter_factor: 0.0,
+            ..Default::default()
+        };
+        let classifier = StandardErrorClassifier::with_config(config);
+        let delay = classifier.calculate_category_specific_delay(ErrorCategory::Transient, 1);
+        // Falls through to exponential backoff: 1s * 2^0 = 1s
+        assert_eq!(delay, Duration::from_secs(1));
+    }
+
+    // ── get_category_suggestions ──
+
+    #[test]
+    fn test_suggestions_network() {
+        let classifier = StandardErrorClassifier::new();
+        let suggestions = classifier.get_category_suggestions(ErrorCategory::Network);
+        assert_eq!(suggestions.len(), 3);
+        assert!(suggestions[0].contains("connectivity"));
+    }
+
+    #[test]
+    fn test_suggestions_rate_limit() {
+        let classifier = StandardErrorClassifier::new();
+        let suggestions = classifier.get_category_suggestions(ErrorCategory::RateLimit);
+        assert_eq!(suggestions.len(), 3);
+        assert!(suggestions[0].contains("throttling"));
+    }
+
+    #[test]
+    fn test_suggestions_other_category() {
+        let classifier = StandardErrorClassifier::new();
+        let suggestions = classifier.get_category_suggestions(ErrorCategory::Unknown);
+        assert_eq!(suggestions.len(), 3);
+        assert!(suggestions[0].contains("logs"));
+    }
+
     #[test]
     fn test_error_classification_to_step_execution_error() {
         let classification = ErrorClassification {

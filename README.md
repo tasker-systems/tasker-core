@@ -3,11 +3,11 @@
 [![CI](https://github.com/tasker-systems/tasker-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tasker-systems/tasker-core/actions/workflows/ci.yml)
 ![GitHub](https://img.shields.io/github/license/tasker-systems/tasker-core)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/tasker-systems/tasker-core?color=blue&sort=semver)
-![Tests](https://img.shields.io/badge/tests-1400%2B%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-4000%2B%20passing-brightgreen)
 
 High-performance Rust workflow orchestration with PostgreSQL-native messaging. Tasker Core provides DAG-based task execution, event-driven coordination, and comprehensive state management for complex workflows. Supports PGMQ (default, single-dependency) or RabbitMQ (high-throughput) backends.
 
-**Status**: Production Ready | **Version**: 0.1.0
+**Status**: Alpha Ready | **Version**: 0.1.0
 
 ---
 
@@ -17,7 +17,7 @@ High-performance Rust workflow orchestration with PostgreSQL-native messaging. T
 - **Flexible Messaging** - PGMQ (PostgreSQL-native, zero extra dependencies) or RabbitMQ (high-throughput)
 - **Event-Driven** - Real-time step discovery with push notifications and polling fallback
 - **Multi-Language Workers** - Rust native, Ruby via FFI, Python via PyO3, TypeScript FFI
-- **Production-Ready** - Circuit breakers, health monitoring, zero race conditions, 50+ metrics
+- **Production-Ready (Alpha)** - Circuit breakers, health monitoring, zero race conditions, 50+ metrics
 
 ### Ideal For
 

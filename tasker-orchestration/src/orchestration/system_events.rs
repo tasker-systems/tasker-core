@@ -412,6 +412,159 @@ mod tests {
         assert!(payload["step_uuids"].is_array());
     }
 
+    fn create_test_config() -> SystemEventsConfig {
+        SystemEventsConfig {
+            event_metadata: HashMap::from([(
+                "step".to_string(),
+                HashMap::from([(
+                    "completed".to_string(),
+                    EventMetadata {
+                        description: "Step completed".to_string(),
+                        constant_ref: "StepEvents::COMPLETED".to_string(),
+                        payload_schema: HashMap::from([
+                            (
+                                "step_uuid".to_string(),
+                                SchemaField {
+                                    field_type: "String".to_string(),
+                                    required: true,
+                                },
+                            ),
+                            (
+                                "duration".to_string(),
+                                SchemaField {
+                                    field_type: "Float".to_string(),
+                                    required: false,
+                                },
+                            ),
+                        ]),
+                        fired_by: vec!["StepHandler".to_string()],
+                    },
+                )]),
+            )]),
+            state_machine_mappings: StateMachineMappings {
+                task_transitions: vec![
+                    StateTransition {
+                        from_state: None,
+                        to_state: "pending".to_string(),
+                        event_constant: "task.created".to_string(),
+                        description: "Task created".to_string(),
+                    },
+                    StateTransition {
+                        from_state: Some("pending".to_string()),
+                        to_state: "in_progress".to_string(),
+                        event_constant: "task.started".to_string(),
+                        description: "Task started".to_string(),
+                    },
+                ],
+                step_transitions: vec![
+                    StateTransition {
+                        from_state: Some("pending".to_string()),
+                        to_state: "in_progress".to_string(),
+                        event_constant: "step.started".to_string(),
+                        description: "Step started".to_string(),
+                    },
+                    StateTransition {
+                        from_state: Some("in_progress".to_string()),
+                        to_state: "complete".to_string(),
+                        event_constant: "step.completed".to_string(),
+                        description: "Step completed".to_string(),
+                    },
+                ],
+            },
+        }
+    }
+
+    #[test]
+    fn test_get_event_metadata_not_found() {
+        let config = create_test_config();
+        let result = config.get_event_metadata("nonexistent", "event");
+        assert!(result.is_err());
+
+        // Verify it's a ConfigurationError
+        match result.unwrap_err() {
+            OrchestrationError::ConfigurationError { reason, .. } => {
+                assert!(reason.contains("nonexistent.event"));
+            }
+            other => panic!("Expected ConfigurationError, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_get_step_transitions() {
+        let config = create_test_config();
+        let transitions = config.get_step_transitions();
+        assert_eq!(transitions.len(), 2);
+        assert_eq!(transitions[0].to_state, "in_progress");
+        assert_eq!(transitions[1].to_state, "complete");
+    }
+
+    #[test]
+    fn test_get_transitions_from_state_filters_correctly() {
+        let config = create_test_config();
+        let transitions = config.get_transitions_from_state("task", Some("pending"));
+        assert_eq!(transitions.len(), 1);
+        assert_eq!(transitions[0].to_state, "in_progress");
+    }
+
+    #[test]
+    fn test_get_transitions_from_state_invalid_entity() {
+        let config = create_test_config();
+        let transitions = config.get_transitions_from_state("unknown", Some("pending"));
+        assert!(transitions.is_empty());
+    }
+
+    #[test]
+    fn test_get_transitions_from_state_none_matches_initial() {
+        let config = create_test_config();
+        let transitions = config.get_transitions_from_state("task", None);
+        assert_eq!(transitions.len(), 1);
+        assert_eq!(transitions[0].to_state, "pending");
+    }
+
+    #[test]
+    fn test_validate_event_payload_valid() {
+        let config = create_test_config();
+        let payload = serde_json::json!({
+            "step_uuid": "abc-123",
+            "duration": 1.5
+        });
+
+        let result = config.validate_event_payload("step", "completed", &payload);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_event_payload_missing_required_field() {
+        let config = create_test_config();
+        // Missing required "step_uuid" field
+        let payload = serde_json::json!({
+            "duration": 1.5
+        });
+
+        let result = config.validate_event_payload("step", "completed", &payload);
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            OrchestrationError::ValidationError { field, reason } => {
+                assert_eq!(field, "step_uuid");
+                assert!(reason.contains("Required field"));
+            }
+            other => panic!("Expected ValidationError, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_validate_event_payload_optional_absent_ok() {
+        let config = create_test_config();
+        // Only required field present, optional "duration" absent
+        let payload = serde_json::json!({
+            "step_uuid": "abc-123"
+        });
+
+        let result = config.validate_event_payload("step", "completed", &payload);
+        assert!(result.is_ok());
+    }
+
     #[tokio::test]
     async fn test_system_events_config_from_yaml() {
         let yaml_content = r#"
