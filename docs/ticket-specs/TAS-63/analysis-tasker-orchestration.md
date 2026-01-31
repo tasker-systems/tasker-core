@@ -1,10 +1,10 @@
 # Coverage Analysis: tasker-orchestration
 
-**Current Coverage**: 42.67% line (17,315 / 40,578), 38.66% function (2,190 / 5,664) — as of Jan 31, 2026 — 814 tests
+**Current Coverage**: 44.88% line (18,308 / 40,800), 40.41% function (2,318 / 5,734) — as of Jan 31, 2026 — 942 tests
 **Baseline Coverage**: 31.60% line (11,790 / 37,306), 28.57% function (1,509 / 5,282)
 **Target**: 55%
-**Gap**: 12.33 percentage points remaining (was 23.4 pp at baseline)
-**Progress**: +11.07 pp line coverage, +390 tests added (183 unit + 41 integration + 35 refactoring-phase + 71 quick-win/pipeline + 38 staleness/backoff + 22 DB integration)
+**Gap**: 10.12 percentage points remaining (was 23.4 pp at baseline)
+**Progress**: +13.28 pp line coverage, +518 tests added (183 unit + 41 integration + 35 refactoring-phase + 71 quick-win/pipeline + 38 staleness/backoff + 22 DB integration + 128 additional unit/DB tests)
 
 ---
 
@@ -20,7 +20,7 @@ These 23 files have zero test coverage. Together they represent 1,771 coverable 
 |------|-------------------|-------------|
 | `orchestration/event_systems/orchestration_event_system.rs` | 370 | Queue-level event system coordinating PGMQ listener and fallback poller with EventDrivenSystem interface. Manages deployment mode transitions, event routing, and statistics. |
 | ~~`orchestration/error_handling_service.rs`~~ | ~~217~~ | **Now 41.97%** — Moved to Lowest Coverage section. 9 pure unit tests added for action/result types. |
-| `orchestration/orchestration_queues/fallback_poller.rs` | 208 | Safety-net polling for orchestration queues. Provider-agnostic message pickup for missed events in production. |
+| ~~`orchestration/orchestration_queues/fallback_poller.rs`~~ | ~~208~~ | **Now 32.3%** — 7 pure unit tests added for config/stats types. Moved to Lowest Coverage section. |
 | `grpc/services/dlq.rs` | 166 | gRPC DLQ service: investigation tracking, queue listing, staleness monitoring via protobuf. |
 | `grpc/server.rs` | 121 | gRPC server bootstrap: service registration, reflection, health checking, lifecycle management. |
 | `grpc/services/analytics.rs` | 88 | gRPC analytics service: performance metrics and bottleneck analysis endpoints. |
@@ -49,30 +49,30 @@ These 23 files have zero test coverage. Together they represent 1,771 coverable 
 | ~~`orchestration/hydration/step_result_hydrator.rs`~~ | ~~230~~ | ~~186~~ | **80.87%** | 10 DB integration tests added. Above target. |
 | `orchestration/viable_step_discovery.rs` | 342 | 25 | 7.3% | SQL-driven step readiness discovery with state machine verification and dependency analysis. |
 | `orchestration/lifecycle/result_processing/message_handler.rs` | 271 | 161 | **59.37%** | Routes step result messages to appropriate handlers. 6 pipeline integration tests added. |
-| `orchestration/lifecycle/batch_processing/service.rs` | 203 | 18 | 8.9% | Dynamic batch worker instance creation: dataset analysis, cursor generation, transactional step creation. |
+| `orchestration/lifecycle/batch_processing/service.rs` | 318 | 134 | **42.1%** | 15 tests added for errors, outcomes, worker inputs. Dynamic batch worker instance creation. |
 | `orchestration/bootstrap.rs` | 444 | 43 | 9.7% | Unified orchestration system bootstrap across all deployment modes with lifecycle management. |
 | ~~`orchestration/hydration/finalization_hydrator.rs`~~ | ~~198~~ | ~~189~~ | **95.45%** | Inline tests now measured. Well above target. |
 | `orchestration/lifecycle/result_processing/metadata_processor.rs` | 80 | 65 | **81.11%** | 6 pipeline integration tests added. Now above target. |
 | ~~`orchestration/hydration/task_request_hydrator.rs`~~ | ~~186~~ | ~~177~~ | **95.16%** | Inline tests now measured. Well above target. |
 | `orchestration/lifecycle/result_processing/state_transition_handler.rs` | 162 | 91 | **56.17%** | 10 pipeline integration tests added. Above target. |
-| `orchestration/lifecycle/decision_point/service.rs` | 255 | 41 | 16.1% | Decision point processing: dynamic workflow step creation from decision outcomes. |
+| `orchestration/lifecycle/decision_point/service.rs` | 321 | 115 | **35.8%** | 13 tests for errors, outcomes, DB integration. Decision point processing. |
 | ~~`orchestration/state_manager.rs`~~ | ~~442~~ | ~~77~~ | **Deleted** | Removed — 11/14 methods were dead code. 3 used methods inlined into callers. |
 | `actors/command_processor_actor.rs` | ~200 | — | — | Reduced from 574 coverable lines. Business logic extracted to `commands/service.rs`. |
 | `orchestration/staleness_detector.rs` | 490 | 312 | **63.67%** | 20 pure unit tests added. Above target. |
 | `orchestration/lifecycle/result_processing/task_coordinator.rs` | 108 | 81 | **75.21%** | 4 pipeline integration tests added. Above target. |
-| `orchestration/core.rs` | 221 | 54 | 24.4% | OrchestrationCore: command-pattern bootstrap, channel setup, health monitoring. |
+| `orchestration/core.rs` | 278 | 120 | **43.2%** | 11 tests added for OrchestrationCoreStatus. Command-pattern bootstrap, channel setup, health monitoring. |
 | ~~`orchestration/lifecycle/task_finalization/state_handlers.rs`~~ | ~~270~~ | ~~225~~ | **83.33%** | 4 DB integration tests added. Above target. |
-| `health/db_status.rs` | 90 | 24 | 26.7% | Database health status checks. |
-| `orchestration/event_systems/task_readiness_event_system.rs` | 86 | 26 | 30.2% | Task readiness event system using LISTEN/NOTIFY for event-driven step discovery. |
+| ~~`health/db_status.rs`~~ | ~~126~~ | ~~99~~ | **78.6%** | 8 tests added including real DB evaluation. Above target. |
+| `orchestration/event_systems/task_readiness_event_system.rs` | 86 | 41 | **47.7%** | 7 DB tests added. Task readiness event system. |
 | `orchestration/lifecycle/step_result_processor.rs` | 69 | 22 | 31.9% | Delegates step result processing to the result processing module. |
 | `web/state.rs` | 145 | 49 | 33.8% | Web application state: database pools, services, circuit breaker references. |
 | ~~`orchestration/backoff_calculator.rs`~~ | ~~535~~ | ~~499~~ | **93.27%** | 18 new + 7 converted tests. Well above target. |
-| `orchestration/orchestration_queues/listener.rs` | 330 | 112 | 33.9% | PGMQ queue listener: LISTEN/NOTIFY integration, message dispatch, statistics tracking. |
-| `orchestration/event_systems/unified_event_coordinator.rs` | 300 | 106 | 35.3% | Unified coordinator managing multiple event systems across deployment modes. |
-| `orchestration/lifecycle/task_request_processor.rs` | 119 | 43 | 36.1% | Task request processing: validation, template loading, initialization delegation. |
+| `orchestration/orchestration_queues/listener.rs` | 404 | 186 | **46.0%** | 7 tests added for config/stats. PGMQ queue listener: message dispatch, statistics tracking. |
+| `orchestration/event_systems/unified_event_coordinator.rs` | 395 | 208 | **52.7%** | 9 tests added for config and health reports. Unified coordinator. |
+| ~~`orchestration/lifecycle/task_request_processor.rs`~~ | ~~119~~ | ~~71~~ | **59.6%** | 8 tests added. Above target. |
 | `orchestration/lifecycle/task_finalization/event_publisher.rs` | 143 | 54 | 37.8% | Publishes task completion/error events to messaging queues. |
-| `orchestration/lifecycle/step_enqueuer_services/state_handlers.rs` | 164 | 66 | 40.2% | Step state handling during enqueueing (pending, ready, blocked). |
-| `orchestration/task_readiness/fallback_poller.rs` | 129 | 53 | 41.1% | Fallback poller for task readiness with circuit breaker integration. |
+| ~~`orchestration/lifecycle/step_enqueuer_services/state_handlers.rs`~~ | ~~164~~ | ~~104~~ | **63.2%** | 5 tests added. Above target. |
+| ~~`orchestration/task_readiness/fallback_poller.rs`~~ | ~~145~~ | ~~86~~ | **59.3%** | 5 DB tests added. Above target. |
 | ~~`orchestration/lifecycle/task_finalization/completion_handler.rs`~~ | ~~405~~ | ~~341~~ | **84.20%** | 8 DB integration tests added. Above target. |
 | ~~`orchestration/event_systems/orchestration_statistics.rs`~~ | ~~172~~ | ~~0~~ | **81.37%** | 12 pure unit tests added. Now above target. |
 | ~~`orchestration/error_classifier.rs`~~ | ~~804~~ | ~~727~~ | **90.42%** | 25 pure unit tests added. Well above target. |
@@ -390,9 +390,10 @@ Extend coverage on already-partially-covered modules, targeting the 55-85% range
 | **Completed** | **Quick-win unit + result processing pipeline** | **71 tests (45 pure unit + 26 integration)** | **+3.42 pp** | **41.0%** |
 | **Completed** | **Staleness detector + backoff calculator** | **38 tests (pure unit)** | **+0.64 pp** | **41.64%** |
 | **Completed** | **DB integration: hydration + finalization pipeline** | **22 tests (#[sqlx::test])** | **+1.03 pp** | **42.67%** |
-| Phase 2 | DB integration tests (decision point, batch processing, viable steps) | ~1,500 | +5.0 pp | ~47.7% |
-| Phase 3 | Messaging + event system integration | ~1,500 | +4.0 pp | ~51.7% |
-| Phase 4 | gRPC, API layer, and final push | ~1,500 | +3.3 pp | ~55.0% |
+| **Completed** | **Broad unit + DB tests across 12 gap files** | **128 tests** | **+2.21 pp** | **44.88%** |
+| Phase 2 | DB integration tests (decision point, batch processing, viable steps) | ~1,000 | +3.5 pp | ~48.4% |
+| Phase 3 | Messaging + event system integration | ~1,500 | +3.5 pp | ~51.9% |
+| Phase 4 | gRPC, API layer, and final push | ~1,500 | +3.1 pp | ~55.0% |
 
 **Key constraints**:
 - Many critical modules (state_manager, viable_step_discovery, hydration, result processing) require a live database connection for meaningful integration tests, since they use `sqlx::query!` macros and SQL function calls.
@@ -508,3 +509,46 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 **Side effect**: finalization_hydrator.rs rose to 95.45% and task_request_hydrator.rs to 95.16% — their inline tests were already comprehensive but weren't counted in the previous measurement because coverage was run with fewer tests.
 
 **Coverage impact**: 41.64% → 42.67% (+1.03 pp), 792 → 814 tests
+
+### Broad Coverage Push: Unit + DB Tests Across Gap Files (Jan 31, 2026)
+
+**Unit and database integration tests** added 128 tests across 12 files, targeting the remaining below-55% gap files with a breadth-first approach:
+
+**Round 1 (commit 5d4a4c8)**: 47 tests across 6 files
+- `step_enqueuer.rs`: 10 tests — serialization, clone, debug, multi-namespace stats, empty results, config access (54.2% → 70.9%)
+- `core.rs`: 11 tests — OrchestrationCoreStatus Display/PartialEq/Debug/Clone for all 6 variants (24.4% → 43.2%)
+- `unified_event_coordinator.rs`: 9 tests — config defaults/clone/debug, health report construction/unhealthy/statistics (35.3% → 52.7%)
+- `state_handlers.rs`: 5 tests — TaskEvent variants, ExecutionStatus debug, ReadyTaskInfo construction (54.3% → 63.2%)
+- `batch_processor.rs`: 4 tests — empty batch DB test, debug, performance metrics (35.3% → 61.7%)
+- `task_request_processor.rs`: 8 tests — config customization/debug/clone, stats fields, minimal message (36.1% → 59.6%)
+
+**Round 2 (commit e9c560d)**: 54 tests across 5 files
+- `batch_processing/service.rs`: 15 tests — all 7 error Display variants, From<StateMachineError> conversion, service creation DB test, BatchWorkerInputs, CursorConfig, BatchProcessingOutcome serde (8.9% → 42.1%)
+- `error_handling_service.rs`: 17 tests — result construction/clone/debug/serialization, action variants/clone/debug/serde, config default/custom/clone/debug, service creation DB tests (42.0% → 54.9%)
+- `db_status.rs`: 8 tests — evaluate_db_status with real DB (healthy + circuit breaker open), circuit breaker state detection/reset, DatabaseHealthStatus fields/error (26.7% → 78.6%)
+- `task_readiness_event_system.rs`: 7 tests — processor_uuid, deployment_mode (no config/with config), debug, stop lifecycle, disabled start (30.2% → 47.7%)
+- `listener.rs`: 7 tests — config custom/clone/debug, stats increment/debug, notification debug/clone (33.9% → 46.0%)
+
+**Round 3 (commit e2f3dc6)**: 12 tests across 2 files
+- `orchestration_queues/fallback_poller.rs`: 7 tests — OrchestrationPollerConfig defaults/custom/clone/debug, OrchestrationPollerStats defaults/increment/debug (0% → 32.3%)
+- `task_readiness/fallback_poller.rs`: 5 tests — config debug/clone, poller debug/stop/config accessor DB tests (41.1% → 59.3%)
+
+**Coverage impact**: 42.67% → 44.88% (+2.21 pp), 814 → 942 tests
+
+**Notable per-file improvements (before → after)**:
+| File | Before | After | Delta |
+|------|--------|-------|-------|
+| `db_status.rs` | 26.7% | 78.6% | +51.9 pp |
+| `batch_processing/service.rs` | 8.9% | 42.1% | +33.2 pp |
+| `task_request_processor.rs` | 36.1% | 59.6% | +23.5 pp |
+| `orchestration_queues/fallback_poller.rs` | 0% | 32.3% | +32.3 pp |
+| `batch_processor.rs` | 35.3% | 61.7% | +26.4 pp |
+| `task_readiness/fallback_poller.rs` | 41.1% | 59.3% | +18.2 pp |
+| `task_readiness_event_system.rs` | 30.2% | 47.7% | +17.5 pp |
+| `unified_event_coordinator.rs` | 35.3% | 52.7% | +17.4 pp |
+| `core.rs` | 24.4% | 43.2% | +18.8 pp |
+| `step_enqueuer.rs` | 54.2% | 70.9% | +16.7 pp |
+| `error_handling_service.rs` | 42.0% | 54.9% | +12.9 pp |
+| `listener.rs` | 33.9% | 46.0% | +12.1 pp |
+
+**Files now above 55% target**: db_status.rs (78.6%), step_enqueuer.rs (70.9%), state_handlers.rs (63.2%), batch_processor.rs (61.7%), task_request_processor.rs (59.6%), task_readiness/fallback_poller.rs (59.3%)
