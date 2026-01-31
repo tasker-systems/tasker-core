@@ -567,11 +567,21 @@ mod tests {
 
     // --- Tests requiring a database pool (for BackoffCalculator methods) ---
 
-    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
-    async fn test_extract_retry_after_case_insensitive(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let calculator = BackoffCalculator::with_defaults(pool);
+    // --- Pure unit tests for extract_retry_after_header (no DB needed) ---
+
+    fn make_calculator() -> BackoffCalculator {
+        let pool = PgPool::connect_lazy("postgresql://test").expect("lazy pool");
+        BackoffCalculator::with_defaults(pool)
+    }
+
+    fn make_calculator_with_config(config: BackoffCalculatorConfig) -> BackoffCalculator {
+        let pool = PgPool::connect_lazy("postgresql://test").expect("lazy pool");
+        BackoffCalculator::new(config, pool)
+    }
+
+    #[tokio::test]
+    async fn test_extract_retry_after_case_insensitive() {
+        let calculator = make_calculator();
 
         // Lowercase
         let ctx = BackoffContext::new().with_header("retry-after".to_string(), "30".to_string());
@@ -584,85 +594,253 @@ mod tests {
         // Uppercase
         let ctx = BackoffContext::new().with_header("RETRY-AFTER".to_string(), "90".to_string());
         assert_eq!(calculator.extract_retry_after_header(&ctx), Some(90));
-
-        Ok(())
     }
 
-    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
-    async fn test_extract_retry_after_missing_header(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let calculator = BackoffCalculator::with_defaults(pool);
+    #[tokio::test]
+    async fn test_extract_retry_after_missing_header() {
+        let calculator = make_calculator();
         let ctx = BackoffContext::new().with_header("X-Custom".to_string(), "value".to_string());
-
         assert_eq!(calculator.extract_retry_after_header(&ctx), None);
-        Ok(())
     }
 
-    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
-    async fn test_extract_retry_after_invalid_value(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let calculator = BackoffCalculator::with_defaults(pool);
+    #[tokio::test]
+    async fn test_extract_retry_after_invalid_value() {
+        let calculator = make_calculator();
         let ctx = BackoffContext::new()
             .with_header("retry-after".to_string(), "not-a-number".to_string());
-
         assert_eq!(calculator.extract_retry_after_header(&ctx), None);
-        Ok(())
     }
 
-    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
-    async fn test_extract_retry_after_empty_headers(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let calculator = BackoffCalculator::with_defaults(pool);
+    #[tokio::test]
+    async fn test_extract_retry_after_empty_headers() {
+        let calculator = make_calculator();
         let ctx = BackoffContext::new();
-
         assert_eq!(calculator.extract_retry_after_header(&ctx), None);
-        Ok(())
     }
 
-    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
-    async fn test_apply_jitter_within_bounds(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    #[tokio::test]
+    async fn test_extract_retry_after_rfc2822_date() {
+        let calculator = make_calculator();
+        // Create a date 120 seconds in the future
+        let future = Utc::now() + Duration::seconds(120);
+        let rfc2822 = future.to_rfc2822();
+        let ctx =
+            BackoffContext::new().with_header("Retry-After".to_string(), rfc2822);
+        let result = calculator.extract_retry_after_header(&ctx);
+        // Should parse as roughly 120 seconds (allow some tolerance for test execution time)
+        assert!(result.is_some());
+        let seconds = result.unwrap();
+        assert!(seconds >= 118 && seconds <= 122, "Expected ~120, got {seconds}");
+    }
+
+    #[tokio::test]
+    async fn test_extract_retry_after_rfc2822_past_date() {
+        let calculator = make_calculator();
+        // A date in the past should return None (negative duration)
+        let past = Utc::now() - Duration::seconds(60);
+        let rfc2822 = past.to_rfc2822();
+        let ctx =
+            BackoffContext::new().with_header("Retry-After".to_string(), rfc2822);
+        assert_eq!(calculator.extract_retry_after_header(&ctx), None);
+    }
+
+    #[tokio::test]
+    async fn test_extract_retry_after_zero_seconds() {
+        let calculator = make_calculator();
+        let ctx = BackoffContext::new().with_header("retry-after".to_string(), "0".to_string());
+        assert_eq!(calculator.extract_retry_after_header(&ctx), Some(0));
+    }
+
+    #[tokio::test]
+    async fn test_extract_retry_after_large_value() {
+        let calculator = make_calculator();
+        let ctx =
+            BackoffContext::new().with_header("retry-after".to_string(), "86400".to_string());
+        assert_eq!(calculator.extract_retry_after_header(&ctx), Some(86400));
+    }
+
+    #[tokio::test]
+    async fn test_extract_retry_after_negative_value() {
+        let calculator = make_calculator();
+        // Negative numbers fail u32 parse
+        let ctx =
+            BackoffContext::new().with_header("retry-after".to_string(), "-30".to_string());
+        assert_eq!(calculator.extract_retry_after_header(&ctx), None);
+    }
+
+    #[tokio::test]
+    async fn test_extract_retry_after_empty_value() {
+        let calculator = make_calculator();
+        let ctx =
+            BackoffContext::new().with_header("retry-after".to_string(), String::new());
+        assert_eq!(calculator.extract_retry_after_header(&ctx), None);
+    }
+
+    // --- Pure unit tests for apply_jitter (no DB needed) ---
+
+    #[tokio::test]
+    async fn test_apply_jitter_within_bounds() {
         let config = BackoffCalculatorConfig {
             jitter_enabled: true,
             max_jitter: 0.1, // 10%
             ..Default::default()
         };
-        let calculator = BackoffCalculator::new(config, pool);
+        let calculator = make_calculator_with_config(config);
 
-        // Run multiple times to verify bounds
         for _ in 0..50 {
             let jittered = calculator.apply_jitter(100);
-            // 10% jitter means 90-110 range
             assert!(jittered >= 90, "Jitter too low: {jittered}");
             assert!(jittered <= 110, "Jitter too high: {jittered}");
         }
-
-        Ok(())
     }
 
-    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
-    async fn test_apply_jitter_zero_delay(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let calculator = BackoffCalculator::with_defaults(pool);
+    #[tokio::test]
+    async fn test_apply_jitter_zero_delay() {
+        let calculator = make_calculator();
         let jittered = calculator.apply_jitter(0);
         assert_eq!(jittered, 0, "Zero delay should remain zero");
-        Ok(())
     }
 
-    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
-    async fn test_apply_jitter_small_delay_no_underflow(
-        pool: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let calculator = BackoffCalculator::with_defaults(pool);
-        // With small delays, jitter range rounds to 0 so delay is unchanged
+    #[tokio::test]
+    async fn test_apply_jitter_small_delay_no_underflow() {
+        let calculator = make_calculator();
         let jittered = calculator.apply_jitter(1);
         // max_jitter 0.1 * 1 = 0.1 → rounds to 0, so returns original
         assert_eq!(jittered, 1);
-        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_apply_jitter_large_delay() {
+        let config = BackoffCalculatorConfig {
+            max_jitter: 0.1,
+            ..Default::default()
+        };
+        let calculator = make_calculator_with_config(config);
+
+        for _ in 0..50 {
+            let jittered = calculator.apply_jitter(10_000);
+            // 10% of 10000 = 1000, so range is 9000-11000
+            assert!(jittered >= 9000, "Jitter too low: {jittered}");
+            assert!(jittered <= 11000, "Jitter too high: {jittered}");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_apply_jitter_zero_max_jitter() {
+        let config = BackoffCalculatorConfig {
+            max_jitter: 0.0,
+            ..Default::default()
+        };
+        let calculator = make_calculator_with_config(config);
+
+        // Zero jitter means value is unchanged
+        let jittered = calculator.apply_jitter(100);
+        assert_eq!(jittered, 100);
+    }
+
+    #[tokio::test]
+    async fn test_apply_jitter_saturating_behavior() {
+        let config = BackoffCalculatorConfig {
+            max_jitter: 0.5, // 50% jitter
+            ..Default::default()
+        };
+        let calculator = make_calculator_with_config(config);
+
+        // With u32::MAX, subtraction should saturate at 0, addition at u32::MAX
+        for _ in 0..20 {
+            let jittered = calculator.apply_jitter(u32::MAX);
+            // saturating_add and saturating_sub prevent overflow
+            assert!(jittered > 0);
+        }
+    }
+
+    // --- BackoffType tests ---
+
+    #[test]
+    fn test_backoff_type_serialization_roundtrip() {
+        let types = [BackoffType::ServerRequested, BackoffType::Exponential];
+        for bt in &types {
+            let json = serde_json::to_string(bt).expect("serialize");
+            let deserialized: BackoffType = serde_json::from_str(&json).expect("deserialize");
+            assert_eq!(format!("{deserialized:?}"), format!("{bt:?}"));
+        }
+    }
+
+    #[test]
+    fn test_backoff_type_debug() {
+        assert_eq!(
+            format!("{:?}", BackoffType::ServerRequested),
+            "ServerRequested"
+        );
+        assert_eq!(format!("{:?}", BackoffType::Exponential), "Exponential");
+    }
+
+    // --- BackoffError tests ---
+
+    #[test]
+    fn test_backoff_error_invalid_config_display() {
+        let err = BackoffError::InvalidConfig("multiplier must be > 0".to_string());
+        assert_eq!(
+            err.to_string(),
+            "Invalid configuration: multiplier must be > 0"
+        );
+    }
+
+    #[test]
+    fn test_backoff_error_step_not_found_display() {
+        let err = BackoffError::StepNotFound(42);
+        assert_eq!(err.to_string(), "Step not found: 42");
+    }
+
+    // --- BackoffContext edge cases ---
+
+    #[test]
+    fn test_backoff_context_header_overwrite() {
+        let context = BackoffContext::new()
+            .with_header("retry-after".to_string(), "60".to_string())
+            .with_header("retry-after".to_string(), "120".to_string());
+
+        assert_eq!(
+            context.headers.get("retry-after"),
+            Some(&"120".to_string())
+        );
+        assert_eq!(context.headers.len(), 1);
+    }
+
+    #[test]
+    fn test_backoff_context_metadata_overwrite() {
+        let context = BackoffContext::new()
+            .with_metadata("count".to_string(), serde_json::json!(1))
+            .with_metadata("count".to_string(), serde_json::json!(2));
+
+        assert_eq!(context.metadata["count"], serde_json::json!(2));
+        assert_eq!(context.metadata.len(), 1);
+    }
+
+    #[test]
+    fn test_backoff_result_clone() {
+        let result = BackoffResult {
+            delay_seconds: 45,
+            backoff_type: BackoffType::Exponential,
+            next_retry_at: Utc::now(),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.delay_seconds, 45);
+        assert!(matches!(cloned.backoff_type, BackoffType::Exponential));
+    }
+
+    #[tokio::test]
+    async fn test_backoff_calculator_debug() {
+        let calculator = make_calculator();
+        let debug = format!("{calculator:?}");
+        assert!(debug.contains("BackoffCalculator"));
+        assert!(debug.contains("config"));
+    }
+
+    #[tokio::test]
+    async fn test_backoff_calculator_clone() {
+        let calculator = make_calculator();
+        let cloned = calculator.clone();
+        assert_eq!(cloned.config.base_delay_seconds, calculator.config.base_delay_seconds);
     }
 }

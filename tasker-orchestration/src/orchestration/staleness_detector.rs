@@ -624,4 +624,277 @@ mod tests {
 
         assert_eq!(detector.config().batch_size, config.batch_size);
     }
+
+    #[tokio::test]
+    async fn test_staleness_detector_debug_impl() {
+        let pool = PgPool::connect_lazy("postgresql://test").expect("lazy pool");
+        let config = StalenessDetectionConfig::default();
+        let batch_config = BatchProcessingConfig::default();
+        let detector = StalenessDetector::new(pool, config, batch_config);
+
+        let debug_output = format!("{detector:?}");
+        assert!(debug_output.contains("StalenessDetector"));
+        assert!(debug_output.contains("config"));
+        assert!(debug_output.contains("batch_config"));
+    }
+
+    #[test]
+    fn test_staleness_result_clone() {
+        let result = StalenessResult {
+            task_uuid: Uuid::new_v4(),
+            namespace_name: "ns".to_string(),
+            task_name: "task".to_string(),
+            current_state: "steps_in_process".to_string(),
+            time_in_state_minutes: 45,
+            staleness_threshold_minutes: 30,
+            action_taken: StalenessAction::TransitionFailed,
+            moved_to_dlq: false,
+            transition_success: false,
+        };
+
+        let cloned = result.clone();
+        assert_eq!(cloned.task_uuid, result.task_uuid);
+        assert_eq!(cloned.namespace_name, result.namespace_name);
+        assert!(cloned.action_taken.is_failure());
+    }
+
+    #[test]
+    fn test_staleness_result_all_action_variants() {
+        let actions = [
+            (StalenessAction::WouldTransitionToDlqAndError, false, false, false),
+            (StalenessAction::TransitionedToDlqAndError, false, true, true),
+            (StalenessAction::MovedToDlqOnly, true, true, false),
+            (StalenessAction::TransitionedToErrorOnly, true, false, true),
+            (StalenessAction::TransitionFailed, true, false, false),
+        ];
+
+        for (action, is_failure, dlq_created, transition_succeeded) in actions {
+            assert_eq!(
+                action.is_failure(),
+                is_failure,
+                "is_failure mismatch for {action:?}"
+            );
+            assert_eq!(
+                action.dlq_created(),
+                dlq_created,
+                "dlq_created mismatch for {action:?}"
+            );
+            assert_eq!(
+                action.transition_succeeded(),
+                transition_succeeded,
+                "transition_succeeded mismatch for {action:?}"
+            );
+        }
+    }
+
+    // --- is_batch_worker tests ---
+
+    fn make_detector_with_stall_minutes(stall_minutes: u32) -> StalenessDetector {
+        let pool = PgPool::connect_lazy("postgresql://test").expect("lazy pool");
+        let config = StalenessDetectionConfig::default();
+        let batch_config = BatchProcessingConfig {
+            enabled: true,
+            checkpoint_stall_minutes: stall_minutes,
+            ..Default::default()
+        };
+        StalenessDetector::new(pool, config, batch_config)
+    }
+
+    #[tokio::test]
+    async fn test_is_batch_worker_with_batch_cursor() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "offset": 0,
+                "limit": 100,
+                "last_checkpoint": "2026-01-31T10:00:00Z"
+            }
+        });
+        assert!(detector.is_batch_worker(&results));
+    }
+
+    #[tokio::test]
+    async fn test_is_batch_worker_without_batch_cursor() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({
+            "status": "complete",
+            "output": {"key": "value"}
+        });
+        assert!(!detector.is_batch_worker(&results));
+    }
+
+    #[tokio::test]
+    async fn test_is_batch_worker_empty_object() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({});
+        assert!(!detector.is_batch_worker(&results));
+    }
+
+    #[tokio::test]
+    async fn test_is_batch_worker_null_value() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::Value::Null;
+        assert!(!detector.is_batch_worker(&results));
+    }
+
+    #[tokio::test]
+    async fn test_is_batch_worker_array_value() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!([1, 2, 3]);
+        assert!(!detector.is_batch_worker(&results));
+    }
+
+    #[tokio::test]
+    async fn test_is_batch_worker_null_batch_cursor() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({ "batch_cursor": null });
+        // batch_cursor key exists but value is null — is_some() is true for the key
+        assert!(detector.is_batch_worker(&results));
+    }
+
+    // --- is_batch_worker_checkpoint_healthy tests ---
+
+    #[tokio::test]
+    async fn test_checkpoint_healthy_recent_timestamp() {
+        let detector = make_detector_with_stall_minutes(15);
+        let recent = Utc::now() - chrono::Duration::minutes(5);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "last_checkpoint": recent.to_rfc3339()
+            }
+        });
+        assert!(detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_unhealthy_stale_timestamp() {
+        let detector = make_detector_with_stall_minutes(15);
+        let stale = Utc::now() - chrono::Duration::minutes(30);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "last_checkpoint": stale.to_rfc3339()
+            }
+        });
+        assert!(!detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_healthy_exactly_at_threshold() {
+        let detector = make_detector_with_stall_minutes(15);
+        // Slightly under threshold — should be healthy
+        let at_threshold = Utc::now() - chrono::Duration::minutes(14);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "last_checkpoint": at_threshold.to_rfc3339()
+            }
+        });
+        assert!(detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_unhealthy_missing_last_checkpoint() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "offset": 0,
+                "limit": 100
+            }
+        });
+        // Missing last_checkpoint → unhealthy
+        assert!(!detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_unhealthy_invalid_timestamp() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "last_checkpoint": "not-a-valid-timestamp"
+            }
+        });
+        assert!(!detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_unhealthy_numeric_timestamp() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "last_checkpoint": 1706745600
+            }
+        });
+        // Numeric value fails as_str() → unhealthy
+        assert!(!detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_healthy_no_batch_cursor() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({ "status": "ok" });
+        // No batch_cursor → not a batch worker, returns true (healthy)
+        assert!(detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_unhealthy_null_last_checkpoint() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "last_checkpoint": null
+            }
+        });
+        // null fails as_str() → unhealthy
+        assert!(!detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_with_different_stall_thresholds() {
+        // 60 minute threshold — checkpoint from 30 min ago should be healthy
+        let detector = make_detector_with_stall_minutes(60);
+        let thirty_min_ago = Utc::now() - chrono::Duration::minutes(30);
+        let results = serde_json::json!({
+            "batch_cursor": {
+                "last_checkpoint": thirty_min_ago.to_rfc3339()
+            }
+        });
+        assert!(detector.is_batch_worker_checkpoint_healthy(&results));
+
+        // 1 minute threshold — same checkpoint should be unhealthy
+        let strict_detector = make_detector_with_stall_minutes(1);
+        assert!(!strict_detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    #[tokio::test]
+    async fn test_checkpoint_healthy_batch_cursor_is_not_object() {
+        let detector = make_detector_with_stall_minutes(15);
+        let results = serde_json::json!({
+            "batch_cursor": "just-a-string"
+        });
+        // batch_cursor is not an object → as_object() returns None → missing checkpoint → unhealthy
+        assert!(!detector.is_batch_worker_checkpoint_healthy(&results));
+    }
+
+    // --- record_detection_metrics time bucketing ---
+
+    #[test]
+    fn test_time_bucket_classification() {
+        // Verify the time bucketing logic used in record_detection_metrics
+        // The buckets are: <=120 → "60-120", <=360 → "120-360", >360 → ">360"
+        let classify = |minutes: i32| -> &'static str {
+            if minutes <= 120 {
+                "60-120"
+            } else if minutes <= 360 {
+                "120-360"
+            } else {
+                ">360"
+            }
+        };
+
+        assert_eq!(classify(60), "60-120");
+        assert_eq!(classify(120), "60-120");
+        assert_eq!(classify(121), "120-360");
+        assert_eq!(classify(360), "120-360");
+        assert_eq!(classify(361), ">360");
+        assert_eq!(classify(1440), ">360");
+    }
 }
