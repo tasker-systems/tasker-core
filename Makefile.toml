@@ -96,6 +96,9 @@ echo ""
 echo "Coverage (TAS-63):"
 echo "  cargo make coverage            (cov)   Rust workspace coverage"
 echo "  cargo make coverage-crate              Single crate (CRATE_NAME env)"
+echo "  cargo make coverage-e2e        (cove)  E2E coverage (dual-backend)"
+echo "  cargo make coverage-e2e-pgmq           E2E coverage (PGMQ only)"
+echo "  cargo make coverage-e2e-rabbitmq       E2E coverage (RabbitMQ only)"
 echo "  cargo make coverage-python     (covp)  Python worker"
 echo "  cargo make coverage-ruby       (covrb) Ruby worker"
 echo "  cargo make coverage-typescript (covts) TypeScript worker"
@@ -2052,8 +2055,22 @@ alias = "coverage-crate-integrated"
 description = "Shortcut for coverage-crate-integrated"
 
 [tasks.coverage-e2e]
-description = "Run E2E test coverage with instrumented service binaries"
+description = "Run E2E test coverage with instrumented service binaries (dual-backend: PGMQ + RabbitMQ)"
 dependencies = ["coverage-tools-setup"]
+script_runner = "@shell"
+script = ["${SCRIPTS_DIR}/coverage-e2e.sh"]
+
+[tasks.coverage-e2e-pgmq]
+description = "Run E2E coverage with PGMQ backend only"
+dependencies = ["coverage-tools-setup"]
+env = { "COV_E2E_BACKEND" = "pgmq" }
+script_runner = "@shell"
+script = ["${SCRIPTS_DIR}/coverage-e2e.sh"]
+
+[tasks.coverage-e2e-rabbitmq]
+description = "Run E2E coverage with RabbitMQ backend only"
+dependencies = ["coverage-tools-setup"]
+env = { "COV_E2E_BACKEND" = "rabbitmq" }
 script_runner = "@shell"
 script = ["${SCRIPTS_DIR}/coverage-e2e.sh"]
 

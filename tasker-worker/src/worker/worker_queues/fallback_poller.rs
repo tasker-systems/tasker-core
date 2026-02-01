@@ -424,7 +424,9 @@ mod tests {
 
         stats.polling_cycles.fetch_add(5, Ordering::Relaxed);
         stats.messages_processed.fetch_add(12, Ordering::Relaxed);
-        stats.step_messages_processed.fetch_add(10, Ordering::Relaxed);
+        stats
+            .step_messages_processed
+            .fetch_add(10, Ordering::Relaxed);
         stats.messages_skipped.fetch_add(2, Ordering::Relaxed);
         stats.polling_errors.fetch_add(1, Ordering::Relaxed);
 

@@ -30,7 +30,9 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::common::integration_test_manager::IntegrationTestManager;
-use crate::common::integration_test_utils::{create_task_request, wait_for_task_completion};
+use crate::common::integration_test_utils::{
+    create_task_request, get_timeout_multiplier, wait_for_task_completion,
+};
 
 /// Helper function to create data pipeline analytics task request for Rust
 ///
@@ -95,7 +97,7 @@ async fn test_successful_analytics_pipeline_rs() -> Result<()> {
 
     // Monitor task execution
     println!("\n⏱️  Monitoring pipeline execution...");
-    let timeout = 30; // 30 seconds for 8 steps with parallel execution
+    let timeout = 30 * get_timeout_multiplier(); // 30 seconds for 8 steps with parallel execution
     wait_for_task_completion(
         &manager.orchestration_client,
         &task_response.task_uuid,

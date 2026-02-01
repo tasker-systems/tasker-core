@@ -14,7 +14,9 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::common::integration_test_manager::IntegrationTestManager;
-use crate::common::integration_test_utils::{create_task_request, wait_for_task_completion};
+use crate::common::integration_test_utils::{
+    create_task_request, get_timeout_multiplier, wait_for_task_completion,
+};
 
 /// Test that batch workers resume from checkpoint after retry
 #[tokio::test]
@@ -55,7 +57,12 @@ async fn test_batch_worker_resumes_from_checkpoint() -> Result<()> {
     println!("   3. checkpoint_fail_batch retries, resumes from checkpoint");
 
     // Use helper function to wait for completion (60s timeout for batch processing)
-    wait_for_task_completion(&manager.orchestration_client, &task_response.task_uuid, 60).await?;
+    wait_for_task_completion(
+        &manager.orchestration_client,
+        &task_response.task_uuid,
+        60 * get_timeout_multiplier(),
+    )
+    .await?;
 
     // Verify results
     println!("\n🔍 Verifying batch resumption results...");
@@ -158,7 +165,12 @@ async fn test_batch_no_duplicate_processing() -> Result<()> {
     println!("✅ Task created: {}", task_response.task_uuid);
 
     // Wait for completion using helper function
-    wait_for_task_completion(&manager.orchestration_client, &task_response.task_uuid, 60).await?;
+    wait_for_task_completion(
+        &manager.orchestration_client,
+        &task_response.task_uuid,
+        60 * get_timeout_multiplier(),
+    )
+    .await?;
 
     // Analyze results for duplicate processing evidence
     let task_uuid = Uuid::parse_str(&task_response.task_uuid)?;

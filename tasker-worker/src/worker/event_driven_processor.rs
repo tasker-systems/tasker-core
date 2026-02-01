@@ -356,7 +356,10 @@ mod tests {
         assert_eq!(mapped.processing.max_concurrent_operations, 50);
         assert_eq!(mapped.processing.batch_size, 50);
         assert_eq!(mapped.processing.max_retries, 3);
-        assert!(matches!(mapped.deployment_mode, DeploymentMode::PollingOnly));
+        assert!(matches!(
+            mapped.deployment_mode,
+            DeploymentMode::PollingOnly
+        ));
     }
 
     #[test]
@@ -402,7 +405,10 @@ mod tests {
         // Duration::from_millis(2500).as_millis() = 2500
         assert_eq!(mapped.metadata.fallback_poller.polling_interval_ms, 2500);
         assert_eq!(mapped.metadata.fallback_poller.batch_size, 20);
-        assert_eq!(mapped.metadata.fallback_poller.visibility_timeout_seconds, 90);
+        assert_eq!(
+            mapped.metadata.fallback_poller.visibility_timeout_seconds,
+            90
+        );
         assert_eq!(mapped.metadata.fallback_poller.age_threshold_seconds, 60);
         assert_eq!(mapped.metadata.fallback_poller.max_age_hours, 24);
     }

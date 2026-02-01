@@ -14,6 +14,24 @@ use tasker_client::OrchestrationApiClient;
 use tasker_shared::models::core::task_request::TaskRequest;
 use tasker_shared::models::orchestration::execution_status::ExecutionStatus;
 
+/// Get timeout multiplier based on execution environment
+///
+/// When running under coverage instrumentation (TASKER_COVERAGE_MODE=1),
+/// service binaries are compiled as instrumented debug builds which are
+/// significantly slower than release or normal debug builds. This applies
+/// a 4x multiplier to all E2E timeouts to account for that overhead.
+///
+/// Returns:
+/// - 4 when TASKER_COVERAGE_MODE is set (instrumented debug binaries)
+/// - 1 otherwise (normal execution)
+pub fn get_timeout_multiplier() -> u64 {
+    if std::env::var("TASKER_COVERAGE_MODE").is_ok() {
+        4 // Coverage instrumentation adds significant overhead
+    } else {
+        1
+    }
+}
+
 /// Get appropriate timeout for task completion based on environment
 ///
 /// In CI environments (GitHub Actions, etc.), tasks take longer due to:
@@ -21,15 +39,20 @@ use tasker_shared::models::orchestration::execution_status::ExecutionStatus;
 /// - All services running natively (not isolated in Docker)
 /// - Higher contention for database connections
 ///
+/// The result is further multiplied by `get_timeout_multiplier()` when
+/// running under coverage instrumentation.
+///
 /// Returns:
 /// - 15 seconds in CI (detected via CI environment variable)
 /// - 5 seconds locally (fast feedback for development)
+/// - Multiplied by 4x under coverage instrumentation
 pub fn get_task_completion_timeout() -> u64 {
-    if std::env::var("CI").is_ok() {
+    let base = if std::env::var("CI").is_ok() {
         15 // CI environment - allow more time for shared resources
     } else {
         5 // Local development - keep fast feedback
-    }
+    };
+    base * get_timeout_multiplier()
 }
 
 /// Helper to create a TaskRequest matching CLI usage

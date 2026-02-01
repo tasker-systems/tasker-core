@@ -42,7 +42,9 @@ use std::time::Instant;
 use uuid::Uuid;
 
 use crate::common::integration_test_manager::IntegrationTestManager;
-use crate::common::integration_test_utils::{create_task_request, wait_for_task_completion};
+use crate::common::integration_test_utils::{
+    create_task_request, get_timeout_multiplier, wait_for_task_completion,
+};
 
 /// Helper function to create domain event publishing test task request for Rust worker
 fn create_rust_domain_event_task_request(
@@ -144,7 +146,7 @@ async fn test_rust_domain_event_publishing_success() -> Result<()> {
 
     // Monitor task execution
     println!("\n⏱️  Monitoring domain event publishing workflow (Rust worker)...");
-    let timeout = 10; // 10 seconds for 4 sequential steps with events
+    let timeout = 10 * get_timeout_multiplier(); // 10 seconds for 4 sequential steps with events
     wait_for_task_completion(
         &manager.orchestration_client,
         &task_response.task_uuid,
@@ -336,7 +338,7 @@ async fn test_rust_domain_event_publishing_concurrent() -> Result<()> {
 
     // Wait for all tasks to complete
     println!("\n⏱️  Waiting for all tasks to complete...");
-    let timeout = 20; // 20 seconds for 3 concurrent tasks
+    let timeout = 20 * get_timeout_multiplier(); // 20 seconds for 3 concurrent tasks
 
     for (i, task_uuid) in task_uuids.iter().enumerate() {
         wait_for_task_completion(&manager.orchestration_client, task_uuid, timeout).await?;
@@ -411,7 +413,12 @@ async fn test_rust_domain_event_step_results() -> Result<()> {
     println!("   Task UUID: {}", task_response.task_uuid);
 
     // Wait for completion
-    wait_for_task_completion(&manager.orchestration_client, &task_response.task_uuid, 10).await?;
+    wait_for_task_completion(
+        &manager.orchestration_client,
+        &task_response.task_uuid,
+        10 * get_timeout_multiplier(),
+    )
+    .await?;
 
     // Get step results
     let task_uuid = Uuid::parse_str(&task_response.task_uuid)?;

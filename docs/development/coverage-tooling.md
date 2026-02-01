@@ -32,7 +32,9 @@ cargo make coverage-check
 | `coverage` | `cov` | Workspace-wide Rust coverage (JSON + HTML) |
 | `coverage-crate` | - | Single crate (`CRATE_NAME` env var) |
 | `coverage-crate-integrated` | `ccint` | Single crate + root integration tests (multi-run profraw) |
-| `coverage-e2e` | `cove` | E2E tests with instrumented service binaries |
+| `coverage-e2e` | `cove` | E2E tests with instrumented service binaries (dual-backend) |
+| `coverage-e2e-pgmq` | - | E2E coverage with PGMQ backend only |
+| `coverage-e2e-rabbitmq` | - | E2E coverage with RabbitMQ backend only |
 | `coverage-foundational` | - | `tasker-shared` + `tasker-pgmq` |
 | `coverage-core` | - | `tasker-orchestration` + `tasker-worker` + `tasker-client` |
 | `coverage-rust-worker` | `covr` | Rust worker crate |
@@ -468,31 +470,53 @@ Captures coverage from **Rust E2E tests** (`tests/e2e/rust/`) that communicate
 with services over HTTP/gRPC. Requires instrumenting the **service binaries**
 themselves since the test binary only exercises the API client.
 
+By default, runs E2E tests against **both messaging backends** (PGMQ then
+RabbitMQ) in sequence, accumulating LLVM profraw coverage data from both passes.
+This exercises both the PGMQ code paths (LISTEN/NOTIFY, queue operations) and
+the RabbitMQ AMQP paths, plus the shared orchestration/worker code under both
+configurations.
+
 Only starts orchestration + rust worker. FFI workers (Python, Ruby, TypeScript)
 load the `tasker-worker` dylib into their own runtime's process space, so LLVM
 coverage instrumentation is not feasible for them.
 
 ```bash
-cargo make coverage-e2e
+cargo make coverage-e2e              # Both backends (default)
+cargo make coverage-e2e-pgmq        # PGMQ backend only
+cargo make coverage-e2e-rabbitmq    # RabbitMQ backend only
 # or: cargo make cove
 ```
 
 No `CRATE_NAME` needed -- the script always instruments both `tasker-server` and
-`rust-worker`, runs the same 50 Rust E2E tests, and generates per-crate reports
-for `tasker-orchestration`, `tasker-worker-rust`, and `tasker-worker`. The
-`rust-worker` binary links `tasker-worker` as a library dependency, so its
-execution covers `tasker-worker` code paths only reachable through the full
-service stack (bootstrap, lifecycle management, web/gRPC handlers).
+`rust-worker`, runs the same Rust E2E tests per backend, and generates per-crate
+reports for 6 crates: `tasker-orchestration`, `tasker-worker-rust`,
+`tasker-worker`, `tasker-shared`, `tasker-pgmq`, and `tasker-client`. Both
+binaries link these crates as library dependencies, so their execution covers
+code paths only reachable through the full service stack.
 
 **How it works:**
 
 1. Run `setup-env` for root, orchestration, and rust-worker to ensure consistent `.env` files
 2. `cargo llvm-cov show-env` provides instrumentation environment variables (appends `--cfg tokio_unstable` for `tokio-console` feature)
-3. Build instrumented `tasker-server` (`-p tasker-orchestration`) and `rust-worker` (`-p tasker-worker-rust`) binaries
-4. Start services following `service-start.sh` patterns (PID files, logs, health checks)
-5. Wait for `/health` endpoints to pass
-6. Run Rust E2E tests only (`-E 'test(~e2e::rust::)'`), uninstrumented
-7. SIGTERM services (triggers profraw flush), generate one raw report, normalize per-crate
+3. Build instrumented `tasker-server` and `rust-worker` binaries **once**
+4. For each backend (PGMQ, RabbitMQ):
+   a. Probe infrastructure availability (skip with warning if unavailable)
+   b. Export `TASKER_MESSAGING_BACKEND=$backend`
+   c. Start services, wait for `/health` endpoints
+   d. Run Rust E2E tests (`-E 'test(~e2e::rust::)'`), uninstrumented
+   e. SIGTERM services (triggers profraw flush)
+5. Generate one combined raw report from all accumulated profraw files, normalize per-crate
+
+**Profraw accumulation:** LLVM profraw files use `%p-%m` patterns (PID + module hash).
+Each service process gets a unique PID, so running services twice with different
+backends produces distinct profraw files. `cargo llvm-cov report` merges all of
+them automatically. One build, two test passes, one combined report.
+
+**Backend selection:** The `COV_E2E_BACKEND` environment variable or `--backend=`
+flag restricts to a single backend. The convenience tasks `coverage-e2e-pgmq` and
+`coverage-e2e-rabbitmq` set this automatically. When neither is set, both backends
+are tested. If a backend's infrastructure isn't available, it is skipped with a
+warning. At least one backend must succeed.
 
 Service startup mirrors `services-start-all.sh` and `service-start.sh` patterns:
 PID files in `.pids/`, logs in `.logs/`, duplicate-instance prevention, and
@@ -500,14 +524,18 @@ graceful SIGTERM shutdown with SIGKILL fallback. Uses `cov-` prefix for PID/log
 files to avoid colliding with normal service instances.
 
 **Prerequisites:**
-- PostgreSQL + RabbitMQ running (via docker-compose)
+- At least one messaging backend available (PostgreSQL for PGMQ, or RabbitMQ)
+- `cargo-llvm-cov` installed
 - Ports 8080/8081 available (stop existing services first)
 
 **Output:**
-- `coverage-reports/rust/e2e-raw.json` -- single raw report from both binaries
+- `coverage-reports/rust/e2e-raw.json` -- single raw report from all backend passes
 - `coverage-reports/rust/tasker-orchestration-e2e-coverage.json` -- orchestration coverage
 - `coverage-reports/rust/tasker-worker-rust-e2e-coverage.json` -- rust worker coverage
-- `coverage-reports/rust/tasker-worker-e2e-coverage.json` -- tasker-worker library coverage (via rust-worker binary)
+- `coverage-reports/rust/tasker-worker-e2e-coverage.json` -- tasker-worker library coverage
+- `coverage-reports/rust/tasker-shared-e2e-coverage.json` -- shared library coverage
+- `coverage-reports/rust/tasker-pgmq-e2e-coverage.json` -- PGMQ wrapper coverage
+- `coverage-reports/rust/tasker-client-e2e-coverage.json` -- client library coverage
 
 ### Aggregate Merging
 
@@ -533,7 +561,8 @@ are only exercised through the full service lifecycle.
 |----------|------|-------|
 | Quick per-crate check | `coverage-crate` | Fastest, crate tests only |
 | Include integration test paths | `coverage-crate-integrated` | Adds ~30s for integration tests |
-| Rust service stack coverage | `coverage-e2e` | Captures bootstrap, listeners, HTTP/gRPC handlers |
+| Rust service stack coverage | `coverage-e2e` | Dual-backend, captures bootstrap + handlers for 6 crates |
+| Single backend only | `coverage-e2e-pgmq` / `coverage-e2e-rabbitmq` | Faster, one backend pass |
 | Full picture | `coverage-all` + `coverage-report` | Runs everything, merges per-crate results |
 
 ---

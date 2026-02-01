@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::common::integration_test_manager::IntegrationTestManager;
 use crate::common::integration_test_utils::{
-    create_task_request, wait_for_task_completion, wait_for_task_failure,
+    create_task_request, get_timeout_multiplier, wait_for_task_completion, wait_for_task_failure,
 };
 
 /// Test that retry mechanics work - handler fails twice then succeeds on 3rd attempt
@@ -53,7 +53,7 @@ async fn test_retry_after_transient_failure() -> Result<()> {
     println!("\n⏱️ Monitoring retry execution...");
     println!("   Expected: 2 failures with backoff, then success");
 
-    let timeout = 30; // 30 seconds should be plenty with fast polling
+    let timeout = 30 * get_timeout_multiplier(); // 30 seconds should be plenty with fast polling
     wait_for_task_completion(
         &manager.orchestration_client,
         &task_response.task_uuid,
@@ -157,7 +157,12 @@ async fn test_retry_exhaustion_leads_to_error() -> Result<()> {
 
     // Use helper function to wait for task failure
     let task_uuid = Uuid::parse_str(&task_response.task_uuid)?;
-    wait_for_task_failure(&manager.orchestration_client, &task_response.task_uuid, 30).await?;
+    wait_for_task_failure(
+        &manager.orchestration_client,
+        &task_response.task_uuid,
+        30 * get_timeout_multiplier(),
+    )
+    .await?;
 
     // Verify the step is in error state
     let steps = manager

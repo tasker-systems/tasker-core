@@ -13,7 +13,9 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::common::integration_test_manager::IntegrationTestManager;
-use crate::common::integration_test_utils::{create_task_request, wait_for_task_completion};
+use crate::common::integration_test_utils::{
+    create_task_request, get_timeout_multiplier, wait_for_task_completion,
+};
 
 // =============================================================================
 // Method Dispatch Tests
@@ -47,7 +49,12 @@ async fn test_rust_method_dispatch() -> Result<()> {
         .await?;
 
     // Wait for all steps to complete (4 sequential steps)
-    wait_for_task_completion(&manager.orchestration_client, &response.task_uuid, 15).await?;
+    wait_for_task_completion(
+        &manager.orchestration_client,
+        &response.task_uuid,
+        15 * get_timeout_multiplier(),
+    )
+    .await?;
 
     // Verify completion
     let task_uuid = Uuid::parse_str(&response.task_uuid)?;
@@ -129,7 +136,12 @@ async fn test_rust_backward_compatibility() -> Result<()> {
         .create_task(task_request)
         .await?;
 
-    wait_for_task_completion(&manager.orchestration_client, &response.task_uuid, 10).await?;
+    wait_for_task_completion(
+        &manager.orchestration_client,
+        &response.task_uuid,
+        10 * get_timeout_multiplier(),
+    )
+    .await?;
 
     let task_uuid = Uuid::parse_str(&response.task_uuid)?;
     let task = manager.orchestration_client.get_task(task_uuid).await?;

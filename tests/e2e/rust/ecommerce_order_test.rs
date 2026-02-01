@@ -28,7 +28,9 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::common::integration_test_manager::IntegrationTestManager;
-use crate::common::integration_test_utils::{create_task_request, wait_for_task_completion};
+use crate::common::integration_test_utils::{
+    create_task_request, get_timeout_multiplier, wait_for_task_completion,
+};
 
 /// Helper function to create e-commerce order processing task request for Rust
 ///
@@ -105,7 +107,7 @@ async fn test_successful_order_processing_rs() -> Result<()> {
 
     // Monitor task execution
     println!("\n⏱️  Monitoring order processing execution...");
-    let timeout = 15; // 15 seconds for 5 sequential steps
+    let timeout = 15 * get_timeout_multiplier(); // 15 seconds for 5 sequential steps
     wait_for_task_completion(
         &manager.orchestration_client,
         &task_response.task_uuid,
