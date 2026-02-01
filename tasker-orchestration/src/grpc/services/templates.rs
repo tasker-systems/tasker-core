@@ -202,9 +202,9 @@ mod tests {
 
     #[test]
     fn test_template_error_database_error() {
-        let err = TemplateQueryError::DatabaseError(
-            sqlx::Error::Protocol("connection refused".to_string()),
-        );
+        let err = TemplateQueryError::DatabaseError(sqlx::Error::Protocol(
+            "connection refused".to_string(),
+        ));
         let status = template_error_to_status(&err);
         assert_eq!(status.code(), tonic::Code::Internal);
     }

@@ -31,6 +31,8 @@ cargo make coverage-check
 |------|-------|-------------|
 | `coverage` | `cov` | Workspace-wide Rust coverage (JSON + HTML) |
 | `coverage-crate` | - | Single crate (`CRATE_NAME` env var) |
+| `coverage-crate-integrated` | `ccint` | Single crate + root integration tests (multi-run profraw) |
+| `coverage-e2e` | `cove` | E2E tests with instrumented service binaries |
 | `coverage-foundational` | - | `tasker-shared` + `tasker-pgmq` |
 | `coverage-core` | - | `tasker-orchestration` + `tasker-worker` + `tasker-client` |
 | `coverage-rust-worker` | `covr` | Rust worker crate |
@@ -87,8 +89,9 @@ cargo make coverage-check
 
 1. **Coverage collection** - Language-specific tools produce raw output
 2. **Normalization** - Python scripts convert to a standardized JSON schema
-3. **Aggregation** - Cross-crate report combining all languages
+3. **Aggregation** - Cross-crate report combining all languages (merges unit + E2E per crate)
 4. **Thresholds** - Pass/fail enforcement from `coverage-thresholds.json`
+5. **Markdown report** - Human-readable `COVERAGE.md` at repo root
 
 ### Coverage Tools Per Language
 
@@ -105,10 +108,13 @@ cargo make coverage-check
 
 ```
 tasker-core/
++-- COVERAGE.md                            # Auto-generated markdown report
 +-- Makefile.toml                          # Root coverage tasks
 +-- coverage-thresholds.json               # Per-crate threshold config
 +-- cargo-make/
 |   +-- scripts/
+|       +-- coverage-crate-integrated.sh   # Crate + integration test coverage
+|       +-- coverage-e2e.sh               # E2E coverage with instrumented binaries
 |       +-- coverage/
 |           +-- pyproject.toml             # uv Python project definition
 |           +-- normalize-rust.py          # llvm-cov JSON -> standard schema
@@ -131,7 +137,7 @@ tasker-core/
     +-- python/
     +-- ruby/
     +-- typescript/
-    +-- aggregate-coverage.json
+    +-- aggregate-coverage.json           # JSON aggregate (source for COVERAGE.md)
 ```
 
 ---
@@ -245,7 +251,7 @@ function-level detail; Python and Ruby include line-level detail where available
 |-------|-------------|
 | `files[]` | Sorted by `line_coverage_percent` ascending (worst first). Filtered to the target crate's `src/` directory only. |
 | `uncovered_functions[]` | Functions with zero execution count. Demangled via `rustfilt`, deduplicated across generic monomorphizations. Scoped to the target crate. |
-| `summary.lines_*` | From `cargo-llvm-cov` totals (includes all compiled code, not just this crate). |
+| `summary.lines_*` | Recalculated from filtered crate files (accurate even with multi-run profraw accumulation). |
 | `files_tested` / `files_total` | Counts of crate-scoped files with/without coverage. |
 
 **Language-specific fields:**
@@ -419,6 +425,103 @@ If a normalizer script needs a new Python package:
 1. Add it to `cargo-make/scripts/coverage/pyproject.toml` under `dependencies`
 2. Run `uv sync --project cargo-make/scripts/coverage`
 3. Commit `pyproject.toml` and `uv.lock`
+
+---
+
+## Integrated and E2E Coverage
+
+Standard `coverage-crate` only runs tests defined in the target crate's package.
+Root-level tests in `tests/integration/` and `tests/e2e/` exercise significant
+orchestration code paths (actors, state machines, listeners, batch processing)
+but aren't captured by per-crate coverage.
+
+### Integrated Coverage (`coverage-crate-integrated`)
+
+Captures coverage from both crate-internal tests and root-level integration tests
+using multi-run profraw accumulation:
+
+```bash
+CRATE_NAME=tasker-orchestration cargo make coverage-crate-integrated
+# or: CRATE_NAME=tasker-orchestration cargo make ccint
+```
+
+**How it works:**
+
+1. Run crate's own tests (`--no-report` -- collect profraw, don't generate report yet)
+2. Run root integration tests (`--no-clean --no-report` -- accumulate more profraw data)
+3. Generate combined report from all accumulated profraw files
+4. Normalize with `normalize-rust.py` (summary recalculated from filtered crate files)
+
+Integration tests use `LifecycleTestManager` and `#[sqlx::test]` to execute
+orchestration code **in-process** via direct function calls. This is why multi-run
+profraw accumulation works -- the test binary calls into the same instrumented
+crate code.
+
+**Prerequisites:** PostgreSQL running (integration tests need a database).
+
+**Output:** Same filenames as `coverage-crate` (`<crate>-raw.json`, `<crate>-coverage.json`),
+so threshold enforcement works unchanged.
+
+### E2E Coverage (`coverage-e2e`)
+
+Captures coverage from **Rust E2E tests** (`tests/e2e/rust/`) that communicate
+with services over HTTP/gRPC. Requires instrumenting the **service binaries**
+themselves since the test binary only exercises the API client.
+
+Only starts orchestration + rust worker. FFI workers (Python, Ruby, TypeScript)
+load the `tasker-worker` dylib into their own runtime's process space, so LLVM
+coverage instrumentation is not feasible for them.
+
+```bash
+cargo make coverage-e2e
+# or: cargo make cove
+```
+
+No `CRATE_NAME` needed -- the script always instruments both `tasker-server` and
+`rust-worker`, runs the same 50 Rust E2E tests, and generates per-crate reports
+for both `tasker-orchestration` and `tasker-worker-rust`.
+
+**How it works:**
+
+1. Run `setup-env` for root, orchestration, and rust-worker to ensure consistent `.env` files
+2. `cargo llvm-cov show-env` provides instrumentation environment variables (appends `--cfg tokio_unstable` for `tokio-console` feature)
+3. Build instrumented `tasker-server` (`-p tasker-orchestration`) and `rust-worker` (`-p tasker-worker-rust`) binaries
+4. Start services following `service-start.sh` patterns (PID files, logs, health checks)
+5. Wait for `/health` endpoints to pass
+6. Run Rust E2E tests only (`-E 'test(~e2e::rust::)'`), uninstrumented
+7. SIGTERM services (triggers profraw flush), generate one raw report, normalize per-crate
+
+Service startup mirrors `services-start-all.sh` and `service-start.sh` patterns:
+PID files in `.pids/`, logs in `.logs/`, duplicate-instance prevention, and
+graceful SIGTERM shutdown with SIGKILL fallback. Uses `cov-` prefix for PID/log
+files to avoid colliding with normal service instances.
+
+**Prerequisites:**
+- PostgreSQL + RabbitMQ running (via docker-compose)
+- Ports 8080/8081 available (stop existing services first)
+
+**Output:**
+- `coverage-reports/rust/e2e-raw.json` -- single raw report from both binaries
+- `coverage-reports/rust/tasker-orchestration-e2e-coverage.json` -- orchestration coverage
+- `coverage-reports/rust/tasker-worker-rust-e2e-coverage.json` -- rust worker coverage
+
+### Aggregate Merging
+
+`coverage-e2e` is included in `coverage-all`. The aggregate report (`coverage-report`)
+automatically merges multiple reports for the same crate. When both
+`tasker-orchestration-coverage.json` (unit tests) and
+`tasker-orchestration-e2e-coverage.json` (E2E tests) exist, the aggregate takes
+the highest coverage per file path and recalculates the summary. This gives a
+conservative lower bound on the true combined coverage.
+
+### Which Coverage Mode to Use
+
+| Scenario | Task | Notes |
+|----------|------|-------|
+| Quick per-crate check | `coverage-crate` | Fastest, crate tests only |
+| Include integration test paths | `coverage-crate-integrated` | Adds ~30s for integration tests |
+| Rust service stack coverage | `coverage-e2e` | Captures bootstrap, listeners, HTTP/gRPC handlers |
+| Full picture | `coverage-all` + `coverage-report` | Runs everything, merges per-crate results |
 
 ---
 

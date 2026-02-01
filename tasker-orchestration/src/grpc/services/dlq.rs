@@ -500,7 +500,9 @@ mod tests {
 
     #[test]
     fn test_resolution_status_from_proto_unspecified() {
-        assert!(dlq_resolution_status_from_proto(proto::DlqResolutionStatus::Unspecified).is_none());
+        assert!(
+            dlq_resolution_status_from_proto(proto::DlqResolutionStatus::Unspecified).is_none()
+        );
     }
 
     #[test]
@@ -512,7 +514,10 @@ mod tests {
     #[test]
     fn test_resolution_status_from_proto_manually_resolved() {
         let result = dlq_resolution_status_from_proto(proto::DlqResolutionStatus::ManuallyResolved);
-        assert!(matches!(result, Some(DlqResolutionStatus::ManuallyResolved)));
+        assert!(matches!(
+            result,
+            Some(DlqResolutionStatus::ManuallyResolved)
+        ));
     }
 
     #[test]
@@ -623,10 +628,7 @@ mod tests {
         assert_eq!(proto.dlq_entry_uuid, Uuid::nil().to_string());
         assert_eq!(proto.task_uuid, Uuid::nil().to_string());
         assert_eq!(proto.original_state, "error");
-        assert_eq!(
-            proto.dlq_reason,
-            proto::DlqReason::StalenessTimeout as i32
-        );
+        assert_eq!(proto.dlq_reason, proto::DlqReason::StalenessTimeout as i32);
         assert_eq!(
             proto.resolution_status,
             proto::DlqResolutionStatus::Pending as i32

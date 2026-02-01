@@ -224,6 +224,21 @@ def normalize_llvm_cov(input_path: Path, crate_name: str) -> dict:
     if crate_name == "workspace" or not crate_files:
         crate_files = file_details
 
+    # Recalculate summary from filtered crate files so that multi-run profraw
+    # accumulation (which produces workspace-wide totals) still yields correct
+    # per-crate numbers.
+    if crate_name != "workspace" and crate_files:
+        lines_covered = sum(f["lines_covered"] for f in crate_files)
+        lines_total = sum(f["lines_total"] for f in crate_files)
+        functions_covered = sum(f["functions_covered"] for f in crate_files)
+        functions_total = sum(f["functions_total"] for f in crate_files)
+        line_pct = (lines_covered / lines_total * 100) if lines_total > 0 else 0.0
+        function_pct = (
+            (functions_covered / functions_total * 100)
+            if functions_total > 0
+            else 0.0
+        )
+
     files_total = len(crate_files)
     files_tested = sum(1 for f in crate_files if f["lines_covered"] > 0)
 
