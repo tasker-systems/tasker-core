@@ -919,3 +919,480 @@ impl OrchestrationEventSystem {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tasker_shared::messaging::service::{MessageEvent, MessageId};
+
+    // =========================================================================
+    // fire_and_forget_command tests (no DB required)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_fire_and_forget_success() {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+
+        // Fire a ProcessStepResultFromMessageEvent command
+        let message_event = MessageEvent::new(
+            "orchestration_step_results",
+            "orchestration",
+            MessageId::from(42i64),
+        );
+
+        OrchestrationEventSystem::fire_and_forget_command(
+            |resp| OrchestrationCommand::ProcessStepResultFromMessageEvent {
+                message_event: message_event.clone(),
+                resp,
+            },
+            &sender,
+            &monitor,
+            &statistics,
+            "ProcessStepResultFromMessageEvent",
+        )
+        .await;
+
+        // Verify command arrived on receiver
+        let cmd = receiver.try_recv().expect("command should be on channel");
+        assert!(matches!(
+            cmd,
+            OrchestrationCommand::ProcessStepResultFromMessageEvent { .. }
+        ));
+
+        // Verify operations_coordinated incremented
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 1);
+        assert_eq!(statistics.events_failed.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn test_fire_and_forget_closed_channel() {
+        let (sender, receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+
+        // Close the channel by dropping the receiver
+        drop(receiver);
+
+        let message_event = MessageEvent::new(
+            "orchestration_step_results",
+            "orchestration",
+            MessageId::from(1i64),
+        );
+
+        // Should not panic, should increment events_failed
+        OrchestrationEventSystem::fire_and_forget_command(
+            |resp| OrchestrationCommand::ProcessStepResultFromMessageEvent {
+                message_event,
+                resp,
+            },
+            &sender,
+            &monitor,
+            &statistics,
+            "ProcessStepResultFromMessageEvent",
+        )
+        .await;
+
+        assert_eq!(statistics.events_failed.load(Ordering::Relaxed), 1);
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn test_fire_and_forget_task_request_command() {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+
+        let message_event = MessageEvent::new(
+            "orchestration_task_requests",
+            "orchestration",
+            MessageId::from(7i64),
+        );
+
+        OrchestrationEventSystem::fire_and_forget_command(
+            |resp| OrchestrationCommand::InitializeTaskFromMessageEvent {
+                message_event,
+                resp,
+            },
+            &sender,
+            &monitor,
+            &statistics,
+            "InitializeTaskFromMessageEvent",
+        )
+        .await;
+
+        let cmd = receiver.try_recv().expect("command should be on channel");
+        assert!(matches!(
+            cmd,
+            OrchestrationCommand::InitializeTaskFromMessageEvent { .. }
+        ));
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test]
+    async fn test_fire_and_forget_finalization_command() {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+
+        let message_event = MessageEvent::new(
+            "orchestration_task_finalizations",
+            "orchestration",
+            MessageId::from(99i64),
+        );
+
+        OrchestrationEventSystem::fire_and_forget_command(
+            |resp| OrchestrationCommand::FinalizeTaskFromMessageEvent {
+                message_event,
+                resp,
+            },
+            &sender,
+            &monitor,
+            &statistics,
+            "FinalizeTaskFromMessageEvent",
+        )
+        .await;
+
+        let cmd = receiver.try_recv().expect("command should be on channel");
+        assert!(matches!(
+            cmd,
+            OrchestrationCommand::FinalizeTaskFromMessageEvent { .. }
+        ));
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 1);
+    }
+
+    // =========================================================================
+    // process_orchestration_notification tests (requires SystemContext)
+    // =========================================================================
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_event_step_result(pool: sqlx::PgPool) {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        let message_event = MessageEvent::new(
+            "orchestration_step_results",
+            "orchestration",
+            MessageId::from(1i64),
+        );
+
+        let notification =
+            OrchestrationNotification::Event(OrchestrationQueueEvent::StepResult(message_event));
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        let cmd = receiver
+            .try_recv()
+            .expect("StepResult command should arrive");
+        assert!(matches!(
+            cmd,
+            OrchestrationCommand::ProcessStepResultFromMessageEvent { .. }
+        ));
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 1);
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_event_task_request(pool: sqlx::PgPool) {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        let message_event = MessageEvent::new(
+            "orchestration_task_requests",
+            "orchestration",
+            MessageId::from(2i64),
+        );
+
+        let notification =
+            OrchestrationNotification::Event(OrchestrationQueueEvent::TaskRequest(message_event));
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        let cmd = receiver
+            .try_recv()
+            .expect("TaskRequest command should arrive");
+        assert!(matches!(
+            cmd,
+            OrchestrationCommand::InitializeTaskFromMessageEvent { .. }
+        ));
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 1);
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_event_task_finalization(pool: sqlx::PgPool) {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        let message_event = MessageEvent::new(
+            "orchestration_task_finalizations",
+            "orchestration",
+            MessageId::from(3i64),
+        );
+
+        let notification = OrchestrationNotification::Event(
+            OrchestrationQueueEvent::TaskFinalization(message_event),
+        );
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        let cmd = receiver
+            .try_recv()
+            .expect("TaskFinalization command should arrive");
+        assert!(matches!(
+            cmd,
+            OrchestrationCommand::FinalizeTaskFromMessageEvent { .. }
+        ));
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 1);
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_event_unknown(pool: sqlx::PgPool) {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        let notification = OrchestrationNotification::Event(OrchestrationQueueEvent::Unknown {
+            queue_name: "unknown_queue".to_string(),
+            payload: "{}".to_string(),
+        });
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        // Unknown events increment events_failed and send no command
+        assert_eq!(statistics.events_failed.load(Ordering::Relaxed), 1);
+        assert!(receiver.try_recv().is_err());
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_connection_error(pool: sqlx::PgPool) {
+        let (sender, _receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        let notification =
+            OrchestrationNotification::ConnectionError("test connection error".to_string());
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        assert_eq!(statistics.events_failed.load(Ordering::Relaxed), 1);
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_reconnected(pool: sqlx::PgPool) {
+        let (sender, _receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        let notification = OrchestrationNotification::Reconnected;
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        // Reconnected should not increment any error stats
+        assert_eq!(statistics.events_failed.load(Ordering::Relaxed), 0);
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 0);
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_step_result_with_valid_payload(pool: sqlx::PgPool) {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        // Create a valid JSON payload as bytes
+        let json_bytes = serde_json::to_vec(&serde_json::json!({
+            "step_id": 1,
+            "status": "complete"
+        }))
+        .unwrap();
+
+        let handle = tasker_shared::messaging::service::MessageHandle::InMemory {
+            id: 1,
+            queue_name: "orchestration_step_results".to_string(),
+        };
+        let metadata = tasker_shared::messaging::service::MessageMetadata::default_now();
+        let queued_msg = tasker_shared::messaging::service::QueuedMessage::with_handle(
+            json_bytes, handle, metadata,
+        );
+
+        let notification = OrchestrationNotification::StepResultWithPayload(queued_msg);
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        let cmd = receiver
+            .try_recv()
+            .expect("ProcessStepResultFromMessage command should arrive");
+        assert!(matches!(
+            cmd,
+            OrchestrationCommand::ProcessStepResultFromMessage { .. }
+        ));
+        assert_eq!(statistics.operations_coordinated.load(Ordering::Relaxed), 1);
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_step_result_with_invalid_payload(pool: sqlx::PgPool) {
+        let (sender, mut receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        // Create invalid JSON bytes
+        let invalid_bytes = b"not valid json at all".to_vec();
+
+        let handle = tasker_shared::messaging::service::MessageHandle::InMemory {
+            id: 2,
+            queue_name: "orchestration_step_results".to_string(),
+        };
+        let metadata = tasker_shared::messaging::service::MessageMetadata::default_now();
+        let queued_msg = tasker_shared::messaging::service::QueuedMessage::with_handle(
+            invalid_bytes,
+            handle,
+            metadata,
+        );
+
+        let notification = OrchestrationNotification::StepResultWithPayload(queued_msg);
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        // Invalid payload should increment events_failed
+        assert_eq!(statistics.events_failed.load(Ordering::Relaxed), 1);
+        assert!(receiver.try_recv().is_err());
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_notification_updates_timestamp(pool: sqlx::PgPool) {
+        let (sender, _receiver) = ChannelFactory::orchestration_command_channel(10);
+        let monitor = ChannelMonitor::new("test_cmd_channel", 10);
+        let statistics = Arc::new(OrchestrationStatistics::default());
+        let context = Arc::new(
+            SystemContext::with_pool(pool)
+                .await
+                .expect("context creation"),
+        );
+
+        // Verify initial timestamp is 0
+        assert_eq!(
+            statistics
+                .last_processing_time_epoch_nanos
+                .load(Ordering::Relaxed),
+            0
+        );
+
+        let notification = OrchestrationNotification::Reconnected;
+
+        OrchestrationEventSystem::process_orchestration_notification(
+            notification,
+            &context,
+            &sender,
+            &monitor,
+            &statistics,
+        )
+        .await;
+
+        // Timestamp should have been updated to a non-zero value
+        let timestamp = statistics
+            .last_processing_time_epoch_nanos
+            .load(Ordering::Relaxed);
+        assert!(
+            timestamp > 0,
+            "Timestamp should be updated after processing"
+        );
+    }
+}

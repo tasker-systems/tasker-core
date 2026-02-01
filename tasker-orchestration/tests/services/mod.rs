@@ -9,6 +9,7 @@
 mod analytics_service_tests;
 mod batch_processing_tests;
 mod decision_point_tests;
+mod event_system_tests;
 mod health_service_tests;
 mod step_query_service_tests;
 mod step_service_tests;

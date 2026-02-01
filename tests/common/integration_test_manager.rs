@@ -444,7 +444,7 @@ impl IntegrationTestManager {
     /// Check gRPC orchestration service health using the gRPC client
     #[cfg(feature = "grpc")]
     async fn check_grpc_orchestration_health(grpc_url: &str) -> Result<()> {
-        use tasker_client::GrpcOrchestrationClient;
+        use tasker_client::{GrpcOrchestrationClient, OrchestrationClient};
 
         let client = GrpcOrchestrationClient::connect(grpc_url)
             .await
