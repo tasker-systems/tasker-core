@@ -361,14 +361,13 @@ impl OrchestrationFallbackPoller {
 
         for queued_message in messages {
             // Messages from receive_messages() already have proper handles
+            // TAS-165: Fire-and-forget commands (no response channel)
             let command_result = match &queue_type {
                 tasker_shared::config::QueueType::StepResults => {
                     stats.step_results_processed.fetch_add(1, Ordering::Relaxed);
-                    let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
                     command_sender
                         .send(OrchestrationCommand::ProcessStepResultFromMessage {
                             message: queued_message,
-                            resp: resp_tx,
                         })
                         .await
                 }
@@ -376,20 +375,16 @@ impl OrchestrationFallbackPoller {
                     stats
                         .task_requests_processed
                         .fetch_add(1, Ordering::Relaxed);
-                    let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
                     command_sender
                         .send(OrchestrationCommand::InitializeTaskFromMessage {
                             message: queued_message,
-                            resp: resp_tx,
                         })
                         .await
                 }
                 tasker_shared::config::QueueType::TaskFinalizations => {
-                    let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
                     command_sender
                         .send(OrchestrationCommand::FinalizeTaskFromMessage {
                             message: queued_message,
-                            resp: resp_tx,
                         })
                         .await
                 }
