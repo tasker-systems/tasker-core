@@ -8,12 +8,12 @@ use tasker_shared::config::doc_context::ConfigContext;
 use tasker_shared::config::doc_context_builder::DocContextBuilder;
 
 #[cfg(feature = "docs-gen")]
-use askama::Template;
-#[cfg(feature = "docs-gen")]
-use tasker_client::docs::{
+use crate::docs::{
     AnnotatedConfigTemplate, ConfigReferenceTemplate, DocIndexTemplate, ParameterExplainTemplate,
     SectionDetailTemplate,
 };
+#[cfg(feature = "docs-gen")]
+use askama::Template;
 
 use crate::DocsCommands;
 

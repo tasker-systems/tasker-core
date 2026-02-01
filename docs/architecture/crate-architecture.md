@@ -33,7 +33,8 @@ tasker-core/
 ├── tasker-shared/            # Shared types, SQL functions, utilities
 ├── tasker-orchestration/     # Task coordination and lifecycle management
 ├── tasker-worker/            # Step execution and handler integration
-├── tasker-client/            # API client library and CLI tools
+├── tasker-client/            # API client library (REST + gRPC transport)
+├── tasker-cli/              # CLI binary (depends on tasker-client)
 └── workers/
     ├── ruby/ext/tasker_core/ # Ruby FFI bindings
     └── rust/                 # Rust native worker
@@ -73,7 +74,13 @@ tasker-core/
 ┌──────────────────────────┐            │
 │    tasker-client         │            │
 │    API client library    │            │
-│    CLI tools             │            │
+│    REST + gRPC transport │            │
+└──────────────────────────┘            │
+               │                        │
+               ▼                        │
+┌──────────────────────────┐            │
+│    tasker-cli            │            │
+│    CLI binary            │            │
 └──────────────────────────┘            │
                                         │
                ┌────────────────────────┘
@@ -418,14 +425,15 @@ pub mod event_systems {
 
 ### tasker-client
 
-**Purpose**: API client library and command-line tools
+**Purpose**: Transport-agnostic API client library for REST and gRPC
 
 **Location**: `tasker-client/`
 
 **Key Responsibilities**:
 - HTTP client for orchestration REST API
-- CLI tools for task management
-- Integration testing utilities
+- gRPC client for orchestration gRPC API (feature-gated)
+- Transport abstraction via unified client traits
+- Configuration management and auth resolution
 - Client-side request building
 
 **Public API**:
@@ -460,6 +468,24 @@ pub trait OrchestrationClient: Send + Sync {
 }
 ```
 
+**When to Use**:
+- When you need to interact with orchestration API from Rust
+- When building integration tests
+- When implementing client applications or FFI bindings
+- When building UI frontends (TUI, web) that need API access
+
+### tasker-cli
+
+**Purpose**: Command-line interface for Tasker (TAS-188: split from tasker-client)
+
+**Location**: `tasker-cli/`
+
+**Key Responsibilities**:
+- CLI argument parsing and command dispatch (via clap)
+- Task, worker, system, config, auth, and DLQ commands
+- Configuration documentation generation (via askama, feature-gated)
+- API key generation and management
+
 **CLI Tools**:
 ```bash
 # Task management
@@ -469,13 +495,15 @@ tasker-cli task list --namespace payments
 
 # Health checks
 tasker-cli health
+
+# Configuration docs generation
+tasker-cli docs generate
 ```
 
 **When to Use**:
-- When you need to interact with orchestration API from Rust
-- When building integration tests
-- When creating CLI tools for task management
-- When implementing client applications
+- When managing tasks from the command line
+- When generating configuration documentation
+- When performing administrative operations (auth, DLQ management)
 
 **Dependencies**:
 - `reqwest` - HTTP client

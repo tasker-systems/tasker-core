@@ -1948,7 +1948,7 @@ script = '''
 #!/bin/bash
 set -euo pipefail
 
-CLI="cargo run --all-features --package tasker-client --bin tasker-cli --"
+CLI="cargo run --all-features --package tasker-cli --bin tasker-cli --"
 OUTDIR="docs/generated"
 
 mkdir -p "$OUTDIR"
@@ -1986,7 +1986,7 @@ $CLI docs coverage
 [tasks.docs-coverage]
 description = "Show configuration documentation coverage statistics"
 command = "cargo"
-args = ["run", "--all-features", "--package", "tasker-client", "--bin", "tasker-cli",
+args = ["run", "--all-features", "--package", "tasker-cli", "--bin", "tasker-cli",
         "--", "docs", "coverage"]
 
 [tasks.docs-check]
@@ -1995,7 +1995,7 @@ script = '''
 #!/bin/bash
 set -euo pipefail
 
-CLI="cargo run --all-features --package tasker-client --bin tasker-cli --"
+CLI="cargo run --all-features --package tasker-cli --bin tasker-cli --"
 OUTDIR="docs/generated"
 TMPDIR=$(mktemp -d)
 trap "rm -rf $TMPDIR" EXIT

@@ -79,12 +79,13 @@ jobs:
         run: |
           echo "🔨 Building core packages..."
           cargo build \
-            --features "benchmarks,test-services" \
+            --features "test-services" \
             --package tasker-shared \
             --package tasker-orchestration \
             --package tasker-worker \
             --package tasker-pgmq \
             --package tasker-client \
+            --package tasker-cli \
             --bins
           echo "📦 Verifying binaries were created..."
           ls -lh target/debug/tasker-server target/debug/tasker-worker target/debug/tasker-cli

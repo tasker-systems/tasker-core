@@ -1,11 +1,13 @@
 //! # Tasker Client Library
 //!
-//! **Comprehensive client library** for interacting with Tasker orchestration and worker APIs.
-//! Provides both library interfaces for programmatic use and CLI commands for manual operations.
+//! **API client library** for interacting with Tasker orchestration and worker APIs.
+//! Provides transport-agnostic REST and gRPC client interfaces for programmatic use.
 //!
 //! This crate serves as the primary interface for external systems to interact with the
-//! Tasker workflow orchestration platform. It handles HTTP communication, authentication,
+//! Tasker workflow orchestration platform. It handles HTTP/gRPC communication, authentication,
 //! error handling, and provides strongly-typed interfaces for all API endpoints.
+//!
+//! For the CLI tool, see the `tasker-cli` crate which depends on this library.
 //!
 //! ## Features
 //!
@@ -14,7 +16,7 @@
 //! - **Authentication Support**: Built-in API key and JWT token authentication
 //! - **Configuration Management**: Flexible configuration loading from environment or files
 //! - **Error Handling**: Comprehensive error types with proper categorization
-//! - **CLI Integration**: Command-line interface for operational tasks
+//! - **Transport Abstraction**: Unified traits for REST and gRPC with transparent switching
 //!
 //! ## Quick Start
 //!
@@ -129,9 +131,6 @@ pub mod api_clients;
 pub mod config;
 pub mod error;
 pub mod transport;
-
-#[cfg(feature = "docs-gen")]
-pub mod docs;
 
 #[cfg(feature = "grpc")]
 pub mod grpc_clients;

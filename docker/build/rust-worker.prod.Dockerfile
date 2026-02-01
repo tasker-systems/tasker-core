@@ -36,6 +36,7 @@ COPY src/ ./src/
 # Copy workspace crates needed by rust worker
 COPY tasker-shared/ ./tasker-shared/
 COPY tasker-client/ ./tasker-client/
+COPY tasker-cli/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
 COPY tasker-worker/ ./tasker-worker/
 COPY workers/rust/ ./workers/rust/
@@ -72,6 +73,7 @@ COPY src/ ./src/
 # Copy workspace crates needed by rust worker
 COPY tasker-shared/ ./tasker-shared/
 COPY tasker-client/ ./tasker-client/
+COPY tasker-cli/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
 COPY tasker-worker/ ./tasker-worker/
 COPY workers/rust/ ./workers/rust/

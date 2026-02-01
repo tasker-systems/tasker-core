@@ -1,0 +1,72 @@
+[package]
+name = "tasker-cli"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Command-line interface for the Tasker orchestration system"
+readme = "README.md"
+repository = "https://github.com/tasker-systems/tasker-core"
+keywords = ["cli", "orchestration", "workflow", "task-management"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "tasker-cli"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace crates
+tasker-client = { path = "../tasker-client" }
+tasker-shared = { path = "../tasker-shared" }
+
+# CLI framework
+clap = { workspace = true, features = ["color", "derive", "env"] }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization & config
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+
+# Date/time
+chrono = { workspace = true }
+
+# UUID
+uuid = { workspace = true }
+
+# Auth (key generation)
+rsa = { workspace = true }
+rand = { workspace = true }
+
+# Validation
+validator = { workspace = true }
+regex = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Template rendering (optional, for docs generation)
+askama = { workspace = true, optional = true }
+
+[features]
+default = ["docs-gen"]
+docs-gen = ["askama"]
+
+[dev-dependencies]
+serial_test = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
+
+# TAS-145: cargo-machete ignore list for tasker-cli
+# These dependencies ARE used but machete may not detect them:
+# - rand: Used via rsa::rand_core::OsRng (transitive)
+# - regex: Used in config commands
+# - serde: Used via derive macros
+# - validator: Used via Validate derive
+[package.metadata.cargo-machete]
+ignored = ["rand", "serde"]
