@@ -6,15 +6,20 @@
 //! ## Command Pattern
 //!
 //! The `OrchestrationCommand` enum represents all commands that can be sent to the
-//! orchestration command processor. Each command variant includes a response channel
-//! for async communication of results.
+//! orchestration command processor. Commands fall into two categories:
+//!
+//! - **Request-response**: System commands (`GetProcessingStats`, `HealthCheck`, `Shutdown`)
+//!   and direct processing commands (`InitializeTask`, `ProcessStepResult`, `FinalizeTask`)
+//!   include a `CommandResponder` for async communication of results.
+//! - **Fire-and-forget**: Message-based commands (`*FromMessage`, `*FromMessageEvent`) are
+//!   sent without response channels. All production callers (OrchestrationEventSystem,
+//!   FallbackPoller) use fire-and-forget semantics. (TAS-165)
 //!
 //! ## Result Types
 //!
-//! Each command has a corresponding result type that encodes the possible outcomes:
+//! Each request-response command has a corresponding result type:
 //! - `TaskInitializeResult`: Task initialization outcomes
 //! - `StepProcessResult`: Step result processing outcomes
-//! - `TaskReadinessResult`: Task readiness processing metrics
 //! - `TaskFinalizationResult`: Task finalization outcomes
 //!
 //! ## Provider Abstraction
@@ -58,58 +63,45 @@ pub enum OrchestrationCommand {
     },
     /// Process step result from message - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle
+    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle.
+    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
     ProcessStepResultFromMessage {
         message: QueuedMessage<serde_json::Value>,
-        resp: CommandResponder<StepProcessResult>,
     },
     /// Initialize task from message - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle
+    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle.
+    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
     InitializeTaskFromMessage {
         message: QueuedMessage<serde_json::Value>,
-        resp: CommandResponder<TaskInitializeResult>,
     },
     /// Finalize task from message - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle
+    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle.
+    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
     FinalizeTaskFromMessage {
         message: QueuedMessage<serde_json::Value>,
-        resp: CommandResponder<TaskFinalizationResult>,
     },
     /// Process step result from message event - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support
+    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
+    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
     ProcessStepResultFromMessageEvent {
         message_event: MessageEvent,
-        resp: CommandResponder<StepProcessResult>,
     },
     /// Initialize task from message event - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support
+    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
+    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
     InitializeTaskFromMessageEvent {
         message_event: MessageEvent,
-        resp: CommandResponder<TaskInitializeResult>,
     },
     /// Finalize task from message event - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support
+    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
+    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
     FinalizeTaskFromMessageEvent {
         message_event: MessageEvent,
-        resp: CommandResponder<TaskFinalizationResult>,
-    },
-    /// Process task readiness event from PostgreSQL LISTEN/NOTIFY
-    /// Delegates to TaskClaimStepEnqueuer for atomic task claiming and step enqueueing
-    ProcessTaskReadiness {
-        task_uuid: Uuid,
-        namespace: String,
-        priority: i32,
-        ready_steps: i32,
-        triggered_by: String, // "step_transition", "task_start", "fallback_polling"
-        step_uuid: Option<Uuid>, // Present for step_transition triggers
-        step_state: Option<String>, // Present for step_transition triggers
-        task_state: Option<String>, // Present for task_start triggers
-        resp: CommandResponder<TaskReadinessResult>,
     },
     /// Get orchestration processing statistics
     GetProcessingStats {
@@ -138,17 +130,6 @@ pub enum StepProcessResult {
     Skipped { reason: String },
 }
 
-/// Result of processing a task readiness event
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskReadinessResult {
-    pub task_uuid: Uuid,
-    pub namespace: String,
-    pub steps_enqueued: u32,
-    pub steps_discovered: u32,
-    pub triggered_by: String,
-    pub processing_time_ms: u64,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskFinalizationResult {
     Success {
@@ -170,7 +151,6 @@ pub struct OrchestrationProcessingStats {
     pub task_requests_processed: u64,
     pub step_results_processed: u64,
     pub tasks_finalized: u64,
-    pub tasks_ready_processed: u64, // TAS-43: Task readiness events processed
     pub processing_errors: u64,
     pub current_queue_sizes: HashMap<String, i64>,
 }

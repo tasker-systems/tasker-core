@@ -28,10 +28,6 @@ use crate::orchestration::{
 };
 use tasker_shared::monitoring::ChannelMonitor;
 use tasker_shared::{DeploymentMode, DeploymentModeError, DeploymentModeHealthStatus};
-
-use crate::orchestration::commands::{
-    StepProcessResult, TaskFinalizationResult, TaskInitializeResult,
-};
 use tasker_shared::{EventDrivenSystem, EventSystemStatistics, SystemStatistics};
 
 /// Queue-level event system for orchestration coordination
@@ -633,6 +629,10 @@ impl EventDrivenSystem for OrchestrationEventSystem {
         }
     }
 
+    /// TAS-165: Fire-and-forget event processing
+    ///
+    /// Commands are dispatched to the orchestration processor without awaiting
+    /// responses. The processor handles result tracking and error logging internally.
     async fn process_event(&self, event: Self::Event) -> Result<(), DeploymentModeError> {
         let start_time = Instant::now();
 
@@ -642,348 +642,58 @@ impl EventDrivenSystem for OrchestrationEventSystem {
             "Processing orchestration queue event"
         );
 
-        match event {
+        let send_result = match event {
             OrchestrationQueueEvent::StepResult(message_event) => {
                 let msg_id = message_event.message_id.clone();
-                let (command_tx, command_rx) = tokio::sync::oneshot::channel();
-
                 let command = OrchestrationCommand::ProcessStepResultFromMessageEvent {
                     message_event,
-                    resp: command_tx,
                 };
 
-                // Send command to orchestration processor with monitoring (TAS-51)
-                match self.command_sender.send(command).await {
-                    Ok(_) => {
-                        // TAS-51: Record send success and check saturation
-                        if self.command_channel_monitor.record_send_success() {
-                            self.command_channel_monitor
-                                .check_and_warn_saturation(self.command_sender.capacity());
-                        }
-                    }
-                    Err(e) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            error = %e,
-                            "Failed to send ProcessStepResult command"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Failed to send orchestration command: {}", e),
-                        });
-                    }
-                }
-
-                // Wait for command processing result
-                match command_rx.await {
-                    Ok(Ok(result)) => {
-                        match result {
-                            StepProcessResult::Success { message } => {
-                                debug!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    message = %message,
-                                    "ProcessStepResultFromMessageEvent command completed successfully"
-                                );
-
-                                // Track statistics
-                                self.statistics
-                                    .operations_coordinated
-                                    .fetch_add(1, Ordering::Relaxed);
-                            }
-                            StepProcessResult::Failed { error } => {
-                                warn!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    error = %error,
-                                    "ProcessStepResultFromMessageEvent command failed"
-                                );
-                                self.statistics
-                                    .events_failed
-                                    .fetch_add(1, Ordering::Relaxed);
-                                return Err(DeploymentModeError::ConfigurationError {
-                                    message: format!("Step processing failed: {}", error),
-                                });
-                            }
-                            StepProcessResult::Skipped { reason } => {
-                                debug!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    reason = %reason,
-                                    "ProcessStepResultFromMessageEvent command skipped"
-                                );
-                                // Still count as successful operation
-                                self.statistics
-                                    .operations_coordinated
-                                    .fetch_add(1, Ordering::Relaxed);
-                            }
-                        }
-                    }
-                    Ok(Err(e)) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            error = %e,
-                            "ProcessStepResultFromMessageEvent command failed"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Command processing failed: {}", e),
-                        });
-                    }
-                    Err(e) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            error = %e,
-                            "Failed to receive ProcessStepResultFromMessageEvent command response"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Command response failed: {}", e),
-                        });
-                    }
-                }
+                self.command_sender.send(command).await.map_err(|e| {
+                    error!(
+                        system_id = %self.system_id,
+                        msg_id = %msg_id,
+                        error = %e,
+                        "Failed to send ProcessStepResultFromMessageEvent command"
+                    );
+                    e
+                })
             }
 
             OrchestrationQueueEvent::TaskRequest(message_event) => {
                 let msg_id = message_event.message_id.clone();
-                let (command_tx, command_rx) = tokio::sync::oneshot::channel();
-
                 let command = OrchestrationCommand::InitializeTaskFromMessageEvent {
                     message_event,
-                    resp: command_tx,
                 };
 
-                // Send command to orchestration processor with monitoring (TAS-51)
-                match self.command_sender.send(command).await {
-                    Ok(_) => {
-                        // TAS-51: Record send success and check saturation
-                        if self.command_channel_monitor.record_send_success() {
-                            self.command_channel_monitor
-                                .check_and_warn_saturation(self.command_sender.capacity());
-                        }
-                    }
-                    Err(e) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            error = %e,
-                            "Failed to send InitializeTaskFromMessageEvent command"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Failed to send orchestration command: {}", e),
-                        });
-                    }
-                }
-
-                // Wait for command processing result
-                match command_rx.await {
-                    Ok(Ok(result)) => {
-                        match result {
-                            TaskInitializeResult::Success { task_uuid, message } => {
-                                debug!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    task_uuid = %task_uuid,
-                                    message = %message,
-                                    "InitializeTaskFromMessageEvent command completed successfully"
-                                );
-
-                                // Track statistics
-                                self.statistics
-                                    .operations_coordinated
-                                    .fetch_add(1, Ordering::Relaxed);
-                            }
-                            TaskInitializeResult::Failed { error } => {
-                                warn!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    error = %error,
-                                    "InitializeTaskFromMessageEvent command failed"
-                                );
-                                self.statistics
-                                    .events_failed
-                                    .fetch_add(1, Ordering::Relaxed);
-                                return Err(DeploymentModeError::ConfigurationError {
-                                    message: format!("Task Initialization failed: {}", error),
-                                });
-                            }
-                            TaskInitializeResult::Skipped { reason } => {
-                                debug!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    reason = %reason,
-                                    "InitializeTaskFromMessageEvent command skipped"
-                                );
-                                // Still count as successful operation
-                                self.statistics
-                                    .operations_coordinated
-                                    .fetch_add(1, Ordering::Relaxed);
-                            }
-                        }
-                    }
-                    Ok(Err(e)) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            error = %e,
-                            "InitializeTaskFromMessageEvent command failed"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Command processing failed: {}", e),
-                        });
-                    }
-                    Err(e) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            error = %e,
-                            "Failed to receive InitializeTaskFromMessageEvent command response"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Command response failed: {}", e),
-                        });
-                    }
-                }
+                self.command_sender.send(command).await.map_err(|e| {
+                    error!(
+                        system_id = %self.system_id,
+                        msg_id = %msg_id,
+                        error = %e,
+                        "Failed to send InitializeTaskFromMessageEvent command"
+                    );
+                    e
+                })
             }
 
             OrchestrationQueueEvent::TaskFinalization(message_event) => {
                 let msg_id = message_event.message_id.clone();
                 let namespace = message_event.namespace.clone();
-                let (command_tx, command_rx) = tokio::sync::oneshot::channel();
-
                 let command = OrchestrationCommand::FinalizeTaskFromMessageEvent {
                     message_event,
-                    resp: command_tx,
                 };
 
-                // Send command to orchestration processor with monitoring (TAS-51)
-                match self.command_sender.send(command).await {
-                    Ok(_) => {
-                        // TAS-51: Record send success and check saturation
-                        if self.command_channel_monitor.record_send_success() {
-                            self.command_channel_monitor
-                                .check_and_warn_saturation(self.command_sender.capacity());
-                        }
-                    }
-                    Err(e) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            namespace = %namespace,
-                            error = %e,
-                            "Failed to send FinalizeTaskFromMessageEvent command"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Failed to send orchestration command: {}", e),
-                        });
-                    }
-                }
-
-                // Wait for command processing result
-                match command_rx.await {
-                    Ok(Ok(result)) => {
-                        match result {
-                            TaskFinalizationResult::Success {
-                                task_uuid,
-                                final_status,
-                                completion_time,
-                            } => {
-                                debug!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    task_uuid_completed = %task_uuid,
-                                    final_status = %final_status,
-                                    completion_time = format!("{:?}", completion_time),
-                                    "FinalizeTaskFromMessageEvent command completed successfully"
-                                );
-
-                                // Track statistics
-                                self.statistics
-                                    .operations_coordinated
-                                    .fetch_add(1, Ordering::Relaxed);
-                            }
-                            TaskFinalizationResult::Failed { error } => {
-                                warn!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    error = %error,
-                                    "FinalizeTaskFromMessageEvent command failed"
-                                );
-                                self.statistics
-                                    .events_failed
-                                    .fetch_add(1, Ordering::Relaxed);
-                                return Err(DeploymentModeError::ConfigurationError {
-                                    message: format!("Task Finalization failed: {}", error),
-                                });
-                            }
-                            TaskFinalizationResult::NotClaimed {
-                                reason,
-                                already_claimed_by,
-                            } => {
-                                debug!(
-                                    system_id = %self.system_id,
-                                    msg_id = %msg_id,
-                                    reason = %reason,
-                                    already_claimed_by = %already_claimed_by.unwrap_or(uuid::Uuid::nil()).to_string(),
-                                    "FinalizeTaskFromMessageEvent command not claimed"
-                                );
-                                // Still count as successful operation
-                                self.statistics
-                                    .operations_coordinated
-                                    .fetch_add(1, Ordering::Relaxed);
-                            }
-                        }
-                    }
-                    Ok(Err(e)) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            error = %e,
-                            "InitializeTaskFromMessageEvent command failed"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Command processing failed: {}", e),
-                        });
-                    }
-                    Err(e) => {
-                        error!(
-                            system_id = %self.system_id,
-                            msg_id = %msg_id,
-                            error = %e,
-                            "Failed to receive InitializeTaskFromMessageEvent command response"
-                        );
-                        self.statistics
-                            .events_failed
-                            .fetch_add(1, Ordering::Relaxed);
-                        return Err(DeploymentModeError::ConfigurationError {
-                            message: format!("Command response failed: {}", e),
-                        });
-                    }
-                }
+                self.command_sender.send(command).await.map_err(|e| {
+                    error!(
+                        system_id = %self.system_id,
+                        msg_id = %msg_id,
+                        namespace = %namespace,
+                        error = %e,
+                        "Failed to send FinalizeTaskFromMessageEvent command"
+                    );
+                    e
+                })
             }
 
             OrchestrationQueueEvent::Unknown { queue_name, .. } => {
@@ -992,6 +702,28 @@ impl EventDrivenSystem for OrchestrationEventSystem {
                     queue_name = %queue_name,
                     "Unknown orchestration queue event received"
                 );
+                Ok(())
+            }
+        };
+
+        match send_result {
+            Ok(_) => {
+                // TAS-51: Record send success and check saturation
+                if self.command_channel_monitor.record_send_success() {
+                    self.command_channel_monitor
+                        .check_and_warn_saturation(self.command_sender.capacity());
+                }
+                self.statistics
+                    .operations_coordinated
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            Err(e) => {
+                self.statistics
+                    .events_failed
+                    .fetch_add(1, Ordering::Relaxed);
+                return Err(DeploymentModeError::ConfigurationError {
+                    message: format!("Failed to send orchestration command: {}", e),
+                });
             }
         }
 
@@ -1004,7 +736,7 @@ impl EventDrivenSystem for OrchestrationEventSystem {
         debug!(
             system_id = %self.system_id,
             latency_ms = %latency.as_millis(),
-            "Orchestration queue event processed successfully"
+            "Orchestration queue event dispatched successfully"
         );
 
         Ok(())
@@ -1163,12 +895,10 @@ impl OrchestrationEventSystem {
                             "Processing RabbitMQ push message via ProcessStepResultFromMessage"
                         );
 
-                        // Send to actor system via ProcessStepResultFromMessage (has full payload)
-                        let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
+                        // TAS-165: Fire-and-forget (no response channel)
                         match command_sender
                             .send(OrchestrationCommand::ProcessStepResultFromMessage {
                                 message: json_message,
-                                resp: resp_tx,
                             })
                             .await
                         {
@@ -1214,12 +944,10 @@ impl OrchestrationEventSystem {
                         "Processing step result event from orchestration queue (signal-only)"
                     );
 
-                    let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
-
+                    // TAS-165: Fire-and-forget (no response channel)
                     match command_sender
                         .send(OrchestrationCommand::ProcessStepResultFromMessageEvent {
                             message_event,
-                            resp: resp_tx,
                         })
                         .await
                     {
@@ -1237,7 +965,7 @@ impl OrchestrationEventSystem {
                             warn!(
                                 msg_id = %msg_id,
                                 error = %e,
-                                "Failed to send ProcessStepResult command"
+                                "Failed to send ProcessStepResultFromMessageEvent command"
                             );
                             statistics.events_failed.fetch_add(1, Ordering::Relaxed);
                         }
@@ -1253,12 +981,10 @@ impl OrchestrationEventSystem {
                         "Processing task request event from orchestration queue"
                     );
 
-                    let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
-
+                    // TAS-165: Fire-and-forget (no response channel)
                     match command_sender
                         .send(OrchestrationCommand::InitializeTaskFromMessageEvent {
                             message_event,
-                            resp: resp_tx,
                         })
                         .await
                     {
@@ -1293,12 +1019,10 @@ impl OrchestrationEventSystem {
                         "Processing task finalization event from orchestration queue"
                     );
 
-                    let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
-
+                    // TAS-165: Fire-and-forget (no response channel)
                     match command_sender
                         .send(OrchestrationCommand::FinalizeTaskFromMessageEvent {
                             message_event,
-                            resp: resp_tx,
                         })
                         .await
                     {

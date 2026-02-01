@@ -48,14 +48,14 @@ use tasker_shared::{TaskerError, TaskerResult};
 use crate::actors::result_processor_actor::ProcessStepResultMessage;
 use crate::actors::task_finalizer_actor::FinalizeTaskMessage;
 use crate::actors::task_request_actor::ProcessTaskRequestMessage;
-use crate::actors::{ActorRegistry, Handler, ProcessBatchMessage};
+use crate::actors::{ActorRegistry, Handler};
 use crate::health::caches::HealthStatusCaches;
 use crate::orchestration::channels::{
     ChannelFactory, OrchestrationCommandReceiver, OrchestrationCommandSender,
 };
 use crate::orchestration::commands::{
     CommandResponder, OrchestrationCommand, OrchestrationProcessingStats, StepProcessResult,
-    SystemHealth, TaskFinalizationResult, TaskInitializeResult, TaskReadinessResult,
+    SystemHealth, TaskFinalizationResult, TaskInitializeResult,
 };
 use crate::orchestration::hydration::{
     FinalizationHydrator, StepResultHydrator, TaskRequestHydrator,
@@ -117,7 +117,6 @@ impl OrchestrationCommandProcessorActor {
             task_requests_processed: 0,
             step_results_processed: 0,
             tasks_finalized: 0,
-            tasks_ready_processed: 0,
             processing_errors: 0,
             current_queue_sizes: HashMap::new(),
         }));
@@ -245,101 +244,52 @@ impl CommandHandler {
                 )
                 .await;
             }
-            OrchestrationCommand::ProcessStepResultFromMessageEvent {
-                message_event,
-                resp,
-            } => {
-                self.execute_with_stats(
+            // TAS-165: Fire-and-forget command variants (no response channel)
+            OrchestrationCommand::ProcessStepResultFromMessageEvent { message_event } => {
+                self.execute_fire_and_forget(
                     self.handle_step_result_from_message_event(message_event),
                     |stats| &mut stats.step_results_processed,
-                    resp,
                 )
                 .await;
             }
-            OrchestrationCommand::InitializeTaskFromMessageEvent {
-                message_event,
-                resp,
-            } => {
-                self.execute_with_stats(
+            OrchestrationCommand::InitializeTaskFromMessageEvent { message_event } => {
+                self.execute_fire_and_forget(
                     self.handle_task_initialize_from_message_event(message_event),
                     |stats| &mut stats.task_requests_processed,
-                    resp,
                 )
                 .await;
             }
-            OrchestrationCommand::FinalizeTaskFromMessageEvent {
-                message_event,
-                resp,
-            } => {
-                self.execute_with_stats(
+            OrchestrationCommand::FinalizeTaskFromMessageEvent { message_event } => {
+                self.execute_fire_and_forget(
                     self.handle_task_finalize_from_message_event(message_event),
                     |stats| &mut stats.tasks_finalized,
-                    resp,
                 )
                 .await;
             }
-            OrchestrationCommand::ProcessStepResultFromMessage { message, resp } => {
+            OrchestrationCommand::ProcessStepResultFromMessage { message } => {
                 let queue_name = message.queue_name();
                 debug!(
                     handle = ?message.handle,
                     queue = %queue_name,
                     "Starting ProcessStepResultFromMessage"
                 );
-                self.execute_with_stats(
+                self.execute_fire_and_forget(
                     self.handle_step_result_from_message(message),
                     |stats| &mut stats.step_results_processed,
-                    resp,
                 )
                 .await;
             }
-            OrchestrationCommand::InitializeTaskFromMessage { message, resp } => {
-                self.execute_with_stats(
+            OrchestrationCommand::InitializeTaskFromMessage { message } => {
+                self.execute_fire_and_forget(
                     self.handle_task_initialize_from_message(message),
                     |stats| &mut stats.task_requests_processed,
-                    resp,
                 )
                 .await;
             }
-            OrchestrationCommand::FinalizeTaskFromMessage { message, resp } => {
-                self.execute_with_stats(
+            OrchestrationCommand::FinalizeTaskFromMessage { message } => {
+                self.execute_fire_and_forget(
                     self.handle_task_finalize_from_message(message),
                     |stats| &mut stats.tasks_finalized,
-                    resp,
-                )
-                .await;
-            }
-            OrchestrationCommand::ProcessTaskReadiness {
-                task_uuid,
-                namespace,
-                priority,
-                ready_steps,
-                triggered_by,
-                step_uuid,
-                step_state,
-                task_state,
-                resp,
-            } => {
-                debug!(
-                    task_uuid = %task_uuid,
-                    namespace = %namespace,
-                    priority = %priority,
-                    ready_steps = %ready_steps,
-                    triggered_by = %triggered_by,
-                    step_uuid = format!("{:?}", step_uuid),
-                    step_state = format!("{:?}", step_state),
-                    task_state = format!("{:?}", task_state),
-                    "Processing task readiness for task with UUID {task_uuid} in namespace {namespace}",
-                );
-                self.execute_with_stats(
-                    self.handle_process_task_readiness(
-                        task_uuid,
-                        namespace,
-                        priority,
-                        ready_steps,
-                        triggered_by,
-                    ),
-                    |stats| &mut stats.tasks_ready_processed,
-                    resp,
                 )
                 .await;
             }
@@ -370,12 +320,9 @@ impl CommandHandler {
     /// 2. Update stats based on success/failure
     /// 3. Send response through the channel
     ///
-    /// # Channel Send Failures
-    ///
-    /// TAS-162: All production callers (OrchestrationEventSystem, FallbackPoller) use
-    /// fire-and-forget semantics - they create a oneshot channel but immediately drop
-    /// the receiver (`_resp_rx`). This means `resp.send()` will always fail in normal
-    /// operation. This is expected behavior, not an error condition.
+    /// Used for request-response commands (`InitializeTask`, `ProcessStepResult`,
+    /// `FinalizeTask`, `GetProcessingStats`, `HealthCheck`, `Shutdown`).
+    /// For fire-and-forget commands, see `execute_fire_and_forget` (TAS-165).
     async fn execute_with_stats<T, Fut>(
         &self,
         handler: Fut,
@@ -395,12 +342,40 @@ impl CommandHandler {
                 stats.processing_errors += 1;
             }
         }
-        // TAS-162: All callers use fire-and-forget (drop receiver immediately), so
-        // a closed channel is expected. Only log at debug to avoid false alarm noise.
         if resp.send(result).is_err() {
             debug!(
                 was_success = was_success,
-                "Command response channel closed - receiver dropped (fire-and-forget caller)"
+                "Command response channel closed - receiver dropped"
+            );
+        }
+    }
+
+    /// Execute handler with automatic stats tracking for fire-and-forget commands (TAS-165)
+    ///
+    /// Similar to `execute_with_stats` but without a response channel. Used for
+    /// command variants where all callers use fire-and-forget semantics.
+    async fn execute_fire_and_forget<T, Fut>(
+        &self,
+        handler: Fut,
+        stat_selector: impl FnOnce(&mut OrchestrationProcessingStats) -> &mut u64,
+    ) where
+        Fut: Future<Output = TaskerResult<T>>,
+        T: std::fmt::Debug,
+    {
+        let result = handler.await;
+        let was_success = result.is_ok();
+        {
+            let mut stats = self.stats.write().unwrap_or_else(|p| p.into_inner());
+            if was_success {
+                *stat_selector(&mut stats) += 1;
+            } else {
+                stats.processing_errors += 1;
+            }
+        }
+        if let Err(e) = &result {
+            debug!(
+                error = %e,
+                "Fire-and-forget command processing failed"
             );
         }
     }
@@ -880,72 +855,6 @@ impl CommandHandler {
         }
 
         result
-    }
-
-    // =========================================================================
-    // Task Readiness Handler
-    // =========================================================================
-
-    /// Handle task readiness processing
-    ///
-    /// This is the core TAS-43 implementation that:
-    /// 1. Delegates to StepEnqueuerActor for atomic step enqueueing
-    /// 2. Returns processing metrics for observability
-    async fn handle_process_task_readiness(
-        &self,
-        task_uuid: Uuid,
-        namespace: String,
-        priority: i32,
-        ready_steps: i32,
-        triggered_by: String,
-    ) -> TaskerResult<TaskReadinessResult> {
-        let start_time = std::time::Instant::now();
-
-        debug!(
-            task_uuid = %task_uuid,
-            namespace = %namespace,
-            priority = priority,
-            ready_steps = ready_steps,
-            triggered_by = %triggered_by,
-            "Processing task readiness event via command pattern"
-        );
-
-        let msg = ProcessBatchMessage;
-        let process_result = match self.actors.step_enqueuer_actor.handle(msg).await {
-            Ok(result) => result,
-            Err(e) => {
-                error!(
-                    task_uuid = %task_uuid,
-                    namespace = %namespace,
-                    error = %e,
-                    "Failed to process task readiness via StepEnqueuerActor"
-                );
-                return Err(e);
-            }
-        };
-
-        let processing_time_ms = start_time.elapsed().as_millis() as u64;
-
-        info!(
-            task_uuid = %task_uuid,
-            namespace = %namespace,
-            priority = priority,
-            ready_steps = ready_steps,
-            tasks_processed = process_result.tasks_processed,
-            tasks_failed = process_result.tasks_failed,
-            processing_time_ms = processing_time_ms,
-            triggered_by = %triggered_by,
-            "Task readiness processed successfully"
-        );
-
-        Ok(TaskReadinessResult {
-            task_uuid,
-            namespace,
-            steps_enqueued: ready_steps as u32,
-            steps_discovered: ready_steps as u32,
-            processing_time_ms,
-            triggered_by,
-        })
     }
 
     // =========================================================================
