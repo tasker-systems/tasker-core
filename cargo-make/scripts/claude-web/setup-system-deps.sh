@@ -9,8 +9,8 @@
 # Idempotent: skips packages that are already installed.
 #
 # Usage:
-#   source bin/lib/setup-common.sh
-#   source bin/lib/setup-system-deps.sh
+#   source cargo-make/scripts/claude-web/setup-common.sh
+#   source cargo-make/scripts/claude-web/setup-system-deps.sh
 #
 # =============================================================================
 

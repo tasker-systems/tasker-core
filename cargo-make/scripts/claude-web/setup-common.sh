@@ -15,9 +15,13 @@
 # =============================================================================
 
 # Resolve PROJECT_DIR from any calling script location
-# Callers can override by setting PROJECT_DIR before sourcing
+# Callers can override by setting PROJECT_DIR before sourcing.
+# When run standalone from cargo-make/scripts/claude-web/, go up 3 levels.
+# When sourced from bin/setup-claude-web.sh, the caller already sets PROJECT_DIR.
 if [ -z "${PROJECT_DIR:-}" ]; then
-  PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[1]}")/.." && pwd)}"
+  _SETUP_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "${_SETUP_COMMON_DIR}/../../.." && pwd)}"
+  unset _SETUP_COMMON_DIR
 fi
 
 # ---------------------------------------------------------------------------

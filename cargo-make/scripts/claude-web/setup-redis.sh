@@ -17,8 +17,8 @@
 # Idempotent: skips if Redis is already responding to PING.
 #
 # Usage:
-#   source bin/lib/setup-common.sh
-#   source bin/lib/setup-redis.sh
+#   source cargo-make/scripts/claude-web/setup-common.sh
+#   source cargo-make/scripts/claude-web/setup-redis.sh
 #   setup_redis  # Sets REDIS_READY
 #
 # =============================================================================

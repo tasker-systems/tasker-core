@@ -9,8 +9,8 @@
 # Idempotent: skips tools that are already installed.
 #
 # Usage:
-#   source bin/lib/setup-common.sh
-#   source bin/lib/setup-cargo-tools.sh
+#   source cargo-make/scripts/claude-web/setup-common.sh
+#   source cargo-make/scripts/claude-web/setup-cargo-tools.sh
 #
 # =============================================================================
 

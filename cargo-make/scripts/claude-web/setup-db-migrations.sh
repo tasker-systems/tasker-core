@@ -7,8 +7,8 @@
 # PostgreSQL is ready and extensions are installed.
 #
 # Usage:
-#   source bin/lib/setup-common.sh
-#   source bin/lib/setup-db-migrations.sh
+#   source cargo-make/scripts/claude-web/setup-common.sh
+#   source cargo-make/scripts/claude-web/setup-db-migrations.sh
 #   DB_READY=true setup_db_migrations
 #
 # =============================================================================

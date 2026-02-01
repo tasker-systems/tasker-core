@@ -9,8 +9,8 @@
 # Idempotent: skips if Rust is already installed.
 #
 # Usage:
-#   source bin/lib/setup-common.sh
-#   source bin/lib/setup-rust.sh
+#   source cargo-make/scripts/claude-web/setup-common.sh
+#   source cargo-make/scripts/claude-web/setup-rust.sh
 #
 # =============================================================================
 

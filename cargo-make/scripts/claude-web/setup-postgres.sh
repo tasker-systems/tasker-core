@@ -19,8 +19,8 @@
 #   Sets PSQL_SUPER to the superuser psql command string.
 #
 # Usage:
-#   source bin/lib/setup-common.sh
-#   source bin/lib/setup-postgres.sh
+#   source cargo-make/scripts/claude-web/setup-common.sh
+#   source cargo-make/scripts/claude-web/setup-postgres.sh
 #   setup_postgres  # Sets PG_READY
 #
 # =============================================================================

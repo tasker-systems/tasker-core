@@ -27,9 +27,10 @@
 #   - Telemetry stack (Grafana, OTLP)
 #
 # Architecture:
-#   This script composes smaller, isolated scripts from bin/lib/ that each
-#   handle a specific concern. Each lib script can also be run independently
-#   for debugging or partial setup.
+#   This script composes smaller, isolated scripts from cargo-make/scripts/claude-web/
+#   that each handle a specific concern. Each script can also be run independently
+#   for debugging or partial setup. Keeping them alongside other cargo-make scripts
+#   makes it easier to audit and unify shared patterns.
 #
 # Usage:
 #   ./bin/setup-claude-web.sh           # Auto-invoked by SessionStart hook
@@ -51,7 +52,7 @@ fi
 # Bootstrap
 # ---------------------------------------------------------------------------
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-LIB_DIR="${PROJECT_DIR}/bin/lib"
+LIB_DIR="${PROJECT_DIR}/cargo-make/scripts/claude-web"
 
 # Ensure common tool directories are in PATH from the start
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"

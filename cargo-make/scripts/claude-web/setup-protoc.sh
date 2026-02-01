@@ -9,8 +9,8 @@
 # Idempotent: skips if protoc is already available.
 #
 # Usage:
-#   source bin/lib/setup-common.sh
-#   source bin/lib/setup-protoc.sh
+#   source cargo-make/scripts/claude-web/setup-common.sh
+#   source cargo-make/scripts/claude-web/setup-protoc.sh
 #
 # =============================================================================
 
