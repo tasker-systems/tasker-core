@@ -665,26 +665,19 @@ mod tests {
     fn test_error_display_task_not_found() {
         let uuid = Uuid::nil();
         let error = DecisionPointProcessingError::TaskNotFound(uuid);
-        assert_eq!(
-            error.to_string(),
-            format!("Task {uuid} not found")
-        );
+        assert_eq!(error.to_string(), format!("Task {uuid} not found"));
     }
 
     #[test]
     fn test_error_display_workflow_step_not_found() {
         let uuid = Uuid::nil();
         let error = DecisionPointProcessingError::WorkflowStepNotFound(uuid);
-        assert_eq!(
-            error.to_string(),
-            format!("Workflow step {uuid} not found")
-        );
+        assert_eq!(error.to_string(), format!("Workflow step {uuid} not found"));
     }
 
     #[test]
     fn test_error_display_decision_step_not_found() {
-        let error =
-            DecisionPointProcessingError::DecisionStepNotFound("my_decision".to_string());
+        let error = DecisionPointProcessingError::DecisionStepNotFound("my_decision".to_string());
         assert_eq!(
             error.to_string(),
             "Decision step 'my_decision' not found in template"
@@ -693,9 +686,7 @@ mod tests {
 
     #[test]
     fn test_error_display_template_serialization() {
-        let error = DecisionPointProcessingError::TemplateSerialization(
-            "invalid JSON".to_string(),
-        );
+        let error = DecisionPointProcessingError::TemplateSerialization("invalid JSON".to_string());
         assert_eq!(
             error.to_string(),
             "Template serialization error: invalid JSON"

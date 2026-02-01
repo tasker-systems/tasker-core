@@ -918,10 +918,7 @@ mod tests {
     #[test]
     fn test_batch_processing_error_display_state_machine() {
         let error = BatchProcessingError::StateMachine("invalid transition".to_string());
-        assert_eq!(
-            error.to_string(),
-            "State machine error: invalid transition"
-        );
+        assert_eq!(error.to_string(), "State machine error: invalid transition");
     }
 
     #[test]
@@ -973,7 +970,8 @@ mod tests {
             parallelism: 10,
             cursor_field: "id".to_string(),
             worker_template: "test_worker".to_string(),
-            failure_strategy: tasker_shared::models::core::task_template::FailureStrategy::ContinueOnFailure,
+            failure_strategy:
+                tasker_shared::models::core::task_template::FailureStrategy::ContinueOnFailure,
         };
         let inputs = BatchWorkerInputs::new(cursor, &batch_config, false);
         let value = inputs.to_value();
@@ -1000,7 +998,8 @@ mod tests {
             parallelism: 10,
             cursor_field: "id".to_string(),
             worker_template: "test_worker".to_string(),
-            failure_strategy: tasker_shared::models::core::task_template::FailureStrategy::ContinueOnFailure,
+            failure_strategy:
+                tasker_shared::models::core::task_template::FailureStrategy::ContinueOnFailure,
         };
         let inputs = BatchWorkerInputs::new(cursor, &batch_config, true);
         let value = inputs.to_value();

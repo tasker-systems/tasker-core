@@ -627,8 +627,14 @@ mod tests {
         let arc_config = manager.config();
 
         // Verify we get access to the config through Arc
-        assert!(!arc_config.state_machine_mappings.task_transitions.is_empty());
-        assert!(!arc_config.state_machine_mappings.step_transitions.is_empty());
+        assert!(!arc_config
+            .state_machine_mappings
+            .task_transitions
+            .is_empty());
+        assert!(!arc_config
+            .state_machine_mappings
+            .step_transitions
+            .is_empty());
     }
 
     #[test]

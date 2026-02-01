@@ -624,13 +624,15 @@ mod tests {
         // Create a date 120 seconds in the future
         let future = Utc::now() + Duration::seconds(120);
         let rfc2822 = future.to_rfc2822();
-        let ctx =
-            BackoffContext::new().with_header("Retry-After".to_string(), rfc2822);
+        let ctx = BackoffContext::new().with_header("Retry-After".to_string(), rfc2822);
         let result = calculator.extract_retry_after_header(&ctx);
         // Should parse as roughly 120 seconds (allow some tolerance for test execution time)
         assert!(result.is_some());
         let seconds = result.unwrap();
-        assert!(seconds >= 118 && seconds <= 122, "Expected ~120, got {seconds}");
+        assert!(
+            seconds >= 118 && seconds <= 122,
+            "Expected ~120, got {seconds}"
+        );
     }
 
     #[tokio::test]
@@ -639,8 +641,7 @@ mod tests {
         // A date in the past should return None (negative duration)
         let past = Utc::now() - Duration::seconds(60);
         let rfc2822 = past.to_rfc2822();
-        let ctx =
-            BackoffContext::new().with_header("Retry-After".to_string(), rfc2822);
+        let ctx = BackoffContext::new().with_header("Retry-After".to_string(), rfc2822);
         assert_eq!(calculator.extract_retry_after_header(&ctx), None);
     }
 
@@ -654,8 +655,7 @@ mod tests {
     #[tokio::test]
     async fn test_extract_retry_after_large_value() {
         let calculator = make_calculator();
-        let ctx =
-            BackoffContext::new().with_header("retry-after".to_string(), "86400".to_string());
+        let ctx = BackoffContext::new().with_header("retry-after".to_string(), "86400".to_string());
         assert_eq!(calculator.extract_retry_after_header(&ctx), Some(86400));
     }
 
@@ -663,16 +663,14 @@ mod tests {
     async fn test_extract_retry_after_negative_value() {
         let calculator = make_calculator();
         // Negative numbers fail u32 parse
-        let ctx =
-            BackoffContext::new().with_header("retry-after".to_string(), "-30".to_string());
+        let ctx = BackoffContext::new().with_header("retry-after".to_string(), "-30".to_string());
         assert_eq!(calculator.extract_retry_after_header(&ctx), None);
     }
 
     #[tokio::test]
     async fn test_extract_retry_after_empty_value() {
         let calculator = make_calculator();
-        let ctx =
-            BackoffContext::new().with_header("retry-after".to_string(), String::new());
+        let ctx = BackoffContext::new().with_header("retry-after".to_string(), String::new());
         assert_eq!(calculator.extract_retry_after_header(&ctx), None);
     }
 
@@ -800,10 +798,7 @@ mod tests {
             .with_header("retry-after".to_string(), "60".to_string())
             .with_header("retry-after".to_string(), "120".to_string());
 
-        assert_eq!(
-            context.headers.get("retry-after"),
-            Some(&"120".to_string())
-        );
+        assert_eq!(context.headers.get("retry-after"), Some(&"120".to_string()));
         assert_eq!(context.headers.len(), 1);
     }
 
@@ -841,6 +836,9 @@ mod tests {
     async fn test_backoff_calculator_clone() {
         let calculator = make_calculator();
         let cloned = calculator.clone();
-        assert_eq!(cloned.config.base_delay_seconds, calculator.config.base_delay_seconds);
+        assert_eq!(
+            cloned.config.base_delay_seconds,
+            calculator.config.base_delay_seconds
+        );
     }
 }

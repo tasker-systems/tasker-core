@@ -661,8 +661,18 @@ mod tests {
     #[test]
     fn test_staleness_result_all_action_variants() {
         let actions = [
-            (StalenessAction::WouldTransitionToDlqAndError, false, false, false),
-            (StalenessAction::TransitionedToDlqAndError, false, true, true),
+            (
+                StalenessAction::WouldTransitionToDlqAndError,
+                false,
+                false,
+                false,
+            ),
+            (
+                StalenessAction::TransitionedToDlqAndError,
+                false,
+                true,
+                true,
+            ),
             (StalenessAction::MovedToDlqOnly, true, true, false),
             (StalenessAction::TransitionedToErrorOnly, true, false, true),
             (StalenessAction::TransitionFailed, true, false, false),

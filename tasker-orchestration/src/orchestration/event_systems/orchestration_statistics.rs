@@ -181,7 +181,9 @@ mod tests {
         assert_eq!(stats.events_failed.load(Ordering::Relaxed), 0);
         assert_eq!(stats.operations_coordinated.load(Ordering::Relaxed), 0);
         assert_eq!(
-            stats.last_processing_time_epoch_nanos.load(Ordering::Relaxed),
+            stats
+                .last_processing_time_epoch_nanos
+                .load(Ordering::Relaxed),
             0
         );
         assert!(stats.processing_latencies.lock().unwrap().is_empty());
@@ -316,11 +318,7 @@ mod tests {
         // avg_latency = 1.0ms
         // latency_score = min(100.0 / 1.0, 1.0) = 1.0
         // score = (1.0 + 1.0) / 2.0 = 1.0
-        assert!(
-            (score - 1.0).abs() < 0.01,
-            "Expected ~1.0, got {}",
-            score
-        );
+        assert!((score - 1.0).abs() < 0.01, "Expected ~1.0, got {}", score);
     }
 
     #[test]
@@ -340,10 +338,6 @@ mod tests {
         // avg_latency = 1.0ms
         // latency_score = min(100.0 / 1.0, 1.0) = 1.0
         // score = (0.5 + 1.0) / 2.0 = 0.75
-        assert!(
-            (score - 0.75).abs() < 0.01,
-            "Expected ~0.75, got {}",
-            score
-        );
+        assert!((score - 0.75).abs() < 0.01, "Expected ~0.75, got {}", score);
     }
 }

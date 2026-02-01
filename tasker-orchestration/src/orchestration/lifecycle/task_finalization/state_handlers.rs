@@ -442,7 +442,11 @@ mod tests {
             .handle_processing_state(task, Some(exec_context), Uuid::new_v4())
             .await;
 
-        assert!(result.is_ok(), "handle_processing_state should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "handle_processing_state should succeed: {:?}",
+            result.err()
+        );
         let result = result.unwrap();
         assert!(matches!(result.action, FinalizationAction::NoAction));
         assert_eq!(result.completion_percentage, Some(50.0));
@@ -505,7 +509,11 @@ mod tests {
             .handle_unclear_state(task, None, Uuid::new_v4())
             .await;
 
-        assert!(result.is_ok(), "handle_unclear_state should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "handle_unclear_state should succeed: {:?}",
+            result.err()
+        );
         let result = result.unwrap();
         assert!(matches!(result.action, FinalizationAction::Failed));
 
@@ -559,7 +567,11 @@ mod tests {
             .handle_waiting_state(task, Some(exec_context), Uuid::new_v4())
             .await;
 
-        assert!(result.is_ok(), "handle_waiting_state should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "handle_waiting_state should succeed: {:?}",
+            result.err()
+        );
         let result = result.unwrap();
         assert!(matches!(result.action, FinalizationAction::Failed));
 

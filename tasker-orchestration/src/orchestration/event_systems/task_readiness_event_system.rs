@@ -197,10 +197,7 @@ mod tests {
         let system = TaskReadinessEventSystem::new(context);
 
         // Without config set, deployment mode should be Disabled
-        assert!(matches!(
-            system.deployment_mode(),
-            DeploymentMode::Disabled
-        ));
+        assert!(matches!(system.deployment_mode(), DeploymentMode::Disabled));
         Ok(())
     }
 

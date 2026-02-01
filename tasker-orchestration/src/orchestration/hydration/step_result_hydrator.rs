@@ -315,10 +315,7 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use serde_json::json;
-    use std::sync::Arc;
-    use tasker_shared::messaging::message::StepMessage;
     use tasker_shared::messaging::service::{MessageHandle, MessageMetadata};
-    use tasker_shared::system_context::SystemContext;
     use uuid::Uuid;
 
     fn create_pgmq_message(payload: serde_json::Value) -> PgmqMessage {
@@ -444,7 +441,11 @@ mod tests {
         let message = create_pgmq_message(serde_json::to_value(&step_msg)?);
 
         let result = hydrator.hydrate_from_message(&message).await;
-        assert!(result.is_ok(), "Hydration should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Hydration should succeed: {:?}",
+            result.err()
+        );
 
         let execution_result = result.unwrap();
         assert!(execution_result.success);
@@ -519,7 +520,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            err.to_string().contains("deserialize") || err.to_string().contains("StepExecutionResult"),
+            err.to_string().contains("deserialize")
+                || err.to_string().contains("StepExecutionResult"),
             "Error should indicate deserialization failure: {err}"
         );
 
@@ -572,7 +574,11 @@ mod tests {
         let message = create_queued_message(serde_json::to_value(&step_msg)?);
 
         let result = hydrator.hydrate_from_queued_message(&message).await;
-        assert!(result.is_ok(), "Hydration should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Hydration should succeed: {:?}",
+            result.err()
+        );
 
         let execution_result = result.unwrap();
         assert!(!execution_result.success);

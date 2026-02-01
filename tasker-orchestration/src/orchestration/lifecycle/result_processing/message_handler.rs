@@ -745,11 +745,10 @@ mod tests {
             )
             .await?,
         );
-        let task_finalizer =
-            crate::orchestration::lifecycle::task_finalization::TaskFinalizer::new(
-                context.clone(),
-                step_enqueuer,
-            );
+        let task_finalizer = crate::orchestration::lifecycle::task_finalization::TaskFinalizer::new(
+            context.clone(),
+            step_enqueuer,
+        );
 
         let backoff_config: crate::orchestration::BackoffCalculatorConfig =
             context.tasker_config.clone().into();

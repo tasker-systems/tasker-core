@@ -942,10 +942,7 @@ mod tests {
         };
 
         assert_eq!(result.namespace_breakdown.len(), 2);
-        assert_eq!(
-            result.namespace_breakdown["fulfillment"].steps_enqueued,
-            3
-        );
+        assert_eq!(result.namespace_breakdown["fulfillment"].steps_enqueued, 3);
         assert_eq!(result.namespace_breakdown["billing"].steps_failed, 1);
     }
 

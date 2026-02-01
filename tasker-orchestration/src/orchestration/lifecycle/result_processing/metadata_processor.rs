@@ -262,7 +262,9 @@ mod tests {
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use std::collections::HashMap;
-        use tasker_shared::messaging::message::{BackoffHint, BackoffHintType, OrchestrationMetadata};
+        use tasker_shared::messaging::message::{
+            BackoffHint, BackoffHintType, OrchestrationMetadata,
+        };
         use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
 
         let processor = create_metadata_processor(&pool).await?;
@@ -298,7 +300,9 @@ mod tests {
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use std::collections::HashMap;
-        use tasker_shared::messaging::message::{BackoffHint, BackoffHintType, OrchestrationMetadata};
+        use tasker_shared::messaging::message::{
+            BackoffHint, BackoffHintType, OrchestrationMetadata,
+        };
         use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
 
         let processor = create_metadata_processor(&pool).await?;
@@ -334,7 +338,9 @@ mod tests {
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use std::collections::HashMap;
-        use tasker_shared::messaging::message::{BackoffHint, BackoffHintType, OrchestrationMetadata};
+        use tasker_shared::messaging::message::{
+            BackoffHint, BackoffHintType, OrchestrationMetadata,
+        };
         use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
 
         let processor = create_metadata_processor(&pool).await?;
@@ -388,10 +394,7 @@ mod tests {
             ]),
             error_context: Some("Service temporarily overloaded".to_string()),
             backoff_hint: None,
-            custom: HashMap::from([(
-                "region".to_string(),
-                serde_json::json!("us-east-1"),
-            )]),
+            custom: HashMap::from([("region".to_string(), serde_json::json!("us-east-1"))]),
         };
         let correlation_id = Uuid::new_v4();
 

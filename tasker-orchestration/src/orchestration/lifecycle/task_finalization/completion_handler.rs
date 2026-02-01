@@ -656,11 +656,13 @@ mod tests {
         // Put task in StepsInProcess state
         create_transition(&pool, task_uuid, "pending", "steps_in_process").await?;
 
-        let result = handler
-            .complete_task(task, None, Uuid::new_v4())
-            .await;
+        let result = handler.complete_task(task, None, Uuid::new_v4()).await;
 
-        assert!(result.is_ok(), "complete_task should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "complete_task should succeed: {:?}",
+            result.err()
+        );
         let result = result.unwrap();
         assert!(matches!(result.action, FinalizationAction::Completed));
 
@@ -683,11 +685,13 @@ mod tests {
         // Put task in Initializing state
         create_transition(&pool, task_uuid, "pending", "initializing").await?;
 
-        let result = handler
-            .complete_task(task, None, Uuid::new_v4())
-            .await;
+        let result = handler.complete_task(task, None, Uuid::new_v4()).await;
 
-        assert!(result.is_ok(), "complete_task should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "complete_task should succeed: {:?}",
+            result.err()
+        );
         let result = result.unwrap();
         assert!(matches!(result.action, FinalizationAction::Completed));
 
@@ -706,9 +710,7 @@ mod tests {
         let task = create_test_task(&pool).await?;
 
         // Task starts in Pending state (no transitions created)
-        let result = handler
-            .complete_task(task, None, Uuid::new_v4())
-            .await;
+        let result = handler.complete_task(task, None, Uuid::new_v4()).await;
 
         assert!(result.is_err(), "complete_task from Pending should fail");
         let err = result.unwrap_err();
@@ -733,11 +735,12 @@ mod tests {
         // Put task in Complete state
         create_transition(&pool, task_uuid, "evaluating_results", "complete").await?;
 
-        let result = handler
-            .complete_task(task, None, Uuid::new_v4())
-            .await;
+        let result = handler.complete_task(task, None, Uuid::new_v4()).await;
 
-        assert!(result.is_ok(), "complete_task on already-complete should succeed");
+        assert!(
+            result.is_ok(),
+            "complete_task on already-complete should succeed"
+        );
         let result = result.unwrap();
         assert!(matches!(result.action, FinalizationAction::Completed));
 
@@ -796,11 +799,13 @@ mod tests {
 
         create_transition(&pool, task_uuid, "pending", "evaluating_results").await?;
 
-        let result = handler
-            .error_task(task, None, Uuid::new_v4())
-            .await;
+        let result = handler.error_task(task, None, Uuid::new_v4()).await;
 
-        assert!(result.is_ok(), "error_task should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "error_task should succeed: {:?}",
+            result.err()
+        );
         let result = result.unwrap();
         assert!(matches!(result.action, FinalizationAction::Failed));
         assert_eq!(result.reason, Some("Steps in error state".to_string()));
@@ -820,13 +825,21 @@ mod tests {
         let task = create_test_task(&pool).await?;
         let task_uuid = task.task_uuid;
 
-        create_transition(&pool, task_uuid, "evaluating_results", "blocked_by_failures").await?;
+        create_transition(
+            &pool,
+            task_uuid,
+            "evaluating_results",
+            "blocked_by_failures",
+        )
+        .await?;
 
-        let result = handler
-            .error_task(task, None, Uuid::new_v4())
-            .await;
+        let result = handler.error_task(task, None, Uuid::new_v4()).await;
 
-        assert!(result.is_ok(), "error_task should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "error_task should succeed: {:?}",
+            result.err()
+        );
         let result = result.unwrap();
         assert!(matches!(result.action, FinalizationAction::Failed));
 
@@ -849,9 +862,7 @@ mod tests {
         // Put task in Error state
         create_transition(&pool, task_uuid, "blocked_by_failures", "error").await?;
 
-        let result = handler
-            .error_task(task, None, Uuid::new_v4())
-            .await;
+        let result = handler.error_task(task, None, Uuid::new_v4()).await;
 
         assert!(result.is_ok(), "error_task on already-error should succeed");
         let result = result.unwrap();

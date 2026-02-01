@@ -52,8 +52,8 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use tasker_client::{
-    OrchestrationApiClient, OrchestrationApiConfig, OrchestrationClient, Transport,
-    UnifiedOrchestrationClient, WorkerApiClient, WorkerApiConfig,
+    OrchestrationApiClient, OrchestrationApiConfig, Transport, UnifiedOrchestrationClient,
+    WorkerApiClient, WorkerApiConfig,
 };
 
 /// Integration test manager for Docker Compose-based testing

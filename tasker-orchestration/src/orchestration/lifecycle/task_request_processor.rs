@@ -440,8 +440,7 @@ mod tests {
         use tasker_shared::models::core::task_request::TaskRequest;
 
         // Create a minimal task request (only required fields)
-        let task_request =
-            TaskRequest::new("simple_task".to_string(), "default".to_string());
+        let task_request = TaskRequest::new("simple_task".to_string(), "default".to_string());
 
         let request = TaskRequestMessage::new(task_request, "test".to_string());
 

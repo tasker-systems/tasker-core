@@ -709,7 +709,9 @@ mod tests {
 
         stats.events_received.fetch_add(5, Ordering::Relaxed);
         stats.step_results_processed.fetch_add(3, Ordering::Relaxed);
-        stats.task_requests_processed.fetch_add(1, Ordering::Relaxed);
+        stats
+            .task_requests_processed
+            .fetch_add(1, Ordering::Relaxed);
         stats.connection_errors.fetch_add(2, Ordering::Relaxed);
 
         assert_eq!(stats.events_received.load(Ordering::Relaxed), 5);

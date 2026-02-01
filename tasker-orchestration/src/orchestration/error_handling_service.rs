@@ -531,10 +531,7 @@ mod tests {
         let cloned = result.clone();
         assert_eq!(cloned.step_uuid, result.step_uuid);
         assert_eq!(cloned.backoff_applied, result.backoff_applied);
-        assert_eq!(
-            cloned.classification_summary,
-            result.classification_summary
-        );
+        assert_eq!(cloned.classification_summary, result.classification_summary);
     }
 
     #[test]
@@ -601,10 +598,7 @@ mod tests {
             classification_summary: "retry limit exceeded".to_string(),
         };
 
-        assert!(matches!(
-            result.action,
-            ErrorHandlingAction::MarkedAsError
-        ));
+        assert!(matches!(result.action, ErrorHandlingAction::MarkedAsError));
         assert!(matches!(result.final_state, WorkflowStepState::Error));
     }
 
