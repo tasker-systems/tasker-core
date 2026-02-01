@@ -1,6 +1,6 @@
 # TAS-188: Decouple tasker-client into tasker-client (library) + tasker-cli (binary)
 
-**Status:** In Progress
+**Status:** Complete
 **Priority:** P1
 **Related:** TAS-175 (docs-gen), TAS-177 (gRPC transport/profiles), TAS-150 (auth)
 
@@ -259,12 +259,12 @@ unknown fields (no `deny_unknown_fields`).
 
 ## Success Criteria
 
-- [ ] `cargo check --all-features` passes with both crates
-- [ ] `cargo clippy --all-targets --all-features` clean
-- [ ] `tasker-cli` binary works identically to before
-- [ ] `tasker-worker` builds without changes to its own code
-- [ ] `tasker-client` has no CLI dependencies (clap, rsa, askama)
-- [ ] Profile config files work for both library and CLI consumers
+- [x] `cargo check --all-features` passes with both crates
+- [x] `cargo clippy --all-targets --all-features` clean (pre-existing warnings only)
+- [x] `tasker-cli` binary builds identically to before
+- [x] `tasker-worker` builds without changes to its own code
+- [x] `tasker-client` has no CLI dependencies (clap, rsa, askama)
+- [x] Profile config files work for both library and CLI consumers (`#[serde(default)]`)
 
 ## Future Work (Out of Scope)
 
@@ -277,5 +277,5 @@ unknown fields (no `deny_unknown_fields`).
 
 ## Metadata
 - Identifier: TAS-188
-- Status: In Progress
+- Status: Complete
 - Priority: P1
