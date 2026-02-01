@@ -645,9 +645,8 @@ impl EventDrivenSystem for OrchestrationEventSystem {
         let send_result = match event {
             OrchestrationQueueEvent::StepResult(message_event) => {
                 let msg_id = message_event.message_id.clone();
-                let command = OrchestrationCommand::ProcessStepResultFromMessageEvent {
-                    message_event,
-                };
+                let command =
+                    OrchestrationCommand::ProcessStepResultFromMessageEvent { message_event };
 
                 self.command_sender.send(command).await.map_err(|e| {
                     error!(
@@ -662,9 +661,8 @@ impl EventDrivenSystem for OrchestrationEventSystem {
 
             OrchestrationQueueEvent::TaskRequest(message_event) => {
                 let msg_id = message_event.message_id.clone();
-                let command = OrchestrationCommand::InitializeTaskFromMessageEvent {
-                    message_event,
-                };
+                let command =
+                    OrchestrationCommand::InitializeTaskFromMessageEvent { message_event };
 
                 self.command_sender.send(command).await.map_err(|e| {
                     error!(
@@ -680,9 +678,7 @@ impl EventDrivenSystem for OrchestrationEventSystem {
             OrchestrationQueueEvent::TaskFinalization(message_event) => {
                 let msg_id = message_event.message_id.clone();
                 let namespace = message_event.namespace.clone();
-                let command = OrchestrationCommand::FinalizeTaskFromMessageEvent {
-                    message_event,
-                };
+                let command = OrchestrationCommand::FinalizeTaskFromMessageEvent { message_event };
 
                 self.command_sender.send(command).await.map_err(|e| {
                     error!(
@@ -1021,9 +1017,7 @@ impl OrchestrationEventSystem {
 
                     // TAS-165: Fire-and-forget (no response channel)
                     match command_sender
-                        .send(OrchestrationCommand::FinalizeTaskFromMessageEvent {
-                            message_event,
-                        })
+                        .send(OrchestrationCommand::FinalizeTaskFromMessageEvent { message_event })
                         .await
                     {
                         Ok(_) => {

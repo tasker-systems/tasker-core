@@ -86,23 +86,17 @@ pub enum OrchestrationCommand {
     ///
     /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
     /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
-    ProcessStepResultFromMessageEvent {
-        message_event: MessageEvent,
-    },
+    ProcessStepResultFromMessageEvent { message_event: MessageEvent },
     /// Initialize task from message event - delegates full message lifecycle to worker
     ///
     /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
     /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
-    InitializeTaskFromMessageEvent {
-        message_event: MessageEvent,
-    },
+    InitializeTaskFromMessageEvent { message_event: MessageEvent },
     /// Finalize task from message event - delegates full message lifecycle to worker
     ///
     /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
     /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
-    FinalizeTaskFromMessageEvent {
-        message_event: MessageEvent,
-    },
+    FinalizeTaskFromMessageEvent { message_event: MessageEvent },
     /// Get orchestration processing statistics
     GetProcessingStats {
         resp: CommandResponder<OrchestrationProcessingStats>,
