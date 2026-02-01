@@ -1,10 +1,10 @@
 # Coverage Analysis: tasker-orchestration
 
-**Current Coverage**: 44.88% line (18,308 / 40,800), 40.41% function (2,318 / 5,734) — as of Jan 31, 2026 — 942 tests
+**Current Coverage**: 48.34% line (20,048 / 41,474), 43.77% function (2,524 / 5,766) — measured Jan 31, 2026 — 1,044 tests
 **Baseline Coverage**: 31.60% line (11,790 / 37,306), 28.57% function (1,509 / 5,282)
 **Target**: 55%
-**Gap**: 10.12 percentage points remaining (was 23.4 pp at baseline)
-**Progress**: +13.28 pp line coverage, +518 tests added (183 unit + 41 integration + 35 refactoring-phase + 71 quick-win/pipeline + 38 staleness/backoff + 22 DB integration + 128 additional unit/DB tests)
+**Gap**: 6.66 percentage points remaining (was 23.4 pp at baseline)
+**Progress**: +16.74 pp line coverage, +619 tests added (183 unit + 41 integration + 35 refactoring-phase + 71 quick-win/pipeline + 38 staleness/backoff + 22 DB integration + 128 additional unit/DB tests + 28 event system tests + 28 viable-step/decision-point/batch-processing DB tests + 45 gRPC layer unit tests)
 
 ---
 
@@ -18,25 +18,25 @@ These 23 files have zero test coverage. Together they represent 1,771 coverable 
 
 | File | Lines (coverable) | Description |
 |------|-------------------|-------------|
-| `orchestration/event_systems/orchestration_event_system.rs` | 370 | Queue-level event system coordinating PGMQ listener and fallback poller with EventDrivenSystem interface. Manages deployment mode transitions, event routing, and statistics. |
+| ~~`orchestration/event_systems/orchestration_event_system.rs`~~ | ~~370~~ | **Now ~47%** — 13 unit + 15 integration tests added. Moved to Lowest Coverage section. |
 | ~~`orchestration/error_handling_service.rs`~~ | ~~217~~ | **Now 41.97%** — Moved to Lowest Coverage section. 9 pure unit tests added for action/result types. |
 | ~~`orchestration/orchestration_queues/fallback_poller.rs`~~ | ~~208~~ | **Now 32.3%** — 7 pure unit tests added for config/stats types. Moved to Lowest Coverage section. |
-| `grpc/services/dlq.rs` | 166 | gRPC DLQ service: investigation tracking, queue listing, staleness monitoring via protobuf. |
+| ~~`grpc/services/dlq.rs`~~ | ~~381~~ | **Now 83.73%** — 26 unit tests for conversion helpers. Moved to above-target. |
 | `grpc/server.rs` | 121 | gRPC server bootstrap: service registration, reflection, health checking, lifecycle management. |
-| `grpc/services/analytics.rs` | 88 | gRPC analytics service: performance metrics and bottleneck analysis endpoints. |
-| `grpc/conversions.rs` | 87 | Proto-to-domain type conversions: task/step state mappings, UUID parsing, JSON-to-struct helpers. |
-| `grpc/services/tasks.rs` | 82 | gRPC task service: CRUD operations, task creation from requests, streaming. |
-| `grpc/interceptors/auth.rs` | 57 | gRPC authentication interceptor: API key and JWT validation for tonic requests. |
-| `orchestration/errors.rs` | 54 | Error type conversions from FinalizationError to OrchestrationError. |
+| ~~`grpc/services/analytics.rs`~~ | ~~194~~ | **Now 75.77%** — 11 unit tests for error mapping + system health conversion. Above target. |
+| ~~`grpc/conversions.rs`~~ | ~~271~~ | **Now 100%** — 28 proto-to-domain conversion tests. |
+| `grpc/services/tasks.rs` | 82 | gRPC task service: CRUD operations, task creation from requests, streaming. Requires service infrastructure. |
+| ~~`grpc/interceptors/auth.rs`~~ | ~~91~~ | **Now 54.95%** — 6 unit tests for disabled auth path, clone, debug. Moved to Lowest Coverage. |
+| ~~`orchestration/errors.rs`~~ | ~~167~~ | **Now 94.01%** — 10 From trait conversion tests. Above target. |
 | `web/extractors.rs` | 47 | Custom Axum extractors: database connection pool selection, worker claims, request ID. |
-| `grpc/services/templates.rs` | 45 | gRPC template service: template CRUD operations. |
-| `grpc/services/config.rs` | 39 | gRPC config service: runtime configuration endpoints. |
-| `grpc/services/steps.rs` | 33 | gRPC step service: step query and management endpoints. |
-| `web/middleware/operational_state.rs` | 28 | Middleware for operational state checks (maintenance mode, degraded mode). |
+| ~~`grpc/services/templates.rs`~~ | ~~72~~ | **Now 44.44%** — 4 unit tests for error mapping. Moved to Lowest Coverage. |
+| `grpc/services/config.rs` | 39 | gRPC config service: runtime configuration endpoints. Requires orchestration context. |
+| `grpc/services/steps.rs` | 33 | gRPC step service: step query and management endpoints. Requires service infrastructure. |
+| ~~`web/middleware/operational_state.rs`~~ | ~~64~~ | **Now 60.94%** — Above target. |
 | `web/middleware/mod.rs` | 22 | Middleware module re-exports and composition. |
 | `orchestration/orchestration_queues/events.rs` | 14 | Queue event types for orchestration queue notifications. |
 | `grpc/state.rs` | 12 | gRPC shared state container holding service references. |
-| `grpc/services/health.rs` | 11 | gRPC health check service (liveness/readiness). |
+| `grpc/services/health.rs` | 11 | gRPC health check service (liveness/readiness). Requires service infrastructure. |
 | `bin/server.rs` | 58 | Server binary entry point: CLI args, config loading, server startup. |
 | `bin/generate_openapi.rs` | 6 | OpenAPI spec generation binary. |
 | `orchestration/lifecycle/batch_processing/mod.rs` | 3 | Module re-export for batch processing. |
@@ -47,36 +47,37 @@ These 23 files have zero test coverage. Together they represent 1,771 coverable 
 | File | Lines (coverable) | Covered | Coverage % | Description |
 |------|-------------------|---------|-----------|-------------|
 | ~~`orchestration/hydration/step_result_hydrator.rs`~~ | ~~230~~ | ~~186~~ | **80.87%** | 10 DB integration tests added. Above target. |
-| `orchestration/viable_step_discovery.rs` | 342 | 25 | 7.3% | SQL-driven step readiness discovery with state machine verification and dependency analysis. |
-| `orchestration/lifecycle/result_processing/message_handler.rs` | 271 | 161 | **59.37%** | Routes step result messages to appropriate handlers. 6 pipeline integration tests added. |
-| `orchestration/lifecycle/batch_processing/service.rs` | 318 | 134 | **42.1%** | 15 tests added for errors, outcomes, worker inputs. Dynamic batch worker instance creation. |
-| `orchestration/bootstrap.rs` | 444 | 43 | 9.7% | Unified orchestration system bootstrap across all deployment modes with lifecycle management. |
+| ~~`orchestration/viable_step_discovery.rs`~~ | ~~602~~ | ~~485~~ | **80.56%** | DB integration tests added. Well above target. |
+| ~~`orchestration/lifecycle/result_processing/message_handler.rs`~~ | ~~314~~ | ~~186~~ | **59.24%** | Routes step result messages to appropriate handlers. Above target. |
+| ~~`orchestration/lifecycle/batch_processing/service.rs`~~ | ~~319~~ | ~~254~~ | **79.62%** | DB integration tests added. Well above target. |
+| `orchestration/bootstrap.rs` | 444 | 43 | 9.68% | Unified orchestration system bootstrap across all deployment modes with lifecycle management. |
 | ~~`orchestration/hydration/finalization_hydrator.rs`~~ | ~~198~~ | ~~189~~ | **95.45%** | Inline tests now measured. Well above target. |
 | `orchestration/lifecycle/result_processing/metadata_processor.rs` | 80 | 65 | **81.11%** | 6 pipeline integration tests added. Now above target. |
 | ~~`orchestration/hydration/task_request_hydrator.rs`~~ | ~~186~~ | ~~177~~ | **95.16%** | Inline tests now measured. Well above target. |
 | `orchestration/lifecycle/result_processing/state_transition_handler.rs` | 162 | 91 | **56.17%** | 10 pipeline integration tests added. Above target. |
-| `orchestration/lifecycle/decision_point/service.rs` | 321 | 115 | **35.8%** | 13 tests for errors, outcomes, DB integration. Decision point processing. |
+| ~~`orchestration/lifecycle/decision_point/service.rs`~~ | ~~314~~ | ~~247~~ | **78.66%** | DB integration tests added. Well above target. |
 | ~~`orchestration/state_manager.rs`~~ | ~~442~~ | ~~77~~ | **Deleted** | Removed — 11/14 methods were dead code. 3 used methods inlined into callers. |
 | `actors/command_processor_actor.rs` | ~200 | — | — | Reduced from 574 coverable lines. Business logic extracted to `commands/service.rs`. |
-| `orchestration/staleness_detector.rs` | 490 | 312 | **63.67%** | 20 pure unit tests added. Above target. |
+| ~~`orchestration/staleness_detector.rs`~~ | ~~500~~ | ~~322~~ | **64.40%** | 20 pure unit tests added. Above target. |
 | `orchestration/lifecycle/result_processing/task_coordinator.rs` | 108 | 81 | **75.21%** | 4 pipeline integration tests added. Above target. |
 | `orchestration/core.rs` | 278 | 120 | **43.2%** | 11 tests added for OrchestrationCoreStatus. Command-pattern bootstrap, channel setup, health monitoring. |
 | ~~`orchestration/lifecycle/task_finalization/state_handlers.rs`~~ | ~~270~~ | ~~225~~ | **83.33%** | 4 DB integration tests added. Above target. |
 | ~~`health/db_status.rs`~~ | ~~126~~ | ~~99~~ | **78.6%** | 8 tests added including real DB evaluation. Above target. |
 | `orchestration/event_systems/task_readiness_event_system.rs` | 86 | 41 | **47.7%** | 7 DB tests added. Task readiness event system. |
-| `orchestration/lifecycle/step_result_processor.rs` | 69 | 22 | 31.9% | Delegates step result processing to the result processing module. |
-| `web/state.rs` | 145 | 49 | 33.8% | Web application state: database pools, services, circuit breaker references. |
+| ~~`orchestration/event_systems/orchestration_event_system.rs`~~ | ~~461~~ | ~~296~~ | **64.21%** | 13 unit + 15 integration tests added. Above target. |
+| ~~`orchestration/lifecycle/step_result_processor.rs`~~ | ~~143~~ | ~~96~~ | **67.13%** | Above target. |
+| `web/state.rs` | 145 | 49 | 33.79% | Web application state: database pools, services, circuit breaker references. |
 | ~~`orchestration/backoff_calculator.rs`~~ | ~~535~~ | ~~499~~ | **93.27%** | 18 new + 7 converted tests. Well above target. |
 | `orchestration/orchestration_queues/listener.rs` | 404 | 186 | **46.0%** | 7 tests added for config/stats. PGMQ queue listener: message dispatch, statistics tracking. |
 | `orchestration/event_systems/unified_event_coordinator.rs` | 395 | 208 | **52.7%** | 9 tests added for config and health reports. Unified coordinator. |
 | ~~`orchestration/lifecycle/task_request_processor.rs`~~ | ~~119~~ | ~~71~~ | **59.6%** | 8 tests added. Above target. |
-| `orchestration/lifecycle/task_finalization/event_publisher.rs` | 143 | 54 | 37.8% | Publishes task completion/error events to messaging queues. |
+| ~~`orchestration/lifecycle/task_finalization/event_publisher.rs`~~ | ~~143~~ | ~~116~~ | **81.12%** | Above target. |
 | ~~`orchestration/lifecycle/step_enqueuer_services/state_handlers.rs`~~ | ~~164~~ | ~~104~~ | **63.2%** | 5 tests added. Above target. |
 | ~~`orchestration/task_readiness/fallback_poller.rs`~~ | ~~145~~ | ~~86~~ | **59.3%** | 5 DB tests added. Above target. |
 | ~~`orchestration/lifecycle/task_finalization/completion_handler.rs`~~ | ~~405~~ | ~~341~~ | **84.20%** | 8 DB integration tests added. Above target. |
 | ~~`orchestration/event_systems/orchestration_statistics.rs`~~ | ~~172~~ | ~~0~~ | **81.37%** | 12 pure unit tests added. Now above target. |
 | ~~`orchestration/error_classifier.rs`~~ | ~~804~~ | ~~727~~ | **90.42%** | 25 pure unit tests added. Well above target. |
-| `services/template_query_service.rs` | 171 | 85 | 49.7% | Template query service: listing, filtering, caching for task templates. |
+| ~~`services/template_query_service.rs`~~ | ~~171~~ | ~~153~~ | **89.47%** | Above target. |
 
 ---
 
@@ -150,13 +151,16 @@ The unified orchestration bootstrap initializes the entire system for all deploy
 
 **Estimated coverage impact**: +1.1 percentage points
 
-**7. Orchestration Event System (370 lines at 0% coverage)**
+**7. Orchestration Event System (370 lines, 0% → ~47% coverage) — PARTIALLY ADDRESSED**
 
-The queue-level event system implementation coordinates PGMQ listener and fallback poller with the EventDrivenSystem interface. It manages deployment mode transitions (polling-only, event-driven, hybrid) and event routing. Zero coverage means deployment mode switching and event coordination are entirely unverified.
+The queue-level event system implementation coordinates PGMQ listener and fallback poller with the EventDrivenSystem interface. **28 tests added** (13 unit + 15 integration) covering:
 
-**Test approach**: Integration tests requiring messaging infrastructure. Test each deployment mode startup and event routing. Test mode transitions (e.g., hybrid fallback to polling-only). Test statistics collection. This is one of the harder modules to test due to infrastructure dependencies.
+- **Unit tests** (in-module `#[cfg(test)]`): `fire_and_forget_command` success/closed-channel paths, `process_orchestration_notification` for all notification variants (StepResult, TaskRequest, TaskFinalization, Unknown, ConnectionError, Reconnected, StepResultWithPayload valid/invalid, timestamp updates)
+- **Integration tests** (`tests/services/event_system_tests.rs`): Construction/getters, health_check when not running, config values, component_statistics, process_event for all event types, multiple/mixed events, stop lifecycle, closed channel error paths
 
-**Estimated coverage impact**: +1.0 percentage points
+**Remaining uncovered (~53%)**: `start()` deployment mode logic (~120 lines), `setup_listener_and_spawn_loop()` (~55 lines), `setup_fallback_poller()` (~15 lines), `listener_config()`/`poller_config()` (~35 lines), `health_check()` running paths (~110 lines), `send_command_and_await()` error paths (~50 lines). These require real messaging infrastructure (PGMQ listener, fallback poller) or a multi-threaded runtime (the `statistics()` method uses `block_in_place` which is incompatible with `sqlx::test`'s current-thread runtime).
+
+**Estimated remaining coverage impact**: +0.5 percentage points (from messaging infrastructure tests)
 
 **8. Fallback Poller (208 lines at 0% coverage)**
 
@@ -341,7 +345,7 @@ Focus on infrastructure reliability and API coverage.
 | gRPC server/state tests | grpc/server.rs, grpc/state.rs | Integration | 133 | +0.4 |
 | Staleness detector tests | staleness_detector.rs | Integration (DB) | 216 | +0.6 |
 | Task finalization pipeline tests | completion_handler, state_handlers, event_publisher | Integration (DB) | 433 | +1.2 |
-| Event system + fallback poller | orchestration_event_system, fallback_poller | Integration (messaging) | 578 | +1.5 |
+| ~~Event system~~ + fallback poller | ~~orchestration_event_system~~ (partially done, ~47%), fallback_poller | Integration (messaging) | ~290 | +0.8 |
 
 ### Phase 3: Depth and Completeness (Target: +4.5 pp, reaching approximately 49.6%)
 
@@ -391,19 +395,19 @@ Extend coverage on already-partially-covered modules, targeting the 55-85% range
 | **Completed** | **Staleness detector + backoff calculator** | **38 tests (pure unit)** | **+0.64 pp** | **41.64%** |
 | **Completed** | **DB integration: hydration + finalization pipeline** | **22 tests (#[sqlx::test])** | **+1.03 pp** | **42.67%** |
 | **Completed** | **Broad unit + DB tests across 12 gap files** | **128 tests** | **+2.21 pp** | **44.88%** |
-| Phase 2 | DB integration tests (decision point, batch processing, viable steps) | ~1,000 | +3.5 pp | ~48.4% |
-| Phase 3 | Messaging + event system integration | ~1,500 | +3.5 pp | ~51.9% |
-| Phase 4 | gRPC, API layer, and final push | ~1,500 | +3.1 pp | ~55.0% |
+| **Completed** | **Event system unit + integration tests** | **28 tests (13 unit + 15 integration)** | **+~0.7 pp** | **~45.6%** |
+| **Completed** | **DB integration: viable steps, decision point, batch processing** | **~28 tests (DB integration)** | **+~1.85 pp** | **47.45%** |
+| **Completed** | **gRPC layer unit tests (DLQ conversions, analytics, auth, templates)** | **45 tests** | **+0.89 pp** | **48.34%** |
+| Remaining | Messaging infrastructure, orchestration core, gRPC service integration, final push | ~TBD | ~+6.66 pp | ~55.0% |
 
 **Key constraints**:
-- Many critical modules (state_manager, viable_step_discovery, hydration, result processing) require a live database connection for meaningful integration tests, since they use `sqlx::query!` macros and SQL function calls.
-- The orchestration event system and fallback poller require messaging infrastructure (PGMQ or RabbitMQ) for integration tests.
-- gRPC tests can be split: pure conversion tests (no infrastructure) and service tests (tonic test server).
-- The bootstrap module is particularly challenging to test in isolation because it wires together the entire system; partial mocking or feature-flag-based test configurations may be needed.
-- Many modules already have `#[cfg(test)]` blocks with inline tests. Extending these is often more efficient than adding new test files, since the test infrastructure (imports, helper functions) is already in place.
-- **The next phase should focus on refactoring large files to extract testable units.** Files like `command_processor_actor.rs` (1001 lines) and `orchestration_event_system.rs` (1359 lines) resist external testing due to tight coupling. Extracting pure functions, strategy objects, or smaller methods will unlock coverage more effectively than adding more integration tests at the current architecture.
+- The orchestration event system (64.21%) and fallback poller require messaging infrastructure (PGMQ or RabbitMQ) for further integration tests. `OrchestrationEventSystem::statistics()` uses `block_in_place` requiring a multi-threaded runtime — incompatible with `sqlx::test`'s current-thread runtime.
+- gRPC tests can be split: pure conversion/error-mapping tests (no infrastructure) and service tests (tonic test server). The conversion module is already at 100%.
+- The bootstrap module (9.68%, 401 uncovered lines) is the single largest non-gRPC gap but is challenging to test in isolation because it wires together the entire system.
+- Many modules already have `#[cfg(test)]` blocks with inline tests. Extending these is often more efficient than adding new test files.
+- **Coverage capture gap**: The root `tests/` directory contains E2E and integration tests (`tests/e2e/`, `tests/integration/`, `tests/grpc/`) that exercise orchestration code paths but are not included in per-crate coverage measurement. Investigating `cargo llvm-cov` workspace-mode or test binary inclusion could capture this coverage, potentially adding several percentage points without writing new tests.
 
-**Files with existing inline tests (83+ files)**: The presence of `#[cfg(test)]` in 83+ of 133 source files (up from 69 at baseline) reflects the unit test additions in the completed phase. Remaining gaps are concentrated in the orchestration core infrastructure, result processing pipeline, and the newer TAS-41/TAS-53/TAS-59 features.
+**Files with existing inline tests (83+ files)**: The presence of `#[cfg(test)]` in 83+ of 133 source files (up from 69 at baseline) reflects the unit test additions across all phases. Remaining gaps are concentrated in gRPC services, orchestration infrastructure (bootstrap, listener, coordinator), and messaging-dependent modules.
 
 ### Completed Work (Jan 30, 2026)
 
@@ -552,3 +556,102 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 | `listener.rs` | 33.9% | 46.0% | +12.1 pp |
 
 **Files now above 55% target**: db_status.rs (78.6%), step_enqueuer.rs (70.9%), state_handlers.rs (63.2%), batch_processor.rs (61.7%), task_request_processor.rs (59.6%), task_readiness/fallback_poller.rs (59.3%)
+
+### Event System Tests: OrchestrationEventSystem (Jan 31, 2026)
+
+**28 tests added** (13 unit + 15 integration) targeting `orchestration_event_system.rs` which was at **0% coverage** — the largest single uncovered file in the crate at 370 coverable lines.
+
+**Unit tests** (13 `#[cfg(test)]` inline tests in `orchestration_event_system.rs`):
+
+Two-pronged approach testing private static methods directly:
+
+*`fire_and_forget_command` tests* (4 tests, `#[tokio::test]`, no DB needed):
+- `test_fire_and_forget_success` — command reaches receiver, `operations_coordinated` incremented
+- `test_fire_and_forget_closed_channel` — closed channel increments `events_failed`, no panic
+- `test_fire_and_forget_task_request` — TaskRequest command routing
+- `test_fire_and_forget_finalization` — Finalization command routing
+
+*`process_orchestration_notification` tests* (9 tests, `#[sqlx::test]` with real DB):
+- `test_notification_event_step_result` — Event(StepResult) → ProcessStepResultFromMessageEvent command
+- `test_notification_event_task_request` — Event(TaskRequest) → InitializeTaskFromMessageEvent command
+- `test_notification_event_task_finalization` — Event(TaskFinalization) → FinalizeTaskFromMessageEvent command
+- `test_notification_event_unknown` — Event(Unknown) → events_failed incremented, no command
+- `test_notification_connection_error` — ConnectionError → events_failed incremented
+- `test_notification_reconnected` — Reconnected → no error stats change
+- `test_notification_step_result_with_valid_payload` — StepResultWithPayload valid JSON → ProcessStepResultFromMessage command
+- `test_notification_step_result_with_invalid_payload` — Invalid JSON → events_failed incremented
+- `test_notification_updates_timestamp` — Any notification updates last_processing_time_epoch_nanos
+
+**Integration tests** (15 `#[sqlx::test]` tests in `tests/services/event_system_tests.rs`):
+
+Setup: `OrchestrationEventSystem` constructed with real DB pool, `OrchestrationCore`, `ChannelFactory` command channel, and `ChannelMonitor`. Mock command handler spawned on receiver to respond to ProcessStepResult/InitializeTask/FinalizeTask commands.
+
+- `test_construction_and_getters` — system_id, deployment_mode, is_running, uptime
+- `test_health_check_fails_when_not_running` — health_check error with "not running" message
+- `test_config_returns_expected_values` — config deployment_mode matches
+- `test_component_statistics_initially_empty` — no poller/listener/uptime stats
+- `test_process_event_step_result` — StepResult event processed via mock handler
+- `test_process_event_task_request` — TaskRequest event processed via mock handler
+- `test_process_event_task_finalization` — TaskFinalization event processed via mock handler
+- `test_process_event_unknown_succeeds` — Unknown event handled without error
+- `test_process_event_multiple_succeeds` — 3 successive StepResult events
+- `test_process_event_mixed_types` — one of each event type in sequence
+- `test_stop_when_not_running` — stop() succeeds without panic
+- `test_process_event_with_closed_channel` — StepResult fails with closed channel
+- `test_process_event_task_request_closed_channel` — TaskRequest fails with closed channel
+- `test_process_event_finalization_closed_channel` — TaskFinalization fails with closed channel
+- `test_component_statistics_unchanged_after_process_event` — stats remain empty without start()
+
+**Key discovery**: `OrchestrationEventSystem::statistics()` uses `tokio::task::block_in_place` for async aggregation, which requires a multi-threaded runtime. Since `sqlx::test` uses current-thread runtime, integration tests validate behavior through `process_event` return values (Ok/Err) and the async-native `component_statistics()` method instead of `statistics()`.
+
+**Coverage impact**: 44.88% → ~45.6% (est. +~0.7 pp), 942 → 970 tests
+
+**Estimated per-file improvement**:
+| File | Before | After | Delta |
+|------|--------|-------|-------|
+| `orchestration_event_system.rs` | 0% | ~47% | +47 pp |
+
+### gRPC Layer Unit Tests (Jan 31, 2026)
+
+**45 tests added** (all inline `#[cfg(test)]`) targeting the gRPC service layer which was at **0% coverage** across 13 files (871 coverable lines). Focused on pure conversion helpers and error mapping functions that don't require infrastructure.
+
+**DLQ service tests** (26 tests in `grpc/services/dlq.rs`):
+- All 4 `DlqResolutionStatus` to-proto and 5 from-proto variants (including Unspecified → None)
+- All 5 `DlqReason` to-proto variants
+- All 3 `StalenessHealthStatus` to-proto variants
+- `dlq_entry_to_proto` — full struct conversion with and without optional fields (resolution_timestamp, metadata)
+- `dlq_stats_to_proto` — with and without optional timestamp/resolution fields
+- `dlq_investigation_queue_entry_to_proto` — full struct including priority_score
+- `staleness_monitoring_entry_to_proto` — full struct with health_status conversion
+
+**Analytics service tests** (11 tests in `grpc/services/analytics.rs`):
+- `tasker_error_to_status` — 9 error variant mappings: ValidationError → InvalidArgument, CircuitBreakerOpen → Unavailable, Timeout → DeadlineExceeded, DatabaseError/Internal/Messaging/StateTransition → Internal
+- `convert_system_health_counts` — all-zeros default and populated with all 24 fields (13 task + 11 step counts)
+
+**Auth interceptor tests** (6 tests in `grpc/interceptors/auth.rs`):
+- `new(None)`, `is_enabled()` with no service, `clone()`, `debug()` formatting
+- `authenticate()` with disabled auth returns permissive SecurityContext
+- `SecurityContextExt` trait returns None when not set, `SECURITY_CONTEXT_KEY` constant
+
+**Template service tests** (4 tests in `grpc/services/templates.rs`):
+- `template_error_to_status` — NamespaceNotFound → NotFound, TemplateNotFound → NotFound, DatabaseError → Internal, Internal → Internal
+
+**Remaining uncovered gRPC files** (require service infrastructure):
+- `grpc/server.rs` (121 lines) — server bootstrap, requires full tonic server setup
+- `grpc/services/tasks.rs` (82 lines) — task CRUD, requires TaskService + database
+- `grpc/services/config.rs` (39 lines) — config endpoint, requires full orchestration context
+- `grpc/services/steps.rs` (33 lines) — step operations, requires StepService + database
+- `grpc/state.rs` (12 lines) — state container, requires SharedApiServices
+- `grpc/services/health.rs` (11 lines) — health endpoints, requires HealthService
+
+These remaining gRPC service methods are thin delegation layers to the same shared `services/` layer that REST handlers use (already at 65-96% coverage). The root `tests/grpc/` directory contains E2E tests that exercise these code paths but aren't captured in per-crate coverage measurement.
+
+**Coverage impact**: 47.45% → 48.34% (+0.89 pp), 999 → 1,044 tests
+
+**Per-file improvements**:
+| File | Before | After | Delta |
+|------|--------|-------|-------|
+| `grpc/services/dlq.rs` | 0% | 83.73% | +83.7 pp |
+| `grpc/services/analytics.rs` | 0% | 75.77% | +75.8 pp |
+| `grpc/interceptors/auth.rs` | 0% | 54.95% | +55.0 pp |
+| `grpc/services/templates.rs` | 0% | 44.44% | +44.4 pp |

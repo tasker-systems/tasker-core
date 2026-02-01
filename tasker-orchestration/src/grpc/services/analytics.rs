@@ -267,3 +267,148 @@ fn convert_system_health_counts(
         total_steps: health.total_steps,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tasker_shared::database::sql_functions::SystemHealthCounts;
+    use tasker_shared::errors::TaskerError;
+
+    // ---- tasker_error_to_status tests ----
+
+    #[test]
+    fn test_error_to_status_validation_error() {
+        let err = TaskerError::ValidationError("bad input".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::InvalidArgument);
+    }
+
+    #[test]
+    fn test_error_to_status_invalid_input() {
+        let err = TaskerError::InvalidInput("missing field".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::InvalidArgument);
+    }
+
+    #[test]
+    fn test_error_to_status_invalid_parameter() {
+        let err = TaskerError::InvalidParameter("bad param".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::InvalidArgument);
+    }
+
+    #[test]
+    fn test_error_to_status_circuit_breaker_open() {
+        let err = TaskerError::CircuitBreakerOpen("db circuit breaker".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::Unavailable);
+    }
+
+    #[test]
+    fn test_error_to_status_timeout() {
+        let err = TaskerError::Timeout("query timed out".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::DeadlineExceeded);
+    }
+
+    #[test]
+    fn test_error_to_status_database_error() {
+        let err = TaskerError::DatabaseError("connection failed".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::Internal);
+    }
+
+    #[test]
+    fn test_error_to_status_internal_error() {
+        let err = TaskerError::Internal("unexpected".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::Internal);
+    }
+
+    #[test]
+    fn test_error_to_status_messaging_error() {
+        let err = TaskerError::MessagingError("queue down".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::Internal);
+    }
+
+    #[test]
+    fn test_error_to_status_state_transition_error() {
+        let err = TaskerError::StateTransitionError("invalid transition".to_string());
+        let status = tasker_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::Internal);
+    }
+
+    // ---- convert_system_health_counts tests ----
+
+    #[test]
+    fn test_convert_system_health_counts_all_zeros() {
+        let health = SystemHealthCounts::default();
+        let proto = convert_system_health_counts(&health);
+
+        assert_eq!(proto.pending_tasks, 0);
+        assert_eq!(proto.total_tasks, 0);
+        assert_eq!(proto.pending_steps, 0);
+        assert_eq!(proto.total_steps, 0);
+    }
+
+    #[test]
+    fn test_convert_system_health_counts_populated() {
+        let health = SystemHealthCounts {
+            pending_tasks: 5,
+            initializing_tasks: 3,
+            enqueuing_steps_tasks: 2,
+            steps_in_process_tasks: 10,
+            evaluating_results_tasks: 1,
+            waiting_for_dependencies_tasks: 0,
+            waiting_for_retry_tasks: 4,
+            blocked_by_failures_tasks: 1,
+            complete_tasks: 100,
+            error_tasks: 7,
+            cancelled_tasks: 2,
+            resolved_manually_tasks: 1,
+            total_tasks: 136,
+            pending_steps: 15,
+            enqueued_steps: 8,
+            in_progress_steps: 20,
+            enqueued_for_orchestration_steps: 3,
+            enqueued_as_error_for_orchestration_steps: 1,
+            waiting_for_retry_steps: 6,
+            complete_steps: 250,
+            error_steps: 12,
+            cancelled_steps: 5,
+            resolved_manually_steps: 2,
+            total_steps: 322,
+        };
+
+        let proto = convert_system_health_counts(&health);
+
+        // Verify all task fields
+        assert_eq!(proto.pending_tasks, 5);
+        assert_eq!(proto.initializing_tasks, 3);
+        assert_eq!(proto.enqueuing_steps_tasks, 2);
+        assert_eq!(proto.steps_in_process_tasks, 10);
+        assert_eq!(proto.evaluating_results_tasks, 1);
+        assert_eq!(proto.waiting_for_dependencies_tasks, 0);
+        assert_eq!(proto.waiting_for_retry_tasks, 4);
+        assert_eq!(proto.blocked_by_failures_tasks, 1);
+        assert_eq!(proto.complete_tasks, 100);
+        assert_eq!(proto.error_tasks, 7);
+        assert_eq!(proto.cancelled_tasks, 2);
+        assert_eq!(proto.resolved_manually_tasks, 1);
+        assert_eq!(proto.total_tasks, 136);
+
+        // Verify all step fields
+        assert_eq!(proto.pending_steps, 15);
+        assert_eq!(proto.enqueued_steps, 8);
+        assert_eq!(proto.in_progress_steps, 20);
+        assert_eq!(proto.enqueued_for_orchestration_steps, 3);
+        assert_eq!(proto.enqueued_as_error_for_orchestration_steps, 1);
+        assert_eq!(proto.waiting_for_retry_steps, 6);
+        assert_eq!(proto.complete_steps, 250);
+        assert_eq!(proto.error_steps, 12);
+        assert_eq!(proto.cancelled_steps, 5);
+        assert_eq!(proto.resolved_manually_steps, 2);
+        assert_eq!(proto.total_steps, 322);
+    }
+}
