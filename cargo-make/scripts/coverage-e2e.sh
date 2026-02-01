@@ -14,8 +14,11 @@
 # service-start.sh (PID files in .pids/, logs in .logs/, health checks),
 # but runs pre-built instrumented binaries instead of `cargo run`.
 #
-# Generates per-crate E2E coverage reports for both tasker-orchestration and
-# tasker-worker-rust since both binaries are always running during the tests.
+# Generates per-crate E2E coverage reports for tasker-orchestration,
+# tasker-worker-rust, and tasker-worker since both binaries are always running
+# during the tests. The rust-worker binary links tasker-worker as a library,
+# so its execution covers tasker-worker code paths that are only reachable
+# through the full service stack (bootstrap, lifecycle, web/gRPC handlers).
 #
 # Usage:
 #   cargo make coverage-e2e
@@ -33,8 +36,10 @@ SCRIPTS_DIR="${PROJECT_ROOT}/cargo-make/scripts"
 PID_DIR="${PROJECT_ROOT}/.pids"
 LOG_DIR="${PROJECT_ROOT}/.logs"
 
-# Both crates are always instrumented and running during E2E tests.
-E2E_CRATES=("tasker-orchestration" "tasker-worker-rust")
+# Both binaries are always instrumented and running during E2E tests.
+# The rust-worker binary links tasker-worker as a library dependency, so
+# its execution also covers tasker-worker code paths.
+E2E_CRATES=("tasker-orchestration" "tasker-worker-rust" "tasker-worker")
 
 # ---- Environment setup (mirrors run-orchestration.sh pattern) ----
 

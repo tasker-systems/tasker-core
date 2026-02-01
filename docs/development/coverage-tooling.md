@@ -479,7 +479,10 @@ cargo make coverage-e2e
 
 No `CRATE_NAME` needed -- the script always instruments both `tasker-server` and
 `rust-worker`, runs the same 50 Rust E2E tests, and generates per-crate reports
-for both `tasker-orchestration` and `tasker-worker-rust`.
+for `tasker-orchestration`, `tasker-worker-rust`, and `tasker-worker`. The
+`rust-worker` binary links `tasker-worker` as a library dependency, so its
+execution covers `tasker-worker` code paths only reachable through the full
+service stack (bootstrap, lifecycle management, web/gRPC handlers).
 
 **How it works:**
 
@@ -504,6 +507,7 @@ files to avoid colliding with normal service instances.
 - `coverage-reports/rust/e2e-raw.json` -- single raw report from both binaries
 - `coverage-reports/rust/tasker-orchestration-e2e-coverage.json` -- orchestration coverage
 - `coverage-reports/rust/tasker-worker-rust-e2e-coverage.json` -- rust worker coverage
+- `coverage-reports/rust/tasker-worker-e2e-coverage.json` -- tasker-worker library coverage (via rust-worker binary)
 
 ### Aggregate Merging
 
@@ -513,6 +517,15 @@ automatically merges multiple reports for the same crate. When both
 `tasker-orchestration-e2e-coverage.json` (E2E tests) exist, the aggregate takes
 the highest coverage per file path and recalculates the summary. This gives a
 conservative lower bound on the true combined coverage.
+
+**Note on line count differences:** E2E and unit test reports may show different
+`lines_total` for the same file because they compile in different contexts. Unit
+tests compile the crate directly (including `#[cfg(test)]` blocks), while E2E
+tests instrument the production binary (which excludes test-only code). The
+aggregate takes the entry with the highest `lines_covered`, which may use either
+line total. For `tasker-worker` in particular, this captures critical paths
+through `worker/core.rs`, `bootstrap.rs`, and the web/gRPC handler stack that
+are only exercised through the full service lifecycle.
 
 ### Which Coverage Mode to Use
 
