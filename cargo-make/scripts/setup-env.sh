@@ -8,8 +8,8 @@
 # Options:
 #   --target=TARGET    Target: root, orchestration, rust-worker, ruby-worker,
 #                      python-worker, typescript-worker (default: root)
-#   --mode=MODE        Mode: test, test-split, test-cluster, test-cluster-split
-#                      (default: test)
+#   --mode=MODE        Mode: test, test-split, test-cluster, test-cluster-split,
+#                      claude-web (default: test)
 #   --output=FILE      Output file (default: .env for target directory)
 #   --dry-run          Print what would be generated without writing
 #   --help             Show this help message
@@ -19,6 +19,7 @@
 #   ./cargo-make/scripts/setup-env.sh --mode=test-split         # Root .env for split-db test
 #   ./cargo-make/scripts/setup-env.sh --mode=test-cluster       # Root .env for cluster test
 #   ./cargo-make/scripts/setup-env.sh --mode=test-cluster-split # Root .env for cluster + split-db
+#   ./cargo-make/scripts/setup-env.sh --mode=claude-web         # Root .env for Claude Code web
 #   ./cargo-make/scripts/setup-env.sh --target=rust-worker      # workers/rust/.env
 #   ./cargo-make/scripts/setup-env.sh --target=orchestration    # tasker-orchestration/.env
 
@@ -105,9 +106,9 @@ get_source_files() {
     # Always start with base
     files+=("${DOTENV_DIR}/base.env")
 
-    # Add test.env for all test modes
+    # Add test.env for all test modes (including claude-web which builds on test)
     case "$MODE" in
-        test|test-split|test-cluster|test-cluster-split)
+        test|test-split|test-cluster|test-cluster-split|claude-web)
             files+=("${DOTENV_DIR}/test.env")
             ;;
     esac
@@ -123,6 +124,13 @@ get_source_files() {
     case "$MODE" in
         test-cluster|test-cluster-split)
             files+=("${DOTENV_DIR}/cluster.env")
+            ;;
+    esac
+
+    # Add Claude Code web overrides (PGMQ backend, quieter logging)
+    case "$MODE" in
+        claude-web)
+            files+=("${DOTENV_DIR}/claude-web.env")
             ;;
     esac
 

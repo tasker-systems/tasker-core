@@ -602,6 +602,12 @@ script = '''
 ${SCRIPTS_DIR}/setup-env.sh --target=typescript-worker --mode=test
 '''
 
+[tasks.setup-env-claude-web]
+description = "Generate .env file for Claude Code web environment (PGMQ backend, native services)"
+script = '''
+${SCRIPTS_DIR}/setup-env.sh --target=root --mode=claude-web
+'''
+
 [tasks.setup-env-all]
 description = "Generate .env files for all targets"
 dependencies = [
