@@ -345,4 +345,405 @@ mod tests {
             "operation_success"
         ));
     }
+
+    // ── extract_error_message tests ──
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_extract_error_message_from_results(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        // Create a WorkflowStep with error results
+        let step_result = StepExecutionResult::failure(
+            Uuid::now_v7(),
+            "Payment gateway timeout".to_string(),
+            Some("GATEWAY_TIMEOUT".to_string()),
+            Some("TimeoutError".to_string()),
+            true,
+            5000,
+            None,
+        );
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(3),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(1),
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: Some(results_json),
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let original_status = "error".to_string();
+        let message = handler.extract_error_message(&step, &original_status);
+
+        assert_eq!(message, "Payment gateway timeout");
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_extract_error_message_no_results_uses_status(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(3),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(1),
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: None,
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let original_status = "timeout".to_string();
+        let message = handler.extract_error_message(&step, &original_status);
+
+        assert_eq!(message, "Step failed with status: timeout");
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_extract_error_message_empty_error(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        // Success result has no error field
+        let step_result = StepExecutionResult::success(
+            Uuid::now_v7(),
+            serde_json::json!({"data": "value"}),
+            100,
+            None,
+        );
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(3),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(1),
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: Some(results_json),
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let original_status = "error".to_string();
+        let message = handler.extract_error_message(&step, &original_status);
+
+        // No error in results → fallback message
+        assert_eq!(message, "Step execution failed");
+        Ok(())
+    }
+
+    // ── process_state_transition tests ──
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_state_transition_nonexistent_step(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        let nonexistent_uuid = Uuid::new_v4();
+        let correlation_id = Uuid::new_v4();
+        let status = "completed".to_string();
+
+        // Nonexistent step → Ok (warning logged, no error)
+        let result = handler
+            .process_state_transition(&nonexistent_uuid, &status, correlation_id)
+            .await;
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    // ── should_retry_step tests ──
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_should_retry_step_within_limits(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        // Step with retryable result and attempts remaining
+        let step_result = StepExecutionResult::failure(
+            Uuid::now_v7(),
+            "transient error".to_string(),
+            None,
+            None,
+            true, // retryable
+            100,
+            None,
+        );
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(5),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(2), // 2 < 5
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: Some(results_json),
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let correlation_id = Uuid::new_v4();
+        let should_retry = handler.should_retry_step(&step, correlation_id).await;
+        assert!(should_retry);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_should_retry_step_at_max_attempts(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        let step_result = StepExecutionResult::failure(
+            Uuid::now_v7(),
+            "error".to_string(),
+            None,
+            None,
+            true,
+            100,
+            None,
+        );
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(3),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(3), // 3 >= 3
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: Some(results_json),
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let correlation_id = Uuid::new_v4();
+        let should_retry = handler.should_retry_step(&step, correlation_id).await;
+        assert!(!should_retry);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_should_retry_step_non_retryable_from_metadata(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        // Failure marked as non-retryable by worker
+        let step_result = StepExecutionResult::failure(
+            Uuid::now_v7(),
+            "permanent error".to_string(),
+            None,
+            None,
+            false, // NOT retryable
+            100,
+            None,
+        );
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(5),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(1), // Plenty of attempts remaining
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: Some(results_json),
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let correlation_id = Uuid::new_v4();
+        let should_retry = handler.should_retry_step(&step, correlation_id).await;
+        assert!(!should_retry); // Non-retryable overrides attempt count
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_should_retry_step_no_results(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(5),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(2),
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: None, // No results
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let correlation_id = Uuid::new_v4();
+        let should_retry = handler.should_retry_step(&step, correlation_id).await;
+        assert!(should_retry); // Falls back to retry limit check: 2 < 5
+        Ok(())
+    }
+
+    // ── determine_success_event tests ──
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_determine_success_event_with_success_result(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::state_machine::events::StepEvent;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        let step_result = StepExecutionResult::success(
+            Uuid::now_v7(),
+            serde_json::json!({"data": "processed"}),
+            100,
+            None,
+        );
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(3),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(1),
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: Some(results_json),
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let status = "completed".to_string();
+        let event = handler.determine_success_event(&step, &status);
+
+        assert!(matches!(event, StepEvent::Complete(_)));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_determine_success_event_with_failure_in_results(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::state_machine::events::StepEvent;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handler = StateTransitionHandler::new(context);
+
+        let step_result = StepExecutionResult::failure(
+            Uuid::now_v7(),
+            "data validation failed".to_string(),
+            None,
+            None,
+            false,
+            100,
+            None,
+        );
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let step = WorkflowStep {
+            workflow_step_uuid: Uuid::now_v7(),
+            task_uuid: Uuid::now_v7(),
+            named_step_uuid: Uuid::now_v7(),
+            retryable: true,
+            max_attempts: Some(3),
+            in_process: false,
+            processed: false,
+            processed_at: None,
+            attempts: Some(1),
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+            inputs: None,
+            results: Some(results_json),
+            checkpoint: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+
+        let status = "completed".to_string();
+        let event = handler.determine_success_event(&step, &status);
+
+        // Success path but result says failure → Fail event
+        assert!(matches!(event, StepEvent::Fail(_)));
+        Ok(())
+    }
 }

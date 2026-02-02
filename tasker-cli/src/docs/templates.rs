@@ -92,10 +92,7 @@ pub struct DocIndexTemplate<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use askama::Template;
-    use tasker_shared::config::doc_context::{
-        ConfigContext, ParameterContext, RecommendationContext, SectionContext,
-    };
+    use tasker_shared::config::doc_context::{ConfigContext, RecommendationContext};
 
     fn test_parameter(documented: bool) -> ParameterContext {
         ParameterContext {

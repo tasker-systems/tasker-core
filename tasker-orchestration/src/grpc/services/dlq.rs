@@ -450,3 +450,330 @@ fn staleness_health_status_to_proto(
         DomainStatus::Stale => proto::StalenessHealthStatus::Stale,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDateTime;
+    use tasker_shared::models::orchestration::dlq::{
+        DlqReason, DlqResolutionStatus, StalenessHealthStatus,
+    };
+    use uuid::Uuid;
+
+    fn sample_timestamp() -> NaiveDateTime {
+        NaiveDateTime::parse_from_str("2026-01-31 12:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+    }
+
+    // ---- Resolution status conversion tests ----
+
+    #[test]
+    fn test_resolution_status_to_proto_pending() {
+        assert!(matches!(
+            dlq_resolution_status_to_proto(DlqResolutionStatus::Pending),
+            proto::DlqResolutionStatus::Pending
+        ));
+    }
+
+    #[test]
+    fn test_resolution_status_to_proto_manually_resolved() {
+        assert!(matches!(
+            dlq_resolution_status_to_proto(DlqResolutionStatus::ManuallyResolved),
+            proto::DlqResolutionStatus::ManuallyResolved
+        ));
+    }
+
+    #[test]
+    fn test_resolution_status_to_proto_permanently_failed() {
+        assert!(matches!(
+            dlq_resolution_status_to_proto(DlqResolutionStatus::PermanentlyFailed),
+            proto::DlqResolutionStatus::PermanentlyFailed
+        ));
+    }
+
+    #[test]
+    fn test_resolution_status_to_proto_cancelled() {
+        assert!(matches!(
+            dlq_resolution_status_to_proto(DlqResolutionStatus::Cancelled),
+            proto::DlqResolutionStatus::Cancelled
+        ));
+    }
+
+    #[test]
+    fn test_resolution_status_from_proto_unspecified() {
+        assert!(
+            dlq_resolution_status_from_proto(proto::DlqResolutionStatus::Unspecified).is_none()
+        );
+    }
+
+    #[test]
+    fn test_resolution_status_from_proto_pending() {
+        let result = dlq_resolution_status_from_proto(proto::DlqResolutionStatus::Pending);
+        assert!(matches!(result, Some(DlqResolutionStatus::Pending)));
+    }
+
+    #[test]
+    fn test_resolution_status_from_proto_manually_resolved() {
+        let result = dlq_resolution_status_from_proto(proto::DlqResolutionStatus::ManuallyResolved);
+        assert!(matches!(
+            result,
+            Some(DlqResolutionStatus::ManuallyResolved)
+        ));
+    }
+
+    #[test]
+    fn test_resolution_status_from_proto_permanently_failed() {
+        let result =
+            dlq_resolution_status_from_proto(proto::DlqResolutionStatus::PermanentlyFailed);
+        assert!(matches!(
+            result,
+            Some(DlqResolutionStatus::PermanentlyFailed)
+        ));
+    }
+
+    #[test]
+    fn test_resolution_status_from_proto_cancelled() {
+        let result = dlq_resolution_status_from_proto(proto::DlqResolutionStatus::Cancelled);
+        assert!(matches!(result, Some(DlqResolutionStatus::Cancelled)));
+    }
+
+    // ---- DLQ reason conversion tests ----
+
+    #[test]
+    fn test_reason_to_proto_staleness_timeout() {
+        assert!(matches!(
+            dlq_reason_to_proto(DlqReason::StalenessTimeout),
+            proto::DlqReason::StalenessTimeout
+        ));
+    }
+
+    #[test]
+    fn test_reason_to_proto_max_retries() {
+        assert!(matches!(
+            dlq_reason_to_proto(DlqReason::MaxRetriesExceeded),
+            proto::DlqReason::MaxRetriesExceeded
+        ));
+    }
+
+    #[test]
+    fn test_reason_to_proto_cycle_detected() {
+        assert!(matches!(
+            dlq_reason_to_proto(DlqReason::DependencyCycleDetected),
+            proto::DlqReason::DependencyCycleDetected
+        ));
+    }
+
+    #[test]
+    fn test_reason_to_proto_worker_unavailable() {
+        assert!(matches!(
+            dlq_reason_to_proto(DlqReason::WorkerUnavailable),
+            proto::DlqReason::WorkerUnavailable
+        ));
+    }
+
+    #[test]
+    fn test_reason_to_proto_manual_dlq() {
+        assert!(matches!(
+            dlq_reason_to_proto(DlqReason::ManualDlq),
+            proto::DlqReason::ManualDlq
+        ));
+    }
+
+    // ---- Staleness health status conversion tests ----
+
+    #[test]
+    fn test_staleness_health_healthy() {
+        assert!(matches!(
+            staleness_health_status_to_proto(StalenessHealthStatus::Healthy),
+            proto::StalenessHealthStatus::Healthy
+        ));
+    }
+
+    #[test]
+    fn test_staleness_health_warning() {
+        assert!(matches!(
+            staleness_health_status_to_proto(StalenessHealthStatus::Warning),
+            proto::StalenessHealthStatus::Warning
+        ));
+    }
+
+    #[test]
+    fn test_staleness_health_stale() {
+        assert!(matches!(
+            staleness_health_status_to_proto(StalenessHealthStatus::Stale),
+            proto::StalenessHealthStatus::Stale
+        ));
+    }
+
+    // ---- Complex struct conversion tests ----
+
+    #[test]
+    fn test_dlq_entry_to_proto() {
+        let entry = DlqEntry {
+            dlq_entry_uuid: Uuid::nil(),
+            task_uuid: Uuid::nil(),
+            original_state: "error".to_string(),
+            dlq_reason: DlqReason::StalenessTimeout,
+            dlq_timestamp: sample_timestamp(),
+            resolution_status: DlqResolutionStatus::Pending,
+            resolution_timestamp: None,
+            resolution_notes: Some("investigating".to_string()),
+            resolved_by: None,
+            task_snapshot: serde_json::json!({"key": "value"}),
+            metadata: None,
+            created_at: sample_timestamp(),
+            updated_at: sample_timestamp(),
+        };
+
+        let proto = dlq_entry_to_proto(&entry);
+        assert_eq!(proto.dlq_entry_uuid, Uuid::nil().to_string());
+        assert_eq!(proto.task_uuid, Uuid::nil().to_string());
+        assert_eq!(proto.original_state, "error");
+        assert_eq!(proto.dlq_reason, proto::DlqReason::StalenessTimeout as i32);
+        assert_eq!(
+            proto.resolution_status,
+            proto::DlqResolutionStatus::Pending as i32
+        );
+        assert!(proto.resolution_timestamp.is_none());
+        assert_eq!(proto.resolution_notes, Some("investigating".to_string()));
+        assert!(proto.resolved_by.is_none());
+        assert!(proto.created_at.is_some());
+        assert!(proto.updated_at.is_some());
+        assert!(proto.dlq_timestamp.is_some());
+        assert!(proto.metadata.is_none());
+    }
+
+    #[test]
+    fn test_dlq_entry_to_proto_with_resolution() {
+        let entry = DlqEntry {
+            dlq_entry_uuid: Uuid::nil(),
+            task_uuid: Uuid::nil(),
+            original_state: "steps_in_process".to_string(),
+            dlq_reason: DlqReason::MaxRetriesExceeded,
+            dlq_timestamp: sample_timestamp(),
+            resolution_status: DlqResolutionStatus::ManuallyResolved,
+            resolution_timestamp: Some(sample_timestamp()),
+            resolution_notes: Some("resolved by operator".to_string()),
+            resolved_by: Some("admin".to_string()),
+            task_snapshot: serde_json::json!({}),
+            metadata: Some(serde_json::json!({"trace": "abc123"})),
+            created_at: sample_timestamp(),
+            updated_at: sample_timestamp(),
+        };
+
+        let proto = dlq_entry_to_proto(&entry);
+        assert!(proto.resolution_timestamp.is_some());
+        assert_eq!(proto.resolved_by, Some("admin".to_string()));
+        assert!(proto.metadata.is_some());
+    }
+
+    #[test]
+    fn test_dlq_stats_to_proto() {
+        let stats = DlqStats {
+            dlq_reason: DlqReason::WorkerUnavailable,
+            total_entries: 42,
+            pending: 10,
+            manually_resolved: 20,
+            permanent_failures: 5,
+            cancelled: 7,
+            oldest_entry: Some(sample_timestamp()),
+            newest_entry: Some(sample_timestamp()),
+            avg_resolution_time_minutes: Some(15.5),
+        };
+
+        let proto = dlq_stats_to_proto(&stats);
+        assert_eq!(proto.dlq_reason, proto::DlqReason::WorkerUnavailable as i32);
+        assert_eq!(proto.total_entries, 42);
+        assert_eq!(proto.pending, 10);
+        assert_eq!(proto.manually_resolved, 20);
+        assert_eq!(proto.permanent_failures, 5);
+        assert_eq!(proto.cancelled, 7);
+        assert!(proto.oldest_entry.is_some());
+        assert!(proto.newest_entry.is_some());
+        assert_eq!(proto.avg_resolution_time_minutes, Some(15.5));
+    }
+
+    #[test]
+    fn test_dlq_stats_to_proto_no_optional_fields() {
+        let stats = DlqStats {
+            dlq_reason: DlqReason::ManualDlq,
+            total_entries: 0,
+            pending: 0,
+            manually_resolved: 0,
+            permanent_failures: 0,
+            cancelled: 0,
+            oldest_entry: None,
+            newest_entry: None,
+            avg_resolution_time_minutes: None,
+        };
+
+        let proto = dlq_stats_to_proto(&stats);
+        assert!(proto.oldest_entry.is_none());
+        assert!(proto.newest_entry.is_none());
+        assert!(proto.avg_resolution_time_minutes.is_none());
+    }
+
+    #[test]
+    fn test_investigation_queue_entry_to_proto() {
+        let entry = DlqInvestigationQueueEntry {
+            dlq_entry_uuid: Uuid::nil(),
+            task_uuid: Uuid::nil(),
+            original_state: "error".to_string(),
+            dlq_reason: DlqReason::DependencyCycleDetected,
+            dlq_timestamp: sample_timestamp(),
+            minutes_in_dlq: 120.5,
+            namespace_name: Some("default".to_string()),
+            task_name: Some("process_data".to_string()),
+            current_state: Some("error".to_string()),
+            time_in_state_minutes: Some(60),
+            priority_score: 95.0,
+        };
+
+        let proto = dlq_investigation_queue_entry_to_proto(&entry);
+        assert_eq!(proto.dlq_entry_uuid, Uuid::nil().to_string());
+        assert_eq!(proto.minutes_in_dlq, 120.5);
+        assert_eq!(proto.namespace_name, Some("default".to_string()));
+        assert_eq!(proto.task_name, Some("process_data".to_string()));
+        assert_eq!(proto.priority_score, 95.0);
+        assert_eq!(
+            proto.dlq_reason,
+            proto::DlqReason::DependencyCycleDetected as i32
+        );
+    }
+
+    #[test]
+    fn test_staleness_monitoring_entry_to_proto() {
+        let entry = StalenessMonitoring {
+            task_uuid: Uuid::nil(),
+            namespace_name: Some("production".to_string()),
+            task_name: Some("daily_report".to_string()),
+            current_state: "steps_in_process".to_string(),
+            time_in_state_minutes: 45,
+            task_age_minutes: 120,
+            staleness_threshold_minutes: 30,
+            health_status: StalenessHealthStatus::Stale,
+            priority: 3,
+        };
+
+        let proto = staleness_monitoring_entry_to_proto(&entry);
+        assert_eq!(proto.task_uuid, Uuid::nil().to_string());
+        assert_eq!(proto.namespace_name, Some("production".to_string()));
+        assert_eq!(proto.current_state, "steps_in_process");
+        assert_eq!(proto.time_in_state_minutes, 45);
+        assert_eq!(proto.task_age_minutes, 120);
+        assert_eq!(proto.staleness_threshold_minutes, 30);
+        assert_eq!(
+            proto.health_status,
+            proto::StalenessHealthStatus::Stale as i32
+        );
+        assert_eq!(proto.priority, 3);
+    }
+
+    // ---- DlqServiceImpl construction test ----
+
+    #[test]
+    fn test_dlq_service_impl_debug() {
+        // Verify Debug is derived (compile-time check via format)
+        let _: fn(&DlqServiceImpl, &mut std::fmt::Formatter<'_>) -> std::fmt::Result =
+            <DlqServiceImpl as std::fmt::Debug>::fmt;
+    }
+}

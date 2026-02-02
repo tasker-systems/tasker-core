@@ -660,4 +660,151 @@ mod tests {
             _ => panic!("Expected Database error"),
         }
     }
+
+    #[test]
+    fn test_error_display_task_not_found() {
+        let uuid = Uuid::nil();
+        let error = DecisionPointProcessingError::TaskNotFound(uuid);
+        assert_eq!(error.to_string(), format!("Task {uuid} not found"));
+    }
+
+    #[test]
+    fn test_error_display_workflow_step_not_found() {
+        let uuid = Uuid::nil();
+        let error = DecisionPointProcessingError::WorkflowStepNotFound(uuid);
+        assert_eq!(error.to_string(), format!("Workflow step {uuid} not found"));
+    }
+
+    #[test]
+    fn test_error_display_decision_step_not_found() {
+        let error = DecisionPointProcessingError::DecisionStepNotFound("my_decision".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Decision step 'my_decision' not found in template"
+        );
+    }
+
+    #[test]
+    fn test_error_display_template_serialization() {
+        let error = DecisionPointProcessingError::TemplateSerialization("invalid JSON".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Template serialization error: invalid JSON"
+        );
+    }
+
+    #[test]
+    fn test_error_display_database() {
+        let error = DecisionPointProcessingError::Database("connection refused".to_string());
+        assert_eq!(error.to_string(), "Database error: connection refused");
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_decision_point_service_creation(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let service = DecisionPointService::new(context);
+
+        let debug_str = format!("{:?}", service);
+        assert!(debug_str.contains("DecisionPointService"));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_decision_no_branches(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::messaging::DecisionPointOutcome;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let service = DecisionPointService::new(context);
+
+        let result = service
+            .process_decision_outcome(
+                Uuid::now_v7(),
+                Uuid::now_v7(),
+                DecisionPointOutcome::no_branches(),
+            )
+            .await?;
+
+        assert!(result.is_empty());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_decision_task_not_found(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::messaging::DecisionPointOutcome;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let service = DecisionPointService::new(context);
+
+        let nonexistent_task = Uuid::now_v7();
+        let result = service
+            .process_decision_outcome(
+                Uuid::now_v7(),
+                nonexistent_task,
+                DecisionPointOutcome::create_steps(vec!["step_a".to_string()]),
+            )
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecisionPointProcessingError::TaskNotFound(uuid) => {
+                assert_eq!(uuid, nonexistent_task);
+            }
+            other => panic!("Expected TaskNotFound, got {:?}", other),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_decision_point_outcome_no_branches() {
+        use tasker_shared::messaging::DecisionPointOutcome;
+
+        let outcome = DecisionPointOutcome::no_branches();
+        assert!(!outcome.requires_step_creation());
+        assert!(outcome.step_names().is_empty());
+    }
+
+    #[test]
+    fn test_decision_point_outcome_create_steps() {
+        use tasker_shared::messaging::DecisionPointOutcome;
+
+        let outcome =
+            DecisionPointOutcome::create_steps(vec!["step_a".to_string(), "step_b".to_string()]);
+        assert!(outcome.requires_step_creation());
+        let names = outcome.step_names();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&"step_a".to_string()));
+        assert!(names.contains(&"step_b".to_string()));
+    }
+
+    #[test]
+    fn test_error_debug_impls() {
+        let errors: Vec<DecisionPointProcessingError> = vec![
+            DecisionPointProcessingError::Database("test".to_string()),
+            DecisionPointProcessingError::TaskNotFound(Uuid::nil()),
+            DecisionPointProcessingError::WorkflowStepNotFound(Uuid::nil()),
+            DecisionPointProcessingError::DecisionStepNotFound("step".to_string()),
+            DecisionPointProcessingError::TemplateSerialization("err".to_string()),
+            DecisionPointProcessingError::StepNotFoundInTemplate("s".to_string()),
+            DecisionPointProcessingError::InvalidDescendant {
+                step_name: "a".to_string(),
+                decision_name: "b".to_string(),
+            },
+            DecisionPointProcessingError::CycleDetected {
+                from: "x".to_string(),
+                to: "y".to_string(),
+            },
+        ];
+
+        for error in &errors {
+            let debug_str = format!("{:?}", error);
+            assert!(!debug_str.is_empty());
+        }
+        assert_eq!(errors.len(), 8);
+    }
 }

@@ -343,5 +343,283 @@ impl ErrorHandlingService {
     }
 }
 
-// Tests would require integration test setup with database
-// TODO: Add comprehensive integration tests for error handling scenarios
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::orchestration::backoff_calculator::BackoffCalculatorConfig;
+    use chrono::Utc;
+
+    // --- Pure unit tests for data types ---
+
+    #[test]
+    fn test_error_handling_config_default() {
+        let config = ErrorHandlingConfig::default();
+        assert!(config.use_error_classification);
+        assert!(config.use_waiting_for_retry_state);
+        assert_eq!(config.default_max_attempts, 3);
+    }
+
+    #[test]
+    fn test_error_handling_config_custom() {
+        let config = ErrorHandlingConfig {
+            use_error_classification: false,
+            use_waiting_for_retry_state: false,
+            default_max_attempts: 5,
+        };
+        assert!(!config.use_error_classification);
+        assert!(!config.use_waiting_for_retry_state);
+        assert_eq!(config.default_max_attempts, 5);
+    }
+
+    #[test]
+    fn test_error_handling_result_construction() {
+        let step_uuid = Uuid::now_v7();
+        let result = ErrorHandlingResult {
+            step_uuid,
+            action: ErrorHandlingAction::MarkedAsPermanentFailure,
+            final_state: WorkflowStepState::Error,
+            backoff_applied: false,
+            next_retry_at: None,
+            classification_summary: "Permanent: connection refused".to_string(),
+        };
+
+        assert_eq!(result.step_uuid, step_uuid);
+        assert!(!result.backoff_applied);
+        assert!(result.next_retry_at.is_none());
+        assert!(result.classification_summary.contains("Permanent"));
+    }
+
+    #[test]
+    fn test_error_handling_result_with_backoff() {
+        let step_uuid = Uuid::now_v7();
+        let retry_at = Utc::now() + chrono::Duration::seconds(30);
+        let result = ErrorHandlingResult {
+            step_uuid,
+            action: ErrorHandlingAction::TransitionedToWaitingForRetry,
+            final_state: WorkflowStepState::WaitingForRetry,
+            backoff_applied: true,
+            next_retry_at: Some(retry_at),
+            classification_summary: "Retryable: timeout".to_string(),
+        };
+
+        assert!(result.backoff_applied);
+        assert!(result.next_retry_at.is_some());
+        assert!(matches!(
+            result.action,
+            ErrorHandlingAction::TransitionedToWaitingForRetry
+        ));
+        assert!(matches!(
+            result.final_state,
+            WorkflowStepState::WaitingForRetry
+        ));
+    }
+
+    #[test]
+    fn test_error_handling_action_variants() {
+        // Verify all action variants are constructible and serializable
+        let actions = vec![
+            ErrorHandlingAction::MarkedAsPermanentFailure,
+            ErrorHandlingAction::TransitionedToWaitingForRetry,
+            ErrorHandlingAction::MarkedAsError,
+            ErrorHandlingAction::NoActionTaken,
+        ];
+
+        for action in &actions {
+            let json = serde_json::to_string(action).expect("action should serialize");
+            assert!(!json.is_empty());
+        }
+
+        assert_eq!(actions.len(), 4, "Should have 4 action variants");
+    }
+
+    #[test]
+    fn test_error_handling_action_serialization_values() {
+        let json = serde_json::to_string(&ErrorHandlingAction::MarkedAsPermanentFailure)
+            .expect("serialize");
+        assert!(json.contains("MarkedAsPermanentFailure"));
+
+        let json = serde_json::to_string(&ErrorHandlingAction::TransitionedToWaitingForRetry)
+            .expect("serialize");
+        assert!(json.contains("TransitionedToWaitingForRetry"));
+
+        let json = serde_json::to_string(&ErrorHandlingAction::MarkedAsError).expect("serialize");
+        assert!(json.contains("MarkedAsError"));
+
+        let json = serde_json::to_string(&ErrorHandlingAction::NoActionTaken).expect("serialize");
+        assert!(json.contains("NoActionTaken"));
+    }
+
+    #[test]
+    fn test_error_handling_result_serialization_roundtrip() {
+        let step_uuid = Uuid::now_v7();
+        let result = ErrorHandlingResult {
+            step_uuid,
+            action: ErrorHandlingAction::MarkedAsError,
+            final_state: WorkflowStepState::Error,
+            backoff_applied: false,
+            next_retry_at: None,
+            classification_summary: "retry limit exceeded".to_string(),
+        };
+
+        let json = serde_json::to_string(&result).expect("serialize");
+        let deserialized: ErrorHandlingResult = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(deserialized.step_uuid, step_uuid);
+        assert!(!deserialized.backoff_applied);
+        assert_eq!(deserialized.classification_summary, "retry limit exceeded");
+    }
+
+    // --- Integration tests requiring database ---
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_error_handling_service_creation(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let system_context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let backoff_config = BackoffCalculatorConfig::default();
+        let backoff_calculator = BackoffCalculator::new(backoff_config, pool);
+        let config = ErrorHandlingConfig::default();
+
+        let service = ErrorHandlingService::new(config, backoff_calculator, system_context);
+
+        // Verify Debug impl works
+        let debug_str = format!("{:?}", service);
+        assert!(debug_str.contains("ErrorHandlingService"));
+        assert!(debug_str.contains("has_error_classifier"));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_error_handling_service_with_custom_classifier(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let system_context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let backoff_calculator = BackoffCalculator::with_defaults(pool);
+        let config = ErrorHandlingConfig {
+            use_error_classification: false,
+            use_waiting_for_retry_state: false,
+            default_max_attempts: 10,
+        };
+        let classifier = Arc::new(StandardErrorClassifier::new());
+
+        let service = ErrorHandlingService::with_classifier(
+            config,
+            classifier,
+            backoff_calculator,
+            system_context,
+        );
+
+        let debug_str = format!("{:?}", service);
+        assert!(debug_str.contains("ErrorHandlingService"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_error_handling_result_clone() {
+        let step_uuid = Uuid::now_v7();
+        let result = ErrorHandlingResult {
+            step_uuid,
+            action: ErrorHandlingAction::TransitionedToWaitingForRetry,
+            final_state: WorkflowStepState::WaitingForRetry,
+            backoff_applied: true,
+            next_retry_at: Some(Utc::now()),
+            classification_summary: "clone test".to_string(),
+        };
+
+        let cloned = result.clone();
+        assert_eq!(cloned.step_uuid, result.step_uuid);
+        assert_eq!(cloned.backoff_applied, result.backoff_applied);
+        assert_eq!(cloned.classification_summary, result.classification_summary);
+    }
+
+    #[test]
+    fn test_error_handling_result_debug() {
+        let result = ErrorHandlingResult {
+            step_uuid: Uuid::now_v7(),
+            action: ErrorHandlingAction::NoActionTaken,
+            final_state: WorkflowStepState::Error,
+            backoff_applied: false,
+            next_retry_at: None,
+            classification_summary: "debug test".to_string(),
+        };
+
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("ErrorHandlingResult"));
+        assert!(debug_str.contains("NoActionTaken"));
+    }
+
+    #[test]
+    fn test_error_handling_action_clone() {
+        let action = ErrorHandlingAction::MarkedAsPermanentFailure;
+        let cloned = action.clone();
+        let json_original = serde_json::to_string(&action).unwrap();
+        let json_cloned = serde_json::to_string(&cloned).unwrap();
+        assert_eq!(json_original, json_cloned);
+    }
+
+    #[test]
+    fn test_error_handling_action_debug() {
+        let action = ErrorHandlingAction::TransitionedToWaitingForRetry;
+        let debug_str = format!("{:?}", action);
+        assert!(debug_str.contains("TransitionedToWaitingForRetry"));
+    }
+
+    #[test]
+    fn test_error_handling_config_clone() {
+        let config = ErrorHandlingConfig {
+            use_error_classification: true,
+            use_waiting_for_retry_state: false,
+            default_max_attempts: 7,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.use_error_classification, true);
+        assert_eq!(cloned.use_waiting_for_retry_state, false);
+        assert_eq!(cloned.default_max_attempts, 7);
+    }
+
+    #[test]
+    fn test_error_handling_config_debug() {
+        let config = ErrorHandlingConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("ErrorHandlingConfig"));
+        assert!(debug_str.contains("use_error_classification"));
+    }
+
+    #[test]
+    fn test_error_handling_result_marked_as_error_action() {
+        let result = ErrorHandlingResult {
+            step_uuid: Uuid::now_v7(),
+            action: ErrorHandlingAction::MarkedAsError,
+            final_state: WorkflowStepState::Error,
+            backoff_applied: false,
+            next_retry_at: None,
+            classification_summary: "retry limit exceeded".to_string(),
+        };
+
+        assert!(matches!(result.action, ErrorHandlingAction::MarkedAsError));
+        assert!(matches!(result.final_state, WorkflowStepState::Error));
+    }
+
+    #[test]
+    fn test_error_handling_result_serialization_with_retry_time() {
+        let retry_at = Utc::now() + chrono::Duration::minutes(5);
+        let result = ErrorHandlingResult {
+            step_uuid: Uuid::now_v7(),
+            action: ErrorHandlingAction::TransitionedToWaitingForRetry,
+            final_state: WorkflowStepState::WaitingForRetry,
+            backoff_applied: true,
+            next_retry_at: Some(retry_at),
+            classification_summary: "timeout".to_string(),
+        };
+
+        let json = serde_json::to_string(&result).expect("serialize");
+        assert!(json.contains("next_retry_at"));
+        assert!(json.contains("timeout"));
+
+        let deserialized: ErrorHandlingResult = serde_json::from_str(&json).expect("deserialize");
+        assert!(deserialized.next_retry_at.is_some());
+        assert!(deserialized.backoff_applied);
+    }
+}

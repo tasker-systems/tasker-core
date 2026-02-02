@@ -19,7 +19,9 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::common::integration_test_manager::IntegrationTestManager;
-use crate::common::integration_test_utils::{create_task_request, wait_for_task_completion};
+use crate::common::integration_test_utils::{
+    create_task_request, get_timeout_multiplier, wait_for_task_completion,
+};
 
 #[tokio::test]
 async fn test_csv_batch_processing_products() -> Result<()> {
@@ -68,7 +70,7 @@ async fn test_csv_batch_processing_products() -> Result<()> {
     // Monitor task execution
     println!("\n⏱️ Monitoring CSV batch processing execution...");
     // CSV processing with file I/O needs more time than synthetic tests
-    let timeout = 30; // 30 seconds for 1000 rows with 5 workers + file I/O
+    let timeout = 30 * get_timeout_multiplier(); // 30 seconds for 1000 rows with 5 workers + file I/O
     wait_for_task_completion(
         &manager.orchestration_client,
         &task_response.task_uuid,

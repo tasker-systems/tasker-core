@@ -10,7 +10,7 @@
 //!
 //! - **Command Processor**: Pure command routing without business logic
 //! - **Orchestration Core**: System-level orchestration coordination
-//! - **State Manager**: Task and workflow state management
+//! - **Health Check Evaluator**: Pure-function health status evaluation
 //!
 //! ### Service Layer (TAS-46 Refactoring)
 //!
@@ -48,7 +48,7 @@ pub mod bootstrap;
 pub mod channels; // TAS-133: Semantic NewType channel wrappers
 pub mod commands; // TAS-148: Command types (extracted from legacy command_processor)
 pub mod core;
-pub mod state_manager;
+pub mod health_check_evaluator;
 
 // Service Layer (TAS-46 Refactoring)
 pub mod hydration; // Phase 4: Message hydration services
@@ -95,11 +95,12 @@ pub use commands::{
 
 pub use core::{OrchestrationCore, OrchestrationCoreStatus};
 
-pub use state_manager::StateManager;
-
 // ============================================================================
 // Re-exports: Service Layer (TAS-46 Refactoring)
 // ============================================================================
+
+// Command Processing Service (TAS-46: actor/service separation)
+pub use commands::CommandProcessingService;
 
 // Phase 4: Message Hydration Services
 pub use hydration::{FinalizationHydrator, StepResultHydrator, TaskRequestHydrator};

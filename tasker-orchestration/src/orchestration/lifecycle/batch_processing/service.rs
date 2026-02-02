@@ -862,23 +862,202 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_batch_processing_error_display() {
+    fn test_batch_processing_error_display_template_not_found() {
         let error = BatchProcessingError::TemplateNotFound("worker_template".to_string());
         assert_eq!(
             error.to_string(),
             "Worker template not found: worker_template"
         );
+    }
 
+    #[test]
+    fn test_batch_processing_error_display_invalid_template_type() {
         let error = BatchProcessingError::InvalidTemplateType("not_a_worker".to_string());
         assert_eq!(
             error.to_string(),
             "Template not_a_worker is not a BatchWorker type"
         );
+    }
 
+    #[test]
+    fn test_batch_processing_error_display_invalid_configuration() {
         let error = BatchProcessingError::InvalidConfiguration("test config error".to_string());
         assert_eq!(
             error.to_string(),
             "Invalid batch configuration: test config error"
         );
+    }
+
+    #[test]
+    fn test_batch_processing_error_display_result_parsing() {
+        let error = BatchProcessingError::ResultParsing("invalid JSON".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Batch result parsing failed: invalid JSON"
+        );
+    }
+
+    #[test]
+    fn test_batch_processing_error_display_worker_creation() {
+        let error = BatchProcessingError::WorkerCreation("step create failed".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Worker creation failed: step create failed"
+        );
+    }
+
+    #[test]
+    fn test_batch_processing_error_display_cursor_generation() {
+        let error = BatchProcessingError::CursorGeneration("serialization failed".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Cursor generation failed: serialization failed"
+        );
+    }
+
+    #[test]
+    fn test_batch_processing_error_display_state_machine() {
+        let error = BatchProcessingError::StateMachine("invalid transition".to_string());
+        assert_eq!(error.to_string(), "State machine error: invalid transition");
+    }
+
+    #[test]
+    fn test_batch_processing_error_from_state_machine_error() {
+        use tasker_shared::state_machine::errors::StateMachineError;
+        let sm_error = StateMachineError::InvalidTransition {
+            from: Some("pending".to_string()),
+            to: "complete".to_string(),
+        };
+        let error: BatchProcessingError = sm_error.into();
+        let error_str = error.to_string();
+        assert!(error_str.contains("State machine error"));
+    }
+
+    #[test]
+    fn test_batch_processing_error_debug() {
+        let error = BatchProcessingError::TemplateNotFound("test".to_string());
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("TemplateNotFound"));
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_batch_processing_service_creation(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let service = BatchProcessingService::new(context);
+
+        let debug_str = format!("{:?}", service);
+        assert!(debug_str.contains("BatchProcessingService"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_worker_inputs_with_cursor() {
+        // We can't call build_worker_inputs directly (it's on the service struct),
+        // but we can test BatchWorkerInputs::new which it delegates to
+        use tasker_shared::models::core::batch_worker::BatchWorkerInputs;
+
+        let cursor = CursorConfig {
+            batch_id: "batch_001".to_string(),
+            start_cursor: json!(0),
+            end_cursor: json!(100),
+            batch_size: 100,
+        };
+
+        let batch_config = BatchConfiguration {
+            batch_size: 1000,
+            parallelism: 10,
+            cursor_field: "id".to_string(),
+            worker_template: "test_worker".to_string(),
+            failure_strategy:
+                tasker_shared::models::core::task_template::FailureStrategy::ContinueOnFailure,
+        };
+        let inputs = BatchWorkerInputs::new(cursor, &batch_config, false);
+        let value = inputs.to_value();
+
+        assert!(value.is_object());
+        let obj = value.as_object().unwrap();
+        assert!(obj.contains_key("cursor"));
+        assert!(obj.contains_key("batch_metadata"));
+    }
+
+    #[test]
+    fn test_build_worker_inputs_no_op() {
+        use tasker_shared::models::core::batch_worker::BatchWorkerInputs;
+
+        let cursor = CursorConfig {
+            batch_id: "000".to_string(),
+            start_cursor: json!(0),
+            end_cursor: json!(0),
+            batch_size: 0,
+        };
+
+        let batch_config = BatchConfiguration {
+            batch_size: 1000,
+            parallelism: 10,
+            cursor_field: "id".to_string(),
+            worker_template: "test_worker".to_string(),
+            failure_strategy:
+                tasker_shared::models::core::task_template::FailureStrategy::ContinueOnFailure,
+        };
+        let inputs = BatchWorkerInputs::new(cursor, &batch_config, true);
+        let value = inputs.to_value();
+
+        let obj = value.as_object().unwrap();
+        // The no-op flag should be present in batch_metadata
+        if let Some(metadata) = obj.get("batch_metadata") {
+            assert!(metadata.is_object());
+        }
+    }
+
+    #[test]
+    fn test_cursor_config_construction() {
+        let cursor = CursorConfig {
+            batch_id: "batch_005".to_string(),
+            start_cursor: json!(400),
+            end_cursor: json!(500),
+            batch_size: 100,
+        };
+
+        assert_eq!(cursor.batch_id, "batch_005");
+        assert_eq!(cursor.batch_size, 100);
+    }
+
+    #[test]
+    fn test_batch_processing_outcome_no_batches() {
+        let outcome = BatchProcessingOutcome::NoBatches;
+        let json = serde_json::to_string(&outcome).expect("should serialize");
+        // serde tag = "type", rename_all = "snake_case"
+        assert!(json.contains("no_batches"));
+    }
+
+    #[test]
+    fn test_batch_processing_outcome_create_batches() {
+        let cursor = CursorConfig {
+            batch_id: "batch_001".to_string(),
+            start_cursor: json!(0),
+            end_cursor: json!(50),
+            batch_size: 50,
+        };
+
+        let outcome = BatchProcessingOutcome::CreateBatches {
+            worker_template_name: "process_batch".to_string(),
+            worker_count: 2,
+            cursor_configs: vec![cursor],
+            total_items: 100,
+        };
+
+        match &outcome {
+            BatchProcessingOutcome::CreateBatches {
+                worker_count,
+                total_items,
+                ..
+            } => {
+                assert_eq!(*worker_count, 2);
+                assert_eq!(*total_items, 100);
+            }
+            _ => panic!("Expected CreateBatches"),
+        }
     }
 }

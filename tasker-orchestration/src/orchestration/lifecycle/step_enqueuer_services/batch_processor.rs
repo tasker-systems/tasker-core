@@ -247,4 +247,68 @@ mod tests {
         assert_eq!(processor.config.batch_size, expected_batch_size);
         Ok(())
     }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_batch_processor_process_empty_batch(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let step_enqueuer = Arc::new(StepEnqueuer::new(context.clone()).await?);
+        let config: TaskClaimStepEnqueuerConfig = context.tasker_config.clone().into();
+        let processor = BatchProcessor::new(context, step_enqueuer, config);
+
+        // Process batch with no ready tasks in DB
+        let result = processor.process_batch().await?;
+
+        assert_eq!(result.tasks_processed, 0);
+        assert_eq!(result.tasks_failed, 0);
+        assert!(result.warnings.is_empty());
+        assert!(result.namespace_stats.is_empty());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_batch_processor_debug(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let step_enqueuer = Arc::new(StepEnqueuer::new(context.clone()).await?);
+        let config: TaskClaimStepEnqueuerConfig = context.tasker_config.clone().into();
+        let processor = BatchProcessor::new(context, step_enqueuer, config);
+
+        let debug_str = format!("{:?}", processor);
+        assert!(debug_str.contains("BatchProcessor"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_empty_cycle_result_performance_metrics() {
+        let cycle_started_at = Utc::now();
+        let cycle_duration_ms = 50;
+
+        // Create the result struct directly since create_empty_cycle_result is private
+        let result = StepEnqueuerServiceResult {
+            cycle_started_at,
+            cycle_duration_ms,
+            tasks_processed: 0,
+            tasks_failed: 0,
+            priority_distribution: PriorityDistribution::default(),
+            namespace_stats: HashMap::new(),
+            performance_metrics: PerformanceMetrics {
+                claim_duration_ms: cycle_duration_ms,
+                discovery_duration_ms: 0,
+                enqueueing_duration_ms: 0,
+                release_duration_ms: 0,
+                avg_task_processing_ms: 0,
+                steps_per_second: 0.0,
+                tasks_per_second: 0.0,
+            },
+            warnings: vec![],
+        };
+
+        assert_eq!(result.performance_metrics.claim_duration_ms, 50);
+        assert_eq!(result.performance_metrics.discovery_duration_ms, 0);
+        assert_eq!(result.performance_metrics.enqueueing_duration_ms, 0);
+        assert_eq!(result.performance_metrics.avg_task_processing_ms, 0);
+    }
 }

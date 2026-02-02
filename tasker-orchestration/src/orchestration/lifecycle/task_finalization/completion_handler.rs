@@ -559,6 +559,318 @@ mod tests {
         assert_eq!(result.reason, Some("Steps in error state".to_string()));
     }
 
+    /// Helper to create a task in the DB and return the Task struct.
+    /// Leaves the task in Pending state (no transitions).
+    async fn create_test_task(pool: &sqlx::PgPool) -> Result<Task, Box<dyn std::error::Error>> {
+        let task_uuid = Uuid::now_v7();
+        let named_task_uuid = Uuid::now_v7();
+        let correlation_id = Uuid::now_v7();
+
+        // Create namespace
+        sqlx::query(
+            "INSERT INTO tasker.task_namespaces (name, description, created_at, updated_at) \
+             VALUES ('completion_test_ns', 'Test namespace', NOW(), NOW()) \
+             ON CONFLICT (name) DO NOTHING",
+        )
+        .execute(pool)
+        .await?;
+
+        let namespace_id: (Uuid,) = sqlx::query_as(
+            "SELECT task_namespace_uuid FROM tasker.task_namespaces WHERE name = 'completion_test_ns'",
+        )
+        .fetch_one(pool)
+        .await?;
+
+        // Create named task
+        sqlx::query(
+            "INSERT INTO tasker.named_tasks (named_task_uuid, task_namespace_uuid, name, description, version, created_at, updated_at) \
+             VALUES ($1, $2, 'completion_test_task', 'Test', 1, NOW(), NOW()) \
+             ON CONFLICT (task_namespace_uuid, name, version) DO UPDATE SET named_task_uuid = $1",
+        )
+        .bind(named_task_uuid)
+        .bind(namespace_id.0)
+        .execute(pool)
+        .await?;
+
+        // Create task
+        sqlx::query(
+            "INSERT INTO tasker.tasks (task_uuid, named_task_uuid, complete, requested_at, identity_hash, priority, created_at, updated_at, correlation_id) \
+             VALUES ($1, $2, false, NOW(), $3, 0, NOW(), NOW(), $4)",
+        )
+        .bind(task_uuid)
+        .bind(named_task_uuid)
+        .bind(format!("completion_test_{}", task_uuid))
+        .bind(correlation_id)
+        .execute(pool)
+        .await?;
+
+        Ok(Task {
+            task_uuid,
+            named_task_uuid,
+            complete: false,
+            requested_at: chrono::Utc::now().naive_utc(),
+            initiator: None,
+            source_system: None,
+            reason: None,
+            tags: None,
+            context: None,
+            identity_hash: format!("completion_test_{}", task_uuid),
+            priority: 0,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+            correlation_id,
+            parent_correlation_id: None,
+        })
+    }
+
+    /// Helper to create a transition for a task
+    async fn create_transition(
+        pool: &sqlx::PgPool,
+        task_uuid: Uuid,
+        from_state: &str,
+        to_state: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        TaskTransition::create(
+            pool,
+            NewTaskTransition {
+                task_uuid,
+                to_state: to_state.to_string(),
+                from_state: Some(from_state.to_string()),
+                processor_uuid: Some(Uuid::new_v4()),
+                metadata: Some(serde_json::json!({"setup": "test"})),
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_complete_task_from_steps_in_process(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let handler = CompletionHandler::new(context);
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        // Put task in StepsInProcess state
+        create_transition(&pool, task_uuid, "pending", "steps_in_process").await?;
+
+        let result = handler.complete_task(task, None, Uuid::new_v4()).await;
+
+        assert!(
+            result.is_ok(),
+            "complete_task should succeed: {:?}",
+            result.err()
+        );
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::Completed));
+
+        // Verify final state is Complete
+        let final_transition = TaskTransition::get_current(&pool, task_uuid).await?;
+        assert_eq!(final_transition.unwrap().to_state, "complete");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_complete_task_from_initializing(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let handler = CompletionHandler::new(context);
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        // Put task in Initializing state
+        create_transition(&pool, task_uuid, "pending", "initializing").await?;
+
+        let result = handler.complete_task(task, None, Uuid::new_v4()).await;
+
+        assert!(
+            result.is_ok(),
+            "complete_task should succeed: {:?}",
+            result.err()
+        );
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::Completed));
+
+        let final_transition = TaskTransition::get_current(&pool, task_uuid).await?;
+        assert_eq!(final_transition.unwrap().to_state, "complete");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_complete_task_from_pending_fails(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let handler = CompletionHandler::new(context);
+        let task = create_test_task(&pool).await?;
+
+        // Task starts in Pending state (no transitions created)
+        let result = handler.complete_task(task, None, Uuid::new_v4()).await;
+
+        assert!(result.is_err(), "complete_task from Pending should fail");
+        let err = result.unwrap_err();
+        let err_msg = format!("{err}");
+        assert!(
+            err_msg.contains("Pending"),
+            "Error should mention Pending state: {err_msg}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_complete_task_already_complete_is_idempotent(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let handler = CompletionHandler::new(context);
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        // Put task in Complete state
+        create_transition(&pool, task_uuid, "evaluating_results", "complete").await?;
+
+        let result = handler.complete_task(task, None, Uuid::new_v4()).await;
+
+        assert!(
+            result.is_ok(),
+            "complete_task on already-complete should succeed"
+        );
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::Completed));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_complete_task_with_execution_context(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let handler = CompletionHandler::new(context);
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        create_transition(&pool, task_uuid, "pending", "evaluating_results").await?;
+
+        let exec_context = TaskExecutionContext {
+            task_uuid,
+            named_task_uuid: task.named_task_uuid,
+            status: "evaluating_results".to_string(),
+            total_steps: 5,
+            pending_steps: 0,
+            in_progress_steps: 0,
+            completed_steps: 5,
+            failed_steps: 0,
+            ready_steps: 0,
+            execution_status: tasker_shared::models::orchestration::ExecutionStatus::AllComplete,
+            recommended_action: None,
+            completion_percentage: bigdecimal::BigDecimal::from(100),
+            health_status: "healthy".to_string(),
+            enqueued_steps: 5,
+        };
+
+        let result = handler
+            .complete_task(task, Some(exec_context), Uuid::new_v4())
+            .await;
+
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.completion_percentage, Some(100.0));
+        assert_eq!(result.total_steps, Some(5));
+        assert_eq!(result.health_status, Some("healthy".to_string()));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_error_task_from_evaluating_results(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let handler = CompletionHandler::new(context);
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        create_transition(&pool, task_uuid, "pending", "evaluating_results").await?;
+
+        let result = handler.error_task(task, None, Uuid::new_v4()).await;
+
+        assert!(
+            result.is_ok(),
+            "error_task should succeed: {:?}",
+            result.err()
+        );
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::Failed));
+        assert_eq!(result.reason, Some("Steps in error state".to_string()));
+
+        let final_transition = TaskTransition::get_current(&pool, task_uuid).await?;
+        assert_eq!(final_transition.unwrap().to_state, "blocked_by_failures");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_error_task_from_blocked_by_failures(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let handler = CompletionHandler::new(context);
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        create_transition(
+            &pool,
+            task_uuid,
+            "evaluating_results",
+            "blocked_by_failures",
+        )
+        .await?;
+
+        let result = handler.error_task(task, None, Uuid::new_v4()).await;
+
+        assert!(
+            result.is_ok(),
+            "error_task should succeed: {:?}",
+            result.err()
+        );
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::Failed));
+
+        // BlockedByFailures -> Error (terminal)
+        let final_transition = TaskTransition::get_current(&pool, task_uuid).await?;
+        assert_eq!(final_transition.unwrap().to_state, "error");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_error_task_already_error_is_idempotent(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let handler = CompletionHandler::new(context);
+        let task = create_test_task(&pool).await?;
+        let task_uuid = task.task_uuid;
+
+        // Put task in Error state
+        create_transition(&pool, task_uuid, "blocked_by_failures", "error").await?;
+
+        let result = handler.error_task(task, None, Uuid::new_v4()).await;
+
+        assert!(result.is_ok(), "error_task on already-error should succeed");
+        let result = result.unwrap();
+        assert!(matches!(result.action, FinalizationAction::Failed));
+
+        Ok(())
+    }
+
     /// TAS-73: Test that concurrent finalization attempts are handled gracefully.
     ///
     /// This test verifies the atomic finalization behavior by:

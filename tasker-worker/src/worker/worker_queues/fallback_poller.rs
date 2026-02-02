@@ -352,3 +352,149 @@ impl WorkerFallbackPoller {
         self.poller_id
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_poller_config_defaults() {
+        let config = WorkerPollerConfig::default();
+
+        assert!(config.enabled);
+        assert_eq!(config.polling_interval, Duration::from_secs(5));
+        assert_eq!(config.batch_size, 10);
+        assert_eq!(config.age_threshold, Duration::from_secs(2));
+        assert_eq!(config.max_age, Duration::from_secs(12 * 60 * 60));
+        assert_eq!(config.visibility_timeout, Duration::from_secs(30));
+        assert!(config.supported_namespaces.is_empty());
+    }
+
+    #[test]
+    fn test_poller_config_custom_values() {
+        let config = WorkerPollerConfig {
+            enabled: false,
+            polling_interval: Duration::from_secs(60),
+            batch_size: 50,
+            age_threshold: Duration::from_secs(10),
+            max_age: Duration::from_secs(3600),
+            visibility_timeout: Duration::from_secs(120),
+            supported_namespaces: vec!["billing".to_string(), "analytics".to_string()],
+        };
+
+        assert!(!config.enabled);
+        assert_eq!(config.polling_interval, Duration::from_secs(60));
+        assert_eq!(config.batch_size, 50);
+        assert_eq!(config.supported_namespaces.len(), 2);
+        assert_eq!(config.supported_namespaces[0], "billing");
+    }
+
+    #[test]
+    fn test_poller_config_clone() {
+        let config = WorkerPollerConfig {
+            enabled: true,
+            polling_interval: Duration::from_secs(15),
+            batch_size: 25,
+            age_threshold: Duration::from_secs(5),
+            max_age: Duration::from_secs(7200),
+            visibility_timeout: Duration::from_secs(45),
+            supported_namespaces: vec!["default".to_string()],
+        };
+        let cloned = config.clone();
+
+        assert_eq!(config.polling_interval, cloned.polling_interval);
+        assert_eq!(config.batch_size, cloned.batch_size);
+        assert_eq!(config.supported_namespaces, cloned.supported_namespaces);
+    }
+
+    #[test]
+    fn test_poller_stats_default_values() {
+        let stats = WorkerPollerStats::default();
+
+        assert_eq!(stats.polling_cycles.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.messages_processed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.step_messages_processed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.messages_skipped.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.polling_errors.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_poller_stats_atomic_increments() {
+        let stats = WorkerPollerStats::default();
+
+        stats.polling_cycles.fetch_add(5, Ordering::Relaxed);
+        stats.messages_processed.fetch_add(12, Ordering::Relaxed);
+        stats
+            .step_messages_processed
+            .fetch_add(10, Ordering::Relaxed);
+        stats.messages_skipped.fetch_add(2, Ordering::Relaxed);
+        stats.polling_errors.fetch_add(1, Ordering::Relaxed);
+
+        assert_eq!(stats.polling_cycles.load(Ordering::Relaxed), 5);
+        assert_eq!(stats.messages_processed.load(Ordering::Relaxed), 12);
+        assert_eq!(stats.step_messages_processed.load(Ordering::Relaxed), 10);
+        assert_eq!(stats.messages_skipped.load(Ordering::Relaxed), 2);
+        assert_eq!(stats.polling_errors.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn test_poller_stats_concurrent_increments() {
+        let stats = Arc::new(WorkerPollerStats::default());
+
+        // Simulate concurrent polling cycles incrementing stats
+        let handles: Vec<_> = (0..10)
+            .map(|_| {
+                let stats = Arc::clone(&stats);
+                std::thread::spawn(move || {
+                    for _ in 0..100 {
+                        stats.polling_cycles.fetch_add(1, Ordering::Relaxed);
+                        stats.messages_processed.fetch_add(3, Ordering::Relaxed);
+                    }
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        assert_eq!(stats.polling_cycles.load(Ordering::Relaxed), 1000);
+        assert_eq!(stats.messages_processed.load(Ordering::Relaxed), 3000);
+    }
+
+    #[tokio::test]
+    async fn test_poller_stats_last_poll_tracking() {
+        let stats = WorkerPollerStats::default();
+
+        // Initially no poll recorded
+        assert!(stats.last_poll_at.lock().await.is_none());
+        assert!(stats.started_at.lock().await.is_none());
+
+        // Record a poll
+        let now = Instant::now();
+        *stats.last_poll_at.lock().await = Some(now);
+        *stats.started_at.lock().await = Some(now);
+
+        assert!(stats.last_poll_at.lock().await.is_some());
+        assert!(stats.started_at.lock().await.is_some());
+    }
+
+    #[test]
+    fn test_poller_config_debug_impl() {
+        let config = WorkerPollerConfig::default();
+        let debug_str = format!("{:?}", config);
+
+        assert!(debug_str.contains("WorkerPollerConfig"));
+        assert!(debug_str.contains("enabled"));
+        assert!(debug_str.contains("polling_interval"));
+    }
+
+    #[test]
+    fn test_poller_stats_debug_impl() {
+        let stats = WorkerPollerStats::default();
+        let debug_str = format!("{:?}", stats);
+
+        assert!(debug_str.contains("WorkerPollerStats"));
+        assert!(debug_str.contains("polling_cycles"));
+    }
+}

@@ -6,20 +6,15 @@
 //! ## Command Pattern
 //!
 //! The `OrchestrationCommand` enum represents all commands that can be sent to the
-//! orchestration command processor. Commands fall into two categories:
-//!
-//! - **Request-response**: System commands (`GetProcessingStats`, `HealthCheck`, `Shutdown`)
-//!   and direct processing commands (`InitializeTask`, `ProcessStepResult`, `FinalizeTask`)
-//!   include a `CommandResponder` for async communication of results.
-//! - **Fire-and-forget**: Message-based commands (`*FromMessage`, `*FromMessageEvent`) are
-//!   sent without response channels. All production callers (OrchestrationEventSystem,
-//!   FallbackPoller) use fire-and-forget semantics. (TAS-165)
+//! orchestration command processor. Each command variant includes a response channel
+//! for async communication of results.
 //!
 //! ## Result Types
 //!
-//! Each request-response command has a corresponding result type:
+//! Each command has a corresponding result type that encodes the possible outcomes:
 //! - `TaskInitializeResult`: Task initialization outcomes
 //! - `StepProcessResult`: Step result processing outcomes
+//! - `TaskReadinessResult`: Task readiness processing metrics
 //! - `TaskFinalizationResult`: Task finalization outcomes
 //!
 //! ## Provider Abstraction
@@ -29,7 +24,7 @@
 //! - `MessageEvent`: Signal-only notification for PGMQ large message flow
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
@@ -63,40 +58,46 @@ pub enum OrchestrationCommand {
     },
     /// Process step result from message - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle.
-    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
+    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle
     ProcessStepResultFromMessage {
         message: QueuedMessage<serde_json::Value>,
+        resp: CommandResponder<StepProcessResult>,
     },
     /// Initialize task from message - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle.
-    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
+    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle
     InitializeTaskFromMessage {
         message: QueuedMessage<serde_json::Value>,
+        resp: CommandResponder<TaskInitializeResult>,
     },
     /// Finalize task from message - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle.
-    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
+    /// TAS-133: Uses provider-agnostic QueuedMessage with explicit MessageHandle
     FinalizeTaskFromMessage {
         message: QueuedMessage<serde_json::Value>,
+        resp: CommandResponder<TaskFinalizationResult>,
     },
     /// Process step result from message event - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
-    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
-    ProcessStepResultFromMessageEvent { message_event: MessageEvent },
+    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support
+    ProcessStepResultFromMessageEvent {
+        message_event: MessageEvent,
+        resp: CommandResponder<StepProcessResult>,
+    },
     /// Initialize task from message event - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
-    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
-    InitializeTaskFromMessageEvent { message_event: MessageEvent },
+    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support
+    InitializeTaskFromMessageEvent {
+        message_event: MessageEvent,
+        resp: CommandResponder<TaskInitializeResult>,
+    },
     /// Finalize task from message event - delegates full message lifecycle to worker
     ///
-    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support.
-    /// TAS-165: Fire-and-forget (no response channel) - all callers use fire-and-forget semantics.
-    FinalizeTaskFromMessageEvent { message_event: MessageEvent },
+    /// TAS-133: Uses provider-agnostic MessageEvent for multi-backend support
+    FinalizeTaskFromMessageEvent {
+        message_event: MessageEvent,
+        resp: CommandResponder<TaskFinalizationResult>,
+    },
     /// Get orchestration processing statistics
     GetProcessingStats {
         resp: CommandResponder<OrchestrationProcessingStats>,
@@ -140,13 +141,43 @@ pub enum TaskFinalizationResult {
     },
 }
 
+/// Serializable snapshot of orchestration processing statistics
+///
+/// This is the API-facing type returned by `GetProcessingStats` commands.
+/// For lock-free hot-path counting, see `AtomicProcessingStats`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrchestrationProcessingStats {
     pub task_requests_processed: u64,
     pub step_results_processed: u64,
     pub tasks_finalized: u64,
+
     pub processing_errors: u64,
-    pub current_queue_sizes: HashMap<String, i64>,
+}
+
+/// Lock-free statistics tracker for orchestration command processing
+///
+/// Uses `AtomicU64` counters for SWMR (Single Writer, Multiple Reader) access.
+/// The command processor loop is the single writer; health checks and API
+/// responses read via `snapshot()` which produces a serializable
+/// `OrchestrationProcessingStats`.
+#[derive(Debug, Default)]
+pub struct AtomicProcessingStats {
+    pub(crate) task_requests_processed: AtomicU64,
+    pub(crate) step_results_processed: AtomicU64,
+    pub(crate) tasks_finalized: AtomicU64,
+    pub(crate) processing_errors: AtomicU64,
+}
+
+impl AtomicProcessingStats {
+    /// Create a serializable snapshot of current statistics
+    pub fn snapshot(&self) -> OrchestrationProcessingStats {
+        OrchestrationProcessingStats {
+            task_requests_processed: self.task_requests_processed.load(Ordering::Relaxed),
+            step_results_processed: self.step_results_processed.load(Ordering::Relaxed),
+            tasks_finalized: self.tasks_finalized.load(Ordering::Relaxed),
+            processing_errors: self.processing_errors.load(Ordering::Relaxed),
+        }
+    }
 }
 
 /// TAS-75: Enhanced system health status
@@ -191,4 +222,307 @@ pub struct SystemHealth {
 
     /// Whether health data has been evaluated (false means Unknown state)
     pub health_evaluated: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    // --- TaskInitializeResult ---
+
+    #[test]
+    fn test_task_initialize_result_success() {
+        let uuid = Uuid::now_v7();
+        let result = TaskInitializeResult::Success {
+            task_uuid: uuid,
+            message: "Task created".to_string(),
+        };
+
+        assert!(matches!(result, TaskInitializeResult::Success { .. }));
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["Success"]["task_uuid"], uuid.to_string());
+        assert_eq!(json["Success"]["message"], "Task created");
+    }
+
+    #[test]
+    fn test_task_initialize_result_failed() {
+        let result = TaskInitializeResult::Failed {
+            error: "validation failed".to_string(),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: TaskInitializeResult = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, TaskInitializeResult::Failed { .. }));
+    }
+
+    #[test]
+    fn test_task_initialize_result_skipped() {
+        let result = TaskInitializeResult::Skipped {
+            reason: "duplicate".to_string(),
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["Skipped"]["reason"], "duplicate");
+    }
+
+    #[test]
+    fn test_task_initialize_result_clone() {
+        let uuid = Uuid::now_v7();
+        let result = TaskInitializeResult::Success {
+            task_uuid: uuid,
+            message: "cloned".to_string(),
+        };
+        let cloned = result.clone();
+        let original_json = serde_json::to_string(&result).unwrap();
+        let cloned_json = serde_json::to_string(&cloned).unwrap();
+        assert_eq!(original_json, cloned_json);
+    }
+
+    // --- StepProcessResult ---
+
+    #[test]
+    fn test_step_process_result_all_variants() {
+        let success = StepProcessResult::Success {
+            message: "step completed".to_string(),
+        };
+        let failed = StepProcessResult::Failed {
+            error: "timeout".to_string(),
+        };
+        let skipped = StepProcessResult::Skipped {
+            reason: "already processed".to_string(),
+        };
+
+        assert!(matches!(success, StepProcessResult::Success { .. }));
+        assert!(matches!(failed, StepProcessResult::Failed { .. }));
+        assert!(matches!(skipped, StepProcessResult::Skipped { .. }));
+    }
+
+    #[test]
+    fn test_step_process_result_serialization_roundtrip() {
+        let result = StepProcessResult::Success {
+            message: "processed".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: StepProcessResult = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, StepProcessResult::Success { .. }));
+    }
+
+    // --- TaskFinalizationResult ---
+
+    #[test]
+    fn test_task_finalization_result_success() {
+        let uuid = Uuid::now_v7();
+        let now = Utc::now();
+        let result = TaskFinalizationResult::Success {
+            task_uuid: uuid,
+            final_status: "complete".to_string(),
+            completion_time: Some(now),
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["Success"]["final_status"], "complete");
+    }
+
+    #[test]
+    fn test_task_finalization_result_success_no_completion_time() {
+        let uuid = Uuid::now_v7();
+        let result = TaskFinalizationResult::Success {
+            task_uuid: uuid,
+            final_status: "error".to_string(),
+            completion_time: None,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: TaskFinalizationResult = serde_json::from_str(&json).unwrap();
+        assert!(matches!(
+            deserialized,
+            TaskFinalizationResult::Success { .. }
+        ));
+    }
+
+    #[test]
+    fn test_task_finalization_result_not_claimed() {
+        let result = TaskFinalizationResult::NotClaimed {
+            reason: "already finalized".to_string(),
+            already_claimed_by: Some(Uuid::now_v7()),
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert!(json["NotClaimed"]["already_claimed_by"].is_string());
+    }
+
+    #[test]
+    fn test_task_finalization_result_not_claimed_unknown_claimer() {
+        let result = TaskFinalizationResult::NotClaimed {
+            reason: "race condition".to_string(),
+            already_claimed_by: None,
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert!(json["NotClaimed"]["already_claimed_by"].is_null());
+    }
+
+    #[test]
+    fn test_task_finalization_result_failed() {
+        let result = TaskFinalizationResult::Failed {
+            error: "database error".to_string(),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("database error"));
+    }
+
+    // --- OrchestrationProcessingStats ---
+
+    #[test]
+    fn test_orchestration_processing_stats_construction() {
+        let stats = OrchestrationProcessingStats {
+            task_requests_processed: 1000,
+            step_results_processed: 5000,
+            tasks_finalized: 800,
+            processing_errors: 10,
+        };
+
+        assert_eq!(stats.task_requests_processed, 1000);
+        assert_eq!(stats.step_results_processed, 5000);
+        assert_eq!(stats.processing_errors, 10);
+    }
+
+    #[test]
+    fn test_orchestration_processing_stats_serialization() {
+        let stats = OrchestrationProcessingStats {
+            task_requests_processed: 0,
+            step_results_processed: 0,
+            tasks_finalized: 0,
+            processing_errors: 0,
+        };
+
+        let json = serde_json::to_string(&stats).unwrap();
+        let deserialized: OrchestrationProcessingStats = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.task_requests_processed, 0);
+    }
+
+    // --- AtomicProcessingStats ---
+
+    #[test]
+    fn test_atomic_processing_stats_default() {
+        let stats = AtomicProcessingStats::default();
+        let snapshot = stats.snapshot();
+        assert_eq!(snapshot.task_requests_processed, 0);
+        assert_eq!(snapshot.step_results_processed, 0);
+        assert_eq!(snapshot.tasks_finalized, 0);
+        assert_eq!(snapshot.processing_errors, 0);
+    }
+
+    #[test]
+    fn test_atomic_processing_stats_increment_and_snapshot() {
+        let stats = AtomicProcessingStats::default();
+        stats
+            .task_requests_processed
+            .fetch_add(5, std::sync::atomic::Ordering::Relaxed);
+        stats
+            .processing_errors
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+        let snapshot = stats.snapshot();
+        assert_eq!(snapshot.task_requests_processed, 5);
+        assert_eq!(snapshot.processing_errors, 1);
+        assert_eq!(snapshot.step_results_processed, 0);
+    }
+
+    // --- SystemHealth ---
+
+    #[test]
+    fn test_system_health_healthy_state() {
+        let health = SystemHealth {
+            status: "healthy".to_string(),
+            database_connected: true,
+            message_queues_healthy: true,
+            active_processors: 4,
+            circuit_breaker_open: false,
+            circuit_breaker_failures: 0,
+            command_channel_saturation_percent: 15.0,
+            backpressure_active: false,
+            queue_depth_tier: "Normal".to_string(),
+            queue_depth_max: 50,
+            queue_depth_worst_queue: "step_results".to_string(),
+            health_evaluated: true,
+        };
+
+        assert_eq!(health.status, "healthy");
+        assert!(health.database_connected);
+        assert!(health.message_queues_healthy);
+        assert!(!health.circuit_breaker_open);
+        assert!(!health.backpressure_active);
+        assert!(health.health_evaluated);
+    }
+
+    #[test]
+    fn test_system_health_degraded_state() {
+        let health = SystemHealth {
+            status: "degraded".to_string(),
+            database_connected: true,
+            message_queues_healthy: false,
+            active_processors: 2,
+            circuit_breaker_open: false,
+            circuit_breaker_failures: 3,
+            command_channel_saturation_percent: 85.0,
+            backpressure_active: true,
+            queue_depth_tier: "Warning".to_string(),
+            queue_depth_max: 5000,
+            queue_depth_worst_queue: "task_requests".to_string(),
+            health_evaluated: true,
+        };
+
+        assert_eq!(health.status, "degraded");
+        assert!(health.backpressure_active);
+        assert_eq!(health.queue_depth_tier, "Warning");
+    }
+
+    #[test]
+    fn test_system_health_serialization_roundtrip() {
+        let health = SystemHealth {
+            status: "unhealthy".to_string(),
+            database_connected: false,
+            message_queues_healthy: false,
+            active_processors: 0,
+            circuit_breaker_open: true,
+            circuit_breaker_failures: 10,
+            command_channel_saturation_percent: 99.5,
+            backpressure_active: true,
+            queue_depth_tier: "Overflow".to_string(),
+            queue_depth_max: 100000,
+            queue_depth_worst_queue: "all".to_string(),
+            health_evaluated: true,
+        };
+
+        let json = serde_json::to_string(&health).unwrap();
+        let deserialized: SystemHealth = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.status, "unhealthy");
+        assert!(!deserialized.database_connected);
+        assert!(deserialized.circuit_breaker_open);
+        assert_eq!(deserialized.command_channel_saturation_percent, 99.5);
+    }
+
+    #[test]
+    fn test_system_health_unevaluated() {
+        let health = SystemHealth {
+            status: "unknown".to_string(),
+            database_connected: false,
+            message_queues_healthy: false,
+            active_processors: 0,
+            circuit_breaker_open: false,
+            circuit_breaker_failures: 0,
+            command_channel_saturation_percent: 0.0,
+            backpressure_active: false,
+            queue_depth_tier: "Unknown".to_string(),
+            queue_depth_max: 0,
+            queue_depth_worst_queue: String::new(),
+            health_evaluated: false,
+        };
+
+        assert!(!health.health_evaluated);
+        assert_eq!(health.status, "unknown");
+    }
 }

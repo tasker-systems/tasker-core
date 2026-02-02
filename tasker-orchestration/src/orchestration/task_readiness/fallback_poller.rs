@@ -285,4 +285,69 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_fallback_poller_config_debug() {
+        let config = FallbackPollerConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("FallbackPollerConfig"));
+        assert!(debug_str.contains("enabled"));
+    }
+
+    #[test]
+    fn test_fallback_poller_config_clone() {
+        let config = FallbackPollerConfig {
+            enabled: true,
+            polling_interval: Duration::from_secs(15),
+            circuit_breaker: TaskReadinessCircuitBreakerConfig::default(),
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.enabled, config.enabled);
+        assert_eq!(cloned.polling_interval, config.polling_interval);
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_fallback_poller_debug(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let config = FallbackPollerConfig::default();
+        let poller = FallbackPoller::new(config, context).await?;
+
+        let debug_str = format!("{:?}", poller);
+        assert!(debug_str.contains("FallbackPoller"));
+        assert!(debug_str.contains("poller_id"));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_fallback_poller_stop_when_not_running(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let config = FallbackPollerConfig::default();
+        let mut poller = FallbackPoller::new(config, context).await?;
+
+        // Stopping when not running should succeed gracefully
+        poller.stop().await?;
+        assert!(!poller.is_running());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_fallback_poller_config_accessor(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let config = FallbackPollerConfig {
+            enabled: true,
+            polling_interval: Duration::from_secs(45),
+            circuit_breaker: TaskReadinessCircuitBreakerConfig::default(),
+        };
+        let poller = FallbackPoller::new(config, context).await?;
+
+        assert!(poller.config().enabled);
+        assert_eq!(poller.config().polling_interval, Duration::from_secs(45));
+        Ok(())
+    }
 }

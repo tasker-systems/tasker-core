@@ -176,3 +176,43 @@ fn template_error_to_status(error: &TemplateQueryError) -> Status {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_template_error_namespace_not_found() {
+        let err = TemplateQueryError::NamespaceNotFound("production".to_string());
+        let status = template_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::NotFound);
+        assert!(status.message().contains("production"));
+    }
+
+    #[test]
+    fn test_template_error_template_not_found() {
+        let err = TemplateQueryError::TemplateNotFound {
+            namespace: "default".to_string(),
+            name: "missing_task".to_string(),
+            version: "1.0.0".to_string(),
+        };
+        let status = template_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::NotFound);
+    }
+
+    #[test]
+    fn test_template_error_database_error() {
+        let err = TemplateQueryError::DatabaseError(sqlx::Error::Protocol(
+            "connection refused".to_string(),
+        ));
+        let status = template_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::Internal);
+    }
+
+    #[test]
+    fn test_template_error_internal() {
+        let err = TemplateQueryError::Internal("unexpected".to_string());
+        let status = template_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::Internal);
+    }
+}

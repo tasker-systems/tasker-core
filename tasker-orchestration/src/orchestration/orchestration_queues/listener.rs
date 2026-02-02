@@ -666,4 +666,102 @@ mod tests {
             OrchestrationNotification::Reconnected
         ));
     }
+
+    #[test]
+    fn test_listener_config_custom() {
+        let config = OrchestrationListenerConfig {
+            namespace: "custom".to_string(),
+            monitored_queues: vec!["queue_a".to_string(), "queue_b".to_string()],
+            retry_interval: Duration::from_secs(10),
+            max_retry_attempts: 5,
+            event_timeout: Duration::from_secs(60),
+            health_check_interval: Duration::from_secs(120),
+        };
+
+        assert_eq!(config.namespace, "custom");
+        assert_eq!(config.monitored_queues.len(), 2);
+        assert_eq!(config.max_retry_attempts, 5);
+        assert_eq!(config.retry_interval, Duration::from_secs(10));
+        assert_eq!(config.event_timeout, Duration::from_secs(60));
+        assert_eq!(config.health_check_interval, Duration::from_secs(120));
+    }
+
+    #[test]
+    fn test_listener_config_clone() {
+        let config = OrchestrationListenerConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.namespace, config.namespace);
+        assert_eq!(cloned.monitored_queues, config.monitored_queues);
+        assert_eq!(cloned.max_retry_attempts, config.max_retry_attempts);
+    }
+
+    #[test]
+    fn test_listener_config_debug() {
+        let config = OrchestrationListenerConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("OrchestrationListenerConfig"));
+        assert!(debug_str.contains("orchestration"));
+    }
+
+    #[test]
+    fn test_listener_stats_increment() {
+        let stats = OrchestrationListenerStats::default();
+
+        stats.events_received.fetch_add(5, Ordering::Relaxed);
+        stats.step_results_processed.fetch_add(3, Ordering::Relaxed);
+        stats
+            .task_requests_processed
+            .fetch_add(1, Ordering::Relaxed);
+        stats.connection_errors.fetch_add(2, Ordering::Relaxed);
+
+        assert_eq!(stats.events_received.load(Ordering::Relaxed), 5);
+        assert_eq!(stats.step_results_processed.load(Ordering::Relaxed), 3);
+        assert_eq!(stats.task_requests_processed.load(Ordering::Relaxed), 1);
+        assert_eq!(stats.connection_errors.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn test_listener_stats_debug() {
+        let stats = OrchestrationListenerStats::default();
+        let debug_str = format!("{:?}", stats);
+        assert!(debug_str.contains("OrchestrationListenerStats"));
+    }
+
+    #[test]
+    fn test_notification_debug_variants() {
+        let event = OrchestrationQueueEvent::Unknown {
+            queue_name: "test".to_string(),
+            payload: "test".to_string(),
+        };
+        let notification = OrchestrationNotification::Event(event);
+        let debug_str = format!("{:?}", notification);
+        assert!(debug_str.contains("Event"));
+
+        let error = OrchestrationNotification::ConnectionError("conn failed".to_string());
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("ConnectionError"));
+        assert!(debug_str.contains("conn failed"));
+
+        let reconnected = OrchestrationNotification::Reconnected;
+        let debug_str = format!("{:?}", reconnected);
+        assert!(debug_str.contains("Reconnected"));
+    }
+
+    #[test]
+    fn test_notification_clone() {
+        let event = OrchestrationQueueEvent::Unknown {
+            queue_name: "test".to_string(),
+            payload: "test".to_string(),
+        };
+        let notification = OrchestrationNotification::Event(event);
+        let cloned = notification.clone();
+        assert!(matches!(cloned, OrchestrationNotification::Event(_)));
+
+        let error = OrchestrationNotification::ConnectionError("err".to_string());
+        let cloned_err = error.clone();
+        assert!(matches!(
+            cloned_err,
+            OrchestrationNotification::ConnectionError(_)
+        ));
+    }
 }

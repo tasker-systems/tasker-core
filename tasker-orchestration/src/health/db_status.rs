@@ -164,4 +164,92 @@ mod tests {
         cb.record_failure();
         assert!(cb.is_circuit_open());
     }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_evaluate_db_status_healthy(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let cb = WebDatabaseCircuitBreaker::new(5, Duration::from_secs(30), "test");
+        let config = DatabaseHealthConfig::default();
+
+        let status = evaluate_db_status(&pool, &cb, &config).await;
+
+        assert!(status.evaluated);
+        assert!(status.is_connected);
+        assert!(!status.circuit_breaker_open);
+        assert_eq!(status.circuit_breaker_failures, 0);
+        assert!(status.error_message.is_none());
+        assert!(status.last_check_duration_ms < config.query_timeout_ms);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_evaluate_db_status_circuit_breaker_open(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let cb = WebDatabaseCircuitBreaker::new(2, Duration::from_secs(30), "test");
+        cb.record_failure();
+        cb.record_failure();
+
+        let config = DatabaseHealthConfig::default();
+        let status = evaluate_db_status(&pool, &cb, &config).await;
+
+        assert!(status.evaluated);
+        assert!(!status.is_connected);
+        assert!(status.circuit_breaker_open);
+        assert_eq!(status.circuit_breaker_failures, 2);
+        assert!(status.error_message.is_some());
+        assert!(status
+            .error_message
+            .unwrap()
+            .contains("Circuit breaker open"));
+        assert_eq!(status.last_check_duration_ms, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_circuit_breaker_success_resets_failures() {
+        let cb = WebDatabaseCircuitBreaker::new(3, Duration::from_secs(30), "test");
+
+        cb.record_failure();
+        cb.record_failure();
+        assert_eq!(cb.current_failures(), 2);
+
+        cb.record_success();
+        assert_eq!(cb.current_failures(), 0);
+        assert!(!cb.is_circuit_open());
+    }
+
+    #[test]
+    fn test_database_health_status_fields() {
+        let status = DatabaseHealthStatus {
+            evaluated: true,
+            is_connected: true,
+            circuit_breaker_open: false,
+            circuit_breaker_failures: 0,
+            last_check_duration_ms: 5,
+            error_message: None,
+        };
+
+        assert!(status.evaluated);
+        assert!(status.is_connected);
+        assert!(!status.circuit_breaker_open);
+        assert_eq!(status.last_check_duration_ms, 5);
+    }
+
+    #[test]
+    fn test_database_health_status_with_error() {
+        let status = DatabaseHealthStatus {
+            evaluated: true,
+            is_connected: false,
+            circuit_breaker_open: false,
+            circuit_breaker_failures: 1,
+            last_check_duration_ms: 50,
+            error_message: Some("connection refused".to_string()),
+        };
+
+        assert!(!status.is_connected);
+        assert_eq!(status.circuit_breaker_failures, 1);
+        assert!(status.error_message.unwrap().contains("connection refused"));
+    }
 }

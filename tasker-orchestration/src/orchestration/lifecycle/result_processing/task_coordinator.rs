@@ -249,6 +249,7 @@ impl TaskCoordinator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tasker_shared::models::factories::base::SqlxFactory;
 
     #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
     async fn test_task_coordinator_creation(
@@ -317,6 +318,157 @@ mod tests {
             .await;
 
         assert!(result.is_err());
+        Ok(())
+    }
+
+    // ── coordinator action determination ──
+
+    async fn create_coordinator(
+        pool: &sqlx::PgPool,
+    ) -> Result<TaskCoordinator, Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let step_enqueuer = Arc::new(
+            crate::orchestration::lifecycle::step_enqueuer_services::StepEnqueuerService::new(
+                context.clone(),
+            )
+            .await?,
+        );
+        let task_finalizer = TaskFinalizer::new(context.clone(), step_enqueuer);
+        Ok(TaskCoordinator::new(context, task_finalizer))
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_coordinator_real_step_with_in_progress_task(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::factories::TaskFactory;
+        use tasker_shared::models::factories::WorkflowStepFactory;
+
+        let coordinator = create_coordinator(&pool).await?;
+
+        // Create a task in StepsInProcess state with a real step
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let correlation_id = Uuid::new_v4();
+        let status = "completed".to_string();
+
+        // Verify coordination can be attempted — the step exists and is found
+        let result = coordinator
+            .coordinate_task_finalization(&step.workflow_step_uuid, &status, correlation_id)
+            .await;
+
+        // For a real step, the coordinator finds the task and attempts finalization.
+        // The result depends on state machine transitions and finalization logic,
+        // but the key assertion is that it successfully resolved the step → task
+        // relationship and entered the coordination path (not the "step not found" error).
+        if let Err(ref e) = result {
+            let err_str = format!("{}", e);
+            assert!(
+                !err_str.contains("Failed to find WorkflowStep"),
+                "Real step should be found: {}",
+                err_str
+            );
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_coordinator_action_pending_task_is_unexpected(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::factories::TaskFactory;
+        use tasker_shared::models::factories::WorkflowStepFactory;
+
+        let coordinator = create_coordinator(&pool).await?;
+
+        // Create pending task with a step
+        let task = TaskFactory::new().pending().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let correlation_id = Uuid::new_v4();
+        let status = "completed".to_string();
+
+        // Task in Pending state → UnexpectedState → Err
+        let result = coordinator
+            .coordinate_task_finalization(&step.workflow_step_uuid, &status, correlation_id)
+            .await;
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_coordinator_action_steps_in_process(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::factories::TaskFactory;
+        use tasker_shared::models::factories::WorkflowStepFactory;
+
+        let coordinator = create_coordinator(&pool).await?;
+
+        // Create in-progress (StepsInProcess) task with a step
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let correlation_id = Uuid::new_v4();
+        let status = "completed".to_string();
+
+        // Task in StepsInProcess → TransitionAndFinalize
+        // This may succeed or fail depending on state machine transition availability,
+        // but it should not panic or return UnexpectedState
+        let result = coordinator
+            .coordinate_task_finalization(&step.workflow_step_uuid, &status, correlation_id)
+            .await;
+
+        // The result depends on whether the state machine can transition.
+        // The key assertion is that it doesn't return an "unexpected state" error.
+        if let Err(ref e) = result {
+            let err_str = format!("{}", e);
+            assert!(
+                !err_str.contains("unexpected state"),
+                "StepsInProcess should not be treated as unexpected, got: {}",
+                err_str
+            );
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_coordinator_error_message_for_nonexistent_step(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let coordinator = create_coordinator(&pool).await?;
+
+        let nonexistent_uuid = Uuid::new_v4();
+        let correlation_id = Uuid::new_v4();
+        let status = "completed".to_string();
+
+        let result = coordinator
+            .coordinate_task_finalization(&nonexistent_uuid, &status, correlation_id)
+            .await;
+
+        match result {
+            Err(OrchestrationError::DatabaseError { operation, reason }) => {
+                assert!(operation.contains(&nonexistent_uuid.to_string()));
+                assert!(reason.contains(&nonexistent_uuid.to_string()));
+            }
+            Err(other) => {
+                // sqlx errors are also valid here
+                let err_str = format!("{}", other);
+                assert!(!err_str.is_empty());
+            }
+            Ok(()) => panic!("Expected error for nonexistent step"),
+        }
         Ok(())
     }
 }

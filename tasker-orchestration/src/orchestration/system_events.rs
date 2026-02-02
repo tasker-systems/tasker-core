@@ -412,6 +412,323 @@ mod tests {
         assert!(payload["step_uuids"].is_array());
     }
 
+    fn create_test_config() -> SystemEventsConfig {
+        SystemEventsConfig {
+            event_metadata: HashMap::from([(
+                "step".to_string(),
+                HashMap::from([(
+                    "completed".to_string(),
+                    EventMetadata {
+                        description: "Step completed".to_string(),
+                        constant_ref: "StepEvents::COMPLETED".to_string(),
+                        payload_schema: HashMap::from([
+                            (
+                                "step_uuid".to_string(),
+                                SchemaField {
+                                    field_type: "String".to_string(),
+                                    required: true,
+                                },
+                            ),
+                            (
+                                "duration".to_string(),
+                                SchemaField {
+                                    field_type: "Float".to_string(),
+                                    required: false,
+                                },
+                            ),
+                        ]),
+                        fired_by: vec!["StepHandler".to_string()],
+                    },
+                )]),
+            )]),
+            state_machine_mappings: StateMachineMappings {
+                task_transitions: vec![
+                    StateTransition {
+                        from_state: None,
+                        to_state: "pending".to_string(),
+                        event_constant: "task.created".to_string(),
+                        description: "Task created".to_string(),
+                    },
+                    StateTransition {
+                        from_state: Some("pending".to_string()),
+                        to_state: "in_progress".to_string(),
+                        event_constant: "task.started".to_string(),
+                        description: "Task started".to_string(),
+                    },
+                ],
+                step_transitions: vec![
+                    StateTransition {
+                        from_state: Some("pending".to_string()),
+                        to_state: "in_progress".to_string(),
+                        event_constant: "step.started".to_string(),
+                        description: "Step started".to_string(),
+                    },
+                    StateTransition {
+                        from_state: Some("in_progress".to_string()),
+                        to_state: "complete".to_string(),
+                        event_constant: "step.completed".to_string(),
+                        description: "Step completed".to_string(),
+                    },
+                ],
+            },
+        }
+    }
+
+    #[test]
+    fn test_get_event_metadata_not_found() {
+        let config = create_test_config();
+        let result = config.get_event_metadata("nonexistent", "event");
+        assert!(result.is_err());
+
+        // Verify it's a ConfigurationError
+        match result.unwrap_err() {
+            OrchestrationError::ConfigurationError { reason, .. } => {
+                assert!(reason.contains("nonexistent.event"));
+            }
+            other => panic!("Expected ConfigurationError, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_get_step_transitions() {
+        let config = create_test_config();
+        let transitions = config.get_step_transitions();
+        assert_eq!(transitions.len(), 2);
+        assert_eq!(transitions[0].to_state, "in_progress");
+        assert_eq!(transitions[1].to_state, "complete");
+    }
+
+    #[test]
+    fn test_get_transitions_from_state_filters_correctly() {
+        let config = create_test_config();
+        let transitions = config.get_transitions_from_state("task", Some("pending"));
+        assert_eq!(transitions.len(), 1);
+        assert_eq!(transitions[0].to_state, "in_progress");
+    }
+
+    #[test]
+    fn test_get_transitions_from_state_invalid_entity() {
+        let config = create_test_config();
+        let transitions = config.get_transitions_from_state("unknown", Some("pending"));
+        assert!(transitions.is_empty());
+    }
+
+    #[test]
+    fn test_get_transitions_from_state_none_matches_initial() {
+        let config = create_test_config();
+        let transitions = config.get_transitions_from_state("task", None);
+        assert_eq!(transitions.len(), 1);
+        assert_eq!(transitions[0].to_state, "pending");
+    }
+
+    #[test]
+    fn test_validate_event_payload_valid() {
+        let config = create_test_config();
+        let payload = serde_json::json!({
+            "step_uuid": "abc-123",
+            "duration": 1.5
+        });
+
+        let result = config.validate_event_payload("step", "completed", &payload);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_event_payload_missing_required_field() {
+        let config = create_test_config();
+        // Missing required "step_uuid" field
+        let payload = serde_json::json!({
+            "duration": 1.5
+        });
+
+        let result = config.validate_event_payload("step", "completed", &payload);
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            OrchestrationError::ValidationError { field, reason } => {
+                assert_eq!(field, "step_uuid");
+                assert!(reason.contains("Required field"));
+            }
+            other => panic!("Expected ValidationError, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_validate_event_payload_optional_absent_ok() {
+        let config = create_test_config();
+        // Only required field present, optional "duration" absent
+        let payload = serde_json::json!({
+            "step_uuid": "abc-123"
+        });
+
+        let result = config.validate_event_payload("step", "completed", &payload);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_create_step_failed_payload() {
+        let config = SystemEventsConfig {
+            event_metadata: HashMap::new(),
+            state_machine_mappings: StateMachineMappings {
+                task_transitions: vec![],
+                step_transitions: vec![],
+            },
+        };
+
+        let manager = SystemEventsManager::new(config);
+        let task_uuid = Uuid::now_v7();
+        let step_uuid = Uuid::now_v7();
+
+        let payload = manager.create_step_failed_payload(
+            task_uuid,
+            step_uuid,
+            "failing_step",
+            "connection timeout",
+            "TimeoutError",
+            2,
+        );
+
+        assert_eq!(payload["task_uuid"], task_uuid.to_string());
+        assert_eq!(payload["step_uuid"], step_uuid.to_string());
+        assert_eq!(payload["step_name"], "failing_step");
+        assert_eq!(payload["error_message"], "connection timeout");
+        assert_eq!(payload["error_class"], "TimeoutError");
+        assert_eq!(payload["attempt_number"], 2);
+        assert!(payload["timestamp"].is_string());
+    }
+
+    #[test]
+    fn test_task_completed_payload_without_duration() {
+        let config = SystemEventsConfig {
+            event_metadata: HashMap::new(),
+            state_machine_mappings: StateMachineMappings {
+                task_transitions: vec![],
+                step_transitions: vec![],
+            },
+        };
+
+        let manager = SystemEventsManager::new(config);
+        let task_uuid = Uuid::now_v7();
+
+        let payload = manager.create_task_completed_payload(task_uuid, "my_task", 3, 3, None);
+
+        assert_eq!(payload["task_uuid"], task_uuid.to_string());
+        assert_eq!(payload["task_name"], "my_task");
+        assert_eq!(payload["total_steps"], 3);
+        assert_eq!(payload["completed_steps"], 3);
+        // Duration should not be present when None
+        assert!(payload.get("total_duration").is_none());
+    }
+
+    #[test]
+    fn test_manager_config_access() {
+        let config = create_test_config();
+        let manager = SystemEventsManager::new(config);
+        let arc_config = manager.config();
+
+        // Verify we get access to the config through Arc
+        assert!(!arc_config
+            .state_machine_mappings
+            .task_transitions
+            .is_empty());
+        assert!(!arc_config
+            .state_machine_mappings
+            .step_transitions
+            .is_empty());
+    }
+
+    #[test]
+    fn test_get_event_metadata_found() {
+        let config = create_test_config();
+        let metadata = config.get_event_metadata("step", "completed").unwrap();
+
+        assert_eq!(metadata.description, "Step completed");
+        assert_eq!(metadata.constant_ref, "StepEvents::COMPLETED");
+        assert!(metadata.payload_schema.contains_key("step_uuid"));
+        assert!(metadata.payload_schema["step_uuid"].required);
+        assert!(!metadata.payload_schema["duration"].required);
+        assert_eq!(metadata.fired_by, vec!["StepHandler"]);
+    }
+
+    #[test]
+    fn test_get_task_transitions() {
+        let config = create_test_config();
+        let transitions = config.get_task_transitions();
+        assert_eq!(transitions.len(), 2);
+        assert_eq!(transitions[0].from_state, None);
+        assert_eq!(transitions[0].to_state, "pending");
+        assert_eq!(transitions[1].from_state, Some("pending".to_string()));
+        assert_eq!(transitions[1].to_state, "in_progress");
+    }
+
+    #[test]
+    fn test_state_transition_fields() {
+        let transition = StateTransition {
+            from_state: Some("pending".to_string()),
+            to_state: "in_progress".to_string(),
+            event_constant: "step.started".to_string(),
+            description: "Step execution began".to_string(),
+        };
+
+        let debug_str = format!("{:?}", transition);
+        assert!(debug_str.contains("pending"));
+        assert!(debug_str.contains("in_progress"));
+
+        // Test Clone
+        let cloned = transition.clone();
+        assert_eq!(cloned.from_state, transition.from_state);
+        assert_eq!(cloned.to_state, transition.to_state);
+    }
+
+    #[test]
+    fn test_schema_field_debug_and_clone() {
+        let field = SchemaField {
+            field_type: "Integer".to_string(),
+            required: true,
+        };
+
+        let debug_str = format!("{:?}", field);
+        assert!(debug_str.contains("Integer"));
+
+        let cloned = field.clone();
+        assert_eq!(cloned.field_type, "Integer");
+        assert!(cloned.required);
+    }
+
+    #[test]
+    fn test_event_metadata_debug_and_clone() {
+        let metadata = EventMetadata {
+            description: "Test event".to_string(),
+            constant_ref: "TestEvents::TEST".to_string(),
+            payload_schema: HashMap::new(),
+            fired_by: vec!["TestComponent".to_string()],
+        };
+
+        let debug_str = format!("{:?}", metadata);
+        assert!(debug_str.contains("Test event"));
+
+        let cloned = metadata.clone();
+        assert_eq!(cloned.description, "Test event");
+        assert_eq!(cloned.fired_by.len(), 1);
+    }
+
+    #[test]
+    fn test_system_events_config_serialization_roundtrip() {
+        let config = create_test_config();
+        let json = serde_json::to_string(&config).expect("should serialize");
+        let deserialized: SystemEventsConfig =
+            serde_json::from_str(&json).expect("should deserialize");
+
+        assert_eq!(
+            deserialized.state_machine_mappings.task_transitions.len(),
+            config.state_machine_mappings.task_transitions.len()
+        );
+        assert_eq!(
+            deserialized.state_machine_mappings.step_transitions.len(),
+            config.state_machine_mappings.step_transitions.len()
+        );
+    }
+
     #[tokio::test]
     async fn test_system_events_config_from_yaml() {
         let yaml_content = r#"

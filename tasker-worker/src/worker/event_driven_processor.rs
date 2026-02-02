@@ -297,3 +297,214 @@ pub struct EventDrivenStats {
     pub messages_processed: u64,
     pub events_received: u64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config_values() {
+        let config = EventDrivenConfig::default();
+
+        assert_eq!(config.fallback_polling_interval, Duration::from_millis(500));
+        assert_eq!(config.batch_size, 10);
+        assert_eq!(config.visibility_timeout, Duration::from_secs(30));
+        assert!(matches!(config.deployment_mode, DeploymentMode::Hybrid));
+    }
+
+    #[test]
+    fn test_config_mapping_preserves_timing_values() {
+        let config = EventDrivenConfig {
+            fallback_polling_interval: Duration::from_secs(15),
+            batch_size: 25,
+            visibility_timeout: Duration::from_secs(60),
+            deployment_mode: DeploymentMode::EventDrivenOnly,
+        };
+        let namespaces = vec!["billing".to_string(), "notifications".to_string()];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        assert_eq!(mapped.timing.fallback_polling_interval_seconds, 15);
+        assert_eq!(mapped.timing.visibility_timeout_seconds, 60);
+        assert_eq!(mapped.timing.processing_timeout_seconds, 60);
+        assert_eq!(mapped.timing.claim_timeout_seconds, 30);
+        assert_eq!(mapped.timing.health_check_interval_seconds, 60);
+    }
+
+    #[test]
+    fn test_config_mapping_preserves_processing_values() {
+        let config = EventDrivenConfig {
+            fallback_polling_interval: Duration::from_secs(5),
+            batch_size: 50,
+            visibility_timeout: Duration::from_secs(45),
+            deployment_mode: DeploymentMode::PollingOnly,
+        };
+        let namespaces = vec!["default".to_string()];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        assert_eq!(mapped.processing.max_concurrent_operations, 50);
+        assert_eq!(mapped.processing.batch_size, 50);
+        assert_eq!(mapped.processing.max_retries, 3);
+        assert!(matches!(
+            mapped.deployment_mode,
+            DeploymentMode::PollingOnly
+        ));
+    }
+
+    #[test]
+    fn test_config_mapping_propagates_namespaces_to_fallback_poller() {
+        let config = EventDrivenConfig::default();
+        let namespaces = vec![
+            "billing".to_string(),
+            "notifications".to_string(),
+            "analytics".to_string(),
+        ];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        assert_eq!(
+            mapped.metadata.fallback_poller.supported_namespaces,
+            namespaces
+        );
+        assert!(mapped.metadata.fallback_poller.enabled);
+    }
+
+    #[test]
+    fn test_config_mapping_fallback_poller_timing() {
+        let config = EventDrivenConfig {
+            fallback_polling_interval: Duration::from_millis(2500),
+            batch_size: 20,
+            visibility_timeout: Duration::from_secs(90),
+            deployment_mode: DeploymentMode::Hybrid,
+        };
+        let namespaces = vec!["default".to_string()];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        // Duration::from_millis(2500).as_millis() = 2500
+        assert_eq!(mapped.metadata.fallback_poller.polling_interval_ms, 2500);
+        assert_eq!(mapped.metadata.fallback_poller.batch_size, 20);
+        assert_eq!(
+            mapped.metadata.fallback_poller.visibility_timeout_seconds,
+            90
+        );
+        assert_eq!(mapped.metadata.fallback_poller.age_threshold_seconds, 60);
+        assert_eq!(mapped.metadata.fallback_poller.max_age_hours, 24);
+    }
+
+    #[test]
+    fn test_config_mapping_listener_settings() {
+        let config = EventDrivenConfig {
+            fallback_polling_interval: Duration::from_secs(5),
+            batch_size: 10,
+            visibility_timeout: Duration::from_secs(120),
+            deployment_mode: DeploymentMode::Hybrid,
+        };
+        let namespaces = vec![];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        assert_eq!(mapped.metadata.listener.event_timeout_seconds, 120);
+        assert!(mapped.metadata.listener.batch_processing);
+        assert_eq!(mapped.metadata.listener.retry_interval_seconds, 5);
+        assert_eq!(mapped.metadata.listener.max_retry_attempts, 3);
+        assert_eq!(mapped.metadata.listener.connection_timeout_seconds, 10);
+    }
+
+    #[test]
+    fn test_config_mapping_system_id_includes_processor_id() {
+        let config = EventDrivenConfig::default();
+        let namespaces = vec![];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        assert!(mapped.system_id.starts_with("event-driven-"));
+        assert!(mapped.system_id.contains(&processor_id.to_string()));
+    }
+
+    #[test]
+    fn test_config_mapping_health_defaults() {
+        let config = EventDrivenConfig::default();
+        let namespaces = vec![];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        assert!(mapped.health.enabled);
+        assert!(mapped.health.performance_monitoring_enabled);
+        assert_eq!(mapped.health.max_consecutive_errors, 10);
+        assert_eq!(mapped.health.error_rate_threshold_per_minute, 60);
+    }
+
+    #[test]
+    fn test_config_mapping_in_process_events() {
+        let config = EventDrivenConfig::default();
+        let namespaces = vec![];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        assert!(mapped.metadata.in_process_events.ffi_integration_enabled);
+        assert_eq!(
+            mapped.metadata.in_process_events.deduplication_cache_size,
+            10000
+        );
+    }
+
+    #[test]
+    fn test_config_mapping_resource_limits() {
+        let config = EventDrivenConfig::default();
+        let namespaces = vec![];
+        let processor_id = Uuid::now_v7();
+
+        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
+            &config,
+            &namespaces,
+            processor_id,
+        );
+
+        assert_eq!(mapped.metadata.resource_limits.max_memory_mb, 1024);
+        assert!((mapped.metadata.resource_limits.max_cpu_percent - 80.0).abs() < f64::EPSILON);
+        assert_eq!(mapped.metadata.resource_limits.max_database_connections, 10);
+        assert_eq!(mapped.metadata.resource_limits.max_queue_connections, 5);
+    }
+}

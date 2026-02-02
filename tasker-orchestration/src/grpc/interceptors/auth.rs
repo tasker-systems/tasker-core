@@ -121,3 +121,53 @@ impl<T> SecurityContextExt for Request<T> {
         self.extensions().get::<SecurityContext>()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_with_none() {
+        let interceptor = AuthInterceptor::new(None);
+        assert!(!interceptor.is_enabled());
+    }
+
+    #[test]
+    fn test_clone() {
+        let interceptor = AuthInterceptor::new(None);
+        let cloned = interceptor.clone();
+        assert!(!cloned.is_enabled());
+    }
+
+    #[test]
+    fn test_debug() {
+        let interceptor = AuthInterceptor::new(None);
+        let debug = format!("{:?}", interceptor);
+        assert!(debug.contains("AuthInterceptor"));
+    }
+
+    #[tokio::test]
+    async fn test_authenticate_disabled_returns_permissive_context() {
+        let interceptor = AuthInterceptor::new(None);
+        let request = Request::new(());
+        let result = interceptor.authenticate(&request).await;
+        assert!(result.is_ok());
+        // When auth is disabled, should get a permissive context
+        let ctx = result.unwrap();
+        // The disabled context should not require any specific permissions check to pass
+        assert!(!interceptor.is_enabled());
+        // SecurityContext::disabled_context() returns a context that passes all permission checks
+        assert!(ctx.has_permission(&tasker_shared::types::Permission::TasksRead));
+    }
+
+    #[tokio::test]
+    async fn test_security_context_ext_none_when_not_set() {
+        let request = Request::new(());
+        assert!(request.security_context().is_none());
+    }
+
+    #[test]
+    fn test_security_context_key_constant() {
+        assert_eq!(SECURITY_CONTEXT_KEY, "security-context");
+    }
+}

@@ -309,3 +309,348 @@ impl StepResultHydrator {
         Ok(step_execution_result)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use serde_json::json;
+    use tasker_shared::messaging::service::{MessageHandle, MessageMetadata};
+    use uuid::Uuid;
+
+    fn create_pgmq_message(payload: serde_json::Value) -> PgmqMessage {
+        PgmqMessage {
+            msg_id: 1,
+            message: payload,
+            vt: Utc::now(),
+            read_ct: 1,
+            enqueued_at: Utc::now(),
+        }
+    }
+
+    fn create_queued_message(payload: serde_json::Value) -> QueuedMessage<serde_json::Value> {
+        QueuedMessage::with_handle(
+            payload,
+            MessageHandle::Pgmq {
+                msg_id: 1,
+                queue_name: "test_orchestration_queue".to_string(),
+            },
+            MessageMetadata::new(1, Utc::now()),
+        )
+    }
+
+    /// Create test infrastructure: namespace, named_task, task, named_step, workflow_step.
+    /// Returns (task_uuid, step_uuid, correlation_id).
+    async fn setup_test_step(
+        pool: &sqlx::PgPool,
+        results: Option<serde_json::Value>,
+    ) -> Result<(Uuid, Uuid, Uuid), Box<dyn std::error::Error>> {
+        let task_uuid = Uuid::now_v7();
+        let step_uuid = Uuid::now_v7();
+        let named_task_uuid = Uuid::now_v7();
+        let named_step_uuid = Uuid::now_v7();
+        let correlation_id = Uuid::now_v7();
+        let step_name = format!("hydration_step_{}", step_uuid);
+
+        // Create namespace (find or create)
+        sqlx::query(
+            "INSERT INTO tasker.task_namespaces (name, description, created_at, updated_at) \
+             VALUES ('hydration_test_ns', 'Test namespace', NOW(), NOW()) \
+             ON CONFLICT (name) DO NOTHING",
+        )
+        .execute(pool)
+        .await?;
+
+        let namespace_id: (Uuid,) = sqlx::query_as(
+            "SELECT task_namespace_uuid FROM tasker.task_namespaces WHERE name = 'hydration_test_ns'",
+        )
+        .fetch_one(pool)
+        .await?;
+
+        // Create named task
+        sqlx::query(
+            "INSERT INTO tasker.named_tasks (named_task_uuid, task_namespace_uuid, name, description, version, created_at, updated_at) \
+             VALUES ($1, $2, 'hydration_test_task', 'Test task', 1, NOW(), NOW()) \
+             ON CONFLICT (task_namespace_uuid, name, version) DO UPDATE SET named_task_uuid = $1",
+        )
+        .bind(named_task_uuid)
+        .bind(namespace_id.0)
+        .execute(pool)
+        .await?;
+
+        // Create task
+        sqlx::query(
+            "INSERT INTO tasker.tasks (task_uuid, named_task_uuid, complete, requested_at, identity_hash, priority, created_at, updated_at, correlation_id) \
+             VALUES ($1, $2, false, NOW(), $3, 0, NOW(), NOW(), $4)",
+        )
+        .bind(task_uuid)
+        .bind(named_task_uuid)
+        .bind(format!("hydration_test_{}", task_uuid))
+        .bind(correlation_id)
+        .execute(pool)
+        .await?;
+
+        // Create named step
+        sqlx::query(
+            "INSERT INTO tasker.named_steps (named_step_uuid, name, description, created_at, updated_at) \
+             VALUES ($1, $2, 'Test step', NOW(), NOW()) \
+             ON CONFLICT (name) DO UPDATE SET named_step_uuid = $1",
+        )
+        .bind(named_step_uuid)
+        .bind(&step_name)
+        .execute(pool)
+        .await?;
+
+        // Create workflow step with optional results
+        sqlx::query(
+            "INSERT INTO tasker.workflow_steps (workflow_step_uuid, task_uuid, named_step_uuid, retryable, in_process, processed, results, created_at, updated_at) \
+             VALUES ($1, $2, $3, true, false, false, $4, NOW(), NOW())",
+        )
+        .bind(step_uuid)
+        .bind(task_uuid)
+        .bind(named_step_uuid)
+        .bind(results)
+        .execute(pool)
+        .await?;
+
+        Ok((task_uuid, step_uuid, correlation_id))
+    }
+
+    // --- hydrate_from_message tests ---
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_message_success(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let step_result = StepExecutionResult {
+            step_uuid: Uuid::now_v7(),
+            success: true,
+            result: json!({"output": "test_data"}),
+            status: "completed".to_string(),
+            ..Default::default()
+        };
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let (task_uuid, step_uuid, correlation_id) =
+            setup_test_step(&pool, Some(results_json)).await?;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let step_msg = StepMessage::new(task_uuid, step_uuid, correlation_id);
+        let message = create_pgmq_message(serde_json::to_value(&step_msg)?);
+
+        let result = hydrator.hydrate_from_message(&message).await;
+        assert!(
+            result.is_ok(),
+            "Hydration should succeed: {:?}",
+            result.err()
+        );
+
+        let execution_result = result.unwrap();
+        assert!(execution_result.success);
+        assert_eq!(execution_result.status, "completed");
+        assert_eq!(execution_result.result, json!({"output": "test_data"}));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_message_step_not_found(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let step_msg = StepMessage::new(Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7());
+        let message = create_pgmq_message(serde_json::to_value(&step_msg)?);
+
+        let result = hydrator.hydrate_from_message(&message).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("not found"),
+            "Error should indicate step not found: {err}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_message_no_results(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Create step without results (None)
+        let (task_uuid, step_uuid, correlation_id) = setup_test_step(&pool, None).await?;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let step_msg = StepMessage::new(task_uuid, step_uuid, correlation_id);
+        let message = create_pgmq_message(serde_json::to_value(&step_msg)?);
+
+        let result = hydrator.hydrate_from_message(&message).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("No results found"),
+            "Error should indicate no results: {err}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_message_invalid_results_json(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Create step with results that are not a JSON object (array instead)
+        // StepExecutionResult requires an object, so a string/array/number should fail
+        let invalid_results = json!("this is not an object");
+        let (task_uuid, step_uuid, correlation_id) =
+            setup_test_step(&pool, Some(invalid_results)).await?;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let step_msg = StepMessage::new(task_uuid, step_uuid, correlation_id);
+        let message = create_pgmq_message(serde_json::to_value(&step_msg)?);
+
+        let result = hydrator.hydrate_from_message(&message).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("deserialize")
+                || err.to_string().contains("StepExecutionResult"),
+            "Error should indicate deserialization failure: {err}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_message_invalid_message_format(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        // Message that can't be parsed as StepMessage
+        let message = create_pgmq_message(json!({"invalid": "format"}));
+
+        let result = hydrator.hydrate_from_message(&message).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("Invalid StepMessage"),
+            "Error should indicate invalid format: {err}"
+        );
+
+        Ok(())
+    }
+
+    // --- hydrate_from_queued_message tests ---
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_queued_message_success(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let step_result = StepExecutionResult {
+            step_uuid: Uuid::now_v7(),
+            success: false,
+            result: json!({"error": "timeout"}),
+            status: "error".to_string(),
+            ..Default::default()
+        };
+        let results_json = serde_json::to_value(&step_result)?;
+
+        let (task_uuid, step_uuid, correlation_id) =
+            setup_test_step(&pool, Some(results_json)).await?;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let step_msg = StepMessage::new(task_uuid, step_uuid, correlation_id);
+        let message = create_queued_message(serde_json::to_value(&step_msg)?);
+
+        let result = hydrator.hydrate_from_queued_message(&message).await;
+        assert!(
+            result.is_ok(),
+            "Hydration should succeed: {:?}",
+            result.err()
+        );
+
+        let execution_result = result.unwrap();
+        assert!(!execution_result.success);
+        assert_eq!(execution_result.status, "error");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_queued_message_step_not_found(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let step_msg = StepMessage::new(Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7());
+        let message = create_queued_message(serde_json::to_value(&step_msg)?);
+
+        let result = hydrator.hydrate_from_queued_message(&message).await;
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_queued_message_invalid_format(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let message = create_queued_message(json!({"not": "a step message"}));
+
+        let result = hydrator.hydrate_from_queued_message(&message).await;
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrate_from_queued_message_no_results(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (task_uuid, step_uuid, correlation_id) = setup_test_step(&pool, None).await?;
+
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let step_msg = StepMessage::new(task_uuid, step_uuid, correlation_id);
+        let message = create_queued_message(serde_json::to_value(&step_msg)?);
+
+        let result = hydrator.hydrate_from_queued_message(&message).await;
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    // --- Construction and trait tests ---
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_hydrator_debug_impl(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let hydrator = StepResultHydrator::new(context);
+
+        let debug_str = format!("{:?}", hydrator);
+        assert!(
+            debug_str.contains("StepResultHydrator"),
+            "Debug should contain struct name: {debug_str}"
+        );
+
+        Ok(())
+    }
+}

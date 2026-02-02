@@ -176,4 +176,75 @@ mod tests {
 
         Ok(())
     }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_task_readiness_system_processor_uuid(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let expected_uuid = context.processor_uuid();
+        let system = TaskReadinessEventSystem::new(context);
+
+        assert_eq!(system.processor_uuid(), expected_uuid);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_task_readiness_system_deployment_mode_no_config(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let system = TaskReadinessEventSystem::new(context);
+
+        // Without config set, deployment mode should be Disabled
+        assert!(matches!(system.deployment_mode(), DeploymentMode::Disabled));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_task_readiness_system_deployment_mode_with_config(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let mut system = TaskReadinessEventSystem::new(context);
+
+        let config = FallbackPollerConfig {
+            enabled: true,
+            polling_interval: Duration::from_secs(10),
+            circuit_breaker: TaskReadinessCircuitBreakerConfig::default(),
+        };
+        system.set_config(config);
+
+        // With config set, deployment mode should be PollingOnly
+        assert!(matches!(
+            system.deployment_mode(),
+            DeploymentMode::PollingOnly
+        ));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_task_readiness_system_debug(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let system = TaskReadinessEventSystem::new(context);
+
+        let debug_str = format!("{:?}", system);
+        assert!(debug_str.contains("TaskReadinessEventSystem"));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_task_readiness_system_stop_when_not_running(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let mut system = TaskReadinessEventSystem::new(context);
+
+        // Stopping when not running should succeed gracefully
+        system.stop().await?;
+        assert!(!system.is_running());
+        Ok(())
+    }
 }

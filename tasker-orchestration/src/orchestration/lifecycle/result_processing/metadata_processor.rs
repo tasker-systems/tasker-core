@@ -163,6 +163,7 @@ impl MetadataProcessor {
 mod tests {
     use super::*;
     use std::sync::Arc;
+    use tasker_shared::models::factories::base::SqlxFactory;
     use tasker_shared::system_context::SystemContext;
 
     #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
@@ -210,5 +211,228 @@ mod tests {
 
         // Verify context can be built (structure validation)
         assert!(std::mem::size_of_val(&context) > 0);
+    }
+
+    async fn create_metadata_processor(
+        pool: &sqlx::PgPool,
+    ) -> Result<MetadataProcessor, Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let backoff_config: crate::orchestration::BackoffCalculatorConfig =
+            context.tasker_config.clone().into();
+        let backoff_calculator = BackoffCalculator::new(backoff_config, pool.clone());
+        Ok(MetadataProcessor::new(backoff_calculator))
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_metadata_empty_metadata(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashMap;
+        use tasker_shared::messaging::message::OrchestrationMetadata;
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let processor = create_metadata_processor(&pool).await?;
+
+        // Create real task/step so backoff calculator has something to work with
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let metadata = OrchestrationMetadata {
+            headers: HashMap::new(),
+            error_context: None,
+            backoff_hint: None,
+            custom: HashMap::new(),
+        };
+        let correlation_id = Uuid::new_v4();
+
+        let result = processor
+            .process_metadata(&step.workflow_step_uuid, &metadata, correlation_id)
+            .await;
+
+        // Empty metadata should succeed (no-op path through backoff calculator)
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_metadata_with_backoff_hint_server_requested(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashMap;
+        use tasker_shared::messaging::message::{
+            BackoffHint, BackoffHintType, OrchestrationMetadata,
+        };
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let processor = create_metadata_processor(&pool).await?;
+
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let metadata = OrchestrationMetadata {
+            headers: HashMap::new(),
+            error_context: None,
+            backoff_hint: Some(BackoffHint {
+                backoff_type: BackoffHintType::ServerRequested,
+                delay_seconds: 30,
+                context: None,
+            }),
+            custom: HashMap::new(),
+        };
+        let correlation_id = Uuid::new_v4();
+
+        let result = processor
+            .process_metadata(&step.workflow_step_uuid, &metadata, correlation_id)
+            .await;
+
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_metadata_with_rate_limit_hint(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashMap;
+        use tasker_shared::messaging::message::{
+            BackoffHint, BackoffHintType, OrchestrationMetadata,
+        };
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let processor = create_metadata_processor(&pool).await?;
+
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let metadata = OrchestrationMetadata {
+            headers: HashMap::new(),
+            error_context: None,
+            backoff_hint: Some(BackoffHint {
+                backoff_type: BackoffHintType::RateLimit,
+                delay_seconds: 60,
+                context: Some("Rate limited by payment gateway".to_string()),
+            }),
+            custom: HashMap::new(),
+        };
+        let correlation_id = Uuid::new_v4();
+
+        let result = processor
+            .process_metadata(&step.workflow_step_uuid, &metadata, correlation_id)
+            .await;
+
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_metadata_with_custom_hint(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashMap;
+        use tasker_shared::messaging::message::{
+            BackoffHint, BackoffHintType, OrchestrationMetadata,
+        };
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let processor = create_metadata_processor(&pool).await?;
+
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let metadata = OrchestrationMetadata {
+            headers: HashMap::new(),
+            error_context: None,
+            backoff_hint: Some(BackoffHint {
+                backoff_type: BackoffHintType::Custom,
+                delay_seconds: 120,
+                context: Some("Custom domain-specific retry logic".to_string()),
+            }),
+            custom: HashMap::new(),
+        };
+        let correlation_id = Uuid::new_v4();
+
+        let result = processor
+            .process_metadata(&step.workflow_step_uuid, &metadata, correlation_id)
+            .await;
+
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_metadata_with_error_context(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashMap;
+        use tasker_shared::messaging::message::OrchestrationMetadata;
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let processor = create_metadata_processor(&pool).await?;
+
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let metadata = OrchestrationMetadata {
+            headers: HashMap::from([
+                ("Retry-After".to_string(), "30".to_string()),
+                ("X-RateLimit-Remaining".to_string(), "0".to_string()),
+            ]),
+            error_context: Some("Service temporarily overloaded".to_string()),
+            backoff_hint: None,
+            custom: HashMap::from([("region".to_string(), serde_json::json!("us-east-1"))]),
+        };
+        let correlation_id = Uuid::new_v4();
+
+        let result = processor
+            .process_metadata(&step.workflow_step_uuid, &metadata, correlation_id)
+            .await;
+
+        assert!(result.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_process_metadata_nonexistent_step(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashMap;
+        use tasker_shared::messaging::message::OrchestrationMetadata;
+
+        let processor = create_metadata_processor(&pool).await?;
+
+        let metadata = OrchestrationMetadata {
+            headers: HashMap::new(),
+            error_context: None,
+            backoff_hint: None,
+            custom: HashMap::new(),
+        };
+        let nonexistent_uuid = Uuid::new_v4();
+        let correlation_id = Uuid::new_v4();
+
+        // Processing metadata for nonexistent step — backoff calculator may succeed
+        // or fail depending on whether it requires the step to exist
+        let result = processor
+            .process_metadata(&nonexistent_uuid, &metadata, correlation_id)
+            .await;
+
+        // Either Ok (backoff no-ops for empty context) or Err is acceptable
+        // The key thing is it doesn't panic
+        let _ = result;
+        Ok(())
     }
 }

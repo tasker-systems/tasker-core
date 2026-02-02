@@ -327,6 +327,8 @@ pub struct UnifiedHealthReport {
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use tasker_shared::config::event_systems::{
         EventSystemConfig, OrchestrationEventSystemMetadata, TaskReadinessEventSystemMetadata,
     };
@@ -564,5 +566,140 @@ mod tests {
         );
 
         println!("✅ No regression - custom config values preserved");
+    }
+
+    #[test]
+    fn test_unified_coordinator_config_default() {
+        use super::UnifiedCoordinatorConfig;
+
+        let config = UnifiedCoordinatorConfig::default();
+        assert_eq!(config.coordinator_id, "unified-event-coordinator");
+        // Verify sub-configs exist and have default values
+        assert_eq!(config.orchestration_config.processing.batch_size, 50);
+        assert_eq!(config.task_readiness_config.processing.batch_size, 50);
+    }
+
+    #[test]
+    fn test_unified_coordinator_config_clone() {
+        use super::UnifiedCoordinatorConfig;
+
+        let config = UnifiedCoordinatorConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.coordinator_id, config.coordinator_id);
+    }
+
+    #[test]
+    fn test_unified_coordinator_config_debug() {
+        use super::UnifiedCoordinatorConfig;
+
+        let config = UnifiedCoordinatorConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("UnifiedCoordinatorConfig"));
+        assert!(debug_str.contains("unified-event-coordinator"));
+    }
+
+    #[test]
+    fn test_unified_health_report_construction() {
+        use super::UnifiedHealthReport;
+
+        let report = UnifiedHealthReport {
+            processor_uuid: Uuid::new_v4(),
+            orchestration_healthy: true,
+            task_readiness_healthy: true,
+            orchestration_statistics: None,
+            task_readiness_statistics: None,
+            overall_healthy: true,
+        };
+
+        assert!(report.orchestration_healthy);
+        assert!(report.task_readiness_healthy);
+        assert!(report.overall_healthy);
+        assert!(report.orchestration_statistics.is_none());
+        assert!(report.task_readiness_statistics.is_none());
+    }
+
+    #[test]
+    fn test_unified_health_report_unhealthy() {
+        use super::UnifiedHealthReport;
+
+        let report = UnifiedHealthReport {
+            processor_uuid: Uuid::new_v4(),
+            orchestration_healthy: false,
+            task_readiness_healthy: true,
+            orchestration_statistics: None,
+            task_readiness_statistics: None,
+            overall_healthy: false,
+        };
+
+        assert!(!report.orchestration_healthy);
+        assert!(report.task_readiness_healthy);
+        assert!(!report.overall_healthy);
+    }
+
+    #[test]
+    fn test_unified_health_report_clone() {
+        use super::UnifiedHealthReport;
+
+        let report = UnifiedHealthReport {
+            processor_uuid: Uuid::new_v4(),
+            orchestration_healthy: true,
+            task_readiness_healthy: false,
+            orchestration_statistics: None,
+            task_readiness_statistics: None,
+            overall_healthy: false,
+        };
+
+        let cloned = report.clone();
+        assert_eq!(cloned.processor_uuid, report.processor_uuid);
+        assert_eq!(cloned.orchestration_healthy, report.orchestration_healthy);
+        assert_eq!(cloned.task_readiness_healthy, report.task_readiness_healthy);
+        assert_eq!(cloned.overall_healthy, report.overall_healthy);
+    }
+
+    #[test]
+    fn test_unified_health_report_debug() {
+        use super::UnifiedHealthReport;
+
+        let report = UnifiedHealthReport {
+            processor_uuid: Uuid::new_v4(),
+            orchestration_healthy: true,
+            task_readiness_healthy: true,
+            orchestration_statistics: None,
+            task_readiness_statistics: None,
+            overall_healthy: true,
+        };
+
+        let debug_str = format!("{:?}", report);
+        assert!(debug_str.contains("UnifiedHealthReport"));
+        assert!(debug_str.contains("orchestration_healthy: true"));
+    }
+
+    #[test]
+    fn test_unified_health_report_with_statistics() {
+        use super::UnifiedHealthReport;
+        use tasker_shared::SystemStatistics;
+
+        let stats = SystemStatistics {
+            events_processed: 100,
+            events_failed: 2,
+            processing_rate: 50.0,
+            average_latency_ms: 15.5,
+            deployment_mode_score: 1.0,
+        };
+
+        let report = UnifiedHealthReport {
+            processor_uuid: Uuid::new_v4(),
+            orchestration_healthy: true,
+            task_readiness_healthy: true,
+            orchestration_statistics: Some(stats.clone()),
+            task_readiness_statistics: Some(stats),
+            overall_healthy: true,
+        };
+
+        assert!(report.orchestration_statistics.is_some());
+        let orch_stats = report.orchestration_statistics.unwrap();
+        assert_eq!(orch_stats.events_processed, 100);
+        assert_eq!(orch_stats.events_failed, 2);
+        assert_eq!(orch_stats.processing_rate, 50.0);
     }
 }

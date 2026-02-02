@@ -1,11 +1,19 @@
-//! # TAS-148: Orchestration Command Types Module
+//! # Orchestration Commands Module
 //!
-//! This module contains command types and result structures for orchestration operations.
-//! Separated from command processing logic for clarity and maintainability.
+//! Command types, result structures, and the command processing service for orchestration.
+//!
+//! ## Structure
+//!
+//! - `types`: Command enum and result types
+//! - `service`: Business logic service implementing three lifecycle flows
+//! - `pgmq_message_resolver`: PGMQ-specific signal resolution infrastructure
 
+pub(crate) mod pgmq_message_resolver;
+pub mod service;
 pub mod types;
 
+pub use service::CommandProcessingService;
 pub use types::{
-    CommandResponder, OrchestrationCommand, OrchestrationProcessingStats, StepProcessResult,
-    SystemHealth, TaskFinalizationResult, TaskInitializeResult,
+    AtomicProcessingStats, CommandResponder, OrchestrationCommand, OrchestrationProcessingStats,
+    StepProcessResult, SystemHealth, TaskFinalizationResult, TaskInitializeResult,
 };

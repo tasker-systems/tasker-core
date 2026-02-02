@@ -27,7 +27,6 @@
 //! Works with:
 //! - `OrchestrationResultProcessor`: For step result processing and metadata handling
 //! - `TaskFinalizer`: For task completion logic
-//! - `StateManager`: For state transitions
 //! - `PgmqClient`: For queue operations
 //! - Queue workers: Processes results from autonomous Ruby queue workers
 //!
@@ -303,5 +302,95 @@ mod tests {
         assert_eq!(config.visibility_timeout_seconds, 600);
         assert_eq!(config.polling_interval_seconds, 2);
         assert_eq!(config.max_processing_attempts, 5);
+    }
+
+    #[test]
+    fn test_step_result_processing_result_construction() {
+        let result = StepResultProcessingResult {
+            results_processed: 10,
+            results_failed: 2,
+            tasks_completed: 3,
+            tasks_failed: 1,
+            processing_duration_ms: 150,
+            warnings: vec!["timeout warning".to_string()],
+        };
+
+        assert_eq!(result.results_processed, 10);
+        assert_eq!(result.results_failed, 2);
+        assert_eq!(result.tasks_completed, 3);
+        assert_eq!(result.tasks_failed, 1);
+        assert_eq!(result.processing_duration_ms, 150);
+        assert_eq!(result.warnings.len(), 1);
+        assert!(result.warnings[0].contains("timeout"));
+    }
+
+    #[test]
+    fn test_step_result_processing_result_serialization() {
+        let result = StepResultProcessingResult {
+            results_processed: 5,
+            results_failed: 0,
+            tasks_completed: 1,
+            tasks_failed: 0,
+            processing_duration_ms: 42,
+            warnings: vec![],
+        };
+
+        let json = serde_json::to_string(&result).expect("should serialize");
+        let deserialized: StepResultProcessingResult =
+            serde_json::from_str(&json).expect("should deserialize");
+
+        assert_eq!(deserialized.results_processed, 5);
+        assert_eq!(deserialized.results_failed, 0);
+        assert_eq!(deserialized.tasks_completed, 1);
+        assert_eq!(deserialized.processing_duration_ms, 42);
+        assert!(deserialized.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_step_result_processing_result_clone() {
+        let result = StepResultProcessingResult {
+            results_processed: 7,
+            results_failed: 1,
+            tasks_completed: 2,
+            tasks_failed: 0,
+            processing_duration_ms: 200,
+            warnings: vec!["warn1".to_string(), "warn2".to_string()],
+        };
+
+        let cloned = result.clone();
+        assert_eq!(cloned.results_processed, result.results_processed);
+        assert_eq!(cloned.results_failed, result.results_failed);
+        assert_eq!(cloned.warnings.len(), 2);
+    }
+
+    #[test]
+    fn test_step_result_processing_result_debug() {
+        let result = StepResultProcessingResult {
+            results_processed: 3,
+            results_failed: 0,
+            tasks_completed: 1,
+            tasks_failed: 0,
+            processing_duration_ms: 50,
+            warnings: vec![],
+        };
+
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("StepResultProcessingResult"));
+        assert!(debug_str.contains("results_processed: 3"));
+    }
+
+    #[test]
+    fn test_step_result_processing_result_empty_batch() {
+        let result = StepResultProcessingResult {
+            results_processed: 0,
+            results_failed: 0,
+            tasks_completed: 0,
+            tasks_failed: 0,
+            processing_duration_ms: 1,
+            warnings: vec![],
+        };
+
+        assert_eq!(result.results_processed, 0);
+        assert_eq!(result.processing_duration_ms, 1);
     }
 }

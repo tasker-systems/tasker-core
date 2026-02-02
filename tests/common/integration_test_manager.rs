@@ -52,8 +52,8 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use tasker_client::{
-    OrchestrationApiClient, OrchestrationApiConfig, OrchestrationClient, Transport,
-    UnifiedOrchestrationClient, WorkerApiClient, WorkerApiConfig,
+    OrchestrationApiClient, OrchestrationApiConfig, Transport, UnifiedOrchestrationClient,
+    WorkerApiClient, WorkerApiConfig,
 };
 
 /// Integration test manager for Docker Compose-based testing
@@ -444,7 +444,7 @@ impl IntegrationTestManager {
     /// Check gRPC orchestration service health using the gRPC client
     #[cfg(feature = "grpc")]
     async fn check_grpc_orchestration_health(grpc_url: &str) -> Result<()> {
-        use tasker_client::GrpcOrchestrationClient;
+        use tasker_client::{GrpcOrchestrationClient, OrchestrationClient};
 
         let client = GrpcOrchestrationClient::connect(grpc_url)
             .await

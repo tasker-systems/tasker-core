@@ -281,6 +281,7 @@ impl ResultProcessingContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tasker_shared::models::factories::base::SqlxFactory;
 
     #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
     async fn test_processing_context_creation(
@@ -354,6 +355,124 @@ mod tests {
         // Should return false for non-existent step
         let is_batchable = processing_context.is_batchable_step().await?;
         assert!(!is_batchable);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_processing_context_with_real_step(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let correlation_id = Uuid::new_v4();
+        let mut processing_context =
+            ResultProcessingContext::new(context, step.workflow_step_uuid, correlation_id);
+
+        // Initially nothing is cached
+        assert!(processing_context.workflow_step().is_none());
+        assert!(processing_context.task().is_none());
+
+        // Load workflow step (lazy)
+        let ws = processing_context.get_workflow_step().await?;
+        assert!(ws.is_some());
+        assert_eq!(ws.unwrap().workflow_step_uuid, step.workflow_step_uuid);
+
+        // Now cached
+        assert!(processing_context.workflow_step().is_some());
+
+        // Load task (lazy, depends on workflow_step)
+        let loaded_task = processing_context.get_task().await?;
+        assert!(loaded_task.is_some());
+        assert_eq!(loaded_task.unwrap().task_uuid, task.task_uuid);
+
+        // Now cached
+        assert!(processing_context.task().is_some());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_processing_context_get_task_loads_step_first(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+
+        let task = TaskFactory::new().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let mut processing_context =
+            ResultProcessingContext::new(context, step.workflow_step_uuid, Uuid::new_v4());
+
+        // Calling get_task should automatically load workflow_step first
+        let loaded_task = processing_context.get_task().await?;
+        assert!(loaded_task.is_some());
+        // workflow_step should also be cached now
+        assert!(processing_context.workflow_step().is_some());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_processing_context_debug_impl(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let step_uuid = Uuid::new_v4();
+        let correlation_id = Uuid::new_v4();
+
+        let processing_context = ResultProcessingContext::new(context, step_uuid, correlation_id);
+
+        let debug_str = format!("{:?}", processing_context);
+        assert!(debug_str.contains("ResultProcessingContext"));
+        assert!(debug_str.contains(&step_uuid.to_string()));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_processing_context_get_named_step_nonexistent(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let step_uuid = Uuid::new_v4();
+
+        let mut processing_context =
+            ResultProcessingContext::new(context, step_uuid, Uuid::new_v4());
+
+        // Non-existent step → named_step should be None
+        let named_step = processing_context.get_named_step().await?;
+        assert!(named_step.is_none());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_processing_context_get_step_definition_nonexistent(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let step_uuid = Uuid::new_v4();
+
+        let mut processing_context =
+            ResultProcessingContext::new(context, step_uuid, Uuid::new_v4());
+
+        // Non-existent step → step definition should be None
+        let step_def = processing_context.get_step_definition().await?;
+        assert!(step_def.is_none());
 
         Ok(())
     }

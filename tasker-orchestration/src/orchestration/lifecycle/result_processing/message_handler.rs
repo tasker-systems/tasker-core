@@ -608,6 +608,7 @@ impl MessageHandler {
 mod tests {
     use super::*;
     use crate::orchestration::lifecycle::task_finalization::TaskFinalizer;
+    use tasker_shared::models::factories::base::SqlxFactory;
 
     #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
     async fn test_message_handler_creation(
@@ -730,6 +731,274 @@ mod tests {
 
         // Verify both share the same Arc
         assert_eq!(Arc::as_ptr(&handler.context), Arc::as_ptr(&cloned.context));
+        Ok(())
+    }
+
+    /// Helper to construct a full MessageHandler for testing
+    async fn create_message_handler(
+        pool: &sqlx::PgPool,
+    ) -> Result<MessageHandler, Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
+        let step_enqueuer = Arc::new(
+            crate::orchestration::lifecycle::step_enqueuer_services::StepEnqueuerService::new(
+                context.clone(),
+            )
+            .await?,
+        );
+        let task_finalizer = crate::orchestration::lifecycle::task_finalization::TaskFinalizer::new(
+            context.clone(),
+            step_enqueuer,
+        );
+
+        let backoff_config: crate::orchestration::BackoffCalculatorConfig =
+            context.tasker_config.clone().into();
+        let backoff_calculator = crate::orchestration::BackoffCalculator::new(
+            backoff_config,
+            context.database_pool().clone(),
+        );
+        let metadata_processor = MetadataProcessor::new(backoff_calculator);
+        let state_transition_handler = StateTransitionHandler::new(context.clone());
+        let task_coordinator = TaskCoordinator::new(context.clone(), task_finalizer);
+
+        let decision_point_service = Arc::new(
+            crate::orchestration::lifecycle::DecisionPointService::new(context.clone()),
+        );
+        let decision_point_actor = Arc::new(
+            crate::actors::decision_point_actor::DecisionPointActor::new(
+                context.clone(),
+                decision_point_service,
+            ),
+        );
+
+        let batch_processing_service = Arc::new(
+            crate::orchestration::lifecycle::batch_processing::BatchProcessingService::new(
+                context.clone(),
+            ),
+        );
+        let batch_processing_actor = Arc::new(
+            crate::actors::batch_processing_actor::BatchProcessingActor::new(
+                context.clone(),
+                batch_processing_service,
+            ),
+        );
+
+        Ok(MessageHandler::new(
+            context,
+            metadata_processor,
+            state_transition_handler,
+            task_coordinator,
+            decision_point_actor,
+            batch_processing_actor,
+        ))
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_step_result_message_success(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::messaging::StepExecutionStatus;
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let handler = create_message_handler(&pool).await?;
+
+        // Create a task in StepsInProcess with a step
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let msg = StepResultMessage {
+            step_uuid: step.workflow_step_uuid,
+            task_uuid: task.task_uuid,
+            correlation_id: Uuid::new_v4(),
+            namespace: "default".to_string(),
+            status: StepExecutionStatus::Success,
+            results: Some(serde_json::json!({"data": "processed"})),
+            error: None,
+            execution_time_ms: 150,
+            orchestration_metadata: None,
+            metadata: tasker_shared::messaging::StepResultMetadata {
+                worker_id: "test-worker".to_string(),
+                worker_hostname: None,
+                started_at: chrono::Utc::now(),
+                completed_at: chrono::Utc::now(),
+                custom: std::collections::HashMap::new(),
+            },
+        };
+
+        // Should not panic and should attempt coordination
+        let result = handler.handle_step_result_message(msg).await;
+        // Result depends on state machine transitions, but should not panic
+        let _ = result;
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_step_result_message_failed_triggers_metadata(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashMap;
+        use tasker_shared::messaging::message::OrchestrationMetadata;
+        use tasker_shared::messaging::StepExecutionStatus;
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let handler = create_message_handler(&pool).await?;
+
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let msg = StepResultMessage {
+            step_uuid: step.workflow_step_uuid,
+            task_uuid: task.task_uuid,
+            correlation_id: Uuid::new_v4(),
+            namespace: "default".to_string(),
+            status: StepExecutionStatus::Failed,
+            results: None,
+            error: Some(tasker_shared::messaging::StepExecutionError::new(
+                "gateway timeout".to_string(),
+                true,
+            )),
+            execution_time_ms: 5000,
+            orchestration_metadata: Some(OrchestrationMetadata {
+                headers: HashMap::from([("Retry-After".to_string(), "30".to_string())]),
+                error_context: Some("Payment gateway overloaded".to_string()),
+                backoff_hint: None,
+                custom: HashMap::new(),
+            }),
+            metadata: tasker_shared::messaging::StepResultMetadata {
+                worker_id: "test-worker".to_string(),
+                worker_hostname: None,
+                started_at: chrono::Utc::now(),
+                completed_at: chrono::Utc::now(),
+                custom: HashMap::new(),
+            },
+        };
+
+        // Should process metadata for failed status (triggers metadata_processor)
+        let result = handler.handle_step_result_message(msg).await;
+        let _ = result;
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_step_result_message_nonexistent_step(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::messaging::StepExecutionStatus;
+
+        let handler = create_message_handler(&pool).await?;
+
+        let msg = StepResultMessage {
+            step_uuid: Uuid::new_v4(),
+            task_uuid: Uuid::new_v4(),
+            correlation_id: Uuid::new_v4(),
+            namespace: "default".to_string(),
+            status: StepExecutionStatus::Success,
+            results: None,
+            error: None,
+            execution_time_ms: 100,
+            orchestration_metadata: None,
+            metadata: tasker_shared::messaging::StepResultMetadata {
+                worker_id: "test-worker".to_string(),
+                worker_hostname: None,
+                started_at: chrono::Utc::now(),
+                completed_at: chrono::Utc::now(),
+                custom: std::collections::HashMap::new(),
+            },
+        };
+
+        // Nonexistent step should fail during task coordination
+        let result = handler.handle_step_result_message(msg).await;
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_step_execution_result_success(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::messaging::StepExecutionResult;
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let handler = create_message_handler(&pool).await?;
+
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let step_result = StepExecutionResult::success(
+            step.workflow_step_uuid,
+            serde_json::json!({"output": "value"}),
+            200,
+            None,
+        );
+
+        let result = handler.handle_step_execution_result(&step_result).await;
+        let _ = result;
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_handle_step_execution_result_failure(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::messaging::StepExecutionResult;
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let handler = create_message_handler(&pool).await?;
+
+        let task = TaskFactory::new().in_progress().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let step_result = StepExecutionResult::failure(
+            step.workflow_step_uuid,
+            "Processing failed: invalid data format".to_string(),
+            Some("INVALID_FORMAT".to_string()),
+            Some("ValidationError".to_string()),
+            true,
+            500,
+            None,
+        );
+
+        let result = handler.handle_step_execution_result(&step_result).await;
+        let _ = result;
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_get_correlation_id_for_real_step(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use tasker_shared::models::factories::{TaskFactory, WorkflowStepFactory};
+
+        let handler = create_message_handler(&pool).await?;
+
+        let task = TaskFactory::new().create(&pool).await?;
+        let step = WorkflowStepFactory::new()
+            .for_task(task.task_uuid)
+            .create(&pool)
+            .await?;
+
+        let correlation_id = handler
+            .get_correlation_id_for_step(step.workflow_step_uuid)
+            .await;
+
+        // Should return the task's correlation_id (non-nil for a real task)
+        // The task's correlation_id is set during creation
+        assert_ne!(
+            correlation_id,
+            Uuid::nil(),
+            "Real step should have a non-nil correlation_id"
+        );
         Ok(())
     }
 

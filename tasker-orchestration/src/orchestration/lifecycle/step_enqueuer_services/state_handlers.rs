@@ -259,6 +259,7 @@ impl StateHandlers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
     async fn test_state_handlers_creation(
@@ -314,5 +315,68 @@ mod tests {
         let _waiting_retry = TaskState::WaitingForRetry;
 
         // All variants created successfully (validated by compilation)
+    }
+
+    #[test]
+    fn test_task_event_variants_for_coverage() {
+        // Exercise the TaskEvent variants used in process_task_by_state
+        let _start = TaskEvent::Start;
+        let _deps_ready = TaskEvent::DependenciesReady;
+        let _retry_ready = TaskEvent::RetryReady;
+        let _ready_steps = TaskEvent::ReadyStepsFound(5);
+        let _no_steps = TaskEvent::NoStepsFound;
+        let _steps_enqueued = TaskEvent::StepsEnqueued(vec![Uuid::new_v4()]);
+        let _all_success = TaskEvent::AllStepsSuccessful;
+        let _no_deps = TaskEvent::NoDependenciesReady;
+        let _failure = TaskEvent::PermanentFailure("test failure".to_string());
+
+        // Debug impl validation
+        let debug_str = format!("{:?}", TaskEvent::ReadyStepsFound(3));
+        assert!(debug_str.contains("ReadyStepsFound"));
+    }
+
+    #[test]
+    fn test_execution_status_debug() {
+        let status = ExecutionStatus::HasReadySteps;
+        let debug_str = format!("{:?}", status);
+        assert!(debug_str.contains("HasReadySteps"));
+
+        let status = ExecutionStatus::BlockedByFailures;
+        let debug_str = format!("{:?}", status);
+        assert!(debug_str.contains("BlockedByFailures"));
+    }
+
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_state_handlers_debug(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let context = Arc::new(SystemContext::with_pool(pool).await?);
+        let handlers = StateHandlers::new(context);
+
+        let debug_str = format!("{:?}", handlers);
+        assert!(debug_str.contains("StateHandlers"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_ready_task_info_construction() {
+        let task_uuid = Uuid::now_v7();
+        let info = ReadyTaskInfo {
+            task_uuid,
+            task_name: "process_order".to_string(),
+            namespace_name: "fulfillment".to_string(),
+            ready_steps_count: 5,
+            priority: 3,
+            computed_priority: None,
+            current_state: "pending".to_string(),
+        };
+
+        assert_eq!(info.task_uuid, task_uuid);
+        assert_eq!(info.task_name, "process_order");
+        assert_eq!(info.namespace_name, "fulfillment");
+        assert_eq!(info.ready_steps_count, 5);
+        assert_eq!(info.priority, 3);
+        assert!(info.computed_priority.is_none());
+        assert_eq!(info.current_state, "pending");
     }
 }

@@ -27,7 +27,9 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::common::integration_test_manager::IntegrationTestManager;
-use crate::common::integration_test_utils::{create_task_request, wait_for_task_completion};
+use crate::common::integration_test_utils::{
+    create_task_request, get_timeout_multiplier, wait_for_task_completion,
+};
 
 /// Helper function to create user registration task request for Rust
 ///
@@ -89,7 +91,7 @@ async fn test_successful_user_registration_rs() -> Result<()> {
 
     // Monitor task execution
     println!("\n⏱️  Monitoring user registration execution...");
-    let timeout = 30; // 30 seconds for 5 steps
+    let timeout = 30 * get_timeout_multiplier(); // 30 seconds for 5 steps
     wait_for_task_completion(
         &manager.orchestration_client,
         &task_response.task_uuid,

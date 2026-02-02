@@ -1380,12 +1380,121 @@ pub fn proto_staleness_to_domain(
 mod tests {
     use super::*;
 
+    // ========================================================================
+    // Test Helpers
+    // ========================================================================
+
+    fn make_timestamp(seconds: i64) -> prost_types::Timestamp {
+        prost_types::Timestamp { seconds, nanos: 0 }
+    }
+
+    fn make_health_check(status: &str) -> proto::HealthCheck {
+        proto::HealthCheck {
+            status: status.to_string(),
+            message: Some("ok".to_string()),
+            duration_ms: 5,
+        }
+    }
+
+    fn make_worker_health_check(status: &str) -> proto::WorkerHealthCheck {
+        proto::WorkerHealthCheck {
+            status: status.to_string(),
+            message: Some("ok".to_string()),
+            duration_ms: 3,
+            last_checked: Some(make_timestamp(1704067200)),
+        }
+    }
+
+    fn make_pool_detail() -> proto::PoolDetail {
+        proto::PoolDetail {
+            active_connections: 5,
+            idle_connections: 10,
+            max_connections: 20,
+            utilization_percent: 25.0,
+            total_acquires: 100,
+            slow_acquires: 2,
+            acquire_errors: 0,
+            average_acquire_time_ms: 1.5,
+            max_acquire_time_ms: 10.0,
+        }
+    }
+
+    fn make_worker_pool_detail() -> proto::WorkerPoolDetail {
+        proto::WorkerPoolDetail {
+            active_connections: 3,
+            idle_connections: 7,
+            max_connections: 15,
+            utilization_percent: 20.0,
+            total_acquires: 50,
+            slow_acquires: 1,
+            acquire_errors: 0,
+            average_acquire_time_ms: 2.0,
+            max_acquire_time_ms: 8.0,
+        }
+    }
+
+    fn make_minimal_task() -> proto::Task {
+        proto::Task {
+            task_uuid: "task-uuid-1".to_string(),
+            name: "test_task".to_string(),
+            namespace: "default".to_string(),
+            version: "1.0.0".to_string(),
+            state: proto::TaskState::Pending as i32,
+            created_at: Some(make_timestamp(1704067200)),
+            updated_at: Some(make_timestamp(1704067200)),
+            completed_at: None,
+            context: None,
+            initiator: "test".to_string(),
+            source_system: "unit-test".to_string(),
+            reason: "testing".to_string(),
+            priority: Some(3),
+            tags: vec![],
+            correlation_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
+            parent_correlation_id: None,
+            total_steps: 2,
+            pending_steps: 2,
+            in_progress_steps: 0,
+            completed_steps: 0,
+            failed_steps: 0,
+            ready_steps: 1,
+            execution_status: "pending".to_string(),
+            recommended_action: "wait".to_string(),
+            completion_percentage: 0.0,
+            health_status: "healthy".to_string(),
+        }
+    }
+
+    fn make_minimal_step() -> proto::Step {
+        proto::Step {
+            step_uuid: "step-uuid-1".to_string(),
+            task_uuid: "task-uuid-1".to_string(),
+            name: "step_one".to_string(),
+            state: proto::StepState::Pending as i32,
+            created_at: Some(make_timestamp(1704067200)),
+            updated_at: Some(make_timestamp(1704067200)),
+            completed_at: None,
+            results: None,
+            dependencies_satisfied: true,
+            retry_eligible: false,
+            ready_for_execution: true,
+            total_parents: 0,
+            completed_parents: 0,
+            attempts: 0,
+            max_attempts: 3,
+            last_failure_at: None,
+            next_retry_at: None,
+            last_attempted_at: None,
+            backoff_request_seconds: None,
+        }
+    }
+
+    // ========================================================================
+    // Timestamp Conversions
+    // ========================================================================
+
     #[test]
     fn test_proto_timestamp_to_datetime() {
-        let ts = prost_types::Timestamp {
-            seconds: 1704067200,
-            nanos: 0,
-        };
+        let ts = make_timestamp(1704067200);
         let dt = proto_timestamp_to_datetime(Some(ts));
         assert_eq!(dt.timestamp(), 1704067200);
     }
@@ -1397,38 +1506,60 @@ mod tests {
     }
 
     #[test]
-    fn test_proto_task_state_to_string() {
-        assert_eq!(
-            proto_task_state_to_string(proto::TaskState::Pending as i32),
-            "pending"
-        );
-        assert_eq!(
-            proto_task_state_to_string(proto::TaskState::Complete as i32),
-            "complete"
-        );
-        assert_eq!(
-            proto_task_state_to_string(proto::TaskState::Error as i32),
-            "error"
-        );
-        assert_eq!(proto_task_state_to_string(999), "unspecified");
+    fn test_proto_timestamp_with_nanos() {
+        let ts = prost_types::Timestamp {
+            seconds: 1704067200,
+            nanos: 500_000_000,
+        };
+        let dt = proto_timestamp_to_datetime(Some(ts));
+        assert_eq!(dt.timestamp(), 1704067200);
+        assert_eq!(dt.timestamp_subsec_nanos(), 500_000_000);
     }
 
     #[test]
-    fn test_proto_step_state_to_string() {
-        assert_eq!(
-            proto_step_state_to_string(proto::StepState::Pending as i32),
-            "pending"
-        );
-        assert_eq!(
-            proto_step_state_to_string(proto::StepState::InProgress as i32),
-            "in_progress"
-        );
-        assert_eq!(
-            proto_step_state_to_string(proto::StepState::Complete as i32),
-            "complete"
-        );
-        assert_eq!(proto_step_state_to_string(999), "unspecified");
+    fn test_proto_timestamp_to_datetime_opt_some() {
+        let ts = make_timestamp(1704067200);
+        let result = proto_timestamp_to_datetime_opt(Some(ts));
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().timestamp(), 1704067200);
     }
+
+    #[test]
+    fn test_proto_timestamp_to_datetime_opt_none() {
+        let result = proto_timestamp_to_datetime_opt(None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_proto_timestamp_to_string_some() {
+        let ts = make_timestamp(1704067200);
+        let s = proto_timestamp_to_string(Some(ts));
+        assert!(s.contains("2024-01-01"));
+    }
+
+    #[test]
+    fn test_proto_timestamp_to_string_none() {
+        let s = proto_timestamp_to_string(None);
+        assert!(s.contains("1970-01-01"));
+    }
+
+    #[test]
+    fn test_proto_timestamp_to_string_opt_some() {
+        let ts = make_timestamp(1704067200);
+        let result = proto_timestamp_to_string_opt(Some(ts));
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("2024-01-01"));
+    }
+
+    #[test]
+    fn test_proto_timestamp_to_string_opt_none() {
+        let result = proto_timestamp_to_string_opt(None);
+        assert!(result.is_none());
+    }
+
+    // ========================================================================
+    // JSON/Struct Conversions
+    // ========================================================================
 
     #[test]
     fn test_json_struct_conversion() {
@@ -1460,9 +1591,1629 @@ mod tests {
         };
 
         let json = proto_struct_to_json_opt(Some(proto_struct));
-
         assert_eq!(json["name"], "test");
         assert_eq!(json["count"], 42.0);
         assert_eq!(json["active"], true);
+    }
+
+    #[test]
+    fn test_proto_struct_to_json_opt_none() {
+        let json = proto_struct_to_json_opt(None);
+        assert!(json.is_null());
+    }
+
+    #[test]
+    fn test_prost_value_null() {
+        use prost_types::value::Kind;
+        let value = prost_types::Value {
+            kind: Some(Kind::NullValue(0)),
+        };
+        let json = prost_value_to_json(value);
+        assert!(json.is_null());
+    }
+
+    #[test]
+    fn test_prost_value_bool() {
+        use prost_types::value::Kind;
+        let value = prost_types::Value {
+            kind: Some(Kind::BoolValue(false)),
+        };
+        let json = prost_value_to_json(value);
+        assert_eq!(json, serde_json::Value::Bool(false));
+    }
+
+    #[test]
+    fn test_prost_value_number() {
+        use prost_types::value::Kind;
+        let value = prost_types::Value {
+            kind: Some(Kind::NumberValue(42.5)),
+        };
+        let json = prost_value_to_json(value);
+        assert!(json.is_number());
+    }
+
+    #[test]
+    fn test_prost_value_nan_becomes_null() {
+        use prost_types::value::Kind;
+        let value = prost_types::Value {
+            kind: Some(Kind::NumberValue(f64::NAN)),
+        };
+        let json = prost_value_to_json(value);
+        assert!(json.is_null());
+    }
+
+    #[test]
+    fn test_prost_value_string() {
+        use prost_types::value::Kind;
+        let value = prost_types::Value {
+            kind: Some(Kind::StringValue("hello".to_string())),
+        };
+        let json = prost_value_to_json(value);
+        assert_eq!(json, serde_json::Value::String("hello".to_string()));
+    }
+
+    #[test]
+    fn test_prost_value_list() {
+        use prost_types::value::Kind;
+        let value = prost_types::Value {
+            kind: Some(Kind::ListValue(prost_types::ListValue {
+                values: vec![
+                    prost_types::Value {
+                        kind: Some(Kind::NumberValue(1.0)),
+                    },
+                    prost_types::Value {
+                        kind: Some(Kind::NumberValue(2.0)),
+                    },
+                ],
+            })),
+        };
+        let json = prost_value_to_json(value);
+        assert!(json.is_array());
+        assert_eq!(json.as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_prost_value_nested_struct() {
+        use prost_types::value::Kind;
+        let inner = prost_types::Struct {
+            fields: [(
+                "key".to_string(),
+                prost_types::Value {
+                    kind: Some(Kind::StringValue("val".to_string())),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let value = prost_types::Value {
+            kind: Some(Kind::StructValue(inner)),
+        };
+        let json = prost_value_to_json(value);
+        assert!(json.is_object());
+        assert_eq!(json["key"], "val");
+    }
+
+    #[test]
+    fn test_prost_value_none_kind() {
+        let value = prost_types::Value { kind: None };
+        let json = prost_value_to_json(value);
+        assert!(json.is_null());
+    }
+
+    // ========================================================================
+    // State String Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_all_task_states() {
+        let cases = [
+            (proto::TaskState::Pending, "pending"),
+            (proto::TaskState::Initializing, "initializing"),
+            (proto::TaskState::EnqueuingSteps, "enqueuing_steps"),
+            (proto::TaskState::StepsInProcess, "steps_in_process"),
+            (proto::TaskState::EvaluatingResults, "evaluating_results"),
+            (
+                proto::TaskState::WaitingForDependencies,
+                "waiting_for_dependencies",
+            ),
+            (proto::TaskState::WaitingForRetry, "waiting_for_retry"),
+            (proto::TaskState::BlockedByFailures, "blocked_by_failures"),
+            (proto::TaskState::Complete, "complete"),
+            (proto::TaskState::Error, "error"),
+            (proto::TaskState::Cancelled, "cancelled"),
+            (proto::TaskState::ResolvedManually, "resolved_manually"),
+            (proto::TaskState::Unspecified, "unspecified"),
+        ];
+        for (state, expected) in cases {
+            assert_eq!(
+                proto_task_state_to_string(state as i32),
+                expected,
+                "TaskState::{state:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_task_state_invalid_value() {
+        assert_eq!(proto_task_state_to_string(999), "unspecified");
+    }
+
+    #[test]
+    fn test_all_step_states() {
+        let cases = [
+            (proto::StepState::Pending, "pending"),
+            (proto::StepState::Enqueued, "enqueued"),
+            (proto::StepState::InProgress, "in_progress"),
+            (
+                proto::StepState::EnqueuedForOrchestration,
+                "enqueued_for_orchestration",
+            ),
+            (
+                proto::StepState::EnqueuedAsErrorForOrchestration,
+                "enqueued_as_error_for_orchestration",
+            ),
+            (proto::StepState::WaitingForRetry, "waiting_for_retry"),
+            (proto::StepState::Complete, "complete"),
+            (proto::StepState::Error, "error"),
+            (proto::StepState::Cancelled, "cancelled"),
+            (proto::StepState::ResolvedManually, "resolved_manually"),
+            (proto::StepState::Unspecified, "unspecified"),
+        ];
+        for (state, expected) in cases {
+            assert_eq!(
+                proto_step_state_to_string(state as i32),
+                expected,
+                "StepState::{state:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_step_state_invalid_value() {
+        assert_eq!(proto_step_state_to_string(999), "unspecified");
+    }
+
+    // ========================================================================
+    // Task Response Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_proto_task_to_domain_minimal() {
+        let task = make_minimal_task();
+        let result = proto_task_to_domain(task).unwrap();
+        assert_eq!(result.task_uuid, "task-uuid-1");
+        assert_eq!(result.name, "test_task");
+        assert_eq!(result.namespace, "default");
+        assert_eq!(result.version, "1.0.0");
+        assert_eq!(result.status, "pending");
+        assert_eq!(result.total_steps, 2);
+        assert!(result.completed_at.is_none());
+        assert!(result.tags.is_none());
+    }
+
+    #[test]
+    fn test_proto_task_to_domain_with_tags() {
+        let mut task = make_minimal_task();
+        task.tags = vec!["tag1".to_string(), "tag2".to_string()];
+        let result = proto_task_to_domain(task).unwrap();
+        assert_eq!(result.tags.unwrap(), vec!["tag1", "tag2"]);
+    }
+
+    #[test]
+    fn test_proto_task_to_domain_with_context() {
+        use prost_types::value::Kind;
+        let mut task = make_minimal_task();
+        task.context = Some(prost_types::Struct {
+            fields: [(
+                "key".to_string(),
+                prost_types::Value {
+                    kind: Some(Kind::StringValue("val".to_string())),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        });
+        let result = proto_task_to_domain(task).unwrap();
+        assert_eq!(result.context["key"], "val");
+    }
+
+    #[test]
+    fn test_proto_task_to_domain_with_parent_correlation() {
+        let mut task = make_minimal_task();
+        task.parent_correlation_id = Some("660e8400-e29b-41d4-a716-446655440000".to_string());
+        let result = proto_task_to_domain(task).unwrap();
+        assert!(result.parent_correlation_id.is_some());
+    }
+
+    #[test]
+    fn test_proto_task_to_domain_empty_parent_correlation_ignored() {
+        let mut task = make_minimal_task();
+        task.parent_correlation_id = Some(String::new());
+        let result = proto_task_to_domain(task).unwrap();
+        assert!(result.parent_correlation_id.is_none());
+    }
+
+    #[test]
+    fn test_proto_task_to_domain_invalid_correlation_id() {
+        let mut task = make_minimal_task();
+        task.correlation_id = "not-a-uuid".to_string();
+        let result = proto_task_to_domain(task);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proto_task_to_domain_invalid_parent_correlation_id() {
+        let mut task = make_minimal_task();
+        task.parent_correlation_id = Some("not-a-uuid".to_string());
+        let result = proto_task_to_domain(task);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proto_get_task_response_to_domain() {
+        let response = proto::GetTaskResponse {
+            task: Some(make_minimal_task()),
+            steps: vec![],
+            context: None,
+        };
+        let result = proto_get_task_response_to_domain(response).unwrap();
+        assert_eq!(result.task_uuid, "task-uuid-1");
+    }
+
+    #[test]
+    fn test_proto_get_task_response_empty() {
+        let response = proto::GetTaskResponse {
+            task: None,
+            steps: vec![],
+            context: None,
+        };
+        let result = proto_get_task_response_to_domain(response);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proto_create_task_response_to_domain() {
+        let response = proto::CreateTaskResponse {
+            task: Some(make_minimal_task()),
+            backpressure: None,
+        };
+        let result = proto_create_task_response_to_domain(response).unwrap();
+        assert_eq!(result.task_uuid, "task-uuid-1");
+    }
+
+    #[test]
+    fn test_proto_create_task_response_empty() {
+        let response = proto::CreateTaskResponse {
+            task: None,
+            backpressure: None,
+        };
+        let result = proto_create_task_response_to_domain(response);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proto_list_tasks_response_to_domain() {
+        let response = proto::ListTasksResponse {
+            tasks: vec![make_minimal_task()],
+            pagination: Some(proto::PaginationResponse {
+                total: 1,
+                count: 10,
+                offset: 0,
+                has_more: false,
+            }),
+        };
+        let result = proto_list_tasks_response_to_domain(response).unwrap();
+        assert_eq!(result.tasks.len(), 1);
+        assert_eq!(result.pagination.total_count, 1);
+        assert_eq!(result.pagination.page, 1);
+        assert!(!result.pagination.has_next);
+        assert!(!result.pagination.has_previous);
+    }
+
+    #[test]
+    fn test_proto_list_tasks_pagination_second_page() {
+        let response = proto::ListTasksResponse {
+            tasks: vec![make_minimal_task()],
+            pagination: Some(proto::PaginationResponse {
+                total: 25,
+                count: 10,
+                offset: 10,
+                has_more: true,
+            }),
+        };
+        let result = proto_list_tasks_response_to_domain(response).unwrap();
+        assert_eq!(result.pagination.page, 2);
+        assert_eq!(result.pagination.total_pages, 3);
+        assert!(result.pagination.has_next);
+        assert!(result.pagination.has_previous);
+    }
+
+    #[test]
+    fn test_proto_list_tasks_no_pagination() {
+        let response = proto::ListTasksResponse {
+            tasks: vec![],
+            pagination: None,
+        };
+        let result = proto_list_tasks_response_to_domain(response).unwrap();
+        assert!(result.tasks.is_empty());
+        assert_eq!(result.pagination.page, 1);
+    }
+
+    // ========================================================================
+    // Step Response Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_proto_step_to_domain() {
+        let step = make_minimal_step();
+        let result = proto_step_to_domain(step).unwrap();
+        assert_eq!(result.step_uuid, "step-uuid-1");
+        assert_eq!(result.task_uuid, "task-uuid-1");
+        assert_eq!(result.name, "step_one");
+        assert_eq!(result.current_state, "pending");
+        assert!(result.dependencies_satisfied);
+        assert!(result.ready_for_execution);
+        assert_eq!(result.attempts, 0);
+        assert_eq!(result.max_attempts, 3);
+        assert!(result.completed_at.is_none());
+        assert!(result.last_failure_at.is_none());
+    }
+
+    #[test]
+    fn test_proto_step_to_domain_with_results() {
+        use prost_types::value::Kind;
+        let mut step = make_minimal_step();
+        step.results = Some(prost_types::Struct {
+            fields: [(
+                "output".to_string(),
+                prost_types::Value {
+                    kind: Some(Kind::StringValue("done".to_string())),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        });
+        let result = proto_step_to_domain(step).unwrap();
+        assert!(result.results.is_some());
+        assert_eq!(result.results.unwrap()["output"], "done");
+    }
+
+    #[test]
+    fn test_proto_get_step_response_to_domain() {
+        let response = proto::GetStepResponse {
+            step: Some(make_minimal_step()),
+        };
+        let result = proto_get_step_response_to_domain(response).unwrap();
+        assert_eq!(result.step_uuid, "step-uuid-1");
+    }
+
+    #[test]
+    fn test_proto_get_step_response_empty() {
+        let response = proto::GetStepResponse { step: None };
+        let result = proto_get_step_response_to_domain(response);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proto_audit_to_domain() {
+        let record = proto::StepAuditRecord {
+            audit_uuid: "audit-1".to_string(),
+            step_uuid: "step-1".to_string(),
+            transition_uuid: "trans-1".to_string(),
+            task_uuid: "task-1".to_string(),
+            recorded_at: Some(make_timestamp(1704067200)),
+            worker_uuid: Some("worker-1".to_string()),
+            correlation_id: Some("corr-1".to_string()),
+            success: true,
+            execution_time_ms: Some(150),
+            result: None,
+            step_name: "step_one".to_string(),
+            from_state: Some(proto::StepState::InProgress as i32),
+            to_state: proto::StepState::Complete as i32,
+        };
+        let result = proto_audit_to_domain(record).unwrap();
+        assert_eq!(result.audit_uuid, "audit-1");
+        assert!(result.success);
+        assert_eq!(result.execution_time_ms, Some(150));
+        assert_eq!(result.to_state, "complete");
+        assert_eq!(result.from_state, Some("in_progress".to_string()));
+    }
+
+    // ========================================================================
+    // Health Response Conversions (Orchestration)
+    // ========================================================================
+
+    #[test]
+    fn test_proto_health_response_to_domain() {
+        let response = proto::HealthResponse {
+            status: "healthy".to_string(),
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+        };
+        let result = proto_health_response_to_domain(response);
+        assert_eq!(result.status, "healthy");
+    }
+
+    #[test]
+    fn test_proto_readiness_response_to_domain() {
+        let response = proto::ReadinessResponse {
+            status: "ready".to_string(),
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            checks: Some(proto::ReadinessChecks {
+                web_database: Some(make_health_check("healthy")),
+                orchestration_database: Some(make_health_check("healthy")),
+                circuit_breaker: Some(make_health_check("healthy")),
+                orchestration_system: Some(make_health_check("healthy")),
+                command_processor: Some(make_health_check("healthy")),
+            }),
+            info: Some(proto::HealthInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                operational_state: "running".to_string(),
+                web_database_pool_size: 10,
+                orchestration_database_pool_size: 10,
+                circuit_breaker_state: "closed".to_string(),
+                pool_utilization: None,
+            }),
+        };
+        let result = proto_readiness_response_to_domain(response).unwrap();
+        assert_eq!(result.status, "ready");
+        assert_eq!(result.checks.web_database.status, "healthy");
+        assert_eq!(result.info.version, "0.1.0");
+    }
+
+    #[test]
+    fn test_proto_readiness_response_missing_checks() {
+        let response = proto::ReadinessResponse {
+            status: "ready".to_string(),
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            checks: None,
+            info: Some(proto::HealthInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                operational_state: "running".to_string(),
+                web_database_pool_size: 10,
+                orchestration_database_pool_size: 10,
+                circuit_breaker_state: "closed".to_string(),
+                pool_utilization: None,
+            }),
+        };
+        let result = proto_readiness_response_to_domain(response);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proto_readiness_response_missing_info() {
+        let response = proto::ReadinessResponse {
+            status: "ready".to_string(),
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            checks: Some(proto::ReadinessChecks {
+                web_database: Some(make_health_check("healthy")),
+                orchestration_database: Some(make_health_check("healthy")),
+                circuit_breaker: Some(make_health_check("healthy")),
+                orchestration_system: Some(make_health_check("healthy")),
+                command_processor: Some(make_health_check("healthy")),
+            }),
+            info: None,
+        };
+        let result = proto_readiness_response_to_domain(response);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proto_readiness_checks_missing_sub_check() {
+        let response = proto::ReadinessResponse {
+            status: "ready".to_string(),
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            checks: Some(proto::ReadinessChecks {
+                web_database: None,
+                orchestration_database: Some(make_health_check("healthy")),
+                circuit_breaker: Some(make_health_check("healthy")),
+                orchestration_system: Some(make_health_check("healthy")),
+                command_processor: Some(make_health_check("healthy")),
+            }),
+            info: Some(proto::HealthInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                operational_state: "running".to_string(),
+                web_database_pool_size: 10,
+                orchestration_database_pool_size: 10,
+                circuit_breaker_state: "closed".to_string(),
+                pool_utilization: None,
+            }),
+        };
+        let result = proto_readiness_response_to_domain(response);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proto_detailed_health_response_to_domain() {
+        let response = proto::DetailedHealthResponse {
+            status: "healthy".to_string(),
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            checks: Some(proto::DetailedHealthChecks {
+                web_database: Some(make_health_check("healthy")),
+                orchestration_database: Some(make_health_check("healthy")),
+                circuit_breaker: Some(make_health_check("healthy")),
+                orchestration_system: Some(make_health_check("healthy")),
+                command_processor: Some(make_health_check("healthy")),
+                pool_utilization: Some(make_health_check("healthy")),
+                queue_depth: Some(make_health_check("healthy")),
+                channel_saturation: Some(make_health_check("healthy")),
+            }),
+            info: Some(proto::HealthInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                operational_state: "running".to_string(),
+                web_database_pool_size: 10,
+                orchestration_database_pool_size: 10,
+                circuit_breaker_state: "closed".to_string(),
+                pool_utilization: None,
+            }),
+        };
+        let result = proto_detailed_health_response_to_domain(response).unwrap();
+        assert_eq!(result.status, "healthy");
+        assert_eq!(result.checks.queue_depth.status, "healthy");
+    }
+
+    #[test]
+    fn test_proto_detailed_health_missing_checks() {
+        let response = proto::DetailedHealthResponse {
+            status: "healthy".to_string(),
+            timestamp: "now".to_string(),
+            checks: None,
+            info: Some(proto::HealthInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                operational_state: "running".to_string(),
+                web_database_pool_size: 10,
+                orchestration_database_pool_size: 10,
+                circuit_breaker_state: "closed".to_string(),
+                pool_utilization: None,
+            }),
+        };
+        assert!(proto_detailed_health_response_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_detailed_checks_missing_sub_check() {
+        let response = proto::DetailedHealthResponse {
+            status: "healthy".to_string(),
+            timestamp: "now".to_string(),
+            checks: Some(proto::DetailedHealthChecks {
+                web_database: Some(make_health_check("healthy")),
+                orchestration_database: Some(make_health_check("healthy")),
+                circuit_breaker: Some(make_health_check("healthy")),
+                orchestration_system: Some(make_health_check("healthy")),
+                command_processor: Some(make_health_check("healthy")),
+                pool_utilization: Some(make_health_check("healthy")),
+                queue_depth: None, // missing
+                channel_saturation: Some(make_health_check("healthy")),
+            }),
+            info: Some(proto::HealthInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                operational_state: "running".to_string(),
+                web_database_pool_size: 10,
+                orchestration_database_pool_size: 10,
+                circuit_breaker_state: "closed".to_string(),
+                pool_utilization: None,
+            }),
+        };
+        assert!(proto_detailed_health_response_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_health_info_with_pool_utilization() {
+        let info = proto::HealthInfo {
+            version: "0.1.0".to_string(),
+            environment: "test".to_string(),
+            operational_state: "running".to_string(),
+            web_database_pool_size: 10,
+            orchestration_database_pool_size: 10,
+            circuit_breaker_state: "closed".to_string(),
+            pool_utilization: Some(proto::PoolUtilizationInfo {
+                tasker_pool: Some(make_pool_detail()),
+                pgmq_pool: Some(make_pool_detail()),
+            }),
+        };
+        let result = proto_health_info_to_domain(info).unwrap();
+        assert!(result.pool_utilization.is_some());
+        let pu = result.pool_utilization.unwrap();
+        assert_eq!(pu.tasker_pool.active_connections, 5);
+        assert_eq!(pu.pgmq_pool.max_connections, 20);
+    }
+
+    #[test]
+    fn test_proto_pool_utilization_missing_tasker_pool() {
+        let info = proto::PoolUtilizationInfo {
+            tasker_pool: None,
+            pgmq_pool: Some(make_pool_detail()),
+        };
+        assert!(proto_pool_utilization_to_domain(info).is_err());
+    }
+
+    #[test]
+    fn test_proto_pool_utilization_missing_pgmq_pool() {
+        let info = proto::PoolUtilizationInfo {
+            tasker_pool: Some(make_pool_detail()),
+            pgmq_pool: None,
+        };
+        assert!(proto_pool_utilization_to_domain(info).is_err());
+    }
+
+    // ========================================================================
+    // Worker Health Response Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_proto_worker_basic_health_to_domain() {
+        let response = proto::WorkerBasicHealthResponse {
+            status: "healthy".to_string(),
+            timestamp: Some(make_timestamp(1704067200)),
+            worker_id: "worker-1".to_string(),
+        };
+        let result = proto_worker_basic_health_to_domain(response);
+        assert_eq!(result.status, "healthy");
+        assert_eq!(result.worker_id, "worker-1");
+    }
+
+    #[test]
+    fn test_proto_worker_readiness_to_domain() {
+        let response = proto::WorkerReadinessResponse {
+            status: "ready".to_string(),
+            timestamp: Some(make_timestamp(1704067200)),
+            worker_id: "worker-1".to_string(),
+            checks: Some(proto::WorkerReadinessChecks {
+                database: Some(make_worker_health_check("healthy")),
+                command_processor: Some(make_worker_health_check("healthy")),
+                queue_processing: Some(make_worker_health_check("healthy")),
+            }),
+            system_info: Some(proto::WorkerSystemInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                uptime_seconds: 3600,
+                worker_type: "rust".to_string(),
+                database_pool_size: 10,
+                command_processor_active: true,
+                supported_namespaces: vec!["default".to_string()],
+                pool_utilization: None,
+            }),
+        };
+        let result = proto_worker_readiness_to_domain(response).unwrap();
+        assert_eq!(result.status, "ready");
+        assert_eq!(result.checks.database.status, "healthy");
+        assert_eq!(result.system_info.worker_type, "rust");
+    }
+
+    #[test]
+    fn test_proto_worker_readiness_missing_checks() {
+        let response = proto::WorkerReadinessResponse {
+            status: "ready".to_string(),
+            timestamp: Some(make_timestamp(1704067200)),
+            worker_id: "worker-1".to_string(),
+            checks: None,
+            system_info: Some(proto::WorkerSystemInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                uptime_seconds: 3600,
+                worker_type: "rust".to_string(),
+                database_pool_size: 10,
+                command_processor_active: true,
+                supported_namespaces: vec![],
+                pool_utilization: None,
+            }),
+        };
+        assert!(proto_worker_readiness_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_worker_readiness_missing_system_info() {
+        let response = proto::WorkerReadinessResponse {
+            status: "ready".to_string(),
+            timestamp: Some(make_timestamp(1704067200)),
+            worker_id: "worker-1".to_string(),
+            checks: Some(proto::WorkerReadinessChecks {
+                database: Some(make_worker_health_check("healthy")),
+                command_processor: Some(make_worker_health_check("healthy")),
+                queue_processing: Some(make_worker_health_check("healthy")),
+            }),
+            system_info: None,
+        };
+        assert!(proto_worker_readiness_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_worker_readiness_checks_missing_sub_check() {
+        let checks = proto::WorkerReadinessChecks {
+            database: None,
+            command_processor: Some(make_worker_health_check("healthy")),
+            queue_processing: Some(make_worker_health_check("healthy")),
+        };
+        assert!(proto_worker_readiness_checks_to_domain(checks).is_err());
+    }
+
+    #[test]
+    fn test_proto_worker_detailed_health_to_domain() {
+        let response = proto::WorkerDetailedHealthResponse {
+            status: "healthy".to_string(),
+            timestamp: Some(make_timestamp(1704067200)),
+            worker_id: "worker-1".to_string(),
+            checks: Some(proto::WorkerDetailedChecks {
+                database: Some(make_worker_health_check("healthy")),
+                command_processor: Some(make_worker_health_check("healthy")),
+                queue_processing: Some(make_worker_health_check("healthy")),
+                event_system: Some(make_worker_health_check("healthy")),
+                step_processing: Some(make_worker_health_check("healthy")),
+                circuit_breakers: Some(make_worker_health_check("healthy")),
+            }),
+            system_info: Some(proto::WorkerSystemInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                uptime_seconds: 7200,
+                worker_type: "rust".to_string(),
+                database_pool_size: 10,
+                command_processor_active: true,
+                supported_namespaces: vec!["default".to_string()],
+                pool_utilization: None,
+            }),
+            distributed_cache: Some(proto::DistributedCacheInfo {
+                enabled: true,
+                provider: "redis".to_string(),
+                healthy: true,
+            }),
+        };
+        let result = proto_worker_detailed_health_to_domain(response).unwrap();
+        assert_eq!(result.status, "healthy");
+        assert_eq!(result.checks.event_system.status, "healthy");
+        assert!(result.distributed_cache.is_some());
+        let dc = result.distributed_cache.unwrap();
+        assert!(dc.enabled);
+        assert_eq!(dc.provider, "redis");
+    }
+
+    #[test]
+    fn test_proto_worker_detailed_health_no_cache() {
+        let response = proto::WorkerDetailedHealthResponse {
+            status: "healthy".to_string(),
+            timestamp: Some(make_timestamp(1704067200)),
+            worker_id: "worker-1".to_string(),
+            checks: Some(proto::WorkerDetailedChecks {
+                database: Some(make_worker_health_check("healthy")),
+                command_processor: Some(make_worker_health_check("healthy")),
+                queue_processing: Some(make_worker_health_check("healthy")),
+                event_system: Some(make_worker_health_check("healthy")),
+                step_processing: Some(make_worker_health_check("healthy")),
+                circuit_breakers: Some(make_worker_health_check("healthy")),
+            }),
+            system_info: Some(proto::WorkerSystemInfo {
+                version: "0.1.0".to_string(),
+                environment: "test".to_string(),
+                uptime_seconds: 7200,
+                worker_type: "rust".to_string(),
+                database_pool_size: 10,
+                command_processor_active: true,
+                supported_namespaces: vec![],
+                pool_utilization: None,
+            }),
+            distributed_cache: None,
+        };
+        let result = proto_worker_detailed_health_to_domain(response).unwrap();
+        assert!(result.distributed_cache.is_none());
+    }
+
+    #[test]
+    fn test_proto_worker_detailed_checks_missing_sub_check() {
+        let checks = proto::WorkerDetailedChecks {
+            database: Some(make_worker_health_check("healthy")),
+            command_processor: Some(make_worker_health_check("healthy")),
+            queue_processing: Some(make_worker_health_check("healthy")),
+            event_system: None,
+            step_processing: Some(make_worker_health_check("healthy")),
+            circuit_breakers: Some(make_worker_health_check("healthy")),
+        };
+        assert!(proto_worker_detailed_checks_to_domain(checks).is_err());
+    }
+
+    #[test]
+    fn test_proto_worker_system_info_with_pool_utilization() {
+        let info = proto::WorkerSystemInfo {
+            version: "0.1.0".to_string(),
+            environment: "test".to_string(),
+            uptime_seconds: 3600,
+            worker_type: "rust".to_string(),
+            database_pool_size: 10,
+            command_processor_active: true,
+            supported_namespaces: vec!["ns1".to_string()],
+            pool_utilization: Some(proto::WorkerPoolUtilizationInfo {
+                tasker_pool: Some(make_worker_pool_detail()),
+                pgmq_pool: Some(make_worker_pool_detail()),
+            }),
+        };
+        let result = proto_worker_system_info_to_domain(info).unwrap();
+        assert!(result.pool_utilization.is_some());
+    }
+
+    #[test]
+    fn test_proto_worker_pool_utilization_missing_pool() {
+        let info = proto::WorkerPoolUtilizationInfo {
+            tasker_pool: None,
+            pgmq_pool: Some(make_worker_pool_detail()),
+        };
+        assert!(proto_worker_pool_utilization_to_domain(info).is_err());
+    }
+
+    // ========================================================================
+    // Worker Template Response Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_proto_worker_template_list_to_domain() {
+        let response = proto::WorkerTemplateListResponse {
+            supported_namespaces: vec!["default".to_string()],
+            template_count: 3,
+            cache_stats: Some(proto::CacheStats {
+                total_cached: 3,
+                cache_hits: 100,
+                cache_misses: 5,
+                cache_evictions: 1,
+                oldest_entry_age_seconds: 3600,
+                average_access_count: 33.0,
+                supported_namespaces: vec!["default".to_string()],
+            }),
+            worker_capabilities: vec!["python".to_string()],
+        };
+        let result = proto_worker_template_list_to_domain(response);
+        assert_eq!(result.template_count, 3);
+        assert!(result.cache_stats.is_some());
+        let cs = result.cache_stats.unwrap();
+        assert_eq!(cs.total_cached, 3);
+        assert_eq!(cs.cache_hits, 100);
+    }
+
+    #[test]
+    fn test_proto_worker_template_list_no_cache_stats() {
+        let response = proto::WorkerTemplateListResponse {
+            supported_namespaces: vec![],
+            template_count: 0,
+            cache_stats: None,
+            worker_capabilities: vec![],
+        };
+        let result = proto_worker_template_list_to_domain(response);
+        assert_eq!(result.template_count, 0);
+        assert!(result.cache_stats.is_none());
+    }
+
+    #[test]
+    fn test_proto_worker_template_to_domain() {
+        let response = proto::WorkerTemplateResponse {
+            template: Some(proto::WorkerResolvedTemplate {
+                name: "test_template".to_string(),
+                namespace: "default".to_string(),
+                version: "1.0.0".to_string(),
+                description: Some("A test".to_string()),
+                steps: vec![proto::WorkerStepDefinition {
+                    name: "step_1".to_string(),
+                    description: Some("First step".to_string()),
+                    retryable: true,
+                    max_attempts: 3,
+                }],
+            }),
+            handler_metadata: Some(proto::WorkerHandlerMetadata {
+                namespace: "default".to_string(),
+                handler_name: "test_handler".to_string(),
+                description: None,
+                step_names: vec![],
+                version: "1.0.0".to_string(),
+            }),
+            cached: true,
+            cache_age_seconds: Some(60),
+            access_count: Some(10),
+        };
+        let result = proto_worker_template_to_domain(response).unwrap();
+        assert_eq!(result.template.template.name, "test_template");
+        assert!(result.cached);
+        assert_eq!(result.cache_age_seconds, Some(60));
+        assert_eq!(result.handler_metadata.name, "test_handler");
+    }
+
+    #[test]
+    fn test_proto_worker_template_missing_template() {
+        let response = proto::WorkerTemplateResponse {
+            template: None,
+            handler_metadata: None,
+            cached: false,
+            cache_age_seconds: None,
+            access_count: None,
+        };
+        let result = proto_worker_template_to_domain(response);
+        assert!(result.is_err());
+    }
+
+    // ========================================================================
+    // Template Response Conversions (Orchestration)
+    // ========================================================================
+
+    #[test]
+    fn test_proto_template_list_to_domain() {
+        let response = proto::ListTemplatesResponse {
+            namespaces: vec![proto::NamespaceSummary {
+                name: "default".to_string(),
+                description: Some("Default namespace".to_string()),
+                template_count: 2,
+            }],
+            templates: vec![proto::TemplateSummary {
+                name: "task_a".to_string(),
+                namespace: "default".to_string(),
+                version: "1.0.0".to_string(),
+                description: Some("Task A".to_string()),
+                step_count: 3,
+            }],
+            total_count: 1,
+        };
+        let result = proto_template_list_to_domain(response).unwrap();
+        assert_eq!(result.total_count, 1);
+        assert_eq!(result.namespaces.len(), 1);
+        assert_eq!(result.namespaces[0].name, "default");
+        assert_eq!(result.templates[0].step_count, 3);
+    }
+
+    #[test]
+    fn test_proto_template_detail_to_domain() {
+        let template = proto::TemplateDetail {
+            name: "my_task".to_string(),
+            namespace: "default".to_string(),
+            version: "2.0.0".to_string(),
+            description: Some("Detailed task".to_string()),
+            configuration: None,
+            steps: vec![proto::StepDefinition {
+                name: "step_1".to_string(),
+                description: Some("First".to_string()),
+                default_retryable: true,
+                default_max_attempts: 5,
+            }],
+        };
+        let result = proto_template_detail_to_domain(template).unwrap();
+        assert_eq!(result.name, "my_task");
+        assert_eq!(result.version, "2.0.0");
+        assert_eq!(result.steps.len(), 1);
+        assert!(result.steps[0].default_retryable);
+    }
+
+    #[test]
+    fn test_proto_template_detail_with_configuration() {
+        use prost_types::value::Kind;
+        let template = proto::TemplateDetail {
+            name: "configured".to_string(),
+            namespace: "ns".to_string(),
+            version: "1.0.0".to_string(),
+            description: None,
+            configuration: Some(prost_types::Struct {
+                fields: [(
+                    "timeout".to_string(),
+                    prost_types::Value {
+                        kind: Some(Kind::NumberValue(30.0)),
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            }),
+            steps: vec![],
+        };
+        let result = proto_template_detail_to_domain(template).unwrap();
+        assert!(result.configuration.is_some());
+        assert_eq!(result.configuration.unwrap()["timeout"], 30.0);
+    }
+
+    // ========================================================================
+    // Config Response Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_proto_config_to_domain() {
+        let response = proto::GetConfigResponse {
+            metadata: Some(proto::ConfigMetadata {
+                timestamp: Some(make_timestamp(1704067200)),
+                environment: "test".to_string(),
+                version: "0.1.0".to_string(),
+            }),
+            auth: Some(proto::SafeAuthConfig {
+                enabled: true,
+                verification_method: "jwt".to_string(),
+                jwt_issuer: "tasker".to_string(),
+                jwt_audience: "api".to_string(),
+                api_key_header: "x-api-key".to_string(),
+                api_key_count: 2,
+                strict_validation: true,
+                allowed_algorithms: vec!["HS256".to_string()],
+            }),
+            circuit_breakers: Some(proto::SafeCircuitBreakerConfig {
+                enabled: true,
+                failure_threshold: 5,
+                success_threshold: 3,
+                timeout_seconds: 60,
+            }),
+            database_pools: Some(proto::SafeDatabasePoolConfig {
+                web_api_pool_size: 10,
+                web_api_max_connections: 20,
+            }),
+            deployment_mode: "test".to_string(),
+            messaging: Some(proto::SafeMessagingConfig {
+                backend: "pgmq".to_string(),
+                queues: vec!["tasks".to_string()],
+            }),
+        };
+        let result = proto_config_to_domain(response).unwrap();
+        assert_eq!(result.metadata.environment, "test");
+        assert!(result.auth.enabled);
+        assert!(result.circuit_breakers.enabled);
+        assert_eq!(result.database_pools.web_api_pool_size, 10);
+        assert_eq!(result.messaging.backend, "pgmq");
+    }
+
+    #[test]
+    fn test_proto_config_missing_metadata() {
+        let response = proto::GetConfigResponse {
+            metadata: None,
+            auth: Some(proto::SafeAuthConfig::default()),
+            circuit_breakers: Some(proto::SafeCircuitBreakerConfig::default()),
+            database_pools: Some(proto::SafeDatabasePoolConfig::default()),
+            deployment_mode: "test".to_string(),
+            messaging: Some(proto::SafeMessagingConfig::default()),
+        };
+        assert!(proto_config_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_config_missing_auth() {
+        let response = proto::GetConfigResponse {
+            metadata: Some(proto::ConfigMetadata {
+                timestamp: Some(make_timestamp(1704067200)),
+                environment: "test".to_string(),
+                version: "0.1.0".to_string(),
+            }),
+            auth: None,
+            circuit_breakers: Some(proto::SafeCircuitBreakerConfig::default()),
+            database_pools: Some(proto::SafeDatabasePoolConfig::default()),
+            deployment_mode: "test".to_string(),
+            messaging: Some(proto::SafeMessagingConfig::default()),
+        };
+        assert!(proto_config_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_config_missing_circuit_breakers() {
+        let response = proto::GetConfigResponse {
+            metadata: Some(proto::ConfigMetadata {
+                timestamp: Some(make_timestamp(1704067200)),
+                environment: "test".to_string(),
+                version: "0.1.0".to_string(),
+            }),
+            auth: Some(proto::SafeAuthConfig::default()),
+            circuit_breakers: None,
+            database_pools: Some(proto::SafeDatabasePoolConfig::default()),
+            deployment_mode: "test".to_string(),
+            messaging: Some(proto::SafeMessagingConfig::default()),
+        };
+        assert!(proto_config_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_config_missing_database_pools() {
+        let response = proto::GetConfigResponse {
+            metadata: Some(proto::ConfigMetadata {
+                timestamp: Some(make_timestamp(1704067200)),
+                environment: "test".to_string(),
+                version: "0.1.0".to_string(),
+            }),
+            auth: Some(proto::SafeAuthConfig::default()),
+            circuit_breakers: Some(proto::SafeCircuitBreakerConfig::default()),
+            database_pools: None,
+            deployment_mode: "test".to_string(),
+            messaging: Some(proto::SafeMessagingConfig::default()),
+        };
+        assert!(proto_config_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_config_missing_messaging() {
+        let response = proto::GetConfigResponse {
+            metadata: Some(proto::ConfigMetadata {
+                timestamp: Some(make_timestamp(1704067200)),
+                environment: "test".to_string(),
+                version: "0.1.0".to_string(),
+            }),
+            auth: Some(proto::SafeAuthConfig::default()),
+            circuit_breakers: Some(proto::SafeCircuitBreakerConfig::default()),
+            database_pools: Some(proto::SafeDatabasePoolConfig::default()),
+            deployment_mode: "test".to_string(),
+            messaging: None,
+        };
+        assert!(proto_config_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_worker_config_to_domain() {
+        let response = proto::WorkerGetConfigResponse {
+            metadata: Some(proto::ConfigMetadata {
+                timestamp: Some(make_timestamp(1704067200)),
+                environment: "test".to_string(),
+                version: "0.1.0".to_string(),
+            }),
+            worker_id: "worker-1".to_string(),
+            worker_type: "rust".to_string(),
+            auth: Some(proto::SafeAuthConfig {
+                enabled: true,
+                verification_method: "api_key".to_string(),
+                jwt_issuer: String::new(),
+                jwt_audience: String::new(),
+                api_key_header: "x-api-key".to_string(),
+                api_key_count: 1,
+                strict_validation: false,
+                allowed_algorithms: vec![],
+            }),
+            messaging: Some(proto::SafeMessagingConfig {
+                backend: "pgmq".to_string(),
+                queues: vec!["worker_queue".to_string()],
+            }),
+        };
+        let result = proto_worker_config_to_domain(response).unwrap();
+        assert_eq!(result.worker_id, "worker-1");
+        assert_eq!(result.worker_type, "rust");
+        assert!(result.auth.enabled);
+    }
+
+    #[test]
+    fn test_proto_worker_config_missing_metadata() {
+        let response = proto::WorkerGetConfigResponse {
+            metadata: None,
+            worker_id: "w1".to_string(),
+            worker_type: "rust".to_string(),
+            auth: Some(proto::SafeAuthConfig::default()),
+            messaging: Some(proto::SafeMessagingConfig::default()),
+        };
+        assert!(proto_worker_config_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_worker_config_missing_auth() {
+        let response = proto::WorkerGetConfigResponse {
+            metadata: Some(proto::ConfigMetadata {
+                timestamp: Some(make_timestamp(1704067200)),
+                environment: "test".to_string(),
+                version: "0.1.0".to_string(),
+            }),
+            worker_id: "w1".to_string(),
+            worker_type: "rust".to_string(),
+            auth: None,
+            messaging: Some(proto::SafeMessagingConfig::default()),
+        };
+        assert!(proto_worker_config_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_worker_config_missing_messaging() {
+        let response = proto::WorkerGetConfigResponse {
+            metadata: Some(proto::ConfigMetadata {
+                timestamp: Some(make_timestamp(1704067200)),
+                environment: "test".to_string(),
+                version: "0.1.0".to_string(),
+            }),
+            worker_id: "w1".to_string(),
+            worker_type: "rust".to_string(),
+            auth: Some(proto::SafeAuthConfig::default()),
+            messaging: None,
+        };
+        assert!(proto_worker_config_to_domain(response).is_err());
+    }
+
+    // ========================================================================
+    // DLQ Response Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_dlq_resolution_status_to_proto_all_variants() {
+        assert_eq!(
+            dlq_resolution_status_to_proto(&DlqResolutionStatus::Pending),
+            proto::DlqResolutionStatus::Pending
+        );
+        assert_eq!(
+            dlq_resolution_status_to_proto(&DlqResolutionStatus::ManuallyResolved),
+            proto::DlqResolutionStatus::ManuallyResolved
+        );
+        assert_eq!(
+            dlq_resolution_status_to_proto(&DlqResolutionStatus::PermanentlyFailed),
+            proto::DlqResolutionStatus::PermanentlyFailed
+        );
+        assert_eq!(
+            dlq_resolution_status_to_proto(&DlqResolutionStatus::Cancelled),
+            proto::DlqResolutionStatus::Cancelled
+        );
+    }
+
+    #[test]
+    fn test_proto_dlq_resolution_status_to_domain_all() {
+        assert!(matches!(
+            proto_dlq_resolution_status_to_domain(proto::DlqResolutionStatus::Pending as i32),
+            DlqResolutionStatus::Pending
+        ));
+        assert!(matches!(
+            proto_dlq_resolution_status_to_domain(
+                proto::DlqResolutionStatus::ManuallyResolved as i32
+            ),
+            DlqResolutionStatus::ManuallyResolved
+        ));
+        assert!(matches!(
+            proto_dlq_resolution_status_to_domain(
+                proto::DlqResolutionStatus::PermanentlyFailed as i32
+            ),
+            DlqResolutionStatus::PermanentlyFailed
+        ));
+        assert!(matches!(
+            proto_dlq_resolution_status_to_domain(proto::DlqResolutionStatus::Cancelled as i32),
+            DlqResolutionStatus::Cancelled
+        ));
+    }
+
+    #[test]
+    fn test_proto_dlq_resolution_status_unknown_defaults_to_pending() {
+        assert!(matches!(
+            proto_dlq_resolution_status_to_domain(999),
+            DlqResolutionStatus::Pending
+        ));
+    }
+
+    #[test]
+    fn test_proto_dlq_reason_to_domain_all() {
+        assert!(matches!(
+            proto_dlq_reason_to_domain(proto::DlqReason::StalenessTimeout as i32),
+            DlqReason::StalenessTimeout
+        ));
+        assert!(matches!(
+            proto_dlq_reason_to_domain(proto::DlqReason::MaxRetriesExceeded as i32),
+            DlqReason::MaxRetriesExceeded
+        ));
+        assert!(matches!(
+            proto_dlq_reason_to_domain(proto::DlqReason::DependencyCycleDetected as i32),
+            DlqReason::DependencyCycleDetected
+        ));
+        assert!(matches!(
+            proto_dlq_reason_to_domain(proto::DlqReason::WorkerUnavailable as i32),
+            DlqReason::WorkerUnavailable
+        ));
+        assert!(matches!(
+            proto_dlq_reason_to_domain(proto::DlqReason::ManualDlq as i32),
+            DlqReason::ManualDlq
+        ));
+    }
+
+    #[test]
+    fn test_proto_dlq_reason_unknown_defaults_to_staleness() {
+        assert!(matches!(
+            proto_dlq_reason_to_domain(999),
+            DlqReason::StalenessTimeout
+        ));
+    }
+
+    #[test]
+    fn test_proto_dlq_entry_to_domain() {
+        let entry = proto::DlqEntry {
+            dlq_entry_uuid: "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            task_uuid: "550e8400-e29b-41d4-a716-446655440002".to_string(),
+            original_state: "steps_in_process".to_string(),
+            dlq_reason: proto::DlqReason::StalenessTimeout as i32,
+            dlq_timestamp: Some(make_timestamp(1704067200)),
+            resolution_status: proto::DlqResolutionStatus::Pending as i32,
+            resolution_timestamp: None,
+            resolution_notes: Some("needs investigation".to_string()),
+            resolved_by: None,
+            task_snapshot: None,
+            metadata: None,
+            created_at: Some(make_timestamp(1704067200)),
+            updated_at: Some(make_timestamp(1704067200)),
+        };
+        let result = proto_dlq_entry_to_domain(entry).unwrap();
+        assert_eq!(
+            result.dlq_entry_uuid.to_string(),
+            "550e8400-e29b-41d4-a716-446655440001"
+        );
+        assert!(matches!(result.dlq_reason, DlqReason::StalenessTimeout));
+        assert!(matches!(
+            result.resolution_status,
+            DlqResolutionStatus::Pending
+        ));
+        assert!(result.resolution_timestamp.is_none());
+    }
+
+    #[test]
+    fn test_proto_dlq_entry_invalid_uuid() {
+        let entry = proto::DlqEntry {
+            dlq_entry_uuid: "not-a-uuid".to_string(),
+            task_uuid: "550e8400-e29b-41d4-a716-446655440002".to_string(),
+            original_state: "pending".to_string(),
+            dlq_reason: proto::DlqReason::StalenessTimeout as i32,
+            dlq_timestamp: Some(make_timestamp(1704067200)),
+            resolution_status: proto::DlqResolutionStatus::Pending as i32,
+            resolution_timestamp: None,
+            resolution_notes: None,
+            resolved_by: None,
+            task_snapshot: None,
+            metadata: None,
+            created_at: Some(make_timestamp(1704067200)),
+            updated_at: Some(make_timestamp(1704067200)),
+        };
+        assert!(proto_dlq_entry_to_domain(entry).is_err());
+    }
+
+    #[test]
+    fn test_proto_dlq_entry_with_resolution() {
+        let entry = proto::DlqEntry {
+            dlq_entry_uuid: "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            task_uuid: "550e8400-e29b-41d4-a716-446655440002".to_string(),
+            original_state: "error".to_string(),
+            dlq_reason: proto::DlqReason::MaxRetriesExceeded as i32,
+            dlq_timestamp: Some(make_timestamp(1704067200)),
+            resolution_status: proto::DlqResolutionStatus::ManuallyResolved as i32,
+            resolution_timestamp: Some(make_timestamp(1704153600)),
+            resolution_notes: Some("resolved".to_string()),
+            resolved_by: Some("admin".to_string()),
+            task_snapshot: None,
+            metadata: None,
+            created_at: Some(make_timestamp(1704067200)),
+            updated_at: Some(make_timestamp(1704153600)),
+        };
+        let result = proto_dlq_entry_to_domain(entry).unwrap();
+        assert!(result.resolution_timestamp.is_some());
+        assert_eq!(result.resolved_by, Some("admin".to_string()));
+        assert!(matches!(
+            result.resolution_status,
+            DlqResolutionStatus::ManuallyResolved
+        ));
+    }
+
+    #[test]
+    fn test_proto_dlq_stats_to_domain() {
+        let stats = proto::DlqStats {
+            dlq_reason: proto::DlqReason::MaxRetriesExceeded as i32,
+            total_entries: 10,
+            pending: 5,
+            manually_resolved: 3,
+            permanent_failures: 1,
+            cancelled: 1,
+            oldest_entry: Some(make_timestamp(1704067200)),
+            newest_entry: Some(make_timestamp(1704153600)),
+            avg_resolution_time_minutes: Some(45.5),
+        };
+        let result = proto_dlq_stats_to_domain(stats).unwrap();
+        assert!(matches!(result.dlq_reason, DlqReason::MaxRetriesExceeded));
+        assert_eq!(result.total_entries, 10);
+        assert_eq!(result.pending, 5);
+        assert!(result.oldest_entry.is_some());
+        assert_eq!(result.avg_resolution_time_minutes, Some(45.5));
+    }
+
+    #[test]
+    fn test_proto_dlq_queue_entry_to_domain() {
+        let entry = proto::DlqInvestigationQueueEntry {
+            dlq_entry_uuid: "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            task_uuid: "550e8400-e29b-41d4-a716-446655440002".to_string(),
+            original_state: "error".to_string(),
+            dlq_reason: proto::DlqReason::WorkerUnavailable as i32,
+            dlq_timestamp: Some(make_timestamp(1704067200)),
+            minutes_in_dlq: 120.5,
+            namespace_name: Some("default".to_string()),
+            task_name: Some("my_task".to_string()),
+            current_state: Some("error".to_string()),
+            time_in_state_minutes: Some(60),
+            priority_score: 85.0,
+        };
+        let result = proto_dlq_queue_entry_to_domain(entry).unwrap();
+        assert!(matches!(result.dlq_reason, DlqReason::WorkerUnavailable));
+        assert_eq!(result.minutes_in_dlq, 120.5);
+        assert_eq!(result.priority_score, 85.0);
+        assert_eq!(result.namespace_name, Some("default".to_string()));
+    }
+
+    #[test]
+    fn test_proto_dlq_queue_entry_invalid_uuid() {
+        let entry = proto::DlqInvestigationQueueEntry {
+            dlq_entry_uuid: "bad".to_string(),
+            task_uuid: "550e8400-e29b-41d4-a716-446655440002".to_string(),
+            original_state: "error".to_string(),
+            dlq_reason: proto::DlqReason::ManualDlq as i32,
+            dlq_timestamp: Some(make_timestamp(1704067200)),
+            minutes_in_dlq: 10.0,
+            namespace_name: None,
+            task_name: None,
+            current_state: None,
+            time_in_state_minutes: None,
+            priority_score: 50.0,
+        };
+        assert!(proto_dlq_queue_entry_to_domain(entry).is_err());
+    }
+
+    // ========================================================================
+    // Staleness Monitoring Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_proto_staleness_health_to_domain_all() {
+        assert!(matches!(
+            proto_staleness_health_to_domain(proto::StalenessHealthStatus::Healthy as i32),
+            StalenessHealthStatus::Healthy
+        ));
+        assert!(matches!(
+            proto_staleness_health_to_domain(proto::StalenessHealthStatus::Warning as i32),
+            StalenessHealthStatus::Warning
+        ));
+        assert!(matches!(
+            proto_staleness_health_to_domain(proto::StalenessHealthStatus::Stale as i32),
+            StalenessHealthStatus::Stale
+        ));
+    }
+
+    #[test]
+    fn test_proto_staleness_health_unknown_defaults_to_healthy() {
+        assert!(matches!(
+            proto_staleness_health_to_domain(999),
+            StalenessHealthStatus::Healthy
+        ));
+    }
+
+    #[test]
+    fn test_proto_staleness_to_domain() {
+        let entry = proto::StalenessMonitoringEntry {
+            task_uuid: "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            namespace_name: Some("default".to_string()),
+            task_name: Some("stale_task".to_string()),
+            current_state: "steps_in_process".to_string(),
+            time_in_state_minutes: 120,
+            task_age_minutes: 180,
+            staleness_threshold_minutes: 60,
+            health_status: proto::StalenessHealthStatus::Stale as i32,
+            priority: 3,
+        };
+        let result = proto_staleness_to_domain(entry).unwrap();
+        assert_eq!(
+            result.task_uuid.to_string(),
+            "550e8400-e29b-41d4-a716-446655440001"
+        );
+        assert!(matches!(result.health_status, StalenessHealthStatus::Stale));
+        assert_eq!(result.time_in_state_minutes, 120);
+        assert_eq!(result.staleness_threshold_minutes, 60);
+    }
+
+    #[test]
+    fn test_proto_staleness_invalid_uuid() {
+        let entry = proto::StalenessMonitoringEntry {
+            task_uuid: "not-a-uuid".to_string(),
+            namespace_name: None,
+            task_name: None,
+            current_state: "pending".to_string(),
+            time_in_state_minutes: 0,
+            task_age_minutes: 0,
+            staleness_threshold_minutes: 60,
+            health_status: proto::StalenessHealthStatus::Healthy as i32,
+            priority: 1,
+        };
+        assert!(proto_staleness_to_domain(entry).is_err());
+    }
+
+    // ========================================================================
+    // Analytics Response Conversions
+    // ========================================================================
+
+    #[test]
+    fn test_proto_performance_metrics_to_domain() {
+        let response = proto::GetPerformanceMetricsResponse {
+            total_tasks: 100,
+            active_tasks: 10,
+            completed_tasks: 80,
+            failed_tasks: 10,
+            completion_rate: 0.8,
+            error_rate: 0.1,
+            average_task_duration_seconds: 5.5,
+            average_step_duration_seconds: 1.2,
+            tasks_per_hour: 50,
+            steps_per_hour: 200,
+            system_health_score: 0.95,
+            analysis_period_start: "2024-01-01T00:00:00Z".to_string(),
+            calculated_at: "2024-01-01T12:00:00Z".to_string(),
+        };
+        let result = proto_performance_metrics_to_domain(response).unwrap();
+        assert_eq!(result.total_tasks, 100);
+        assert_eq!(result.completion_rate, 0.8);
+        assert_eq!(result.system_health_score, 0.95);
+    }
+
+    #[test]
+    fn test_proto_bottleneck_to_domain() {
+        let response = proto::GetBottleneckAnalysisResponse {
+            slow_steps: vec![proto::SlowStepInfo {
+                namespace_name: "default".to_string(),
+                task_name: "slow_task".to_string(),
+                version: "1.0.0".to_string(),
+                step_name: "step_x".to_string(),
+                average_duration_seconds: 10.5,
+                max_duration_seconds: 30.0,
+                execution_count: 50,
+                error_count: 5,
+                error_rate: 0.1,
+                last_executed_at: Some("2024-01-01T12:00:00Z".to_string()),
+            }],
+            slow_tasks: vec![proto::SlowTaskInfo {
+                namespace_name: "default".to_string(),
+                task_name: "slow_task".to_string(),
+                version: "1.0.0".to_string(),
+                average_duration_seconds: 45.0,
+                max_duration_seconds: 120.0,
+                execution_count: 20,
+                average_step_count: 5.0,
+                error_count: 2,
+                error_rate: 0.1,
+                last_executed_at: Some("2024-01-01T12:00:00Z".to_string()),
+            }],
+            resource_utilization: Some(proto::ResourceUtilization {
+                database_pool_utilization: 0.65,
+                system_health: Some(proto::SystemHealthCounts {
+                    pending_tasks: 5,
+                    initializing_tasks: 1,
+                    enqueuing_steps_tasks: 0,
+                    steps_in_process_tasks: 3,
+                    evaluating_results_tasks: 1,
+                    waiting_for_dependencies_tasks: 0,
+                    waiting_for_retry_tasks: 0,
+                    blocked_by_failures_tasks: 0,
+                    complete_tasks: 80,
+                    error_tasks: 10,
+                    cancelled_tasks: 0,
+                    resolved_manually_tasks: 0,
+                    total_tasks: 100,
+                    pending_steps: 10,
+                    enqueued_steps: 5,
+                    in_progress_steps: 3,
+                    enqueued_for_orchestration_steps: 0,
+                    enqueued_as_error_for_orchestration_steps: 0,
+                    waiting_for_retry_steps: 0,
+                    complete_steps: 200,
+                    error_steps: 15,
+                    cancelled_steps: 0,
+                    resolved_manually_steps: 0,
+                    total_steps: 233,
+                }),
+            }),
+            recommendations: vec!["Optimize step_x".to_string()],
+        };
+        let result = proto_bottleneck_to_domain(response).unwrap();
+        assert_eq!(result.slow_steps.len(), 1);
+        assert_eq!(result.slow_steps[0].step_name, "step_x");
+        assert_eq!(result.slow_tasks.len(), 1);
+        assert_eq!(result.resource_utilization.database_pool_utilization, 0.65);
+        assert_eq!(result.resource_utilization.system_health.total_tasks, 100);
+        assert_eq!(result.recommendations, vec!["Optimize step_x"]);
+    }
+
+    #[test]
+    fn test_proto_bottleneck_missing_resource_utilization() {
+        let response = proto::GetBottleneckAnalysisResponse {
+            slow_steps: vec![],
+            slow_tasks: vec![],
+            resource_utilization: None,
+            recommendations: vec![],
+        };
+        assert!(proto_bottleneck_to_domain(response).is_err());
+    }
+
+    #[test]
+    fn test_proto_bottleneck_missing_system_health() {
+        let response = proto::GetBottleneckAnalysisResponse {
+            slow_steps: vec![],
+            slow_tasks: vec![],
+            resource_utilization: Some(proto::ResourceUtilization {
+                database_pool_utilization: 0.5,
+                system_health: None,
+            }),
+            recommendations: vec![],
+        };
+        assert!(proto_bottleneck_to_domain(response).is_err());
     }
 }
