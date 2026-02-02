@@ -5823,9 +5823,7 @@ dependencies = [
  "toml 0.9.5",
  "tonic 0.14.2",
  "tracing",
- "tracing-subscriber",
  "uuid",
- "validator",
  "workspace_tools",
 ]
 
