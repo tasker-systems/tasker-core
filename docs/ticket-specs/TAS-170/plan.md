@@ -34,12 +34,18 @@ Tasker Core is approaching alpha release readiness. The ecosystem consists of:
 - `tasker-worker-rust` (workers/rust) -- example crate showing how to wire up a Rust worker. Users should depend on `tasker-worker` directly. Consider renaming to `tasker-worker-rs` for naming consistency.
 - Root `tasker-core` crate -- workspace root, not independently useful.
 
+**Future (in monorepo):**
+
+- Client bindings: `tasker-client-{rb,py,ts}` -- bare-metal FFI wrappers, same pattern as `tasker-worker-{rb,py,ts}`
+
 **Future (tasker-contrib, separate repo):**
 
-- Framework integrations (tasker-rails, tasker-fastapi, etc.)
+- Unified language packages: `tasker-{rb,py,ts}` -- combine worker + client for each language
+- Framework integrations: `tasker-rails`, `tasker-fastapi`, etc. -- depend on `tasker-{rb,py}` and add framework niceties (ActiveJob integration, Celery integration, native config generation, CLI templating)
 - Web UI (Bun + SvelteKit)
 - TUI (ratatui)
-- Client bindings: `tasker-client-{rb,py,ts}`
+
+> **Extensibility note:** The change detection, version calculation, and publish pipeline are designed to accommodate additional FFI crates. Adding `tasker-client-{rb,py,ts}` later means adding entries to the detection paths, version file lists, and publish scripts -- no structural changes needed.
 
 **Key challenges:**
 
@@ -197,6 +203,56 @@ Phase 5: FFI bindings              (depend on shared + worker)
          TypeScript: cargo build -p tasker-worker-ts --release && bun run build && npm publish
          [All FFI bindings can publish in parallel]
 ```
+
+### Pre-Publish Validation
+
+Two safety checks run before any publish attempt:
+
+#### 1. Credential Verification
+
+Before doing any work, verify all required tokens are present for the packages about to be published. Fail fast with a clear listing of what's missing.
+
+```
+Required credentials by target:
+  crates.io:  CARGO_REGISTRY_TOKEN
+  RubyGems:   GEM_HOST_API_KEY
+  PyPI:       MATURIN_PYPI_TOKEN (or PYPI_TOKEN)
+  npm:        NPM_TOKEN
+```
+
+The check only validates credentials for packages that will actually be published in this release (e.g., if only Ruby changed, only `GEM_HOST_API_KEY` is required).
+
+#### 2. Already-Published Detection (Idempotent Publishing)
+
+Before each package publish, query the target registry to check if the exact version already exists. This handles the partial-failure retry case: some packages published successfully, then CI died, and re-running should skip the successful ones and continue.
+
+**Registry queries:**
+
+| Registry | Check Command |
+|----------|--------------|
+| crates.io | `cargo search <crate> --limit 1` or `https://crates.io/api/v1/crates/<crate>/versions` |
+| RubyGems | `gem search <gem> --exact --versions` or `https://rubygems.org/api/v1/versions/<gem>.json` |
+| PyPI | `https://pypi.org/pypi/<package>/json` |
+| npm | `npm view <package> versions --json` |
+
+**Behavior controlled by `--on-duplicate` flag:**
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `skip` | Log and continue to next package | CI retries after partial failure |
+| `warn` (default) | Log warning and continue | Normal operation -- safe default |
+| `fail` | Exit with error immediately | Strict mode for catching version calculation bugs |
+
+**Example output:**
+
+```
+  [warn] tasker-pgmq@0.1.9 already exists on crates.io, skipping
+  [warn] tasker-shared@0.1.9 already exists on crates.io, skipping
+  Publishing tasker-client@0.1.9...
+  Publishing tasker-orchestration@0.1.9...
+```
+
+This ensures that re-running a failed release is always safe and picks up where it left off.
 
 ---
 
@@ -604,6 +660,57 @@ update_typescript_version() {
         log_info "Updated TypeScript version -> $version"
     fi
 }
+
+# --- Credential verification ---
+require_env() {
+    local var_name="$1" purpose="$2"
+    if [[ -z "${!var_name:-}" ]]; then
+        die "Missing $var_name (required for $purpose)"
+    fi
+    log_info "Verified $var_name is set ($purpose)"
+}
+
+# --- Registry duplicate detection ---
+crate_exists_on_registry() {
+    local crate="$1" version="$2"
+    local url="https://crates.io/api/v1/crates/${crate}/${version}"
+    curl -sf "$url" > /dev/null 2>&1
+}
+
+gem_exists_on_registry() {
+    local gem="$1" version="$2"
+    local url="https://rubygems.org/api/v1/versions/${gem}.json"
+    curl -sf "$url" 2>/dev/null | grep -q "\"number\":\"${version}\""
+}
+
+pypi_exists_on_registry() {
+    local package="$1" version="$2"
+    local url="https://pypi.org/pypi/${package}/${version}/json"
+    curl -sf "$url" > /dev/null 2>&1
+}
+
+npm_exists_on_registry() {
+    local package="$1" version="$2"
+    npm view "${package}@${version}" version > /dev/null 2>&1
+}
+
+handle_duplicate() {
+    local mode="$1" package="$2" version="$3" registry="$4"
+    case "$mode" in
+        skip)
+            log_info "$package@$version already on $registry, skipping"
+            ;;
+        warn)
+            log_warn "$package@$version already on $registry, skipping"
+            ;;
+        fail)
+            die "$package@$version already exists on $registry (--on-duplicate=fail)"
+            ;;
+        *)
+            die "Unknown --on-duplicate mode: $mode (expected skip|warn|fail)"
+            ;;
+    esac
+}
 ```
 
 #### Acceptance Criteria (Phase 1)
@@ -647,12 +754,27 @@ Using exact version pins (`=0.1.0`) during alpha to prevent accidental resolutio
 ```bash
 #!/usr/bin/env bash
 # Publish Rust crates to crates.io in dependency order
-# Usage: ./scripts/release/publish-crates.sh [--dry-run]
+# Usage: ./scripts/release/publish-crates.sh [--dry-run] [--on-duplicate=skip|warn|fail]
 
 set -euo pipefail
+source "$(dirname "$0")/lib/common.sh"
 
 DRY_RUN=false
-[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
+ON_DUPLICATE="warn"
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=true ;;
+        --on-duplicate=*) ON_DUPLICATE="${arg#*=}" ;;
+    esac
+done
+
+VERSION=$(cat VERSION)
+
+# Pre-flight: verify credentials
+if [[ "$DRY_RUN" != "true" ]]; then
+    require_env "CARGO_REGISTRY_TOKEN" "crates.io publishing"
+fi
 
 CRATE_PHASES=(
     "tasker-pgmq"
@@ -664,13 +786,20 @@ CRATE_PHASES=(
 for phase in "${CRATE_PHASES[@]}"; do
     for crate in $phase; do
         if [[ "$DRY_RUN" == "true" ]]; then
-            echo "  [dry-run] Would publish $crate"
+            echo "  [dry-run] Would publish $crate@$VERSION"
             cargo publish -p "$crate" --dry-run
-        else
-            echo "  Publishing $crate..."
-            cargo publish -p "$crate" --token "$CARGO_REGISTRY_TOKEN"
-            sleep 15  # Wait for crates.io index propagation
+            continue
         fi
+
+        # Check if already published
+        if crate_exists_on_registry "$crate" "$VERSION"; then
+            handle_duplicate "$ON_DUPLICATE" "$crate" "$VERSION" "crates.io"
+            continue
+        fi
+
+        echo "  Publishing $crate@$VERSION..."
+        cargo publish -p "$crate" --token "$CARGO_REGISTRY_TOKEN"
+        sleep 15  # Wait for crates.io index propagation
     done
 done
 ```
@@ -680,6 +809,8 @@ done
 - [ ] `cargo publish --dry-run` succeeds for all crates in correct order
 - [ ] Inter-crate version fields are present and updated by version scripts
 - [ ] `--dry-run` mode validates publishability without uploading
+- [ ] Missing `CARGO_REGISTRY_TOKEN` fails fast with clear message before any work
+- [ ] Already-published versions are detected and handled per `--on-duplicate` mode
 
 ---
 
@@ -690,12 +821,25 @@ done
 ```bash
 #!/usr/bin/env bash
 # Build and publish Ruby gem
-# Usage: ./scripts/release/publish-ruby.sh VERSION [--dry-run]
+# Usage: ./scripts/release/publish-ruby.sh VERSION [--dry-run] [--on-duplicate=skip|warn|fail]
 
 set -euo pipefail
-VERSION="$1"
+source "$(dirname "$0")/lib/common.sh"
+
+VERSION="$1"; shift
 DRY_RUN=false
-[[ "${2:-}" == "--dry-run" ]] && DRY_RUN=true
+ON_DUPLICATE="warn"
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=true ;;
+        --on-duplicate=*) ON_DUPLICATE="${arg#*=}" ;;
+    esac
+done
+
+if [[ "$DRY_RUN" != "true" ]]; then
+    require_env "GEM_HOST_API_KEY" "RubyGems publishing"
+fi
 
 cd workers/ruby
 
@@ -710,7 +854,11 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo "  [dry-run] Gem contents:"
     gem specification "tasker-worker-rb-${VERSION}.gem" | head -20
 else
-    gem push "tasker-worker-rb-${VERSION}.gem"
+    if gem_exists_on_registry "tasker-worker-rb" "$VERSION"; then
+        handle_duplicate "$ON_DUPLICATE" "tasker-worker-rb" "$VERSION" "RubyGems"
+    else
+        gem push "tasker-worker-rb-${VERSION}.gem"
+    fi
 fi
 ```
 
@@ -719,12 +867,27 @@ fi
 ```bash
 #!/usr/bin/env bash
 # Build and publish Python package
-# Usage: ./scripts/release/publish-python.sh VERSION [--dry-run]
+# Usage: ./scripts/release/publish-python.sh VERSION [--dry-run] [--on-duplicate=skip|warn|fail]
 
 set -euo pipefail
-VERSION="$1"
+source "$(dirname "$0")/lib/common.sh"
+
+VERSION="$1"; shift
 DRY_RUN=false
-[[ "${2:-}" == "--dry-run" ]] && DRY_RUN=true
+ON_DUPLICATE="warn"
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=true ;;
+        --on-duplicate=*) ON_DUPLICATE="${arg#*=}" ;;
+    esac
+done
+
+PYPI_PACKAGE="tasker-worker-py"  # or tasker-core-py until renamed
+
+if [[ "$DRY_RUN" != "true" ]]; then
+    require_env "MATURIN_PYPI_TOKEN" "PyPI publishing"
+fi
 
 cd workers/python
 
@@ -732,11 +895,15 @@ cd workers/python
 uv run maturin build --release
 
 if [[ "$DRY_RUN" == "true" ]]; then
-    echo "  [dry-run] Would publish tasker-worker-py==${VERSION}"
+    echo "  [dry-run] Would publish ${PYPI_PACKAGE}==${VERSION}"
     echo "  [dry-run] Built wheel:"
     ls -la ../../target/wheels/tasker_*.whl
 else
-    uv run maturin publish
+    if pypi_exists_on_registry "$PYPI_PACKAGE" "$VERSION"; then
+        handle_duplicate "$ON_DUPLICATE" "$PYPI_PACKAGE" "$VERSION" "PyPI"
+    else
+        uv run maturin publish
+    fi
 fi
 ```
 
@@ -745,12 +912,27 @@ fi
 ```bash
 #!/usr/bin/env bash
 # Build and publish TypeScript package
-# Usage: ./scripts/release/publish-typescript.sh VERSION [--dry-run]
+# Usage: ./scripts/release/publish-typescript.sh VERSION [--dry-run] [--on-duplicate=skip|warn|fail]
 
 set -euo pipefail
-VERSION="$1"
+source "$(dirname "$0")/lib/common.sh"
+
+VERSION="$1"; shift
 DRY_RUN=false
-[[ "${2:-}" == "--dry-run" ]] && DRY_RUN=true
+ON_DUPLICATE="warn"
+
+NPM_PACKAGE="@tasker-systems/worker"
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=true ;;
+        --on-duplicate=*) ON_DUPLICATE="${arg#*=}" ;;
+    esac
+done
+
+if [[ "$DRY_RUN" != "true" ]]; then
+    require_env "NPM_TOKEN" "npm publishing"
+fi
 
 cd workers/typescript
 
@@ -761,10 +943,14 @@ cargo build -p tasker-worker-ts --release
 bun run build
 
 if [[ "$DRY_RUN" == "true" ]]; then
-    echo "  [dry-run] Would publish @tasker-systems/worker@${VERSION}"
+    echo "  [dry-run] Would publish ${NPM_PACKAGE}@${VERSION}"
     npm pack --dry-run
 else
-    npm publish --access public
+    if npm_exists_on_registry "$NPM_PACKAGE" "$VERSION"; then
+        handle_duplicate "$ON_DUPLICATE" "$NPM_PACKAGE" "$VERSION" "npm"
+    else
+        npm publish --access public
+    fi
 fi
 ```
 
@@ -774,6 +960,9 @@ fi
 - [ ] Python wheel builds via maturin and `--dry-run` reports correctly
 - [ ] TypeScript package builds (Rust cdylib + tsup) and `--dry-run` reports correctly
 - [ ] Version calculation handles core-triggered resets vs binding-only patches
+- [ ] Each publish script validates its required credential before building
+- [ ] Already-published versions detected for each registry (RubyGems, PyPI, npm)
+- [ ] Re-running after partial failure skips already-published packages and continues
 
 ---
 
