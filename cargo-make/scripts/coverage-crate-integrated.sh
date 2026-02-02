@@ -46,12 +46,21 @@ echo "  Step 1/3: Running ${CRATE_NAME} crate tests..."
 cargo nextest run --package "${CRATE_NAME}" --all-features
 
 # Step 2: Run root integration tests (profraw accumulates in same directory)
-echo "  Step 2/3: Running root integration tests..."
+echo "  Step 2: Running root integration tests..."
 cargo nextest run --all-features --test integration_tests || \
     echo "  Note: Some integration tests failed; collecting coverage from what ran."
 
+# Step 2b: Run additional test targets if specified (e.g., e2e_tests)
+if [ -n "${EXTRA_TEST_TARGETS:-}" ]; then
+    for target in ${EXTRA_TEST_TARGETS}; do
+        echo "  Running extra test target: ${target}..."
+        cargo nextest run --all-features --test "${target}" || \
+            echo "  Note: Some ${target} tests failed; collecting coverage from what ran."
+    done
+fi
+
 # Step 3: Generate combined report + normalize
-echo "  Step 3/3: Generating report..."
+echo "  Step 3: Generating report..."
 cargo llvm-cov report --json --output-path "coverage-reports/rust/${CRATE_NAME}-raw.json"
 
 uv run --project cargo-make/scripts/coverage python3 cargo-make/scripts/coverage/normalize-rust.py \

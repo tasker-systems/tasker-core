@@ -259,6 +259,8 @@ impl From<Status> for ClientError {
 mod tests {
     use super::*;
 
+    // ---- GrpcAuthConfig tests ----
+
     #[test]
     fn test_grpc_auth_config_bearer_token() {
         let auth = GrpcAuthConfig::with_bearer_token("test-token");
@@ -284,11 +286,26 @@ mod tests {
     }
 
     #[test]
+    fn test_grpc_auth_config_default_not_configured() {
+        let auth = GrpcAuthConfig::default();
+        assert!(!auth.is_configured());
+        assert!(auth.bearer_token.is_none());
+        assert!(auth.api_key.is_none());
+        assert!(auth.api_key_header.is_none());
+    }
+
+    // ---- GrpcClientConfig tests ----
+
+    #[test]
     fn test_grpc_client_config_default() {
         let config = GrpcClientConfig::default();
         assert_eq!(config.endpoint, "http://localhost:9090");
         assert_eq!(config.timeout, Duration::from_secs(30));
+        assert_eq!(config.connect_timeout, Duration::from_secs(10));
         assert!(config.auth.is_none());
+        assert!(config.tcp_keepalive.is_some());
+        assert!(config.http2_keepalive_interval.is_some());
+        assert!(config.http2_keepalive_timeout.is_some());
     }
 
     #[test]
@@ -301,6 +318,110 @@ mod tests {
         assert_eq!(config.timeout, Duration::from_secs(60));
         assert!(config.auth.is_some());
     }
+
+    #[test]
+    fn test_grpc_client_config_with_connect_timeout() {
+        let config = GrpcClientConfig::new("http://localhost:9090")
+            .with_connect_timeout(Duration::from_secs(5));
+        assert_eq!(config.connect_timeout, Duration::from_secs(5));
+    }
+
+    #[test]
+    fn test_grpc_client_config_debug() {
+        let config = GrpcClientConfig::default();
+        let debug_str = format!("{config:?}");
+        assert!(debug_str.contains("GrpcClientConfig"));
+        assert!(debug_str.contains("localhost:9090"));
+    }
+
+    // ---- AuthInterceptor tests ----
+
+    #[test]
+    fn test_auth_interceptor_none() {
+        let interceptor = AuthInterceptor::none();
+        let debug_str = format!("{interceptor:?}");
+        assert!(debug_str.contains("AuthInterceptor"));
+    }
+
+    #[test]
+    fn test_auth_interceptor_no_auth_passes_through() {
+        let mut interceptor = AuthInterceptor::new(None);
+        let request = Request::new(());
+        let result = interceptor.call(request);
+        assert!(result.is_ok());
+        let req = result.unwrap();
+        assert!(req.metadata().get("authorization").is_none());
+    }
+
+    #[test]
+    fn test_auth_interceptor_bearer_token() {
+        let auth = GrpcAuthConfig::with_bearer_token("my-jwt-token");
+        let mut interceptor = AuthInterceptor::new(Some(auth));
+        let request = Request::new(());
+        let result = interceptor.call(request);
+        assert!(result.is_ok());
+        let req = result.unwrap();
+        let auth_header = req.metadata().get("authorization").unwrap();
+        assert_eq!(auth_header.to_str().unwrap(), "Bearer my-jwt-token");
+    }
+
+    #[test]
+    fn test_auth_interceptor_api_key_default_header() {
+        let auth = GrpcAuthConfig::with_api_key("secret-123");
+        let mut interceptor = AuthInterceptor::new(Some(auth));
+        let request = Request::new(());
+        let result = interceptor.call(request);
+        assert!(result.is_ok());
+        let req = result.unwrap();
+        let api_key = req.metadata().get("x-api-key").unwrap();
+        assert_eq!(api_key.to_str().unwrap(), "secret-123");
+    }
+
+    #[test]
+    fn test_auth_interceptor_api_key_custom_header() {
+        let auth = GrpcAuthConfig::with_api_key_header("secret-123", "x-custom-key");
+        let mut interceptor = AuthInterceptor::new(Some(auth));
+        let request = Request::new(());
+        let result = interceptor.call(request);
+        assert!(result.is_ok());
+        let req = result.unwrap();
+        let api_key = req.metadata().get("x-custom-key").unwrap();
+        assert_eq!(api_key.to_str().unwrap(), "secret-123");
+    }
+
+    #[test]
+    fn test_auth_interceptor_bearer_takes_precedence_over_api_key() {
+        let auth = GrpcAuthConfig {
+            bearer_token: Some("jwt-token".to_string()),
+            api_key: Some("api-key-value".to_string()),
+            api_key_header: None,
+        };
+        let mut interceptor = AuthInterceptor::new(Some(auth));
+        let request = Request::new(());
+        let result = interceptor.call(request).unwrap();
+        // Bearer should be set
+        assert!(result.metadata().get("authorization").is_some());
+        // API key should NOT be set (bearer takes precedence)
+        assert!(result.metadata().get("x-api-key").is_none());
+    }
+
+    #[test]
+    fn test_auth_interceptor_unconfigured_auth() {
+        let auth = GrpcAuthConfig {
+            bearer_token: None,
+            api_key: None,
+            api_key_header: None,
+        };
+        let mut interceptor = AuthInterceptor::new(Some(auth));
+        let request = Request::new(());
+        let result = interceptor.call(request);
+        assert!(result.is_ok());
+        let req = result.unwrap();
+        assert!(req.metadata().get("authorization").is_none());
+        assert!(req.metadata().get("x-api-key").is_none());
+    }
+
+    // ---- Status to ClientError conversion tests ----
 
     #[test]
     fn test_status_to_client_error_not_found() {
@@ -317,6 +438,23 @@ mod tests {
     }
 
     #[test]
+    fn test_status_to_client_error_permission_denied() {
+        let status = Status::permission_denied("No access");
+        let error: ClientError = status.into();
+        match error {
+            ClientError::AuthError(msg) => assert!(msg.contains("Permission denied")),
+            _ => panic!("Expected AuthError"),
+        }
+    }
+
+    #[test]
+    fn test_status_to_client_error_invalid_argument() {
+        let status = Status::invalid_argument("Bad field");
+        let error: ClientError = status.into();
+        assert!(matches!(error, ClientError::InvalidInput(_)));
+    }
+
+    #[test]
     fn test_status_to_client_error_unavailable() {
         let status = Status::unavailable("Service down");
         let error: ClientError = status.into();
@@ -328,5 +466,34 @@ mod tests {
         let status = Status::deadline_exceeded("Request timed out");
         let error: ClientError = status.into();
         assert!(matches!(error, ClientError::Timeout { .. }));
+    }
+
+    #[test]
+    fn test_status_to_client_error_cancelled() {
+        let status = Status::cancelled("User cancelled");
+        let error: ClientError = status.into();
+        match error {
+            ClientError::Internal(msg) => assert!(msg.contains("cancelled")),
+            _ => panic!("Expected Internal error for cancelled"),
+        }
+    }
+
+    #[test]
+    fn test_status_to_client_error_resource_exhausted() {
+        let status = Status::resource_exhausted("Rate limited");
+        let error: ClientError = status.into();
+        match error {
+            ClientError::ServiceUnavailable { reason, .. } => {
+                assert!(reason.contains("Resource exhausted"));
+            }
+            _ => panic!("Expected ServiceUnavailable for resource exhausted"),
+        }
+    }
+
+    #[test]
+    fn test_status_to_client_error_unknown_code() {
+        let status = Status::aborted("Unexpected");
+        let error: ClientError = status.into();
+        assert!(matches!(error, ClientError::ApiError { .. }));
     }
 }

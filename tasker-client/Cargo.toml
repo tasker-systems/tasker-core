@@ -63,6 +63,7 @@ tokio-test = { workspace = true }
 [features]
 default = ["grpc"]
 grpc = ["tonic", "prost-types", "tasker-shared/grpc-api"]
+test-services = []  # Integration tests requiring running services
 
 [lints]
 workspace = true

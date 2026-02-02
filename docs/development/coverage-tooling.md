@@ -36,7 +36,7 @@ cargo make coverage-check
 | `coverage-e2e-pgmq` | - | E2E coverage with PGMQ backend only |
 | `coverage-e2e-rabbitmq` | - | E2E coverage with RabbitMQ backend only |
 | `coverage-foundational` | - | `tasker-shared` + `tasker-pgmq` |
-| `coverage-core` | - | `tasker-orchestration` + `tasker-worker` + `tasker-client` |
+| `coverage-core` | - | `tasker-orchestration` + `tasker-worker` + `tasker-client` + `tasker-cli` |
 | `coverage-rust-worker` | `covr` | Rust worker crate |
 
 ### Language Worker Coverage
@@ -311,7 +311,8 @@ Thresholds are defined in `coverage-thresholds.json` at the project root:
     "tasker-pgmq": 65,
     "tasker-orchestration": 55,
     "tasker-worker": 55,
-    "tasker-client": 60
+    "tasker-client": 60,
+    "tasker-cli": 30
   },
   "python": { "tasker-core-py": 80 },
   "ruby": { "tasker-worker-rb": 70 },

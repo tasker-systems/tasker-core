@@ -15,6 +15,8 @@ JSON output, threshold enforcement, and actionable file-level detail.
 **Related ticket documents:**
 - `ticket.md` - Coverage gap analysis and prioritized closure plan
 - `coverage-tooling.md` - Architecture deep-dive and design decisions
+- `analysis-tasker-client.md` - tasker-client coverage analysis and test plan
+- `analysis-tasker-cli.md` - tasker-cli coverage analysis and test plan
 
 ---
 
@@ -54,7 +56,7 @@ cargo make coverage-check
 | `coverage` | `cov` | Workspace-wide Rust coverage (JSON + HTML) |
 | `coverage-crate` | - | Single crate (`CRATE_NAME` env var) |
 | `coverage-foundational` | - | `tasker-shared` + `tasker-pgmq` |
-| `coverage-core` | - | `tasker-orchestration` + `tasker-worker` + `tasker-client` |
+| `coverage-core` | - | `tasker-orchestration` + `tasker-worker` + `tasker-client` + `tasker-cli` |
 | `coverage-rust-worker` | `covr` | Rust worker crate |
 
 ### Language Worker Coverage
@@ -147,7 +149,8 @@ Thresholds are defined in `coverage-thresholds.json` at the project root:
     "tasker-pgmq": 65,
     "tasker-orchestration": 55,
     "tasker-worker": 55,
-    "tasker-client": 60
+    "tasker-client": 60,
+    "tasker-cli": 30
   },
   "python": { "tasker-core-py": 80 },
   "ruby": { "tasker-worker-rb": 70 },

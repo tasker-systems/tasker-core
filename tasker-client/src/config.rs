@@ -851,9 +851,17 @@ mod tests {
 
     #[test]
     fn test_config_with_transport_serialization() {
-        let mut config = ClientConfig::default();
-        config.transport = Transport::Grpc;
-        config.orchestration.base_url = "http://localhost:9090".to_string();
+        let config = ClientConfig {
+            transport: Transport::Grpc,
+            orchestration: ApiEndpointConfig {
+                base_url: "http://localhost:9090".to_string(),
+                timeout_ms: 5000,
+                max_retries: 3,
+                auth_token: None,
+                auth: None,
+            },
+            ..Default::default()
+        };
 
         let toml_str = toml::to_string(&config).unwrap();
         assert!(toml_str.contains("transport = \"grpc\""));

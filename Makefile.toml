@@ -2065,6 +2065,17 @@ script = ["${SCRIPTS_DIR}/coverage-crate-integrated.sh"]
 alias = "coverage-crate-integrated"
 description = "Shortcut for coverage-crate-integrated"
 
+[tasks.coverage-client-full]
+description = "Run tasker-client coverage including E2E test attribution"
+dependencies = ["coverage-tools-setup"]
+env = { "CRATE_NAME" = "tasker-client", "EXTRA_TEST_TARGETS" = "e2e_tests" }
+script_runner = "@shell"
+script = ["${SCRIPTS_DIR}/coverage-crate-integrated.sh"]
+
+[tasks.covcf]
+alias = "coverage-client-full"
+description = "Shortcut for coverage-client-full"
+
 [tasks.coverage-e2e]
 description = "Run E2E test coverage with instrumented service binaries (dual-backend: PGMQ + RabbitMQ)"
 dependencies = ["coverage-tools-setup"]
@@ -2123,7 +2134,7 @@ echo "Foundational crate coverage complete"
 '''
 
 [tasks.coverage-core]
-description = "Run coverage for core crates (orchestration, worker, client)"
+description = "Run coverage for core crates (orchestration, worker, client, cli)"
 dependencies = ["coverage-tools-setup"]
 script = '''
 #!/bin/bash
@@ -2138,7 +2149,7 @@ echo "Running coverage for core crates..."
 
 mkdir -p coverage-reports/rust
 
-for crate in tasker-orchestration tasker-worker tasker-client; do
+for crate in tasker-orchestration tasker-worker tasker-client tasker-cli; do
     echo ""
     echo "=== ${crate} ==="
     # Use nextest for test isolation (auth tests set env vars that leak in cargo test)
