@@ -64,10 +64,6 @@ pub mod health;
 pub mod web;
 pub mod worker;
 
-// Testing infrastructure (only available in test builds or with test feature)
-#[cfg(any(test, feature = "test-utils"))]
-pub mod testing;
-
 pub use batch_processing::BatchAggregationScenario;
 pub use bootstrap::{
     WorkerBootstrap, WorkerBootstrapConfig, WorkerSystemHandle, WorkerSystemStatus,

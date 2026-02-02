@@ -4,10 +4,12 @@
 //! These tests demonstrate the worker testing patterns and verify that workers
 //! can process workflow steps correctly.
 
+mod testing;
+
 use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;
-use tasker_worker::testing::{WorkerTestData, WorkerTestFactory};
+use testing::{WorkerTestData, WorkerTestFactory};
 
 /// Test worker workflow processing using the worker testing infrastructure
 #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
@@ -81,7 +83,7 @@ async fn test_worker_multiple_steps_creation(
     let task = tasker_shared::models::Task::create_with_defaults(&pool, task_request).await?;
 
     // Create multiple test workflow steps
-    use tasker_worker::testing::factory::TestStepConfig;
+    use testing::factory::TestStepConfig;
 
     let step_configs = vec![
         TestStepConfig {
