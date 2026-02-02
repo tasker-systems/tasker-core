@@ -54,13 +54,13 @@
 //! ```
 
 pub mod batch_processing;
-pub mod bootstrap;
-pub mod config;
-pub mod error;
+pub(crate) mod bootstrap;
+pub(crate) mod config;
+pub(crate) mod error;
 #[cfg(feature = "grpc-api")]
 pub mod grpc;
 pub mod handler_capabilities;
-pub mod health;
+pub(crate) mod health;
 pub mod web;
 pub mod worker;
 

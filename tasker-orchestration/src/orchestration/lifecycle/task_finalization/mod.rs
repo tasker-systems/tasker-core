@@ -24,11 +24,7 @@ mod execution_context_provider;
 mod service;
 mod state_handlers;
 
-pub use completion_handler::CompletionHandler;
-pub use event_publisher::EventPublisher;
-pub use execution_context_provider::ExecutionContextProvider;
 pub use service::TaskFinalizer;
-pub use state_handlers::StateHandlers;
 
 /// Result of task finalization operation
 #[derive(Debug, Clone, Serialize, Deserialize)]

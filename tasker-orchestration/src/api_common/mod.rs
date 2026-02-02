@@ -6,8 +6,8 @@
 //! - gRPC-only deployments without requiring web-api feature
 //! - Shared types without circular dependencies between transports
 
-pub mod circuit_breaker;
-pub mod operational_status;
+pub(crate) mod circuit_breaker;
+pub(crate) mod operational_status;
 
 // Re-export commonly used types
 pub use circuit_breaker::{CircuitState, WebDatabaseCircuitBreaker};

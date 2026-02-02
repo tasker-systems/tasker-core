@@ -63,13 +63,13 @@
 //! let metrics = checker.get_backpressure_metrics().await;
 //! ```
 
-pub mod backpressure;
-pub mod caches;
-pub mod channel_status;
-pub mod db_status;
-pub mod queue_status;
-pub mod status_evaluator;
-pub mod types;
+pub(crate) mod backpressure;
+pub(crate) mod caches;
+pub(crate) mod channel_status;
+pub(crate) mod db_status;
+pub(crate) mod queue_status;
+pub(crate) mod status_evaluator;
+pub(crate) mod types;
 
 // Re-export primary types for convenience
 pub use backpressure::BackpressureChecker;

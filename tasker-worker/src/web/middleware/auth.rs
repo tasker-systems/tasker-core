@@ -18,9 +18,6 @@ use tracing::{debug, warn};
 
 use crate::web::state::WorkerWebState;
 
-// TAS-76: Re-export the shared permission service for handler use
-pub use tasker_shared::services::require_permission;
-
 /// Authentication middleware for the worker web API.
 ///
 /// If SecurityService is absent or disabled, injects a disabled context.

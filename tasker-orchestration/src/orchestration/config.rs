@@ -2,28 +2,14 @@
 //!
 //! The Configuration Manager is responsible for loading and managing the configuration settings for the Tasker orchestration system.
 //! It provides a unified interface for accessing configuration values across different components of the system.
-//!
-//! Re-export shared types instead of redefining them
-pub use tasker_shared::config::orchestration::{
-    OrchestrationSystemConfig, StepEnqueuerConfig, StepResultProcessorConfig,
-    TaskClaimStepEnqueuerConfig,
-};
 
-// TAS-61 Phase 6C/6D: Re-export V2 config types
-pub use tasker_shared::config::orchestration::OrchestrationConfig;
+// TAS-61 Phase 6C/6D: Re-export V2 config types used by orchestration/mod.rs
 pub use tasker_shared::config::tasker::{BackoffConfig, DatabaseConfig, ReenqueueDelaysConfig};
-pub use tasker_shared::config::tasker::{
-    ExecutionConfig, SystemConfig, TaskTemplatesConfig, TaskerConfig, TelemetryConfig,
-};
-pub use tasker_shared::config::ConfigManager;
-
-// Use canonical TaskTemplate from models instead of legacy config types
-pub use tasker_shared::errors::{OrchestrationError, OrchestrationResult};
-pub use tasker_shared::models::core::task_template::{StepDefinition, TaskTemplate};
+pub use tasker_shared::config::tasker::{ExecutionConfig, TaskerConfig, TelemetryConfig};
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use tasker_shared::config::ConfigManager;
 
     #[test]
     fn test_configuration_loading() {

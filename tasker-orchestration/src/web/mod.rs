@@ -21,11 +21,11 @@
 //! - [`circuit_breaker`] - Database circuit breaker implementation
 
 pub mod circuit_breaker;
-pub mod extractors;
-pub mod handlers;
-pub mod middleware;
+pub(crate) mod extractors;
+pub(crate) mod handlers;
+pub(crate) mod middleware;
 pub mod openapi;
-pub mod routes;
+pub(crate) mod routes;
 pub mod state;
 
 use axum::Router;

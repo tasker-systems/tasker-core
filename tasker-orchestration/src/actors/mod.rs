@@ -70,15 +70,15 @@
 //! }
 //! ```
 
-pub mod batch_processing_actor;
-pub mod command_processor_actor;
-pub mod decision_point_actor;
-pub mod registry;
-pub mod result_processor_actor;
-pub mod step_enqueuer_actor;
-pub mod task_finalizer_actor;
-pub mod task_request_actor;
-pub mod traits;
+pub(crate) mod batch_processing_actor;
+pub(crate) mod command_processor_actor;
+pub(crate) mod decision_point_actor;
+pub(crate) mod registry;
+pub(crate) mod result_processor_actor;
+pub(crate) mod step_enqueuer_actor;
+pub(crate) mod task_finalizer_actor;
+pub(crate) mod task_request_actor;
+pub(crate) mod traits;
 
 // Re-export message types and traits publicly
 pub use batch_processing_actor::ProcessBatchableStepMessage;
