@@ -632,7 +632,7 @@ worker_type = "general"
     fn test_toml_type_names() {
         assert_eq!(toml_type_name(&toml::Value::String("x".into())), "String");
         assert_eq!(toml_type_name(&toml::Value::Integer(42)), "integer");
-        assert_eq!(toml_type_name(&toml::Value::Float(3.14)), "float");
+        assert_eq!(toml_type_name(&toml::Value::Float(2.72)), "float");
         assert_eq!(toml_type_name(&toml::Value::Boolean(true)), "bool");
         assert_eq!(toml_type_name(&toml::Value::Array(vec![])), "array");
     }

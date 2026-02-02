@@ -630,7 +630,7 @@ mod tests {
         assert!(result.is_some());
         let seconds = result.unwrap();
         assert!(
-            seconds >= 118 && seconds <= 122,
+            (118..=122).contains(&seconds),
             "Expected ~120, got {seconds}"
         );
     }

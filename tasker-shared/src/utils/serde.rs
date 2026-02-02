@@ -43,6 +43,8 @@ use serde::{Deserialize, Deserializer};
 ///     timeout_seconds: Option<i32>,
 /// }
 /// ```
+// Note: Using #[allow] instead of #[expect] - used by test targets
+#[allow(dead_code, reason = "serde utility - module restricted per TAS-187")]
 pub fn deserialize_optional_numeric<'de, D>(
     deserializer: D,
 ) -> std::result::Result<Option<i32>, D::Error>

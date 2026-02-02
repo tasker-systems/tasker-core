@@ -5,6 +5,7 @@
 //!
 //! These examples mirror the patterns from Ruby, Python, and TypeScript workers
 //! to ensure cross-language consistency.
+#![expect(dead_code, reason = "TAS-112 example handlers demonstrating capability traits")]
 
 use anyhow::Result;
 use async_trait::async_trait;

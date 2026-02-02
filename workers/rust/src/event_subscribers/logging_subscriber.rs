@@ -56,6 +56,8 @@ use tracing::info;
 /// let handler = create_logging_subscriber("[METRICS]");
 /// bus.subscribe("*", handler).unwrap();
 /// ```
+// Note: Using #[allow] instead of #[expect] - used by test targets
+#[allow(dead_code, reason = "TAS-65 example event subscribers for domain event logging")]
 pub(crate) fn create_logging_subscriber(prefix: &str) -> EventHandler {
     let prefix = prefix.to_string();
 
@@ -89,6 +91,8 @@ pub(crate) fn create_logging_subscriber(prefix: &str) -> EventHandler {
 ///
 /// Same as `create_logging_subscriber` but logs at DEBUG level.
 /// Useful for verbose environments where INFO is too noisy.
+// Note: Using #[allow] instead of #[expect] - used by test targets
+#[allow(dead_code, reason = "TAS-65 example event subscribers for domain event logging")]
 pub(crate) fn create_debug_logging_subscriber(prefix: &str) -> EventHandler {
     let prefix = prefix.to_string();
 
@@ -118,6 +122,8 @@ pub(crate) fn create_debug_logging_subscriber(prefix: &str) -> EventHandler {
 ///
 /// More verbose logging that includes additional event metadata fields.
 /// Note: Payload data is intentionally excluded to prevent logging sensitive business data.
+// Note: Using #[allow] instead of #[expect] - used by test targets
+#[allow(dead_code, reason = "TAS-65 example event subscribers for domain event logging")]
 pub(crate) fn create_verbose_logging_subscriber(prefix: &str) -> EventHandler {
     let prefix = prefix.to_string();
 

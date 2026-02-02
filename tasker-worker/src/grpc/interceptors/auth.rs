@@ -23,6 +23,7 @@ use tonic::{Request, Status};
 ///
 /// After authentication, the SecurityContext is inserted into request extensions
 /// and can be retrieved by service handlers.
+#[expect(dead_code, reason = "pub(crate) gRPC infrastructure used by tonic server")]
 pub const SECURITY_CONTEXT_KEY: &str = "security-context";
 
 /// Authentication interceptor for gRPC services.
@@ -42,6 +43,7 @@ impl AuthInterceptor {
     }
 
     /// Check if authentication is enabled.
+    #[expect(dead_code, reason = "pub(crate) gRPC infrastructure used by tonic server")]
     pub fn is_enabled(&self) -> bool {
         self.security_service
             .as_ref()
@@ -104,6 +106,7 @@ impl AuthInterceptor {
 }
 
 /// Helper trait for extracting SecurityContext from gRPC request extensions.
+#[expect(dead_code, reason = "pub(crate) gRPC infrastructure used by tonic server")]
 pub trait SecurityContextExt {
     /// Get the SecurityContext from request extensions.
     fn security_context(&self) -> Option<&SecurityContext>;

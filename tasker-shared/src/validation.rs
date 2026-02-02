@@ -211,6 +211,7 @@ pub fn validate_task_tags(tags: &Value) -> TaskerResult<()> {
 }
 
 /// Validates workflow step inputs JSON
+#[expect(dead_code, reason = "validation utilities - module restricted per TAS-187")]
 pub fn validate_step_inputs(inputs: &Value) -> TaskerResult<()> {
     validate_jsonb_input(inputs)?;
 
@@ -225,6 +226,7 @@ pub fn validate_step_inputs(inputs: &Value) -> TaskerResult<()> {
 }
 
 /// Validates workflow step results JSON
+#[expect(dead_code, reason = "validation utilities - module restricted per TAS-187")]
 pub fn validate_step_results(results: &Value) -> TaskerResult<()> {
     validate_jsonb_input(results)?;
 
@@ -239,6 +241,7 @@ pub fn validate_step_results(results: &Value) -> TaskerResult<()> {
 }
 
 /// Validates transition metadata JSON
+#[expect(dead_code, reason = "validation utilities - module restricted per TAS-187")]
 pub fn validate_transition_metadata(metadata: &Value) -> TaskerResult<()> {
     validate_jsonb_input(metadata)?;
 
@@ -253,6 +256,7 @@ pub fn validate_transition_metadata(metadata: &Value) -> TaskerResult<()> {
 }
 
 /// Validates configuration JSON (for NamedTask)
+#[expect(dead_code, reason = "validation utilities - module restricted per TAS-187")]
 pub fn validate_configuration(config: &Value) -> TaskerResult<()> {
     validate_jsonb_input(config)?;
 

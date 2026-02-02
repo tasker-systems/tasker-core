@@ -30,6 +30,7 @@
 //! - **Efficient indexing** leveraging existing table indexes
 //! - **Minimal memory usage** with streaming results
 //! - **Concurrent execution** with proper locking strategies
+#![expect(dead_code, reason = "SQL function documentation and wrappers - module restricted per TAS-187")]
 
 /// Task execution context and status computation.
 ///

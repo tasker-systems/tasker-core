@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_default_impl() {
-        let hydrator = FinalizationHydrator::default();
+        let hydrator = FinalizationHydrator;
         // Verify Debug impl produces expected output
         let debug_str = format!("{:?}", hydrator);
         assert_eq!(debug_str, "FinalizationHydrator");
