@@ -1,0 +1,139 @@
+# Skill: Versioning and Releases
+
+## When to Use
+
+Use this skill when working with version management, release tooling, understanding publish order for crates and FFI bindings, or running the dry-run release process.
+
+## Current State
+
+- All Rust crates at **v0.1.0** (pre-alpha)
+- `VERSION` file at repo root is the source of truth for core version
+- Weekly release cadence during alpha
+
+## Versioning Strategy
+
+### Core Rust Crates (0.1.N)
+
+All six publishable Rust crates version together during alpha:
+
+| Phase | Crates | Reason |
+|-------|--------|--------|
+| 1 | `tasker-pgmq` | No internal deps |
+| 2 | `tasker-shared` | Depends on pgmq |
+| 3 | `tasker-client`, `tasker-orchestration` | Depend on shared (can publish in parallel) |
+| 4 | `tasker-worker`, `tasker-cli` | Depend on client/shared (can publish in parallel) |
+
+### FFI Language Bindings (0.1.N.P)
+
+Two-tier version format:
+- `N` = tracks core Rust version
+- `P` = language-specific patch level
+
+Examples:
+- Core at 0.1.8, Ruby with 2 patches: `0.1.8.2`
+- Core bumps to 0.1.9, Ruby resets: `0.1.9.0`
+- Python-only fix: `0.1.8.0` -> `0.1.8.1`
+
+### Version Files Updated During Release
+
+| File | Field |
+|------|-------|
+| `VERSION` (root) | Central source of truth |
+| `Cargo.toml` (root + all 6 crates) | `version` field |
+| `workers/ruby/lib/tasker_core/version.rb` | `VERSION`, `RUST_CORE_VERSION` |
+| `workers/ruby/ext/tasker_core/Cargo.toml` | `version` |
+| `workers/python/pyproject.toml` | `version` |
+| `workers/python/Cargo.toml` | `version` |
+| `workers/typescript/package.json` | `version` |
+| `workers/typescript/Cargo.toml` | `version` |
+
+## Release Tooling
+
+### Scripts Location
+
+```
+scripts/release/
+├── release.sh              # Single-command orchestrator
+├── detect-changes.sh       # Identifies what changed since last release
+├── calculate-versions.sh   # Determines next version numbers
+├── update-versions.sh      # Updates all version files
+└── lib/
+    └── common.sh           # Shared functions (logging, version arithmetic, registry checks)
+```
+
+### Running a Dry Run
+
+```bash
+# Show what would happen without modifying files
+./scripts/release/release.sh --dry-run
+
+# Override base reference
+./scripts/release/release.sh --dry-run --from v0.1.0
+```
+
+### Running a Release
+
+```bash
+# Apply version changes and create tag
+./scripts/release/release.sh
+
+# Push tag to trigger CI
+git push origin <tag>
+```
+
+### Change Detection Logic
+
+```
+FFI-facing core changed (tasker-pgmq, tasker-shared, tasker-worker):
+  -> Publish ALL core crates + ALL FFI bindings (reset patch to .0)
+
+Server/client core changed (tasker-orchestration, tasker-client, tasker-cli):
+  -> Publish core crates only (no FFI rebuild needed)
+
+Individual binding changed (workers/ruby, workers/python, workers/typescript):
+  -> Publish that binding only (increment .P)
+```
+
+### Git Tagging Convention
+
+| Tag Format | Trigger |
+|-----------|---------|
+| `release-YYYYMMDD-HHMM` | Human-initiated release |
+| `core-vX.Y.Z` | Created by CI after successful crates.io publish |
+| `ruby-vX.Y.Z.P` | Created by CI after successful gem publish |
+| `python-vX.Y.Z.P` | Created by CI after successful PyPI publish |
+| `typescript-vX.Y.Z.P` | Created by CI after successful npm publish |
+
+## Publishing
+
+### Package Registries
+
+| Package | Registry | Build Tool |
+|---------|----------|------------|
+| Rust crates (6) | crates.io | `cargo publish` |
+| `tasker-worker-rb` | RubyGems | `rake compile` + `gem push` |
+| `tasker-worker-py` | PyPI | `maturin build` + `maturin publish` |
+| `@tasker-systems/worker` | npm | `cargo build` + `bun run build` + `npm publish` |
+
+### Not Published
+
+- `tasker-worker-rust` (workers/rust) -- example crate
+- Root `tasker-core` crate -- workspace root
+
+### Idempotent Publishing
+
+Each publish script checks if the version already exists on the registry before publishing. Re-running after a partial failure skips successful packages and continues. Controlled by `--on-duplicate` flag: `skip`, `warn` (default), `fail`.
+
+### Required Credentials (CI only)
+
+| Registry | Secret |
+|----------|--------|
+| crates.io | `CARGO_REGISTRY_TOKEN` |
+| RubyGems | `GEM_HOST_API_KEY` |
+| PyPI | `MATURIN_PYPI_TOKEN` |
+| npm | `NPM_TOKEN` |
+
+## References
+
+- Release plan: `docs/ticket-specs/TAS-170/plan.md`
+- Release scripts: `scripts/release/`
