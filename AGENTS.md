@@ -237,7 +237,26 @@ Dual-channel system: dispatch channel + completion channel
 
 ## Documentation Index
 
-**Navigation Guide**: For efficient documentation navigation, see `docs/CLAUDE-GUIDE.md` - trigger patterns, document mapping, and investigation patterns.
+**Skills**: Claude Code sessions automatically load `.claude/skills/` for structured project knowledge. Available skills:
+
+| Skill | Scope |
+|-------|-------|
+| `cargo-make-tooling` | Build tasks, shortcuts, hierarchy, troubleshooting |
+| `testing-infrastructure` | Feature flags, test levels, cluster/gRPC testing |
+| `coverage-tooling` | Cross-language coverage pipeline and thresholds |
+| `configuration-management` | TOML structure, environments, CLI tools |
+| `deployment-and-infrastructure` | Docker/Podman, CI, deployment modes |
+| `architecture-fundamentals` | Actors, state machines, event systems |
+| `workflow-concepts` | Tasks, steps, handler patterns, composition |
+| `project-principles` | 11 tenets, design philosophy, code review |
+| `database-and-sqlx` | SQLx cache, migrations, PGMQ, SQL functions |
+| `cross-language-development` | FFI workers, polyglot API consistency |
+| `versioning-and-releases` | Release tooling, version strategy, publishing |
+| `rust-development` | Rust standards, Microsoft guidelines, lint compliance |
+| `ruby-development` | Ruby handler patterns, RSpec, Magnus FFI |
+| `python-development` | Python handler patterns, pytest, PyO3/maturin |
+| `typescript-development` | TypeScript handler patterns, vitest, Biome |
+| `project-navigation` | Terminology, investigation patterns, doc routing |
 
 ### Core Architecture
 | Topic | Document |

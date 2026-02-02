@@ -19,7 +19,7 @@ Welcome to the Tasker Core documentation hub. This page provides organized acces
 
 **Looking for something specific?** Jump to a section below or use the search (Cmd/Ctrl+F).
 
-**Using AI assistance?** See **[CLAUDE-GUIDE.md](CLAUDE-GUIDE.md)** for efficient navigation patterns, trigger mappings, and investigation strategies designed for Claude sessions.
+**Using AI assistance?** Claude Code sessions automatically load `.claude/skills/` for structured project knowledge covering tooling, testing, configuration, architecture, language standards, and conventions.
 
 ---
 
@@ -115,7 +115,6 @@ The documentation is organized by cognitive function:
 docs/
 ├── README.md                           # You are here (documentation hub)
 ├── why-tasker.md                       # Philosophy, landscape comparison, and honest assessment
-├── CLAUDE-GUIDE.md                     # Navigation guide for Claude sessions
 ├── CHRONOLOGY.md                       # Development timeline and lessons learned
 │
 ├── principles/                         # Core values and design philosophy
