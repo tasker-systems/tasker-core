@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::DlqCommands;
 
-pub async fn handle_dlq_command(cmd: DlqCommands, config: &ClientConfig) -> ClientResult<()> {
+pub(crate) async fn handle_dlq_command(cmd: DlqCommands, config: &ClientConfig) -> ClientResult<()> {
     let orchestration_config = OrchestrationApiConfig {
         base_url: config.orchestration.base_url.clone(),
         timeout_ms: config.orchestration.timeout_ms,

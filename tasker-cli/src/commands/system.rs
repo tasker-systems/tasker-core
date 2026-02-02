@@ -7,7 +7,7 @@ use tasker_client::{
 
 use crate::SystemCommands;
 
-pub async fn handle_system_command(cmd: SystemCommands, config: &ClientConfig) -> ClientResult<()> {
+pub(crate) async fn handle_system_command(cmd: SystemCommands, config: &ClientConfig) -> ClientResult<()> {
     match cmd {
         SystemCommands::Health {
             orchestration,

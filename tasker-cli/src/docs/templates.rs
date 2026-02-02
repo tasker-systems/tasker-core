@@ -12,17 +12,17 @@ use tasker_shared::config::doc_context::{ParameterContext, SectionContext};
 /// a given configuration context, with documentation where available.
 #[derive(Template, Debug)]
 #[template(path = "config-reference.md")]
-pub struct ConfigReferenceTemplate<'a> {
+pub(crate) struct ConfigReferenceTemplate<'a> {
     /// Context name (e.g., "common", "orchestration", "worker")
-    pub context_name: &'a str,
+    pub(crate) context_name: &'a str,
     /// Top-level sections for the context
-    pub sections: &'a [SectionContext],
+    pub(crate) sections: &'a [SectionContext],
     /// Total parameter count across all sections
-    pub total_parameters: usize,
+    pub(crate) total_parameters: usize,
     /// Count of parameters with `_docs` coverage
-    pub documented_parameters: usize,
+    pub(crate) documented_parameters: usize,
     /// ISO 8601 timestamp of generation
-    pub generation_timestamp: &'a str,
+    pub(crate) generation_timestamp: &'a str,
 }
 
 /// Single section deep-dive document.
@@ -31,13 +31,13 @@ pub struct ConfigReferenceTemplate<'a> {
 /// including all parameters with full documentation.
 #[derive(Template, Debug)]
 #[template(path = "section-detail.md")]
-pub struct SectionDetailTemplate<'a> {
+pub(crate) struct SectionDetailTemplate<'a> {
     /// The section to document
-    pub section: &'a SectionContext,
+    pub(crate) section: &'a SectionContext,
     /// Context name (e.g., "common")
-    pub context_name: &'a str,
+    pub(crate) context_name: &'a str,
     /// Target environment for recommendations (optional)
-    pub environment: Option<&'a str>,
+    pub(crate) environment: Option<&'a str>,
 }
 
 /// Annotated TOML configuration file with documentation comments.
@@ -46,13 +46,13 @@ pub struct SectionDetailTemplate<'a> {
 /// documentation comments showing description, type, and range.
 #[derive(Template, Debug)]
 #[template(path = "annotated-config.toml")]
-pub struct AnnotatedConfigTemplate<'a> {
+pub(crate) struct AnnotatedConfigTemplate<'a> {
     /// Context name (e.g., "complete")
-    pub context_name: &'a str,
+    pub(crate) context_name: &'a str,
     /// Target environment
-    pub environment: &'a str,
+    pub(crate) environment: &'a str,
     /// Sections to include
-    pub sections: &'a [SectionContext],
+    pub(crate) sections: &'a [SectionContext],
 }
 
 /// Single parameter explanation for CLI output.
@@ -61,11 +61,12 @@ pub struct AnnotatedConfigTemplate<'a> {
 /// suitable for `tasker-cli config explain` output.
 #[derive(Template, Debug)]
 #[template(path = "parameter-explain.txt")]
-pub struct ParameterExplainTemplate<'a> {
+pub(crate) struct ParameterExplainTemplate<'a> {
     /// The parameter to explain
-    pub parameter: &'a ParameterContext,
+    pub(crate) parameter: &'a ParameterContext,
     /// Target environment for filtering recommendations
-    pub environment: Option<&'a str>,
+    #[expect(dead_code, reason = "accessed by Askama template rendering")]
+    pub(crate) environment: Option<&'a str>,
 }
 
 /// Documentation index page listing all contexts and sections.
@@ -74,19 +75,19 @@ pub struct ParameterExplainTemplate<'a> {
 /// with coverage statistics.
 #[derive(Template, Debug)]
 #[template(path = "doc-index.md")]
-pub struct DocIndexTemplate<'a> {
+pub(crate) struct DocIndexTemplate<'a> {
     /// Common configuration sections
-    pub common_sections: &'a [SectionContext],
+    pub(crate) common_sections: &'a [SectionContext],
     /// Orchestration configuration sections
-    pub orchestration_sections: &'a [SectionContext],
+    pub(crate) orchestration_sections: &'a [SectionContext],
     /// Worker configuration sections
-    pub worker_sections: &'a [SectionContext],
+    pub(crate) worker_sections: &'a [SectionContext],
     /// Total parameter count across all contexts
-    pub total_parameters: usize,
+    pub(crate) total_parameters: usize,
     /// Count of documented parameters
-    pub documented_parameters: usize,
+    pub(crate) documented_parameters: usize,
     /// Coverage percentage (pre-computed)
-    pub coverage_percent: usize,
+    pub(crate) coverage_percent: usize,
 }
 
 #[cfg(test)]

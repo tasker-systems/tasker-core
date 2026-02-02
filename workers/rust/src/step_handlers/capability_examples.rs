@@ -417,7 +417,6 @@ impl ExampleBatchWorker {
 /// any combination of capabilities.
 #[derive(Debug)]
 pub struct CompositeHandler {
-    #[expect(dead_code, reason = "Config available for future handler enhancements")]
     config: StepHandlerConfig,
 }
 

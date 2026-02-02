@@ -19,7 +19,7 @@ fn extract_error_position(error_msg: &str) -> Option<(usize, usize)> {
     Some((line, col))
 }
 
-pub async fn handle_config_command(
+pub(crate) async fn handle_config_command(
     cmd: ConfigCommands,
     _config: &ClientConfig,
 ) -> ClientResult<()> {

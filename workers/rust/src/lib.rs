@@ -51,8 +51,8 @@
 
 pub mod bootstrap;
 pub mod event_handler;
-pub mod event_subscribers;
-pub mod global_event_system;
+pub(crate) mod event_subscribers;
+pub(crate) mod global_event_system;
 pub mod step_handlers;
 
 // Re-export tasker-worker types for easy access
