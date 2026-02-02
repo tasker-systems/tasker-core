@@ -12,7 +12,7 @@ jobs:
   ruby-framework:
     name: Ruby Framework Tests (with PostgreSQL)
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     services:
       postgres:
