@@ -98,19 +98,6 @@ pub enum OrchestrationCommand {
         message_event: MessageEvent,
         resp: CommandResponder<TaskFinalizationResult>,
     },
-    /// Process task readiness event from PostgreSQL LISTEN/NOTIFY
-    /// Delegates to TaskClaimStepEnqueuer for atomic task claiming and step enqueueing
-    ProcessTaskReadiness {
-        task_uuid: Uuid,
-        namespace: String,
-        priority: i32,
-        ready_steps: i32,
-        triggered_by: String, // "step_transition", "task_start", "fallback_polling"
-        step_uuid: Option<Uuid>, // Present for step_transition triggers
-        step_state: Option<String>, // Present for step_transition triggers
-        task_state: Option<String>, // Present for task_start triggers
-        resp: CommandResponder<TaskReadinessResult>,
-    },
     /// Get orchestration processing statistics
     GetProcessingStats {
         resp: CommandResponder<OrchestrationProcessingStats>,
@@ -138,17 +125,6 @@ pub enum StepProcessResult {
     Skipped { reason: String },
 }
 
-/// Result of processing a task readiness event
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskReadinessResult {
-    pub task_uuid: Uuid,
-    pub namespace: String,
-    pub steps_enqueued: u32,
-    pub steps_discovered: u32,
-    pub triggered_by: String,
-    pub processing_time_ms: u64,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskFinalizationResult {
     Success {
@@ -174,7 +150,7 @@ pub struct OrchestrationProcessingStats {
     pub task_requests_processed: u64,
     pub step_results_processed: u64,
     pub tasks_finalized: u64,
-    pub tasks_ready_processed: u64,
+
     pub processing_errors: u64,
 }
 
@@ -189,7 +165,6 @@ pub struct AtomicProcessingStats {
     pub(crate) task_requests_processed: AtomicU64,
     pub(crate) step_results_processed: AtomicU64,
     pub(crate) tasks_finalized: AtomicU64,
-    pub(crate) tasks_ready_processed: AtomicU64,
     pub(crate) processing_errors: AtomicU64,
 }
 
@@ -200,7 +175,6 @@ impl AtomicProcessingStats {
             task_requests_processed: self.task_requests_processed.load(Ordering::Relaxed),
             step_results_processed: self.step_results_processed.load(Ordering::Relaxed),
             tasks_finalized: self.tasks_finalized.load(Ordering::Relaxed),
-            tasks_ready_processed: self.tasks_ready_processed.load(Ordering::Relaxed),
             processing_errors: self.processing_errors.load(Ordering::Relaxed),
         }
     }
@@ -334,43 +308,6 @@ mod tests {
         assert!(matches!(deserialized, StepProcessResult::Success { .. }));
     }
 
-    // --- TaskReadinessResult ---
-
-    #[test]
-    fn test_task_readiness_result_construction() {
-        let uuid = Uuid::now_v7();
-        let result = TaskReadinessResult {
-            task_uuid: uuid,
-            namespace: "fulfillment".to_string(),
-            steps_enqueued: 5,
-            steps_discovered: 8,
-            triggered_by: "step_transition".to_string(),
-            processing_time_ms: 42,
-        };
-
-        assert_eq!(result.task_uuid, uuid);
-        assert_eq!(result.namespace, "fulfillment");
-        assert_eq!(result.steps_enqueued, 5);
-        assert_eq!(result.steps_discovered, 8);
-    }
-
-    #[test]
-    fn test_task_readiness_result_serialization_roundtrip() {
-        let result = TaskReadinessResult {
-            task_uuid: Uuid::now_v7(),
-            namespace: "test".to_string(),
-            steps_enqueued: 3,
-            steps_discovered: 10,
-            triggered_by: "task_start".to_string(),
-            processing_time_ms: 100,
-        };
-
-        let json = serde_json::to_string(&result).unwrap();
-        let deserialized: TaskReadinessResult = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.namespace, "test");
-        assert_eq!(deserialized.steps_enqueued, 3);
-    }
-
     // --- TaskFinalizationResult ---
 
     #[test]
@@ -444,7 +381,6 @@ mod tests {
             task_requests_processed: 1000,
             step_results_processed: 5000,
             tasks_finalized: 800,
-            tasks_ready_processed: 1200,
             processing_errors: 10,
         };
 
@@ -459,7 +395,6 @@ mod tests {
             task_requests_processed: 0,
             step_results_processed: 0,
             tasks_finalized: 0,
-            tasks_ready_processed: 0,
             processing_errors: 0,
         };
 
@@ -477,7 +412,6 @@ mod tests {
         assert_eq!(snapshot.task_requests_processed, 0);
         assert_eq!(snapshot.step_results_processed, 0);
         assert_eq!(snapshot.tasks_finalized, 0);
-        assert_eq!(snapshot.tasks_ready_processed, 0);
         assert_eq!(snapshot.processing_errors, 0);
     }
 

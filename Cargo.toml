@@ -26,6 +26,7 @@ members = [
   ".",  # Current crate temporarily remains during migration
   "tasker-pgmq",
   "tasker-client",
+  "tasker-cli",  # TAS-188: CLI binary (split from tasker-client)
   "tasker-orchestration",
   "tasker-shared",
   "tasker-worker",
@@ -38,6 +39,8 @@ members = [
 
 [workspace.dependencies]
 anyhow = "1.0"
+# Compile-time template engine (TAS-175: config documentation generation)
+askama = "0.15"
 async-trait = "0.1"
 # Web framework and HTTP server (TAS-28)
 axum = "0.8"

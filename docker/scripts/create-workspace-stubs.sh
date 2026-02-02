@@ -27,6 +27,7 @@ declare -A CRATE_PATHS=(
     ["tasker-worker"]="tasker-worker"
     ["tasker-shared"]="tasker-shared"
     ["tasker-client"]="tasker-client"
+    ["tasker-cli"]="tasker-cli"
     ["pgmq-notify"]="pgmq-notify"
     ["workers/rust"]="workers/rust"
     ["workers/ruby"]="workers/ruby/ext/tasker_core"

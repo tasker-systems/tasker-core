@@ -1,7 +1,7 @@
 //! # Client Configuration
 //!
-//! Configuration management for tasker-client library and CLI.
-//! Supports environment variables, config files, profiles, and command-line overrides.
+//! Configuration management for tasker-client API library.
+//! Supports environment variables, config files, profiles, and programmatic overrides.
 //!
 //! ## Profile System (TAS-177)
 //!
@@ -101,9 +101,6 @@ pub struct ProfileConfig {
     /// Worker endpoint configuration
     #[serde(default)]
     pub worker: Option<ProfileEndpointConfig>,
-    /// CLI-specific settings
-    #[serde(default)]
-    pub cli: Option<ProfileCliConfig>,
 }
 
 /// Partial endpoint configuration for profiles (all fields optional).
@@ -119,22 +116,15 @@ pub struct ProfileEndpointConfig {
     pub auth: Option<ClientAuthConfig>,
 }
 
-/// Partial CLI configuration for profiles (all fields optional).
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProfileCliConfig {
-    /// Default output format
-    pub default_format: Option<String>,
-    /// Enable colored output
-    pub colored_output: Option<bool>,
-    /// Verbose logging level
-    pub verbose_level: Option<u8>,
-}
-
 // =============================================================================
 // Main Client Configuration
 // =============================================================================
 
-/// Client configuration for API connections and CLI behavior
+/// Client configuration for API connections.
+///
+/// This is the core configuration for the tasker-client library. It specifies
+/// which transport protocol to use and how to connect to orchestration and
+/// worker API endpoints.
 ///
 /// # Examples
 ///
@@ -174,8 +164,6 @@ pub struct ClientConfig {
     pub orchestration: ApiEndpointConfig,
     /// Worker API configuration
     pub worker: ApiEndpointConfig,
-    /// CLI-specific settings
-    pub cli: CliConfig,
 }
 
 /// API endpoint configuration
@@ -280,17 +268,6 @@ impl ClientAuthConfig {
     }
 }
 
-/// CLI-specific configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CliConfig {
-    /// Default output format (json, table, yaml)
-    pub default_format: String,
-    /// Enable colored output
-    pub colored_output: bool,
-    /// Verbose logging level
-    pub verbose_level: u8,
-}
-
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {
@@ -308,11 +285,6 @@ impl Default for ClientConfig {
                 max_retries: 3,
                 auth_token: None,
                 auth: None,
-            },
-            cli: CliConfig {
-                default_format: "table".to_string(),
-                colored_output: true,
-                verbose_level: 0,
             },
         }
     }
@@ -474,18 +446,6 @@ impl ClientConfig {
             }
             if let Some(ref auth) = worker.auth {
                 self.worker.auth = Some(auth.clone());
-            }
-        }
-
-        if let Some(ref cli) = profile.cli {
-            if let Some(ref format) = cli.default_format {
-                self.cli.default_format = format.clone();
-            }
-            if let Some(colored) = cli.colored_output {
-                self.cli.colored_output = colored;
-            }
-            if let Some(verbose) = cli.verbose_level {
-                self.cli.verbose_level = verbose;
             }
         }
     }
@@ -668,14 +628,6 @@ impl ClientConfig {
                 },
             });
         }
-
-        // CLI overrides
-        if let Ok(format) = std::env::var("TASKER_CLI_FORMAT") {
-            self.cli.default_format = format;
-        }
-        if let Ok(colored) = std::env::var("TASKER_CLI_COLORED") {
-            self.cli.colored_output = colored.parse().unwrap_or(true);
-        }
     }
 
     /// Save configuration to file
@@ -715,7 +667,6 @@ mod tests {
         let config = ClientConfig::default();
         assert_eq!(config.orchestration.base_url, "http://localhost:8080");
         assert_eq!(config.worker.base_url, "http://localhost:8081");
-        assert_eq!(config.cli.default_format, "table");
         assert!(config.orchestration.auth.is_none());
         assert!(config.worker.auth.is_none());
     }
@@ -970,7 +921,6 @@ base_url = "http://localhost:8080"
                 max_retries: None,
                 auth: None,
             }),
-            cli: None,
         };
 
         let mut config = ClientConfig::default();
@@ -998,7 +948,6 @@ base_url = "http://localhost:8080"
                 auth: None,
             }),
             worker: None, // Don't override worker at all
-            cli: None,
         };
 
         let mut config = ClientConfig::default();

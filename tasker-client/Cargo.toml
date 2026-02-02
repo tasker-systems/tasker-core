@@ -2,7 +2,7 @@
 name = "tasker-client"
 version = "0.1.0"
 edition = "2021"
-description = "Tasker API Clients"
+description = "Tasker API client library — transport-agnostic REST and gRPC clients"
 readme = "README.md"
 repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
@@ -20,7 +20,6 @@ ignored = [
   "async-trait",
   "futures",
   "once_cell",
-  "rand",
   # Optional gRPC dependencies
   "tonic",
   "prost-types",
@@ -30,39 +29,21 @@ ignored = [
 name = "tasker_client"
 path = "src/lib.rs"
 
-[[bin]]
-name = "tasker-cli"
-path = "src/bin/tasker-cli.rs"
-
-[[bench]]
-harness = false
-name = "task_initialization"
-required-features = ["benchmarks"]
-
 [dependencies]
 # Error handling and utilities
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
-# CLI framework
-clap = { version = "4.5", features = ["color", "derive", "env"] }
 # Configuration
 config = { workspace = true }
-# Benchmarking
-criterion = { workspace = true, optional = true }
 dirs = "6.0"
 futures = { workspace = true }
 once_cell = { workspace = true }
-rand = { workspace = true }
-rsa = { workspace = true }
-# Other utilities
-regex = { workspace = true }
-# Web API testing and API Integration
+# Web API client
 reqwest = { workspace = true }
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
 # Core tasker dependencies
 tasker-shared = { path = "../tasker-shared" }
 # gRPC dependencies (optional)
@@ -74,14 +55,12 @@ tokio = { workspace = true }
 toml = { workspace = true }
 # Logging and tracing
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
 workspace_tools = { workspace = true }
 
 [dev-dependencies]
 dotenvy = { workspace = true }
-serial_test = { workspace = true }
 tempfile = { workspace = true }
 # Testing utilities
 tokio-test = { workspace = true }
@@ -89,7 +68,6 @@ tracing-subscriber = { workspace = true }
 
 [features]
 default = ["grpc"]
-benchmarks = ["criterion"]
 grpc = ["tonic", "prost-types", "tasker-shared/grpc-api"]
 
 [lints]

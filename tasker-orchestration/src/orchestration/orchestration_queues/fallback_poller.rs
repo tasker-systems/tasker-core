@@ -361,6 +361,7 @@ impl OrchestrationFallbackPoller {
 
         for queued_message in messages {
             // Messages from receive_messages() already have proper handles
+            // Fire-and-forget: create oneshot channel for type compatibility, drop receiver
             let command_result = match &queue_type {
                 tasker_shared::config::QueueType::StepResults => {
                     stats.step_results_processed.fetch_add(1, Ordering::Relaxed);

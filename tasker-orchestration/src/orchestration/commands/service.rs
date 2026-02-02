@@ -22,7 +22,7 @@
 
 use std::sync::Arc;
 
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 use tasker_shared::messaging::client::MessageClient;
@@ -34,11 +34,10 @@ use tasker_shared::{TaskerError, TaskerResult};
 use crate::actors::result_processor_actor::ProcessStepResultMessage;
 use crate::actors::task_finalizer_actor::FinalizeTaskMessage;
 use crate::actors::task_request_actor::ProcessTaskRequestMessage;
-use crate::actors::{ActorRegistry, Handler, ProcessBatchMessage};
+use crate::actors::{ActorRegistry, Handler};
 use crate::health::caches::HealthStatusCaches;
 use crate::orchestration::commands::{
     StepProcessResult, SystemHealth, TaskFinalizationResult, TaskInitializeResult,
-    TaskReadinessResult,
 };
 use crate::orchestration::hydration::{
     FinalizationHydrator, StepResultHydrator, TaskRequestHydrator,
@@ -151,67 +150,6 @@ impl CommandProcessingService {
             task_uuid: result.task_uuid,
             final_status: format!("{:?}", result.action),
             completion_time: Some(chrono::Utc::now()),
-        })
-    }
-
-    /// Process task readiness (TAS-43)
-    ///
-    /// Delegates to StepEnqueuerActor for atomic step enqueueing and returns
-    /// processing metrics for observability.
-    pub async fn process_task_readiness(
-        &self,
-        task_uuid: Uuid,
-        namespace: String,
-        priority: i32,
-        ready_steps: i32,
-        triggered_by: String,
-    ) -> TaskerResult<TaskReadinessResult> {
-        let start_time = std::time::Instant::now();
-
-        debug!(
-            task_uuid = %task_uuid,
-            namespace = %namespace,
-            priority = priority,
-            ready_steps = ready_steps,
-            triggered_by = %triggered_by,
-            "Processing task readiness event via command pattern"
-        );
-
-        let msg = ProcessBatchMessage;
-        let process_result = match self.actors.step_enqueuer_actor.handle(msg).await {
-            Ok(result) => result,
-            Err(e) => {
-                error!(
-                    task_uuid = %task_uuid,
-                    namespace = %namespace,
-                    error = %e,
-                    "Failed to process task readiness via StepEnqueuerActor"
-                );
-                return Err(e);
-            }
-        };
-
-        let processing_time_ms = start_time.elapsed().as_millis() as u64;
-
-        info!(
-            task_uuid = %task_uuid,
-            namespace = %namespace,
-            priority = priority,
-            ready_steps = ready_steps,
-            tasks_processed = process_result.tasks_processed,
-            tasks_failed = process_result.tasks_failed,
-            processing_time_ms = processing_time_ms,
-            triggered_by = %triggered_by,
-            "Task readiness processed successfully"
-        );
-
-        Ok(TaskReadinessResult {
-            task_uuid,
-            namespace,
-            steps_enqueued: ready_steps as u32,
-            steps_discovered: ready_steps as u32,
-            processing_time_ms,
-            triggered_by,
         })
     }
 

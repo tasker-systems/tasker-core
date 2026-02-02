@@ -269,41 +269,6 @@ impl CommandHandler {
                 )
                 .await;
             }
-            OrchestrationCommand::ProcessTaskReadiness {
-                task_uuid,
-                namespace,
-                priority,
-                ready_steps,
-                triggered_by,
-                step_uuid,
-                step_state,
-                task_state,
-                resp,
-            } => {
-                debug!(
-                    task_uuid = %task_uuid,
-                    namespace = %namespace,
-                    priority = %priority,
-                    ready_steps = %ready_steps,
-                    triggered_by = %triggered_by,
-                    step_uuid = format!("{:?}", step_uuid),
-                    step_state = format!("{:?}", step_state),
-                    task_state = format!("{:?}", task_state),
-                    "Processing task readiness for task with UUID {task_uuid} in namespace {namespace}",
-                );
-                self.execute_with_stats(
-                    self.service.process_task_readiness(
-                        task_uuid,
-                        namespace,
-                        priority,
-                        ready_steps,
-                        triggered_by,
-                    ),
-                    |stats| &stats.tasks_ready_processed,
-                    resp,
-                )
-                .await;
-            }
             OrchestrationCommand::GetProcessingStats { resp } => {
                 let stats_snapshot = self.stats.snapshot();
                 if resp.send(Ok(stats_snapshot)).is_err() {

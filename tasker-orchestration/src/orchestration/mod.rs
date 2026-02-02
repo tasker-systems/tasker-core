@@ -90,7 +90,7 @@ pub use channels::{
 // TAS-148: Re-export command types from the commands module
 pub use commands::{
     CommandResponder, OrchestrationCommand, OrchestrationProcessingStats, StepProcessResult,
-    SystemHealth, TaskFinalizationResult, TaskInitializeResult, TaskReadinessResult,
+    SystemHealth, TaskFinalizationResult, TaskInitializeResult,
 };
 
 pub use core::{OrchestrationCore, OrchestrationCoreStatus};
