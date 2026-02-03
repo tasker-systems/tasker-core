@@ -372,29 +372,114 @@ This is deliberately simple. Users add their own workers as services or run them
 
 ---
 
-## Phase 5: Bootstrap Tooling
+## Phase 5: Bootstrap Tooling (TAS-127 Plugin Architecture)
 
-**Goal:** Reduce the friction of starting a new Tasker project to a single command.
+**Goal:** Reduce the friction of starting a new Tasker project to a single command, powered by an extensible plugin system that enables tasker-contrib and community-provided templates.
 
-### 5.1 CLI Scaffolding
+### Relationship to TAS-127
 
-Extend `tasker-cli` with project scaffolding:
+TAS-127 defines a CLI plugin architecture for runtime template loading and code generation. It is the *implementation mechanism* for the scaffolding described in this phase. Without TAS-127, every template would need to be compiled into the `tasker-cli` binary, creating coupling between core releases and template updates.
 
-```bash
-# Generate a new Tasker project
-tasker init my-project --language ruby
-tasker init my-project --language python
-tasker init my-project --language typescript
-tasker init my-project --language rust
+**Architecture evolution since TAS-127 was written:** `tasker-client` and `tasker-cli` are now separate crates (they were less clearly separated when TAS-127 was designed). The plugin system lives entirely in `tasker-cli`. Additionally, `tasker-cli` already has `--config`, `--profile` flags and a `config show` command, which means TAS-127 Phase 1 (configuration loading) is partially complete.
 
-# Generate a new handler
-tasker generate handler payment_processor --language ruby
+**Template engine distinction:** `tasker-cli` currently uses Askama (compile-time verified) for documentation generation templates (`docs-gen` feature). TAS-127 proposes Tera (runtime-loaded, Jinja2-like) for code generation templates. Both are appropriate for their use cases -- Askama for templates that ship with the binary, Tera for templates discovered from plugins at runtime.
 
-# Generate a task template
-tasker generate template order_fulfillment --steps "validate,charge,ship,notify"
+### 5.1 Plugin Architecture (TAS-127 Phases 1-3)
+
+**5.1a Configuration Extension (TAS-127 Phase 1 -- partially done)**
+
+The existing `--config`, `--profile`, and `config show` infrastructure needs extension to support plugin discovery paths:
+
+```toml
+# .tasker-cli.toml (extends existing config)
+[plugins]
+paths = [
+    "./.tasker-cli/plugins",
+    "~/projects/tasker-systems/tasker-contrib",
+]
+
+[profiles.development]
+plugin-paths = ["./tasker-cli-plugins"]
+
+[profiles.ci]
+use-published-plugins = true
 ```
 
-Each `tasker init` creates:
+**5.1b Plugin Discovery (TAS-127 Phase 2)**
+
+Plugins are directories containing a `tasker-plugin.toml` manifest:
+
+```toml
+# tasker-plugin.toml
+[plugin]
+name = "tasker-contrib-rails"
+version = "0.1.0"
+description = "Rails templates for Tasker CLI"
+languages = ["ruby"]
+frameworks = ["rails"]
+
+[templates]
+step-handler = { path = "templates/step_handler", languages = ["ruby"] }
+task-template = { path = "templates/task_template", languages = ["ruby"] }
+rails-initializer = { path = "templates/rails_initializer", frameworks = ["rails"] }
+```
+
+Discovery order:
+1. `--plugin-path` CLI argument (highest priority)
+2. Project-level: `./.tasker-cli/plugins/`
+3. Config file `plugin-paths` (per-profile)
+4. User-level: `~/.config/tasker-cli/plugins/`
+5. System-level: `/usr/local/share/tasker-cli/plugins/`
+
+New commands:
+```bash
+tasker-cli plugin list              # Show discovered plugins
+tasker-cli plugin validate ./path   # Validate plugin structure
+```
+
+**5.1c Template System (TAS-127 Phase 3)**
+
+Tera-based runtime template engine for code generation:
+
+```
+templates/step_handler/
+├── template.toml        # Template metadata + parameters
+├── handler.rb.tera      # Template content
+└── handler_spec.rb.tera # Optional additional files
+```
+
+Built-in Tera filters: `snake_case`, `pascal_case`, `camel_case`, `kebab_case`.
+
+New commands:
+```bash
+tasker-cli template list                        # List templates from all plugins
+tasker-cli template info step-handler           # Show template details
+tasker-cli template generate step-handler \
+  --name ProcessPayment \
+  --language ruby \
+  --framework rails \
+  --handler-type api
+```
+
+### 5.2 CLI Scaffolding (Built on Plugin System)
+
+With the plugin system in place, `tasker init` and `tasker generate` become plugin-driven rather than hardcoded:
+
+```bash
+# Generate a new Tasker project (uses "project" template from plugins)
+tasker-cli init my-project --language ruby
+tasker-cli init my-project --language python
+tasker-cli init my-project --language typescript
+tasker-cli init my-project --language rust
+
+# Generate a handler (uses "step-handler" template from plugins)
+tasker-cli generate handler payment_processor --language ruby
+
+# Generate a task template definition
+tasker-cli generate template order_fulfillment --steps "validate,charge,ship,notify"
+```
+
+Each `tasker-cli init` creates:
 
 - Project directory with language-appropriate structure
 - `docker-compose.tasker.yml` for Tasker infrastructure
@@ -402,7 +487,9 @@ Each `tasker init` creates:
 - README with "getting started" instructions
 - Test setup verifying the handler works
 
-### 5.2 Install Script
+The built-in CLI ships with minimal templates (TOML configuration files only). All handler and project templates come from `tasker-contrib` plugins, which is the intended design -- the CLI is the engine, contrib provides the content.
+
+### 5.3 Install Script
 
 A `curl | sh` style installer for getting Tasker CLI + infrastructure running:
 
@@ -415,18 +502,33 @@ This script:
 1. Detects platform (macOS/Linux)
 2. Downloads the `tasker-cli` binary from GitHub releases
 3. Optionally pulls Docker images
-4. Runs `tasker init` interactively if requested
+4. Installs default plugins from tasker-contrib
+5. Runs `tasker-cli init` interactively if requested
 
-### 5.3 Template Repository
+### 5.4 Template Repositories
 
-A GitHub template repository (`tasker-systems/tasker-template-{ruby,python,typescript}`) that users can click "Use this template" to get a pre-configured project. These are the same as what `tasker init` generates, but accessible without installing the CLI.
+GitHub template repositories (`tasker-systems/tasker-template-{ruby,python,typescript}`) that users can click "Use this template" to get a pre-configured project. These are generated from the same plugin templates that `tasker-cli init` uses, ensuring consistency.
+
+### 5.5 TAS-127 Phase Mapping
+
+| TAS-127 Phase | TAS-189 Location | Status |
+|---------------|-------------------|--------|
+| Phase 1: Configuration Loading | 5.1a | Partially done (profile system exists) |
+| Phase 2: Plugin Discovery | 5.1b | Not started |
+| Phase 3: Template System | 5.1c | Not started (Askama exists for docs, Tera needed for codegen) |
+| Phase 4: Integration | 5.2 | Not started |
 
 ### Acceptance Criteria
 
-- [ ] `tasker init` generates working projects for all four languages
+- [ ] `tasker-cli plugin list` discovers and displays plugins
+- [ ] `tasker-cli plugin validate` validates plugin structure
+- [ ] `tasker-cli template list` shows templates from discovered plugins
+- [ ] `tasker-cli template generate` creates files from Tera templates
+- [ ] `tasker-cli init` generates working projects for all four languages
 - [ ] Generated projects pass their own test suites
+- [ ] Plugin system loads templates from tasker-contrib without requiring CLI rebuild
 - [ ] Install script works on macOS and Linux
-- [ ] Template repositories exist and are kept in sync with `tasker init` output
+- [ ] Template repositories exist and are kept in sync with plugin templates
 
 ---
 
@@ -495,26 +597,28 @@ Phase 0: Foundation
     ▼
 Phase 1: Publish What Exists
     │
-    ├──────────────────────┐
-    ▼                      ▼
-Phase 2: Client SDKs   Phase 4: Docs & Examples (can start in parallel)
-    │                      │
-    ▼                      │
-Phase 3: Unified Pkgs     │
-    │                      │
-    ├──────────────────────┘
-    ▼
-Phase 5: Bootstrap Tooling (nice-to-have for alpha)
-    │
+    ├──────────────────────┬──────────────────────────────┐
+    ▼                      ▼                              ▼
+Phase 2: Client SDKs   Phase 4: Docs & Examples   TAS-127 Plugin Infra
+    │                      │                        (Phases 1-3, optional)
+    ▼                      │                              │
+Phase 3: Unified Pkgs     │                              │
+    │                      │                              │
+    ├──────────────────────┘                              │
+    ▼                                                     │
+Phase 5: Bootstrap Tooling (TAS-127 Phase 4 + init) ◄────┘
+    │                       (nice-to-have for alpha)
     ▼
 Phase 6: Alpha Release
 ```
 
 **Critical path:** 0 → 1 → 2 → 3 → 6
 
+**Optional parallel track:** TAS-127 Phases 1-3 (plugin discovery, template engine) can be developed alongside Phases 2-3 since they only depend on `tasker-cli` existing, not on published packages. The user-facing payoff (Phase 5: `tasker-cli init`, `tasker-cli template generate`) requires both the plugin infrastructure *and* tasker-contrib templates to be populated.
+
 **Parallel work:** Phase 4 (docs, examples) can begin as soon as Phase 1 is underway. Most of the consumer documentation can be drafted against the API shapes before packages are published. Example apps need published packages to be fully testable but can be structured ahead of time.
 
-**Nice-to-have for alpha:** Phase 5 (bootstrap tooling). The CLI scaffolding and install script significantly improve first-touch experience but are not strictly required. Alpha can launch with just published packages + good docs + example apps.
+**Nice-to-have for alpha:** Phase 5 (bootstrap tooling / TAS-127). The plugin architecture and CLI scaffolding significantly improve first-touch experience but are not strictly required. Alpha can launch with just published packages + good docs + example apps. However, the plugin infrastructure (TAS-127 Phases 1-3) is independent of package publishing and could be developed in parallel with earlier phases if capacity allows. The plugin system only needs tasker-contrib templates to be *useful*, but can be built and tested before those templates exist.
 
 ---
 
@@ -529,7 +633,9 @@ Phase 6: Alpha Release
 | Blog example handlers | Phase 4 (basis for standalone examples) |
 | `docs/guides/quick-start.md` | Phase 4 (adapt for consumer path) |
 | `why-tasker.md` | Phase 6 (announcement content) |
-| `tasker-cli` | Phase 5 (extend with scaffolding) |
+| `tasker-cli` existing infrastructure | Phase 5 (`--config`, `--profile`, `config show` already exist) |
+| TAS-127 plugin architecture spec | Phase 5 (design for plugin discovery, Tera templates, CLI commands) |
+| `tasker-cli` Askama doc templates | Phase 5 (pattern reference; codegen uses Tera instead) |
 
 ---
 
@@ -537,7 +643,7 @@ Phase 6: Alpha Release
 
 These are important but can come after alpha:
 
-1. **Framework integrations** (`tasker-rails`, `tasker-fastapi`, etc.) -- These depend on unified packages (Phase 3) and benefit from real user feedback about what integrations matter most.
+1. **Framework integrations** (`tasker-rails`, `tasker-fastapi`, etc.) -- These depend on unified packages (Phase 3) and benefit from real user feedback about what integrations matter most. Note that the plugin architecture (Phase 5 / TAS-127) is designed to support framework-specific CLI plugins (e.g., `tasker-contrib-rails` providing Rails generators), but the actual framework integration packages are post-alpha.
 
 2. **Web UI** -- A monitoring and management dashboard (likely SvelteKit) is valuable but not required for alpha adoption. CLI + API is sufficient.
 
@@ -603,7 +709,7 @@ This is intentionally not time-estimated. The phases have natural ordering and d
 | Phase 2: Client SDKs | Phase 1 (published worker packages as reference) | Phase 4 (docs) |
 | Phase 3: Unified Packages | Phase 2 | Phase 4 (docs) |
 | Phase 4: Docs & Examples | Phase 1 (partially), Phase 3 (fully) | Phase 2, Phase 3 |
-| Phase 5: Bootstrap | Phase 3, Phase 4 | -- |
+| Phase 5: Bootstrap (TAS-127) | Phase 3, Phase 4 | TAS-127 Phases 1-3 (plugin infra) can start during Phase 2 |
 | Phase 6: Alpha Release | Phase 0-4, optionally Phase 5 | -- |
 
 ---
@@ -619,3 +725,7 @@ This is intentionally not time-estimated. The phases have natural ordering and d
 4. **Alpha naming.** Do we call 0.1.0 "alpha" explicitly in package metadata (e.g., `0.1.0-alpha.1`) or just use 0.1.x with documentation noting alpha status? **Recommendation:** Use plain `0.1.x` without pre-release suffixes. Simpler for dependency resolution, and "alpha" is a project status, not a version qualifier. Document alpha status in READMEs and announcements.
 
 5. **Minimum viable client SDK surface.** Do we need the full `tasker-client` API surface in Phase 2, or is a subset sufficient? **Recommendation:** Start with task CRUD + template listing + health check. Add DLQ, analytics, and advanced features in later releases based on demand.
+
+6. **TAS-127 scope for alpha.** Phase 5 is marked as nice-to-have for alpha. If we do include it, how much of TAS-127 is needed? The full four-phase plugin architecture is substantial. **Recommendation:** For alpha, the plugin system (TAS-127 Phases 1-3) and a basic set of tasker-contrib templates are the high-value items. The `tasker-cli init` command that uses those templates (TAS-127 Phase 4) is the user-facing payoff. If Phase 5 is deferred entirely, the example apps and consumer docs from Phase 4 serve as the onboarding path instead. If partially included, prioritize `tasker-cli template generate` over `tasker-cli init` -- generating a single handler is more immediately useful than scaffolding an entire project.
+
+7. **Askama vs Tera coexistence.** `tasker-cli` already uses Askama (compile-time, `docs-gen` feature) for documentation generation. TAS-127 adds Tera (runtime) for code generation. Is carrying two template engines acceptable? **Recommendation:** Yes. They serve different purposes -- Askama for templates that ship with the binary and benefit from compile-time verification, Tera for templates loaded at runtime from plugins. The `docs` commands continue using Askama; the `template` commands use Tera. This is a clean separation with no overlap.
