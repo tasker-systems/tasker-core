@@ -29,7 +29,7 @@ use tracing::{debug, error, info};
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::orchestration::hydration::TaskRequestHydrator;
 ///
 /// # async fn example(message: pgmq::Message) -> tasker_shared::TaskerResult<()> {

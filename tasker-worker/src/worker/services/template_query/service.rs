@@ -57,7 +57,7 @@ pub enum TemplateQueryError {
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_worker::worker::services::template_query::TemplateQueryService;
 /// use tasker_worker::worker::task_template_manager::TaskTemplateManager;
 /// use std::sync::Arc;

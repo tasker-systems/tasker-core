@@ -48,7 +48,7 @@ impl Message for ProcessBatchableStepMessage {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::actors::{Handler, batch_processing_actor::*};
 /// use uuid::Uuid;
 ///

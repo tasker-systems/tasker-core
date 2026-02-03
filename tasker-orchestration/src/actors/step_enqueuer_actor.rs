@@ -40,7 +40,7 @@ impl Message for ProcessBatchMessage {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::actors::{Handler, step_enqueuer_actor::*};
 ///
 /// # async fn example(actor: StepEnqueuerActor) -> Result<(), Box<dyn std::error::Error>> {

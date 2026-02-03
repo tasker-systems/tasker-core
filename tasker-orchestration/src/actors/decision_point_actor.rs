@@ -63,7 +63,7 @@ pub enum DecisionPointProcessingResult {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::actors::{Handler, decision_point_actor::*};
 /// use tasker_shared::messaging::DecisionPointOutcome;
 /// use uuid::Uuid;

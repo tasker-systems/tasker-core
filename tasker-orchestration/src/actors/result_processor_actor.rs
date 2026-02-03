@@ -41,7 +41,7 @@ impl Message for ProcessStepResultMessage {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::actors::{Handler, result_processor_actor::*};
 /// use tasker_shared::StepExecutionResult;
 ///

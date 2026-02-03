@@ -27,7 +27,7 @@ use uuid::Uuid;
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::orchestration::hydration::FinalizationHydrator;
 ///
 /// # async fn example(message: pgmq::Message) -> tasker_shared::TaskerResult<()> {

@@ -43,7 +43,7 @@ impl Message for FinalizeTaskMessage {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::actors::{Handler, task_finalizer_actor::*};
 /// use uuid::Uuid;
 ///

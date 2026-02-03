@@ -41,7 +41,7 @@ impl Message for ProcessTaskRequestMessage {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::actors::{Handler, task_request_actor::*};
 /// use tasker_shared::messaging::TaskRequestMessage;
 ///

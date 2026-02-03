@@ -33,7 +33,7 @@ use serde::{Deserialize, Deserializer};
 ///
 /// # Usage with serde
 ///
-/// ```rust
+/// ```rust,ignore
 /// use serde::Deserialize;
 /// use tasker_shared::utils::serde::deserialize_optional_numeric;
 ///

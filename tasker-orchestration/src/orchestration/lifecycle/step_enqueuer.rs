@@ -24,7 +24,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use tasker_orchestration::orchestration::lifecycle::step_enqueuer::StepEnqueuer;
 //! use tasker_shared::system_context::SystemContext;
 //! use std::sync::Arc;

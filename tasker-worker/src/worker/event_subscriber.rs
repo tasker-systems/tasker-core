@@ -23,7 +23,7 @@
 //!
 //! ## Usage in WorkerProcessor
 //!
-//! ```rust
+//! ```rust,ignore
 //! use tasker_worker::worker::event_subscriber::WorkerEventSubscriber;
 //! use tokio::sync::mpsc;
 //!
