@@ -150,7 +150,8 @@ pub async fn wait_for_task_completion(
 
     Err(anyhow::anyhow!(
         "Task did not complete within {}s (base {}s)",
-        effective_timeout, max_wait_seconds
+        effective_timeout,
+        max_wait_seconds
     ))
 }
 
@@ -212,6 +213,7 @@ pub async fn wait_for_task_failure(
 
     Err(anyhow::anyhow!(
         "Task did not fail within {}s (base {}s)",
-        effective_timeout, max_wait_seconds
+        effective_timeout,
+        max_wait_seconds
     ))
 }
