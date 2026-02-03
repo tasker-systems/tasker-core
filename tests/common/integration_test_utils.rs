@@ -16,43 +16,42 @@ use tasker_shared::models::orchestration::execution_status::ExecutionStatus;
 
 /// Get timeout multiplier based on execution environment
 ///
-/// When running under coverage instrumentation (TASKER_COVERAGE_MODE=1),
-/// service binaries are compiled as instrumented debug builds which are
-/// significantly slower than release or normal debug builds. This applies
-/// a 4x multiplier to all E2E timeouts to account for that overhead.
+/// Applies cumulative multipliers for slow environments:
+/// - CI (GitHub Actions, etc.): 1.5x - shared CPU, higher contention
+/// - Coverage instrumentation (TASKER_COVERAGE_MODE=1): 4x - instrumented debug builds
 ///
-/// Returns:
-/// - 4 when TASKER_COVERAGE_MODE is set (instrumented debug binaries)
-/// - 1 otherwise (normal execution)
+/// The CI multiplier can be overridden via TASKER_CI_TIMEOUT_MULTIPLIER env var.
+///
+/// These multiply together, so CI + coverage = 6x.
 pub fn get_timeout_multiplier() -> u64 {
-    if std::env::var("TASKER_COVERAGE_MODE").is_ok() {
-        4 // Coverage instrumentation adds significant overhead
+    let ci_multiplier = if std::env::var("CI").is_ok() {
+        // Allow override via env var, default to 1.5x
+        std::env::var("TASKER_CI_TIMEOUT_MULTIPLIER")
+            .ok()
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(1.5)
     } else {
-        1
-    }
+        1.0
+    };
+
+    let coverage_multiplier: f64 = if std::env::var("TASKER_COVERAGE_MODE").is_ok() {
+        4.0 // Coverage instrumentation adds significant overhead
+    } else {
+        1.0
+    };
+
+    // Ceiling ensures we never round down to a shorter timeout
+    (ci_multiplier * coverage_multiplier).ceil() as u64
 }
 
-/// Get appropriate timeout for task completion based on environment
+/// Get default base timeout for task completion (in seconds)
 ///
-/// In CI environments (GitHub Actions, etc.), tasks take longer due to:
-/// - Shared CPU resources
-/// - All services running natively (not isolated in Docker)
-/// - Higher contention for database connections
-///
-/// The result is further multiplied by `get_timeout_multiplier()` when
-/// running under coverage instrumentation.
-///
-/// Returns:
-/// - 15 seconds in CI (detected via CI environment variable)
-/// - 5 seconds locally (fast feedback for development)
-/// - Multiplied by 4x under coverage instrumentation
+/// Returns a reasonable base timeout for general task completion polling.
+/// The actual effective timeout will be scaled by `get_timeout_multiplier()`
+/// inside `wait_for_task_completion` / `wait_for_task_failure`, so callers
+/// should NOT pre-multiply this value.
 pub fn get_task_completion_timeout() -> u64 {
-    let base = if std::env::var("CI").is_ok() {
-        15 // CI environment - allow more time for shared resources
-    } else {
-        5 // Local development - keep fast feedback
-    };
-    base * get_timeout_multiplier()
+    10
 }
 
 /// Helper to create a TaskRequest matching CLI usage
@@ -95,17 +94,22 @@ pub fn create_task_request(
 }
 
 /// Wait for task completion by polling task status
+///
+/// The provided `max_wait_seconds` is scaled by `get_timeout_multiplier()`
+/// to account for CI and coverage overhead. This means hardcoded timeouts
+/// in tests automatically get extended in slower environments.
 pub async fn wait_for_task_completion(
     client: &OrchestrationApiClient,
     task_uuid: &str,
     max_wait_seconds: u64,
 ) -> Result<()> {
     let start_time = std::time::Instant::now();
-    let max_duration = Duration::from_secs(max_wait_seconds);
+    let effective_timeout = max_wait_seconds * get_timeout_multiplier();
+    let max_duration = Duration::from_secs(effective_timeout);
 
     println!(
-        "⏳ Waiting for task {} to complete (max {}s)...",
-        task_uuid, max_wait_seconds
+        "⏳ Waiting for task {} to complete (max {}s, base {}s)...",
+        task_uuid, effective_timeout, max_wait_seconds
     );
 
     while start_time.elapsed() < max_duration {
@@ -145,8 +149,8 @@ pub async fn wait_for_task_completion(
     }
 
     Err(anyhow::anyhow!(
-        "Task did not complete within {}s",
-        max_wait_seconds
+        "Task did not complete within {}s (base {}s)",
+        effective_timeout, max_wait_seconds
     ))
 }
 
@@ -154,17 +158,21 @@ pub async fn wait_for_task_completion(
 ///
 /// This is useful for testing error scenarios where we expect the task to fail.
 /// Returns Ok(()) when task reaches BlockedByFailures state.
+///
+/// The provided `max_wait_seconds` is scaled by `get_timeout_multiplier()`
+/// to account for CI and coverage overhead.
 pub async fn wait_for_task_failure(
     client: &OrchestrationApiClient,
     task_uuid: &str,
     max_wait_seconds: u64,
 ) -> Result<()> {
     let start_time = std::time::Instant::now();
-    let max_duration = Duration::from_secs(max_wait_seconds);
+    let effective_timeout = max_wait_seconds * get_timeout_multiplier();
+    let max_duration = Duration::from_secs(effective_timeout);
 
     println!(
-        "⏳ Waiting for task {} to fail (max {}s)...",
-        task_uuid, max_wait_seconds
+        "⏳ Waiting for task {} to fail (max {}s, base {}s)...",
+        task_uuid, effective_timeout, max_wait_seconds
     );
 
     while start_time.elapsed() < max_duration {
@@ -203,7 +211,7 @@ pub async fn wait_for_task_failure(
     }
 
     Err(anyhow::anyhow!(
-        "Task did not fail within {}s",
-        max_wait_seconds
+        "Task did not fail within {}s (base {}s)",
+        effective_timeout, max_wait_seconds
     ))
 }
