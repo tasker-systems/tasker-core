@@ -74,8 +74,7 @@ pub use client::{PgmqClient, PgmqNotifyClient, PgmqNotifyClientFactory};
 pub use config::PgmqNotifyConfig;
 pub use error::{PgmqNotifyError, Result};
 pub use events::{
-    BatchReadyEvent, MessageReadyEvent, MessageWithPayloadEvent, PgmqNotifyEvent,
-    QueueCreatedEvent,
+    BatchReadyEvent, MessageReadyEvent, MessageWithPayloadEvent, PgmqNotifyEvent, QueueCreatedEvent,
 };
 pub use listener::PgmqNotifyListener;
 pub use types::{ClientStatus, MessagingError, QueueMetrics};
