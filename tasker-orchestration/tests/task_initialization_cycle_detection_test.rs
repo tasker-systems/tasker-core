@@ -60,7 +60,6 @@ async fn create_test_task(pool: &PgPool, identity_hash: &str) -> sqlx::Result<Ta
 }
 
 /// Helper to create test workflow steps
-
 async fn create_test_steps(
     pool: &PgPool,
     task_uuid: Uuid,

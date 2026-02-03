@@ -48,30 +48,30 @@ pub mod bootstrap;
 pub mod channels; // TAS-133: Semantic NewType channel wrappers
 pub mod commands; // TAS-148: Command types (extracted from legacy command_processor)
 pub mod core;
-pub mod health_check_evaluator;
+pub(crate) mod health_check_evaluator;
 
 // Service Layer (TAS-46 Refactoring)
-pub mod hydration; // Phase 4: Message hydration services
+pub(crate) mod hydration; // Phase 4: Message hydration services
 
 // Infrastructure
 pub mod event_systems;
 pub mod orchestration_queues;
-pub mod system_events;
-pub mod task_readiness;
+pub(crate) mod system_events;
+pub(crate) mod task_readiness;
 
 // Business Logic
-pub mod backoff_calculator;
-pub mod error_classifier;
-pub mod error_handling_service;
+pub(crate) mod backoff_calculator;
+pub(crate) mod error_classifier;
+pub(crate) mod error_handling_service;
 pub mod lifecycle;
 pub mod viable_step_discovery;
 
 // Background Services (TAS-49 Phase 2)
-pub mod staleness_detector;
+pub(crate) mod staleness_detector;
 
 // Configuration and Errors
-pub mod config;
-pub mod errors;
+pub(crate) mod config;
+pub(crate) mod errors;
 
 // ============================================================================
 // Re-exports: Core Components

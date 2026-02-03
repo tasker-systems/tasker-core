@@ -7,12 +7,9 @@
 //! The implementation is consolidated there to enable sharing between orchestration,
 //! worker, and future gRPC endpoints.
 
-// Re-export the shared permission service
-pub use tasker_shared::services::require_permission;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use tasker_shared::services::require_permission;
     use tasker_shared::types::permissions::Permission;
     use tasker_shared::types::security::{AuthMethod, SecurityContext};
 

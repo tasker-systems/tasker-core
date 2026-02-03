@@ -14,9 +14,9 @@
 //!
 //! - `templates` — Askama `#[derive(Template)]` struct definitions
 
-pub mod templates;
+pub(crate) mod templates;
 
-pub use templates::{
+pub(crate) use templates::{
     AnnotatedConfigTemplate, ConfigReferenceTemplate, DocIndexTemplate, ParameterExplainTemplate,
     SectionDetailTemplate,
 };

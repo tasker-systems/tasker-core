@@ -29,10 +29,10 @@
 //! bind_address = "0.0.0.0:9100"
 //! ```
 
-pub mod interceptors;
-pub mod server;
-pub mod services;
-pub mod state;
+pub(crate) mod interceptors;
+pub(crate) mod server;
+pub(crate) mod services;
+pub(crate) mod state;
 
 pub use server::{GrpcServer, GrpcServerHandle};
 pub use state::WorkerGrpcState;

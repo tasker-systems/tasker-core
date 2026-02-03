@@ -18,7 +18,7 @@ use tokio::signal;
 use tracing::{error, info};
 
 use tasker_shared::logging;
-use tasker_worker::bootstrap::WorkerBootstrap;
+use tasker_worker::WorkerBootstrap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

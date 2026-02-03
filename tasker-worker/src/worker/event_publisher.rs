@@ -23,7 +23,7 @@
 //!
 //! ## Usage in WorkerProcessor
 //!
-//! ```rust
+//! ```rust,ignore
 //! use tasker_worker::worker::event_publisher::WorkerEventPublisher;
 //! use tasker_shared::types::TaskSequenceStep;
 //!

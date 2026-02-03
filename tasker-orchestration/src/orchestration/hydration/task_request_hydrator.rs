@@ -29,7 +29,7 @@ use tracing::{debug, error, info};
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::orchestration::hydration::TaskRequestHydrator;
 ///
 /// # async fn example(message: pgmq::Message) -> tasker_shared::TaskerResult<()> {
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn test_default_impl() {
-        let hydrator = TaskRequestHydrator::default();
+        let hydrator = TaskRequestHydrator;
         let debug_str = format!("{:?}", hydrator);
         assert_eq!(debug_str, "TaskRequestHydrator");
     }

@@ -27,7 +27,7 @@ use uuid::Uuid;
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::orchestration::hydration::FinalizationHydrator;
 ///
 /// # async fn example(message: pgmq::Message) -> tasker_shared::TaskerResult<()> {
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_default_impl() {
-        let hydrator = FinalizationHydrator::default();
+        let hydrator = FinalizationHydrator;
         // Verify Debug impl produces expected output
         let debug_str = format!("{:?}", hydrator);
         assert_eq!(debug_str, "FinalizationHydrator");

@@ -506,7 +506,7 @@ mod tests {
     #[test]
     fn test_orchestration_core_status_all_variants() {
         // Ensure all variants exist and are distinct
-        let variants = vec![
+        let variants = [
             OrchestrationCoreStatus::Created,
             OrchestrationCoreStatus::Starting,
             OrchestrationCoreStatus::Running,

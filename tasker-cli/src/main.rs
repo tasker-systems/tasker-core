@@ -5,9 +5,9 @@
 //!
 //! This is the CLI binary crate. The API client library lives in `tasker-client`.
 
-pub mod commands;
+pub(crate) mod commands;
 #[cfg(feature = "docs-gen")]
-pub mod docs;
+pub(crate) mod docs;
 
 use clap::{Parser, Subcommand};
 use tasker_client::ClientConfig;
@@ -22,7 +22,7 @@ use commands::{
 #[command(name = "tasker-cli")]
 #[command(about = "Command-line interface for Tasker orchestration system")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
-pub struct Cli {
+pub(crate) struct Cli {
     /// Configuration file path (default: ~/.tasker/config.toml)
     #[arg(short, long)]
     config: Option<String>,
@@ -50,7 +50,7 @@ pub struct Cli {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum Commands {
+pub(crate) enum Commands {
     /// Task management operations
     #[command(subcommand)]
     Task(TaskCommands),
@@ -81,7 +81,7 @@ pub enum Commands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum TaskCommands {
+pub(crate) enum TaskCommands {
     /// Create a new task
     Create {
         /// Task namespace
@@ -208,7 +208,7 @@ pub enum TaskCommands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum WorkerCommands {
+pub(crate) enum WorkerCommands {
     /// List workers
     List {
         /// Filter by namespace
@@ -233,7 +233,7 @@ pub enum WorkerCommands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum SystemCommands {
+pub(crate) enum SystemCommands {
     /// System health check
     Health {
         /// Check orchestration health
@@ -248,7 +248,7 @@ pub enum SystemCommands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum ConfigCommands {
+pub(crate) enum ConfigCommands {
     /// Generate single deployable configuration file from base + environment
     Generate {
         /// Configuration context (orchestration, worker, or combined)
@@ -380,7 +380,7 @@ pub enum ConfigCommands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum AuthCommands {
+pub(crate) enum AuthCommands {
     /// Generate RSA key pair for JWT signing
     GenerateKeys {
         /// Output directory for key files
@@ -426,7 +426,7 @@ pub enum AuthCommands {
 
 /// TAS-175: Documentation generation commands
 #[derive(Debug, Subcommand)]
-pub enum DocsCommands {
+pub(crate) enum DocsCommands {
     /// Generate full configuration reference documentation
     Reference {
         /// Configuration context (common, orchestration, worker, all)
@@ -519,7 +519,7 @@ pub enum DocsCommands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum DlqCommands {
+pub(crate) enum DlqCommands {
     /// List DLQ entries
     List {
         /// Filter by resolution status (pending, manually_resolved, permanently_failed, cancelled)

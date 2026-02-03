@@ -10,11 +10,8 @@
 //! The fallback poller is protected by a circuit breaker to prevent cascading
 //! failures when the database is unavailable. See `circuit_breaker` module.
 
-pub mod circuit_breaker;
-pub mod fallback_poller;
+pub(crate) mod circuit_breaker;
+pub(crate) mod fallback_poller;
 
-pub use circuit_breaker::{
-    CircuitState, TaskReadinessCircuitBreaker, TaskReadinessCircuitBreakerConfig,
-    TaskReadinessCircuitBreakerMetrics,
-};
+pub use circuit_breaker::TaskReadinessCircuitBreakerConfig;
 pub use fallback_poller::{FallbackPoller, FallbackPollerConfig};

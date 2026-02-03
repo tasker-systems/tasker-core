@@ -90,7 +90,7 @@ pub mod errors;
 pub mod event_system;
 pub mod events;
 pub mod logging;
-pub mod macros;
+pub(crate) mod macros;
 pub mod messaging;
 pub mod metrics;
 pub mod models;
@@ -101,12 +101,12 @@ pub mod registry;
 pub mod resilience;
 pub mod scopes;
 pub mod services;
-pub mod sql_functions;
+pub(crate) mod sql_functions;
 pub mod state_machine;
 pub mod system_context;
 pub mod types;
-pub mod utils;
-pub mod validation;
+pub(crate) mod utils;
+pub(crate) mod validation;
 #[cfg(feature = "web-api")]
 pub mod web;
 

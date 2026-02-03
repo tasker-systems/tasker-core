@@ -17,7 +17,7 @@ use askama::Template;
 
 use crate::DocsCommands;
 
-pub async fn handle_docs_command(cmd: DocsCommands) -> ClientResult<()> {
+pub(crate) async fn handle_docs_command(cmd: DocsCommands) -> ClientResult<()> {
     match cmd {
         DocsCommands::Reference {
             context,

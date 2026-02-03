@@ -129,8 +129,8 @@
 
 pub mod api_clients;
 pub mod config;
-pub mod error;
-pub mod transport;
+pub(crate) mod error;
+pub(crate) mod transport;
 
 #[cfg(feature = "grpc")]
 pub mod grpc_clients;

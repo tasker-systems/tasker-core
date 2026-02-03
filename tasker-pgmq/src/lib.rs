@@ -60,12 +60,12 @@
 //! }
 //! ```
 
-pub mod channel_metrics;
-pub mod client;
-pub mod config;
-pub mod emitter;
+pub(crate) mod channel_metrics;
+pub(crate) mod client;
+pub(crate) mod config;
+pub(crate) mod emitter;
 pub mod error;
-pub mod events;
+pub(crate) mod events;
 pub mod listener;
 pub mod types;
 
@@ -73,7 +73,9 @@ pub mod types;
 pub use client::{PgmqClient, PgmqNotifyClient, PgmqNotifyClientFactory};
 pub use config::PgmqNotifyConfig;
 pub use error::{PgmqNotifyError, Result};
-pub use events::{MessageReadyEvent, MessageWithPayloadEvent, PgmqNotifyEvent, QueueCreatedEvent};
+pub use events::{
+    BatchReadyEvent, MessageReadyEvent, MessageWithPayloadEvent, PgmqNotifyEvent, QueueCreatedEvent,
+};
 pub use listener::PgmqNotifyListener;
 pub use types::{ClientStatus, MessagingError, QueueMetrics};
 
