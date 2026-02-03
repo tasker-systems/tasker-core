@@ -44,7 +44,10 @@ impl RequestIdMiddleware {
 /// 2. Tracing and logging
 /// 3. CORS handling
 /// 4. Request timeout
-#[expect(dead_code, reason = "pub(crate) web infrastructure used by route configuration")]
+#[expect(
+    dead_code,
+    reason = "pub(crate) web infrastructure used by route configuration"
+)]
 pub fn apply_middleware_stack(router: Router<Arc<WorkerWebState>>) -> Router<Arc<WorkerWebState>> {
     router
         // Request ID generation (outermost)
@@ -66,7 +69,10 @@ pub fn apply_middleware_stack(router: Router<Arc<WorkerWebState>>) -> Router<Arc
 /// - Longer timeouts
 /// - Additional debug logging
 #[cfg(feature = "test-utils")]
-#[expect(dead_code, reason = "pub(crate) web infrastructure used by route configuration")]
+#[expect(
+    dead_code,
+    reason = "pub(crate) web infrastructure used by route configuration"
+)]
 pub fn apply_test_middleware_stack(
     router: Router<Arc<WorkerWebState>>,
 ) -> Router<Arc<WorkerWebState>> {
@@ -82,7 +88,10 @@ pub fn apply_test_middleware_stack(
 
 /// Create CORS layer with appropriate settings for worker API
 // Note: Using #[allow] instead of #[expect] - called by apply_middleware_stack/apply_test_middleware_stack
-#[allow(dead_code, reason = "pub(crate) web infrastructure used by route configuration")]
+#[allow(
+    dead_code,
+    reason = "pub(crate) web infrastructure used by route configuration"
+)]
 fn create_cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(tower_http::cors::Any)

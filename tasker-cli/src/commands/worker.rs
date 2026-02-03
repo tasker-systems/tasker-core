@@ -4,7 +4,10 @@ use tasker_client::{ClientConfig, ClientResult, WorkerApiClient, WorkerApiConfig
 
 use crate::WorkerCommands;
 
-pub(crate) async fn handle_worker_command(cmd: WorkerCommands, config: &ClientConfig) -> ClientResult<()> {
+pub(crate) async fn handle_worker_command(
+    cmd: WorkerCommands,
+    config: &ClientConfig,
+) -> ClientResult<()> {
     let worker_config = WorkerApiConfig {
         base_url: config.worker.base_url.clone(),
         timeout_ms: config.worker.timeout_ms,

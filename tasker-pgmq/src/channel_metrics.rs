@@ -8,7 +8,10 @@
 //! - **Overflow Detection**: Metrics for backpressure events
 //! - **Throughput Monitoring**: Message send/receive counters
 //! - **Health Checks**: Integration with system health endpoints
-#![expect(dead_code, reason = "channel observability API - module restricted per TAS-187")]
+#![expect(
+    dead_code,
+    reason = "channel observability API - module restricted per TAS-187"
+)]
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;

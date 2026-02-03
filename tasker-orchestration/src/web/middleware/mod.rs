@@ -27,7 +27,10 @@ use crate::web::state::AppState;
 /// 4. Request timeout
 ///    Note: Operational state checking is handled at the handler level
 /// 6. Authentication (when enabled)
-#[expect(dead_code, reason = "pub(crate) web infrastructure used by route configuration")]
+#[expect(
+    dead_code,
+    reason = "pub(crate) web infrastructure used by route configuration"
+)]
 pub fn apply_middleware_stack(router: Router<AppState>) -> Router<AppState> {
     router
         // Request ID generation (outermost)
@@ -52,7 +55,10 @@ pub fn apply_middleware_stack(router: Router<AppState>) -> Router<AppState> {
 /// - Disabled authentication
 /// - Additional debug logging
 #[cfg(feature = "test-utils")]
-#[expect(dead_code, reason = "pub(crate) web infrastructure used by route configuration")]
+#[expect(
+    dead_code,
+    reason = "pub(crate) web infrastructure used by route configuration"
+)]
 pub fn apply_test_middleware_stack(router: Router<AppState>) -> Router<AppState> {
     router
         .layer(middleware::from_fn(request_id::add_request_id))
@@ -67,7 +73,10 @@ pub fn apply_test_middleware_stack(router: Router<AppState>) -> Router<AppState>
 
 /// Create CORS layer with appropriate settings
 // Note: Using #[allow] instead of #[expect] - called by apply_middleware_stack/apply_test_middleware_stack
-#[allow(dead_code, reason = "pub(crate) web infrastructure used by route configuration")]
+#[allow(
+    dead_code,
+    reason = "pub(crate) web infrastructure used by route configuration"
+)]
 fn create_cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(tower_http::cors::Any) // Note: Could be configured from CORS config in future

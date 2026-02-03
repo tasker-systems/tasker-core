@@ -39,7 +39,10 @@ pub fn proto_to_task_state(state: proto::TaskState) -> String {
 
 /// Convert step state string to proto (convenience for string-based state storage).
 // Note: Using #[allow] instead of #[expect] - used by test targets
-#[allow(dead_code, reason = "pub(crate) gRPC infrastructure used by tonic server")]
+#[allow(
+    dead_code,
+    reason = "pub(crate) gRPC infrastructure used by tonic server"
+)]
 pub fn step_state_to_proto(state: &str) -> proto::StepState {
     WorkflowStepState::try_from(state)
         .map(proto::StepState::from)

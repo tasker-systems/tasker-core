@@ -1,5 +1,8 @@
 // Shared test helpers - not all functions are used by every test file
-#![allow(dead_code, reason = "shared test utility module - individual tests use different subsets")]
+#![allow(
+    dead_code,
+    reason = "shared test utility module - individual tests use different subsets"
+)]
 
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};

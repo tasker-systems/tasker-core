@@ -84,7 +84,10 @@ pub fn evaluate_channel_status<T>(
 /// # Returns
 /// `ChannelHealthStatus` with current channel health information
 // Note: Using #[allow] instead of #[expect] - used by test targets
-#[allow(dead_code, reason = "pub(crate) health infrastructure for channel monitoring")]
+#[allow(
+    dead_code,
+    reason = "pub(crate) health infrastructure for channel monitoring"
+)]
 pub fn evaluate_channel_status_basic<T>(
     command_sender: &mpsc::Sender<T>,
     buffer_size: usize,

@@ -22,7 +22,10 @@ mod task_coordinator;
 
 /// Error types for result processing operations
 // Note: Using #[allow] instead of #[expect] - used by test targets
-#[allow(dead_code, reason = "pub(crate) error type for result processing pipeline")]
+#[allow(
+    dead_code,
+    reason = "pub(crate) error type for result processing pipeline"
+)]
 #[derive(Debug, Clone)]
 pub enum ResultProcessingError {
     /// Failed to process message

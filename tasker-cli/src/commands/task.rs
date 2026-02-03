@@ -9,7 +9,10 @@ use uuid::Uuid;
 
 use crate::TaskCommands;
 
-pub(crate) async fn handle_task_command(cmd: TaskCommands, config: &ClientConfig) -> ClientResult<()> {
+pub(crate) async fn handle_task_command(
+    cmd: TaskCommands,
+    config: &ClientConfig,
+) -> ClientResult<()> {
     let orchestration_config = OrchestrationApiConfig {
         base_url: config.orchestration.base_url.clone(),
         timeout_ms: config.orchestration.timeout_ms,

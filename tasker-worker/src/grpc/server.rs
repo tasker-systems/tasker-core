@@ -172,7 +172,10 @@ impl GrpcServerHandle {
 /// Start the gRPC server with the given configuration.
 ///
 /// This is a convenience function that creates and starts a gRPC server.
-#[expect(dead_code, reason = "pub(crate) gRPC infrastructure used by tonic server")]
+#[expect(
+    dead_code,
+    reason = "pub(crate) gRPC infrastructure used by tonic server"
+)]
 pub async fn start_grpc_server(
     config: GrpcConfig,
     state: WorkerGrpcState,

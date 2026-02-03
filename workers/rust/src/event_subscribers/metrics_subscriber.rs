@@ -36,7 +36,10 @@
 //! - `events_by_name` - Event count per event name
 //! - `last_event_at` - Timestamp of most recent event
 // Note: Using #[allow] instead of #[expect] at file level - items used by test targets
-#![allow(dead_code, reason = "TAS-65 example event subscribers for domain event metrics")]
+#![allow(
+    dead_code,
+    reason = "TAS-65 example event subscribers for domain event metrics"
+)]
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};

@@ -2,7 +2,10 @@
 //!
 //! Custom extractors for common web API patterns like database connections,
 //! authenticated users, and request context.
-#![expect(dead_code, reason = "pub(crate) web infrastructure used by route configuration")]
+#![expect(
+    dead_code,
+    reason = "pub(crate) web infrastructure used by route configuration"
+)]
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
