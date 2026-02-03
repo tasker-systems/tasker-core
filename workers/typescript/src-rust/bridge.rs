@@ -111,27 +111,33 @@ pub fn bootstrap_worker_internal(config_json: Option<&str>) -> Result<String> {
 
     // Create domain event callback for step completion
     info!("Setting up step event publisher registry for domain events...");
-    let (domain_event_publisher, domain_event_callback) = runtime.block_on(async {
-        let worker_core = system_handle.worker_core.lock().await;
+    let (domain_event_publisher, domain_event_callback) = runtime
+        .block_on(async {
+            let worker_core = system_handle.worker_core.lock().await;
 
-        // Get the message client for durable events
-        let message_client = worker_core.context.message_client.clone();
-        let publisher = Arc::new(DomainEventPublisher::new(message_client));
+            // Get the message client for durable events
+            let message_client = worker_core.context.message_client.clone();
+            let publisher = Arc::new(DomainEventPublisher::new(message_client));
 
-        // Get EventRouter from WorkerCore for stats tracking
-        let event_router = worker_core
-            .event_router()
-            .expect("EventRouter should be available from WorkerCore");
+            // Get EventRouter from WorkerCore for stats tracking
+            // TAS-173: Use ok_or_else instead of expect to prevent panic at FFI boundary
+            let event_router = worker_core.event_router().ok_or_else(|| {
+                error!("EventRouter not available from WorkerCore after bootstrap");
+                TypeScriptFfiError::BootstrapFailed(
+                    "EventRouter not available from WorkerCore".to_string(),
+                )
+            })?;
 
-        // Create registry with EventRouter for dual-path delivery (durable + fast)
-        let step_event_registry =
-            StepEventPublisherRegistry::with_event_router(publisher.clone(), event_router);
+            // Create registry with EventRouter for dual-path delivery (durable + fast)
+            let step_event_registry =
+                StepEventPublisherRegistry::with_event_router(publisher.clone(), event_router);
 
-        let registry = Arc::new(RwLock::new(step_event_registry));
-        let callback = Arc::new(DomainEventCallback::new(registry));
+            let registry = Arc::new(RwLock::new(step_event_registry));
+            let callback = Arc::new(DomainEventCallback::new(registry));
 
-        (publisher, callback)
-    });
+            Ok::<_, TypeScriptFfiError>((publisher, callback))
+        })
+        .map_err(|e: TypeScriptFfiError| anyhow::anyhow!(e))?;
     info!("Domain event callback created with EventRouter for stats tracking");
 
     // Take dispatch handles and create FfiDispatchChannel with callback

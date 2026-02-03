@@ -38,6 +38,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 use std::ffi::{c_char, c_int, CStr, CString};
+use std::panic::{self, AssertUnwindSafe};
 use std::ptr;
 
 mod bridge;
@@ -110,6 +111,8 @@ pub extern "C" fn is_worker_running() -> c_int {
 
 /// Bootstrap the worker with the given configuration.
 ///
+/// TAS-173: Uses `catch_unwind` to prevent panics from crossing the FFI boundary.
+///
 /// # Parameters
 ///
 /// - `config_json`: JSON string containing bootstrap configuration, or null for defaults
@@ -137,12 +140,28 @@ pub unsafe extern "C" fn bootstrap_worker(config_json: *const c_char) -> *mut c_
         }
     };
 
-    match bridge::bootstrap_worker_internal(config_str) {
-        Ok(result) => match CString::new(result) {
+    // TAS-173: Catch panics to prevent undefined behavior at FFI boundary
+    let result = panic::catch_unwind(AssertUnwindSafe(|| {
+        bridge::bootstrap_worker_internal(config_str)
+    }));
+
+    match result {
+        Ok(Ok(json)) => match CString::new(json) {
             Ok(s) => s.into_raw(),
             Err(_) => json_error("Failed to create result string"),
         },
-        Err(e) => json_error(&format!("Bootstrap failed: {}", e)),
+        Ok(Err(e)) => json_error(&format!("Bootstrap failed: {}", e)),
+        Err(panic_info) => {
+            let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
+                format!("Bootstrap panicked: {}", s)
+            } else if let Some(s) = panic_info.downcast_ref::<String>() {
+                format!("Bootstrap panicked: {}", s)
+            } else {
+                "Bootstrap panicked with unknown error".to_string()
+            };
+            tracing::error!("{}", msg);
+            json_error(&msg)
+        }
     }
 }
 
@@ -154,12 +173,13 @@ pub unsafe extern "C" fn bootstrap_worker(config_json: *const c_char) -> *mut c_
 /// The returned pointer must be freed with `free_rust_string`.
 #[no_mangle]
 pub extern "C" fn get_worker_status() -> *mut c_char {
-    match bridge::get_worker_status_internal() {
-        Ok(result) => match CString::new(result) {
+    match panic::catch_unwind(bridge::get_worker_status_internal) {
+        Ok(Ok(result)) => match CString::new(result) {
             Ok(s) => s.into_raw(),
             Err(_) => json_error("Failed to create status string"),
         },
-        Err(e) => json_error(&format!("Failed to get status: {}", e)),
+        Ok(Err(e)) => json_error(&format!("Failed to get status: {}", e)),
+        Err(_) => json_error("get_worker_status panicked unexpectedly"),
     }
 }
 
@@ -171,12 +191,13 @@ pub extern "C" fn get_worker_status() -> *mut c_char {
 /// The returned pointer must be freed with `free_rust_string`.
 #[no_mangle]
 pub extern "C" fn stop_worker() -> *mut c_char {
-    match bridge::stop_worker_internal() {
-        Ok(result) => match CString::new(result) {
+    match panic::catch_unwind(bridge::stop_worker_internal) {
+        Ok(Ok(result)) => match CString::new(result) {
             Ok(s) => s.into_raw(),
             Err(_) => json_error("Failed to create result string"),
         },
-        Err(e) => json_error(&format!("Failed to stop worker: {}", e)),
+        Ok(Err(e)) => json_error(&format!("Failed to stop worker: {}", e)),
+        Err(_) => json_error("stop_worker panicked unexpectedly"),
     }
 }
 
@@ -188,12 +209,13 @@ pub extern "C" fn stop_worker() -> *mut c_char {
 /// The returned pointer must be freed with `free_rust_string`.
 #[no_mangle]
 pub extern "C" fn transition_to_graceful_shutdown() -> *mut c_char {
-    match bridge::transition_to_graceful_shutdown_internal() {
-        Ok(result) => match CString::new(result) {
+    match panic::catch_unwind(bridge::transition_to_graceful_shutdown_internal) {
+        Ok(Ok(result)) => match CString::new(result) {
             Ok(s) => s.into_raw(),
             Err(_) => json_error("Failed to create result string"),
         },
-        Err(e) => json_error(&format!("Failed to transition: {}", e)),
+        Ok(Err(e)) => json_error(&format!("Failed to transition: {}", e)),
+        Err(_) => json_error("transition_to_graceful_shutdown panicked unexpectedly"),
     }
 }
 
@@ -205,14 +227,18 @@ pub extern "C" fn transition_to_graceful_shutdown() -> *mut c_char {
 /// The returned pointer must be freed with `free_rust_string`.
 #[no_mangle]
 pub extern "C" fn poll_step_events() -> *mut c_char {
-    match bridge::poll_step_events_internal() {
-        Ok(Some(result)) => match CString::new(result) {
+    match panic::catch_unwind(bridge::poll_step_events_internal) {
+        Ok(Ok(Some(result))) => match CString::new(result) {
             Ok(s) => s.into_raw(),
             Err(_) => ptr::null_mut(),
         },
-        Ok(None) => ptr::null_mut(),
-        Err(e) => {
+        Ok(Ok(None)) => ptr::null_mut(),
+        Ok(Err(e)) => {
             tracing::error!("Failed to poll step events: {}", e);
+            ptr::null_mut()
+        }
+        Err(_) => {
+            tracing::error!("poll_step_events panicked unexpectedly");
             ptr::null_mut()
         }
     }
@@ -249,14 +275,18 @@ pub extern "C" fn poll_step_events() -> *mut c_char {
 /// ```
 #[no_mangle]
 pub extern "C" fn poll_in_process_events() -> *mut c_char {
-    match bridge::poll_in_process_events_internal() {
-        Ok(Some(result)) => match CString::new(result) {
+    match panic::catch_unwind(bridge::poll_in_process_events_internal) {
+        Ok(Ok(Some(result))) => match CString::new(result) {
             Ok(s) => s.into_raw(),
             Err(_) => ptr::null_mut(),
         },
-        Ok(None) => ptr::null_mut(),
-        Err(e) => {
+        Ok(Ok(None)) => ptr::null_mut(),
+        Ok(Err(e)) => {
             tracing::error!("Failed to poll in-process events: {}", e);
+            ptr::null_mut()
+        }
+        Err(_) => {
+            tracing::error!("poll_in_process_events panicked unexpectedly");
             ptr::null_mut()
         }
     }
@@ -314,17 +344,26 @@ pub unsafe extern "C" fn complete_step_event(
         "complete_step_event: FFI call received"
     );
 
-    match bridge::complete_step_event_internal(event_id_str, result_str) {
-        Ok(true) => {
+    let event_id_owned = event_id_str.to_string();
+    let result_owned = result_str.to_string();
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        bridge::complete_step_event_internal(&event_id_owned, &result_owned)
+    })) {
+        Ok(Ok(true)) => {
             tracing::info!(event_id = %event_id_str, "complete_step_event: SUCCESS");
             1
         }
-        Ok(false) => {
+        Ok(Ok(false)) => {
             tracing::warn!(event_id = %event_id_str, "complete_step_event: returned false (event not in pending)");
             0
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             tracing::error!(event_id = %event_id_str, error = %e, "complete_step_event: internal error");
+            0
+        }
+        Err(_) => {
+            tracing::error!(event_id = %event_id_str, "complete_step_event panicked unexpectedly");
             0
         }
     }
@@ -396,17 +435,26 @@ pub unsafe extern "C" fn checkpoint_yield_step_event(
         "checkpoint_yield_step_event: FFI call received"
     );
 
-    match bridge::checkpoint_yield_step_event_internal(event_id_str, checkpoint_str) {
-        Ok(true) => {
+    let event_id_owned = event_id_str.to_string();
+    let checkpoint_owned = checkpoint_str.to_string();
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        bridge::checkpoint_yield_step_event_internal(&event_id_owned, &checkpoint_owned)
+    })) {
+        Ok(Ok(true)) => {
             tracing::info!(event_id = %event_id_str, "checkpoint_yield_step_event: SUCCESS");
             1
         }
-        Ok(false) => {
+        Ok(Ok(false)) => {
             tracing::warn!(event_id = %event_id_str, "checkpoint_yield_step_event: returned false (checkpoint support not configured or event not found)");
             0
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             tracing::error!(event_id = %event_id_str, error = %e, "checkpoint_yield_step_event: internal error");
+            0
+        }
+        Err(_) => {
+            tracing::error!(event_id = %event_id_str, "checkpoint_yield_step_event panicked unexpectedly");
             0
         }
     }
@@ -420,29 +468,34 @@ pub unsafe extern "C" fn checkpoint_yield_step_event(
 /// The returned pointer must be freed with `free_rust_string`.
 #[no_mangle]
 pub extern "C" fn get_ffi_dispatch_metrics() -> *mut c_char {
-    match bridge::get_ffi_dispatch_metrics_internal() {
-        Ok(result) => match CString::new(result) {
+    match panic::catch_unwind(bridge::get_ffi_dispatch_metrics_internal) {
+        Ok(Ok(result)) => match CString::new(result) {
             Ok(s) => s.into_raw(),
             Err(_) => json_error("Failed to create metrics string"),
         },
-        Err(e) => json_error(&format!("Failed to get metrics: {}", e)),
+        Ok(Err(e)) => json_error(&format!("Failed to get metrics: {}", e)),
+        Err(_) => json_error("get_ffi_dispatch_metrics panicked unexpectedly"),
     }
 }
 
 /// Check for and log starvation warnings.
 #[no_mangle]
 pub extern "C" fn check_starvation_warnings() {
-    if let Err(e) = bridge::check_starvation_warnings_internal() {
-        tracing::error!("Failed to check starvation warnings: {}", e);
-    }
+    let _ = panic::catch_unwind(|| {
+        if let Err(e) = bridge::check_starvation_warnings_internal() {
+            tracing::error!("Failed to check starvation warnings: {}", e);
+        }
+    });
 }
 
 /// Cleanup timed-out events.
 #[no_mangle]
 pub extern "C" fn cleanup_timeouts() {
-    if let Err(e) = bridge::cleanup_timeouts_internal() {
-        tracing::error!("Failed to cleanup timeouts: {}", e);
-    }
+    let _ = panic::catch_unwind(|| {
+        if let Err(e) = bridge::cleanup_timeouts_internal() {
+            tracing::error!("Failed to cleanup timeouts: {}", e);
+        }
+    });
 }
 
 /// Log an error message.

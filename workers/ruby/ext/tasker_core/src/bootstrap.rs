@@ -120,9 +120,14 @@ pub fn bootstrap_worker() -> Result<Value, Error> {
         );
 
         // TAS-67: Get EventRouter from WorkerCore for stats tracking
-        let event_router = worker_core
-            .event_router()
-            .expect("EventRouter should be available from WorkerCore");
+        // TAS-173: Use ok_or_else instead of expect to prevent panic at FFI boundary
+        let event_router = worker_core.event_router().ok_or_else(|| {
+            error!("EventRouter not available from WorkerCore after bootstrap");
+            Error::new(
+                runtime_error_class(),
+                "EventRouter not available from WorkerCore",
+            )
+        })?;
 
         // Create registry with EventRouter for dual-path delivery (durable + fast)
         let step_event_registry =
@@ -131,8 +136,8 @@ pub fn bootstrap_worker() -> Result<Value, Error> {
         let registry = Arc::new(RwLock::new(step_event_registry));
         let callback = Arc::new(DomainEventCallback::new(registry));
 
-        (publisher, callback)
-    });
+        Ok::<_, Error>((publisher, callback))
+    })?;
     info!("✅ Domain event callback created with EventRouter for stats tracking");
 
     // TAS-67: Take dispatch handles and create FfiDispatchChannel with callback

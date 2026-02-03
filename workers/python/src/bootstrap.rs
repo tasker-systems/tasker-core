@@ -94,29 +94,38 @@ pub fn bootstrap_worker(py: Python<'_>, config: Option<&Bound<'_, PyDict>>) -> P
 
     // Create domain event callback for step completion
     info!("🔔 Setting up step event publisher registry for domain events...");
-    let (domain_event_publisher, domain_event_callback) = runtime.block_on(async {
-        let worker_core = system_handle.worker_core.lock().await;
+    let (domain_event_publisher, domain_event_callback) = runtime
+        .block_on(async {
+            let worker_core = system_handle.worker_core.lock().await;
 
-        // Get the message client for durable events
-        let message_client = worker_core.context.message_client.clone();
-        let publisher = Arc::new(
-            tasker_shared::events::domain_events::DomainEventPublisher::new(message_client),
-        );
+            // Get the message client for durable events
+            let message_client = worker_core.context.message_client.clone();
+            let publisher = Arc::new(
+                tasker_shared::events::domain_events::DomainEventPublisher::new(message_client),
+            );
 
-        // Get EventRouter from WorkerCore for stats tracking
-        let event_router = worker_core
-            .event_router()
-            .expect("EventRouter should be available from WorkerCore");
+            // Get EventRouter from WorkerCore for stats tracking
+            // TAS-173: Use ok_or_else instead of expect to prevent panic at FFI boundary
+            let event_router = worker_core.event_router().ok_or_else(|| {
+                error!("EventRouter not available from WorkerCore after bootstrap");
+                PythonFfiError::BootstrapFailed(
+                    "EventRouter not available from WorkerCore".to_string(),
+                )
+            })?;
 
-        // Create registry with EventRouter for dual-path delivery (durable + fast)
-        let step_event_registry =
-            StepEventPublisherRegistry::with_event_router(publisher.clone(), event_router);
+            // Create registry with EventRouter for dual-path delivery (durable + fast)
+            let step_event_registry =
+                StepEventPublisherRegistry::with_event_router(publisher.clone(), event_router);
 
-        let registry = Arc::new(RwLock::new(step_event_registry));
-        let callback = Arc::new(DomainEventCallback::new(registry));
+            let registry = Arc::new(RwLock::new(step_event_registry));
+            let callback = Arc::new(DomainEventCallback::new(registry));
 
-        (publisher, callback)
-    });
+            Ok::<_, PythonFfiError>((publisher, callback))
+        })
+        .map_err(|e| {
+            error!("Failed to set up domain event callback: {}", e);
+            e
+        })?;
     info!("✅ Domain event callback created with EventRouter for stats tracking");
 
     // Take dispatch handles and create FfiDispatchChannel with callback
