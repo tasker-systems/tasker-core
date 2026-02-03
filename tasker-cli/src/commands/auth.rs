@@ -11,7 +11,7 @@ use tasker_shared::types::permissions::Permission;
 
 use crate::AuthCommands;
 
-pub async fn handle_auth_command(cmd: AuthCommands) -> ClientResult<()> {
+pub(crate) async fn handle_auth_command(cmd: AuthCommands) -> ClientResult<()> {
     match cmd {
         AuthCommands::GenerateKeys {
             output_dir,

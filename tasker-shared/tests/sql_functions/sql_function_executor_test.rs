@@ -166,7 +166,7 @@ mod tests {
 
         // Non-existent UUID should be absent
         assert!(
-            hash.get(&Uuid::nil()).is_none(),
+            !hash.contains_key(&Uuid::nil()),
             "Nil UUID should not be in the map"
         );
 

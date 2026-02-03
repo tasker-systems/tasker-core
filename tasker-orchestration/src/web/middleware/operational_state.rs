@@ -1,6 +1,10 @@
 //! # Operational State Middleware
 //!
 //! Middleware that coordinates web API availability with orchestration system operational state.
+#![expect(
+    dead_code,
+    reason = "pub(crate) web infrastructure used by route configuration"
+)]
 
 use axum::extract::{Request, State};
 use axum::http::StatusCode;

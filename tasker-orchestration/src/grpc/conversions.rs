@@ -38,6 +38,11 @@ pub fn proto_to_task_state(state: proto::TaskState) -> String {
 // ============================================================================
 
 /// Convert step state string to proto (convenience for string-based state storage).
+// Note: Using #[allow] instead of #[expect] - used by test targets
+#[allow(
+    dead_code,
+    reason = "pub(crate) gRPC infrastructure used by tonic server"
+)]
 pub fn step_state_to_proto(state: &str) -> proto::StepState {
     WorkflowStepState::try_from(state)
         .map(proto::StepState::from)
@@ -275,7 +280,7 @@ mod tests {
     fn test_json_struct_roundtrip() {
         let original = json!({
             "string_val": "hello",
-            "number_val": 3.14,
+            "number_val": 2.72,
             "bool_val": true,
             "null_val": null,
             "array_val": [1, 2, 3],

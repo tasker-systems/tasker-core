@@ -14,12 +14,12 @@ use tower_http::{
 };
 use tracing::info;
 
-pub mod handlers;
-pub mod middleware;
+pub(crate) mod handlers;
+pub(crate) mod middleware;
 #[cfg(feature = "web-api")]
 pub mod openapi;
-pub mod routes;
-pub mod state;
+pub(crate) mod routes;
+pub(crate) mod state;
 
 pub use state::{CircuitBreakerHealthProvider, WorkerWebState};
 

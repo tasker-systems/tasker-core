@@ -5,6 +5,10 @@
 //!
 //! These examples mirror the patterns from Ruby, Python, and TypeScript workers
 //! to ensure cross-language consistency.
+#![expect(
+    dead_code,
+    reason = "TAS-112 example handlers demonstrating capability traits"
+)]
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -417,7 +421,6 @@ impl ExampleBatchWorker {
 /// any combination of capabilities.
 #[derive(Debug)]
 pub struct CompositeHandler {
-    #[expect(dead_code, reason = "Config available for future handler enhancements")]
     config: StepHandlerConfig,
 }
 

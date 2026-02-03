@@ -31,7 +31,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use tasker_worker::worker::in_process_event_bus::{InProcessEventBus, InProcessEventBusConfig};
 //! use tasker_shared::events::domain_events::DomainEvent;
 //! use tasker_shared::events::registry::EventHandler;

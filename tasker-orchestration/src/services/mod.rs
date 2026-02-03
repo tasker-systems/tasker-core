@@ -19,13 +19,13 @@
 
 mod analytics_query_service;
 mod analytics_service;
-pub mod health;
-pub mod shared;
-pub mod step_query_service;
-pub mod step_service;
-pub mod task_query_service;
-pub mod task_service;
-pub mod template_query_service;
+pub(crate) mod health;
+pub(crate) mod shared;
+pub(crate) mod step_query_service;
+pub(crate) mod step_service;
+pub(crate) mod task_query_service;
+pub(crate) mod task_service;
+pub(crate) mod template_query_service;
 
 pub use analytics_query_service::AnalyticsQueryService;
 pub use analytics_service::AnalyticsService;

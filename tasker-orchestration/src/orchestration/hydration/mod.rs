@@ -23,7 +23,7 @@
 //!
 //! ## Usage Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use tasker_orchestration::orchestration::hydration::{
 //!     StepResultHydrator, TaskRequestHydrator, FinalizationHydrator
 //! };

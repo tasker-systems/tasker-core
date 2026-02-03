@@ -75,9 +75,9 @@ pub use worker_status_actor::WorkerStatusActor;
 
 // Re-export messages
 pub use messages::{
-    DispatchEventsMessage, DispatchHandlerMessage, ExecuteStepFromEventMessage,
-    ExecuteStepFromPgmqMessage, ExecuteStepFromQueuedMessage, ExecuteStepMessage,
-    ExecuteStepWithCorrelationMessage, GetEventStatusMessage, GetWorkerStatusMessage,
-    HealthCheckMessage, ProcessStepCompletionMessage, RefreshTemplateCacheMessage,
-    SendStepResultMessage, SetEventIntegrationMessage, TraceContext,
+    DispatchHandlerMessage, ExecuteStepFromEventMessage, ExecuteStepFromPgmqMessage,
+    ExecuteStepFromQueuedMessage, ExecuteStepMessage, ExecuteStepWithCorrelationMessage,
+    GetEventStatusMessage, GetWorkerStatusMessage, HealthCheckMessage,
+    ProcessStepCompletionMessage, RefreshTemplateCacheMessage, SendStepResultMessage,
+    SetEventIntegrationMessage, TraceContext,
 };

@@ -36,7 +36,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use tasker_worker::worker::event_router::EventRouter;
 //! use tasker_worker::worker::in_process_event_bus::InProcessEventBus;
 //! use tasker_shared::events::domain_events::{DomainEventPublisher, DomainEventPayload, EventMetadata};

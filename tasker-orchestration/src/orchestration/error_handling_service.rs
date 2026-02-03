@@ -574,8 +574,8 @@ mod tests {
             default_max_attempts: 7,
         };
         let cloned = config.clone();
-        assert_eq!(cloned.use_error_classification, true);
-        assert_eq!(cloned.use_waiting_for_retry_state, false);
+        assert!(cloned.use_error_classification);
+        assert!(!cloned.use_waiting_for_retry_state);
         assert_eq!(cloned.default_max_attempts, 7);
     }
 

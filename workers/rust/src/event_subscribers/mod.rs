@@ -43,11 +43,5 @@
 //! - Durable events go to PGMQ and require separate consumer processes
 //! - Fast events are only observable in integration tests (same memory space)
 
-pub mod logging_subscriber;
-pub mod metrics_subscriber;
-
-// Re-export common types
-pub use logging_subscriber::{
-    create_debug_logging_subscriber, create_logging_subscriber, create_verbose_logging_subscriber,
-};
-pub use metrics_subscriber::{EventMetricsCollector, MetricsSummary};
+pub(crate) mod logging_subscriber;
+pub(crate) mod metrics_subscriber;

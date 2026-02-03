@@ -363,52 +363,52 @@ pub use tasker_worker::worker::{
 };
 
 // Workflow handler modules
-pub mod batch_processing_example;
-pub mod batch_processing_products_csv;
-pub mod conditional_approval_rust;
-pub mod diamond_decision_batch;
-pub mod diamond_workflow;
-pub mod linear_workflow;
-pub mod mixed_dag_workflow;
-pub mod order_fulfillment;
-pub mod tree_workflow;
+pub(crate) mod batch_processing_example;
+pub(crate) mod batch_processing_products_csv;
+pub(crate) mod conditional_approval_rust;
+pub(crate) mod diamond_decision_batch;
+pub(crate) mod diamond_workflow;
+pub(crate) mod linear_workflow;
+pub(crate) mod mixed_dag_workflow;
+pub(crate) mod order_fulfillment;
+pub(crate) mod tree_workflow;
 
 // TAS-64: Error injection handlers for retry testing
-pub mod error_injection;
+pub(crate) mod error_injection;
 
 // TAS-65: Example handler with domain event publishing
 pub mod payment_example;
 
 // TAS-65 Phase 3: Custom event publisher examples
-pub mod notification_event_publisher;
+pub(crate) mod notification_event_publisher;
 pub mod payment_event_publisher;
 
 // TAS-65: Domain event publishing workflow handlers
-pub mod domain_event_publishing;
+pub(crate) mod domain_event_publishing;
 
 // TAS-91: Blog Post 01 - E-commerce order processing handlers
-pub mod ecommerce;
+pub(crate) mod ecommerce;
 
 // TAS-91: Blog Post 02 - Data pipeline analytics handlers
-pub mod data_pipeline;
+pub(crate) mod data_pipeline;
 
 // TAS-91: Blog Post 03 - Microservices coordination handlers
-pub mod microservices;
+pub(crate) mod microservices;
 
 // TAS-91: Blog Post 04 - Team Scaling handlers (Customer Success + Payments namespaces)
-pub mod team_scaling;
+pub(crate) mod team_scaling;
 
 // Handler registry
-pub mod registry;
+pub(crate) mod registry;
 
 // TAS-112: Ergonomic handler capability traits
-pub mod capabilities;
+pub(crate) mod capabilities;
 
 // TAS-112: Example handlers demonstrating capability traits
-pub mod capability_examples;
+pub(crate) mod capability_examples;
 
 // TAS-93 Phase 5: Resolver chain test handlers
-pub mod resolver_tests;
+pub(crate) mod resolver_tests;
 
 // Re-export core types for convenience
 // TAS-67: Export registry and adapter

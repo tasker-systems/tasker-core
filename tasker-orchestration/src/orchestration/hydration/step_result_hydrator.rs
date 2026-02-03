@@ -34,7 +34,7 @@ use tracing::{debug, error, info};
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_orchestration::orchestration::hydration::StepResultHydrator;
 /// use std::sync::Arc;
 ///

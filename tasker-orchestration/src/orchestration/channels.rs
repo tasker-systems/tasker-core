@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_channel_factory_default() {
-        let _factory = ChannelFactory::default();
+        let _factory = ChannelFactory;
         let _factory2 = ChannelFactory;
     }
 

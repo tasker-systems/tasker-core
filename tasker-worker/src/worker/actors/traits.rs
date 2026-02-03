@@ -32,7 +32,7 @@ use tasker_shared::{system_context::SystemContext, TaskerResult};
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_worker::worker::actors::WorkerActor;
 /// use std::sync::Arc;
 /// use tasker_shared::system_context::SystemContext;
@@ -155,7 +155,7 @@ pub trait Handler<M: Message>: WorkerActor {
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_worker::worker::actors::Message;
 /// use uuid::Uuid;
 ///

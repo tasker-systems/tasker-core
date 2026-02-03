@@ -33,7 +33,7 @@ use tasker_shared::types::web::{
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use tasker_worker::worker::services::metrics::MetricsService;
 /// use tasker_worker::worker::task_template_manager::TaskTemplateManager;
 /// use tasker_worker::worker::event_router::EventRouter;

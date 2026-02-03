@@ -18,7 +18,7 @@ use crate::error::{PgmqNotifyError, Result};
 /// # Examples
 ///
 /// ```rust
-/// use tasker_pgmq::config::PgmqNotifyConfig;
+/// use tasker_pgmq::PgmqNotifyConfig;
 /// use std::collections::HashSet;
 ///
 /// // Basic configuration with defaults
