@@ -78,6 +78,24 @@ Rename `tasker-core-py` to `tasker-worker-py` for namespace consistency with Rub
 
 Audit existing open tickets for anything that would be embarrassing or blocking in an alpha. Items that represent known broken behavior or missing fundamental capability should be addressed. Nice-to-haves can be deferred.
 
+### 0.5 Registry Accounts & Credential Setup
+
+Publishing requires active accounts and API tokens on every target registry. Several of these need to be created or regenerated, and all need to be stored as GitHub Actions secrets and (for local dry-run testing) in a local credential store. See the [Operational Checklist](#operational-checklist-human-tasks) appendix for the step-by-step setup guide.
+
+**Current state:**
+
+| Registry | Account Status | Token Status | GitHub Secret |
+|----------|---------------|-------------|--------------|
+| crates.io | Have account | Need to generate API token | `CARGO_REGISTRY_TOKEN` -- not configured |
+| RubyGems | Have account | Need to regenerate API key | `GEM_HOST_API_KEY` -- not configured |
+| PyPI | **No account** | Need to create account + token | `MATURIN_PYPI_TOKEN` -- not configured |
+| TestPyPI | **No account** | Need to create account + token | `TEST_PYPI_TOKEN` -- not configured |
+| npm | Need to verify org | Need to create publish token | `NPM_TOKEN` -- not configured |
+| Docker Hub | Have account | Need to verify/regen token | `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` -- not configured |
+| ghcr.io | Uses GitHub token | Automatic in Actions | `GITHUB_TOKEN` -- automatic |
+
+**Note:** The release scripts in `scripts/release/lib/common.sh` already reference these environment variables via `require_env()`. The infrastructure expects them; they just don't exist yet.
+
 ### Acceptance Criteria
 
 - [ ] `cargo publish --dry-run` succeeds for all six publishable crates in dependency order
@@ -85,6 +103,9 @@ Audit existing open tickets for anything that would be embarrassing or blocking 
 - [ ] CONTRIBUTING.md, CHANGELOG.md, SECURITY.md exist
 - [ ] GitHub issue and PR templates in place
 - [ ] No known P0 bugs in open tickets
+- [ ] All registry accounts created/verified (see Operational Checklist)
+- [ ] All API tokens generated and stored as GitHub Actions secrets
+- [ ] Local credential setup documented and tested with dry-run publishes
 
 ---
 
@@ -822,3 +843,132 @@ This is intentionally not time-estimated. The phases have natural ordering and d
 7. **TAS-126 update scope.** TAS-126 should be updated to reflect the evolved architecture (unified packages layer, client SDKs, evolved repo structure). Should this be a revision of TAS-126 itself, or should TAS-189 supersede TAS-126's structural decisions while TAS-126 retains ownership of CI strategy and ops infrastructure? **Recommendation:** Revise TAS-126 to reference TAS-189 as the authoritative source for repo structure and package strategy. TAS-126 retains ownership of CI workflows, dual build modes, ops/docker infrastructure, and the mechanical act of creating the repository. TAS-189 owns the *what goes in it* decisions.
 
 8. **Template engine for code generation.** `tasker-cli` already uses Askama (compile-time verified, strict typing) for documentation generation. TAS-127 originally proposed Tera (runtime-loaded, hash-key template values) for plugin-provided code generation templates. The core tension: Askama gives compile-time correctness but requires templates to be known at build time; Tera allows runtime discovery but trades compile-time safety for flexibility. There may also be Askama-based approaches (e.g., compiling plugin templates into the binary at install/update time, or using Askama's runtime features if sufficient). **Recommendation:** Defer this decision to implementation time. The plugin architecture design doesn't depend on which template engine renders the output -- it depends on discovery, manifests, and parameter schemas. Choose the engine when building TAS-127 Phase 3, informed by the actual requirements at that point.
+
+9. **npm org ownership.** The `@tasker-systems` npm scope needs to be created and owned by the org. Verify whether it's available and claim it early -- npm scopes are first-come-first-served.
+
+---
+
+## Operational Checklist (Human Tasks)
+
+This section tracks the concrete operational setup that must be done by a human (account creation, credential generation, secret configuration). These are prerequisites for the automated publishing pipeline to work. Most of this gates Phase 1 but should be started during Phase 0.
+
+### Registry Account Setup
+
+#### crates.io
+
+- [ ] Log in at [crates.io](https://crates.io/) (GitHub OAuth)
+- [ ] Navigate to Account Settings → API Tokens
+- [ ] Generate a new token scoped to publish for `tasker-*` crates
+- [ ] Test locally: `CARGO_REGISTRY_TOKEN=<token> cargo publish --dry-run -p tasker-pgmq`
+- [ ] Store token securely (password manager)
+
+#### RubyGems
+
+- [ ] Log in at [rubygems.org](https://rubygems.org/)
+- [ ] Navigate to Settings → API Keys
+- [ ] Generate a new API key with push scope
+  - Scope to `tasker-*` gem name pattern if RubyGems supports it
+- [ ] Test locally: `GEM_HOST_API_KEY=<key> gem push --dry-run` (or build gem and verify)
+- [ ] Store key securely
+
+#### PyPI (new account required)
+
+- [ ] Create account at [pypi.org](https://pypi.org/account/register/)
+- [ ] Enable 2FA (required for new accounts)
+- [ ] Navigate to Account Settings → API Tokens
+- [ ] Generate a project-scoped API token (initially account-wide, scope to project after first publish)
+- [ ] Store token securely
+
+#### TestPyPI (for dry-run publishing)
+
+- [ ] Create account at [test.pypi.org](https://test.pypi.org/account/register/) (separate from PyPI)
+- [ ] Enable 2FA
+- [ ] Generate API token
+- [ ] Test the full publish flow:
+  ```bash
+  cd workers/python
+  maturin build --release
+  maturin upload --repository-url https://test.pypi.org/legacy/ \
+    --username __token__ --password <test-pypi-token> \
+    target/wheels/*.whl
+  ```
+- [ ] Verify package appears at `https://test.pypi.org/project/tasker-worker-py/`
+- [ ] Verify install works: `pip install -i https://test.pypi.org/simple/ tasker-worker-py`
+
+#### npm
+
+- [ ] Log in at [npmjs.com](https://www.npmjs.com/) (or create account)
+- [ ] Create the `@tasker-systems` org (Settings → Organizations → Add Organization)
+- [ ] Verify `@tasker-systems` scope is available and claimed
+- [ ] Generate an automation-type access token (Settings → Access Tokens → Generate New Token → Granular Access Token)
+  - Permissions: Read and Write packages
+  - Scope to `@tasker-systems` org
+- [ ] Test locally: `npm whoami --registry https://registry.npmjs.org/`
+- [ ] Store token securely
+
+#### Docker Hub
+
+- [ ] Verify login at [hub.docker.com](https://hub.docker.com/)
+- [ ] Navigate to Account Settings → Security → Access Tokens
+- [ ] Generate a new access token with Read/Write permissions
+- [ ] Store token securely
+
+**Note:** ghcr.io (GitHub Container Registry) uses `GITHUB_TOKEN` automatically in GitHub Actions. No separate credential setup is needed for CI. For local pushes, a GitHub PAT with `write:packages` scope works.
+
+### GitHub Actions Secrets
+
+Configure the following in the `tasker-systems/tasker-core` repository:
+
+Settings → Secrets and variables → Actions → New repository secret
+
+| Secret Name | Source | Used By |
+|-------------|--------|---------|
+| `CARGO_REGISTRY_TOKEN` | crates.io API token | `publish-crates.sh` |
+| `GEM_HOST_API_KEY` | RubyGems API key | `publish-ruby.sh` |
+| `MATURIN_PYPI_TOKEN` | PyPI API token | `publish-python.sh` |
+| `TEST_PYPI_TOKEN` | TestPyPI API token | Dry-run CI jobs |
+| `NPM_TOKEN` | npm granular access token | `publish-typescript.sh` |
+| `DOCKERHUB_USERNAME` | Docker Hub username | Container image pushes |
+| `DOCKERHUB_TOKEN` | Docker Hub access token | Container image pushes |
+
+Also configure for `tasker-systems/tasker-contrib` (when created):
+
+| Secret Name | Source | Used By |
+|-------------|--------|---------|
+| `GEM_HOST_API_KEY` | Same RubyGems key | `tasker-rb` gem publishing |
+| `MATURIN_PYPI_TOKEN` | Same PyPI token | `tasker-py` package publishing |
+| `NPM_TOKEN` | Same npm token | `@tasker-systems/tasker` publishing |
+
+### Local Development Credential Setup
+
+For testing publish scripts locally with `--dry-run`:
+
+- [ ] Create `~/.tasker-release-env` (git-ignored, never committed):
+  ```bash
+  # ~/.tasker-release-env
+  # Source this before running release scripts locally
+  export CARGO_REGISTRY_TOKEN="cio_..."
+  export GEM_HOST_API_KEY="rubygems_..."
+  export MATURIN_PYPI_TOKEN="pypi-..."
+  export TEST_PYPI_TOKEN="pypi-..."
+  export NPM_TOKEN="npm_..."
+  export DOCKERHUB_USERNAME="..."
+  export DOCKERHUB_TOKEN="dckr_pat_..."
+  ```
+- [ ] Verify dry-run works end-to-end:
+  ```bash
+  source ~/.tasker-release-env
+  ./scripts/release/release.sh --dry-run
+  ```
+
+### Verification Checklist (run after all setup is complete)
+
+- [ ] `cargo publish --dry-run -p tasker-pgmq` succeeds
+- [ ] `cargo publish --dry-run -p tasker-shared` succeeds
+- [ ] `maturin build --release` succeeds in `workers/python/`
+- [ ] TestPyPI upload + install round-trip works
+- [ ] `gem build tasker-worker-rb.gemspec` succeeds in `workers/ruby/`
+- [ ] `npm pack` succeeds in `workers/typescript/`
+- [ ] `docker build` succeeds for orchestration prod Dockerfile
+- [ ] GitHub Actions test workflow can read all configured secrets (add a `verify-secrets` job)
+- [ ] `./scripts/release/release.sh --dry-run` completes without credential errors
