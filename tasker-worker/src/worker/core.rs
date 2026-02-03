@@ -266,11 +266,14 @@ impl WorkerCore {
         )));
 
         // TAS-65/TAS-69: Load worker config for domain event system
-        let worker_config = context
-            .tasker_config
-            .worker
-            .as_ref()
-            .expect("Worker configuration required for domain event system");
+        // TAS-173: Return error instead of panicking to prevent FFI boundary faults
+        let worker_config = context.tasker_config.worker.as_ref().ok_or_else(|| {
+            TaskerError::ConfigurationError(
+                "Worker configuration required for domain event system. \
+                     Ensure [worker] section exists in configuration TOML."
+                    .to_string(),
+            )
+        })?;
 
         // TAS-65/TAS-69: Create in-process event bus
         let in_process_channels = &worker_config.mpsc_channels.in_process_events;
@@ -372,14 +375,19 @@ impl WorkerCore {
             fallback_polling_interval: Duration::from_millis(500),
             batch_size: 10,
             visibility_timeout: Duration::from_secs(30),
+            // TAS-173: Return error instead of panicking to prevent FFI boundary faults
             deployment_mode: context
                 .tasker_config
                 .worker
                 .as_ref()
                 .map(|w| w.event_systems.worker.deployment_mode)
-                .unwrap_or_else(|| {
-                    panic!("Worker configuration required for event-driven processing")
-                }),
+                .ok_or_else(|| {
+                    TaskerError::ConfigurationError(
+                        "Worker configuration required for event-driven processing. \
+                         Ensure [worker] section exists in configuration TOML."
+                            .to_string(),
+                    )
+                })?,
         };
 
         let event_driven_processor = EventDrivenMessageProcessor::new(
