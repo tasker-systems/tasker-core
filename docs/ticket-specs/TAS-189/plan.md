@@ -382,7 +382,7 @@ TAS-127 defines a CLI plugin architecture for runtime template loading and code 
 
 **Architecture evolution since TAS-127 was written:** `tasker-client` and `tasker-cli` are now separate crates (they were less clearly separated when TAS-127 was designed). The plugin system lives entirely in `tasker-cli`. Additionally, `tasker-cli` already has `--config`, `--profile` flags and a `config show` command, which means TAS-127 Phase 1 (configuration loading) is partially complete.
 
-**Template engine distinction:** `tasker-cli` currently uses Askama (compile-time verified) for documentation generation templates (`docs-gen` feature). TAS-127 proposes Tera (runtime-loaded, Jinja2-like) for code generation templates. Both are appropriate for their use cases -- Askama for templates that ship with the binary, Tera for templates discovered from plugins at runtime.
+**Template engine decision deferred:** `tasker-cli` currently uses Askama (compile-time verified, strict typing) for documentation generation templates (`docs-gen` feature). TAS-127 originally proposed Tera (runtime-loaded) for code generation templates. The choice of template engine for plugin-provided code generation is deferred to implementation time (see Open Question 7). The plugin architecture design (discovery, manifests, parameters) is engine-agnostic.
 
 ### 5.1 Plugin Architecture (TAS-127 Phases 1-3)
 
@@ -439,16 +439,16 @@ tasker-cli plugin validate ./path   # Validate plugin structure
 
 **5.1c Template System (TAS-127 Phase 3)**
 
-Tera-based runtime template engine for code generation:
+Template engine for code generation (engine choice deferred -- see Open Question 7):
 
 ```
 templates/step_handler/
-├── template.toml        # Template metadata + parameters
-├── handler.rb.tera      # Template content
-└── handler_spec.rb.tera # Optional additional files
+├── template.toml           # Template metadata + parameters
+├── handler.rb.tmpl         # Template content
+└── handler_spec.rb.tmpl    # Optional additional files
 ```
 
-Built-in Tera filters: `snake_case`, `pascal_case`, `camel_case`, `kebab_case`.
+Required template filters regardless of engine: `snake_case`, `pascal_case`, `camel_case`, `kebab_case`.
 
 New commands:
 ```bash
@@ -728,4 +728,4 @@ This is intentionally not time-estimated. The phases have natural ordering and d
 
 6. **TAS-127 scope for alpha.** Phase 5 is marked as nice-to-have for alpha. If we do include it, how much of TAS-127 is needed? The full four-phase plugin architecture is substantial. **Recommendation:** For alpha, the plugin system (TAS-127 Phases 1-3) and a basic set of tasker-contrib templates are the high-value items. The `tasker-cli init` command that uses those templates (TAS-127 Phase 4) is the user-facing payoff. If Phase 5 is deferred entirely, the example apps and consumer docs from Phase 4 serve as the onboarding path instead. If partially included, prioritize `tasker-cli template generate` over `tasker-cli init` -- generating a single handler is more immediately useful than scaffolding an entire project.
 
-7. **Askama vs Tera coexistence.** `tasker-cli` already uses Askama (compile-time, `docs-gen` feature) for documentation generation. TAS-127 adds Tera (runtime) for code generation. Is carrying two template engines acceptable? **Recommendation:** Yes. They serve different purposes -- Askama for templates that ship with the binary and benefit from compile-time verification, Tera for templates loaded at runtime from plugins. The `docs` commands continue using Askama; the `template` commands use Tera. This is a clean separation with no overlap.
+7. **Template engine for code generation.** `tasker-cli` already uses Askama (compile-time verified, strict typing) for documentation generation. TAS-127 originally proposed Tera (runtime-loaded, hash-key template values) for plugin-provided code generation templates. The core tension: Askama gives compile-time correctness but requires templates to be known at build time; Tera allows runtime discovery but trades compile-time safety for flexibility. There may also be Askama-based approaches (e.g., compiling plugin templates into the binary at install/update time, or using Askama's runtime features if sufficient). **Recommendation:** Defer this decision to implementation time. The plugin architecture design doesn't depend on which template engine renders the output -- it depends on discovery, manifests, and parameter schemas. Choose the engine when building TAS-127 Phase 3, informed by the actual requirements at that point.
