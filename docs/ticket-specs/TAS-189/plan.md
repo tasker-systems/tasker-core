@@ -218,13 +218,26 @@ The trade-off is FFI complexity (native extensions, platform-specific builds). F
 
 ---
 
-## Phase 3: Unified Language Packages (tasker-contrib)
+## Phase 3: Unified Language Packages & tasker-contrib (TAS-126)
 
-**Goal:** Provide a single dependency per language that bundles both worker and client functionality.
+**Goal:** Provide a single dependency per language that bundles both worker and client functionality, housed in the `tasker-contrib` repository.
+
+### Relationship to TAS-126
+
+TAS-126 defines the tasker-contrib repository foundations: directory layout, CI strategy, plugin manifests, and documentation. It was designed before the concept of unified language packages (`tasker-rb`, etc.) or cross-language client SDKs existed. The repo structure needs to evolve to accommodate a layer *below* framework integrations that TAS-126 didn't anticipate.
+
+**What TAS-126 got right and carries forward:**
+- Path-based CI (only run tests for changed language directories)
+- Dual build modes (bleeding-edge against tasker-core main + pinned semver for releases)
+- CLI plugin manifests per framework (TAS-127 dependent)
+- Docker/ops infrastructure in `ops/`
+
+**What has evolved:**
+- The repo structure is no longer framework-first. There's a new layer: unified packages (`tasker-rb`, `tasker-py`, `tasker-ts`) that sit between core and framework integrations.
+- Client SDKs (`tasker-client-{rb,py,ts}`) now exist as a concept (Phase 2). They live in tasker-core, but the unified packages that wrap them live here.
+- The "Bun over Express" decision from TAS-126 can be revisited. Both are valid example targets; the choice of which to prioritize for TypeScript framework integration can be informed by alpha feedback.
 
 ### 3.1 Package Structure
-
-These live in a new `tasker-contrib` repository:
 
 | Package | Registry | Depends On |
 |---------|----------|-----------|
@@ -239,25 +252,81 @@ Each unified package:
 - Serves as the "recommended" dependency for new projects
 - Adds language-idiomatic sugar where appropriate
 
-### 3.2 What These Are Not (Yet)
+### 3.2 Evolved tasker-contrib Repository Structure
 
-These are *not* framework integrations. `tasker-rb` does not know about Rails, ActiveJob, or Sidekiq. `tasker-py` does not know about FastAPI, Celery, or Django. Framework integrations (`tasker-rails`, `tasker-fastapi`, etc.) are a future layer that depends on these unified packages.
+TAS-126's original structure was framework-first (`rails/`, `python/`, `typescript/`). The evolved structure adds a `packages/` layer for unified packages and separates framework integrations into their own directory:
 
-The unified packages are the "framework-agnostic" layer:
+```
+tasker-contrib/
+├── packages/                          # Unified language packages (this phase)
+│   ├── tasker-rb/                     #   gem 'tasker-rb'
+│   ├── tasker-py/                     #   pip install tasker-py
+│   └── tasker-ts/                     #   npm install @tasker-systems/tasker
+│
+├── frameworks/                        # Framework integrations (post-alpha)
+│   ├── rails/                         #   tasker-contrib-rails
+│   │   ├── gem/                       #     Rails engine gem
+│   │   └── cli-plugin/               #     CLI templates for Rails
+│   ├── fastapi/                       #   tasker-contrib-fastapi
+│   │   ├── package/
+│   │   └── cli-plugin/
+│   └── {sinatra,flask,express,bun}/   #   Other frameworks
+│       ├── package/
+│       └── cli-plugin/
+│
+├── examples/                          # Standalone example apps (Phase 4)
+│   ├── ruby-sinatra/
+│   ├── ruby-rails/
+│   ├── python-fastapi/
+│   ├── python-flask/
+│   ├── typescript-express/
+│   ├── typescript-bun/
+│   └── rust-axum/
+│
+├── templates/                         # GitHub template repo sources (Phase 5)
+│   ├── ruby/
+│   ├── python/
+│   ├── typescript/
+│   └── rust/
+│
+├── ops/                               # Operational tooling
+│   ├── docker/                        #   Adapted from tasker-core
+│   ├── helm/
+│   ├── terraform/
+│   └── monitoring/
+│
+├── docs/
+│   └── ticket-specs/
+└── .github/
+    └── workflows/                     # Path-based CI (per TAS-126)
+```
+
+**Key structural decisions:**
+
+- `packages/` is the new top-level concern. These ship first and are the primary alpha deliverable from this repo.
+- `frameworks/` replaces TAS-126's language-named top-level directories. The language is implicit from the framework (Rails → Ruby, FastAPI → Python). Each framework directory contains both its package and its CLI plugin.
+- `examples/` contains standalone applications (Phase 4), not the packages themselves.
+- `templates/` is the source of truth for GitHub template repos and `tasker-cli init` output (Phase 5).
+
+### 3.3 What These Are Not (Yet)
+
+The unified packages are *not* framework integrations. `tasker-rb` does not know about Rails, ActiveJob, or Sidekiq. `tasker-py` does not know about FastAPI, Celery, or Django. Framework integrations (`tasker-contrib-rails`, `tasker-contrib-fastapi`, etc.) are a future layer that depends on these unified packages.
+
+The full dependency stack:
 
 ```
 Application Code
     ↓
-Framework Integration (tasker-rails, tasker-fastapi)     ← future
+Framework Integration (tasker-contrib-rails, etc.)       ← post-alpha (frameworks/)
     ↓
-Unified Package (tasker-rb, tasker-py, tasker-ts)         ← this phase
+Unified Package (tasker-rb, tasker-py, tasker-ts)         ← this phase (packages/)
     ↓
-Core Packages (tasker-worker-rb + tasker-client-rb)       ← Phase 1 + 2
+Core Packages (tasker-worker-rb + tasker-client-rb)       ← Phase 1 + 2 (tasker-core)
     ↓
-Rust Core (tasker-worker, tasker-client, tasker-shared)   ← exists
+Rust Core (tasker-worker, tasker-client, tasker-shared)   ← exists (tasker-core)
 ```
 
-### 3.3 Scope Control
+### 3.4 Scope Control
 
 For alpha, these packages should be thin. The value is:
 
@@ -267,12 +336,32 @@ For alpha, these packages should be thin. The value is:
 
 Resist the urge to add framework-specific features at this layer.
 
+### 3.5 CI Strategy (from TAS-126, adapted)
+
+Path-based triggering adapted for the evolved structure:
+
+| Path Changed | CI Jobs Run |
+|--------------|-------------|
+| `packages/tasker-rb/**` | Ruby unified package tests |
+| `packages/tasker-py/**` | Python unified package tests |
+| `packages/tasker-ts/**` | TypeScript unified package tests |
+| `frameworks/rails/**` | Rails integration tests (post-alpha) |
+| `examples/**` | Example app smoke tests |
+| `ops/**` | Infrastructure validation |
+
+Dual build modes:
+1. **Bleeding-edge**: Triggered by tasker-core main merges, tests against latest core packages
+2. **Pinned**: Uses declared semver dependencies, runs on PR/merge for release stability
+
 ### Acceptance Criteria
 
-- [ ] `tasker-contrib` repository created with CI
+- [ ] `tasker-contrib` repository created with evolved directory structure
+- [ ] Path-based CI workflows configured
+- [ ] Bleeding-edge + pinned dual build modes working
 - [ ] `tasker-rb`, `tasker-py`, `tasker-ts` packages published
 - [ ] Each unified package's README shows a complete "handler + task creation" example
 - [ ] Integration tests verify worker + client work together through the unified package
+- [ ] Vision documentation (README.md, DEVELOPMENT.md) reflects unified package layer
 
 ---
 
@@ -515,7 +604,7 @@ GitHub template repositories (`tasker-systems/tasker-template-{ruby,python,types
 |---------------|-------------------|--------|
 | Phase 1: Configuration Loading | 5.1a | Partially done (profile system exists) |
 | Phase 2: Plugin Discovery | 5.1b | Not started |
-| Phase 3: Template System | 5.1c | Not started (Askama exists for docs, Tera needed for codegen) |
+| Phase 3: Template System | 5.1c | Not started (Askama exists for docs; codegen engine TBD) |
 | Phase 4: Integration | 5.2 | Not started |
 
 ### Acceptance Criteria
@@ -523,7 +612,7 @@ GitHub template repositories (`tasker-systems/tasker-template-{ruby,python,types
 - [ ] `tasker-cli plugin list` discovers and displays plugins
 - [ ] `tasker-cli plugin validate` validates plugin structure
 - [ ] `tasker-cli template list` shows templates from discovered plugins
-- [ ] `tasker-cli template generate` creates files from Tera templates
+- [ ] `tasker-cli template generate` creates files from plugin templates
 - [ ] `tasker-cli init` generates working projects for all four languages
 - [ ] Generated projects pass their own test suites
 - [ ] Plugin system loads templates from tasker-contrib without requiring CLI rebuild
@@ -634,8 +723,10 @@ Phase 6: Alpha Release
 | `docs/guides/quick-start.md` | Phase 4 (adapt for consumer path) |
 | `why-tasker.md` | Phase 6 (announcement content) |
 | `tasker-cli` existing infrastructure | Phase 5 (`--config`, `--profile`, `config show` already exist) |
-| TAS-127 plugin architecture spec | Phase 5 (design for plugin discovery, Tera templates, CLI commands) |
-| `tasker-cli` Askama doc templates | Phase 5 (pattern reference; codegen uses Tera instead) |
+| TAS-127 plugin architecture spec | Phase 5 (design for plugin discovery, templates, CLI commands) |
+| `tasker-cli` Askama doc templates | Phase 5 (pattern reference for template system) |
+| TAS-126 tasker-contrib foundations | Phase 3 (repo structure, CI strategy, plugin manifests -- evolved for unified packages) |
+| TAS-126 CI strategy (path-based + dual mode) | Phase 3 (carries forward directly) |
 
 ---
 
@@ -728,4 +819,6 @@ This is intentionally not time-estimated. The phases have natural ordering and d
 
 6. **TAS-127 scope for alpha.** Phase 5 is marked as nice-to-have for alpha. If we do include it, how much of TAS-127 is needed? The full four-phase plugin architecture is substantial. **Recommendation:** For alpha, the plugin system (TAS-127 Phases 1-3) and a basic set of tasker-contrib templates are the high-value items. The `tasker-cli init` command that uses those templates (TAS-127 Phase 4) is the user-facing payoff. If Phase 5 is deferred entirely, the example apps and consumer docs from Phase 4 serve as the onboarding path instead. If partially included, prioritize `tasker-cli template generate` over `tasker-cli init` -- generating a single handler is more immediately useful than scaffolding an entire project.
 
-7. **Template engine for code generation.** `tasker-cli` already uses Askama (compile-time verified, strict typing) for documentation generation. TAS-127 originally proposed Tera (runtime-loaded, hash-key template values) for plugin-provided code generation templates. The core tension: Askama gives compile-time correctness but requires templates to be known at build time; Tera allows runtime discovery but trades compile-time safety for flexibility. There may also be Askama-based approaches (e.g., compiling plugin templates into the binary at install/update time, or using Askama's runtime features if sufficient). **Recommendation:** Defer this decision to implementation time. The plugin architecture design doesn't depend on which template engine renders the output -- it depends on discovery, manifests, and parameter schemas. Choose the engine when building TAS-127 Phase 3, informed by the actual requirements at that point.
+7. **TAS-126 update scope.** TAS-126 should be updated to reflect the evolved architecture (unified packages layer, client SDKs, evolved repo structure). Should this be a revision of TAS-126 itself, or should TAS-189 supersede TAS-126's structural decisions while TAS-126 retains ownership of CI strategy and ops infrastructure? **Recommendation:** Revise TAS-126 to reference TAS-189 as the authoritative source for repo structure and package strategy. TAS-126 retains ownership of CI workflows, dual build modes, ops/docker infrastructure, and the mechanical act of creating the repository. TAS-189 owns the *what goes in it* decisions.
+
+8. **Template engine for code generation.** `tasker-cli` already uses Askama (compile-time verified, strict typing) for documentation generation. TAS-127 originally proposed Tera (runtime-loaded, hash-key template values) for plugin-provided code generation templates. The core tension: Askama gives compile-time correctness but requires templates to be known at build time; Tera allows runtime discovery but trades compile-time safety for flexibility. There may also be Askama-based approaches (e.g., compiling plugin templates into the binary at install/update time, or using Askama's runtime features if sufficient). **Recommendation:** Defer this decision to implementation time. The plugin architecture design doesn't depend on which template engine renders the output -- it depends on discovery, manifests, and parameter schemas. Choose the engine when building TAS-127 Phase 3, informed by the actual requirements at that point.
