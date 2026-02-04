@@ -25,7 +25,6 @@ use tasker_shared::{
         FallbackPollerConfig,
         InProcessEventsConfig,
         ListenerConfig as UnifiedWorkerListenerConfig,
-        ResourceLimitsConfig,
         WorkerEventSystemMetadata,
     },
     event_system::{deployment::DeploymentMode, event_driven::EventDrivenSystem},
@@ -192,12 +191,6 @@ impl EventDrivenMessageProcessor {
                     max_age_hours: 24,
                     visibility_timeout_seconds: edd_config.visibility_timeout.as_secs() as u32,
                     supported_namespaces: supported_namespaces.into(),
-                },
-                resource_limits: ResourceLimitsConfig {
-                    max_memory_mb: 1024,
-                    max_cpu_percent: 80.0,
-                    max_database_connections: 10,
-                    max_queue_connections: 5,
                 },
             },
         }
@@ -488,23 +481,5 @@ mod tests {
             mapped.metadata.in_process_events.deduplication_cache_size,
             10000
         );
-    }
-
-    #[test]
-    fn test_config_mapping_resource_limits() {
-        let config = EventDrivenConfig::default();
-        let namespaces = vec![];
-        let processor_id = Uuid::now_v7();
-
-        let mapped = EventDrivenMessageProcessor::map_config_to_new_architecture(
-            &config,
-            &namespaces,
-            processor_id,
-        );
-
-        assert_eq!(mapped.metadata.resource_limits.max_memory_mb, 1024);
-        assert!((mapped.metadata.resource_limits.max_cpu_percent - 80.0).abs() < f64::EPSILON);
-        assert_eq!(mapped.metadata.resource_limits.max_database_connections, 10);
-        assert_eq!(mapped.metadata.resource_limits.max_queue_connections, 5);
     }
 }

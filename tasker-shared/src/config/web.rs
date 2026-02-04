@@ -1,14 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 // Import web config structs from V2
-pub use crate::config::tasker::{OrchestrationWebConfig, ResilienceConfig, WebDatabasePoolsConfig};
+pub use crate::config::tasker::{OrchestrationWebConfig, WebDatabasePoolsConfig};
 
 // Type aliases for backward compatibility (legacy names → V2 names)
 pub type WebConfig = OrchestrationWebConfig;
-// TAS-61: Removed WebTlsConfig - web servers run plain HTTP only
-// TAS-61: Removed WebCorsConfig - CORS uses hardcoded values in middleware
-// TAS-61: Removed WebRateLimitConfig - no rate limiting middleware implemented
-pub type WebResilienceConfig = ResilienceConfig;
 
 /// Web API authentication configuration
 ///

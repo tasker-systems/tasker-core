@@ -14,7 +14,6 @@ use tasker_shared::{
         FallbackPollerConfig,
         InProcessEventsConfig,
         ListenerConfig as UnifiedWorkerListenerConfig,
-        ResourceLimitsConfig,
         WorkerEventSystemMetadata,
     },
     event_system::{deployment::DeploymentMode, event_driven::EventDrivenSystem},
@@ -76,12 +75,6 @@ fn create_default_config() -> WorkerEventSystemConfig {
                 max_age_hours: 12,
                 visibility_timeout_seconds: 30,
                 supported_namespaces: vec!["default".to_string()],
-            },
-            resource_limits: ResourceLimitsConfig {
-                max_memory_mb: 1024,
-                max_cpu_percent: 80.0,
-                max_database_connections: 10,
-                max_queue_connections: 5,
             },
         },
     }
@@ -384,12 +377,6 @@ async fn test_complete_tas43_integration() {
                     "linear_workflow".to_string(),
                     "order_fulfillment".to_string(),
                 ],
-            },
-            resource_limits: ResourceLimitsConfig {
-                max_memory_mb: 1024,
-                max_cpu_percent: 80.0,
-                max_database_connections: 10,
-                max_queue_connections: 5,
             },
         },
     };

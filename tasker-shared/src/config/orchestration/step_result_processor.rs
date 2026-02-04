@@ -72,11 +72,11 @@ impl From<&TaskerConfig> for StepResultProcessorConfig {
 
         StepResultProcessorConfig {
             step_results_queue_name,
-            batch_size: config.common.queues.default_batch_size as i32,
+            batch_size: 10, // TAS-221: default_batch_size removed from QueuesConfig
             visibility_timeout_seconds: config.common.queues.default_visibility_timeout_seconds
                 as i32,
             polling_interval_seconds: (config.common.queues.pgmq.poll_interval_ms / 1000) as u64,
-            max_processing_attempts: config.common.queues.pgmq.max_retries as i32,
+            max_processing_attempts: 3, // TAS-221: max_retries removed from PgmqConfig
         }
     }
 }
@@ -92,11 +92,11 @@ impl From<Arc<TaskerConfig>> for StepResultProcessorConfig {
 
         StepResultProcessorConfig {
             step_results_queue_name,
-            batch_size: config.common.queues.default_batch_size as i32,
+            batch_size: 10, // TAS-221: default_batch_size removed from QueuesConfig
             visibility_timeout_seconds: config.common.queues.default_visibility_timeout_seconds
                 as i32,
             polling_interval_seconds: (config.common.queues.pgmq.poll_interval_ms / 1000) as u64,
-            max_processing_attempts: config.common.queues.pgmq.max_retries as i32,
+            max_processing_attempts: 3, // TAS-221: max_retries removed from PgmqConfig
         }
     }
 }

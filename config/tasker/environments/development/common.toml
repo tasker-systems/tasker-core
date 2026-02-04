@@ -9,7 +9,3 @@ enabled = true
 
 [common.execution]
 environment = "development"
-
-[common.telemetry]
-enabled = true
-sample_rate = 1.0

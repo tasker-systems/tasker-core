@@ -190,7 +190,7 @@ mod tests {
 
         // Test overflow policy defaults (V2 OverflowPolicyConfig)
         assert_eq!(config.overflow_policy.log_warning_threshold, 0.8);
-        assert!(config.overflow_policy.metrics.enabled);
+        // TAS-221: overflow_policy.metrics.enabled removed (never checked at runtime)
     }
 
     #[test]
@@ -205,8 +205,8 @@ mod tests {
     #[test]
     fn test_saturation_check_interval_conversion() {
         // V2 uses u32 for saturation_check_interval_seconds
+        // TAS-221: enabled removed from OverflowMetricsConfig
         let config = OverflowMetricsConfig {
-            enabled: true,
             saturation_check_interval_seconds: 30, // u32 in V2
         };
         assert_eq!(config.saturation_check_interval(), Duration::from_secs(30));
@@ -257,10 +257,6 @@ mod tests {
             config.overflow_policy.log_warning_threshold,
             deserialized.overflow_policy.log_warning_threshold
         );
-        // V2's OverflowPolicyConfig.drop_policy is String, not enum
-        assert_eq!(
-            config.overflow_policy.drop_policy,
-            deserialized.overflow_policy.drop_policy
-        );
+        // TAS-221: drop_policy removed from OverflowPolicyConfig (channels always block)
     }
 }

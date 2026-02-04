@@ -297,17 +297,13 @@ impl SystemContext {
         Ok((provider, client))
     }
 
-    /// Get circuit breaker manager if enabled (TAS-133e: separated from messaging)
+    /// Get circuit breaker manager (TAS-133e: separated from messaging)
+    /// TAS-221: `enabled` master switch removed — circuit breakers are always available
     fn create_circuit_breaker_manager(config: &TaskerConfig) -> Option<Arc<CircuitBreakerManager>> {
-        if config.common.circuit_breakers.enabled {
-            info!("Circuit breaker manager enabled");
-            Some(Arc::new(CircuitBreakerManager::from_config(
-                &config.common.circuit_breakers,
-            )))
-        } else {
-            info!("Circuit breaker manager disabled");
-            None
-        }
+        info!("Circuit breaker manager enabled");
+        Some(Arc::new(CircuitBreakerManager::from_config(
+            &config.common.circuit_breakers,
+        )))
     }
 
     /// Internal constructor with full configuration support
@@ -390,12 +386,8 @@ impl SystemContext {
     ///
     /// TAS-171: Passes circuit breaker config for distributed cache protection.
     async fn create_cache_provider(config: &TaskerConfig) -> CacheProvider {
-        // TAS-171: Pass circuit breaker config if enabled
-        let cb_config = if config.common.circuit_breakers.enabled {
-            Some(&config.common.circuit_breakers)
-        } else {
-            None
-        };
+        // TAS-221: `enabled` master switch removed — always pass circuit breaker config
+        let cb_config = Some(&config.common.circuit_breakers);
 
         match &config.common.cache {
             Some(cache_config) => {

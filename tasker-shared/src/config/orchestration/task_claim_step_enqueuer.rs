@@ -42,7 +42,7 @@ impl Default for TaskClaimStepEnqueuerConfig {
 impl From<&TaskerConfig> for TaskClaimStepEnqueuerConfig {
     fn from(config: &TaskerConfig) -> TaskClaimStepEnqueuerConfig {
         TaskClaimStepEnqueuerConfig {
-            batch_size: config.common.queues.default_batch_size,
+            batch_size: 5, // TAS-221: default_batch_size removed from QueuesConfig
             namespace_filter: None,
             enable_performance_logging: config
                 .orchestration
@@ -59,7 +59,7 @@ impl From<&TaskerConfig> for TaskClaimStepEnqueuerConfig {
 impl From<Arc<TaskerConfig>> for TaskClaimStepEnqueuerConfig {
     fn from(config: Arc<TaskerConfig>) -> TaskClaimStepEnqueuerConfig {
         TaskClaimStepEnqueuerConfig {
-            batch_size: config.common.queues.default_batch_size,
+            batch_size: 5, // TAS-221: default_batch_size removed from QueuesConfig
             namespace_filter: None,
             enable_performance_logging: config
                 .orchestration

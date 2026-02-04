@@ -62,8 +62,7 @@ impl From<&tasker_shared::config::tasker::WorkerConfig> for WorkerWebConfig {
             None => return Self::default(),
         };
 
-        let health = &worker_config.health_monitoring;
-
+        // TAS-221: health_monitoring removed from WorkerConfig, use defaults
         Self {
             enabled: web.enabled,
             bind_address: web.bind_address.clone(),
@@ -71,8 +70,8 @@ impl From<&tasker_shared::config::tasker::WorkerConfig> for WorkerWebConfig {
             authentication_enabled: web.auth.is_some(),
             // TAS-61: CORS always enabled via hardcoded tower_http::cors::Any
             cors_enabled: true,
-            metrics_enabled: health.performance_monitoring_enabled,
-            health_check_interval_seconds: health.health_check_interval_seconds as u64,
+            metrics_enabled: true, // TAS-221: default, was health.performance_monitoring_enabled
+            health_check_interval_seconds: 30, // TAS-221: default, was health.health_check_interval_seconds
             config_endpoint_enabled: web.config_endpoint_enabled,
         }
     }

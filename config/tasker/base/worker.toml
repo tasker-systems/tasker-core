@@ -288,82 +288,6 @@ type = "Vec<String>"
 valid_range = "list of namespace strings"
 system_impact = "Restricts which queues the poller checks; useful for dedicated workers that handle specific step types"
 
-[worker.event_systems.worker.metadata.resource_limits]
-max_memory_mb = 4096
-max_cpu_percent = 80.0
-max_database_connections = 100
-max_queue_connections = 50
-
-[worker.event_systems.worker.metadata.resource_limits._docs.max_memory_mb]
-description = "Maximum memory in megabytes the worker event system is expected to use"
-type = "u32"
-valid_range = "256-65536"
-system_impact = "Advisory limit for capacity planning; not enforced at the process level"
-
-[worker.event_systems.worker.metadata.resource_limits._docs.max_cpu_percent]
-description = "Maximum CPU utilization percentage the worker event system should target"
-type = "f64"
-valid_range = "1.0-100.0"
-system_impact = "Advisory limit; used for load shedding decisions and capacity planning"
-
-[worker.event_systems.worker.metadata.resource_limits._docs.max_database_connections]
-description = "Maximum number of database connections the worker event system can use"
-type = "u32"
-valid_range = "1-1000"
-system_impact = "Bounds the event system's share of the database connection pool"
-
-[worker.event_systems.worker.metadata.resource_limits._docs.max_queue_connections]
-description = "Maximum number of queue connections the worker event system can use"
-type = "u32"
-valid_range = "1-500"
-system_impact = "Bounds the event system's share of PGMQ/RabbitMQ connections"
-
-[worker.step_processing]
-claim_timeout_seconds = 300
-max_retries = 3
-max_concurrent_steps = 50
-
-[worker.step_processing._docs.claim_timeout_seconds]
-description = "Maximum time in seconds a step claim remains valid before expiring"
-type = "u32"
-valid_range = "1-3600"
-system_impact = "If a worker fails to complete a step within this window, the claim expires and the step becomes available for retry"
-
-[worker.step_processing._docs.max_retries]
-description = "Maximum number of retry attempts for a failed step at the worker level"
-type = "u32"
-valid_range = "0-100"
-system_impact = "Worker-level retry cap; interacts with the orchestration-level execution.max_retries"
-
-[worker.step_processing._docs.max_concurrent_steps]
-description = "Maximum number of steps this worker processes simultaneously"
-type = "u32"
-valid_range = "1-100000"
-system_impact = "Primary worker concurrency control; bounded by semaphore in HandlerDispatchService"
-
-[worker.health_monitoring]
-health_check_interval_seconds = 30
-performance_monitoring_enabled = true
-error_rate_threshold = 0.05
-
-[worker.health_monitoring._docs.performance_monitoring_enabled]
-description = "Enable detailed performance metrics collection for worker health monitoring"
-type = "bool"
-valid_range = "true/false"
-system_impact = "Tracks step execution latency, throughput, and success rates for health assessment"
-
-[worker.health_monitoring._docs.health_check_interval_seconds]
-description = "Interval in seconds between worker health self-checks"
-type = "u32"
-valid_range = "1-3600"
-system_impact = "Controls how frequently the worker evaluates its own health status for readiness probes"
-
-[worker.health_monitoring._docs.error_rate_threshold]
-description = "Error rate threshold (0.0-1.0) above which the worker reports as unhealthy"
-type = "f64"
-valid_range = "0.0-1.0"
-system_impact = "A value of 0.05 means the worker becomes unhealthy if more than 5% of recent step executions fail"
-
 [worker.mpsc_channels.command_processor]
 command_buffer_size = 2000
 
@@ -722,19 +646,6 @@ system_impact = "Clients send their API key in this header; default is X-API-Key
 # TAS-169: Template routes moved to /v1/templates, cache operations removed
 # Old routes removed: DELETE /templates/cache, POST /templates/cache/maintain,
 # POST /templates/{namespace}/{name}/{version}/refresh
-
-# TAS-61: Removed [worker.web.rate_limiting] - no rate limiting middleware implemented
-
-[worker.web.resilience]
-circuit_breaker_enabled = true
-# TAS-61: Removed request_timeout_seconds - timeout hardcoded in middleware (30s)
-# TAS-61: Removed max_concurrent_requests - no concurrency limiting implemented
-
-[worker.web.resilience._docs.circuit_breaker_enabled]
-description = "Enable circuit breaker protection for the worker REST API"
-type = "bool"
-valid_range = "true/false"
-system_impact = "When true, the worker API uses circuit breakers to protect against cascading failures"
 
 # TAS-177: gRPC API Configuration
 [worker.grpc]

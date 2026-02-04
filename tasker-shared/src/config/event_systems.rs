@@ -28,7 +28,7 @@ pub use crate::config::tasker::{
     EventSystemBackoffConfig as BackoffConfig, EventSystemConfig, EventSystemHealthConfig,
     EventSystemProcessingConfig, EventSystemTimingConfig, FallbackPollerConfig,
     InProcessEventsConfig, ListenerConfig, OrchestrationEventSystemConfig,
-    OrchestrationEventSystemMetadata, ResourceLimitsConfig, TaskReadinessEventSystemConfig,
+    OrchestrationEventSystemMetadata, TaskReadinessEventSystemConfig,
     TaskReadinessEventSystemMetadata, WorkerEventSystemConfig, WorkerEventSystemMetadata,
 };
 
@@ -136,7 +136,7 @@ mod tests {
 
         assert_eq!(config.system_id, "worker-event-system");
         assert_eq!(config.deployment_mode, DeploymentMode::Hybrid);
-        assert_eq!(config.metadata.resource_limits.max_memory_mb, 2048);
+        // TAS-221: resource_limits removed (never enforced at runtime)
         // NOTE: broadcast_buffer_size migrated to mpsc_channels.toml (TAS-51)
         assert!(config.metadata.in_process_events.ffi_integration_enabled);
     }

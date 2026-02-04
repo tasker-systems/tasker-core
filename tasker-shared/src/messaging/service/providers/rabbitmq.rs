@@ -181,12 +181,6 @@ impl RabbitMqMessagingService {
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(60),
             )
-            .connection_timeout_seconds(
-                std::env::var("RABBITMQ_CONNECTION_TIMEOUT")
-                    .ok()
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(30),
-            )
             .build();
 
         Self::from_config(config).await

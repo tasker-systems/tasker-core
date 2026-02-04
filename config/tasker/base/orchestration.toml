@@ -2,14 +2,7 @@
 # Orchestration-specific settings
 
 [orchestration]
-mode = "standalone"
 enable_performance_logging = true
-
-[orchestration._docs.mode]
-description = "Orchestration deployment mode"
-type = "String"
-valid_range = "standalone"
-system_impact = "Reserved for future multi-node orchestration; standalone is the only supported mode"
 
 [orchestration._docs.enable_performance_logging]
 description = "Enable detailed performance logging for orchestration actors"
@@ -343,70 +336,12 @@ system_impact = "Tracks evaluation counts, timings, and branch selection distrib
 # TAS-49: DLQ (Dead Letter Queue) Configuration
 [orchestration.dlq]
 enabled = true
-auto_dlq_on_staleness = true
-include_full_task_snapshot = true
-max_pending_age_hours = 168  # 1 week
-
-[orchestration.dlq._docs.include_full_task_snapshot]
-description = "Include a complete task state snapshot when moving a task to the DLQ"
-type = "bool"
-valid_range = "true/false"
-system_impact = "When true, DLQ entries contain the full task context for debugging; increases DLQ storage requirements"
 
 [orchestration.dlq._docs.enabled]
 description = "Enable the Dead Letter Queue subsystem for handling unrecoverable tasks"
 type = "bool"
 valid_range = "true/false"
 system_impact = "When false, stale or failed tasks remain in their error state without DLQ routing"
-
-[orchestration.dlq._docs.auto_dlq_on_staleness]
-description = "Automatically move stale tasks to the DLQ when staleness detection identifies them"
-type = "bool"
-valid_range = "true/false"
-system_impact = "When true, the staleness detector can autonomously DLQ tasks without manual intervention"
-
-[orchestration.dlq._docs.max_pending_age_hours]
-description = "Maximum age in hours a task can remain in a pending-like state before being considered stale"
-type = "u32"
-valid_range = "1-720"
-system_impact = "Safety net for tasks that fall through other staleness thresholds; 168 = 1 week"
-
-[orchestration.dlq.reasons]
-staleness_timeout = true
-max_retries_exceeded = true
-worker_unavailable = true
-dependency_cycle_detected = true
-manual_dlq = true
-
-[orchestration.dlq.reasons._docs.staleness_timeout]
-description = "Enable DLQ routing for tasks that exceed staleness time thresholds"
-type = "bool"
-valid_range = "true/false"
-system_impact = "When false, stale tasks are not automatically moved to the DLQ even if detected"
-
-[orchestration.dlq.reasons._docs.max_retries_exceeded]
-description = "Enable DLQ routing for tasks whose steps have exhausted all retry attempts"
-type = "bool"
-valid_range = "true/false"
-system_impact = "When false, tasks with exhausted retries remain in error state without DLQ routing"
-
-[orchestration.dlq.reasons._docs.worker_unavailable]
-description = "Enable DLQ routing for tasks whose required worker becomes unavailable"
-type = "bool"
-valid_range = "true/false"
-system_impact = "When false, tasks waiting for unavailable workers remain in their current state indefinitely"
-
-[orchestration.dlq.reasons._docs.dependency_cycle_detected]
-description = "Enable DLQ routing for tasks with circular step dependency graphs"
-type = "bool"
-valid_range = "true/false"
-system_impact = "Cycles make task completion impossible; DLQ routing preserves the task for debugging"
-
-[orchestration.dlq.reasons._docs.manual_dlq]
-description = "Allow manual DLQ routing via the API"
-type = "bool"
-valid_range = "true/false"
-system_impact = "When false, the manual DLQ API endpoint is disabled"
 
 [orchestration.dlq.staleness_detection]
 enabled = true
@@ -692,17 +627,6 @@ system_impact = "Clients send their API key in this header; default is X-API-Key
 # TAS-177: Removed protected_routes - superseded by SecurityContext permissions
 # Route protection is now handled via SecurityContext and permission checks in handlers.
 # TAS-61: Removed [orchestration.web.rate_limiting] - no rate limiting middleware implemented
-
-[orchestration.web.resilience]
-circuit_breaker_enabled = true
-# TAS-61: Removed request_timeout_seconds - timeout hardcoded in middleware (30s)
-# TAS-61: Removed max_concurrent_requests - no concurrency limiting implemented
-
-[orchestration.web.resilience._docs.circuit_breaker_enabled]
-description = "Enable circuit breaker protection for the orchestration REST API"
-type = "bool"
-valid_range = "true/false"
-system_impact = "When true, the API uses circuit breakers to protect against cascading failures from downstream dependencies"
 
 # TAS-177: gRPC API Configuration
 # Configuration for the gRPC server that runs alongside the REST API

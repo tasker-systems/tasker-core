@@ -109,17 +109,12 @@ impl SharedApiServices {
             .as_ref()
             .and_then(|o| o.web.as_ref())
             .map(|web| {
-                let cb_enabled = web
-                    .resilience
-                    .as_ref()
-                    .map(|r| r.circuit_breaker_enabled)
-                    .unwrap_or(false);
                 (
                     web.database_pools.web_api_max_connections,
                     web.database_pools.web_api_pool_size / 2,
                     web.database_pools.web_api_connection_timeout_seconds as u64,
                     web.database_pools.web_api_idle_timeout_seconds as u64,
-                    cb_enabled,
+                    false, // TAS-221: resilience config removed, circuit breaker defaults to disabled
                 )
             })
             .unwrap_or((30, 15, 30, 300, false));

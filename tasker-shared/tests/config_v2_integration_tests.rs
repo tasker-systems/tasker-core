@@ -50,7 +50,8 @@ fn test_config_generation_and_loading() {
     let config = ConfigLoader::load_from_env().expect("Failed to load config");
 
     // 4. Verify config loaded correctly
-    assert_eq!(config.common.database.database, "tasker_rust_test");
+    // TAS-221: database.database removed (informational only, never used for connections)
+    assert!(!config.common.database.url.is_empty());
     assert_eq!(config.common.execution.environment, "test");
 
     // Cleanup
@@ -244,16 +245,8 @@ fn test_dlq_configuration_loading() {
 
     // Verify DLQ config exists and has expected base values
     assert!(orchestration.dlq.enabled);
-    assert!(orchestration.dlq.auto_dlq_on_staleness);
-    assert!(orchestration.dlq.include_full_task_snapshot);
-    assert_eq!(orchestration.dlq.max_pending_age_hours, 168); // 1 week
-
-    // Verify DLQ reasons
-    assert!(orchestration.dlq.reasons.staleness_timeout);
-    assert!(orchestration.dlq.reasons.max_retries_exceeded);
-    assert!(orchestration.dlq.reasons.worker_unavailable);
-    assert!(orchestration.dlq.reasons.dependency_cycle_detected);
-    assert!(orchestration.dlq.reasons.manual_dlq);
+    // TAS-221: auto_dlq_on_staleness, include_full_task_snapshot, max_pending_age_hours,
+    // and reasons removed (aspirational, never consumed at runtime)
 
     // Verify staleness detection config
     assert!(orchestration.dlq.staleness_detection.enabled);

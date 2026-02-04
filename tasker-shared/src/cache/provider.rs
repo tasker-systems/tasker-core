@@ -198,13 +198,14 @@ impl CacheProvider {
         let circuit_breaker = if backend.is_distributed() && backend.is_enabled() {
             cb_config.map(|cb_cfg| {
                 let component_config = cb_cfg.config_for_component("cache");
+                let default_timeout = cb_cfg.default_config.timeout_seconds;
                 let cb = CircuitBreaker::new(
                     "cache".to_string(),
-                    component_config.to_resilience_config(),
+                    component_config.to_resilience_config_with_timeout(default_timeout),
                 );
                 info!(
                     failure_threshold = component_config.failure_threshold,
-                    timeout_seconds = component_config.timeout_seconds,
+                    timeout_seconds = default_timeout,
                     "Cache circuit breaker initialized"
                 );
                 Arc::new(cb)

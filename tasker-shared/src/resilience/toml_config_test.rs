@@ -15,25 +15,20 @@ mod tests {
         let component_configs = ComponentCircuitBreakerConfigs {
             task_readiness: CircuitBreakerComponentConfig {
                 failure_threshold: 3,
-                timeout_seconds: 45,
                 success_threshold: 2,
             },
             pgmq: CircuitBreakerComponentConfig {
                 failure_threshold: 2,
-                timeout_seconds: 10,
                 success_threshold: 1,
             },
             cache: CircuitBreakerComponentConfig {
                 failure_threshold: 5,
-                timeout_seconds: 15,
                 success_threshold: 2,
             },
         };
 
         let toml_config = CircuitBreakerConfig {
-            enabled: true,
             global_settings: GlobalCircuitBreakerSettings {
-                max_circuit_breakers: 25,
                 metrics_collection_interval_seconds: 15,
                 min_state_transition_interval_seconds: 0.5,
             },
@@ -77,25 +72,20 @@ mod tests {
         let component_configs = ComponentCircuitBreakerConfigs {
             task_readiness: CircuitBreakerComponentConfig {
                 failure_threshold: 1,
-                timeout_seconds: 1,
                 success_threshold: 1,
             },
             pgmq: CircuitBreakerComponentConfig {
                 failure_threshold: 1,
-                timeout_seconds: 1,
                 success_threshold: 1,
             },
             cache: CircuitBreakerComponentConfig {
                 failure_threshold: 1,
-                timeout_seconds: 1,
                 success_threshold: 1,
             },
         };
 
         let toml_config = CircuitBreakerConfig {
-            enabled: true,
             global_settings: GlobalCircuitBreakerSettings {
-                max_circuit_breakers: 10,
                 metrics_collection_interval_seconds: 1, // Fast metrics in test
                 min_state_transition_interval_seconds: 0.01, // Very fast transitions
             },

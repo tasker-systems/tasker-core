@@ -60,9 +60,7 @@ pub use event_systems::{
     TaskReadinessEventSystemConfig as UnifiedTaskReadinessEventSystemConfig,
     WorkerEventSystemConfig as UnifiedWorkerEventSystemConfig,
 };
-pub use orchestration::{
-    event_systems::OrchestrationEventSystemConfig, OrchestrationConfig, OrchestrationSystemConfig,
-};
+pub use orchestration::{event_systems::OrchestrationEventSystemConfig, OrchestrationConfig};
 // TAS-61 Phase 6C/6D: DecisionPointsConfig now in V2
 pub use queues::{
     OrchestrationQueuesConfig, PgmqBackendConfig, QueuesConfig, RabbitMqBackendConfig,
@@ -72,8 +70,6 @@ pub use tasker::{DecisionPointsConfig, GrpcConfig};
 
 pub mod queue_classification;
 pub use queue_classification::{ConfigDrivenMessageEvent, QueueClassifier, QueueType};
-// TAS-61 Phase 6C/6D: Worker configuration type adapters (u32 → u64/usize)
-pub use worker::{HealthMonitoringConfig, StepProcessingConfig};
 
 pub use web::*;
 

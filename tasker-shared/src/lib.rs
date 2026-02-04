@@ -62,7 +62,7 @@
 //!
 //! // Configuration provides database and execution settings via common config
 //! assert!(config.common.database.pool.max_connections > 0);
-//! assert_eq!(config.common.execution.max_concurrent_tasks, 100);
+//! assert_eq!(config.common.execution.environment, "test");
 //!
 //! // For complete database integration examples, see tests/models/ directory
 //! ```
