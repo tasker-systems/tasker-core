@@ -716,7 +716,7 @@ wheels = [
 ]
 
 [[package]]
-name = "tasker-core-py"
+name = "tasker-worker-py"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

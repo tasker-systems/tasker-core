@@ -9,7 +9,7 @@
     "tasker-worker-rust": 55
   },
   "python": {
-    "tasker-core-py": 80
+    "tasker-worker-py": 80
   },
   "ruby": {
     "tasker-worker-rb": 70

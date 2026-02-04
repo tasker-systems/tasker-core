@@ -27,7 +27,7 @@ Tasker Core is approaching alpha release readiness. The ecosystem consists of:
 | `tasker-worker-py`\* | PyPI | `tasker-worker-py` (cdylib via pyo3) | maturin | uv |
 | `@tasker-systems/worker` | npm | `tasker-worker-ts` (cdylib, C ABI) | cargo build + tsup | bun |
 
-\* Currently named `tasker-core-py` on PyPI -- recommend renaming to `tasker-worker-py` for consistency with the `tasker-worker-` prefix, especially given future `tasker-client-{rb,py,ts}` packages.
+\* Renamed from `tasker-core-py` to `tasker-worker-py` (TAS-191) for consistency with the `tasker-worker-` prefix, especially given future `tasker-client-{rb,py,ts}` packages.
 
 **Not published:**
 
@@ -883,7 +883,7 @@ for arg in "$@"; do
     esac
 done
 
-PYPI_PACKAGE="tasker-worker-py"  # or tasker-core-py until renamed
+PYPI_PACKAGE="tasker-worker-py"
 
 if [[ "$DRY_RUN" != "true" ]]; then
     require_env "MATURIN_PYPI_TOKEN" "PyPI publishing"
@@ -1080,14 +1080,9 @@ jobs:
 
 ## Decision Points
 
-### Open: Python Package Name
+### Resolved: Python Package Name
 
-Currently `tasker-core-py` in pyproject.toml. Options:
-
-1. **Rename to `tasker-worker-py`** -- consistent with Ruby (`tasker-worker-rb`) and future `tasker-client-py`
-2. **Keep `tasker-core-py`** -- if the Python package will always bundle more than just worker functionality
-
-**Recommendation:** Rename to `tasker-worker-py` since nothing is published yet and it creates a clean namespace pattern.
+Renamed from `tasker-core-py` to `tasker-worker-py` in TAS-191. This is consistent with Ruby (`tasker-worker-rb`) and creates a clean namespace pattern for future `tasker-client-py`.
 
 ### Open: workers/rust Naming
 
