@@ -4,8 +4,6 @@
 # Note: DATABASE_URL environment variable takes precedence (used in Docker: postgres:5432)
 [common.database]
 url = "${DATABASE_URL:-postgresql://tasker:tasker@localhost:5432/tasker_rust_test}"
-database = "tasker_rust_test"
-skip_migration_check = false
 
 [common.database.pool]
 # Test environment: balanced pool for CI/cluster with postgres max_connections=500
@@ -25,14 +23,10 @@ idle_timeout_seconds = 60
 max_lifetime_seconds = 3600
 slow_acquire_threshold_ms = 500
 
-[common.database.variables]
-statement_timeout = 5000
-
 # PGMQ Database (uses main database by default in tests)
 [common.pgmq_database]
 url = "${PGMQ_DATABASE_URL:-}"
 enabled = true
-skip_migration_check = false
 
 [common.pgmq_database.pool]
 max_connections = 10
@@ -42,18 +36,11 @@ idle_timeout_seconds = 60
 max_lifetime_seconds = 3600
 slow_acquire_threshold_ms = 500
 
-[common.queues]
-default_batch_size = 5
-health_check_interval = 60
-
 [common.queues.pgmq]
 poll_interval_ms = 250
-shutdown_timeout_seconds = 5
-max_retries = 1
 
 # TAS-75 Phase 3: Lower thresholds for test environment
 [common.queues.pgmq.queue_depth_thresholds]
-warning_threshold = 100    # Test: lower warning threshold
 critical_threshold = 500   # Test: lower critical threshold
 overflow_threshold = 1000  # Test: lower overflow threshold
 
@@ -63,10 +50,8 @@ overflow_threshold = 1000  # Test: lower overflow threshold
 url = "${RABBITMQ_URL:-amqp://tasker:tasker@localhost:5672/%2F}"
 prefetch_count = 10
 heartbeat_seconds = 30
-connection_timeout_seconds = 5
 
 [common.circuit_breakers.global_settings]
-max_circuit_breakers = 20
 metrics_collection_interval_seconds = 10
 
 [common.mpsc_channels.event_publisher]
@@ -79,24 +64,12 @@ ruby_event_buffer_size = 100
 saturation_check_interval_seconds = 10
 
 [common.execution]
-max_concurrent_tasks = 100
-max_concurrent_steps = 1000
-step_batch_size = 10
-max_workflow_steps = 1000
+step_enqueue_batch_size = 10
 environment = "test"
 
 [common.backoff]
 default_backoff_seconds = [1, 2, 4]
 max_backoff_seconds = 10
-
-[common.backoff.reenqueue_delays]
-initializing = 5
-enqueuing_steps = 0
-steps_in_process = 10
-evaluating_results = 5
-waiting_for_dependencies = 45
-waiting_for_retry = 30
-blocked_by_failures = 60
 
 # Redis cache enabled for integration/E2E tests (TAS-156)
 [common.cache]
@@ -110,5 +83,3 @@ url = "${REDIS_URL:-redis://localhost:6379}"
 [common.task_templates]
 search_paths = ["config/task_templates/*.{yml,yaml}"]
 
-[common.telemetry]
-enabled = false

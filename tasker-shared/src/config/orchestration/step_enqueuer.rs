@@ -22,8 +22,7 @@
 //! ## Configuration Mapping
 //!
 //! Values are derived from `TaskerConfig`:
-//! - `max_steps_per_task` ← `common.execution.step_batch_size`
-//! - `enqueue_timeout_seconds` ← `common.execution.step_execution_timeout_seconds`
+//! - `max_steps_per_task` ← `common.execution.step_enqueue_batch_size`
 //! - `enable_detailed_logging` ← `orchestration.enable_performance_logging`
 
 // TAS-61 Phase 6C/6D: TaskerConfig is the canonical config
@@ -59,14 +58,14 @@ impl Default for StepEnqueuerConfig {
 impl From<&TaskerConfig> for StepEnqueuerConfig {
     fn from(config: &TaskerConfig) -> StepEnqueuerConfig {
         StepEnqueuerConfig {
-            max_steps_per_task: config.common.execution.step_batch_size as usize,
+            max_steps_per_task: config.common.execution.step_enqueue_batch_size as usize,
             enqueue_delay_seconds: 0, // No direct mapping, keep default
             enable_detailed_logging: config
                 .orchestration
                 .as_ref()
                 .map(|o| o.enable_performance_logging)
                 .unwrap_or(false),
-            enqueue_timeout_seconds: config.common.execution.step_execution_timeout_seconds as u64,
+            enqueue_timeout_seconds: 30, // Default timeout
         }
     }
 }
@@ -74,14 +73,14 @@ impl From<&TaskerConfig> for StepEnqueuerConfig {
 impl From<Arc<TaskerConfig>> for StepEnqueuerConfig {
     fn from(config: Arc<TaskerConfig>) -> StepEnqueuerConfig {
         StepEnqueuerConfig {
-            max_steps_per_task: config.common.execution.step_batch_size as usize,
+            max_steps_per_task: config.common.execution.step_enqueue_batch_size as usize,
             enqueue_delay_seconds: 0, // No direct mapping, keep default
             enable_detailed_logging: config
                 .orchestration
                 .as_ref()
                 .map(|o| o.enable_performance_logging)
                 .unwrap_or(false),
-            enqueue_timeout_seconds: config.common.execution.step_execution_timeout_seconds as u64,
+            enqueue_timeout_seconds: 30, // Default timeout
         }
     }
 }

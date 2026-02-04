@@ -30,12 +30,9 @@
 //! [orchestration.event_systems]
 //! [orchestration.decision_points]
 //! [orchestration.mpsc_channels]
-//! [orchestration.system]
 //!
 //! [worker]  # Optional - present for worker/complete contexts
 //! [worker.event_systems]
-//! [worker.step_processing]
-//! [worker.health_monitoring]
 //! [worker.mpsc_channels]
 //! ```
 //!
@@ -173,7 +170,7 @@ impl TaskerConfig {
 /// and all other system contexts. Analysis shows SystemContext needs these components.
 ///
 /// ## Components
-/// - **system**: Version, environment, recursion limits
+/// - **system**: Default dependent system identifier
 /// - **database**: Connection pool configuration
 /// - **queues**: Message queue (PGMQ) configuration
 /// - **circuit_breakers**: Resilience configuration
@@ -224,11 +221,6 @@ pub struct CommonConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[validate(nested)]
     pub pgmq_database: Option<PgmqDatabaseConfig>,
-
-    /// Telemetry configuration (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[validate(nested)]
-    pub telemetry: Option<TelemetryConfig>,
 }
 
 impl CommonConfig {
@@ -298,20 +290,10 @@ impl CommonConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
 #[serde(rename_all = "snake_case")]
 pub struct SystemConfig {
-    /// System version
-    #[validate(length(min = 1))]
-    #[builder(default = "0.1.0".to_string())]
-    pub version: String,
-
     /// Default dependent system identifier
     #[validate(length(min = 1))]
     #[builder(default = "default".to_string())]
     pub default_dependent_system: String,
-
-    /// Maximum recursion depth for workflow processing
-    #[validate(range(min = 1, max = 1000))]
-    #[builder(default = 50)]
-    pub max_recursion_depth: u32,
 }
 
 impl_builder_default!(SystemConfig);
@@ -327,24 +309,10 @@ pub struct DatabaseConfig {
     #[builder(default = "${DATABASE_URL}".to_string())]
     pub url: String,
 
-    /// Database name
-    #[validate(length(min = 1))]
-    #[builder(default = "tasker_development".to_string())]
-    pub database: String,
-
-    /// Skip migration check on startup
-    #[builder(default = false)]
-    pub skip_migration_check: bool,
-
     /// Connection pool configuration
     #[validate(nested)]
     #[builder(default)]
     pub pool: PoolConfig,
-
-    /// Database session variables
-    #[validate(nested)]
-    #[builder(default)]
-    pub variables: DatabaseVariablesConfig,
 }
 
 impl_builder_default!(DatabaseConfig);
@@ -394,18 +362,6 @@ fn default_slow_acquire_threshold_ms() -> u32 {
 
 impl_builder_default!(PoolConfig);
 
-/// Database session variables
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
-#[serde(rename_all = "snake_case")]
-pub struct DatabaseVariablesConfig {
-    /// Statement timeout in milliseconds
-    #[validate(range(min = 100, max = 600000))]
-    #[builder(default = 5000)]
-    pub statement_timeout: u32,
-}
-
-impl_builder_default!(DatabaseVariablesConfig);
-
 /// PGMQ separate database configuration
 ///
 /// When url is empty or not set, PGMQ operations use the main database.
@@ -421,10 +377,6 @@ pub struct PgmqDatabaseConfig {
     /// Whether PGMQ messaging is enabled
     #[builder(default = true)]
     pub enabled: bool,
-
-    /// Skip migration check on startup
-    #[builder(default = false)]
-    pub skip_migration_check: bool,
 
     /// Connection pool configuration (reuses PoolConfig)
     #[validate(nested)]
@@ -458,25 +410,10 @@ pub struct QueuesConfig {
     #[builder(default = 30)]
     pub default_visibility_timeout_seconds: u32,
 
-    /// Default batch size for message fetching
-    #[validate(range(min = 1, max = 1000))]
-    #[builder(default = 5)]
-    pub default_batch_size: u32,
-
-    /// Maximum batch size
-    #[validate(range(min = 1, max = 10000))]
-    #[builder(default = 100)]
-    pub max_batch_size: u32,
-
     /// Queue naming pattern (e.g., "{namespace}_{name}_queue")
     #[validate(length(min = 1))]
     #[builder(default = "{namespace}_{name}_queue".to_string())]
     pub naming_pattern: String,
-
-    /// Health check interval (seconds)
-    #[validate(range(min = 1, max = 3600))]
-    #[builder(default = 60)]
-    pub health_check_interval: u32,
 
     /// Named orchestration queues
     #[validate(nested)]
@@ -527,16 +464,6 @@ pub struct PgmqConfig {
     #[builder(default = 250)]
     pub poll_interval_ms: u32,
 
-    /// Shutdown timeout in seconds
-    #[validate(range(min = 1, max = 300))]
-    #[builder(default = 5)]
-    pub shutdown_timeout_seconds: u32,
-
-    /// Maximum retry attempts
-    #[validate(range(max = 100))]
-    #[builder(default = 3)]
-    pub max_retries: u32,
-
     /// TAS-75 Phase 3: Queue depth thresholds for backpressure monitoring
     #[validate(nested)]
     #[serde(default)]
@@ -559,11 +486,6 @@ impl_builder_default!(PgmqConfig);
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
 #[serde(rename_all = "snake_case")]
 pub struct QueueDepthThresholds {
-    /// Warning threshold - queue depth above which warnings are logged
-    #[validate(range(min = 1))]
-    #[builder(default = 1000)]
-    pub warning_threshold: i64,
-
     /// Critical threshold - queue depth above which API returns 503 Service Unavailable
     #[validate(range(min = 1))]
     #[builder(default = 5000)]
@@ -625,11 +547,6 @@ pub struct RabbitmqConfig {
     #[validate(range(max = 3600))]
     #[builder(default = 30)]
     pub heartbeat_seconds: u16,
-
-    /// Connection timeout in seconds
-    #[validate(range(min = 1, max = 300))]
-    #[builder(default = 10)]
-    pub connection_timeout_seconds: u32,
 }
 
 impl_builder_default!(RabbitmqConfig);
@@ -638,10 +555,6 @@ impl_builder_default!(RabbitmqConfig);
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
 #[serde(rename_all = "snake_case")]
 pub struct CircuitBreakerConfig {
-    /// Enable circuit breakers
-    #[builder(default = true)]
-    pub enabled: bool,
-
     /// Global circuit breaker settings
     #[validate(nested)]
     #[builder(default)]
@@ -670,7 +583,6 @@ impl CircuitBreakerConfig {
             "cache" => self.component_configs.cache.clone(),
             _ => CircuitBreakerComponentConfig {
                 failure_threshold: self.default_config.failure_threshold,
-                timeout_seconds: self.default_config.timeout_seconds,
                 success_threshold: self.default_config.success_threshold,
             },
         }
@@ -683,11 +595,6 @@ impl_builder_default!(CircuitBreakerConfig);
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
 #[serde(rename_all = "snake_case")]
 pub struct GlobalCircuitBreakerSettings {
-    /// Maximum number of circuit breakers
-    #[validate(range(min = 1, max = 1000))]
-    #[builder(default = 20)]
-    pub max_circuit_breakers: u32,
-
     /// Metrics collection interval (seconds)
     #[validate(range(min = 1, max = 3600))]
     #[builder(default = 10)]
@@ -754,11 +661,6 @@ pub struct CircuitBreakerComponentConfig {
     #[builder(default = 5)]
     pub failure_threshold: u32,
 
-    /// Timeout (seconds)
-    #[validate(range(min = 1, max = 300))]
-    #[builder(default = 30)]
-    pub timeout_seconds: u32,
-
     /// Success threshold
     #[validate(range(min = 1, max = 100))]
     #[builder(default = 2)]
@@ -822,11 +724,6 @@ pub struct OverflowPolicyConfig {
     #[builder(default = 0.8)]
     pub log_warning_threshold: f64,
 
-    /// Drop policy ("block" or "drop")
-    #[validate(length(min = 1))]
-    #[builder(default = "block".to_string())]
-    pub drop_policy: String,
-
     /// Metrics configuration
     #[validate(nested)]
     #[builder(default)]
@@ -839,10 +736,6 @@ impl_builder_default!(OverflowPolicyConfig);
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
 #[serde(rename_all = "snake_case")]
 pub struct OverflowMetricsConfig {
-    /// Enable metrics
-    #[builder(default = true)]
-    pub enabled: bool,
-
     /// Saturation check interval (seconds)
     #[validate(range(min = 1, max = 3600))]
     #[builder(default = 10)]
@@ -855,50 +748,10 @@ impl_builder_default!(OverflowMetricsConfig);
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
 #[serde(rename_all = "snake_case")]
 pub struct ExecutionConfig {
-    /// Maximum concurrent tasks
-    #[validate(range(min = 1, max = 100000))]
-    #[builder(default = 100)]
-    pub max_concurrent_tasks: u32,
-
-    /// Maximum concurrent steps
-    #[validate(range(min = 1, max = 1000000))]
-    #[builder(default = 1000)]
-    pub max_concurrent_steps: u32,
-
-    /// Default timeout (seconds)
-    #[validate(range(min = 1, max = 86400))]
-    #[builder(default = 3600)]
-    pub default_timeout_seconds: u32,
-
-    /// Step execution timeout (seconds)
-    #[validate(range(min = 1, max = 3600))]
-    #[builder(default = 300)]
-    pub step_execution_timeout_seconds: u32,
-
-    /// Maximum discovery attempts
-    #[validate(range(min = 1, max = 10))]
-    #[builder(default = 3)]
-    pub max_discovery_attempts: u32,
-
-    /// Step batch size
+    /// Step enqueue batch size — maximum steps enqueued per task per cycle
     #[validate(range(min = 1, max = 1000))]
     #[builder(default = 10)]
-    pub step_batch_size: u32,
-
-    /// Maximum retries
-    #[validate(range(max = 100))]
-    #[builder(default = 3)]
-    pub max_retries: u32,
-
-    /// Maximum workflow steps
-    #[validate(range(min = 1, max = 10000))]
-    #[builder(default = 1000)]
-    pub max_workflow_steps: u32,
-
-    /// Connection timeout (seconds)
-    #[validate(range(min = 1, max = 300))]
-    #[builder(default = 10)]
-    pub connection_timeout_seconds: u32,
+    pub step_enqueue_batch_size: u32,
 
     /// Environment name
     #[validate(length(min = 1))]
@@ -935,56 +788,9 @@ pub struct BackoffConfig {
     #[validate(range(min = 0.0, max = 1.0))]
     #[builder(default = 0.1)]
     pub jitter_max_percentage: f64,
-
-    /// State-specific reenqueue delays
-    #[validate(nested)]
-    #[builder(default)]
-    pub reenqueue_delays: ReenqueueDelaysConfig,
 }
 
 impl_builder_default!(BackoffConfig);
-
-/// Reenqueue delays for task states
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
-#[serde(rename_all = "snake_case")]
-pub struct ReenqueueDelaysConfig {
-    /// Initializing state delay (seconds)
-    #[validate(range(max = 300))]
-    #[builder(default = 5)]
-    pub initializing: u32,
-
-    /// Enqueueing steps delay (seconds)
-    #[validate(range(max = 300))]
-    #[builder(default = 0)]
-    pub enqueuing_steps: u32,
-
-    /// Steps in process delay (seconds)
-    #[validate(range(max = 300))]
-    #[builder(default = 10)]
-    pub steps_in_process: u32,
-
-    /// Evaluating results delay (seconds)
-    #[validate(range(max = 300))]
-    #[builder(default = 5)]
-    pub evaluating_results: u32,
-
-    /// Waiting for dependencies delay (seconds)
-    #[validate(range(max = 3600))]
-    #[builder(default = 45)]
-    pub waiting_for_dependencies: u32,
-
-    /// Waiting for retry delay (seconds)
-    #[validate(range(max = 3600))]
-    #[builder(default = 30)]
-    pub waiting_for_retry: u32,
-
-    /// Blocked by failures delay (seconds)
-    #[validate(range(max = 3600))]
-    #[builder(default = 60)]
-    pub blocked_by_failures: u32,
-}
-
-impl_builder_default!(ReenqueueDelaysConfig);
 
 /// Task template configuration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
@@ -997,44 +803,6 @@ pub struct TaskTemplatesConfig {
 }
 
 impl_builder_default!(TaskTemplatesConfig);
-
-/// Telemetry configuration
-///
-/// TODO: This struct is loaded from TOML but is NOT used for actual telemetry initialization.
-///
-/// Telemetry is configured **exclusively via environment variables** because logging must be
-/// initialized before the TOML config loader runs (to log config loading errors). The actual
-/// telemetry initialization uses a separate private `TelemetryConfig` struct in
-/// `tasker-shared/src/logging.rs` that reads only from environment variables:
-///
-/// - `TELEMETRY_ENABLED` - Enable/disable telemetry
-/// - `OTEL_EXPORTER_OTLP_ENDPOINT` - OpenTelemetry collector endpoint
-/// - `OTEL_SERVICE_NAME` - Service name for traces
-/// - `OTEL_SERVICE_VERSION` - Service version
-/// - `OTEL_TRACES_SAMPLER_ARG` - Sampling rate
-///
-/// This struct exists only for:
-/// 1. TOML schema completeness
-/// 2. Exposure via `/config` API endpoint for debugging
-///
-/// Consider removing this struct and the `[common.telemetry]` TOML section if not needed.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
-#[serde(rename_all = "snake_case")]
-pub struct TelemetryConfig {
-    /// Enable telemetry
-    #[builder(default = false)]
-    pub enabled: bool,
-
-    /// Service name
-    #[validate(length(min = 1))]
-    #[builder(default = "tasker-core".to_string())]
-    pub service_name: String,
-
-    /// Sample rate (0.0-1.0)
-    #[validate(range(min = 0.0, max = 1.0))]
-    #[builder(default = 1.0)]
-    pub sample_rate: f64,
-}
 
 // ============================================================================
 // CACHE CONFIGURATION (TAS-156: Distributed Template Cache)
@@ -1072,11 +840,6 @@ pub struct CacheConfig {
     #[validate(range(min = 1, max = 86400))]
     #[builder(default = 60)]
     pub analytics_ttl_seconds: u32,
-
-    /// Key prefix for all cache entries
-    #[validate(length(min = 1))]
-    #[builder(default = "tasker".to_string())]
-    pub key_prefix: String,
 
     /// Redis backend configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1175,11 +938,6 @@ impl_builder_default!(MemcachedConfig);
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
 #[serde(rename_all = "snake_case")]
 pub struct OrchestrationConfig {
-    /// Orchestration mode
-    #[validate(length(min = 1))]
-    #[builder(default = "standalone".to_string())]
-    pub mode: String,
-
     /// Enable performance logging
     #[builder(default = false)]
     pub enable_performance_logging: bool,
@@ -1638,11 +1396,6 @@ pub struct OrchestrationWebConfig {
 
     // TAS-61: Removed rate_limiting field - no rate limiting middleware implemented
     // If rate limiting needed in future, consider tower-governor or similar
-    /// Resilience configuration (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[validate(nested)]
-    pub resilience: Option<ResilienceConfig>,
-
     /// Enable the /config endpoint for runtime configuration observability.
     /// Disabled by default for security — even with auth enabled, exposing runtime
     /// config is sensitive. When false, the route is not registered (404).
@@ -1836,19 +1589,6 @@ pub struct ApiKeyConfig {
 // If rate limiting needed in future, consider tower-governor or similar
 // Note: ErrorCategory::RateLimit and BackoffHintType::RateLimit are different and still used
 
-/// Resilience configuration
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
-#[serde(rename_all = "snake_case")]
-pub struct ResilienceConfig {
-    /// Enable circuit breaker
-    #[builder(default = true)]
-    pub circuit_breaker_enabled: bool,
-    // TAS-61: Removed request_timeout_seconds - timeout hardcoded in middleware (30s)
-    // TAS-61: Removed max_concurrent_requests - no concurrency limiting implemented
-}
-
-impl_builder_default!(ResilienceConfig);
-
 // ============================================================================
 // DLQ (DEAD LETTER QUEUE) CONFIGURATION (TAS-49)
 // ============================================================================
@@ -1959,24 +1699,6 @@ pub struct DlqOperationsConfig {
     #[builder(default = true)]
     pub enabled: bool,
 
-    /// Automatically create DLQ entries when staleness detected
-    #[builder(default = true)]
-    pub auto_dlq_on_staleness: bool,
-
-    /// Include full task+steps state in DLQ snapshot JSONB
-    #[builder(default = true)]
-    pub include_full_task_snapshot: bool,
-
-    /// Alert if investigation pending longer than this (hours)
-    #[validate(range(min = 1, max = 720))]
-    #[builder(default = 168)]
-    pub max_pending_age_hours: u32,
-
-    /// DLQ reasons configuration
-    #[validate(nested)]
-    #[builder(default)]
-    pub reasons: DlqReasons,
-
     /// Staleness detection configuration
     #[validate(nested)]
     #[builder(default)]
@@ -1984,35 +1706,6 @@ pub struct DlqOperationsConfig {
 }
 
 impl_builder_default!(DlqOperationsConfig);
-
-/// DLQ Reasons Configuration
-///
-/// Controls which conditions trigger DLQ entry creation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
-#[serde(rename_all = "snake_case")]
-pub struct DlqReasons {
-    /// Tasks exceeding state timeout thresholds
-    #[builder(default = true)]
-    pub staleness_timeout: bool,
-
-    /// TAS-42 retry limit hit
-    #[builder(default = true)]
-    pub max_retries_exceeded: bool,
-
-    /// No worker available for extended period
-    #[builder(default = true)]
-    pub worker_unavailable: bool,
-
-    /// Circular dependency discovered
-    #[builder(default = true)]
-    pub dependency_cycle_detected: bool,
-
-    /// Operator manually sent to DLQ
-    #[builder(default = true)]
-    pub manual_dlq: bool,
-}
-
-impl_builder_default!(DlqReasons);
 
 /// Batch Processing Configuration (TAS-59)
 ///
@@ -2081,16 +1774,6 @@ pub struct WorkerConfig {
     #[validate(nested)]
     #[builder(default)]
     pub event_systems: WorkerEventSystemsConfig,
-
-    /// Step processing configuration
-    #[validate(nested)]
-    #[builder(default)]
-    pub step_processing: StepProcessingConfig,
-
-    /// Health monitoring configuration
-    #[validate(nested)]
-    #[builder(default)]
-    pub health_monitoring: HealthMonitoringConfig,
 
     /// MPSC channel configuration
     #[validate(nested)]
@@ -2234,11 +1917,6 @@ pub struct WorkerEventSystemMetadata {
     #[validate(nested)]
     #[builder(default)]
     pub fallback_poller: FallbackPollerConfig,
-
-    /// Resource limits
-    #[validate(nested)]
-    #[builder(default)]
-    pub resource_limits: ResourceLimitsConfig,
 }
 
 impl_builder_default!(WorkerEventSystemMetadata);
@@ -2329,76 +2007,6 @@ pub struct FallbackPollerConfig {
 }
 
 impl_builder_default!(FallbackPollerConfig);
-
-/// Resource limits configuration
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
-#[serde(rename_all = "snake_case")]
-pub struct ResourceLimitsConfig {
-    /// Maximum memory (MB)
-    #[validate(range(min = 256, max = 65536))]
-    #[builder(default = 2048)]
-    pub max_memory_mb: u32,
-
-    /// Maximum CPU percent
-    #[validate(range(min = 1.0, max = 100.0))]
-    #[builder(default = 80.0)]
-    pub max_cpu_percent: f64,
-
-    /// Maximum database connections
-    #[validate(range(min = 1, max = 1000))]
-    #[builder(default = 50)]
-    pub max_database_connections: u32,
-
-    /// Maximum queue connections
-    #[validate(range(min = 1, max = 1000))]
-    #[builder(default = 20)]
-    pub max_queue_connections: u32,
-}
-
-impl_builder_default!(ResourceLimitsConfig);
-
-/// Step processing configuration
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
-#[serde(rename_all = "snake_case")]
-pub struct StepProcessingConfig {
-    /// Claim timeout (seconds)
-    #[validate(range(min = 1, max = 3600))]
-    #[builder(default = 300)]
-    pub claim_timeout_seconds: u32,
-
-    /// Maximum retries
-    #[validate(range(max = 100))]
-    #[builder(default = 3)]
-    pub max_retries: u32,
-
-    /// Maximum concurrent steps
-    #[validate(range(min = 1, max = 100000))]
-    #[builder(default = 100)]
-    pub max_concurrent_steps: u32,
-}
-
-impl_builder_default!(StepProcessingConfig);
-
-/// Health monitoring configuration
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
-#[serde(rename_all = "snake_case")]
-pub struct HealthMonitoringConfig {
-    /// Health check interval (seconds)
-    #[validate(range(min = 1, max = 3600))]
-    #[builder(default = 30)]
-    pub health_check_interval_seconds: u32,
-
-    /// Enable performance monitoring
-    #[builder(default = true)]
-    pub performance_monitoring_enabled: bool,
-
-    /// Error rate threshold
-    #[validate(range(min = 0.0, max = 1.0))]
-    #[builder(default = 0.05)]
-    pub error_rate_threshold: f64,
-}
-
-impl_builder_default!(HealthMonitoringConfig);
 
 /// Worker MPSC channel configuration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
@@ -2642,11 +2250,6 @@ pub struct WorkerWebConfig {
 
     // TAS-61: Removed rate_limiting field - no rate limiting middleware implemented
     // If rate limiting needed in future, consider tower-governor or similar
-    /// Resilience configuration (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[validate(nested)]
-    pub resilience: Option<ResilienceConfig>,
-
     /// Enable the /config endpoint for runtime configuration observability.
     /// Disabled by default for security — even with auth enabled, exposing runtime
     /// config is sensitive. When false, the route is not registered (404).
@@ -2707,8 +2310,6 @@ impl_builder_default!(OrchestrationClientConfig);
 // ============================================================================
 // Default Implementations for Bridge Compatibility
 // ============================================================================
-
-impl_builder_default!(TelemetryConfig);
 
 // DecisionPointsConfig Default implementation via impl_builder_default! macro (see struct definition above)
 
@@ -2777,14 +2378,10 @@ mod tests {
     fn test_tasker_config_context_helpers() {
         let common = CommonConfig {
             system: SystemConfig {
-                version: "0.1.0".to_string(),
                 default_dependent_system: "default".to_string(),
-                max_recursion_depth: 50,
             },
             database: DatabaseConfig {
                 url: "postgresql://localhost/test".to_string(),
-                database: "test".to_string(),
-                skip_migration_check: false,
                 pool: PoolConfig {
                     max_connections: 10,
                     min_connections: 2,
@@ -2793,11 +2390,7 @@ mod tests {
                     max_lifetime_seconds: 1800,
                     slow_acquire_threshold_ms: 100,
                 },
-                variables: DatabaseVariablesConfig {
-                    statement_timeout: 5000,
-                },
             },
-            // ... other fields would be populated
             queues: create_test_queues_config(),
             circuit_breakers: create_test_circuit_breaker_config(),
             mpsc_channels: create_test_shared_mpsc_channels(),
@@ -2807,7 +2400,6 @@ mod tests {
                 search_paths: vec!["config/templates/*.yml".to_string()],
             },
             pgmq_database: None,
-            telemetry: None,
             cache: None,
         };
 
@@ -2852,10 +2444,7 @@ mod tests {
             orchestration_namespace: "orchestration".to_string(),
             worker_namespace: "worker".to_string(),
             default_visibility_timeout_seconds: 30,
-            default_batch_size: 5,
-            max_batch_size: 100,
             naming_pattern: "{namespace}_{name}_queue".to_string(),
-            health_check_interval: 60,
             orchestration_queues: OrchestrationQueuesConfig {
                 task_requests: "task_requests".to_string(),
                 task_finalizations: "task_finalizations".to_string(),
@@ -2863,8 +2452,6 @@ mod tests {
             },
             pgmq: PgmqConfig {
                 poll_interval_ms: 250,
-                shutdown_timeout_seconds: 5,
-                max_retries: 3,
                 queue_depth_thresholds: QueueDepthThresholds::default(),
             },
             rabbitmq: None,
@@ -2873,9 +2460,7 @@ mod tests {
 
     fn create_test_circuit_breaker_config() -> CircuitBreakerConfig {
         CircuitBreakerConfig {
-            enabled: true,
             global_settings: GlobalCircuitBreakerSettings {
-                max_circuit_breakers: 20,
                 metrics_collection_interval_seconds: 10,
                 min_state_transition_interval_seconds: 1.0,
             },
@@ -2887,17 +2472,14 @@ mod tests {
             component_configs: ComponentCircuitBreakerConfigs {
                 task_readiness: CircuitBreakerComponentConfig {
                     failure_threshold: 5,
-                    timeout_seconds: 30,
                     success_threshold: 2,
                 },
                 pgmq: CircuitBreakerComponentConfig {
                     failure_threshold: 3,
-                    timeout_seconds: 15,
                     success_threshold: 2,
                 },
                 cache: CircuitBreakerComponentConfig {
                     failure_threshold: 5,
-                    timeout_seconds: 15,
                     success_threshold: 2,
                 },
             },
@@ -2914,9 +2496,7 @@ mod tests {
             },
             overflow_policy: OverflowPolicyConfig {
                 log_warning_threshold: 0.8,
-                drop_policy: "block".to_string(),
                 metrics: OverflowMetricsConfig {
-                    enabled: true,
                     saturation_check_interval_seconds: 10,
                 },
             },
@@ -2925,15 +2505,7 @@ mod tests {
 
     fn create_test_execution_config() -> ExecutionConfig {
         ExecutionConfig {
-            max_concurrent_tasks: 100,
-            max_concurrent_steps: 1000,
-            default_timeout_seconds: 3600,
-            step_execution_timeout_seconds: 300,
-            max_discovery_attempts: 3,
-            step_batch_size: 10,
-            max_retries: 3,
-            max_workflow_steps: 1000,
-            connection_timeout_seconds: 10,
+            step_enqueue_batch_size: 10,
             environment: "test".to_string(),
         }
     }
@@ -2945,21 +2517,11 @@ mod tests {
             backoff_multiplier: 2.0,
             jitter_enabled: true,
             jitter_max_percentage: 0.1,
-            reenqueue_delays: ReenqueueDelaysConfig {
-                initializing: 5,
-                enqueuing_steps: 0,
-                steps_in_process: 10,
-                evaluating_results: 5,
-                waiting_for_dependencies: 45,
-                waiting_for_retry: 30,
-                blocked_by_failures: 60,
-            },
         }
     }
 
     fn create_test_orchestration_config() -> OrchestrationConfig {
         OrchestrationConfig {
-            mode: "standalone".to_string(),
             enable_performance_logging: false,
             event_systems: OrchestrationEventSystemsConfig {
                 orchestration: create_test_event_system_config("orchestration-events"),
@@ -3024,24 +2586,8 @@ mod tests {
                             visibility_timeout_seconds: 30,
                             supported_namespaces: vec![],
                         },
-                        resource_limits: ResourceLimitsConfig {
-                            max_memory_mb: 2048,
-                            max_cpu_percent: 80.0,
-                            max_database_connections: 50,
-                            max_queue_connections: 20,
-                        },
                     },
                 },
-            },
-            step_processing: StepProcessingConfig {
-                claim_timeout_seconds: 300,
-                max_retries: 3,
-                max_concurrent_steps: 100,
-            },
-            health_monitoring: HealthMonitoringConfig {
-                health_check_interval_seconds: 30,
-                performance_monitoring_enabled: true,
-                error_rate_threshold: 0.05,
             },
             mpsc_channels: WorkerMpscChannelsConfig {
                 command_processor: WorkerCommandProcessorChannels {
@@ -3141,9 +2687,6 @@ mod tests {
                 assert!(cfg.is_complete(), "Should be complete config");
 
                 // Verify common config
-                assert_eq!(cfg.common.system.version, "0.1.0");
-                assert_eq!(cfg.common.database.database, "tasker_rust_test");
-                // Note: Raw TOML has env var placeholder, not resolved value
                 assert!(
                     cfg.common.queues.backend.contains("pgmq"),
                     "Backend should contain 'pgmq'"
@@ -3151,7 +2694,6 @@ mod tests {
 
                 // Verify orchestration config
                 let orch = cfg.orchestration.as_ref().unwrap();
-                assert_eq!(orch.mode, "standalone");
                 assert!(orch.decision_points.enabled);
 
                 // Verify worker config
@@ -3259,7 +2801,6 @@ mod tests {
     #[test]
     fn test_queue_depth_thresholds_default() {
         let thresholds = QueueDepthThresholds::default();
-        assert_eq!(thresholds.warning_threshold, 1000);
         assert_eq!(thresholds.critical_threshold, 5000);
         assert_eq!(thresholds.overflow_threshold, 10000);
     }
@@ -3267,11 +2808,9 @@ mod tests {
     #[test]
     fn test_queue_depth_thresholds_custom() {
         let thresholds = QueueDepthThresholds {
-            warning_threshold: 100,
             critical_threshold: 500,
             overflow_threshold: 1000,
         };
-        assert_eq!(thresholds.warning_threshold, 100);
         assert_eq!(thresholds.critical_threshold, 500);
         assert_eq!(thresholds.overflow_threshold, 1000);
     }
@@ -3279,7 +2818,6 @@ mod tests {
     #[test]
     fn test_pgmq_config_includes_thresholds() {
         let pgmq_config = PgmqConfig::default();
-        assert_eq!(pgmq_config.queue_depth_thresholds.warning_threshold, 1000);
         assert_eq!(pgmq_config.queue_depth_thresholds.critical_threshold, 5000);
         assert_eq!(pgmq_config.queue_depth_thresholds.overflow_threshold, 10000);
     }
@@ -3287,20 +2825,11 @@ mod tests {
     #[test]
     fn test_queue_depth_tier_logic() {
         let thresholds = QueueDepthThresholds {
-            warning_threshold: 100,
             critical_threshold: 500,
             overflow_threshold: 1000,
         };
 
         // Test tier classification logic
-        assert!(
-            50 < thresholds.warning_threshold,
-            "50 should be normal tier"
-        );
-        assert!(
-            150 >= thresholds.warning_threshold && 150 < thresholds.critical_threshold,
-            "150 should be warning tier"
-        );
         assert!(
             600 >= thresholds.critical_threshold && 600 < thresholds.overflow_threshold,
             "600 should be critical tier"

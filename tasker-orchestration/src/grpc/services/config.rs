@@ -107,7 +107,7 @@ impl ConfigServiceTrait for ConfigServiceImpl {
 
         // Build circuit breaker config
         let circuit_breakers = proto::SafeCircuitBreakerConfig {
-            enabled: cb.enabled,
+            enabled: true, // TAS-221: `enabled` master switch removed, always available
             failure_threshold: cb.default_config.failure_threshold,
             timeout_seconds: cb.default_config.timeout_seconds,
             success_threshold: cb.default_config.success_threshold,

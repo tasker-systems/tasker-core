@@ -21,15 +21,6 @@ polling_interval_ms = 500
 age_threshold_seconds = 2
 max_age_hours = 12
 
-[worker.event_systems.worker.metadata.resource_limits]
-max_memory_mb = 2048
-
-[worker.step_processing]
-max_concurrent_steps = 10
-
-[worker.health_monitoring]
-health_check_interval_seconds = 10
-
 [worker.mpsc_channels.command_processor]
 command_buffer_size = 100
 

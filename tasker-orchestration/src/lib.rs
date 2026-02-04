@@ -64,8 +64,8 @@
 //! let context = tasker_shared::system_context::SystemContext::new_for_orchestration().await.unwrap();
 //! let config = &context.tasker_config;
 //!
-//! // Configuration provides database settings
-//! assert_eq!(config.common.execution.max_concurrent_tasks, 100);
+//! // Configuration provides execution settings
+//! assert_eq!(config.common.execution.environment, "test");
 //! # };
 //!
 //! // For complete database integration examples, see tests/models/ directory

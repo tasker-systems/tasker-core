@@ -3,17 +3,15 @@
 use tasker_shared::constants::*;
 use tasker_shared::state_machine::{TaskState, WorkflowStepState};
 use tasker_shared::{
-    config::tasker::{BackoffConfig, ExecutionConfig, ReenqueueDelaysConfig},
+    config::tasker::{BackoffConfig, ExecutionConfig},
     system_events,
 };
 
 #[test]
 fn test_execution_config_defaults() {
     let config = ExecutionConfig::default();
-    assert_eq!(config.max_concurrent_tasks, 100);
-    assert_eq!(config.max_concurrent_steps, 1000);
-    assert_eq!(config.default_timeout_seconds, 3600);
-    assert_eq!(config.step_execution_timeout_seconds, 300);
+    assert_eq!(config.step_enqueue_batch_size, 10);
+    assert_eq!(config.environment, "development");
 }
 
 #[test]
@@ -24,18 +22,6 @@ fn test_backoff_config_defaults() {
     assert!(config.jitter_enabled);
     assert_eq!(config.backoff_multiplier, 2.0);
     assert_eq!(config.jitter_max_percentage, 0.1);
-}
-
-#[test]
-fn test_reenqueue_delays_defaults() {
-    let delays = ReenqueueDelaysConfig::default();
-    assert_eq!(delays.initializing, 5);
-    assert_eq!(delays.enqueuing_steps, 0);
-    assert_eq!(delays.evaluating_results, 5);
-    assert_eq!(delays.steps_in_process, 10);
-    assert_eq!(delays.waiting_for_dependencies, 45);
-    assert_eq!(delays.waiting_for_retry, 30);
-    assert_eq!(delays.blocked_by_failures, 60);
 }
 
 #[test]

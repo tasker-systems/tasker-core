@@ -49,21 +49,12 @@ impl CircuitBreakerManager {
             return Arc::clone(breaker);
         }
 
-        // Check limits (V2 config uses u32, cast to usize for comparison)
-        if breakers.len() >= self.config.global_settings.max_circuit_breakers as usize {
-            warn!(
-                component = component_name,
-                current_count = breakers.len(),
-                max_allowed = self.config.global_settings.max_circuit_breakers,
-                "🚨 Maximum circuit breaker limit reached, using default config"
-            );
-        }
-
         // Get configuration for this component
+        // TAS-221: max_circuit_breakers removed (was never enforced), timeout from default_config
         let component_config = self
             .config
             .config_for_component(component_name)
-            .to_resilience_config();
+            .to_resilience_config_with_timeout(self.config.default_config.timeout_seconds);
 
         // Create new circuit breaker
         let breaker = Arc::new(CircuitBreaker::new(
@@ -182,9 +173,7 @@ mod tests {
         };
 
         CircuitBreakerConfig {
-            enabled: true,
             global_settings: GlobalCircuitBreakerSettings {
-                max_circuit_breakers: 50,
                 metrics_collection_interval_seconds: 30,
                 min_state_transition_interval_seconds: 1.0,
             },
@@ -196,17 +185,14 @@ mod tests {
             component_configs: ComponentCircuitBreakerConfigs {
                 task_readiness: CircuitBreakerComponentConfig {
                     failure_threshold: 5,
-                    timeout_seconds: 30,
                     success_threshold: 2,
                 },
                 pgmq: CircuitBreakerComponentConfig {
                     failure_threshold: 5,
-                    timeout_seconds: 30,
                     success_threshold: 2,
                 },
                 cache: CircuitBreakerComponentConfig {
                     failure_threshold: 5,
-                    timeout_seconds: 15,
                     success_threshold: 2,
                 },
             },

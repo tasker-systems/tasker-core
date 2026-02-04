@@ -180,14 +180,10 @@ pub use staleness_detector::{StalenessDetector, StalenessResult};
 // ============================================================================
 
 // Orchestration Configuration
-pub use config::{
-    BackoffConfig, DatabaseConfig, ExecutionConfig, ReenqueueDelaysConfig, TaskerConfig,
-    TelemetryConfig,
-};
+pub use config::{BackoffConfig, DatabaseConfig, ExecutionConfig, TaskerConfig};
 
 // Shared Configuration (from tasker-shared)
 pub use tasker_shared::config::orchestration::{
-    OrchestrationSystemConfig, StepEnqueuerConfig, StepResultProcessorConfig,
-    TaskClaimStepEnqueuerConfig,
+    StepEnqueuerConfig, StepResultProcessorConfig, TaskClaimStepEnqueuerConfig,
 };
 // TAS-61: ReadinessFallbackConfig and TaskReadinessNotificationConfig removed (part of deleted TaskReadinessConfig)

@@ -4,8 +4,8 @@
 //! It provides a unified interface for accessing configuration values across different components of the system.
 
 // TAS-61 Phase 6C/6D: Re-export V2 config types used by orchestration/mod.rs
-pub use tasker_shared::config::tasker::{BackoffConfig, DatabaseConfig, ReenqueueDelaysConfig};
-pub use tasker_shared::config::tasker::{ExecutionConfig, TaskerConfig, TelemetryConfig};
+pub use tasker_shared::config::tasker::{BackoffConfig, DatabaseConfig};
+pub use tasker_shared::config::tasker::{ExecutionConfig, TaskerConfig};
 
 #[cfg(test)]
 mod tests {

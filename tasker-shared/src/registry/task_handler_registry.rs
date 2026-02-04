@@ -725,15 +725,8 @@ impl TaskHandlerRegistry {
 
     /// Build the cache key for a task template
     fn cache_key(&self, namespace: &str, name: &str, version: &str) -> String {
-        let prefix = self
-            .cache_config
-            .as_ref()
-            .map(|c| c.key_prefix.as_str())
-            .unwrap_or("tasker");
-        format!(
-            "{}:task_template:{}:{}:{}",
-            prefix, namespace, name, version
-        )
+        // TAS-221: key_prefix removed from CacheConfig, hardcoded to "tasker"
+        format!("tasker:task_template:{}:{}:{}", namespace, name, version)
     }
 
     /// Get the template TTL from cache config
@@ -855,12 +848,8 @@ impl TaskHandlerRegistry {
             _ => return,
         };
 
-        let prefix = self
-            .cache_config
-            .as_ref()
-            .map(|c| c.key_prefix.as_str())
-            .unwrap_or("tasker");
-        let pattern = format!("{}:task_template:*", prefix);
+        // TAS-221: key_prefix removed from CacheConfig, hardcoded to "tasker"
+        let pattern = "tasker:task_template:*".to_string();
 
         match provider.delete_pattern(&pattern).await {
             Ok(count) => {
@@ -887,12 +876,8 @@ impl TaskHandlerRegistry {
             _ => return,
         };
 
-        let prefix = self
-            .cache_config
-            .as_ref()
-            .map(|c| c.key_prefix.as_str())
-            .unwrap_or("tasker");
-        let pattern = format!("{}:task_template:{}:*", prefix, namespace);
+        // TAS-221: key_prefix removed from CacheConfig, hardcoded to "tasker"
+        let pattern = format!("tasker:task_template:{}:*", namespace);
 
         match provider.delete_pattern(&pattern).await {
             Ok(count) => {
@@ -966,14 +951,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cache_key_custom_prefix() {
-        let config = CacheConfig {
-            key_prefix: "myapp".to_string(),
-            ..CacheConfig::default()
-        };
-        let registry = test_registry_with_noop_cache(Some(config));
+    async fn test_cache_key_always_uses_tasker_prefix() {
+        // TAS-221: key_prefix removed from CacheConfig, always "tasker"
+        let registry = test_registry_with_noop_cache(Some(CacheConfig::default()));
         let key = registry.cache_key("billing", "invoice", "2.0.0");
-        assert_eq!(key, "myapp:task_template:billing:invoice:2.0.0");
+        assert_eq!(key, "tasker:task_template:billing:invoice:2.0.0");
     }
 
     #[tokio::test]

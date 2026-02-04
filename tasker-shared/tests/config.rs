@@ -15,9 +15,10 @@ use tasker_shared::config::tasker::ExecutionConfig;
 #[test]
 fn config_component_defaults() {
     // Test individual config components - update to match actual defaults
+    // TAS-221: max_concurrent_tasks, max_concurrent_steps removed (aspirational)
     let execution_config = ExecutionConfig::default();
-    assert_eq!(execution_config.max_concurrent_tasks, 100);
-    assert_eq!(execution_config.max_concurrent_steps, 1000);
+    assert_eq!(execution_config.step_enqueue_batch_size, 10);
+    assert_eq!(execution_config.environment, "development");
 
     let backoff_config = BackoffConfig::default();
     assert_eq!(backoff_config.default_backoff_seconds, vec![1, 2, 4]);

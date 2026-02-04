@@ -165,10 +165,8 @@ impl AnalyticsService {
     }
 
     fn key_prefix(&self) -> &str {
-        self.cache_config
-            .as_ref()
-            .map(|c| c.key_prefix.as_str())
-            .unwrap_or("tasker")
+        // TAS-221: key_prefix removed from CacheConfig, hardcoded to "tasker"
+        "tasker"
     }
 
     fn analytics_ttl(&self) -> Duration {
@@ -260,7 +258,6 @@ mod tests {
     fn test_config() -> CacheConfig {
         CacheConfig {
             enabled: true,
-            key_prefix: "test".to_string(),
             analytics_ttl_seconds: 30,
             ..CacheConfig::default()
         }
@@ -271,13 +268,14 @@ mod tests {
         let pool = sqlx::PgPool::connect_lazy("postgresql://test").unwrap();
         let service = AnalyticsService::new(pool, noop_provider(), Some(test_config()));
 
+        // TAS-221: key_prefix removed, hardcoded to "tasker"
         assert_eq!(
             service.performance_cache_key(24),
-            "test:analytics:performance:24"
+            "tasker:analytics:performance:24"
         );
         assert_eq!(
             service.performance_cache_key(1),
-            "test:analytics:performance:1"
+            "tasker:analytics:performance:1"
         );
     }
 
@@ -286,34 +284,29 @@ mod tests {
         let pool = sqlx::PgPool::connect_lazy("postgresql://test").unwrap();
         let service = AnalyticsService::new(pool, noop_provider(), Some(test_config()));
 
+        // TAS-221: key_prefix removed, hardcoded to "tasker"
         assert_eq!(
             service.bottleneck_cache_key(10, 5),
-            "test:analytics:bottlenecks:10:5"
+            "tasker:analytics:bottlenecks:10:5"
         );
         assert_eq!(
             service.bottleneck_cache_key(20, 10),
-            "test:analytics:bottlenecks:20:10"
+            "tasker:analytics:bottlenecks:20:10"
         );
     }
 
     #[tokio::test]
-    async fn test_key_prefix_default() {
+    async fn test_key_prefix_hardcoded() {
+        // TAS-221: key_prefix removed from CacheConfig, always returns "tasker"
         let pool = sqlx::PgPool::connect_lazy("postgresql://test").unwrap();
         let service = AnalyticsService::new(pool, noop_provider(), None);
 
         assert_eq!(service.key_prefix(), "tasker");
-    }
 
-    #[tokio::test]
-    async fn test_key_prefix_from_config() {
-        let pool = sqlx::PgPool::connect_lazy("postgresql://test").unwrap();
-        let config = CacheConfig {
-            key_prefix: "myapp".to_string(),
-            ..CacheConfig::default()
-        };
-        let service = AnalyticsService::new(pool, noop_provider(), Some(config));
-
-        assert_eq!(service.key_prefix(), "myapp");
+        // Also verify with config present
+        let pool2 = sqlx::PgPool::connect_lazy("postgresql://test").unwrap();
+        let service2 = AnalyticsService::new(pool2, noop_provider(), Some(test_config()));
+        assert_eq!(service2.key_prefix(), "tasker");
     }
 
     #[tokio::test]
