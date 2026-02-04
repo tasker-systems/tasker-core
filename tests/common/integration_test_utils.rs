@@ -145,13 +145,10 @@ pub async fn wait_for_task_completion(
                         sleep(Duration::from_millis(250)).await;
                     }
                     ExecutionStatus::BlockedByFailures => {
-                        if is_task_state_terminal(&task_response.status) {
-                            return Err(anyhow::anyhow!(
-                                "Task blocked by failures that cannot be retried: {}",
-                                task_response.execution_status
-                            ));
-                        }
-                        sleep(Duration::from_millis(250)).await;
+                        return Err(anyhow::anyhow!(
+                            "Task blocked by failures that cannot be retried: {}",
+                            task_response.execution_status
+                        ));
                     }
                     ExecutionStatus::HasReadySteps
                     | ExecutionStatus::Processing
@@ -208,21 +205,13 @@ pub async fn wait_for_task_failure(
 
                 match execution_status {
                     ExecutionStatus::BlockedByFailures => {
-                        // Wait for the task state machine to finish transitioning
-                        // before returning, so assertions on task.status are safe.
-                        if is_task_state_terminal(&task_response.status) {
-                            println!("✅ Task failed as expected (blocked by failures)!");
-                            return Ok(());
-                        }
-                        sleep(Duration::from_millis(250)).await;
+                        println!("✅ Task failed as expected (blocked by failures)!");
+                        return Ok(());
                     }
                     ExecutionStatus::AllComplete => {
-                        if is_task_state_terminal(&task_response.status) {
-                            return Err(anyhow::anyhow!(
-                                "Task completed successfully but was expected to fail"
-                            ));
-                        }
-                        sleep(Duration::from_millis(250)).await;
+                        return Err(anyhow::anyhow!(
+                            "Task completed successfully but was expected to fail"
+                        ));
                     }
                     ExecutionStatus::HasReadySteps
                     | ExecutionStatus::Processing
