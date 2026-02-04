@@ -1,8 +1,23 @@
+<!-- Replace TAS-XXX with the Linear ticket ID, or remove if no ticket -->
+Resolves TAS-
+
 ## Summary
 
-Brief description of what this PR does and why.
+<!-- 1-3 sentences: what changed and why -->
 
-## Changes
+## Type of Change
+
+- [ ] `feat` — New feature
+- [ ] `fix` — Bug fix
+- [ ] `refactor` — Code restructuring (no behavior change)
+- [ ] `chore` — Build, CI, dependencies, tooling
+- [ ] `docs` — Documentation only
+- [ ] `test` — Test additions or corrections
+- [ ] `perf` — Performance improvement
+
+## Breaking Changes
+
+<!-- If none, write "None" and remove the list -->
 
 -
 
@@ -16,6 +31,7 @@ Brief description of what this PR does and why.
 ## Checklist
 
 - [ ] Code follows existing patterns in the codebase
+- [ ] Commit messages use `type(scope): description` format
 - [ ] Public API changes have updated rustdoc comments
 - [ ] No security vulnerabilities introduced
 - [ ] MPSC channels are bounded and configured via TOML (if applicable)

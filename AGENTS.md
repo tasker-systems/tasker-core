@@ -248,7 +248,7 @@ Dual-channel system: dispatch channel + completion channel
 | `deployment-and-infrastructure` | Docker/Podman, CI, deployment modes |
 | `architecture-fundamentals` | Actors, state machines, event systems |
 | `workflow-concepts` | Tasks, steps, handler patterns, composition |
-| `project-principles` | 11 tenets, design philosophy, code review |
+| `project-principles` | 11 tenets, twelve-factor alignment, design philosophy, code review |
 | `database-and-sqlx` | SQLx cache, migrations, PGMQ, SQL functions |
 | `cross-language-development` | FFI workers, polyglot API consistency |
 | `versioning-and-releases` | Release tooling, version strategy, publishing |
@@ -257,6 +257,7 @@ Dual-channel system: dispatch channel + completion channel
 | `python-development` | Python handler patterns, pytest, PyO3/maturin |
 | `typescript-development` | TypeScript handler patterns, vitest, Biome |
 | `project-navigation` | Terminology, investigation patterns, doc routing |
+| `git-workflow` | Commit conventions, branch naming, PR process, git hooks |
 
 ### Core Architecture
 | Topic | Document |

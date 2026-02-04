@@ -31,6 +31,8 @@ cargo make check    # Lint + format + build
 cargo make test     # Run tests (requires services)
 ```
 
+For a full automated setup (Homebrew, Rust, cargo tools, git hooks, worker dependencies), run `bin/setup-dev.sh`.
+
 See [CLAUDE.md](CLAUDE.md) for full development context including all commands and troubleshooting.
 
 ## Development Workflow
@@ -91,6 +93,17 @@ git add .sqlx/
 - All public types must implement `Debug`
 - Run `cargo fmt` and `cargo clippy --all-targets --all-features` before committing
 
+### Git Hooks
+
+The project includes a pre-commit hook that automatically runs `cargo fmt --all` on staged Rust files. It only touches files you've already staged, so unstaged work-in-progress is unaffected.
+
+**Install hooks** (automatic with `bin/setup-dev.sh`, or manual):
+```bash
+git config core.hooksPath .githooks
+```
+
+To skip the hook for a single commit: `git commit --no-verify`
+
 ## Submitting Changes
 
 ### Pull Request Process
@@ -116,6 +129,17 @@ git add .sqlx/
 - No unnecessary complexity or over-engineering
 - Configuration follows the role-based TOML structure (never create separate component files)
 - MPSC channels are bounded and configured via TOML
+
+## Design Influences
+
+The project's systems design is informed by the [Twelve-Factor App](https://12factor.net/) methodology. Key principles for contributors:
+
+- **Config in the environment**: Use environment variables, not hard-coded values. TOML files reference `${ENV_VAR:-default}`.
+- **Backing services as attached resources**: Database, message queue, and cache are swappable via configuration.
+- **Stateless processes**: All workflow state lives in PostgreSQL, not in memory.
+- **Logs as event streams**: Use the `tracing` crate, write to stdout, include structured fields.
+
+See `docs/principles/twelve-factor-alignment.md` for the full mapping with codebase examples and honest gap assessment.
 
 ## Architecture Overview
 
