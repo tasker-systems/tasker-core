@@ -1370,13 +1370,14 @@ BEGIN
       COUNT(CASE WHEN sd.current_state = 'pending' THEN 1 END) as pending_steps,
       COUNT(CASE WHEN sd.current_state = 'enqueued' THEN 1 END) as enqueued_steps,
       COUNT(CASE WHEN sd.current_state = 'in_progress' THEN 1 END) as in_progress_steps,
-      COUNT(CASE WHEN sd.current_state IN ('enqueued_for_orchestration', 'enqueued_as_error_for_orchestration') THEN 1 END) as enqueued_for_orchestration_steps,
+      COUNT(CASE WHEN sd.current_state = 'enqueued_for_orchestration' THEN 1 END) as enqueued_for_orchestration_steps,
+      COUNT(CASE WHEN sd.current_state = 'enqueued_as_error_for_orchestration' THEN 1 END) as enqueued_as_error_for_orchestration_steps,
       COUNT(CASE WHEN sd.current_state IN ('complete', 'resolved_manually') THEN 1 END) as completed_steps,
       COUNT(CASE WHEN sd.current_state = 'error' THEN 1 END) as failed_steps,
       COUNT(CASE WHEN sd.ready_for_execution = true THEN 1 END) as ready_steps,
-      -- Count permanently blocked steps
-      COUNT(CASE WHEN sd.current_state = 'error'
-                  AND (sd.attempts >= sd.max_attempts OR sd.retry_eligible = false) THEN 1 END) as permanently_blocked_steps
+      -- Post TAS-42: all steps in 'error' state are permanently blocked.
+      -- Retryable failures go to 'waiting_for_retry', not 'error'.
+      COUNT(CASE WHEN sd.current_state = 'error' THEN 1 END) as permanently_blocked_steps
     FROM step_data sd
   )
   SELECT
@@ -1398,7 +1399,8 @@ BEGIN
       WHEN COALESCE(ast.ready_steps, 0) > 0 THEN 'has_ready_steps'
       WHEN COALESCE(ast.in_progress_steps, 0) > 0
            OR COALESCE(ast.enqueued_steps, 0) > 0
-           OR COALESCE(ast.enqueued_for_orchestration_steps, 0) > 0 THEN 'processing'
+           OR COALESCE(ast.enqueued_for_orchestration_steps, 0) > 0
+           OR COALESCE(ast.enqueued_as_error_for_orchestration_steps, 0) > 0 THEN 'processing'
       WHEN COALESCE(ast.completed_steps, 0) = COALESCE(ast.total_steps, 0) AND COALESCE(ast.total_steps, 0) > 0 THEN 'all_complete'
       ELSE 'waiting_for_dependencies'
     END as execution_status,
@@ -1407,7 +1409,10 @@ BEGIN
     CASE
       WHEN COALESCE(ast.permanently_blocked_steps, 0) > 0 THEN 'handle_failures'
       WHEN COALESCE(ast.ready_steps, 0) > 0 THEN 'execute_ready_steps'
-      WHEN COALESCE(ast.in_progress_steps, 0) > 0 THEN 'wait_for_completion'
+      WHEN COALESCE(ast.in_progress_steps, 0) > 0
+           OR COALESCE(ast.enqueued_steps, 0) > 0
+           OR COALESCE(ast.enqueued_for_orchestration_steps, 0) > 0
+           OR COALESCE(ast.enqueued_as_error_for_orchestration_steps, 0) > 0 THEN 'wait_for_completion'
       WHEN COALESCE(ast.completed_steps, 0) = COALESCE(ast.total_steps, 0) AND COALESCE(ast.total_steps, 0) > 0 THEN 'finalize_task'
       ELSE 'wait_for_dependencies'
     END as recommended_action,
@@ -1428,7 +1433,9 @@ BEGIN
     END as health_status,
 
     -- Enqueued steps
-    COALESCE(ast.enqueued_steps, 0) + COALESCE(ast.enqueued_for_orchestration_steps, 0) as enqueued_steps
+    COALESCE(ast.enqueued_steps, 0)
+      + COALESCE(ast.enqueued_for_orchestration_steps, 0)
+      + COALESCE(ast.enqueued_as_error_for_orchestration_steps, 0) as enqueued_steps
 
   FROM task_info ti
   CROSS JOIN aggregated_stats ast;
@@ -1482,12 +1489,14 @@ BEGIN
       COUNT(CASE WHEN sd.current_state = 'pending' THEN 1 END) as pending_steps,
       COUNT(CASE WHEN sd.current_state = 'enqueued' THEN 1 END) as enqueued_steps,
       COUNT(CASE WHEN sd.current_state = 'in_progress' THEN 1 END) as in_progress_steps,
-      COUNT(CASE WHEN sd.current_state IN ('enqueued_for_orchestration', 'enqueued_as_error_for_orchestration') THEN 1 END) as enqueued_for_orchestration_steps,
+      COUNT(CASE WHEN sd.current_state = 'enqueued_for_orchestration' THEN 1 END) as enqueued_for_orchestration_steps,
+      COUNT(CASE WHEN sd.current_state = 'enqueued_as_error_for_orchestration' THEN 1 END) as enqueued_as_error_for_orchestration_steps,
       COUNT(CASE WHEN sd.current_state IN ('complete', 'resolved_manually') THEN 1 END) as completed_steps,
       COUNT(CASE WHEN sd.current_state = 'error' THEN 1 END) as failed_steps,
       COUNT(CASE WHEN sd.ready_for_execution = true THEN 1 END) as ready_steps,
-      COUNT(CASE WHEN sd.current_state = 'error'
-                  AND (sd.attempts >= sd.max_attempts OR sd.retry_eligible = false) THEN 1 END) as permanently_blocked_steps
+      -- Post TAS-42: all steps in 'error' state are permanently blocked.
+      -- Retryable failures go to 'waiting_for_retry', not 'error'.
+      COUNT(CASE WHEN sd.current_state = 'error' THEN 1 END) as permanently_blocked_steps
     FROM step_data sd
     GROUP BY sd.task_uuid
   )
@@ -1508,7 +1517,8 @@ BEGIN
       WHEN COALESCE(ast.ready_steps, 0) > 0 THEN 'has_ready_steps'
       WHEN COALESCE(ast.in_progress_steps, 0) > 0
            OR COALESCE(ast.enqueued_steps, 0) > 0
-           OR COALESCE(ast.enqueued_for_orchestration_steps, 0) > 0 THEN 'processing'
+           OR COALESCE(ast.enqueued_for_orchestration_steps, 0) > 0
+           OR COALESCE(ast.enqueued_as_error_for_orchestration_steps, 0) > 0 THEN 'processing'
       WHEN COALESCE(ast.completed_steps, 0) = COALESCE(ast.total_steps, 0) AND COALESCE(ast.total_steps, 0) > 0 THEN 'all_complete'
       ELSE 'waiting_for_dependencies'
     END as execution_status,
@@ -1516,7 +1526,10 @@ BEGIN
     CASE
       WHEN COALESCE(ast.permanently_blocked_steps, 0) > 0 THEN 'handle_failures'
       WHEN COALESCE(ast.ready_steps, 0) > 0 THEN 'execute_ready_steps'
-      WHEN COALESCE(ast.in_progress_steps, 0) > 0 THEN 'wait_for_completion'
+      WHEN COALESCE(ast.in_progress_steps, 0) > 0
+           OR COALESCE(ast.enqueued_steps, 0) > 0
+           OR COALESCE(ast.enqueued_for_orchestration_steps, 0) > 0
+           OR COALESCE(ast.enqueued_as_error_for_orchestration_steps, 0) > 0 THEN 'wait_for_completion'
       WHEN COALESCE(ast.completed_steps, 0) = COALESCE(ast.total_steps, 0) AND COALESCE(ast.total_steps, 0) > 0 THEN 'finalize_task'
       ELSE 'wait_for_dependencies'
     END as recommended_action,
@@ -1534,7 +1547,9 @@ BEGIN
       ELSE 'unknown'
     END as health_status,
 
-    COALESCE(ast.enqueued_steps, 0) + COALESCE(ast.enqueued_for_orchestration_steps, 0) as enqueued_steps
+    COALESCE(ast.enqueued_steps, 0)
+      + COALESCE(ast.enqueued_for_orchestration_steps, 0)
+      + COALESCE(ast.enqueued_as_error_for_orchestration_steps, 0) as enqueued_steps
 
   FROM task_info ti
   LEFT JOIN aggregated_stats ast ON ast.task_uuid = ti.task_uuid;

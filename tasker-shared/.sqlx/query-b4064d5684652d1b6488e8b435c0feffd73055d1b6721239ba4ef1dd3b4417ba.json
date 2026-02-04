@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM tasker.workflow_step_edges",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "b4064d5684652d1b6488e8b435c0feffd73055d1b6721239ba4ef1dd3b4417ba"
+}

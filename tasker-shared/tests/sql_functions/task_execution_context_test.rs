@@ -437,4 +437,166 @@ mod tests {
 
         Ok(())
     }
+
+    /// TAS-222: Verify that a step in 'error' state with retryable=true and
+    /// attempts < max_attempts is still counted as permanently blocked.
+    ///
+    /// Post TAS-42, all steps in 'error' are terminal permanent failures.
+    /// Retryable failures go to 'waiting_for_retry', not 'error'.
+    /// The old SQL logic required (attempts >= max_attempts OR retry_eligible = false)
+    /// which missed this scenario.
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_error_step_with_retryable_true_still_blocked(pool: PgPool) -> sqlx::Result<()> {
+        let (task_uuid, step_uuids) =
+            create_task_with_initial_state(&pool, unique_workflow_factory(|f| f.linear())).await?;
+
+        // Put first step into error state
+        WorkflowStepTransitionFactory::create_failed_lifecycle(
+            step_uuids[0],
+            "Non-retryable runtime failure",
+            &pool,
+        )
+        .await
+        .map_err(map_factory_error)?;
+
+        // Set retryable=true and attempts < max_attempts — the gap scenario.
+        // Worker marked error as non-retryable at runtime, but the template-level
+        // retryable column still says true and retries aren't exhausted.
+        sqlx::query!(
+            "UPDATE tasker.workflow_steps
+             SET attempts = 1, max_attempts = 3, retryable = true
+             WHERE workflow_step_uuid = $1",
+            step_uuids[0]
+        )
+        .execute(&pool)
+        .await?;
+
+        let context = TaskExecutionContext::get_for_task(&pool, task_uuid)
+            .await?
+            .unwrap();
+
+        // Post TAS-42 fix: error state IS terminal, so this must be blocked_by_failures.
+        // Before the fix, this would have been waiting_for_dependencies because
+        // permanently_blocked_steps was 0 (attempts=1 < max_attempts=3 AND retryable=true).
+        assert_eq!(context.failed_steps, 1);
+        assert_eq!(context.execution_status, ExecutionStatus::BlockedByFailures);
+
+        Ok(())
+    }
+
+    /// TAS-222: Verify that steps in 'enqueued_as_error_for_orchestration' state
+    /// are counted as processing (not all_complete).
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_enqueued_as_error_for_orchestration_is_processing(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        let (task_uuid, step_uuids) =
+            create_task_with_initial_state(&pool, unique_workflow_factory(|f| f.linear())).await?;
+
+        // Complete the first step normally
+        WorkflowStepTransitionFactory::create_complete_lifecycle(step_uuids[0], &pool)
+            .await
+            .map_err(map_factory_error)?;
+
+        // Put second step through in_progress -> enqueued_as_error_for_orchestration
+        WorkflowStepTransitionFactory::new()
+            .for_workflow_step(step_uuids[1])
+            .from_state("pending")
+            .to_in_progress()
+            .create(&pool)
+            .await
+            .map_err(map_factory_error)?;
+
+        WorkflowStepTransitionFactory::new()
+            .for_workflow_step(step_uuids[1])
+            .from_state("in_progress")
+            .to_state("enqueued_as_error_for_orchestration")
+            .create(&pool)
+            .await
+            .map_err(map_factory_error)?;
+
+        let context = TaskExecutionContext::get_for_task(&pool, task_uuid)
+            .await?
+            .unwrap();
+
+        // The step is being processed by orchestration — must be 'processing', not 'all_complete'
+        assert_eq!(context.execution_status, ExecutionStatus::Processing);
+        assert!(context.enqueued_steps > 0);
+
+        Ok(())
+    }
+
+    /// TAS-222: Verify that a diamond workflow with one complete branch and one
+    /// errored branch reports blocked_by_failures.
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_mix_of_complete_and_error_steps(pool: PgPool) -> sqlx::Result<()> {
+        // Diamond: step[0]=root, step[1]=branch_a, step[2]=branch_b, step[3]=sink
+        let (task_uuid, step_uuids) =
+            create_task_with_initial_state(&pool, unique_workflow_factory(|f| f.diamond())).await?;
+
+        // Complete root step
+        WorkflowStepTransitionFactory::create_complete_lifecycle(step_uuids[0], &pool)
+            .await
+            .map_err(map_factory_error)?;
+
+        // Complete branch A
+        WorkflowStepTransitionFactory::create_complete_lifecycle(step_uuids[1], &pool)
+            .await
+            .map_err(map_factory_error)?;
+
+        // Error branch B
+        WorkflowStepTransitionFactory::create_failed_lifecycle(
+            step_uuids[2],
+            "Branch B permanent failure",
+            &pool,
+        )
+        .await
+        .map_err(map_factory_error)?;
+
+        let context = TaskExecutionContext::get_for_task(&pool, task_uuid)
+            .await?
+            .unwrap();
+
+        assert_eq!(context.completed_steps, 2);
+        assert_eq!(context.failed_steps, 1);
+        assert_eq!(context.execution_status, ExecutionStatus::BlockedByFailures);
+
+        Ok(())
+    }
+
+    /// TAS-222: Verify that all_complete is never reported when any step is in error state.
+    #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
+    async fn test_all_complete_requires_no_error_steps(pool: PgPool) -> sqlx::Result<()> {
+        let (task_uuid, step_uuids) =
+            create_task_with_initial_state(&pool, unique_workflow_factory(|f| f.linear())).await?;
+
+        // Complete all steps except the last one
+        for &step_uuid in &step_uuids[..step_uuids.len() - 1] {
+            WorkflowStepTransitionFactory::create_complete_lifecycle(step_uuid, &pool)
+                .await
+                .map_err(map_factory_error)?;
+        }
+
+        // Put last step in error state
+        let last_step = *step_uuids.last().unwrap();
+        WorkflowStepTransitionFactory::create_failed_lifecycle(
+            last_step,
+            "Final step failure",
+            &pool,
+        )
+        .await
+        .map_err(map_factory_error)?;
+
+        let context = TaskExecutionContext::get_for_task(&pool, task_uuid)
+            .await?
+            .unwrap();
+
+        // Must NOT be AllComplete — the error step makes it BlockedByFailures
+        assert_ne!(context.execution_status, ExecutionStatus::AllComplete);
+        assert_eq!(context.execution_status, ExecutionStatus::BlockedByFailures);
+        assert_eq!(context.completed_steps, 3);
+        assert_eq!(context.failed_steps, 1);
+
+        Ok(())
+    }
 }
