@@ -158,6 +158,18 @@ persist_env 'export REDIS_URL="redis://localhost:6379"'
 log_ok "environment variables persisted to session"
 
 # ---------------------------------------------------------------------------
+# Phase 5b: Git hooks
+# ---------------------------------------------------------------------------
+log_section "Git hooks"
+if git rev-parse --is-inside-work-tree &>/dev/null; then
+  git config core.hooksPath .githooks
+  chmod +x "$PROJECT_DIR/.githooks/"* 2>/dev/null || true
+  log_ok "git hooks configured (.githooks/pre-commit)"
+else
+  log_warn "not a git repo, skipping hooks"
+fi
+
+# ---------------------------------------------------------------------------
 # Fallback .env generator (used when cargo-make is not available)
 # ---------------------------------------------------------------------------
 generate_fallback_env() {

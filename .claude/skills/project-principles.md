@@ -77,6 +77,21 @@ A system that lies is worse than one that fails. Errors are first-class citizens
 | Use empty/zero defaults for absent config | Fail with clear message |
 | Fabricate "unknown" status for missing data | Error: "data unavailable" |
 
+## Twelve-Factor App Influence
+
+The project's systems design is substantively informed by the [Twelve-Factor App](https://12factor.net/) methodology. Key alignments:
+
+- **Config (III)**: Environment variables with TOML defaults — `config/tasker/base/`, `config/dotenv/`
+- **Backing services (IV)**: Pluggable messaging (PGMQ/RabbitMQ), cache (Redis/Moka), observability (OTEL) — all via env vars
+- **Processes (VI)**: Stateless services, all state in PostgreSQL — no in-memory workflow state
+- **Disposability (IX)**: Graceful shutdown with signal handlers, PGMQ visibility timeouts for crash recovery
+- **Dev/prod parity (X)**: Same config structure, same migrations, same Docker base across environments
+- **Logs (XI)**: Stdout-only via tracing crate, structured fields, correlation IDs
+
+When reviewing designs, ask: does this treat backing services as attached resources? Does this store state in processes or in the database? Is this configured via environment?
+
+Full mapping with codebase references and gap assessment: `docs/principles/twelve-factor-alignment.md`
+
 ## Meta-Principles
 
 1. **Simplicity Over Elegance**: Minimal protections that work > layered defense that blocks recovery

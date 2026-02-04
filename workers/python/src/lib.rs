@@ -36,7 +36,7 @@ mod event_dispatch;
 mod ffi_logging;
 mod observability;
 
-/// Returns the version of the tasker-core-py package
+/// Returns the version of the tasker-worker-py package
 #[pyfunction]
 fn get_version() -> &'static str {
     env!("CARGO_PKG_VERSION")

@@ -13,11 +13,12 @@ This directory contains the core principles and design philosophy that guide Tas
 | [Composition Over Inheritance](./composition-over-inheritance.md) | Mixin-based handler composition pattern |
 | [Intentional AI Partnership](./intentional-ai-partnership.md) | Collaborative approach to AI integration |
 
-## Reference
+## Influences
 
 | Document | Description |
 |----------|-------------|
-| [Zen of Python (PEP-20)](./zen-of-python-PEP-20.md) | Tim Peters' guiding principles - referenced as inspiration |
+| [Twelve-Factor App Alignment](./twelve-factor-alignment.md) | How the 12-factor methodology shapes our architecture, with codebase examples and honest gap assessment |
+| [Zen of Python (PEP-20)](./zen-of-python-PEP-20.md) | Tim Peters' guiding principles — referenced as inspiration |
 
 ## How These Principles Were Derived
 

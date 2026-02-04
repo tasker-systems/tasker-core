@@ -161,10 +161,10 @@ uv run pytest --cov=python/tasker_core --cov-fail-under=0 \
 uv run --project ../../cargo-make/scripts/coverage python3 \
   ../../cargo-make/scripts/coverage/normalize-python.py \
   ../../coverage-reports/python/raw-coverage.json \
-  ../../coverage-reports/python/tasker-core-py-coverage.json
+  ../../coverage-reports/python/tasker-worker-py-coverage.json
 
 echo "Coverage complete"
-echo "  Normalized: ../../coverage-reports/python/tasker-core-py-coverage.json"
+echo "  Normalized: ../../coverage-reports/python/tasker-worker-py-coverage.json"
 '''
 
 [tasks.coverage-json]

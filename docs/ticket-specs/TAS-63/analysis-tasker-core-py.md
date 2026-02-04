@@ -1,4 +1,4 @@
-# Coverage Analysis: tasker-core-py (Python Worker)
+# Coverage Analysis: tasker-worker-py (Python Worker)
 
 **Current Coverage**: 71.12% line (1991/2631 lines)
 **Target**: 80%
@@ -8,7 +8,7 @@
 
 ## Summary
 
-The Python worker (`tasker-core-py`) provides maturin/pyo3 FFI bindings exposing a Python API for task step handling. Coverage stands at 71.12%, short of the 80% target by 8.88 percentage points. The gap is concentrated in a few key areas:
+The Python worker (`tasker-worker-py`) provides maturin/pyo3 FFI bindings exposing a Python API for task step handling. Coverage stands at 71.12%, short of the 80% target by 8.88 percentage points. The gap is concentrated in a few key areas:
 
 1. **Example handlers** (0% -- 80 lines) are completely uncovered test fixtures
 2. **Error classifier** (29.41% -- 22 uncovered lines) has minimal testing of its classification methods

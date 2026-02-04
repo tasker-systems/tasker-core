@@ -11,6 +11,7 @@
 #   ./bin/setup-dev.sh --check      # Check what's installed
 #   ./bin/setup-dev.sh --brew-only  # Only run Homebrew bundle
 #   ./bin/setup-dev.sh --cargo-only # Only install cargo tools
+#   ./bin/setup-dev.sh --hooks-only # Only install git hooks
 #   ./bin/setup-dev.sh --help       # Show help
 #
 # Prerequisites:
@@ -403,6 +404,32 @@ setup_workers() {
 }
 
 # -----------------------------------------------------------------------------
+# Git Hooks Setup
+# -----------------------------------------------------------------------------
+
+setup_git_hooks() {
+    header "Setting up Git Hooks"
+
+    # Skip if not a git repo
+    if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+        warn "Not a git repository, skipping hooks setup"
+        return 0
+    fi
+
+    if [[ -d "$PROJECT_ROOT/.githooks" ]]; then
+        info "Configuring git to use .githooks directory..."
+        git config core.hooksPath .githooks
+
+        # Ensure hooks are executable
+        chmod +x "$PROJECT_ROOT/.githooks/"* 2>/dev/null || true
+
+        success "Git hooks installed (pre-commit: auto-format Rust via cargo fmt)"
+    else
+        warn ".githooks directory not found, skipping hooks setup"
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # Environment Setup
 # -----------------------------------------------------------------------------
 
@@ -531,6 +558,7 @@ show_help() {
     echo "  --brew-only     Only run Homebrew bundle"
     echo "  --cargo-only    Only install cargo tools"
     echo "  --workers-only  Only setup worker dependencies"
+    echo "  --hooks-only    Only install git hooks"
     echo "  --shell-config  Print shell configuration instructions"
     echo ""
     echo "Without options, runs full setup."
@@ -560,6 +588,9 @@ main() {
         --workers-only)
             setup_workers
             ;;
+        --hooks-only)
+            setup_git_hooks
+            ;;
         --shell-config)
             print_shell_config
             ;;
@@ -578,6 +609,7 @@ main() {
             setup_typescript
             setup_workers
             setup_environment
+            setup_git_hooks
             verify_installation
             print_shell_config
 
@@ -589,6 +621,9 @@ main() {
             echo "  4. Start database: cargo make docker-up"
             echo "  5. Run migrations: cargo make db-setup"
             echo "  6. Verify: cargo make check"
+            echo ""
+            echo "Git hooks are installed. Staged .rs files will be auto-formatted on commit."
+            echo "To skip once: git commit --no-verify"
             echo ""
             ;;
         *)

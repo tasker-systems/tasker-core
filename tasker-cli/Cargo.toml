@@ -15,8 +15,8 @@ path = "src/main.rs"
 
 [dependencies]
 # Workspace crates
-tasker-client = { path = "../tasker-client" }
-tasker-shared = { path = "../tasker-shared" }
+tasker-client = { path = "../tasker-client", version = "=0.1.0" }
+tasker-shared = { path = "../tasker-shared", version = "=0.1.0" }
 
 # CLI framework
 clap = { workspace = true, features = ["color", "derive", "env"] }

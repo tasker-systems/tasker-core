@@ -372,10 +372,11 @@ async fn test_python_checkpoint_yield_permanent_failure() -> Result<()> {
     // Wait for task to fail (it should not complete successfully)
     println!("\n⏱️ Waiting for permanent failure...");
 
-    // Use a shorter timeout since permanent failure should fail fast
+    // Wait for the task state machine to reach a terminal state.
+    // Checking only execution_status is insufficient because the derived
+    // "all_complete" value can appear before the task finalizer transitions
+    // the task state machine to "error" or "complete".
     let timeout = 30;
-
-    // Wait for task to reach terminal state (may be error)
     let mut attempts = 0;
     let max_attempts = timeout * 2; // Check every 500ms
 
@@ -386,7 +387,7 @@ async fn test_python_checkpoint_yield_permanent_failure() -> Result<()> {
         let task_uuid = Uuid::parse_str(&task_response.task_uuid)?;
         let task = manager.orchestration_client.get_task(task_uuid).await?;
 
-        if task.is_execution_complete() || task.execution_status.to_uppercase() == "ERROR" {
+        if matches!(task.status.as_str(), "complete" | "error" | "cancelled") {
             break;
         }
 
