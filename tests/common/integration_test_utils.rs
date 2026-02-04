@@ -14,6 +14,16 @@ use tasker_client::OrchestrationApiClient;
 use tasker_shared::models::core::task_request::TaskRequest;
 use tasker_shared::models::orchestration::execution_status::ExecutionStatus;
 
+/// Check if a task status string represents a terminal state machine state.
+///
+/// The task state machine has three terminal states: complete, error, cancelled.
+/// The derived `execution_status` (from step aggregation) can report "all_complete"
+/// before the task state machine has transitioned, so callers should check this
+/// to avoid race conditions between step completion and task finalization.
+fn is_task_state_terminal(status: &str) -> bool {
+    matches!(status, "complete" | "error" | "cancelled")
+}
+
 /// Get timeout multiplier based on execution environment
 ///
 /// Applies cumulative multipliers for slow environments:
@@ -124,14 +134,24 @@ pub async fn wait_for_task_completion(
 
                 match execution_status {
                     ExecutionStatus::AllComplete => {
-                        println!("✅ Task completed successfully!");
-                        return Ok(());
+                        // Steps are done, but the task state machine may still
+                        // be transitioning (steps_in_process → evaluating_results
+                        // → complete). Wait for the task status to catch up.
+                        if is_task_state_terminal(&task_response.status) {
+                            println!("✅ Task completed successfully!");
+                            return Ok(());
+                        }
+                        // State machine still catching up, poll quickly
+                        sleep(Duration::from_millis(250)).await;
                     }
                     ExecutionStatus::BlockedByFailures => {
-                        return Err(anyhow::anyhow!(
-                            "Task blocked by failures that cannot be retried: {}",
-                            task_response.execution_status
-                        ));
+                        if is_task_state_terminal(&task_response.status) {
+                            return Err(anyhow::anyhow!(
+                                "Task blocked by failures that cannot be retried: {}",
+                                task_response.execution_status
+                            ));
+                        }
+                        sleep(Duration::from_millis(250)).await;
                     }
                     ExecutionStatus::HasReadySteps
                     | ExecutionStatus::Processing
@@ -188,13 +208,21 @@ pub async fn wait_for_task_failure(
 
                 match execution_status {
                     ExecutionStatus::BlockedByFailures => {
-                        println!("✅ Task failed as expected (blocked by failures)!");
-                        return Ok(());
+                        // Wait for the task state machine to finish transitioning
+                        // before returning, so assertions on task.status are safe.
+                        if is_task_state_terminal(&task_response.status) {
+                            println!("✅ Task failed as expected (blocked by failures)!");
+                            return Ok(());
+                        }
+                        sleep(Duration::from_millis(250)).await;
                     }
                     ExecutionStatus::AllComplete => {
-                        return Err(anyhow::anyhow!(
-                            "Task completed successfully but was expected to fail"
-                        ));
+                        if is_task_state_terminal(&task_response.status) {
+                            return Err(anyhow::anyhow!(
+                                "Task completed successfully but was expected to fail"
+                            ));
+                        }
+                        sleep(Duration::from_millis(250)).await;
                     }
                     ExecutionStatus::HasReadySteps
                     | ExecutionStatus::Processing
