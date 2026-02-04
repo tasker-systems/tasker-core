@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE tasker.workflow_steps SET retryable = false WHERE workflow_step_uuid = $1::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6f53104f9474a6f03922171fb9dcf9f413c0dc0ce5ecd03656b7e775a3b29e06"
+}

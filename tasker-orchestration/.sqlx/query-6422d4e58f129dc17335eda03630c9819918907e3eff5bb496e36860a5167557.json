@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT COUNT(*) AS \"count!\"\n        FROM tasker.workflow_step_edges\n        WHERE name = 'worker_to_convergence'\n          AND to_step_uuid IN (\n              SELECT ws.workflow_step_uuid\n              FROM tasker.workflow_steps ws\n              JOIN tasker.named_steps ns ON ws.named_step_uuid = ns.named_step_uuid\n              WHERE ws.task_uuid = $1 AND ns.name = 'aggregate_results'\n          )\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6422d4e58f129dc17335eda03630c9819918907e3eff5bb496e36860a5167557"
+}

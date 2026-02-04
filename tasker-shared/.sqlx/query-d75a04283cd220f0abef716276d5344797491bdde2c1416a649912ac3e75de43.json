@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE tasker.workflow_steps SET attempts = COALESCE(attempts, 0) WHERE task_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d75a04283cd220f0abef716276d5344797491bdde2c1416a649912ac3e75de43"
+}

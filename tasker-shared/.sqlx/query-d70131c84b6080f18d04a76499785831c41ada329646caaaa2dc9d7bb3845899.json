@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM tasker.task_transitions",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "d70131c84b6080f18d04a76499785831c41ada329646caaaa2dc9d7bb3845899"
+}
