@@ -315,21 +315,39 @@ type = "u32"
 valid_range = "1-100"
 system_impact = "Slightly higher than default (3) for extra confidence before resuming readiness queries"
 
-[common.circuit_breakers.component_configs.pgmq]
+# TAS-174: Renamed from pgmq to messaging for provider-agnostic configuration
+[common.circuit_breakers.component_configs.messaging]
 failure_threshold = 5
 success_threshold = 2
 
-[common.circuit_breakers.component_configs.pgmq._docs.failure_threshold]
-description = "Failures before the PGMQ circuit breaker trips to Open"
+[common.circuit_breakers.component_configs.messaging._docs.failure_threshold]
+description = "Failures before the messaging circuit breaker trips to Open"
 type = "u32"
 valid_range = "1-100"
-system_impact = "Protects the messaging layer; when tripped, queue operations are short-circuited"
+system_impact = "Protects the messaging layer (PGMQ or RabbitMQ); when tripped, queue send/receive operations are short-circuited"
 
-[common.circuit_breakers.component_configs.pgmq._docs.success_threshold]
-description = "Successes in Half-Open required to close the PGMQ breaker"
+[common.circuit_breakers.component_configs.messaging._docs.success_threshold]
+description = "Successes in Half-Open required to close the messaging breaker"
 type = "u32"
 valid_range = "1-100"
-system_impact = "Lower threshold (2) allows faster recovery since PGMQ failures are typically transient"
+system_impact = "Lower threshold (2) allows faster recovery since messaging failures are typically transient"
+
+# TAS-174: Web/API database circuit breaker
+[common.circuit_breakers.component_configs.web]
+failure_threshold = 5
+success_threshold = 2
+
+[common.circuit_breakers.component_configs.web._docs.failure_threshold]
+description = "Failures before the web/API database circuit breaker trips to Open"
+type = "u32"
+valid_range = "1-100"
+system_impact = "Protects API database operations; when tripped, API requests receive fast 503 errors instead of waiting for timeouts"
+
+[common.circuit_breakers.component_configs.web._docs.success_threshold]
+description = "Successes in Half-Open required to close the web database breaker"
+type = "u32"
+valid_range = "1-100"
+system_impact = "Standard threshold (2) provides confidence in recovery before restoring full API traffic"
 
 # TAS-171: Cache circuit breaker (protects Redis/Dragonfly operations)
 [common.circuit_breakers.component_configs.cache]

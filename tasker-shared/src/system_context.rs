@@ -10,7 +10,7 @@ use crate::events::EventPublisher;
 use crate::messaging::client::MessageClient;
 use crate::messaging::service::{MessageRouterKind, MessagingProvider};
 use crate::registry::TaskHandlerRegistry;
-use crate::resilience::CircuitBreakerManager;
+use crate::resilience::CircuitBreaker;
 use crate::{TaskerError, TaskerResult};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -76,9 +76,6 @@ pub struct SystemContext {
     /// TAS-156: Distributed cache provider
     pub cache_provider: Arc<CacheProvider>,
 
-    /// Circuit breaker manager (optional)
-    pub circuit_breaker_manager: Option<Arc<CircuitBreakerManager>>,
-
     /// Event publisher
     pub event_publisher: Arc<EventPublisher>,
 }
@@ -104,14 +101,6 @@ impl std::fmt::Debug for SystemContext {
                     "Arc<CacheProvider::{}>",
                     self.cache_provider.provider_name()
                 ),
-            )
-            .field(
-                "circuit_breaker_manager",
-                &self
-                    .circuit_breaker_manager
-                    .as_ref()
-                    .map(|_| "Some(Arc<CircuitBreakerManager>)")
-                    .unwrap_or("None"),
             )
             .finish()
     }
@@ -236,10 +225,13 @@ impl SystemContext {
     /// - "pgmq" (default): Uses PostgreSQL Message Queue
     /// - "rabbitmq": Uses RabbitMQ (requires `common.queues.rabbitmq` config)
     ///
+    /// TAS-174: Optionally wraps the client with a circuit breaker for fault isolation.
+    ///
     /// Returns tuple of (MessagingProvider, MessageClient) wrapped in Arc.
     async fn create_messaging(
         config: &TaskerConfig,
         pgmq_pool: PgPool,
+        circuit_breaker: Option<Arc<crate::resilience::CircuitBreaker>>,
     ) -> TaskerResult<(Arc<MessagingProvider>, Arc<MessageClient>)> {
         let backend = config.common.queues.backend.as_str();
 
@@ -286,24 +278,25 @@ impl SystemContext {
         // Create router from queue configuration
         let router = MessageRouterKind::from_config(&config.common.queues);
 
-        // Create domain-level client wrapping the provider
-        let client = Arc::new(MessageClient::new(provider.clone(), router));
+        // TAS-174: Create domain-level client, optionally with circuit breaker protection
+        let client = if let Some(cb) = circuit_breaker {
+            info!("Messaging client created with circuit breaker protection (TAS-174)");
+            Arc::new(MessageClient::with_circuit_breaker(
+                provider.clone(),
+                router,
+                cb,
+            ))
+        } else {
+            Arc::new(MessageClient::new(provider.clone(), router))
+        };
 
         info!(
             provider_name = %provider.provider_name(),
+            circuit_breaker_enabled = client.circuit_breaker().is_some(),
             "Messaging provider and client created successfully"
         );
 
         Ok((provider, client))
-    }
-
-    /// Get circuit breaker manager (TAS-133e: separated from messaging)
-    /// TAS-221: `enabled` master switch removed — circuit breakers are always available
-    fn create_circuit_breaker_manager(config: &TaskerConfig) -> Option<Arc<CircuitBreakerManager>> {
-        info!("Circuit breaker manager enabled");
-        Some(Arc::new(CircuitBreakerManager::from_config(
-            &config.common.circuit_breakers,
-        )))
     }
 
     /// Internal constructor with full configuration support
@@ -327,12 +320,26 @@ impl SystemContext {
         let config = config_manager.config();
         let tasker_config = Arc::new(config.clone());
 
-        // TAS-133e: Create messaging provider and client based on config
-        let (messaging_provider, message_client) =
-            Self::create_messaging(&tasker_config, database_pools.pgmq().clone()).await?;
+        // TAS-174: Create messaging circuit breaker directly from config
+        let messaging_circuit_breaker = {
+            let cb_config = &tasker_config.common.circuit_breakers;
+            let component_config = cb_config.config_for_component("messaging");
+            let resilience_config = component_config
+                .to_resilience_config_with_timeout(cb_config.default_config.timeout_seconds);
+            Some(Arc::new(CircuitBreaker::new(
+                "messaging".to_string(),
+                resilience_config,
+            )))
+        };
 
-        // Circuit breaker manager (optional, separated from messaging in TAS-133e)
-        let circuit_breaker_manager = Self::create_circuit_breaker_manager(&tasker_config);
+        // TAS-133e: Create messaging provider and client based on config
+        // TAS-174: Pass circuit breaker for fault isolation
+        let (messaging_provider, message_client) = Self::create_messaging(
+            &tasker_config,
+            database_pools.pgmq().clone(),
+            messaging_circuit_breaker,
+        )
+        .await?;
 
         // TAS-156: Create cache provider (graceful degradation if Redis unavailable)
         let cache_provider = Arc::new(Self::create_cache_provider(&tasker_config).await);
@@ -374,7 +381,6 @@ impl SystemContext {
             database_pools,
             task_handler_registry,
             cache_provider,
-            circuit_breaker_manager,
             event_publisher,
         })
     }
@@ -507,16 +513,6 @@ impl SystemContext {
         self.message_client.clone()
     }
 
-    /// Get circuit breaker manager if enabled
-    pub fn circuit_breaker_manager(&self) -> Option<Arc<CircuitBreakerManager>> {
-        self.circuit_breaker_manager.clone()
-    }
-
-    /// Check if circuit breakers are enabled
-    pub fn circuit_breakers_enabled(&self) -> bool {
-        self.circuit_breaker_manager.is_some()
-    }
-
     /// Get cache provider reference (TAS-156)
     pub fn cache_provider(&self) -> &Arc<CacheProvider> {
         &self.cache_provider
@@ -558,8 +554,9 @@ impl SystemContext {
         let database_pools = DatabasePools::with_tasker_pool(config, database_pool.clone()).await?;
 
         // TAS-133e: Create messaging provider and client (uses PGMQ for tests)
+        // TAS-174: No circuit breaker for minimal test context
         let (messaging_provider, message_client) =
-            Self::create_messaging(&tasker_config, database_pools.pgmq().clone()).await?;
+            Self::create_messaging(&tasker_config, database_pools.pgmq().clone(), None).await?;
 
         // TAS-156: Create cache provider (graceful degradation for tests)
         let cache_provider = Arc::new(Self::create_cache_provider(&tasker_config).await);
@@ -593,7 +590,6 @@ impl SystemContext {
             database_pools,
             task_handler_registry,
             cache_provider,
-            circuit_breaker_manager: None, // Disabled for testing
             event_publisher,
         })
     }

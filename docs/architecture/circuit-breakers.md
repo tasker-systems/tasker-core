@@ -1,8 +1,8 @@
 # Circuit Breakers
 
-**Last Updated**: 2025-12-10
+**Last Updated**: 2026-02-04
 **Audience**: Architects, Operators, Developers
-**Status**: Active (TAS-75)
+**Status**: Active (TAS-75, TAS-174)
 **Related Docs**: [Backpressure Architecture](backpressure-architecture.md) | [Observability](observability/README.md) | [Operations: Backpressure Monitoring](operations/backpressure-monitoring.md)
 
 <- Back to [Documentation Hub](README.md)
@@ -60,16 +60,41 @@ Circuit breakers prevent cascading failures by failing fast when a component is 
 - **Open**: Failing fast. All calls rejected immediately. Waiting for timeout.
 - **Half-Open**: Testing recovery. Limited calls allowed. Single failure reopens.
 
+## Unified Trait: `CircuitBreakerBehavior` (TAS-174)
+
+All circuit breaker implementations share a common trait defined in `tasker-shared/src/resilience/behavior.rs`:
+
+```rust
+pub trait CircuitBreakerBehavior: Send + Sync + Debug {
+    fn name(&self) -> &str;
+    fn state(&self) -> CircuitState;
+    fn should_allow(&self) -> bool;
+    fn record_success(&self, duration: Duration);
+    fn record_failure(&self, duration: Duration);
+    fn is_healthy(&self) -> bool;
+    fn force_open(&self);
+    fn force_closed(&self);
+    fn metrics(&self) -> CircuitBreakerMetrics;
+}
+```
+
+Each specialized breaker wraps the generic `CircuitBreaker` (composition pattern) and implements this trait. This means:
+- Consistent state machine behavior across all breakers
+- Proper half-open → closed recovery via `success_threshold`
+- Lock-free atomic state management
+- Domain-specific methods remain as additional methods on each type
+
 ## Circuit Breaker Implementations
 
-Tasker-core has **four distinct circuit breaker implementations**, each protecting specific components:
+Tasker-core has **four circuit breaker implementations**, each protecting specific components.
+All wrap the generic `CircuitBreaker` from `tasker_shared::resilience`:
 
 | Circuit Breaker | Location | Purpose | Trigger Type |
 |-----------------|----------|---------|--------------|
 | Web Database | `tasker-orchestration` | API database operations | Error-based |
 | Task Readiness | `tasker-orchestration` | Fallback poller database checks | Error-based |
 | FFI Completion | `tasker-worker` | Ruby/Python handler completion channel | **Latency-based** |
-| PGMQ Operations | `tasker-shared` | Message queue operations | Error-based |
+| Messaging | `tasker-shared` | Message queue operations (PGMQ/RabbitMQ) | Error-based |
 
 ### 1. Web Database Circuit Breaker
 
@@ -84,10 +109,10 @@ Tasker-core has **four distinct circuit breaker implementations**, each protecti
 
 **Configuration** (`config/tasker/base/common.toml`):
 ```toml
-[common.circuit_breakers.web]
+[common.circuit_breakers.component_configs.web]
 failure_threshold = 5      # Consecutive failures before opening
-timeout_seconds = 30       # Time in open state before testing recovery
 success_threshold = 2      # Successes in half-open to fully close
+# timeout_seconds inherited from default_config (30s)
 ```
 
 **Health Check Integration**:
@@ -150,35 +175,38 @@ slow_send_threshold_ms = 100     # Latency threshold (100ms)
 - `ffi_completion_slow_sends_total` - Sends exceeding latency threshold
 - `ffi_completion_circuit_open_rejections_total` - Rejections due to open circuit
 
-### 4. PGMQ Operations Circuit Breaker
+### 4. Messaging Circuit Breaker (TAS-174)
 
-**Purpose**: Protects message queue operations from database failures.
+**Purpose**: Protects message queue operations from provider failures (PGMQ or RabbitMQ).
 
-**Scope**: Shared across orchestration and worker message operations.
+**Scope**: Integrated into `MessageClient`, shared across orchestration and worker messaging.
 
 **Behavior**:
-- Opens when PGMQ operations fail repeatedly
-- Both send and receive operations protected
+- Opens when send/receive operations fail repeatedly
+- Protected operations: `send_step_message`, `receive_step_messages`, `send_step_result`, `receive_step_results`, `send_task_request`, `receive_task_requests`, `send_task_finalization`, `receive_task_finalizations`, `send_message`, `receive_messages`
+- Unprotected operations (safe to fail or needed for recovery): `ack_message`, `nack_message`, `extend_visibility`, `health_check`, `ensure_queue`, queue stats
 - Coordinates with visibility timeout for message safety
+- Provider-agnostic: works with both PGMQ and RabbitMQ backends
 
 **Configuration** (`config/tasker/base/common.toml`):
 ```toml
-[common.circuit_breakers.component_configs.pgmq]
+[common.circuit_breakers.component_configs.messaging]
 failure_threshold = 5      # Failures before opening
-timeout_seconds = 30       # Recovery window
 success_threshold = 2      # Successes to close
+# timeout_seconds inherited from default_config (30s)
 ```
+
+**Why ack/nack bypass the breaker?**:
+- Ack/nack failure causes message redelivery via visibility timeout, which is safe
+- Health check must work when breaker is open to detect recovery
+- Queue management is startup-only and should not be gated
 
 ## Configuration Reference
 
 ### Global Settings
 
 ```toml
-[common.circuit_breakers]
-enabled = true                              # Master enable/disable
-
 [common.circuit_breakers.global_settings]
-max_circuit_breakers = 50                   # Maximum tracked breakers
 metrics_collection_interval_seconds = 30    # Metrics aggregation interval
 min_state_transition_interval_seconds = 5.0 # Debounce for rapid transitions
 ```
@@ -200,15 +228,21 @@ success_threshold = 2      # 1-50 range
 # Task readiness (polling-specific)
 [common.circuit_breakers.component_configs.task_readiness]
 failure_threshold = 10
-timeout_seconds = 60
 success_threshold = 3
 
-# PGMQ operations
-[common.circuit_breakers.component_configs.pgmq]
+# Messaging operations (PGMQ/RabbitMQ)
+[common.circuit_breakers.component_configs.messaging]
 failure_threshold = 5
-timeout_seconds = 30
+success_threshold = 2
+
+# Web/API database operations
+[common.circuit_breakers.component_configs.web]
+failure_threshold = 5
 success_threshold = 2
 ```
+
+> **Note**: `timeout_seconds` is inherited from `default_config` for all component circuit breakers.
+> The `pgmq` key is accepted as an alias for `messaging` for backward compatibility.
 
 ### Worker-Specific Configuration
 
@@ -422,7 +456,7 @@ Each circuit breaker operates **independently**:
 | `tasker-orchestration/src/web` | Web Database | API request handlers |
 | `tasker-orchestration/src/orchestration/task_readiness` | Task Readiness | Fallback poller loop |
 | `tasker-worker/src/worker/handlers` | FFI Completion | Completion channel sends |
-| `tasker-shared/src/messaging` | PGMQ | Unified message client |
+| `tasker-shared/src/messaging/client.rs` | Messaging | `MessageClient` send/receive methods |
 
 ## Troubleshooting
 
@@ -471,11 +505,14 @@ Each circuit breaker operates **independently**:
 
 | Component | File |
 |-----------|------|
-| Generic Circuit Breaker | `tasker-shared/src/resilience/circuit_breaker.rs` |
+| `CircuitBreakerBehavior` Trait | `tasker-shared/src/resilience/behavior.rs` |
+| Generic `CircuitBreaker` | `tasker-shared/src/resilience/circuit_breaker.rs` |
 | Circuit Breaker Config | `tasker-shared/src/config/circuit_breaker.rs` |
-| Web Circuit Breaker | `tasker-orchestration/src/web/circuit_breaker.rs` |
-| Task Readiness Breaker | `tasker-orchestration/src/orchestration/task_readiness/circuit_breaker.rs` |
-| FFI Completion Breaker | `tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs` |
+| `MessageClient` (messaging breaker) | `tasker-shared/src/messaging/client.rs` |
+| `WebDatabaseCircuitBreaker` | `tasker-orchestration/src/api_common/circuit_breaker.rs` |
+| Web CB Helpers | `tasker-orchestration/src/web/circuit_breaker.rs` |
+| `TaskReadinessCircuitBreaker` | `tasker-orchestration/src/orchestration/task_readiness/circuit_breaker.rs` |
+| `FfiCompletionCircuitBreaker` | `tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs` |
 | Worker Health Integration | `tasker-worker/src/web/handlers/health.rs` |
 | Circuit Breaker Types | `tasker-shared/src/types/api/worker.rs` |
 

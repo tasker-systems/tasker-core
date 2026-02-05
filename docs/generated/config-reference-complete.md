@@ -2,8 +2,8 @@
 
 
 
-> 102/102 parameters documented
-> Generated: 2026-01-31T02:40:18.393404960+00:00
+> 65/65 parameters documented
+> Generated: 2026-02-05T14:05:56.300026+00:00
 
 ---
 
@@ -71,91 +71,6 @@ Hard upper limit on any single backoff delay
 - **System Impact:** Caps exponential backoff growth to prevent excessively long delays between retries
 
 
-### reenqueue_delays
-
-**Path:** `common.backoff.reenqueue_delays`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `blocked_by_failures` | `u32` | `120` | Delay in seconds before re-evaluating a task that is blocked due to step failures |
-| `enqueuing_steps` | `u32` | `5` | Delay in seconds before re-enqueueing a task stuck in the EnqueuingSteps state |
-| `evaluating_results` | `u32` | `10` | Delay in seconds before re-evaluating a task stuck in the EvaluatingResults state |
-| `initializing` | `u32` | `10` | Delay in seconds before re-enqueueing a task stuck in the Initializing state |
-| `steps_in_process` | `u32` | `15` | Delay in seconds before re-checking a task whose steps are still being processed |
-| `waiting_for_dependencies` | `u32` | `60` | Delay in seconds before re-checking a task that is waiting for upstream step dependencies |
-| `waiting_for_retry` | `u32` | `30` | Delay in seconds before re-processing a task that is waiting for step retries |
-
-
-#### `common.backoff.reenqueue_delays.blocked_by_failures`
-
-Delay in seconds before re-evaluating a task that is blocked due to step failures
-
-- **Type:** `u32`
-- **Default:** `120`
-- **Valid Range:** 0-3600
-- **System Impact:** Gives operators time to investigate before the system retries; longer values prevent retry storms
-
-
-#### `common.backoff.reenqueue_delays.enqueuing_steps`
-
-Delay in seconds before re-enqueueing a task stuck in the EnqueuingSteps state
-
-- **Type:** `u32`
-- **Default:** `5`
-- **Valid Range:** 0-300
-- **System Impact:** Short delay (5s) since step enqueueing failures are usually transient
-
-
-#### `common.backoff.reenqueue_delays.evaluating_results`
-
-Delay in seconds before re-evaluating a task stuck in the EvaluatingResults state
-
-- **Type:** `u32`
-- **Default:** `10`
-- **Valid Range:** 0-300
-- **System Impact:** Allows the result processor time to handle pending step results before re-evaluation
-
-
-#### `common.backoff.reenqueue_delays.initializing`
-
-Delay in seconds before re-enqueueing a task stuck in the Initializing state
-
-- **Type:** `u32`
-- **Default:** `10`
-- **Valid Range:** 0-300
-- **System Impact:** Controls how quickly the system retries task initialization after a transient failure
-
-
-#### `common.backoff.reenqueue_delays.steps_in_process`
-
-Delay in seconds before re-checking a task whose steps are still being processed
-
-- **Type:** `u32`
-- **Default:** `15`
-- **Valid Range:** 0-300
-- **System Impact:** Allows workers time to complete in-flight steps before the orchestrator re-evaluates the task
-
-
-#### `common.backoff.reenqueue_delays.waiting_for_dependencies`
-
-Delay in seconds before re-checking a task that is waiting for upstream step dependencies
-
-- **Type:** `u32`
-- **Default:** `60`
-- **Valid Range:** 0-3600
-- **System Impact:** Longer delays reduce polling overhead for tasks with slow dependencies; shorter delays improve responsiveness
-
-
-#### `common.backoff.reenqueue_delays.waiting_for_retry`
-
-Delay in seconds before re-processing a task that is waiting for step retries
-
-- **Type:** `u32`
-- **Default:** `30`
-- **Valid Range:** 0-3600
-- **System Impact:** Should be long enough for the backoff delay on the failing steps to expire before re-checking
-
-
 ## cache
 
 **Path:** `common.cache`
@@ -166,7 +81,6 @@ Delay in seconds before re-processing a task that is waiting for step retries
 | `backend` | `String` | `"redis"` | Cache backend implementation: 'redis' (distributed) or 'moka' (in-process) |
 | `default_ttl_seconds` | `u32` | `3600` | Default time-to-live in seconds for cached entries |
 | `enabled` | `bool` | `false` | Enable the distributed cache layer for template and analytics data |
-| `key_prefix` | `String` | `"tasker"` | Prefix applied to all cache keys to namespace entries |
 | `template_ttl_seconds` | `u32` | `3600` | Time-to-live in seconds for cached task template definitions |
 
 
@@ -208,16 +122,6 @@ Enable the distributed cache layer for template and analytics data
 - **Default:** `false`
 - **Valid Range:** true/false
 - **System Impact:** When false, all cache reads fall through to direct database queries; no cache dependency required
-
-
-#### `common.cache.key_prefix`
-
-Prefix applied to all cache keys to namespace entries
-
-- **Type:** `String`
-- **Default:** `"tasker"`
-- **Valid Range:** non-empty string
-- **System Impact:** Prevents key collisions when multiple Tasker instances or other applications share the same cache backend
 
 
 #### `common.cache.template_ttl_seconds`
@@ -305,21 +209,6 @@ Redis connection URL
 
 **Path:** `common.circuit_breakers`
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `enabled` | `bool` | `true` | Master switch for the circuit breaker subsystem |
-
-
-#### `common.circuit_breakers.enabled`
-
-Master switch for the circuit breaker subsystem
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, all circuit breakers are disabled and operations always proceed; use only for debugging
-
-
 ### component_configs
 
 **Path:** `common.circuit_breakers.component_configs`
@@ -332,7 +221,6 @@ Master switch for the circuit breaker subsystem
 |-----------|------|---------|-------------|
 | `failure_threshold` | `u32` | `5` | Failures before the cache circuit breaker trips to Open |
 | `success_threshold` | `u32` | `2` | Successes in Half-Open required to close the cache breaker |
-| `timeout_seconds` | `u32` | `15` | Time the cache breaker stays Open before probing |
 
 
 #### `common.circuit_breakers.component_configs.cache.failure_threshold`
@@ -355,55 +243,34 @@ Successes in Half-Open required to close the cache breaker
 - **System Impact:** Low threshold (2) for fast recovery since cache failures gracefully degrade to database
 
 
-#### `common.circuit_breakers.component_configs.cache.timeout_seconds`
+#### messaging
 
-Time the cache breaker stays Open before probing
-
-- **Type:** `u32`
-- **Default:** `15`
-- **Valid Range:** 1-300
-- **System Impact:** Shorter than default (15s) because cache is non-critical and can recover quickly
-
-
-#### pgmq
-
-**Path:** `common.circuit_breakers.component_configs.pgmq`
+**Path:** `common.circuit_breakers.component_configs.messaging`
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `failure_threshold` | `u32` | `5` | Failures before the PGMQ circuit breaker trips to Open |
-| `success_threshold` | `u32` | `2` | Successes in Half-Open required to close the PGMQ breaker |
-| `timeout_seconds` | `u32` | `30` | Time the PGMQ breaker stays Open before probing |
+| `failure_threshold` | `u32` | `5` | Failures before the messaging circuit breaker trips to Open |
+| `success_threshold` | `u32` | `2` | Successes in Half-Open required to close the messaging breaker |
 
 
-#### `common.circuit_breakers.component_configs.pgmq.failure_threshold`
+#### `common.circuit_breakers.component_configs.messaging.failure_threshold`
 
-Failures before the PGMQ circuit breaker trips to Open
+Failures before the messaging circuit breaker trips to Open
 
 - **Type:** `u32`
 - **Default:** `5`
 - **Valid Range:** 1-100
-- **System Impact:** Protects the messaging layer; when tripped, queue operations are short-circuited
+- **System Impact:** Protects the messaging layer (PGMQ or RabbitMQ); when tripped, queue send/receive operations are short-circuited
 
 
-#### `common.circuit_breakers.component_configs.pgmq.success_threshold`
+#### `common.circuit_breakers.component_configs.messaging.success_threshold`
 
-Successes in Half-Open required to close the PGMQ breaker
+Successes in Half-Open required to close the messaging breaker
 
 - **Type:** `u32`
 - **Default:** `2`
 - **Valid Range:** 1-100
-- **System Impact:** Lower threshold (2) allows faster recovery since PGMQ failures are typically transient
-
-
-#### `common.circuit_breakers.component_configs.pgmq.timeout_seconds`
-
-Time the PGMQ breaker stays Open before probing
-
-- **Type:** `u32`
-- **Default:** `30`
-- **Valid Range:** 1-300
-- **System Impact:** Controls recovery time after PGMQ failures; matches the default config
+- **System Impact:** Lower threshold (2) allows faster recovery since messaging failures are typically transient
 
 
 #### task_readiness
@@ -414,7 +281,6 @@ Time the PGMQ breaker stays Open before probing
 |-----------|------|---------|-------------|
 | `failure_threshold` | `u32` | `10` | Failures before the task readiness circuit breaker trips to Open |
 | `success_threshold` | `u32` | `3` | Successes in Half-Open required to close the task readiness breaker |
-| `timeout_seconds` | `u32` | `60` | Time the task readiness breaker stays Open before probing |
 
 
 #### `common.circuit_breakers.component_configs.task_readiness.failure_threshold`
@@ -437,14 +303,34 @@ Successes in Half-Open required to close the task readiness breaker
 - **System Impact:** Slightly higher than default (3) for extra confidence before resuming readiness queries
 
 
-#### `common.circuit_breakers.component_configs.task_readiness.timeout_seconds`
+#### web
 
-Time the task readiness breaker stays Open before probing
+**Path:** `common.circuit_breakers.component_configs.web`
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `failure_threshold` | `u32` | `5` | Failures before the web/API database circuit breaker trips to Open |
+| `success_threshold` | `u32` | `2` | Successes in Half-Open required to close the web database breaker |
+
+
+#### `common.circuit_breakers.component_configs.web.failure_threshold`
+
+Failures before the web/API database circuit breaker trips to Open
 
 - **Type:** `u32`
-- **Default:** `60`
-- **Valid Range:** 1-300
-- **System Impact:** Longer than default (60s) to give the database time to recover from readiness query pressure
+- **Default:** `5`
+- **Valid Range:** 1-100
+- **System Impact:** Protects API database operations; when tripped, API requests receive fast 503 errors instead of waiting for timeouts
+
+
+#### `common.circuit_breakers.component_configs.web.success_threshold`
+
+Successes in Half-Open required to close the web database breaker
+
+- **Type:** `u32`
+- **Default:** `2`
+- **Valid Range:** 1-100
+- **System Impact:** Standard threshold (2) provides confidence in recovery before restoring full API traffic
 
 
 ### default_config
@@ -455,7 +341,7 @@ Time the task readiness breaker stays Open before probing
 |-----------|------|---------|-------------|
 | `failure_threshold` | `u32` | `5` | Number of consecutive failures before a circuit breaker trips to the Open state |
 | `success_threshold` | `u32` | `2` | Number of consecutive successes in Half-Open state required to close the circuit breaker |
-| `timeout_seconds` | `u32` | `30` | Time the circuit breaker remains in Open state before transitioning to Half-Open for a probe |
+| `timeout_seconds` | `u32` | `30` | Duration in seconds a circuit breaker stays Open before transitioning to Half-Open for probe requests |
 
 
 #### `common.circuit_breakers.default_config.failure_threshold`
@@ -480,12 +366,12 @@ Number of consecutive successes in Half-Open state required to close the circuit
 
 #### `common.circuit_breakers.default_config.timeout_seconds`
 
-Time the circuit breaker remains in Open state before transitioning to Half-Open for a probe
+Duration in seconds a circuit breaker stays Open before transitioning to Half-Open for probe requests
 
 - **Type:** `u32`
 - **Default:** `30`
 - **Valid Range:** 1-300
-- **System Impact:** Controls how long the system waits before retesting a failed dependency
+- **System Impact:** Controls recovery speed; shorter timeouts attempt recovery sooner but risk repeated failures
 
 
 ### global_settings
@@ -494,19 +380,8 @@ Time the circuit breaker remains in Open state before transitioning to Half-Open
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `max_circuit_breakers` | `u32` | `50` | Maximum number of circuit breaker instances that can be registered |
 | `metrics_collection_interval_seconds` | `u32` | `30` | Interval in seconds between circuit breaker metrics collection sweeps |
 | `min_state_transition_interval_seconds` | `f64` | `5.0` | Minimum time in seconds between circuit breaker state transitions |
-
-
-#### `common.circuit_breakers.global_settings.max_circuit_breakers`
-
-Maximum number of circuit breaker instances that can be registered
-
-- **Type:** `u32`
-- **Default:** `50`
-- **Valid Range:** 1-1000
-- **System Impact:** Safety limit to prevent unbounded circuit breaker allocation; increase only if adding many component-specific breakers
 
 
 #### `common.circuit_breakers.global_settings.metrics_collection_interval_seconds`
@@ -535,29 +410,7 @@ Minimum time in seconds between circuit breaker state transitions
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `database` | `String` | `"tasker_development"` | Database name used for display and connection verification logging |
-| `skip_migration_check` | `bool` | `false` | Skip database migration version check at startup |
 | `url` | `String` | `"${DATABASE_URL:-postgresql://localhost/tasker}"` | PostgreSQL connection URL for the primary database |
-
-
-#### `common.database.database`
-
-Database name used for display and connection verification logging
-
-- **Type:** `String`
-- **Default:** `"tasker_development"`
-- **Valid Range:** valid PostgreSQL database name
-- **System Impact:** Informational; the actual database is determined by the connection URL
-
-
-#### `common.database.skip_migration_check`
-
-Skip database migration version check at startup
-
-- **Type:** `bool`
-- **Default:** `false`
-- **Valid Range:** true/false
-- **System Impact:** When true, the system will not verify that migrations are current; use only for testing or when migrations are managed externally
 
 
 #### `common.database.url`
@@ -573,9 +426,9 @@ PostgreSQL connection URL for the primary database
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
+| development | postgresql://localhost/tasker | Local default, no auth |
 | production | ${DATABASE_URL} | Always use env var injection for secrets rotation |
 | test | postgresql://tasker:tasker@localhost:5432/tasker_rust_test | Isolated test database with known credentials |
-| development | postgresql://localhost/tasker | Local default, no auth |
 
 **Related:** `common.database.pool.max_connections`, `common.pgmq_database.url`
 
@@ -627,9 +480,9 @@ Maximum number of concurrent database connections in the pool
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| production | 30-50 | Scale based on worker count and concurrent task volume |
 | test | 10-30 | Moderate pool; cluster tests may run 10 services sharing the same DB |
 | development | 10-25 | Small pool for local development |
+| production | 30-50 | Scale based on worker count and concurrent task volume |
 
 **Related:** `common.database.pool.min_connections`, `common.database.pool.acquire_timeout_seconds`
 
@@ -664,61 +517,14 @@ Threshold in milliseconds above which connection acquisition is logged as slow
 - **System Impact:** Observability: slow acquire warnings indicate pool pressure or network issues
 
 
-### variables
-
-**Path:** `common.database.variables`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `statement_timeout` | `u32` | `30000` | PostgreSQL statement_timeout in milliseconds, set per-connection via SET statement_timeout |
-
-
-#### `common.database.variables.statement_timeout`
-
-PostgreSQL statement_timeout in milliseconds, set per-connection via SET statement_timeout
-
-- **Type:** `u32`
-- **Default:** `30000`
-- **Valid Range:** 100-600000
-- **System Impact:** Prevents runaway queries from holding connections indefinitely; queries exceeding this limit are cancelled by PostgreSQL
-
-
 ## execution
 
 **Path:** `common.execution`
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `connection_timeout_seconds` | `u32` | `30` | Default timeout in seconds for establishing external connections during step execution |
-| `default_timeout_seconds` | `u32` | `3600` | Default maximum wall-clock time for an entire task to complete |
 | `environment` | `String` | `"development"` | Runtime environment identifier used for configuration context selection and logging |
-| `max_concurrent_steps` | `u32` | `1000` | Maximum number of steps that can be executing simultaneously across all tasks |
-| `max_concurrent_tasks` | `u32` | `100` | Maximum number of tasks that can be actively processed simultaneously |
-| `max_discovery_attempts` | `u32` | `5` | Maximum number of attempts to discover step handlers during task initialization |
-| `max_retries` | `u32` | `3` | Default maximum number of retry attempts for a failed step |
-| `max_workflow_steps` | `u32` | `10000` | Maximum number of steps allowed in a single workflow definition |
-| `step_batch_size` | `u32` | `50` | Number of steps to enqueue in a single batch during task initialization |
-| `step_execution_timeout_seconds` | `u32` | `600` | Default maximum time for a single step execution before it is considered timed out |
-
-
-#### `common.execution.connection_timeout_seconds`
-
-Default timeout in seconds for establishing external connections during step execution
-
-- **Type:** `u32`
-- **Default:** `30`
-- **Valid Range:** 1-300
-- **System Impact:** Applies to outbound connections made by step handlers; prevents hung connections from blocking step completion
-
-
-#### `common.execution.default_timeout_seconds`
-
-Default maximum wall-clock time for an entire task to complete
-
-- **Type:** `u32`
-- **Default:** `3600`
-- **Valid Range:** 1-86400
-- **System Impact:** Tasks exceeding this timeout are transitioned to error state; individual step timeouts are separate
+| `step_enqueue_batch_size` | `u32` | `50` | Number of steps to enqueue in a single batch during task initialization |
 
 
 #### `common.execution.environment`
@@ -731,57 +537,7 @@ Runtime environment identifier used for configuration context selection and logg
 - **System Impact:** Affects log levels, default tuning, and environment-specific behavior throughout the system
 
 
-#### `common.execution.max_concurrent_steps`
-
-Maximum number of steps that can be executing simultaneously across all tasks
-
-- **Type:** `u32`
-- **Default:** `1000`
-- **Valid Range:** 1-1000000
-- **System Impact:** Bounds total worker-side parallelism; should be larger than max_concurrent_tasks since tasks have multiple steps
-
-
-#### `common.execution.max_concurrent_tasks`
-
-Maximum number of tasks that can be actively processed simultaneously
-
-- **Type:** `u32`
-- **Default:** `100`
-- **Valid Range:** 1-100000
-- **System Impact:** Primary concurrency control; limits how many task state machines are active at once
-
-
-#### `common.execution.max_discovery_attempts`
-
-Maximum number of attempts to discover step handlers during task initialization
-
-- **Type:** `u32`
-- **Default:** `5`
-- **Valid Range:** 1-50
-- **System Impact:** Controls retry behavior when step handler lookup fails; prevents infinite discovery loops
-
-
-#### `common.execution.max_retries`
-
-Default maximum number of retry attempts for a failed step
-
-- **Type:** `u32`
-- **Default:** `3`
-- **Valid Range:** 0-100
-- **System Impact:** Applies when step definitions do not specify their own retry count; 0 means no retries
-
-
-#### `common.execution.max_workflow_steps`
-
-Maximum number of steps allowed in a single workflow definition
-
-- **Type:** `u32`
-- **Default:** `10000`
-- **Valid Range:** 1-100000
-- **System Impact:** Safety limit to prevent excessively large workflows from consuming unbounded resources
-
-
-#### `common.execution.step_batch_size`
+#### `common.execution.step_enqueue_batch_size`
 
 Number of steps to enqueue in a single batch during task initialization
 
@@ -789,16 +545,6 @@ Number of steps to enqueue in a single batch during task initialization
 - **Default:** `50`
 - **Valid Range:** 1-1000
 - **System Impact:** Controls step enqueueing throughput; larger batches reduce round trips but increase per-batch latency
-
-
-#### `common.execution.step_execution_timeout_seconds`
-
-Default maximum time for a single step execution before it is considered timed out
-
-- **Type:** `u32`
-- **Default:** `600`
-- **Valid Range:** 1-3600
-- **System Impact:** Guards against hung step handlers; overridden by step-level timeout configuration if present
 
 
 ## mpsc_channels
@@ -849,18 +595,7 @@ Bounded channel capacity for Ruby FFI event delivery
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `drop_policy` | `String` | `"block"` | Behavior when a bounded MPSC channel is full |
 | `log_warning_threshold` | `f64` | `0.8` | Channel saturation fraction at which warning logs are emitted |
-
-
-#### `common.mpsc_channels.overflow_policy.drop_policy`
-
-Behavior when a bounded MPSC channel is full
-
-- **Type:** `String`
-- **Default:** `"block"`
-- **Valid Range:** block | drop_oldest
-- **System Impact:** 'block' pauses the sender until space is available; 'drop_oldest' discards the oldest message to make room
 
 
 #### `common.mpsc_channels.overflow_policy.log_warning_threshold`
@@ -879,18 +614,7 @@ Channel saturation fraction at which warning logs are emitted
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `enabled` | `bool` | `true` | Enable periodic channel saturation metrics collection |
 | `saturation_check_interval_seconds` | `u32` | `30` | Interval in seconds between channel saturation metric samples |
-
-
-#### `common.mpsc_channels.overflow_policy.metrics.enabled`
-
-Enable periodic channel saturation metrics collection
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, channel fill levels are sampled and published as metrics at the configured interval
 
 
 #### `common.mpsc_channels.overflow_policy.metrics.saturation_check_interval_seconds`
@@ -910,7 +634,6 @@ Interval in seconds between channel saturation metric samples
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `enabled` | `bool` | `true` | Enable PGMQ messaging subsystem |
-| `skip_migration_check` | `bool` | `false` | Skip PGMQ database migration version check at startup |
 | `url` | `String` | `"${PGMQ_DATABASE_URL:-}"` | PostgreSQL connection URL for a dedicated PGMQ database; when empty, PGMQ shares the primary database |
 
 
@@ -922,16 +645,6 @@ Enable PGMQ messaging subsystem
 - **Default:** `true`
 - **Valid Range:** true/false
 - **System Impact:** When false, PGMQ queue operations are disabled; only useful if using RabbitMQ as the sole messaging backend
-
-
-#### `common.pgmq_database.skip_migration_check`
-
-Skip PGMQ database migration version check at startup
-
-- **Type:** `bool`
-- **Default:** `false`
-- **Valid Range:** true/false
-- **System Impact:** When true, PGMQ migration verification is skipped; use only for testing or externally managed migrations
 
 
 #### `common.pgmq_database.url`
@@ -1027,10 +740,7 @@ Threshold in milliseconds above which PGMQ pool acquisition is logged as slow
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `backend` | `String` | `"${TASKER_MESSAGING_BACKEND:-pgmq}"` | Messaging backend: 'pgmq' (PostgreSQL-based, LISTEN/NOTIFY) or 'rabbitmq' (AMQP broker) |
-| `default_batch_size` | `u32` | `10` | Default number of messages to dequeue in a single batch read |
 | `default_visibility_timeout_seconds` | `u32` | `30` | Default time a dequeued message remains invisible to other consumers |
-| `health_check_interval` | `u32` | `60` | Interval in seconds between queue health check probes |
-| `max_batch_size` | `u32` | `100` | Hard upper limit on batch size for any single dequeue operation |
 | `naming_pattern` | `String` | `"{namespace}_{name}_queue"` | Template pattern for constructing queue names from namespace and name |
 | `orchestration_namespace` | `String` | `"orchestration"` | Namespace prefix for orchestration queue names |
 | `worker_namespace` | `String` | `"worker"` | Namespace prefix for worker queue names |
@@ -1055,16 +765,6 @@ Messaging backend: 'pgmq' (PostgreSQL-based, LISTEN/NOTIFY) or 'rabbitmq' (AMQP 
 **Related:** `common.queues.pgmq`, `common.queues.rabbitmq`
 
 
-#### `common.queues.default_batch_size`
-
-Default number of messages to dequeue in a single batch read
-
-- **Type:** `u32`
-- **Default:** `10`
-- **Valid Range:** 1-1000
-- **System Impact:** Larger batches improve throughput but increase per-batch processing latency
-
-
 #### `common.queues.default_visibility_timeout_seconds`
 
 Default time a dequeued message remains invisible to other consumers
@@ -1073,26 +773,6 @@ Default time a dequeued message remains invisible to other consumers
 - **Default:** `30`
 - **Valid Range:** 1-3600
 - **System Impact:** If a consumer fails to process a message within this window, the message becomes visible again for retry
-
-
-#### `common.queues.health_check_interval`
-
-Interval in seconds between queue health check probes
-
-- **Type:** `u32`
-- **Default:** `60`
-- **Valid Range:** 1-3600
-- **System Impact:** Controls how frequently queue connectivity and depth are checked for health reporting
-
-
-#### `common.queues.max_batch_size`
-
-Hard upper limit on batch size for any single dequeue operation
-
-- **Type:** `u32`
-- **Default:** `100`
-- **Valid Range:** 1-10000
-- **System Impact:** Safety cap to prevent a single consumer from monopolizing queue messages
 
 
 #### `common.queues.naming_pattern`
@@ -1172,19 +852,7 @@ Queue name for incoming task execution requests
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `max_retries` | `u32` | `3` | Maximum number of times a failed PGMQ operation is retried before giving up |
 | `poll_interval_ms` | `u32` | `500` | Interval in milliseconds between PGMQ polling cycles when no LISTEN/NOTIFY events arrive |
-| `shutdown_timeout_seconds` | `u32` | `10` | Maximum time to wait for in-flight PGMQ operations to complete during graceful shutdown |
-
-
-#### `common.queues.pgmq.max_retries`
-
-Maximum number of times a failed PGMQ operation is retried before giving up
-
-- **Type:** `u32`
-- **Default:** `3`
-- **Valid Range:** 0-100
-- **System Impact:** Controls retry behavior for transient PGMQ failures such as connection resets
 
 
 #### `common.queues.pgmq.poll_interval_ms`
@@ -1197,16 +865,6 @@ Interval in milliseconds between PGMQ polling cycles when no LISTEN/NOTIFY event
 - **System Impact:** Lower values reduce message latency in polling mode but increase database load; in Hybrid mode this is the fallback interval
 
 
-#### `common.queues.pgmq.shutdown_timeout_seconds`
-
-Maximum time to wait for in-flight PGMQ operations to complete during graceful shutdown
-
-- **Type:** `u32`
-- **Default:** `10`
-- **Valid Range:** 1-300
-- **System Impact:** Prevents shutdown from hanging indefinitely on stuck queue operations
-
-
 #### queue_depth_thresholds
 
 **Path:** `common.queues.pgmq.queue_depth_thresholds`
@@ -1215,7 +873,6 @@ Maximum time to wait for in-flight PGMQ operations to complete during graceful s
 |-----------|------|---------|-------------|
 | `critical_threshold` | `i64` | `5000` | Queue depth at which the API returns HTTP 503 Service Unavailable for new task submissions |
 | `overflow_threshold` | `i64` | `10000` | Queue depth indicating an emergency condition requiring manual intervention |
-| `warning_threshold` | `i64` | `1000` | Queue depth at which warning-level log messages are emitted |
 
 
 #### `common.queues.pgmq.queue_depth_thresholds.critical_threshold`
@@ -1238,36 +895,15 @@ Queue depth indicating an emergency condition requiring manual intervention
 - **System Impact:** Highest severity threshold; triggers error-level logging and metrics for operational alerting
 
 
-#### `common.queues.pgmq.queue_depth_thresholds.warning_threshold`
-
-Queue depth at which warning-level log messages are emitted
-
-- **Type:** `i64`
-- **Default:** `1000`
-- **Valid Range:** 1+
-- **System Impact:** Observability threshold only; no behavioral change, but alerts operators to growing backlog
-
-
 ### rabbitmq
 
 **Path:** `common.queues.rabbitmq`
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `connection_timeout_seconds` | `u32` | `10` | Maximum time to wait when establishing a new RabbitMQ connection |
 | `heartbeat_seconds` | `u16` | `30` | AMQP heartbeat interval for connection liveness detection |
 | `prefetch_count` | `u16` | `100` | Number of unacknowledged messages RabbitMQ will deliver before waiting for acks |
 | `url` | `String` | `"${RABBITMQ_URL:-amqp://guest:guest@localhost:5672/%2F}"` | AMQP connection URL for RabbitMQ; %2F is the URL-encoded default vhost '/' |
-
-
-#### `common.queues.rabbitmq.connection_timeout_seconds`
-
-Maximum time to wait when establishing a new RabbitMQ connection
-
-- **Type:** `u32`
-- **Default:** `10`
-- **Valid Range:** 1-300
-- **System Impact:** Connections that cannot be established within this timeout fail with an error
 
 
 #### `common.queues.rabbitmq.heartbeat_seconds`
@@ -1307,8 +943,6 @@ AMQP connection URL for RabbitMQ; %2F is the URL-encoded default vhost '/'
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `default_dependent_system` | `String` | `"default"` | Default system name assigned to tasks that do not specify a dependent system |
-| `max_recursion_depth` | `u32` | `50` | Maximum depth for recursive dependency resolution in workflow graphs |
-| `version` | `String` | `"0.1.0"` | Tasker configuration schema version |
 
 
 #### `common.system.default_dependent_system`
@@ -1319,26 +953,6 @@ Default system name assigned to tasks that do not specify a dependent system
 - **Default:** `"default"`
 - **Valid Range:** non-empty string
 - **System Impact:** Groups tasks for routing and reporting; most single-system deployments can leave this as default
-
-
-#### `common.system.max_recursion_depth`
-
-Maximum depth for recursive dependency resolution in workflow graphs
-
-- **Type:** `u32`
-- **Default:** `50`
-- **Valid Range:** 1-1000
-- **System Impact:** Prevents infinite loops from circular dependencies; raise only for deeply nested workflows
-
-
-#### `common.system.version`
-
-Tasker configuration schema version
-
-- **Type:** `String`
-- **Default:** `"0.1.0"`
-- **Valid Range:** semver
-- **System Impact:** Used for configuration compatibility checks during upgrades
 
 
 ## task_templates
@@ -1360,47 +974,6 @@ Glob patterns for discovering task template YAML files
 - **System Impact:** Templates matching these patterns are loaded at startup for task definition discovery
 
 
-## telemetry
-
-**Path:** `common.telemetry`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `enabled` | `bool` | `true` | Enable OpenTelemetry-based telemetry collection (currently unused; see comment above) |
-| `sample_rate` | `f64` | `0.1` | Fraction of traces to sample (currently unused; see comment above) |
-| `service_name` | `String` | `"tasker-core"` | Service name reported in telemetry spans and metrics (currently unused; see comment above) |
-
-
-#### `common.telemetry.enabled`
-
-Enable OpenTelemetry-based telemetry collection (currently unused; see comment above)
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** Reserved for future TOML-driven telemetry init; currently telemetry is controlled via TELEMETRY_ENABLED env var
-
-
-#### `common.telemetry.sample_rate`
-
-Fraction of traces to sample (currently unused; see comment above)
-
-- **Type:** `f64`
-- **Default:** `0.1`
-- **Valid Range:** 0.0-1.0
-- **System Impact:** Reserved for future use; a value of 0.1 would sample 10% of traces
-
-
-#### `common.telemetry.service_name`
-
-Service name reported in telemetry spans and metrics (currently unused; see comment above)
-
-- **Type:** `String`
-- **Default:** `"tasker-core"`
-- **Valid Range:** non-empty string
-- **System Impact:** Reserved for future use; currently OTEL_SERVICE_NAME env var is used instead
-
-
 
 ---
 
@@ -1411,8 +984,8 @@ Service name reported in telemetry spans and metrics (currently unused; see comm
 
 
 
-> 100/100 parameters documented
-> Generated: 2026-01-31T02:40:18.393404960+00:00
+> 90/90 parameters documented
+> Generated: 2026-02-05T14:05:56.300026+00:00
 
 ---
 
@@ -1426,7 +999,6 @@ Root-level orchestration parameters
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `enable_performance_logging` | `bool` | `true` | Enable detailed performance logging for orchestration actors |
-| `mode` | `String` | `"standalone"` | Orchestration deployment mode |
 
 
 #### `orchestration.enable_performance_logging`
@@ -1437,16 +1009,6 @@ Enable detailed performance logging for orchestration actors
 - **Default:** `true`
 - **Valid Range:** true/false
 - **System Impact:** Emits timing metrics for task processing, step enqueueing, and result evaluation; disable in production if log volume is a concern
-
-
-#### `orchestration.mode`
-
-Orchestration deployment mode
-
-- **Type:** `String`
-- **Default:** `"standalone"`
-- **Valid Range:** standalone
-- **System Impact:** Reserved for future multi-node orchestration; standalone is the only supported mode
 
 
 ## batch_processing
@@ -1592,20 +1154,7 @@ Number of steps per decision above which a warning is logged
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `auto_dlq_on_staleness` | `bool` | `true` | Automatically move stale tasks to the DLQ when staleness detection identifies them |
 | `enabled` | `bool` | `true` | Enable the Dead Letter Queue subsystem for handling unrecoverable tasks |
-| `include_full_task_snapshot` | `bool` | `true` | Include a complete task state snapshot when moving a task to the DLQ |
-| `max_pending_age_hours` | `u32` | `168` | Maximum age in hours a task can remain in a pending-like state before being considered stale |
-
-
-#### `orchestration.dlq.auto_dlq_on_staleness`
-
-Automatically move stale tasks to the DLQ when staleness detection identifies them
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, the staleness detector can autonomously DLQ tasks without manual intervention
 
 
 #### `orchestration.dlq.enabled`
@@ -1616,89 +1165,6 @@ Enable the Dead Letter Queue subsystem for handling unrecoverable tasks
 - **Default:** `true`
 - **Valid Range:** true/false
 - **System Impact:** When false, stale or failed tasks remain in their error state without DLQ routing
-
-
-#### `orchestration.dlq.include_full_task_snapshot`
-
-Include a complete task state snapshot when moving a task to the DLQ
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, DLQ entries contain the full task context for debugging; increases DLQ storage requirements
-
-
-#### `orchestration.dlq.max_pending_age_hours`
-
-Maximum age in hours a task can remain in a pending-like state before being considered stale
-
-- **Type:** `u32`
-- **Default:** `168`
-- **Valid Range:** 1-720
-- **System Impact:** Safety net for tasks that fall through other staleness thresholds; 168 = 1 week
-
-
-### reasons
-
-**Path:** `orchestration.dlq.reasons`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `dependency_cycle_detected` | `bool` | `true` | Enable DLQ routing for tasks with circular step dependency graphs |
-| `manual_dlq` | `bool` | `true` | Allow manual DLQ routing via the API |
-| `max_retries_exceeded` | `bool` | `true` | Enable DLQ routing for tasks whose steps have exhausted all retry attempts |
-| `staleness_timeout` | `bool` | `true` | Enable DLQ routing for tasks that exceed staleness time thresholds |
-| `worker_unavailable` | `bool` | `true` | Enable DLQ routing for tasks whose required worker becomes unavailable |
-
-
-#### `orchestration.dlq.reasons.dependency_cycle_detected`
-
-Enable DLQ routing for tasks with circular step dependency graphs
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** Cycles make task completion impossible; DLQ routing preserves the task for debugging
-
-
-#### `orchestration.dlq.reasons.manual_dlq`
-
-Allow manual DLQ routing via the API
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, the manual DLQ API endpoint is disabled
-
-
-#### `orchestration.dlq.reasons.max_retries_exceeded`
-
-Enable DLQ routing for tasks whose steps have exhausted all retry attempts
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, tasks with exhausted retries remain in error state without DLQ routing
-
-
-#### `orchestration.dlq.reasons.staleness_timeout`
-
-Enable DLQ routing for tasks that exceed staleness time thresholds
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, stale tasks are not automatically moved to the DLQ even if detected
-
-
-#### `orchestration.dlq.reasons.worker_unavailable`
-
-Enable DLQ routing for tasks whose required worker becomes unavailable
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, tasks waiting for unavailable workers remain in their current state indefinitely
 
 
 ### staleness_detection
@@ -2641,25 +2107,6 @@ Target number of connections in the web API database pool
 - **System Impact:** Determines how many concurrent database queries the REST API can execute
 
 
-### resilience
-
-**Path:** `orchestration.web.resilience`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `circuit_breaker_enabled` | `bool` | `true` | Enable circuit breaker protection for the orchestration REST API |
-
-
-#### `orchestration.web.resilience.circuit_breaker_enabled`
-
-Enable circuit breaker protection for the orchestration REST API
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, the API uses circuit breakers to protect against cascading failures from downstream dependencies
-
-
 
 ---
 
@@ -2670,8 +2117,8 @@ Enable circuit breaker protection for the orchestration REST API
 
 
 
-> 101/101 parameters documented
-> Generated: 2026-01-31T02:40:18.393404960+00:00
+> 90/90 parameters documented
+> Generated: 2026-02-05T14:05:56.300026+00:00
 
 ---
 
@@ -2888,17 +2335,6 @@ Enable detailed performance metrics for worker event processing
 | `event_timeout_seconds` | `u32` | `60` | Maximum time to wait for a LISTEN/NOTIFY event before yielding |
 | `max_retry_attempts` | `u32` | `5` | Maximum number of listener reconnection attempts before falling back to polling |
 | `retry_interval_seconds` | `u32` | `5` | Interval in seconds between LISTEN/NOTIFY listener reconnection attempts |
-
-##### resource_limits
-
-**Path:** `worker.event_systems.worker.metadata.resource_limits`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `max_cpu_percent` | `f64` | `80.0` | Maximum CPU utilization percentage the worker event system should target |
-| `max_database_connections` | `u32` | `100` | Maximum number of database connections the worker event system can use |
-| `max_memory_mb` | `u32` | `4096` | Maximum memory in megabytes the worker event system is expected to use |
-| `max_queue_connections` | `u32` | `50` | Maximum number of queue connections the worker event system can use |
 
 #### processing
 
@@ -3120,47 +2556,6 @@ Enable TLS encryption for worker gRPC connections
 - **Default:** `false`
 - **Valid Range:** true/false
 - **System Impact:** When true, TLS cert and key paths must be provided; required for production gRPC deployments
-
-
-## health_monitoring
-
-**Path:** `worker.health_monitoring`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `error_rate_threshold` | `f64` | `0.05` | Error rate threshold (0.0-1.0) above which the worker reports as unhealthy |
-| `health_check_interval_seconds` | `u32` | `30` | Interval in seconds between worker health self-checks |
-| `performance_monitoring_enabled` | `bool` | `true` | Enable detailed performance metrics collection for worker health monitoring |
-
-
-#### `worker.health_monitoring.error_rate_threshold`
-
-Error rate threshold (0.0-1.0) above which the worker reports as unhealthy
-
-- **Type:** `f64`
-- **Default:** `0.05`
-- **Valid Range:** 0.0-1.0
-- **System Impact:** A value of 0.05 means the worker becomes unhealthy if more than 5% of recent step executions fail
-
-
-#### `worker.health_monitoring.health_check_interval_seconds`
-
-Interval in seconds between worker health self-checks
-
-- **Type:** `u32`
-- **Default:** `30`
-- **Valid Range:** 1-3600
-- **System Impact:** Controls how frequently the worker evaluates its own health status for readiness probes
-
-
-#### `worker.health_monitoring.performance_monitoring_enabled`
-
-Enable detailed performance metrics collection for worker health monitoring
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** Tracks step execution latency, throughput, and success rates for health assessment
 
 
 ## mpsc_channels
@@ -3542,47 +2937,6 @@ HTTP request timeout in milliseconds for orchestration API calls
 - **System Impact:** Worker-to-orchestration calls exceeding this timeout fail and may be retried
 
 
-## step_processing
-
-**Path:** `worker.step_processing`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `claim_timeout_seconds` | `u32` | `300` | Maximum time in seconds a step claim remains valid before expiring |
-| `max_concurrent_steps` | `u32` | `50` | Maximum number of steps this worker processes simultaneously |
-| `max_retries` | `u32` | `3` | Maximum number of retry attempts for a failed step at the worker level |
-
-
-#### `worker.step_processing.claim_timeout_seconds`
-
-Maximum time in seconds a step claim remains valid before expiring
-
-- **Type:** `u32`
-- **Default:** `300`
-- **Valid Range:** 1-3600
-- **System Impact:** If a worker fails to complete a step within this window, the claim expires and the step becomes available for retry
-
-
-#### `worker.step_processing.max_concurrent_steps`
-
-Maximum number of steps this worker processes simultaneously
-
-- **Type:** `u32`
-- **Default:** `50`
-- **Valid Range:** 1-100000
-- **System Impact:** Primary worker concurrency control; bounded by semaphore in HandlerDispatchService
-
-
-#### `worker.step_processing.max_retries`
-
-Maximum number of retry attempts for a failed step at the worker level
-
-- **Type:** `u32`
-- **Default:** `3`
-- **Valid Range:** 0-100
-- **System Impact:** Worker-level retry cap; interacts with the orchestration-level execution.max_retries
-
-
 ## web
 
 **Path:** `worker.web`
@@ -3607,8 +2961,8 @@ Socket address for the worker REST API server
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | 0.0.0.0:8081 | Default port offset from orchestration (8080) |
 | production | 0.0.0.0:8081 | Standard worker port; use TASKER_WEB_BIND_ADDRESS env var to override |
+| test | 0.0.0.0:8081 | Default port offset from orchestration (8080) |
 
 
 #### `worker.web.enabled`
@@ -3799,25 +3153,6 @@ Target number of connections in the worker web API database pool
 - **Default:** `10`
 - **Valid Range:** 1-200
 - **System Impact:** Determines how many concurrent database queries the worker REST API can execute; smaller than orchestration
-
-
-### resilience
-
-**Path:** `worker.web.resilience`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `circuit_breaker_enabled` | `bool` | `true` | Enable circuit breaker protection for the worker REST API |
-
-
-#### `worker.web.resilience.circuit_breaker_enabled`
-
-Enable circuit breaker protection for the worker REST API
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, the worker API uses circuit breakers to protect against cascading failures
 
 
 

@@ -6,7 +6,6 @@
 
 use crate::resilience::CircuitState;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::time::Duration;
 
 /// Metrics for a single circuit breaker instance
@@ -109,117 +108,6 @@ impl Default for CircuitBreakerMetrics {
     }
 }
 
-/// System-wide circuit breaker metrics aggregator
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SystemCircuitBreakerMetrics {
-    /// Metrics for individual circuit breakers by name
-    pub circuit_breakers: HashMap<String, CircuitBreakerMetrics>,
-
-    /// Timestamp of last metrics collection
-    pub collected_at: std::time::SystemTime,
-}
-
-impl SystemCircuitBreakerMetrics {
-    /// Create new system metrics
-    pub fn new() -> Self {
-        Self {
-            circuit_breakers: HashMap::new(),
-            collected_at: std::time::SystemTime::now(),
-        }
-    }
-
-    /// Add metrics for a circuit breaker
-    pub fn add_circuit_breaker(&mut self, name: String, metrics: CircuitBreakerMetrics) {
-        self.circuit_breakers.insert(name, metrics);
-        self.collected_at = std::time::SystemTime::now();
-    }
-
-    /// Get count of circuit breakers by state
-    pub fn count_by_state(&self) -> HashMap<CircuitState, usize> {
-        let mut counts = HashMap::new();
-
-        for metrics in self.circuit_breakers.values() {
-            let count = counts.entry(metrics.current_state).or_insert(0);
-            *count += 1;
-        }
-
-        counts
-    }
-
-    /// Get list of unhealthy circuit breakers
-    pub fn unhealthy_circuits(&self) -> Vec<(&String, &CircuitBreakerMetrics)> {
-        self.circuit_breakers
-            .iter()
-            .filter(|(_, metrics)| !metrics.is_healthy())
-            .collect()
-    }
-
-    /// Calculate system-wide health score (0.0 to 1.0)
-    pub fn health_score(&self) -> f64 {
-        if self.circuit_breakers.is_empty() {
-            return 1.0; // No circuit breakers = healthy
-        }
-
-        let healthy_count = self
-            .circuit_breakers
-            .values()
-            .filter(|metrics| metrics.is_healthy())
-            .count();
-
-        healthy_count as f64 / self.circuit_breakers.len() as f64
-    }
-
-    /// Get total calls across all circuit breakers
-    pub fn total_calls(&self) -> u64 {
-        self.circuit_breakers
-            .values()
-            .map(|metrics| metrics.total_calls)
-            .sum()
-    }
-
-    /// Get total failures across all circuit breakers
-    pub fn total_failures(&self) -> u64 {
-        self.circuit_breakers
-            .values()
-            .map(|metrics| metrics.failure_count)
-            .sum()
-    }
-
-    /// Get system-wide failure rate
-    pub fn system_failure_rate(&self) -> f64 {
-        let total_calls = self.total_calls();
-        if total_calls == 0 {
-            return 0.0;
-        }
-
-        self.total_failures() as f64 / total_calls as f64
-    }
-
-    /// Format summary for logging
-    pub fn format_summary(&self) -> String {
-        let state_counts = self.count_by_state();
-        let closed_count = state_counts.get(&CircuitState::Closed).unwrap_or(&0);
-        let open_count = state_counts.get(&CircuitState::Open).unwrap_or(&0);
-        let half_open_count = state_counts.get(&CircuitState::HalfOpen).unwrap_or(&0);
-
-        format!(
-            "Circuit Breakers: {} total | {} closed | {} open | {} half-open | Health: {:.1}% | System failure rate: {:.2}%",
-            self.circuit_breakers.len(),
-            closed_count,
-            open_count,
-            half_open_count,
-            self.health_score() * 100.0,
-            self.system_failure_rate() * 100.0
-        )
-    }
-}
-
-impl Default for SystemCircuitBreakerMetrics {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Metrics collection trait for integration with monitoring systems
 pub trait MetricsCollector {
     /// Record circuit breaker metrics
@@ -282,43 +170,6 @@ mod tests {
         assert_eq!(metrics.failure_count, 0);
         assert_eq!(metrics.current_state, CircuitState::Closed);
         assert!(metrics.is_healthy());
-    }
-
-    #[test]
-    fn test_system_metrics_aggregation() {
-        let mut system_metrics = SystemCircuitBreakerMetrics::new();
-
-        let mut cb1_metrics = CircuitBreakerMetrics::new();
-        cb1_metrics.current_state = CircuitState::Closed;
-        cb1_metrics.total_calls = 100;
-        cb1_metrics.success_count = 95;
-        cb1_metrics.failure_count = 5;
-        cb1_metrics.failure_rate = 0.05;
-
-        let mut cb2_metrics = CircuitBreakerMetrics::new();
-        cb2_metrics.current_state = CircuitState::Open;
-        cb2_metrics.total_calls = 50;
-        cb2_metrics.success_count = 25;
-        cb2_metrics.failure_count = 25;
-        cb2_metrics.failure_rate = 0.5;
-
-        system_metrics.add_circuit_breaker("database".to_string(), cb1_metrics);
-        system_metrics.add_circuit_breaker("queue".to_string(), cb2_metrics);
-
-        assert_eq!(system_metrics.total_calls(), 150);
-        assert_eq!(system_metrics.total_failures(), 30);
-        assert_eq!(system_metrics.system_failure_rate(), 0.2);
-
-        let state_counts = system_metrics.count_by_state();
-        assert_eq!(state_counts.get(&CircuitState::Closed), Some(&1));
-        assert_eq!(state_counts.get(&CircuitState::Open), Some(&1));
-
-        // Health score should be 0.5 (1 healthy out of 2)
-        assert_eq!(system_metrics.health_score(), 0.5);
-
-        let unhealthy = system_metrics.unhealthy_circuits();
-        assert_eq!(unhealthy.len(), 1);
-        assert_eq!(unhealthy[0].0, "queue");
     }
 
     #[test]

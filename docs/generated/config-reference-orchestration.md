@@ -2,8 +2,8 @@
 
 
 
-> 100/100 parameters documented
-> Generated: 2026-01-31T02:40:23.053696361+00:00
+> 90/90 parameters documented
+> Generated: 2026-02-05T14:05:58.041809+00:00
 
 ---
 
@@ -17,7 +17,6 @@ Root-level orchestration parameters
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `enable_performance_logging` | `bool` | `true` | Enable detailed performance logging for orchestration actors |
-| `mode` | `String` | `"standalone"` | Orchestration deployment mode |
 
 
 #### `orchestration.enable_performance_logging`
@@ -28,16 +27,6 @@ Enable detailed performance logging for orchestration actors
 - **Default:** `true`
 - **Valid Range:** true/false
 - **System Impact:** Emits timing metrics for task processing, step enqueueing, and result evaluation; disable in production if log volume is a concern
-
-
-#### `orchestration.mode`
-
-Orchestration deployment mode
-
-- **Type:** `String`
-- **Default:** `"standalone"`
-- **Valid Range:** standalone
-- **System Impact:** Reserved for future multi-node orchestration; standalone is the only supported mode
 
 
 ## batch_processing
@@ -183,20 +172,7 @@ Number of steps per decision above which a warning is logged
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `auto_dlq_on_staleness` | `bool` | `true` | Automatically move stale tasks to the DLQ when staleness detection identifies them |
 | `enabled` | `bool` | `true` | Enable the Dead Letter Queue subsystem for handling unrecoverable tasks |
-| `include_full_task_snapshot` | `bool` | `true` | Include a complete task state snapshot when moving a task to the DLQ |
-| `max_pending_age_hours` | `u32` | `168` | Maximum age in hours a task can remain in a pending-like state before being considered stale |
-
-
-#### `orchestration.dlq.auto_dlq_on_staleness`
-
-Automatically move stale tasks to the DLQ when staleness detection identifies them
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, the staleness detector can autonomously DLQ tasks without manual intervention
 
 
 #### `orchestration.dlq.enabled`
@@ -207,89 +183,6 @@ Enable the Dead Letter Queue subsystem for handling unrecoverable tasks
 - **Default:** `true`
 - **Valid Range:** true/false
 - **System Impact:** When false, stale or failed tasks remain in their error state without DLQ routing
-
-
-#### `orchestration.dlq.include_full_task_snapshot`
-
-Include a complete task state snapshot when moving a task to the DLQ
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, DLQ entries contain the full task context for debugging; increases DLQ storage requirements
-
-
-#### `orchestration.dlq.max_pending_age_hours`
-
-Maximum age in hours a task can remain in a pending-like state before being considered stale
-
-- **Type:** `u32`
-- **Default:** `168`
-- **Valid Range:** 1-720
-- **System Impact:** Safety net for tasks that fall through other staleness thresholds; 168 = 1 week
-
-
-### reasons
-
-**Path:** `orchestration.dlq.reasons`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `dependency_cycle_detected` | `bool` | `true` | Enable DLQ routing for tasks with circular step dependency graphs |
-| `manual_dlq` | `bool` | `true` | Allow manual DLQ routing via the API |
-| `max_retries_exceeded` | `bool` | `true` | Enable DLQ routing for tasks whose steps have exhausted all retry attempts |
-| `staleness_timeout` | `bool` | `true` | Enable DLQ routing for tasks that exceed staleness time thresholds |
-| `worker_unavailable` | `bool` | `true` | Enable DLQ routing for tasks whose required worker becomes unavailable |
-
-
-#### `orchestration.dlq.reasons.dependency_cycle_detected`
-
-Enable DLQ routing for tasks with circular step dependency graphs
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** Cycles make task completion impossible; DLQ routing preserves the task for debugging
-
-
-#### `orchestration.dlq.reasons.manual_dlq`
-
-Allow manual DLQ routing via the API
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, the manual DLQ API endpoint is disabled
-
-
-#### `orchestration.dlq.reasons.max_retries_exceeded`
-
-Enable DLQ routing for tasks whose steps have exhausted all retry attempts
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, tasks with exhausted retries remain in error state without DLQ routing
-
-
-#### `orchestration.dlq.reasons.staleness_timeout`
-
-Enable DLQ routing for tasks that exceed staleness time thresholds
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, stale tasks are not automatically moved to the DLQ even if detected
-
-
-#### `orchestration.dlq.reasons.worker_unavailable`
-
-Enable DLQ routing for tasks whose required worker becomes unavailable
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When false, tasks waiting for unavailable workers remain in their current state indefinitely
 
 
 ### staleness_detection
@@ -1038,8 +931,8 @@ Socket address for the REST API server
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | 0.0.0.0:8080 | Default port for test fixtures |
 | production | 0.0.0.0:8080 | Standard port; use TASKER_WEB_BIND_ADDRESS env var to override in CI |
+| test | 0.0.0.0:8080 | Default port for test fixtures |
 
 
 #### `orchestration.web.enabled`
@@ -1230,25 +1123,6 @@ Target number of connections in the web API database pool
 - **Default:** `20`
 - **Valid Range:** 1-200
 - **System Impact:** Determines how many concurrent database queries the REST API can execute
-
-
-### resilience
-
-**Path:** `orchestration.web.resilience`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `circuit_breaker_enabled` | `bool` | `true` | Enable circuit breaker protection for the orchestration REST API |
-
-
-#### `orchestration.web.resilience.circuit_breaker_enabled`
-
-Enable circuit breaker protection for the orchestration REST API
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, the API uses circuit breakers to protect against cascading failures from downstream dependencies
 
 
 

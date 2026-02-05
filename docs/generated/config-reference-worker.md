@@ -2,8 +2,8 @@
 
 
 
-> 101/101 parameters documented
-> Generated: 2026-01-31T02:40:25.282081985+00:00
+> 90/90 parameters documented
+> Generated: 2026-02-05T14:05:58.877222+00:00
 
 ---
 
@@ -220,17 +220,6 @@ Enable detailed performance metrics for worker event processing
 | `event_timeout_seconds` | `u32` | `60` | Maximum time to wait for a LISTEN/NOTIFY event before yielding |
 | `max_retry_attempts` | `u32` | `5` | Maximum number of listener reconnection attempts before falling back to polling |
 | `retry_interval_seconds` | `u32` | `5` | Interval in seconds between LISTEN/NOTIFY listener reconnection attempts |
-
-##### resource_limits
-
-**Path:** `worker.event_systems.worker.metadata.resource_limits`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `max_cpu_percent` | `f64` | `80.0` | Maximum CPU utilization percentage the worker event system should target |
-| `max_database_connections` | `u32` | `100` | Maximum number of database connections the worker event system can use |
-| `max_memory_mb` | `u32` | `4096` | Maximum memory in megabytes the worker event system is expected to use |
-| `max_queue_connections` | `u32` | `50` | Maximum number of queue connections the worker event system can use |
 
 #### processing
 
@@ -452,47 +441,6 @@ Enable TLS encryption for worker gRPC connections
 - **Default:** `false`
 - **Valid Range:** true/false
 - **System Impact:** When true, TLS cert and key paths must be provided; required for production gRPC deployments
-
-
-## health_monitoring
-
-**Path:** `worker.health_monitoring`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `error_rate_threshold` | `f64` | `0.05` | Error rate threshold (0.0-1.0) above which the worker reports as unhealthy |
-| `health_check_interval_seconds` | `u32` | `30` | Interval in seconds between worker health self-checks |
-| `performance_monitoring_enabled` | `bool` | `true` | Enable detailed performance metrics collection for worker health monitoring |
-
-
-#### `worker.health_monitoring.error_rate_threshold`
-
-Error rate threshold (0.0-1.0) above which the worker reports as unhealthy
-
-- **Type:** `f64`
-- **Default:** `0.05`
-- **Valid Range:** 0.0-1.0
-- **System Impact:** A value of 0.05 means the worker becomes unhealthy if more than 5% of recent step executions fail
-
-
-#### `worker.health_monitoring.health_check_interval_seconds`
-
-Interval in seconds between worker health self-checks
-
-- **Type:** `u32`
-- **Default:** `30`
-- **Valid Range:** 1-3600
-- **System Impact:** Controls how frequently the worker evaluates its own health status for readiness probes
-
-
-#### `worker.health_monitoring.performance_monitoring_enabled`
-
-Enable detailed performance metrics collection for worker health monitoring
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** Tracks step execution latency, throughput, and success rates for health assessment
 
 
 ## mpsc_channels
@@ -874,47 +822,6 @@ HTTP request timeout in milliseconds for orchestration API calls
 - **System Impact:** Worker-to-orchestration calls exceeding this timeout fail and may be retried
 
 
-## step_processing
-
-**Path:** `worker.step_processing`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `claim_timeout_seconds` | `u32` | `300` | Maximum time in seconds a step claim remains valid before expiring |
-| `max_concurrent_steps` | `u32` | `50` | Maximum number of steps this worker processes simultaneously |
-| `max_retries` | `u32` | `3` | Maximum number of retry attempts for a failed step at the worker level |
-
-
-#### `worker.step_processing.claim_timeout_seconds`
-
-Maximum time in seconds a step claim remains valid before expiring
-
-- **Type:** `u32`
-- **Default:** `300`
-- **Valid Range:** 1-3600
-- **System Impact:** If a worker fails to complete a step within this window, the claim expires and the step becomes available for retry
-
-
-#### `worker.step_processing.max_concurrent_steps`
-
-Maximum number of steps this worker processes simultaneously
-
-- **Type:** `u32`
-- **Default:** `50`
-- **Valid Range:** 1-100000
-- **System Impact:** Primary worker concurrency control; bounded by semaphore in HandlerDispatchService
-
-
-#### `worker.step_processing.max_retries`
-
-Maximum number of retry attempts for a failed step at the worker level
-
-- **Type:** `u32`
-- **Default:** `3`
-- **Valid Range:** 0-100
-- **System Impact:** Worker-level retry cap; interacts with the orchestration-level execution.max_retries
-
-
 ## web
 
 **Path:** `worker.web`
@@ -939,8 +846,8 @@ Socket address for the worker REST API server
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | 0.0.0.0:8081 | Default port offset from orchestration (8080) |
 | production | 0.0.0.0:8081 | Standard worker port; use TASKER_WEB_BIND_ADDRESS env var to override |
+| test | 0.0.0.0:8081 | Default port offset from orchestration (8080) |
 
 
 #### `worker.web.enabled`
@@ -1131,25 +1038,6 @@ Target number of connections in the worker web API database pool
 - **Default:** `10`
 - **Valid Range:** 1-200
 - **System Impact:** Determines how many concurrent database queries the worker REST API can execute; smaller than orchestration
-
-
-### resilience
-
-**Path:** `worker.web.resilience`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `circuit_breaker_enabled` | `bool` | `true` | Enable circuit breaker protection for the worker REST API |
-
-
-#### `worker.web.resilience.circuit_breaker_enabled`
-
-Enable circuit breaker protection for the worker REST API
-
-- **Type:** `bool`
-- **Default:** `true`
-- **Valid Range:** true/false
-- **System Impact:** When true, the worker API uses circuit breakers to protect against cascading failures
 
 
 

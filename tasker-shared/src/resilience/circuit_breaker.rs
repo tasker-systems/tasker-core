@@ -447,6 +447,44 @@ impl CircuitBreaker {
     }
 }
 
+impl crate::resilience::CircuitBreakerBehavior for CircuitBreaker {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn state(&self) -> CircuitState {
+        CircuitBreaker::state(self)
+    }
+
+    fn should_allow(&self) -> bool {
+        CircuitBreaker::should_allow(self)
+    }
+
+    fn record_success(&self, duration: Duration) {
+        self.record_success_manual(duration);
+    }
+
+    fn record_failure(&self, duration: Duration) {
+        self.record_failure_manual(duration);
+    }
+
+    fn is_healthy(&self) -> bool {
+        CircuitBreaker::is_healthy(self)
+    }
+
+    fn force_open(&self) {
+        CircuitBreaker::force_open(self);
+    }
+
+    fn force_closed(&self) {
+        CircuitBreaker::force_closed(self);
+    }
+
+    fn metrics(&self) -> CircuitBreakerMetrics {
+        CircuitBreaker::metrics(self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -543,5 +581,42 @@ mod tests {
         // Force closed
         circuit.force_closed();
         assert_eq!(circuit.state(), CircuitState::Closed);
+    }
+
+    #[test]
+    fn test_circuit_breaker_behavior_trait_conformance() {
+        use crate::resilience::CircuitBreakerBehavior;
+
+        let config = CircuitBreakerConfig {
+            failure_threshold: 3,
+            timeout: Duration::from_millis(100),
+            success_threshold: 2,
+        };
+
+        let circuit = CircuitBreaker::new("trait_test".to_string(), config);
+        let behavior: &dyn CircuitBreakerBehavior = &circuit;
+
+        // Verify trait methods delegate correctly
+        assert_eq!(behavior.name(), "trait_test");
+        assert_eq!(behavior.state(), CircuitState::Closed);
+        assert!(behavior.should_allow());
+        assert!(behavior.is_healthy());
+
+        // Record operations through trait
+        behavior.record_success(Duration::from_millis(5));
+        let metrics = behavior.metrics();
+        assert_eq!(metrics.success_count, 1);
+
+        behavior.record_failure(Duration::from_millis(5));
+        let metrics = behavior.metrics();
+        assert_eq!(metrics.failure_count, 1);
+
+        // Force operations
+        behavior.force_open();
+        assert_eq!(behavior.state(), CircuitState::Open);
+        assert!(!behavior.is_healthy());
+
+        behavior.force_closed();
+        assert_eq!(behavior.state(), CircuitState::Closed);
     }
 }

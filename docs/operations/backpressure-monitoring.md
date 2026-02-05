@@ -1,8 +1,8 @@
 # Backpressure Monitoring Runbook
 
-**Last Updated**: 2025-12-08
+**Last Updated**: 2026-02-05
 **Audience**: Operations, SRE, On-Call Engineers
-**Status**: Active (TAS-75)
+**Status**: Active (TAS-75, TAS-174)
 **Related Docs**: [Backpressure Architecture](../backpressure-architecture.md) | [MPSC Channel Tuning](mpsc-channel-tuning.md)
 
 ---
@@ -16,6 +16,7 @@ This runbook provides guidance for monitoring, alerting, and responding to backp
 | Metric | Normal | Warning | Critical | Action |
 |--------|--------|---------|----------|--------|
 | `api_circuit_breaker_state` | closed | - | open | See [Circuit Breaker Open](#circuit-breaker-open) |
+| `messaging_circuit_breaker_state` | closed | half-open | open | See [Messaging Circuit Breaker Open](#messaging-circuit-breaker-open) |
 | `api_requests_rejected_total` | < 1/min | > 5/min | > 20/min | See [API Rejections](#api-rejections-high) |
 | `mpsc_channel_saturation` | < 50% | > 70% | > 90% | See [Channel Saturation](#channel-saturation) |
 | `pgmq_queue_depth` | < 50% max | > 70% max | > 90% max | See [Queue Depth High](#pgmq-queue-depth-high) |
@@ -52,6 +53,20 @@ This runbook provides guidance for monitoring, alerting, and responding to backp
 - **Labels**: `endpoint`
 - **Description**: Request processing time
 - **Alert**: p99 > 5000ms
+
+### Messaging Metrics (TAS-174)
+
+#### `messaging_circuit_breaker_state`
+- **Type**: Gauge
+- **Values**: 0 = closed, 1 = half-open, 2 = open
+- **Description**: Current messaging circuit breaker state
+- **Alert**: state = 2 (open) — both orchestration and workers lose queue access
+
+#### `messaging_circuit_breaker_rejections_total`
+- **Type**: Counter
+- **Labels**: `operation` (send, receive)
+- **Description**: Messaging operations rejected due to open circuit breaker
+- **Alert**: > 0 (any rejection indicates messaging outage)
 
 ### Orchestration Metrics
 
@@ -135,6 +150,16 @@ groups:
           summary: "Tasker API circuit breaker is open"
           description: "Circuit breaker {{ $labels.instance }} has been open for > 30s"
           runbook: "https://docs/operations/backpressure-monitoring.md#circuit-breaker-open"
+
+      - alert: TaskerMessagingCircuitBreakerOpen
+        expr: messaging_circuit_breaker_state == 2
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Tasker messaging circuit breaker is open"
+          description: "Messaging circuit breaker has been open for > 30s — queue operations are failing"
+          runbook: "https://docs/operations/backpressure-monitoring.md#messaging-circuit-breaker-open"
 
       - alert: TaskerAPIRejectionsHigh
         expr: rate(api_requests_rejected_total[5m]) > 0.1
@@ -233,6 +258,51 @@ groups:
 
 **Escalation**:
 - If breaker remains open > 5 min after database recovery: Escalate to engineering
+
+---
+
+### Messaging Circuit Breaker Open
+
+**Severity**: Critical
+
+**Symptoms**:
+- Orchestration cannot enqueue steps or send task finalizations
+- Workers cannot receive step messages or send results
+- `messaging_circuit_breaker_state = 2`
+- `MessagingError::CircuitBreakerOpen` in logs
+
+**Immediate Actions**:
+1. Check messaging backend health
+   ```bash
+   # For PGMQ (default)
+   psql $PGMQ_DATABASE_URL -c "SELECT * FROM pgmq.meta LIMIT 5"
+
+   # For RabbitMQ
+   rabbitmqctl status
+   ```
+2. Check PGMQ database connectivity (may differ from main database)
+   ```bash
+   psql $PGMQ_DATABASE_URL -c "SELECT 1"
+   ```
+3. Check recent messaging errors
+   ```bash
+   kubectl logs -l app=tasker-orchestration --tail=100 | grep -E "messaging|circuit_breaker|CircuitBreakerOpen"
+   ```
+
+**Impact**:
+- **Orchestration**: Task initialization stalls, step results cannot be received, task finalizations blocked
+- **Workers**: Step messages not received, results cannot be sent back to orchestration
+- **Safety**: Messages remain in queues protected by visibility timeouts; no data loss occurs
+- **Health checks**: Unaffected (bypass circuit breaker to detect recovery)
+
+**Recovery**:
+- Circuit breaker will automatically test recovery after `timeout_seconds` (default: 30s)
+- On recovery, queued messages will be processed normally (visibility timeouts protect against loss)
+- If messaging backend is unhealthy, fix it first — the breaker protects against cascading timeouts
+
+**Escalation**:
+- If breaker remains open > 5 min after backend recovery: Escalate to engineering
+- If both web and messaging breakers are open simultaneously: Likely database-wide issue, escalate to DBA
 
 ---
 

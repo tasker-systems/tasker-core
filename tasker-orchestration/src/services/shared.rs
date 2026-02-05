@@ -96,35 +96,28 @@ impl SharedApiServices {
             .database_url();
 
         // Get pool settings from web config if available, otherwise use defaults
-        let (
-            max_connections,
-            min_connections,
-            connection_timeout,
-            idle_timeout,
-            circuit_breaker_enabled,
-        ) = orchestration_core
-            .context
-            .tasker_config
-            .orchestration
-            .as_ref()
-            .and_then(|o| o.web.as_ref())
-            .map(|web| {
-                (
-                    web.database_pools.web_api_max_connections,
-                    web.database_pools.web_api_pool_size / 2,
-                    web.database_pools.web_api_connection_timeout_seconds as u64,
-                    web.database_pools.web_api_idle_timeout_seconds as u64,
-                    false, // TAS-221: resilience config removed, circuit breaker defaults to disabled
-                )
-            })
-            .unwrap_or((30, 15, 30, 300, false));
+        let (max_connections, min_connections, connection_timeout, idle_timeout) =
+            orchestration_core
+                .context
+                .tasker_config
+                .orchestration
+                .as_ref()
+                .and_then(|o| o.web.as_ref())
+                .map(|web| {
+                    (
+                        web.database_pools.web_api_max_connections,
+                        web.database_pools.web_api_pool_size / 2,
+                        web.database_pools.web_api_connection_timeout_seconds as u64,
+                        web.database_pools.web_api_idle_timeout_seconds as u64,
+                    )
+                })
+                .unwrap_or((30, 15, 30, 300));
 
         debug!(
             max_connections = max_connections,
             min_connections = min_connections,
             connection_timeout = connection_timeout,
             idle_timeout = idle_timeout,
-            circuit_breaker_enabled = circuit_breaker_enabled,
             "Creating dedicated API database pool"
         );
 
@@ -143,16 +136,17 @@ impl SharedApiServices {
 
         let read_pool = orchestration_core.context.database_pool().clone();
 
-        // Create circuit breaker
-        let circuit_breaker = if circuit_breaker_enabled {
-            WebDatabaseCircuitBreaker::new(
-                5,                       // failure_threshold
-                Duration::from_secs(30), // recovery_timeout
-                "api_database",
-            )
-        } else {
-            // Disabled circuit breaker (always closed)
-            WebDatabaseCircuitBreaker::new(u32::MAX, Duration::from_secs(1), "disabled")
+        // TAS-174: Create circuit breaker from config
+        let circuit_breaker = {
+            let cb_config = &orchestration_core
+                .context
+                .tasker_config
+                .common
+                .circuit_breakers;
+            let component_config = cb_config.config_for_component("web");
+            let resilience_config = component_config
+                .to_resilience_config_with_timeout(cb_config.default_config.timeout_seconds);
+            WebDatabaseCircuitBreaker::from_config("api_database", resilience_config)
         };
 
         // Get environment and create orchestration status
@@ -262,7 +256,6 @@ impl SharedApiServices {
         info!(
             write_pool_size = max_connections,
             read_pool_size = database_pool_size,
-            circuit_breaker_enabled = circuit_breaker_enabled,
             auth_enabled = security_service.is_some(),
             "Shared API services created successfully"
         );

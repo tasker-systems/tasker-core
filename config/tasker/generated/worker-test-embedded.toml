@@ -45,7 +45,11 @@ url = "${REDIS_URL:-redis://localhost:6379}"
 failure_threshold = 5
 success_threshold = 2
 
-[common.circuit_breakers.component_configs.pgmq]
+[common.circuit_breakers.component_configs.messaging]
+failure_threshold = 5
+success_threshold = 2
+
+[common.circuit_breakers.component_configs.web]
 failure_threshold = 5
 success_threshold = 2
 

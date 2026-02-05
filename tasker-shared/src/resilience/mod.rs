@@ -36,15 +36,15 @@
 //! # }
 //! ```
 
+pub mod behavior;
 pub mod circuit_breaker;
 pub mod config;
-pub mod manager;
 pub mod metrics;
 
 #[cfg(test)]
 mod toml_config_test;
 
+pub use behavior::CircuitBreakerBehavior;
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerError, CircuitState};
 pub use config::{CircuitBreakerConfig, GlobalCircuitBreakerSettings};
-pub use manager::CircuitBreakerManager;
-pub use metrics::{CircuitBreakerMetrics, SystemCircuitBreakerMetrics};
+pub use metrics::CircuitBreakerMetrics;
