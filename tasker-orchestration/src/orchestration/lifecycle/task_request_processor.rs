@@ -7,6 +7,7 @@
 use crate::orchestration::lifecycle::task_initialization::TaskInitializer;
 use std::sync::Arc;
 use std::time::Duration;
+use tasker_shared::config::tasker::TaskerConfig;
 use tasker_shared::messaging::client::MessageClient;
 use tasker_shared::messaging::orchestration_messages::TaskRequestMessage;
 use tasker_shared::messaging::service::QueuedMessage;
@@ -37,6 +38,26 @@ impl Default for TaskRequestProcessorConfig {
             batch_size: 10,
             visibility_timeout_seconds: 300, // 5 minutes
             polling_interval_seconds: 1,
+            max_processing_attempts: 3,
+        }
+    }
+}
+
+// TAS-152: Load configuration from TaskerConfig (modeled after StepResultProcessorConfig)
+impl From<&TaskerConfig> for TaskRequestProcessorConfig {
+    fn from(config: &TaskerConfig) -> Self {
+        let request_queue_name = format!(
+            "{}_{}_queue",
+            config.common.queues.orchestration_namespace,
+            config.common.queues.orchestration_queues.task_requests
+        );
+
+        Self {
+            request_queue_name,
+            batch_size: 10,
+            visibility_timeout_seconds: config.common.queues.default_visibility_timeout_seconds
+                as i32,
+            polling_interval_seconds: (config.common.queues.pgmq.poll_interval_ms / 1000) as u64,
             max_processing_attempts: 3,
         }
     }
@@ -332,6 +353,55 @@ mod tests {
         assert_eq!(config.request_queue_name, "orchestration_task_requests");
         assert_eq!(config.batch_size, 10);
         assert_eq!(config.visibility_timeout_seconds, 300);
+    }
+
+    #[test]
+    fn test_config_from_tasker_config() {
+        use tasker_shared::config::tasker::CommonConfig;
+
+        let common = CommonConfig {
+            system: Default::default(),
+            database: Default::default(),
+            queues: Default::default(),
+            circuit_breakers: Default::default(),
+            mpsc_channels: Default::default(),
+            execution: Default::default(),
+            backoff: Default::default(),
+            task_templates: Default::default(),
+            cache: None,
+            pgmq_database: None,
+        };
+        let tasker_config = TaskerConfig {
+            common,
+            orchestration: None,
+            worker: None,
+        };
+        let config = TaskRequestProcessorConfig::from(&tasker_config);
+
+        // Queue name built from orchestration_namespace + task_requests queue name
+        let expected_queue = format!(
+            "{}_{}_queue",
+            tasker_config.common.queues.orchestration_namespace,
+            tasker_config
+                .common
+                .queues
+                .orchestration_queues
+                .task_requests
+        );
+        assert_eq!(config.request_queue_name, expected_queue);
+        assert_eq!(config.batch_size, 10);
+        assert_eq!(
+            config.visibility_timeout_seconds,
+            tasker_config
+                .common
+                .queues
+                .default_visibility_timeout_seconds as i32
+        );
+        assert_eq!(
+            config.polling_interval_seconds,
+            (tasker_config.common.queues.pgmq.poll_interval_ms / 1000) as u64
+        );
+        assert_eq!(config.max_processing_attempts, 3);
     }
 
     #[test]
