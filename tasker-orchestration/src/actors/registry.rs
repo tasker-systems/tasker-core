@@ -129,7 +129,7 @@ impl ActorRegistry {
             context.message_client.clone(),
             context.task_handler_registry.clone(),
             task_initializer,
-            TaskRequestProcessorConfig::default(),
+            TaskRequestProcessorConfig::from(context.tasker_config.as_ref()),
         ));
 
         let mut task_request_actor = TaskRequestActor::new(context.clone(), task_request_processor);

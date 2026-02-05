@@ -371,23 +371,26 @@ impl WorkerCore {
             .await;
 
         // Create EventDrivenMessageProcessor for TAS-43 integration
+        // TAS-152: Load visibility_timeout from worker TOML config instead of hardcoding
+        let worker_config = context.tasker_config.worker.as_ref().ok_or_else(|| {
+            TaskerError::ConfigurationError(
+                "Worker configuration required for event-driven processing. \
+                 Ensure [worker] section exists in configuration TOML."
+                    .to_string(),
+            )
+        })?;
+
         let event_driven_config = EventDrivenConfig {
             fallback_polling_interval: Duration::from_millis(500),
             batch_size: 10,
-            visibility_timeout: Duration::from_secs(30),
-            // TAS-173: Return error instead of panicking to prevent FFI boundary faults
-            deployment_mode: context
-                .tasker_config
-                .worker
-                .as_ref()
-                .map(|w| w.event_systems.worker.deployment_mode)
-                .ok_or_else(|| {
-                    TaskerError::ConfigurationError(
-                        "Worker configuration required for event-driven processing. \
-                         Ensure [worker] section exists in configuration TOML."
-                            .to_string(),
-                    )
-                })?,
+            visibility_timeout: Duration::from_secs(
+                worker_config
+                    .event_systems
+                    .worker
+                    .timing
+                    .visibility_timeout_seconds as u64,
+            ),
+            deployment_mode: worker_config.event_systems.worker.deployment_mode,
         };
 
         let event_driven_processor = EventDrivenMessageProcessor::new(

@@ -622,8 +622,20 @@ impl Handler<ExecuteStepFromEventMessage> for StepExecutorActor {
             ))
         })?;
 
-        // Use default visibility timeout of 30 seconds (MessageEvent doesn't carry this)
-        let visibility_timeout_seconds = 30;
+        // TAS-152: Load visibility timeout from worker config, falling back to common queues default
+        let visibility_timeout_seconds: i32 = self
+            .context
+            .tasker_config
+            .worker
+            .as_ref()
+            .map(|w| w.event_systems.worker.timing.visibility_timeout_seconds as i32)
+            .unwrap_or(
+                self.context
+                    .tasker_config
+                    .common
+                    .queues
+                    .default_visibility_timeout_seconds as i32,
+            );
 
         let message = pgmq_service
             .client()
