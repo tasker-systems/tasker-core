@@ -218,7 +218,6 @@ impl OrchestrationSystemHandle {
         SystemStatus {
             running: self.is_running(),
             environment: self.tasker_config.common.execution.environment.clone(),
-            circuit_breakers_enabled: self.orchestration_core.context.circuit_breakers_enabled(),
             database_pool_size: self.orchestration_core.context.database_pool().size(),
             database_pool_idle: self.orchestration_core.context.database_pool().num_idle(),
             database_url_preview: self
@@ -238,7 +237,6 @@ impl OrchestrationSystemHandle {
 pub struct SystemStatus {
     pub running: bool,
     pub environment: String,
-    pub circuit_breakers_enabled: bool,
     pub database_pool_size: u32,
     pub database_pool_idle: usize,
     pub database_url_preview: String,
@@ -895,7 +893,6 @@ mod tests {
         let status = SystemStatus {
             running: true,
             environment: "test".to_string(),
-            circuit_breakers_enabled: false,
             database_pool_size: 5,
             database_pool_idle: 3,
             database_url_preview: "postgresql://test@localhost/...".to_string(),
@@ -903,7 +900,6 @@ mod tests {
 
         assert!(status.running);
         assert_eq!(status.environment, "test");
-        assert!(!status.circuit_breakers_enabled);
         assert_eq!(status.database_pool_size, 5);
         assert_eq!(status.database_pool_idle, 3);
     }

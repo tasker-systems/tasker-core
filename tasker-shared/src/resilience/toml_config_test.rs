@@ -6,20 +6,23 @@ mod tests {
         CircuitBreakerComponentConfig, CircuitBreakerConfig, CircuitBreakerDefaultConfig,
         ComponentCircuitBreakerConfigs, GlobalCircuitBreakerSettings,
     };
-    use crate::resilience::CircuitBreakerManager;
+    use crate::resilience::CircuitBreaker;
 
-    /// Test that the new TOML-based configuration works correctly
-    #[tokio::test]
-    async fn test_toml_based_circuit_breaker_configuration() {
-        // Create a TOML-compatible configuration structure using V2 canonical types
+    /// Test that the TOML-based configuration correctly creates circuit breakers
+    #[test]
+    fn test_toml_based_circuit_breaker_configuration() {
         let component_configs = ComponentCircuitBreakerConfigs {
             task_readiness: CircuitBreakerComponentConfig {
                 failure_threshold: 3,
                 success_threshold: 2,
             },
-            pgmq: CircuitBreakerComponentConfig {
+            messaging: CircuitBreakerComponentConfig {
                 failure_threshold: 2,
                 success_threshold: 1,
+            },
+            web: CircuitBreakerComponentConfig {
+                failure_threshold: 5,
+                success_threshold: 2,
             },
             cache: CircuitBreakerComponentConfig {
                 failure_threshold: 5,
@@ -40,41 +43,49 @@ mod tests {
             component_configs,
         };
 
-        // Create manager using the TOML-based configuration
-        let manager = CircuitBreakerManager::from_config(&toml_config);
+        // Create circuit breakers directly from config (same pattern as SystemContext)
+        let task_readiness_config = toml_config
+            .config_for_component("task_readiness")
+            .to_resilience_config_with_timeout(toml_config.default_config.timeout_seconds);
+        let task_readiness_breaker =
+            CircuitBreaker::new("task_readiness".to_string(), task_readiness_config);
 
-        // Test that we can create circuit breakers with the configuration
-        let task_readiness_breaker = manager.get_circuit_breaker("task_readiness").await;
-        let pgmq_breaker = manager.get_circuit_breaker("pgmq").await;
-        let unknown_breaker = manager.get_circuit_breaker("unknown_component").await;
+        let messaging_config = toml_config
+            .config_for_component("messaging")
+            .to_resilience_config_with_timeout(toml_config.default_config.timeout_seconds);
+        let messaging_breaker = CircuitBreaker::new("messaging".to_string(), messaging_config);
 
-        // Verify circuit breakers were created
+        // Unknown components fall back to default config
+        let unknown_config = toml_config
+            .config_for_component("unknown_component")
+            .to_resilience_config_with_timeout(toml_config.default_config.timeout_seconds);
+        let unknown_breaker = CircuitBreaker::new("unknown_component".to_string(), unknown_config);
+
+        // Verify circuit breakers were created with correct names
         assert_eq!(task_readiness_breaker.name(), "task_readiness");
-        assert_eq!(pgmq_breaker.name(), "pgmq");
+        assert_eq!(messaging_breaker.name(), "messaging");
         assert_eq!(unknown_breaker.name(), "unknown_component");
 
-        // Verify we have the expected number of components
-        let components = manager.list_components().await;
-        assert_eq!(components.len(), 3);
-        assert!(components.contains(&"task_readiness".to_string()));
-        assert!(components.contains(&"pgmq".to_string()));
-        assert!(components.contains(&"unknown_component".to_string()));
-
-        // Test system health
-        let health_score = manager.system_health_score().await;
-        assert_eq!(health_score, 1.0); // All circuit breakers should start healthy
+        // All circuit breakers should start healthy
+        assert!(task_readiness_breaker.is_healthy());
+        assert!(messaging_breaker.is_healthy());
+        assert!(unknown_breaker.is_healthy());
     }
 
-    /// Test that environment-specific configurations can be applied
-    #[tokio::test]
-    async fn test_environment_specific_toml_configuration() {
+    /// Test that environment-specific configurations produce correctly configured breakers
+    #[test]
+    fn test_environment_specific_toml_configuration() {
         // Simulate test environment configuration with faster timeouts
         let component_configs = ComponentCircuitBreakerConfigs {
             task_readiness: CircuitBreakerComponentConfig {
                 failure_threshold: 1,
                 success_threshold: 1,
             },
-            pgmq: CircuitBreakerComponentConfig {
+            messaging: CircuitBreakerComponentConfig {
+                failure_threshold: 1,
+                success_threshold: 1,
+            },
+            web: CircuitBreakerComponentConfig {
                 failure_threshold: 1,
                 success_threshold: 1,
             },
@@ -86,28 +97,26 @@ mod tests {
 
         let toml_config = CircuitBreakerConfig {
             global_settings: GlobalCircuitBreakerSettings {
-                metrics_collection_interval_seconds: 1, // Fast metrics in test
-                min_state_transition_interval_seconds: 0.01, // Very fast transitions
+                metrics_collection_interval_seconds: 1,
+                min_state_transition_interval_seconds: 0.01,
             },
             default_config: CircuitBreakerDefaultConfig {
-                failure_threshold: 1, // Fail fast in tests
-                timeout_seconds: 1,   // Short timeout in tests
-                success_threshold: 1, // Quick recovery in tests
+                failure_threshold: 1,
+                timeout_seconds: 1,
+                success_threshold: 1,
             },
             component_configs,
         };
 
-        let manager = CircuitBreakerManager::from_config(&toml_config);
-        let test_breaker = manager.get_circuit_breaker("test_component").await;
+        let test_config = toml_config
+            .config_for_component("test_component")
+            .to_resilience_config_with_timeout(toml_config.default_config.timeout_seconds);
+        let test_breaker = CircuitBreaker::new("test_component".to_string(), test_config);
 
-        // Test that the circuit breaker was created with test configuration
         assert_eq!(test_breaker.name(), "test_component");
 
-        // All circuit breakers should start in closed state and be healthy
-        let metrics = manager
-            .get_component_metrics("test_component")
-            .await
-            .unwrap();
+        // Circuit breaker should start in closed state and be healthy
+        let metrics = test_breaker.metrics();
         assert_eq!(metrics.total_calls, 0);
         assert_eq!(metrics.failure_count, 0);
     }

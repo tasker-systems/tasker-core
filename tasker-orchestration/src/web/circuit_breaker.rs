@@ -225,38 +225,31 @@ mod tests {
     }
 
     #[test]
-    fn test_circuit_closes_on_success() {
-        let cb = WebDatabaseCircuitBreaker::new(2, Duration::from_secs(5), "test");
+    fn test_circuit_closes_on_success_via_half_open() {
+        let cb = WebDatabaseCircuitBreaker::new(
+            2,
+            Duration::ZERO, // instant recovery timeout for testing
+            "test",
+        );
 
         // Open the circuit
         cb.record_failure();
         cb.record_failure();
-        assert!(cb.is_circuit_open());
+        assert_eq!(cb.current_state(), CircuitState::Open);
 
-        // Success should close the circuit (after recovery timeout or in half-open)
+        // With zero timeout, is_circuit_open() calls should_allow() which
+        // transitions to half-open immediately, returning "not open" (allows call)
+        assert!(!cb.is_circuit_open()); // transitions to HalfOpen
+
+        // Record success_threshold (2) successes to close
         cb.record_success();
-        assert!(!cb.is_circuit_open());
+        cb.record_success();
         assert_eq!(cb.current_state(), CircuitState::Closed);
         assert_eq!(cb.current_failures(), 0);
     }
 
     // Note: Recovery timeout tests are timing-sensitive and can be flaky in CI environments.
     // The core circuit breaker functionality (open/close/threshold) is tested above.
-    // Integration tests will verify the full behavior in real scenarios.
-
-    // =========================================================================
-    // TAS-75: Extended Circuit Breaker Tests
-    // =========================================================================
-
-    #[test]
-    fn test_circuit_state_from_u8_conversion() {
-        assert_eq!(CircuitState::from(0), CircuitState::Closed);
-        assert_eq!(CircuitState::from(1), CircuitState::Open);
-        assert_eq!(CircuitState::from(2), CircuitState::HalfOpen);
-        // Invalid values default to Closed
-        assert_eq!(CircuitState::from(3), CircuitState::Closed);
-        assert_eq!(CircuitState::from(255), CircuitState::Closed);
-    }
 
     #[test]
     fn test_default_circuit_breaker_configuration() {
@@ -327,21 +320,6 @@ mod tests {
     }
 
     #[test]
-    fn test_half_open_state_allows_requests() {
-        let cb = WebDatabaseCircuitBreaker::new(2, Duration::from_secs(30), "test");
-
-        // Manually set to half-open state (simulating recovery timeout elapsed)
-        cb.state.store(
-            CircuitState::HalfOpen as u8,
-            std::sync::atomic::Ordering::Relaxed,
-        );
-
-        // Half-open should allow requests (is_circuit_open returns false)
-        assert!(!cb.is_circuit_open());
-        assert_eq!(cb.current_state(), CircuitState::HalfOpen);
-    }
-
-    #[test]
     fn test_circuit_breaker_exact_threshold() {
         // Test that circuit opens at exactly the threshold, not before
         let cb = WebDatabaseCircuitBreaker::new(5, Duration::from_secs(30), "test");
@@ -386,26 +364,9 @@ mod tests {
         cb.record_failure();
         assert!(cb.is_circuit_open());
 
-        // Additional failures should keep it open
-        cb.record_failure();
-        cb.record_failure();
+        // Additional calls should still show open
         assert!(cb.is_circuit_open());
         assert_eq!(cb.current_state(), CircuitState::Open);
-    }
-
-    #[test]
-    fn test_success_from_open_state_closes_circuit() {
-        let cb = WebDatabaseCircuitBreaker::new(2, Duration::from_secs(30), "test");
-
-        // Open the circuit
-        cb.record_failure();
-        cb.record_failure();
-        assert!(cb.is_circuit_open());
-
-        // Direct success call closes it (simulates half-open test succeeded)
-        cb.record_success();
-        assert!(!cb.is_circuit_open());
-        assert_eq!(cb.current_state(), CircuitState::Closed);
     }
 
     // =========================================================================

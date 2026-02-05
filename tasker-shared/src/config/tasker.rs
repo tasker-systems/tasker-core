@@ -579,7 +579,8 @@ impl CircuitBreakerConfig {
     pub fn config_for_component(&self, component_name: &str) -> CircuitBreakerComponentConfig {
         match component_name {
             "task_readiness" => self.component_configs.task_readiness.clone(),
-            "pgmq" => self.component_configs.pgmq.clone(),
+            "messaging" | "pgmq" => self.component_configs.messaging.clone(),
+            "web" => self.component_configs.web.clone(),
             "cache" => self.component_configs.cache.clone(),
             _ => CircuitBreakerComponentConfig {
                 failure_threshold: self.default_config.failure_threshold,
@@ -639,10 +640,17 @@ pub struct ComponentCircuitBreakerConfigs {
     #[builder(default)]
     pub task_readiness: CircuitBreakerComponentConfig,
 
-    /// PGMQ circuit breaker
+    /// Messaging circuit breaker (TAS-174: renamed from pgmq for provider-agnostic config)
+    #[serde(alias = "pgmq")]
     #[validate(nested)]
     #[builder(default)]
-    pub pgmq: CircuitBreakerComponentConfig,
+    pub messaging: CircuitBreakerComponentConfig,
+
+    /// Web/API database circuit breaker (TAS-174)
+    #[serde(default)]
+    #[validate(nested)]
+    #[builder(default)]
+    pub web: CircuitBreakerComponentConfig,
 
     /// Cache circuit breaker (TAS-171)
     #[validate(nested)]
@@ -2474,8 +2482,12 @@ mod tests {
                     failure_threshold: 5,
                     success_threshold: 2,
                 },
-                pgmq: CircuitBreakerComponentConfig {
+                messaging: CircuitBreakerComponentConfig {
                     failure_threshold: 3,
+                    success_threshold: 2,
+                },
+                web: CircuitBreakerComponentConfig {
+                    failure_threshold: 5,
                     success_threshold: 2,
                 },
                 cache: CircuitBreakerComponentConfig {

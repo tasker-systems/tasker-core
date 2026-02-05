@@ -1,8 +1,8 @@
 # Backpressure Architecture
 
-**Last Updated**: 2025-12-08
+**Last Updated**: 2026-02-05
 **Audience**: Architects, Developers, Operations
-**Status**: Active (TAS-75)
+**Status**: Active (TAS-75, TAS-174)
 **Related Docs**: [Worker Event Systems](worker-event-systems.md) | [MPSC Channel Guidelines](development/mpsc-channel-guidelines.md) | [TAS-75](https://linear.app/tasker-systems/issue/TAS-75)
 
 <- Back to [Documentation Hub](README.md)
@@ -98,10 +98,10 @@ Calculation:
 **Configuration**:
 ```toml
 # config/tasker/base/common.toml
-[circuit_breakers.web]
+[common.circuit_breakers.component_configs.web]
 failure_threshold = 5      # Failures before opening
-timeout_seconds = 30       # Time in open state
-success_threshold = 2      # Successes to close
+success_threshold = 2      # Successes in half-open to close
+# timeout_seconds inherited from default_config (30s)
 ```
 
 ### 2. Orchestration Layer
@@ -133,16 +133,16 @@ pgmq_event_buffer_size = 50000
 
 ### 3. Messaging Layer
 
-The messaging layer provides the backbone between orchestration and workers. Currently implemented with PGMQ, designed to be portable for future RabbitMQ/other backends.
+The messaging layer provides the backbone between orchestration and workers. Provider-agnostic via `MessageClient`, supporting PGMQ (default) and RabbitMQ backends.
 
 | Mechanism | Status | Behavior |
 |-----------|--------|----------|
 | Visibility Timeout | **Implemented** | Messages return to queue after timeout |
 | Batch Size Limits | **Implemented** | Bounded message reads |
 | Queue Depth Check | **Planned** | Reject enqueue when depth exceeded |
-| Messaging Circuit Breaker | **Not Implemented** | See note below |
+| Messaging Circuit Breaker | **Implemented (TAS-174)** | Fast-fail send/receive when provider unhealthy |
 
-> **Messaging Circuit Breaker Gap**: The `UnifiedMessageClient` abstraction currently has no circuit breaker integration. Error types exist (`MessagingError::CircuitBreakerOpen`) but the client doesn't wrap operations with circuit breaker protection. This is intentional—the web database circuit breaker handles database failures, and adding a separate messaging circuit breaker would require careful coordination to avoid conflicting recovery behaviors.
+> **Messaging Circuit Breaker (TAS-174)**: `MessageClient` wraps send/receive operations with circuit breaker protection. When the messaging provider (PGMQ or RabbitMQ) fails repeatedly, the breaker opens and returns `MessagingError::CircuitBreakerOpen` immediately, preventing slow timeouts from cascading into orchestration and worker processing loops. Ack/nack and health check operations bypass the breaker — ack/nack failures are safe (visibility timeout handles redelivery), and health check must work when the breaker is open to detect recovery. See [Circuit Breakers](circuit-breakers.md) for details.
 
 **Queue Depth Monitoring** (Planned):
 
@@ -172,16 +172,21 @@ Soft limit is advisory, not a hard PGMQ constraint.
 **Configuration**:
 ```toml
 # config/tasker/base/common.toml
-[pgmq]
-visibility_timeout_seconds = 30
-default_batch_size = 10
-max_batch_size = 100
+[common.queues]
+default_visibility_timeout_seconds = 30
 
-# Planned backpressure settings
-[pgmq.backpressure]
-soft_depth_limit = 100000      # Advisory limit, not enforced by PGMQ
-warning_threshold_ratio = 0.70
-critical_threshold_ratio = 0.85
+[common.queues.pgmq]
+poll_interval_ms = 250
+
+[common.queues.pgmq.queue_depth_thresholds]
+critical_threshold = 500
+overflow_threshold = 1000
+
+# Messaging circuit breaker (TAS-174)
+[common.circuit_breakers.component_configs.messaging]
+failure_threshold = 5      # Failures before opening
+success_threshold = 2      # Successes in half-open to close
+# timeout_seconds inherited from default_config (30s)
 ```
 
 ### 4. Worker Layer
@@ -480,22 +485,32 @@ Use this decision tree when designing new backpressure mechanisms:
 # config/tasker/base/common.toml - Shared settings
 # ════════════════════════════════════════════════════════════════════════════
 
-[circuit_breakers.web]
+# Circuit breaker defaults (inherited by all component breakers)
+[common.circuit_breakers.default_config]
 failure_threshold = 5      # Failures before opening
 timeout_seconds = 30       # Time in open state before half-open
 success_threshold = 2      # Successes in half-open to close
 
-[pgmq]
-visibility_timeout_seconds = 30    # Time before unclaimed message returns
-default_batch_size = 10            # Default messages per read
-max_batch_size = 100               # Maximum messages per read
-poll_interval_ms = 100             # Polling interval for fallback
+# Web/API database circuit breaker
+[common.circuit_breakers.component_configs.web]
+failure_threshold = 5
+success_threshold = 2
 
-# Planned: Queue depth backpressure
-# [pgmq.backpressure]
-# soft_depth_limit = 100000
-# warning_threshold_ratio = 0.70
-# critical_threshold_ratio = 0.85
+# Messaging circuit breaker (TAS-174) - PGMQ/RabbitMQ operations
+[common.circuit_breakers.component_configs.messaging]
+failure_threshold = 5
+success_threshold = 2
+
+# Queue configuration
+[common.queues]
+default_visibility_timeout_seconds = 30
+
+[common.queues.pgmq]
+poll_interval_ms = 250
+
+[common.queues.pgmq.queue_depth_thresholds]
+critical_threshold = 500
+overflow_threshold = 1000
 
 # ════════════════════════════════════════════════════════════════════════════
 # config/tasker/base/orchestration.toml - Orchestration layer

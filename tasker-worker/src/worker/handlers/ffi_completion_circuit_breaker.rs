@@ -40,7 +40,10 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use tasker_shared::resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
+use tasker_shared::resilience::{
+    CircuitBreaker, CircuitBreakerBehavior, CircuitBreakerConfig, CircuitBreakerMetrics,
+    CircuitState,
+};
 use tracing::{debug, info, warn};
 
 /// Configuration for the FFI completion send circuit breaker
@@ -269,6 +272,45 @@ impl FfiCompletionCircuitBreaker {
     pub fn force_closed(&self) {
         warn!("FFI completion circuit breaker: forced closed");
         self.breaker.force_closed();
+    }
+}
+
+impl CircuitBreakerBehavior for FfiCompletionCircuitBreaker {
+    fn name(&self) -> &str {
+        self.breaker.name()
+    }
+
+    fn state(&self) -> CircuitState {
+        self.breaker.state()
+    }
+
+    fn should_allow(&self) -> bool {
+        // Use the wrapper's should_allow which tracks rejections
+        FfiCompletionCircuitBreaker::should_allow(self)
+    }
+
+    fn record_success(&self, duration: Duration) {
+        self.breaker.record_success_manual(duration);
+    }
+
+    fn record_failure(&self, duration: Duration) {
+        self.breaker.record_failure_manual(duration);
+    }
+
+    fn is_healthy(&self) -> bool {
+        self.breaker.is_healthy()
+    }
+
+    fn force_open(&self) {
+        self.breaker.force_open();
+    }
+
+    fn force_closed(&self) {
+        self.breaker.force_closed();
+    }
+
+    fn metrics(&self) -> CircuitBreakerMetrics {
+        self.breaker.metrics()
     }
 }
 

@@ -29,30 +29,6 @@ jitter_max_percentage = 0.15
 max_backoff_seconds = 3600
 
 
-# reenqueue_delays
-[common.backoff.reenqueue_delays]
-# Delay in seconds before re-evaluating a task that is blocked due to step failures
-# Type: u32 | Range: 0-3600
-blocked_by_failures = 120
-# Delay in seconds before re-enqueueing a task stuck in the EnqueuingSteps state
-# Type: u32 | Range: 0-300
-enqueuing_steps = 5
-# Delay in seconds before re-evaluating a task stuck in the EvaluatingResults state
-# Type: u32 | Range: 0-300
-evaluating_results = 10
-# Delay in seconds before re-enqueueing a task stuck in the Initializing state
-# Type: u32 | Range: 0-300
-initializing = 10
-# Delay in seconds before re-checking a task whose steps are still being processed
-# Type: u32 | Range: 0-300
-steps_in_process = 15
-# Delay in seconds before re-checking a task that is waiting for upstream step dependencies
-# Type: u32 | Range: 0-3600
-waiting_for_dependencies = 60
-# Delay in seconds before re-processing a task that is waiting for step retries
-# Type: u32 | Range: 0-3600
-waiting_for_retry = 30
-
 # ─────────────────────────────────────────────────────────────
 # cache
 # ─────────────────────────────────────────────────────────────
@@ -69,9 +45,6 @@ default_ttl_seconds = 3600
 # Enable the distributed cache layer for template and analytics data
 # Type: bool | Range: true/false
 enabled = false
-# Prefix applied to all cache keys to namespace entries
-# Type: String | Range: non-empty string
-key_prefix = "tasker"
 # Time-to-live in seconds for cached task template definitions
 # Type: u32 | Range: 1-86400
 template_ttl_seconds = 3600
@@ -101,10 +74,6 @@ url = "${REDIS_URL:-redis://localhost:6379}"
 # ─────────────────────────────────────────────────────────────
 # circuit_breakers
 # ─────────────────────────────────────────────────────────────
-[common.circuit_breakers]
-# Master switch for the circuit breaker subsystem
-# Type: bool | Range: true/false
-enabled = true
 
 
 # component_configs
@@ -116,20 +85,14 @@ failure_threshold = 5
 # Successes in Half-Open required to close the cache breaker
 # Type: u32 | Range: 1-100
 success_threshold = 2
-# Time the cache breaker stays Open before probing
-# Type: u32 | Range: 1-300
-timeout_seconds = 15
 
-[common.circuit_breakers.component_configs.pgmq]
-# Failures before the PGMQ circuit breaker trips to Open
+[common.circuit_breakers.component_configs.messaging]
+# Failures before the messaging circuit breaker trips to Open
 # Type: u32 | Range: 1-100
 failure_threshold = 5
-# Successes in Half-Open required to close the PGMQ breaker
+# Successes in Half-Open required to close the messaging breaker
 # Type: u32 | Range: 1-100
 success_threshold = 2
-# Time the PGMQ breaker stays Open before probing
-# Type: u32 | Range: 1-300
-timeout_seconds = 30
 
 [common.circuit_breakers.component_configs.task_readiness]
 # Failures before the task readiness circuit breaker trips to Open
@@ -138,9 +101,14 @@ failure_threshold = 10
 # Successes in Half-Open required to close the task readiness breaker
 # Type: u32 | Range: 1-100
 success_threshold = 3
-# Time the task readiness breaker stays Open before probing
-# Type: u32 | Range: 1-300
-timeout_seconds = 60
+
+[common.circuit_breakers.component_configs.web]
+# Failures before the web/API database circuit breaker trips to Open
+# Type: u32 | Range: 1-100
+failure_threshold = 5
+# Successes in Half-Open required to close the web database breaker
+# Type: u32 | Range: 1-100
+success_threshold = 2
 
 # default_config
 [common.circuit_breakers.default_config]
@@ -150,15 +118,12 @@ failure_threshold = 5
 # Number of consecutive successes in Half-Open state required to close the circuit breaker
 # Type: u32 | Range: 1-100
 success_threshold = 2
-# Time the circuit breaker remains in Open state before transitioning to Half-Open for a probe
+# Duration in seconds a circuit breaker stays Open before transitioning to Half-Open for probe requests
 # Type: u32 | Range: 1-300
 timeout_seconds = 30
 
 # global_settings
 [common.circuit_breakers.global_settings]
-# Maximum number of circuit breaker instances that can be registered
-# Type: u32 | Range: 1-1000
-max_circuit_breakers = 50
 # Interval in seconds between circuit breaker metrics collection sweeps
 # Type: u32 | Range: 1-3600
 metrics_collection_interval_seconds = 30
@@ -170,12 +135,6 @@ min_state_transition_interval_seconds = 5.0
 # database
 # ─────────────────────────────────────────────────────────────
 [common.database]
-# Database name used for display and connection verification logging
-# Type: String | Range: valid PostgreSQL database name
-database = "tasker_development"
-# Skip database migration version check at startup
-# Type: bool | Range: true/false
-skip_migration_check = false
 # PostgreSQL connection URL for the primary database
 # Type: String | Range: valid PostgreSQL connection URI
 url = "${DATABASE_URL:-postgresql://localhost/tasker}"
@@ -202,46 +161,16 @@ min_connections = 5
 # Type: u32 | Range: 10-60000
 slow_acquire_threshold_ms = 100
 
-# variables
-[common.database.variables]
-# PostgreSQL statement_timeout in milliseconds, set per-connection via SET statement_timeout
-# Type: u32 | Range: 100-600000
-statement_timeout = 30000
-
 # ─────────────────────────────────────────────────────────────
 # execution
 # ─────────────────────────────────────────────────────────────
 [common.execution]
-# Default timeout in seconds for establishing external connections during step execution
-# Type: u32 | Range: 1-300
-connection_timeout_seconds = 30
-# Default maximum wall-clock time for an entire task to complete
-# Type: u32 | Range: 1-86400
-default_timeout_seconds = 3600
 # Runtime environment identifier used for configuration context selection and logging
 # Type: String | Range: test | development | production
 environment = "development"
-# Maximum number of steps that can be executing simultaneously across all tasks
-# Type: u32 | Range: 1-1000000
-max_concurrent_steps = 1000
-# Maximum number of tasks that can be actively processed simultaneously
-# Type: u32 | Range: 1-100000
-max_concurrent_tasks = 100
-# Maximum number of attempts to discover step handlers during task initialization
-# Type: u32 | Range: 1-50
-max_discovery_attempts = 5
-# Default maximum number of retry attempts for a failed step
-# Type: u32 | Range: 0-100
-max_retries = 3
-# Maximum number of steps allowed in a single workflow definition
-# Type: u32 | Range: 1-100000
-max_workflow_steps = 10000
 # Number of steps to enqueue in a single batch during task initialization
 # Type: u32 | Range: 1-1000
-step_batch_size = 50
-# Default maximum time for a single step execution before it is considered timed out
-# Type: u32 | Range: 1-3600
-step_execution_timeout_seconds = 600
+step_enqueue_batch_size = 50
 
 
 # ─────────────────────────────────────────────────────────────
@@ -263,17 +192,11 @@ ruby_event_buffer_size = 1000
 
 # overflow_policy
 [common.mpsc_channels.overflow_policy]
-# Behavior when a bounded MPSC channel is full
-# Type: String | Range: block | drop_oldest
-drop_policy = "block"
 # Channel saturation fraction at which warning logs are emitted
 # Type: f64 | Range: 0.0-1.0
 log_warning_threshold = 0.8
 
 [common.mpsc_channels.overflow_policy.metrics]
-# Enable periodic channel saturation metrics collection
-# Type: bool | Range: true/false
-enabled = true
 # Interval in seconds between channel saturation metric samples
 # Type: u32 | Range: 1-3600
 saturation_check_interval_seconds = 30
@@ -285,9 +208,6 @@ saturation_check_interval_seconds = 30
 # Enable PGMQ messaging subsystem
 # Type: bool | Range: true/false
 enabled = true
-# Skip PGMQ database migration version check at startup
-# Type: bool | Range: true/false
-skip_migration_check = false
 # PostgreSQL connection URL for a dedicated PGMQ database; when empty, PGMQ shares the primary database
 # Type: String | Range: valid PostgreSQL connection URI or empty string
 url = "${PGMQ_DATABASE_URL:-}"
@@ -321,18 +241,9 @@ slow_acquire_threshold_ms = 100
 # Messaging backend: 'pgmq' (PostgreSQL-based, LISTEN/NOTIFY) or 'rabbitmq' (AMQP broker)
 # Type: String | Range: pgmq | rabbitmq
 backend = "${TASKER_MESSAGING_BACKEND:-pgmq}"
-# Default number of messages to dequeue in a single batch read
-# Type: u32 | Range: 1-1000
-default_batch_size = 10
 # Default time a dequeued message remains invisible to other consumers
 # Type: u32 | Range: 1-3600
 default_visibility_timeout_seconds = 30
-# Interval in seconds between queue health check probes
-# Type: u32 | Range: 1-3600
-health_check_interval = 60
-# Hard upper limit on batch size for any single dequeue operation
-# Type: u32 | Range: 1-10000
-max_batch_size = 100
 # Template pattern for constructing queue names from namespace and name
 # Type: String | Range: string containing {namespace} and {name} placeholders
 naming_pattern = "{namespace}_{name}_queue"
@@ -358,15 +269,9 @@ task_requests = "orchestration_task_requests"
 
 # pgmq
 [common.queues.pgmq]
-# Maximum number of times a failed PGMQ operation is retried before giving up
-# Type: u32 | Range: 0-100
-max_retries = 3
 # Interval in milliseconds between PGMQ polling cycles when no LISTEN/NOTIFY events arrive
 # Type: u32 | Range: 10-10000
 poll_interval_ms = 500
-# Maximum time to wait for in-flight PGMQ operations to complete during graceful shutdown
-# Type: u32 | Range: 1-300
-shutdown_timeout_seconds = 10
 
 [common.queues.pgmq.queue_depth_thresholds]
 # Queue depth at which the API returns HTTP 503 Service Unavailable for new task submissions
@@ -375,15 +280,9 @@ critical_threshold = 5000
 # Queue depth indicating an emergency condition requiring manual intervention
 # Type: i64 | Range: 1+
 overflow_threshold = 10000
-# Queue depth at which warning-level log messages are emitted
-# Type: i64 | Range: 1+
-warning_threshold = 1000
 
 # rabbitmq
 [common.queues.rabbitmq]
-# Maximum time to wait when establishing a new RabbitMQ connection
-# Type: u32 | Range: 1-300
-connection_timeout_seconds = 10
 # AMQP heartbeat interval for connection liveness detection
 # Type: u16 | Range: 0-3600
 heartbeat_seconds = 30
@@ -401,12 +300,6 @@ url = "${RABBITMQ_URL:-amqp://guest:guest@localhost:5672/%2F}"
 # Default system name assigned to tasks that do not specify a dependent system
 # Type: String | Range: non-empty string
 default_dependent_system = "default"
-# Maximum depth for recursive dependency resolution in workflow graphs
-# Type: u32 | Range: 1-1000
-max_recursion_depth = 50
-# Tasker configuration schema version
-# Type: String | Range: semver
-version = "0.1.0"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -416,21 +309,6 @@ version = "0.1.0"
 # Glob patterns for discovering task template YAML files
 # Type: Vec<String> | Range: valid glob patterns
 search_paths = ["config/tasks/**/*.{yml,yaml}"]
-
-
-# ─────────────────────────────────────────────────────────────
-# telemetry
-# ─────────────────────────────────────────────────────────────
-[common.telemetry]
-# Enable OpenTelemetry-based telemetry collection (currently unused; see comment above)
-# Type: bool | Range: true/false
-enabled = true
-# Fraction of traces to sample (currently unused; see comment above)
-# Type: f64 | Range: 0.0-1.0
-sample_rate = 0.1
-# Service name reported in telemetry spans and metrics (currently unused; see comment above)
-# Type: String | Range: non-empty string
-service_name = "tasker-core"
 
 # Tasker Configuration Reference — orchestration
 # Environment: development
@@ -449,9 +327,6 @@ service_name = "tasker-core"
 # Enable detailed performance logging for orchestration actors
 # Type: bool | Range: true/false
 enable_performance_logging = true
-# Orchestration deployment mode
-# Type: String | Range: standalone
-mode = "standalone"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -503,37 +378,10 @@ warn_threshold_steps = 50
 # dlq
 # ─────────────────────────────────────────────────────────────
 [orchestration.dlq]
-# Automatically move stale tasks to the DLQ when staleness detection identifies them
-# Type: bool | Range: true/false
-auto_dlq_on_staleness = true
 # Enable the Dead Letter Queue subsystem for handling unrecoverable tasks
 # Type: bool | Range: true/false
 enabled = true
-# Include a complete task state snapshot when moving a task to the DLQ
-# Type: bool | Range: true/false
-include_full_task_snapshot = true
-# Maximum age in hours a task can remain in a pending-like state before being considered stale
-# Type: u32 | Range: 1-720
-max_pending_age_hours = 168
 
-
-# reasons
-[orchestration.dlq.reasons]
-# Enable DLQ routing for tasks with circular step dependency graphs
-# Type: bool | Range: true/false
-dependency_cycle_detected = true
-# Allow manual DLQ routing via the API
-# Type: bool | Range: true/false
-manual_dlq = true
-# Enable DLQ routing for tasks whose steps have exhausted all retry attempts
-# Type: bool | Range: true/false
-max_retries_exceeded = true
-# Enable DLQ routing for tasks that exceed staleness time thresholds
-# Type: bool | Range: true/false
-staleness_timeout = true
-# Enable DLQ routing for tasks whose required worker becomes unavailable
-# Type: bool | Range: true/false
-worker_unavailable = true
 
 # staleness_detection
 [orchestration.dlq.staleness_detection]
@@ -831,12 +679,6 @@ web_api_max_connections = 30
 # Target number of connections in the web API database pool
 # Type: u32 | Range: 1-200
 web_api_pool_size = 20
-
-# resilience
-[orchestration.web.resilience]
-# Enable circuit breaker protection for the orchestration REST API
-# Type: bool | Range: true/false
-circuit_breaker_enabled = true
 # Tasker Configuration Reference — worker
 # Environment: development
 #
@@ -957,20 +799,6 @@ max_retry_attempts = 5
 # Type: u32 | Range: 1-300
 retry_interval_seconds = 5
 
-[worker.event_systems.worker.metadata.resource_limits]
-# Maximum CPU utilization percentage the worker event system should target
-# Type: f64 | Range: 1.0-100.0
-max_cpu_percent = 80.0
-# Maximum number of database connections the worker event system can use
-# Type: u32 | Range: 1-1000
-max_database_connections = 100
-# Maximum memory in megabytes the worker event system is expected to use
-# Type: u32 | Range: 256-65536
-max_memory_mb = 4096
-# Maximum number of queue connections the worker event system can use
-# Type: u32 | Range: 1-500
-max_queue_connections = 50
-
 [worker.event_systems.worker.processing]
 # Number of events dequeued in a single batch read by the worker
 # Type: u32 | Range: 1-1000
@@ -1044,21 +872,6 @@ max_frame_size = 16384
 # Enable TLS encryption for worker gRPC connections
 # Type: bool | Range: true/false
 tls_enabled = false
-
-
-# ─────────────────────────────────────────────────────────────
-# health_monitoring
-# ─────────────────────────────────────────────────────────────
-[worker.health_monitoring]
-# Error rate threshold (0.0-1.0) above which the worker reports as unhealthy
-# Type: f64 | Range: 0.0-1.0
-error_rate_threshold = 0.05
-# Interval in seconds between worker health self-checks
-# Type: u32 | Range: 1-3600
-health_check_interval_seconds = 30
-# Enable detailed performance metrics collection for worker health monitoring
-# Type: bool | Range: true/false
-performance_monitoring_enabled = true
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1177,21 +990,6 @@ timeout_ms = 30000
 
 
 # ─────────────────────────────────────────────────────────────
-# step_processing
-# ─────────────────────────────────────────────────────────────
-[worker.step_processing]
-# Maximum time in seconds a step claim remains valid before expiring
-# Type: u32 | Range: 1-3600
-claim_timeout_seconds = 300
-# Maximum number of steps this worker processes simultaneously
-# Type: u32 | Range: 1-100000
-max_concurrent_steps = 50
-# Maximum number of retry attempts for a failed step at the worker level
-# Type: u32 | Range: 0-100
-max_retries = 3
-
-
-# ─────────────────────────────────────────────────────────────
 # web
 # ─────────────────────────────────────────────────────────────
 [worker.web]
@@ -1253,9 +1051,3 @@ web_api_max_connections = 15
 # Target number of connections in the worker web API database pool
 # Type: u32 | Range: 1-200
 web_api_pool_size = 10
-
-# resilience
-[worker.web.resilience]
-# Enable circuit breaker protection for the worker REST API
-# Type: bool | Range: true/false
-circuit_breaker_enabled = true
