@@ -140,6 +140,7 @@ search_paths = ["config/task_templates/*.{yml,yaml}"]
 
 [orchestration]
 enable_performance_logging = false
+shutdown_timeout_ms = 5000
 
 [orchestration.batch_processing]
 checkpoint_stall_minutes = 2

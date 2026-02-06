@@ -27,7 +27,9 @@
 //! - Stats tracking (success/error counting)
 //! - Response channel sending
 
+use futures::FutureExt;
 use std::future::Future;
+use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::task::JoinHandle;
@@ -142,7 +144,17 @@ impl OrchestrationCommandProcessorActor {
             while let Some(command) = command_rx.recv().await {
                 // TAS-51: Record message receive for channel monitoring
                 channel_monitor.record_receive();
-                handler.process_command(command).await;
+                // TAS-228: Catch panics so a single command failure doesn't kill
+                // the command processor actor (O-1 remediation)
+                if let Err(panic_payload) = AssertUnwindSafe(handler.process_command(command))
+                    .catch_unwind()
+                    .await
+                {
+                    error!(
+                        panic_message = %panic_message(&panic_payload),
+                        "Command processor caught panic during command processing, continuing"
+                    );
+                }
             }
         });
 
@@ -326,5 +338,42 @@ impl CommandHandler {
                 "Command response channel closed - receiver dropped (fire-and-forget caller)"
             );
         }
+    }
+}
+
+/// TAS-228: Extract a human-readable message from a panic payload
+///
+/// Panics can carry either a `&str` or a `String`. This helper attempts
+/// both downcasts and falls back to a generic message.
+fn panic_message(payload: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "non-string panic payload".to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn panic_message_extracts_str() {
+        let payload: Box<dyn std::any::Any + Send> = Box::new("test panic");
+        assert_eq!(panic_message(&payload), "test panic");
+    }
+
+    #[test]
+    fn panic_message_extracts_string() {
+        let payload: Box<dyn std::any::Any + Send> = Box::new("owned panic".to_string());
+        assert_eq!(panic_message(&payload), "owned panic");
+    }
+
+    #[test]
+    fn panic_message_handles_other_types() {
+        let payload: Box<dyn std::any::Any + Send> = Box::new(42i32);
+        assert_eq!(panic_message(&payload), "non-string panic payload");
     }
 }

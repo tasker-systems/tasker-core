@@ -3,6 +3,14 @@
 
 [orchestration]
 enable_performance_logging = true
+# TAS-228: Graceful shutdown timeout in milliseconds
+shutdown_timeout_ms = 30000
+
+[orchestration._docs.shutdown_timeout_ms]
+description = "Maximum time in milliseconds to wait for orchestration subsystems to stop during graceful shutdown"
+type = "u64"
+valid_range = "1000-300000"
+system_impact = "If shutdown exceeds this timeout, the process exits forcefully to avoid hanging indefinitely; 30s is conservative for most deployments"
 
 [orchestration._docs.enable_performance_logging]
 description = "Enable detailed performance logging for orchestration actors"

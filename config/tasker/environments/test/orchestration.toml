@@ -2,6 +2,8 @@
 
 [orchestration]
 enable_performance_logging = false
+# TAS-228: Short shutdown timeout for tests
+shutdown_timeout_ms = 5000
 
 [orchestration.mpsc_channels.command_processor]
 command_buffer_size = 100
