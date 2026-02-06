@@ -379,8 +379,7 @@ impl StepBatchResponse {
 }
 
 impl StepExecutionRequest {
-    /// Constructor with all required fields - clippy allows many args for data constructors
-    #[allow(clippy::too_many_arguments)]
+    /// Constructor with all required fields
     pub fn new(
         step_uuid: Uuid,
         task_uuid: Uuid,

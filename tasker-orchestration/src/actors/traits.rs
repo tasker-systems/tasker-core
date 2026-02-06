@@ -64,7 +64,6 @@ pub trait OrchestrationActor: Send + Sync + 'static {
     ///
     /// Return an error if actor startup fails. The error will be propagated
     /// to the caller, preventing the actor from being registered.
-    #[allow(unused_variables)]
     fn started(&mut self) -> TaskerResult<()> {
         Ok(())
     }
@@ -78,7 +77,6 @@ pub trait OrchestrationActor: Send + Sync + 'static {
     ///
     /// Return an error if actor shutdown fails. The error will be logged
     /// but not propagated, allowing other actors to shut down cleanly.
-    #[allow(unused_variables)]
     fn stopped(&mut self) -> TaskerResult<()> {
         Ok(())
     }

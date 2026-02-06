@@ -9,7 +9,10 @@ use tasker_shared::scopes::ScopeBuilder;
 
 /// Test demonstrating basic scope functionality
 #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
-#[allow(clippy::overly_complex_bool_expr)] // Testing that exists() returns a boolean type
+#[expect(
+    clippy::overly_complex_bool_expr,
+    reason = "testing that exists() returns a boolean type"
+)]
 async fn test_basic_scope_functionality(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
     // Simple query that should always work
     let count = Task::scope().count(&pool).await?;
@@ -27,7 +30,10 @@ mod documentation_tests {
 
     /// This test documents the current limitation for future developers
     #[test]
-    #[allow(clippy::assertions_on_constants)] // This is documentation, not a real test
+    #[expect(
+        clippy::assertions_on_constants,
+        reason = "documentation test, not a real assertion"
+    )]
     fn document_join_ordering_limitation() {
         // This test serves as documentation of the known limitation
 

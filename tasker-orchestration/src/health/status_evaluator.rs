@@ -112,7 +112,6 @@ impl StatusEvaluator {
     /// * `queue_names` - List of queue names to monitor
     /// * `circuit_breaker` - Circuit breaker for database operations
     /// * `config` - Health evaluation configuration
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         caches: HealthStatusCaches,
         db_pool: PgPool,

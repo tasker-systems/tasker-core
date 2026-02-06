@@ -294,18 +294,12 @@ impl PgmqNotifyEmitter for NoopEmitter {
 }
 
 /// Factory for creating emitters based on configuration
-// Note: Using #[allow] instead of #[expect] because tests use this type,
-// making the lint conditional on compilation target
-#[allow(
-    dead_code,
-    reason = "emitter factory API - module restricted per TAS-187"
-)]
 #[derive(Debug)]
 pub struct EmitterFactory;
 
 impl EmitterFactory {
     /// Create a database emitter
-    #[allow(
+    #[expect(
         dead_code,
         reason = "emitter factory API - module restricted per TAS-187"
     )]

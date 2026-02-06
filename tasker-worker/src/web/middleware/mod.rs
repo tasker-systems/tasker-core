@@ -87,11 +87,6 @@ pub fn apply_test_middleware_stack(
 }
 
 /// Create CORS layer with appropriate settings for worker API
-// Note: Using #[allow] instead of #[expect] - called by apply_middleware_stack/apply_test_middleware_stack
-#[allow(
-    dead_code,
-    reason = "pub(crate) web infrastructure used by route configuration"
-)]
 fn create_cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
