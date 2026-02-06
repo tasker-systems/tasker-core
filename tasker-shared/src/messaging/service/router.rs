@@ -3,6 +3,8 @@
 //! Queue name routing abstraction for namespace-based queue organization.
 
 use crate::config::queues::QueuesConfig;
+use crate::messaging::MessagingError;
+use crate::validation::validate_queue_name;
 
 /// Namespace-based queue routing trait
 ///
@@ -12,7 +14,10 @@ pub trait MessageRouter: Send + Sync {
     /// Get the step execution queue for a namespace
     ///
     /// Default pattern: `worker_{namespace}_queue`
-    fn step_queue(&self, namespace: &str) -> String;
+    ///
+    /// Returns `Err(MessagingError::InvalidQueueName)` if the constructed queue
+    /// name contains invalid characters or exceeds the PGMQ length limit.
+    fn step_queue(&self, namespace: &str) -> Result<String, MessagingError>;
 
     /// Get the step results queue (orchestration consumes)
     fn result_queue(&self) -> String;
@@ -26,7 +31,10 @@ pub trait MessageRouter: Send + Sync {
     /// Get the domain event queue for a namespace
     ///
     /// Default pattern: `{namespace}_domain_events`
-    fn domain_event_queue(&self, namespace: &str) -> String;
+    ///
+    /// Returns `Err(MessagingError::InvalidQueueName)` if the constructed queue
+    /// name contains invalid characters or exceeds the PGMQ length limit.
+    fn domain_event_queue(&self, namespace: &str) -> Result<String, MessagingError>;
 
     /// Extract namespace from a queue name (reverse of step_queue)
     ///
@@ -93,8 +101,10 @@ impl Default for DefaultMessageRouter {
 }
 
 impl MessageRouter for DefaultMessageRouter {
-    fn step_queue(&self, namespace: &str) -> String {
-        format!("{}_{}_queue", self.worker_queue_prefix, namespace)
+    fn step_queue(&self, namespace: &str) -> Result<String, MessagingError> {
+        let name = format!("{}_{}_queue", self.worker_queue_prefix, namespace);
+        validate_queue_name(&name)?;
+        Ok(name)
     }
 
     fn result_queue(&self) -> String {
@@ -109,8 +119,10 @@ impl MessageRouter for DefaultMessageRouter {
         self.task_finalization_queue.clone()
     }
 
-    fn domain_event_queue(&self, namespace: &str) -> String {
-        format!("{}_domain_events", namespace)
+    fn domain_event_queue(&self, namespace: &str) -> Result<String, MessagingError> {
+        let name = format!("{}_domain_events", namespace);
+        validate_queue_name(&name)?;
+        Ok(name)
     }
 
     fn extract_namespace(&self, queue_name: &str) -> Option<String> {
@@ -145,7 +157,7 @@ impl MessageRouterKind {
     }
 
     /// Get the step execution queue for a namespace
-    pub fn step_queue(&self, namespace: &str) -> String {
+    pub fn step_queue(&self, namespace: &str) -> Result<String, MessagingError> {
         match self {
             Self::Default(r) => r.step_queue(namespace),
         }
@@ -173,7 +185,7 @@ impl MessageRouterKind {
     }
 
     /// Get the domain event queue for a namespace
-    pub fn domain_event_queue(&self, namespace: &str) -> String {
+    pub fn domain_event_queue(&self, namespace: &str) -> Result<String, MessagingError> {
         match self {
             Self::Default(r) => r.domain_event_queue(namespace),
         }
@@ -207,8 +219,14 @@ mod tests {
     fn test_default_router_step_queue() {
         let router = DefaultMessageRouter::default();
 
-        assert_eq!(router.step_queue("payments"), "worker_payments_queue");
-        assert_eq!(router.step_queue("fulfillment"), "worker_fulfillment_queue");
+        assert_eq!(
+            router.step_queue("payments").unwrap(),
+            "worker_payments_queue"
+        );
+        assert_eq!(
+            router.step_queue("fulfillment").unwrap(),
+            "worker_fulfillment_queue"
+        );
     }
 
     #[test]
@@ -228,7 +246,7 @@ mod tests {
         let router = DefaultMessageRouter::default();
 
         assert_eq!(
-            router.domain_event_queue("payments"),
+            router.domain_event_queue("payments").unwrap(),
             "payments_domain_events"
         );
     }
@@ -255,7 +273,10 @@ mod tests {
     fn test_router_kind_delegates() {
         let kind = MessageRouterKind::default();
 
-        assert_eq!(kind.step_queue("payments"), "worker_payments_queue");
+        assert_eq!(
+            kind.step_queue("payments").unwrap(),
+            "worker_payments_queue"
+        );
         assert_eq!(kind.result_queue(), "orchestration_step_results");
         assert_eq!(
             kind.extract_namespace("worker_payments_queue"),
@@ -268,11 +289,51 @@ mod tests {
         let router =
             DefaultMessageRouter::new("custom", "my_results", "my_requests", "my_finalizations");
 
-        assert_eq!(router.step_queue("test"), "custom_test_queue");
+        assert_eq!(router.step_queue("test").unwrap(), "custom_test_queue");
         assert_eq!(router.result_queue(), "my_results");
         assert_eq!(
             router.extract_namespace("custom_test_queue"),
             Some("test".to_string())
+        );
+    }
+
+    // =========================================================================
+    // TAS-226: Validation Tests
+    // =========================================================================
+
+    #[test]
+    fn test_step_queue_rejects_invalid_namespace() {
+        let router = DefaultMessageRouter::default();
+
+        // Namespace with hyphens produces invalid queue name
+        assert!(router.step_queue("bad-namespace").is_err());
+
+        // Namespace with spaces
+        assert!(router.step_queue("bad namespace").is_err());
+
+        // Namespace with SQL injection attempt
+        assert!(router.step_queue("bad;DROP TABLE").is_err());
+    }
+
+    #[test]
+    fn test_domain_event_queue_rejects_invalid_namespace() {
+        let router = DefaultMessageRouter::default();
+
+        assert!(router.domain_event_queue("bad-namespace").is_err());
+        assert!(router.domain_event_queue("bad;DROP TABLE").is_err());
+    }
+
+    #[test]
+    fn test_valid_namespaces_produce_correct_queue_names() {
+        let router = DefaultMessageRouter::default();
+
+        assert_eq!(
+            router.step_queue("payments").unwrap(),
+            "worker_payments_queue"
+        );
+        assert_eq!(
+            router.domain_event_queue("orders").unwrap(),
+            "orders_domain_events"
         );
     }
 }

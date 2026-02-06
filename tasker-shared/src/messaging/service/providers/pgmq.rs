@@ -429,7 +429,16 @@ impl SupportsPushNotifications for PgmqMessagingService {
                 .unwrap_or_else(|| queue_name.clone());
 
             // Listen to the message ready channel for this namespace
-            let channel = config.message_ready_channel(&namespace);
+            let channel = match config.message_ready_channel(&namespace) {
+                Ok(ch) => ch,
+                Err(e) => {
+                    error!(
+                        "Invalid channel name for namespace '{}' in queue {}: {}",
+                        namespace, queue_name, e
+                    );
+                    return;
+                }
+            };
             if let Err(e) = listener.listen_channel(&channel).await {
                 error!(
                     "Failed to listen to channel {} for {}: {}",
@@ -617,20 +626,19 @@ impl SupportsPushNotifications for PgmqMessagingService {
         }
 
         // Collect unique channels to listen to
-        let channels_to_listen: Vec<String> = queue_names
-            .iter()
-            .map(|q| {
-                // Extract namespace from queue name (convention: {namespace}_queue)
-                let namespace = q
-                    .rsplit('_')
-                    .next_back()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| q.to_string());
-                config.message_ready_channel(&namespace)
-            })
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect();
+        let mut channel_set = std::collections::HashSet::new();
+        for q in queue_names {
+            let namespace = q
+                .rsplit('_')
+                .next_back()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| q.to_string());
+            let channel = config
+                .message_ready_channel(&namespace)
+                .map_err(|e| MessagingError::configuration("pgmq", e.to_string()))?;
+            channel_set.insert(channel);
+        }
+        let channels_to_listen: Vec<String> = channel_set.into_iter().collect();
 
         // Wrap senders in Arc<RwLock> for shared access in the spawned task
         let senders = Arc::new(RwLock::new(queue_senders));
