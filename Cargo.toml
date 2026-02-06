@@ -39,6 +39,8 @@ members = [
 
 [workspace.dependencies]
 anyhow = "1.0"
+# TAS-225: Pin minimum version to fix RUSTSEC-2026-0007 (integer overflow in BytesMut::reserve)
+bytes = "1.11.1"
 # Compile-time template engine (TAS-175: config documentation generation)
 askama = "0.15"
 async-trait = "0.1"
