@@ -259,19 +259,19 @@ impl PgmqNotifyListener {
 
     /// Listen to queue created events
     pub async fn listen_queue_created(&mut self) -> Result<()> {
-        let channel = self.config.queue_created_channel();
+        let channel = self.config.queue_created_channel()?;
         self.listen_channel(&channel).await
     }
 
     /// Listen to message ready events for a specific namespace
     pub async fn listen_message_ready_for_namespace(&mut self, namespace: &str) -> Result<()> {
-        let channel = self.config.message_ready_channel(namespace);
+        let channel = self.config.message_ready_channel(namespace)?;
         self.listen_channel(&channel).await
     }
 
     /// Listen to all message ready events (global)
     pub async fn listen_message_ready_global(&mut self) -> Result<()> {
-        let channel = self.config.global_message_ready_channel();
+        let channel = self.config.global_message_ready_channel()?;
         self.listen_channel(&channel).await
     }
 
@@ -643,12 +643,18 @@ mod tests {
     fn test_channel_management() {
         let config = PgmqNotifyConfig::default();
 
-        assert_eq!(config.queue_created_channel(), "pgmq_queue_created");
         assert_eq!(
-            config.message_ready_channel("orders"),
+            config.queue_created_channel().unwrap(),
+            "pgmq_queue_created"
+        );
+        assert_eq!(
+            config.message_ready_channel("orders").unwrap(),
             "pgmq_message_ready.orders"
         );
-        assert_eq!(config.global_message_ready_channel(), "pgmq_message_ready");
+        assert_eq!(
+            config.global_message_ready_channel().unwrap(),
+            "pgmq_message_ready"
+        );
     }
 
     #[test]

@@ -9,6 +9,9 @@ use std::collections::HashSet;
 
 use crate::error::{PgmqNotifyError, Result};
 
+/// Maximum length for PostgreSQL identifiers (NAMEDATALEN - 1)
+const MAX_PG_IDENTIFIER_LENGTH: usize = 63;
+
 /// Configuration for PGMQ notification behavior
 ///
 /// This struct controls how PGMQ notifications are generated, formatted, and delivered.
@@ -184,39 +187,86 @@ impl PgmqNotifyConfig {
         })
     }
 
-    /// Build channel name with optional prefix
-    #[must_use]
-    pub fn build_channel_name(&self, base_channel: &str) -> String {
-        match &self.channels_prefix {
+    /// Build channel name with optional prefix, validating the result
+    pub fn build_channel_name(&self, base_channel: &str) -> Result<String> {
+        let name = match &self.channels_prefix {
             Some(prefix) => format!("{}.{}", prefix, base_channel),
             None => base_channel.to_string(),
-        }
+        };
+        validate_channel_name(&name)?;
+        Ok(name)
     }
 
-    /// Build namespace-specific channel name
-    #[must_use]
-    pub fn build_namespace_channel(&self, base_channel: &str, namespace: &str) -> String {
+    /// Build namespace-specific channel name, validating the result
+    pub fn build_namespace_channel(&self, base_channel: &str, namespace: &str) -> Result<String> {
         let channel = format!("{}.{}", base_channel, namespace);
         self.build_channel_name(&channel)
     }
 
     /// Get the queue created channel name
-    #[must_use]
-    pub fn queue_created_channel(&self) -> String {
+    pub fn queue_created_channel(&self) -> Result<String> {
         self.build_channel_name("pgmq_queue_created")
     }
 
     /// Get the message ready channel name for a namespace
-    #[must_use]
-    pub fn message_ready_channel(&self, namespace: &str) -> String {
+    pub fn message_ready_channel(&self, namespace: &str) -> Result<String> {
         self.build_namespace_channel("pgmq_message_ready", namespace)
     }
 
     /// Get the global message ready channel name
-    #[must_use]
-    pub fn global_message_ready_channel(&self) -> String {
+    pub fn global_message_ready_channel(&self) -> Result<String> {
         self.build_channel_name("pgmq_message_ready")
     }
+}
+
+/// Validate that a fully-constructed channel name is safe for PostgreSQL NOTIFY/LISTEN.
+///
+/// Channel names are interpolated directly into SQL (NOTIFY/LISTEN don't support
+/// parameterized identifiers), so this validation prevents SQL injection and
+/// malformed identifiers.
+///
+/// Rules:
+/// - Must start with a letter or underscore
+/// - May contain only `[a-zA-Z0-9_.]` (dots used as prefix separator)
+/// - Maximum length: 63 characters (PostgreSQL identifier limit)
+/// - Must not be empty
+pub fn validate_channel_name(channel: &str) -> Result<()> {
+    if channel.is_empty() {
+        return Err(PgmqNotifyError::invalid_channel(
+            "Channel name cannot be empty",
+        ));
+    }
+
+    if channel.len() > MAX_PG_IDENTIFIER_LENGTH {
+        return Err(PgmqNotifyError::invalid_channel(format!(
+            "Channel name '{}' exceeds maximum length of {} characters",
+            channel, MAX_PG_IDENTIFIER_LENGTH
+        )));
+    }
+
+    let valid_start = channel
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
+    if !valid_start {
+        return Err(PgmqNotifyError::invalid_channel(format!(
+            "Channel name '{}' must start with a letter or underscore",
+            channel
+        )));
+    }
+
+    if !channel
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
+    {
+        return Err(PgmqNotifyError::invalid_channel(format!(
+            "Channel name '{}' contains invalid characters. \
+             Only alphanumeric characters, underscores, and dots are allowed.",
+            channel
+        )));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -251,9 +301,12 @@ mod tests {
     fn test_channel_naming() {
         let config = PgmqNotifyConfig::new().with_channels_prefix("app1");
 
-        assert_eq!(config.queue_created_channel(), "app1.pgmq_queue_created");
         assert_eq!(
-            config.message_ready_channel("orders"),
+            config.queue_created_channel().unwrap(),
+            "app1.pgmq_queue_created"
+        );
+        assert_eq!(
+            config.message_ready_channel("orders").unwrap(),
             "app1.pgmq_message_ready.orders"
         );
     }
@@ -274,5 +327,74 @@ mod tests {
             .with_channels_prefix("test")
             .with_default_namespace("orders");
         assert!(config.validate().is_ok());
+    }
+
+    // =========================================================================
+    // TAS-226: Channel Name Validation Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_channel_name_valid() {
+        assert!(validate_channel_name("pgmq_queue_created").is_ok());
+        assert!(validate_channel_name("app1.pgmq_message_ready").is_ok());
+        assert!(validate_channel_name("app1.pgmq_message_ready.orders").is_ok());
+        assert!(validate_channel_name("_private_channel").is_ok());
+        assert!(validate_channel_name("a").is_ok());
+    }
+
+    #[test]
+    fn test_validate_channel_name_invalid_chars() {
+        assert!(validate_channel_name("channel;DROP TABLE").is_err());
+        assert!(validate_channel_name("channel name").is_err());
+        assert!(validate_channel_name("channel-name").is_err());
+        assert!(validate_channel_name("channel@name").is_err());
+        assert!(validate_channel_name("channel'name").is_err());
+    }
+
+    #[test]
+    fn test_validate_channel_name_empty() {
+        assert!(validate_channel_name("").is_err());
+    }
+
+    #[test]
+    fn test_validate_channel_name_too_long() {
+        let long_name = "a".repeat(MAX_PG_IDENTIFIER_LENGTH + 1);
+        assert!(validate_channel_name(&long_name).is_err());
+
+        // Exactly at limit should pass
+        let exact_name = "a".repeat(MAX_PG_IDENTIFIER_LENGTH);
+        assert!(validate_channel_name(&exact_name).is_ok());
+    }
+
+    #[test]
+    fn test_validate_channel_name_must_start_with_letter_or_underscore() {
+        assert!(validate_channel_name("1channel").is_err());
+        assert!(validate_channel_name(".channel").is_err());
+        assert!(validate_channel_name("_channel").is_ok());
+        assert!(validate_channel_name("channel").is_ok());
+    }
+
+    #[test]
+    fn test_build_channel_name_validates() {
+        let config = PgmqNotifyConfig::default();
+        // Valid base channel
+        assert!(config.build_channel_name("pgmq_queue_created").is_ok());
+
+        // With prefix
+        let config = PgmqNotifyConfig::new().with_channels_prefix("app1");
+        assert!(config.build_channel_name("pgmq_queue_created").is_ok());
+    }
+
+    #[test]
+    fn test_build_namespace_channel_validates() {
+        let config = PgmqNotifyConfig::default();
+        assert!(config
+            .build_namespace_channel("pgmq_message_ready", "orders")
+            .is_ok());
+
+        // Invalid namespace with special chars should fail
+        assert!(config
+            .build_namespace_channel("pgmq_message_ready", "bad;name")
+            .is_err());
     }
 }

@@ -158,7 +158,10 @@ impl MessageClient {
         namespace: &str,
         message: StepMessage,
     ) -> TaskerResult<()> {
-        let queue = self.router.step_queue(namespace);
+        let queue = self
+            .router
+            .step_queue(namespace)
+            .map_err(|e| crate::TaskerError::MessagingError(e.to_string()))?;
         let provider = self.provider.clone();
         self.with_breaker_tasker(|| async move {
             provider.send_message(&queue, &message).await?;
@@ -174,7 +177,7 @@ impl MessageClient {
         max_messages: usize,
         visibility_timeout: Duration,
     ) -> Result<Vec<QueuedMessage<StepMessage>>, MessagingError> {
-        let queue = self.router.step_queue(namespace);
+        let queue = self.router.step_queue(namespace)?;
         let provider = self.provider.clone();
         self.with_breaker(|| async move {
             provider
@@ -304,10 +307,14 @@ impl MessageClient {
 
     /// Initialize queues for the given namespaces
     pub async fn initialize_namespace_queues(&self, namespaces: &[&str]) -> TaskerResult<()> {
-        let worker_queues: Vec<String> = namespaces
-            .iter()
-            .map(|ns| self.router.step_queue(ns))
-            .collect();
+        let mut worker_queues = Vec::with_capacity(namespaces.len());
+        for ns in namespaces {
+            worker_queues.push(
+                self.router
+                    .step_queue(ns)
+                    .map_err(|e| crate::TaskerError::MessagingError(e.to_string()))?,
+            );
+        }
 
         let orchestration_queues = vec![
             self.router.result_queue(),
@@ -394,7 +401,7 @@ impl MessageClient {
         &self,
         namespace: &str,
     ) -> Result<QueueStats, MessagingError> {
-        let queue = self.router.step_queue(namespace);
+        let queue = self.router.step_queue(namespace)?;
         self.provider.queue_stats(&queue).await
     }
 
@@ -486,7 +493,7 @@ mod tests {
         let client = create_test_client();
 
         assert_eq!(
-            client.router().step_queue("payments"),
+            client.router().step_queue("payments").unwrap(),
             "worker_payments_queue"
         );
         assert_eq!(client.router().result_queue(), "orchestration_step_results");
@@ -520,7 +527,7 @@ mod tests {
     async fn test_send_and_receive_step_messages() {
         let client = create_test_client();
 
-        let queue_name = client.router().step_queue("test");
+        let queue_name = client.router().step_queue("test").unwrap();
         client.ensure_queue(&queue_name).await.unwrap();
 
         let original_msg = StepMessage::new(Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
@@ -542,7 +549,7 @@ mod tests {
     async fn test_ack_message() {
         let client = create_test_client();
 
-        let queue_name = client.router().step_queue("test");
+        let queue_name = client.router().step_queue("test").unwrap();
         client.ensure_queue(&queue_name).await.unwrap();
 
         let msg = StepMessage::new(Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
@@ -611,7 +618,7 @@ mod tests {
     async fn test_ack_bypasses_circuit_breaker() {
         let (client, breaker) = create_test_client_with_breaker(1, 1);
 
-        let queue_name = client.router().step_queue("test");
+        let queue_name = client.router().step_queue("test").unwrap();
         client.ensure_queue(&queue_name).await.unwrap();
 
         // Send a message before opening the breaker
