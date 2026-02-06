@@ -5,6 +5,7 @@
 
 use crate::resilience::CircuitBreakerError;
 use thiserror::Error;
+use tracing::warn;
 
 /// Comprehensive messaging error types
 #[derive(Error, Debug)]
@@ -282,21 +283,25 @@ impl MessagingError {
 }
 
 /// Conversion from sqlx::Error to MessagingError
+///
+/// Sanitizes error details to prevent SQL query/table/column information from
+/// leaking to API clients. Full error details are logged internally.
 impl From<sqlx::Error> for MessagingError {
     fn from(err: sqlx::Error) -> Self {
+        warn!(error = %err, "Database error in messaging (details sanitized for client response)");
         match err {
             sqlx::Error::RowNotFound => MessagingError::database_query("query", "No rows found"),
-            sqlx::Error::Database(db_err) => {
-                MessagingError::database_query("database", db_err.to_string())
+            sqlx::Error::Database(_) => {
+                MessagingError::database_query("database", "Database operation failed")
             }
             sqlx::Error::PoolTimedOut => {
                 MessagingError::timeout("database_pool", 30) // Default timeout
             }
             sqlx::Error::PoolClosed => MessagingError::pool_exhausted("Database pool is closed"),
-            sqlx::Error::Configuration(config_err) => {
-                MessagingError::configuration("database", config_err.to_string())
+            sqlx::Error::Configuration(_) => {
+                MessagingError::configuration("database", "Database configuration error")
             }
-            _ => MessagingError::database_connection(err.to_string()),
+            _ => MessagingError::database_connection("Database connection error"),
         }
     }
 }
@@ -717,6 +722,40 @@ mod tests {
     // ---------------------------------------------------------------
     // Conversion tests
     // ---------------------------------------------------------------
+
+    #[test]
+    fn test_sqlx_database_error_is_sanitized() {
+        // sqlx::Error::PoolClosed is a simple variant we can construct;
+        // verify it doesn't leak raw error text
+        let sqlx_err = sqlx::Error::PoolClosed;
+        let messaging_err: MessagingError = sqlx_err.into();
+        let display = format!("{messaging_err}");
+        // Should not contain raw sqlx error text like "PoolClosed"
+        assert!(matches!(
+            messaging_err,
+            MessagingError::PoolExhausted { .. }
+        ));
+        assert!(!display.contains("sqlx"));
+    }
+
+    #[test]
+    fn test_sqlx_configuration_error_is_sanitized() {
+        let sqlx_err = sqlx::Error::Configuration(
+            "SELECT * FROM users WHERE password = 'secret'"
+                .to_string()
+                .into(),
+        );
+        let messaging_err: MessagingError = sqlx_err.into();
+        let display = format!("{messaging_err}");
+        assert!(!display.contains("SELECT"));
+        assert!(!display.contains("users"));
+        assert!(!display.contains("password"));
+        assert!(!display.contains("secret"));
+        assert!(matches!(
+            messaging_err,
+            MessagingError::Configuration { .. }
+        ));
+    }
 
     #[test]
     fn test_serde_json_non_syntax_error_converts_to_serialization() {

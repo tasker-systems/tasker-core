@@ -257,7 +257,7 @@ fn step_service_error_to_api_error(err: StepServiceError) -> ApiError {
             ApiError::not_found("Step does not belong to the specified task")
         }
         StepServiceError::InvalidTransition(msg) => ApiError::bad_request(msg),
-        StepServiceError::Database(msg) => ApiError::database_error(msg),
-        StepServiceError::Internal(msg) => ApiError::internal_server_error(msg),
+        StepServiceError::Database(_) => ApiError::database_error("Database operation failed"),
+        StepServiceError::Internal(_) => ApiError::internal_server_error("Internal error"),
     }
 }
