@@ -224,7 +224,7 @@ fn task_service_error_to_api_error(err: TaskServiceError) -> ApiError {
             retry_after_seconds,
         } => ApiError::backpressure(reason, retry_after_seconds),
         TaskServiceError::CircuitBreakerOpen => ApiError::ServiceUnavailable,
-        TaskServiceError::Database(msg) => ApiError::database_error(msg),
-        TaskServiceError::Internal(msg) => ApiError::internal_server_error(msg),
+        TaskServiceError::Database(_) => ApiError::database_error("Database operation failed"),
+        TaskServiceError::Internal(_) => ApiError::internal_server_error("Internal error"),
     }
 }

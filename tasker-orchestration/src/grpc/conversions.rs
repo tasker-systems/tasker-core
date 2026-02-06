@@ -10,6 +10,7 @@
 use serde_json::Value as JsonValue;
 use tasker_shared::proto::v1 as proto;
 use tasker_shared::state_machine::states::{TaskState, WorkflowStepState};
+use tracing::warn;
 use uuid::Uuid;
 
 // Re-export commonly used conversion from tasker-shared
@@ -146,7 +147,8 @@ pub fn task_service_error_to_status(error: &crate::services::TaskServiceError) -
         }
         TaskServiceError::CircuitBreakerOpen => tonic::Status::unavailable(error.to_string()),
         TaskServiceError::Database(_) | TaskServiceError::Internal(_) => {
-            tonic::Status::internal(error.to_string())
+            warn!(error = %error, "Task service error (details sanitized for gRPC response)");
+            tonic::Status::internal("Internal server error")
         }
     }
 }
@@ -160,7 +162,8 @@ pub fn step_service_error_to_status(error: &crate::services::StepServiceError) -
         | StepServiceError::InvalidTransition(_)
         | StepServiceError::OwnershipMismatch => tonic::Status::invalid_argument(error.to_string()),
         StepServiceError::Database(_) | StepServiceError::Internal(_) => {
-            tonic::Status::internal(error.to_string())
+            warn!(error = %error, "Step service error (details sanitized for gRPC response)");
+            tonic::Status::internal("Internal server error")
         }
     }
 }
@@ -417,17 +420,27 @@ mod tests {
     }
 
     #[test]
-    fn test_task_service_error_to_status_database() {
-        let err = crate::services::TaskServiceError::Database("connection failed".to_string());
+    fn test_task_service_error_to_status_database_sanitized() {
+        let err = crate::services::TaskServiceError::Database(
+            "ERROR: relation \"tasks\" does not exist".to_string(),
+        );
         let status = task_service_error_to_status(&err);
         assert_eq!(status.code(), tonic::Code::Internal);
+        assert_eq!(status.message(), "Internal server error");
+        assert!(!status.message().contains("relation"));
+        assert!(!status.message().contains("tasks"));
     }
 
     #[test]
-    fn test_task_service_error_to_status_internal() {
-        let err = crate::services::TaskServiceError::Internal("unexpected".to_string());
+    fn test_task_service_error_to_status_internal_sanitized() {
+        let err = crate::services::TaskServiceError::Internal(
+            "panic in query SELECT * FROM secrets".to_string(),
+        );
         let status = task_service_error_to_status(&err);
         assert_eq!(status.code(), tonic::Code::Internal);
+        assert_eq!(status.message(), "Internal server error");
+        assert!(!status.message().contains("SELECT"));
+        assert!(!status.message().contains("secrets"));
     }
 
     #[test]
@@ -452,9 +465,23 @@ mod tests {
     }
 
     #[test]
-    fn test_step_service_error_to_status_database() {
-        let err = crate::services::StepServiceError::Database("query failed".to_string());
+    fn test_step_service_error_to_status_database_sanitized() {
+        let err = crate::services::StepServiceError::Database(
+            "ERROR: column \"secret_col\" does not exist".to_string(),
+        );
         let status = step_service_error_to_status(&err);
         assert_eq!(status.code(), tonic::Code::Internal);
+        assert_eq!(status.message(), "Internal server error");
+        assert!(!status.message().contains("secret_col"));
+    }
+
+    #[test]
+    fn test_step_service_error_to_status_internal_sanitized() {
+        let err = crate::services::StepServiceError::Internal(
+            "unexpected error in step processing".to_string(),
+        );
+        let status = step_service_error_to_status(&err);
+        assert_eq!(status.code(), tonic::Code::Internal);
+        assert_eq!(status.message(), "Internal server error");
     }
 }
