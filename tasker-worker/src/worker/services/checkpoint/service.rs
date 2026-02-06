@@ -30,6 +30,9 @@ pub enum CheckpointError {
 
     #[error("Re-dispatch failed")]
     RedispatchFailed,
+
+    #[error("Checkpoint operation timed out after {0:?}")]
+    Timeout(std::time::Duration),
 }
 
 /// Checkpoint Service
