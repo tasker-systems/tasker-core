@@ -3,7 +3,6 @@
 
 
 > 90/90 parameters documented
-> Generated: 2026-02-05T14:05:58.877222+00:00
 
 ---
 
@@ -796,8 +795,8 @@ Base URL of the orchestration REST API that this worker reports to
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | http://localhost:8080 | Local orchestration for testing |
 | production | http://orchestration:8080 | Container-internal DNS in Kubernetes/Docker |
+| test | http://localhost:8080 | Local orchestration for testing |
 
 **Related:** `orchestration.web.bind_address`
 

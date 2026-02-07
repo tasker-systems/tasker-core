@@ -2,8 +2,7 @@
 
 
 
-> 90/90 parameters documented
-> Generated: 2026-02-05T14:05:58.041809+00:00
+> 91/91 parameters documented
 
 ---
 
@@ -17,6 +16,7 @@ Root-level orchestration parameters
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `enable_performance_logging` | `bool` | `true` | Enable detailed performance logging for orchestration actors |
+| `shutdown_timeout_ms` | `u64` | `30000` | Maximum time in milliseconds to wait for orchestration subsystems to stop during graceful shutdown |
 
 
 #### `orchestration.enable_performance_logging`
@@ -27,6 +27,16 @@ Enable detailed performance logging for orchestration actors
 - **Default:** `true`
 - **Valid Range:** true/false
 - **System Impact:** Emits timing metrics for task processing, step enqueueing, and result evaluation; disable in production if log volume is a concern
+
+
+#### `orchestration.shutdown_timeout_ms`
+
+Maximum time in milliseconds to wait for orchestration subsystems to stop during graceful shutdown
+
+- **Type:** `u64`
+- **Default:** `30000`
+- **Valid Range:** 1000-300000
+- **System Impact:** If shutdown exceeds this timeout, the process exits forcefully to avoid hanging indefinitely; 30s is conservative for most deployments
 
 
 ## batch_processing

@@ -2,7 +2,7 @@
 
 
 
-> **Coverage:** 245/245 parameters documented (100%)
+> **Coverage:** 246/246 parameters documented (100%)
 
 ---
 
@@ -32,7 +32,7 @@
 - **task_templates** (`common.task_templates`) — 1 params (1 documented)
 
 ## Orchestration Configuration
-- **orchestration** (`orchestration`) — 1 params (1 documented)
+- **orchestration** (`orchestration`) — 2 params (2 documented)
 - **batch_processing** (`orchestration.batch_processing`) — 4 params (4 documented)
 - **decision_points** (`orchestration.decision_points`) — 7 params (7 documented)
 - **dlq** (`orchestration.dlq`) — 13 params (13 documented)

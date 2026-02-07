@@ -3,7 +3,6 @@
 
 
 > 65/65 parameters documented
-> Generated: 2026-02-05T14:05:56.300026+00:00
 
 ---
 
@@ -480,9 +479,9 @@ Maximum number of concurrent database connections in the pool
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | 10-30 | Moderate pool; cluster tests may run 10 services sharing the same DB |
 | development | 10-25 | Small pool for local development |
 | production | 30-50 | Scale based on worker count and concurrent task volume |
+| test | 10-30 | Moderate pool; cluster tests may run 10 services sharing the same DB |
 
 **Related:** `common.database.pool.min_connections`, `common.database.pool.acquire_timeout_seconds`
 
@@ -759,8 +758,8 @@ Messaging backend: 'pgmq' (PostgreSQL-based, LISTEN/NOTIFY) or 'rabbitmq' (AMQP 
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | pgmq | Single-dependency setup, simpler CI |
 | production | pgmq or rabbitmq | pgmq for simplicity, rabbitmq for high-throughput push semantics |
+| test | pgmq | Single-dependency setup, simpler CI |
 
 **Related:** `common.queues.pgmq`, `common.queues.rabbitmq`
 
@@ -984,8 +983,7 @@ Glob patterns for discovering task template YAML files
 
 
 
-> 90/90 parameters documented
-> Generated: 2026-02-05T14:05:56.300026+00:00
+> 91/91 parameters documented
 
 ---
 
@@ -999,6 +997,7 @@ Root-level orchestration parameters
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `enable_performance_logging` | `bool` | `true` | Enable detailed performance logging for orchestration actors |
+| `shutdown_timeout_ms` | `u64` | `30000` | Maximum time in milliseconds to wait for orchestration subsystems to stop during graceful shutdown |
 
 
 #### `orchestration.enable_performance_logging`
@@ -1009,6 +1008,16 @@ Enable detailed performance logging for orchestration actors
 - **Default:** `true`
 - **Valid Range:** true/false
 - **System Impact:** Emits timing metrics for task processing, step enqueueing, and result evaluation; disable in production if log volume is a concern
+
+
+#### `orchestration.shutdown_timeout_ms`
+
+Maximum time in milliseconds to wait for orchestration subsystems to stop during graceful shutdown
+
+- **Type:** `u64`
+- **Default:** `30000`
+- **Valid Range:** 1000-300000
+- **System Impact:** If shutdown exceeds this timeout, the process exits forcefully to avoid hanging indefinitely; 30s is conservative for most deployments
 
 
 ## batch_processing
@@ -1913,8 +1922,8 @@ Socket address for the REST API server
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | 0.0.0.0:8080 | Default port for test fixtures |
 | production | 0.0.0.0:8080 | Standard port; use TASKER_WEB_BIND_ADDRESS env var to override in CI |
+| test | 0.0.0.0:8080 | Default port for test fixtures |
 
 
 #### `orchestration.web.enabled`
@@ -2118,7 +2127,6 @@ Target number of connections in the web API database pool
 
 
 > 90/90 parameters documented
-> Generated: 2026-02-05T14:05:56.300026+00:00
 
 ---
 

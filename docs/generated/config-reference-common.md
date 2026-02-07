@@ -3,7 +3,6 @@
 
 
 > 65/65 parameters documented
-> Generated: 2026-02-05T14:05:57.217050+00:00
 
 ---
 
@@ -480,9 +479,9 @@ Maximum number of concurrent database connections in the pool
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | 10-30 | Moderate pool; cluster tests may run 10 services sharing the same DB |
 | development | 10-25 | Small pool for local development |
 | production | 30-50 | Scale based on worker count and concurrent task volume |
+| test | 10-30 | Moderate pool; cluster tests may run 10 services sharing the same DB |
 
 **Related:** `common.database.pool.min_connections`, `common.database.pool.acquire_timeout_seconds`
 
@@ -759,8 +758,8 @@ Messaging backend: 'pgmq' (PostgreSQL-based, LISTEN/NOTIFY) or 'rabbitmq' (AMQP 
 
 | Environment | Value | Rationale |
 |-------------|-------|-----------|
-| test | pgmq | Single-dependency setup, simpler CI |
 | production | pgmq or rabbitmq | pgmq for simplicity, rabbitmq for high-throughput push semantics |
+| test | pgmq | Single-dependency setup, simpler CI |
 
 **Related:** `common.queues.pgmq`, `common.queues.rabbitmq`
 

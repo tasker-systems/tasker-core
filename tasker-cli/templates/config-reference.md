@@ -5,7 +5,6 @@
 {% block content %}
 
 > {{ documented_parameters }}/{{ total_parameters }} parameters documented
-> Generated: {{ generation_timestamp }}
 
 ---
 {% for section in sections %}
