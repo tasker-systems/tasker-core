@@ -191,7 +191,7 @@ mod tests {
         "ok"
     }
 
-    #[allow(dead_code)] // Used in integration tests
+    #[expect(dead_code, reason = "test helper for SecurityContext construction")]
     fn make_context(permissions: Vec<&str>) -> SecurityContext {
         SecurityContext {
             subject: "test-user".to_string(),

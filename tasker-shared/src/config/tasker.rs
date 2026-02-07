@@ -984,6 +984,15 @@ pub struct OrchestrationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[validate(nested)]
     pub grpc: Option<GrpcConfig>,
+
+    /// TAS-228: Graceful shutdown timeout in milliseconds
+    ///
+    /// Maximum time to wait for orchestration subsystems (event coordinator,
+    /// gRPC server, etc.) to stop during graceful shutdown. If the timeout
+    /// is exceeded, the process exits forcefully to avoid hanging indefinitely.
+    #[validate(range(min = 1000, max = 300000))]
+    #[builder(default = 30000)]
+    pub shutdown_timeout_ms: u64,
 }
 
 impl_builder_default!(OrchestrationConfig);
@@ -2563,6 +2572,7 @@ mod tests {
             grpc: None,
             dlq: DlqOperationsConfig::default(),
             batch_processing: BatchProcessingConfig::default(),
+            shutdown_timeout_ms: 30000,
         }
     }
 
@@ -2850,5 +2860,12 @@ mod tests {
             1500 >= thresholds.overflow_threshold,
             "1500 should be overflow tier"
         );
+    }
+
+    /// TAS-228: Verify shutdown_timeout_ms default value
+    #[test]
+    fn test_orchestration_config_shutdown_timeout_default() {
+        let config = OrchestrationConfig::default();
+        assert_eq!(config.shutdown_timeout_ms, 30000);
     }
 }

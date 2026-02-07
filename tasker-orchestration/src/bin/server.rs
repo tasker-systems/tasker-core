@@ -17,6 +17,7 @@
 //! ```
 
 use std::env;
+use std::time::Duration;
 use tokio::signal;
 use tracing::{error, info};
 
@@ -69,12 +70,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Shutdown signal received, initiating graceful shutdown...");
 
-    // Stop orchestration system using handle (includes web server)
-    info!("Stopping orchestration system...");
-    if let Err(e) = orchestration_handle.stop().await {
-        error!("Failed to stop orchestration cleanly: {}", e);
-    } else {
-        info!("Orchestration system stopped");
+    // TAS-228: Read shutdown timeout from config (O-2 remediation)
+    let shutdown_timeout_ms = orchestration_handle
+        .tasker_config
+        .orchestration
+        .as_ref()
+        .map(|o| o.shutdown_timeout_ms)
+        .unwrap_or(30000);
+
+    // Stop orchestration system with timeout to prevent hanging indefinitely
+    info!(
+        timeout_ms = shutdown_timeout_ms,
+        "Stopping orchestration system..."
+    );
+    match tokio::time::timeout(
+        Duration::from_millis(shutdown_timeout_ms),
+        orchestration_handle.stop(),
+    )
+    .await
+    {
+        Ok(Ok(())) => {
+            info!("Orchestration system stopped");
+        }
+        Ok(Err(e)) => {
+            error!("Failed to stop orchestration cleanly: {}", e);
+        }
+        Err(_) => {
+            error!(
+                timeout_ms = shutdown_timeout_ms,
+                "Graceful shutdown timed out, forcing exit"
+            );
+        }
     }
 
     info!("Orchestration Server shutdown complete");

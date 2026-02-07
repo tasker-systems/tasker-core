@@ -106,6 +106,9 @@ pub struct FfiDispatchChannelConfig {
     /// TAS-67 Phase 2: Maximum time to wait when completion channel is full
     /// If exceeded, logs error and returns false
     pub completion_send_timeout: Duration,
+    /// TAS-229: Maximum time for checkpoint_yield block_on to complete
+    /// Prevents FFI thread pool exhaustion if database is slow
+    pub checkpoint_timeout: Duration,
 }
 
 impl FfiDispatchChannelConfig {
@@ -118,6 +121,7 @@ impl FfiDispatchChannelConfig {
             callback_timeout: Duration::from_secs(5),
             starvation_warning_threshold_ms: 10_000, // 10 seconds
             completion_send_timeout: Duration::from_secs(10),
+            checkpoint_timeout: Duration::from_secs(10),
         }
     }
 
@@ -148,6 +152,12 @@ impl FfiDispatchChannelConfig {
     /// Create config with a custom completion send timeout
     pub fn with_completion_send_timeout(mut self, timeout: Duration) -> Self {
         self.completion_send_timeout = timeout;
+        self
+    }
+
+    /// Create config with a custom checkpoint timeout
+    pub fn with_checkpoint_timeout(mut self, timeout: Duration) -> Self {
+        self.checkpoint_timeout = timeout;
         self
     }
 }
@@ -901,14 +911,20 @@ impl FfiDispatchChannel {
             );
 
             // Execute checkpoint persistence and re-dispatch in async context
+            // TAS-229: Wrap with timeout to prevent FFI thread pool exhaustion
+            let checkpoint_timeout = self.config.checkpoint_timeout;
             let result = self.config.runtime_handle.block_on(async {
-                self.handle_checkpoint_yield_async(
-                    &pending.event,
-                    &checkpoint_data,
-                    checkpoint_service,
-                    dispatch_sender,
+                tokio::time::timeout(
+                    checkpoint_timeout,
+                    self.handle_checkpoint_yield_async(
+                        &pending.event,
+                        &checkpoint_data,
+                        checkpoint_service,
+                        dispatch_sender,
+                    ),
                 )
                 .await
+                .unwrap_or_else(|_| Err(CheckpointError::Timeout(checkpoint_timeout)))
             });
 
             match result {

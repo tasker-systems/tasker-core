@@ -2,6 +2,8 @@
 
 [orchestration]
 enable_performance_logging = true
+# TAS-228: Moderate shutdown timeout for development
+shutdown_timeout_ms = 15000
 
 # TAS-49: DLQ Configuration Overrides for Development Environment
 [orchestration.dlq.staleness_detection]

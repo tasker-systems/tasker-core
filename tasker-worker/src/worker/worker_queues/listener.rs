@@ -183,20 +183,29 @@ impl WorkerQueueListener {
         let router = self.context.message_client.router();
 
         // Build queue names using router for consistency: worker_{namespace}_queue
-        let queue_names: Vec<String> = self
-            .config
-            .supported_namespaces
-            .iter()
-            .map(|ns| router.step_queue(ns))
-            .collect();
+        let mut queue_names: Vec<String> =
+            Vec::with_capacity(self.config.supported_namespaces.len());
+        for ns in &self.config.supported_namespaces {
+            queue_names.push(router.step_queue(ns).map_err(|e| {
+                TaskerError::WorkerError(format!(
+                    "Invalid queue name for namespace '{}': {}",
+                    ns, e
+                ))
+            })?);
+        }
 
         // Build a map of queue_name -> namespace for later lookup
-        let queue_to_namespace: std::collections::HashMap<String, String> = self
-            .config
-            .supported_namespaces
-            .iter()
-            .map(|ns| (router.step_queue(ns), ns.clone()))
-            .collect();
+        let mut queue_to_namespace: std::collections::HashMap<String, String> =
+            std::collections::HashMap::with_capacity(self.config.supported_namespaces.len());
+        for ns in &self.config.supported_namespaces {
+            let queue_name = router.step_queue(ns).map_err(|e| {
+                TaskerError::WorkerError(format!(
+                    "Invalid queue name for namespace '{}': {}",
+                    ns, e
+                ))
+            })?;
+            queue_to_namespace.insert(queue_name, ns.clone());
+        }
 
         // Use subscribe_many for efficient connection sharing (especially PGMQ)
         let queue_name_refs: Vec<&str> = queue_names.iter().map(|s| s.as_str()).collect();

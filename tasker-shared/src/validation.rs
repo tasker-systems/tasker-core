@@ -4,6 +4,7 @@
 //! on JSONB field validation to prevent injection attacks and malformed data.
 
 use crate::errors::{TaskerError, TaskerResult};
+use crate::messaging::MessagingError;
 use serde_json::{Map, Value};
 use validator::ValidationError;
 
@@ -88,6 +89,61 @@ pub fn validate_namespace_for_validator(namespace: &str) -> Result<(), Validatio
         error.message = Some(e.to_string().into());
         error
     })
+}
+
+/// Validates a fully-constructed queue name for messaging systems.
+///
+/// Queue names are used as PostgreSQL identifiers in PGMQ. This validation
+/// ensures names are safe and within the PGMQ length limit.
+///
+/// Rules:
+/// - Must start with a letter or underscore
+/// - May contain only `[a-zA-Z0-9_]`
+/// - Maximum length: `MAX_PGMQ_QUEUE_NAME_LENGTH` (47 characters)
+/// - Must not be empty
+pub fn validate_queue_name(queue_name: &str) -> Result<(), MessagingError> {
+    if queue_name.is_empty() {
+        return Err(MessagingError::InvalidQueueName {
+            queue_name: String::new(),
+            reason: "Queue name cannot be empty".to_string(),
+        });
+    }
+
+    if queue_name.len() > MAX_PGMQ_QUEUE_NAME_LENGTH {
+        return Err(MessagingError::InvalidQueueName {
+            queue_name: queue_name.to_string(),
+            reason: format!(
+                "Queue name exceeds maximum length of {} characters (got {})",
+                MAX_PGMQ_QUEUE_NAME_LENGTH,
+                queue_name.len()
+            ),
+        });
+    }
+
+    let valid_start = queue_name
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
+    if !valid_start {
+        return Err(MessagingError::InvalidQueueName {
+            queue_name: queue_name.to_string(),
+            reason: "Queue name must start with a letter or underscore".to_string(),
+        });
+    }
+
+    if !queue_name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return Err(MessagingError::InvalidQueueName {
+            queue_name: queue_name.to_string(),
+            reason: "Queue name contains invalid characters. \
+                     Only alphanumeric characters and underscores are allowed."
+                .to_string(),
+        });
+    }
+
+    Ok(())
 }
 
 /// Maximum allowed size for JSONB payloads (1MB)
@@ -478,5 +534,51 @@ mod tests {
         let max_suffix = "_domain_events_dlq";
         let full_queue_name = format!("{}{}", max_namespace, max_suffix);
         assert_eq!(full_queue_name.len(), MAX_PGMQ_QUEUE_NAME_LENGTH);
+    }
+
+    // =============================================================================
+    // TAS-226: Queue Name Validation Tests
+    // =============================================================================
+
+    #[test]
+    fn test_validate_queue_name_valid() {
+        assert!(validate_queue_name("worker_payments_queue").is_ok());
+        assert!(validate_queue_name("orchestration_step_results").is_ok());
+        assert!(validate_queue_name("payments_domain_events").is_ok());
+        assert!(validate_queue_name("_private_queue").is_ok());
+        assert!(validate_queue_name("a").is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_name_empty() {
+        let result = validate_queue_name("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_queue_name_too_long() {
+        // 48 characters - one over the limit
+        let too_long = "a".repeat(MAX_PGMQ_QUEUE_NAME_LENGTH + 1);
+        assert!(validate_queue_name(&too_long).is_err());
+
+        // Exactly 47 characters should pass
+        let exact = "a".repeat(MAX_PGMQ_QUEUE_NAME_LENGTH);
+        assert!(validate_queue_name(&exact).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_name_invalid_characters() {
+        assert!(validate_queue_name("queue-name").is_err());
+        assert!(validate_queue_name("queue name").is_err());
+        assert!(validate_queue_name("queue.name").is_err());
+        assert!(validate_queue_name("queue;DROP TABLE").is_err());
+        assert!(validate_queue_name("queue'name").is_err());
+    }
+
+    #[test]
+    fn test_validate_queue_name_must_start_with_letter_or_underscore() {
+        assert!(validate_queue_name("1queue").is_err());
+        assert!(validate_queue_name("_queue").is_ok());
+        assert!(validate_queue_name("queue1").is_ok());
     }
 }

@@ -6,7 +6,21 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
+use tracing::warn;
 use uuid::Uuid;
+
+/// Sanitize a sqlx::Error into a generic message safe for API responses.
+///
+/// Logs the full error details internally and returns a generic message
+/// that does not expose SQL queries, table/column names, or constraint details.
+pub(crate) fn sanitize_database_error(err: &sqlx::Error) -> String {
+    warn!(error = %err, "Database error (details sanitized for client response)");
+    match err {
+        sqlx::Error::RowNotFound => "Record not found".to_string(),
+        sqlx::Error::PoolTimedOut => "Database connection timeout".to_string(),
+        _ => "Database operation failed".to_string(),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum TaskerError {
@@ -70,7 +84,7 @@ impl From<serde_json::Error> for TaskerError {
 
 impl From<sqlx::Error> for TaskerError {
     fn from(err: sqlx::Error) -> Self {
-        TaskerError::DatabaseError(err.to_string())
+        TaskerError::DatabaseError(sanitize_database_error(&err))
     }
 }
 
@@ -432,7 +446,7 @@ impl From<sqlx::Error> for OrchestrationError {
     fn from(err: sqlx::Error) -> Self {
         OrchestrationError::DatabaseError {
             operation: "sqlx_operation".to_string(),
-            reason: err.to_string(),
+            reason: sanitize_database_error(&err),
         }
     }
 }
@@ -510,18 +524,18 @@ impl From<crate::event_system::deployment::DeploymentModeError> for TaskerError 
 /// Convert `Box<dyn Error>` patterns to OrchestrationError for legacy compatibility
 impl From<Box<dyn std::error::Error + Send + Sync>> for OrchestrationError {
     fn from(err: Box<dyn std::error::Error + Send + Sync>) -> Self {
-        // Get the error string before attempting downcasts
-        let error_string = err.to_string();
+        // Log the full error before attempting downcasts (which consume the box)
+        warn!(error = %err, "Boxed error conversion (details sanitized for client response)");
 
         // Try to downcast to known error types first
         if let Ok(sqlx_err) = err.downcast::<sqlx::Error>() {
             return (*sqlx_err).into();
         }
 
-        // If downcast fails, create a generic database error
+        // If downcast fails, return a generic database error
         OrchestrationError::DatabaseError {
             operation: "unknown_operation".to_string(),
-            reason: error_string,
+            reason: "Database operation failed".to_string(),
         }
     }
 }
@@ -549,6 +563,43 @@ impl From<&str> for OrchestrationError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // =========================================================================
+    // sanitize_database_error tests
+    // =========================================================================
+
+    #[test]
+    fn test_sanitize_database_error_row_not_found() {
+        let err = sqlx::Error::RowNotFound;
+        assert_eq!(sanitize_database_error(&err), "Record not found");
+    }
+
+    #[test]
+    fn test_sanitize_database_error_pool_timed_out() {
+        let err = sqlx::Error::PoolTimedOut;
+        assert_eq!(sanitize_database_error(&err), "Database connection timeout");
+    }
+
+    #[test]
+    fn test_sanitize_database_error_pool_closed() {
+        let err = sqlx::Error::PoolClosed;
+        assert_eq!(sanitize_database_error(&err), "Database operation failed");
+    }
+
+    #[test]
+    fn test_sanitize_database_error_does_not_leak_details() {
+        // Configuration error carries a message that could contain SQL details
+        let err = sqlx::Error::Configuration(
+            "error with configuration: SELECT * FROM secret_table WHERE password = 'abc'"
+                .to_string()
+                .into(),
+        );
+        let sanitized = sanitize_database_error(&err);
+        assert_eq!(sanitized, "Database operation failed");
+        assert!(!sanitized.contains("SELECT"));
+        assert!(!sanitized.contains("secret_table"));
+        assert!(!sanitized.contains("password"));
+    }
 
     // =========================================================================
     // TaskerError Display tests

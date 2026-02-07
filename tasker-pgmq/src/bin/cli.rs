@@ -175,6 +175,26 @@ fn validate_config(args: ValidateConfigArgs) -> Result<(), Box<dyn std::error::E
 }
 
 fn generate_migration_sql(config: &CliConfig) -> Result<String, Box<dyn std::error::Error>> {
+    // TAS-226: Validate channels_prefix before interpolating into SQL
+    if let Some(ref prefix) = config.channels_prefix {
+        // Channel prefix will be used in NOTIFY/LISTEN channel names.
+        // Validate it contains only safe characters (alphanumeric, underscore, dot).
+        let first = prefix.chars().next();
+        let valid_start = first.is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
+        let valid_chars = prefix
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.');
+        if !valid_start || !valid_chars {
+            return Err(format!(
+                "channels_prefix '{}' contains invalid characters. \
+                 Only alphanumeric characters, underscores, and dots are allowed, \
+                 and it must start with a letter or underscore.",
+                prefix
+            )
+            .into());
+        }
+    }
+
     // Convert regex pattern for PostgreSQL
     let pg_pattern = config.queue_naming_pattern.replace("(?P<namespace>", "(");
 
@@ -423,5 +443,27 @@ mod tests {
         let sql = generate_migration_sql(&config).unwrap();
         assert!(sql.contains("app1.pgmq_queue_created"));
         assert!(sql.contains("app1.pgmq_message_ready"));
+    }
+
+    #[test]
+    fn test_migration_rejects_invalid_prefix() {
+        let config = CliConfig {
+            channels_prefix: Some("bad;prefix".to_string()),
+            ..Default::default()
+        };
+
+        let result = generate_migration_sql(&config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_migration_rejects_prefix_starting_with_number() {
+        let config = CliConfig {
+            channels_prefix: Some("1bad".to_string()),
+            ..Default::default()
+        };
+
+        let result = generate_migration_sql(&config);
+        assert!(result.is_err());
     }
 }

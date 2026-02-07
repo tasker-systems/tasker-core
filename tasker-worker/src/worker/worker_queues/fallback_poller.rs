@@ -198,7 +198,18 @@ impl WorkerFallbackPoller {
                 // Poll all supported namespace queues
                 for namespace in &config.supported_namespaces {
                     // Use router abstraction for queue naming
-                    let queue_name = message_client.router().step_queue(namespace);
+                    let queue_name = match message_client.router().step_queue(namespace) {
+                        Ok(name) => name,
+                        Err(e) => {
+                            error!(
+                                poller_id = %poller_id,
+                                namespace = %namespace,
+                                error = %e,
+                                "Invalid queue name for namespace, skipping"
+                            );
+                            continue;
+                        }
+                    };
 
                     if let Err(e) = Self::poll_namespace_queue(
                         &queue_name,

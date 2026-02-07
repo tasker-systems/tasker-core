@@ -140,7 +140,7 @@ impl PgmqNotifyEmitter for DbEmitter {
     async fn emit_queue_created(&self, event: QueueCreatedEvent) -> Result<()> {
         let pgmq_event = PgmqNotifyEvent::QueueCreated(event);
         let payload = self.build_payload(&pgmq_event)?;
-        let channel = self.config.queue_created_channel();
+        let channel = self.config.queue_created_channel()?;
 
         self.notify_channel(&channel, &payload).await
     }
@@ -152,8 +152,8 @@ impl PgmqNotifyEmitter for DbEmitter {
         let payload = self.build_payload(&pgmq_event)?;
 
         // Send to both namespace-specific and global channels
-        let namespace_channel = self.config.message_ready_channel(&namespace);
-        let global_channel = self.config.global_message_ready_channel();
+        let namespace_channel = self.config.message_ready_channel(&namespace)?;
+        let global_channel = self.config.global_message_ready_channel()?;
 
         // Send to namespace-specific channel first
         self.notify_channel(&namespace_channel, &payload).await?;
@@ -173,8 +173,8 @@ impl PgmqNotifyEmitter for DbEmitter {
         let payload = self.build_payload(&pgmq_event)?;
 
         // Send to both namespace-specific and global channels (same pattern as MessageReady)
-        let namespace_channel = self.config.message_ready_channel(&namespace);
-        let global_channel = self.config.global_message_ready_channel();
+        let namespace_channel = self.config.message_ready_channel(&namespace)?;
+        let global_channel = self.config.global_message_ready_channel()?;
 
         // Send to namespace-specific channel first
         self.notify_channel(&namespace_channel, &payload).await?;
@@ -194,8 +194,8 @@ impl PgmqNotifyEmitter for DbEmitter {
         let payload = self.build_payload(&pgmq_event)?;
 
         // Send to both namespace-specific and global channels (same pattern as MessageReady)
-        let namespace_channel = self.config.message_ready_channel(&namespace);
-        let global_channel = self.config.global_message_ready_channel();
+        let namespace_channel = self.config.message_ready_channel(&namespace)?;
+        let global_channel = self.config.global_message_ready_channel()?;
 
         // Send to namespace-specific channel first
         self.notify_channel(&namespace_channel, &payload).await?;
@@ -294,18 +294,12 @@ impl PgmqNotifyEmitter for NoopEmitter {
 }
 
 /// Factory for creating emitters based on configuration
-// Note: Using #[allow] instead of #[expect] because tests use this type,
-// making the lint conditional on compilation target
-#[allow(
-    dead_code,
-    reason = "emitter factory API - module restricted per TAS-187"
-)]
 #[derive(Debug)]
 pub struct EmitterFactory;
 
 impl EmitterFactory {
     /// Create a database emitter
-    #[allow(
+    #[expect(
         dead_code,
         reason = "emitter factory API - module restricted per TAS-187"
     )]
@@ -379,15 +373,15 @@ mod tests {
         let config = PgmqNotifyConfig::new().with_channels_prefix("test_app");
 
         assert_eq!(
-            config.queue_created_channel(),
+            config.queue_created_channel().unwrap(),
             "test_app.pgmq_queue_created"
         );
         assert_eq!(
-            config.message_ready_channel("orders"),
+            config.message_ready_channel("orders").unwrap(),
             "test_app.pgmq_message_ready.orders"
         );
         assert_eq!(
-            config.global_message_ready_channel(),
+            config.global_message_ready_channel().unwrap(),
             "test_app.pgmq_message_ready"
         );
     }
