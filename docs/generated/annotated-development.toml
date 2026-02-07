@@ -327,6 +327,9 @@ search_paths = ["config/tasks/**/*.{yml,yaml}"]
 # Enable detailed performance logging for orchestration actors
 # Type: bool | Range: true/false
 enable_performance_logging = true
+# Maximum time in milliseconds to wait for orchestration subsystems to stop during graceful shutdown
+# Type: u64 | Range: 1000-300000
+shutdown_timeout_ms = 30000
 
 
 # ─────────────────────────────────────────────────────────────

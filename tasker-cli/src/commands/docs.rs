@@ -51,7 +51,6 @@ pub(crate) async fn handle_docs_command(cmd: DocsCommands) -> ClientResult<()> {
 
 async fn handle_reference(context: &str, output: Option<&str>, base_dir: &str) -> ClientResult<()> {
     let builder = create_builder(base_dir)?;
-    let timestamp = chrono::Utc::now().to_rfc3339();
 
     let rendered = if context == "all" {
         let mut parts = Vec::new();
@@ -64,8 +63,7 @@ async fn handle_reference(context: &str, output: Option<&str>, base_dir: &str) -
             let total: usize = sections.iter().map(|s| s.total_parameters()).sum();
             let documented: usize = sections.iter().map(|s| s.documented_parameters()).sum();
 
-            let part =
-                render_reference(&ctx.to_string(), &sections, total, documented, &timestamp)?;
+            let part = render_reference(&ctx.to_string(), &sections, total, documented)?;
             parts.push(part);
         }
         parts.join("\n---\n\n")
@@ -75,7 +73,7 @@ async fn handle_reference(context: &str, output: Option<&str>, base_dir: &str) -
         let total: usize = sections.iter().map(|s| s.total_parameters()).sum();
         let documented: usize = sections.iter().map(|s| s.documented_parameters()).sum();
 
-        render_reference(&ctx.to_string(), &sections, total, documented, &timestamp)?
+        render_reference(&ctx.to_string(), &sections, total, documented)?
     };
 
     write_output(&rendered, output)?;
@@ -260,14 +258,12 @@ pub(crate) fn render_reference(
     sections: &[tasker_shared::config::doc_context::SectionContext],
     total_parameters: usize,
     documented_parameters: usize,
-    generation_timestamp: &str,
 ) -> ClientResult<String> {
     let template = ConfigReferenceTemplate {
         context_name,
         sections,
         total_parameters,
         documented_parameters,
-        generation_timestamp,
     };
     template.render().map_err(|e| {
         tasker_client::ClientError::ConfigError(format!("Template rendering failed: {}", e))
@@ -280,7 +276,6 @@ pub(crate) fn render_reference(
     sections: &[tasker_shared::config::doc_context::SectionContext],
     total_parameters: usize,
     documented_parameters: usize,
-    _generation_timestamp: &str,
 ) -> ClientResult<String> {
     Ok(format!(
         "# Configuration Reference: {}\n\n{}/{} parameters documented\n\n{} sections",

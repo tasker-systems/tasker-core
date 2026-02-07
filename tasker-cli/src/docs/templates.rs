@@ -21,8 +21,6 @@ pub(crate) struct ConfigReferenceTemplate<'a> {
     pub(crate) total_parameters: usize,
     /// Count of parameters with `_docs` coverage
     pub(crate) documented_parameters: usize,
-    /// ISO 8601 timestamp of generation
-    pub(crate) generation_timestamp: &'a str,
 }
 
 /// Single section deep-dive document.
@@ -180,7 +178,6 @@ mod tests {
             sections: &sections,
             total_parameters: 3,
             documented_parameters: 2,
-            generation_timestamp: "2026-01-30T00:00:00Z",
         };
 
         let output = template.render().expect("Template should render");
@@ -217,7 +214,6 @@ mod tests {
             sections: &sections,
             total_parameters: 3,
             documented_parameters: 2,
-            generation_timestamp: "2026-01-30T00:00:00Z",
         };
 
         let output = template.render().unwrap();

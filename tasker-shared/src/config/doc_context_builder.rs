@@ -319,7 +319,7 @@ impl DocContextBuilder {
         let docs = self.documentation.lookup(path);
 
         if let Some(doc) = docs {
-            let recommendations: Vec<RecommendationContext> = doc
+            let mut recommendations: Vec<RecommendationContext> = doc
                 .recommendations
                 .iter()
                 .map(|(env, rec)| RecommendationContext {
@@ -328,6 +328,7 @@ impl DocContextBuilder {
                     rationale: rec.rationale.clone(),
                 })
                 .collect();
+            recommendations.sort_by(|a, b| a.environment.cmp(&b.environment));
 
             ParameterContext {
                 name: name.to_string(),
