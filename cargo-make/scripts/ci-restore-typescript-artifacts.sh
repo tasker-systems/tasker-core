@@ -40,13 +40,15 @@ if [ -d "${ARTIFACTS_DIR}" ]; then
         echo ""
         echo "FFI library in target/debug/:"
         ls -lh target/debug/libtasker_ts.* 2>/dev/null || true
-        export TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.so"
+        TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.so"
+        export TASKER_FFI_LIBRARY_PATH
         echo "TASKER_FFI_LIBRARY_PATH=$TASKER_FFI_LIBRARY_PATH"
     elif [ -f target/debug/libtasker_ts.dylib ]; then
         echo ""
         echo "FFI library in target/debug/:"
         ls -lh target/debug/libtasker_ts.* 2>/dev/null || true
-        export TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.dylib"
+        TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.dylib"
+        export TASKER_FFI_LIBRARY_PATH
         echo "TASKER_FFI_LIBRARY_PATH=$TASKER_FFI_LIBRARY_PATH"
     else
         echo "  Warning: FFI library not found in artifacts"

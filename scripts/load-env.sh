@@ -18,6 +18,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 # Source the env file (set -a means all vars get exported)
+# shellcheck source=/dev/null
 source "$ENV_FILE"
 
 set +a  # Disable auto-export

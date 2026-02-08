@@ -8,7 +8,8 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly _SCRIPT_DIR
 readonly APP_NAME="${APP_NAME:-tasker-python-worker}"
 
 # Colors for output
@@ -70,8 +71,10 @@ wait_for_database() {
     local retry_interval=2
 
     # Extract database host and port from DATABASE_URL
-    local db_host=$(echo "$DATABASE_URL" | cut -d@ -f2 | cut -d: -f1)
-    local db_port=$(echo "$DATABASE_URL" | grep -o ":[0-9]*/" | tr -d ":/")
+    local db_host
+    db_host=$(echo "$DATABASE_URL" | cut -d@ -f2 | cut -d: -f1)
+    local db_port
+    db_port=$(echo "$DATABASE_URL" | grep -o ":[0-9]*/" | tr -d ":/")
     [[ -z "$db_port" ]] && db_port=5432
 
     timeout "$timeout" bash -c "

@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # Configuration
-readonly SCRIPT_NAME="${0##*/}"
+readonly _SCRIPT_NAME="${0##*/}"
 readonly MAX_RETRIES=${DB_MIGRATION_RETRIES:-5}
 readonly RETRY_DELAY=${DB_MIGRATION_RETRY_DELAY:-10}
 readonly MIGRATION_TIMEOUT=${DB_MIGRATION_TIMEOUT:-300}

@@ -164,10 +164,10 @@ setup_cargo_tools() {
     for tool in "${CARGO_TOOLS[@]}"; do
         # Parse tool name (handle "binary:crate" format)
         if [[ "$tool" == *":"* ]]; then
-            binary="${tool%%:*}"
+            _binary="${tool%%:*}"
             crate="${tool##*:}"
         else
-            binary="$tool"
+            _binary="$tool"
             crate="$tool"
         fi
 
@@ -496,6 +496,9 @@ verify_installation() {
         "docker:Docker"
         "psql:PostgreSQL client"
         "jq:jq"
+        # CI infrastructure linters
+        "shellcheck:shellcheck (shell linter)"
+        "actionlint:actionlint (workflow linter)"
     )
 
     ALL_OK=true

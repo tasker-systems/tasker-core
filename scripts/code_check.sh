@@ -117,7 +117,7 @@ AUTO_FIX=false
 RUN_TESTS=false
 PREPARE_SQLX_ONLY=false
 VERBOSE=false
-QUIET=false
+_QUIET=false
 SHOW_HELP=false
 
 # If no language flags specified, check all
@@ -165,7 +165,7 @@ parse_args() {
                 shift
                 ;;
             --quiet|-q)
-                QUIET=true
+                _QUIET=true
                 shift
                 ;;
             --help|-h)
@@ -296,7 +296,7 @@ check_rust_project_exists() {
 run_cargo_in_project() {
     local project_dir="$1"
     local cargo_cmd="$2"
-    local description="$3"
+    local _description="$3"
 
     if [ "$VERBOSE" = true ]; then
         print_substep "Running in ${BLUE}${project_dir}${NC}: $cargo_cmd"
@@ -596,7 +596,7 @@ run_python_tests() {
 # Ruby Checks
 # =============================================================================
 
-RUBY_FORMAT_PASSED=0
+_RUBY_FORMAT_PASSED=0
 RUBY_LINT_PASSED=0
 RUBY_RUST_PASSED=0
 RUBY_TEST_PASSED=0

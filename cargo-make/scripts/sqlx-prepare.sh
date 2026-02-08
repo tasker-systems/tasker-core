@@ -20,7 +20,7 @@ CRATES=(
 )
 
 # Store the workspace root
-WORKSPACE_ROOT=$(pwd)
+_WORKSPACE_ROOT=$(pwd)
 
 for crate in "${CRATES[@]}"; do
   if [ "$crate" = "." ]; then
