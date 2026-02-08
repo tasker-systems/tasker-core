@@ -170,21 +170,29 @@ jobs:
       - name: Start orchestration server
         run: |
           echo "🚀 Starting orchestration server for client API tests..."
-          cargo run -p tasker-orchestration --bin tasker-server &
+          # Use pre-built binary from core-artifacts (avoids cargo compile)
+          if [ -x "target/debug/tasker-server" ]; then
+            echo "Using pre-built tasker-server binary"
+            ./target/debug/tasker-server &
+          else
+            echo "Pre-built binary not found, building from source..."
+            cargo build -p tasker-orchestration --bin tasker-server
+            ./target/debug/tasker-server &
+          fi
           ORCH_PID=$!
           echo "ORCHESTRATION_PID=$ORCH_PID" >> $GITHUB_ENV
 
-          # Wait for health check
-          for i in $(seq 1 30); do
+          # Wait for health check (60 retries x 2s = 120s max)
+          for i in $(seq 1 60); do
             if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
               echo "✅ Orchestration server healthy (attempt $i)"
               break
             fi
-            if [ $i -eq 30 ]; then
+            if [ $i -eq 60 ]; then
               echo "❌ Orchestration server failed to start"
               exit 1
             fi
-            echo "⏳ Waiting for orchestration server... (attempt $i/30)"
+            echo "⏳ Waiting for orchestration server... (attempt $i/60)"
             sleep 2
           done
         env:
