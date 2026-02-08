@@ -112,10 +112,12 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v6
-        if: always() && hashFiles('target/python-framework-results.xml') != ''
+        if: always()
         with:
           name: python-framework-test-results
-          path: target/python-framework-results.xml
+          path: |
+            target/python-framework-results.xml
+          if-no-files-found: warn
 
       - name: Display test summary
         if: always()
@@ -124,8 +126,8 @@ jobs:
           echo "================================="
           if [ -f "../../target/python-framework-results.xml" ]; then
             test_count=$(grep -o '<testcase' ../../target/python-framework-results.xml | wc -l || echo "0")
-            echo "Total tests: $test_count"
-            echo "✅ Framework tests completed"
+            echo "Framework tests: $test_count"
           else
-            echo "⚠️ No test results file found"
+            echo "⚠️ No framework test results file found"
           fi
+          echo "✅ Python framework tests completed"

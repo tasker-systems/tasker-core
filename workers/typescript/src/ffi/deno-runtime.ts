@@ -10,6 +10,7 @@ import type {
   BootstrapConfig,
   BootstrapResult,
   CheckpointYieldData,
+  ClientResult,
   FfiDispatchMetrics,
   FfiDomainEvent,
   FfiStepEvent,
@@ -52,6 +53,15 @@ interface DenoFfiSymbols {
   log_debug: (message: BufferValue, fieldsJson: BufferValue) => void;
   log_trace: (message: BufferValue, fieldsJson: BufferValue) => void;
   free_rust_string: (ptr: PointerValue) => void;
+  // Client API functions (TAS-231)
+  client_create_task: (requestJson: BufferValue) => PointerValue;
+  client_get_task: (taskUuid: BufferValue) => PointerValue;
+  client_list_tasks: (paramsJson: BufferValue) => PointerValue;
+  client_cancel_task: (taskUuid: BufferValue) => PointerValue;
+  client_list_task_steps: (taskUuid: BufferValue) => PointerValue;
+  client_get_step: (taskUuid: BufferValue, stepUuid: BufferValue) => PointerValue;
+  client_get_step_audit_history: (taskUuid: BufferValue, stepUuid: BufferValue) => PointerValue;
+  client_health_check: () => PointerValue;
 }
 
 // Deno dynamic library handle
@@ -167,6 +177,39 @@ export class DenoRuntime extends BaseTaskerRuntime {
       free_rust_string: {
         parameters: ['pointer'],
         result: 'void',
+      },
+      // Client API functions (TAS-231)
+      client_create_task: {
+        parameters: ['buffer'],
+        result: 'pointer',
+      },
+      client_get_task: {
+        parameters: ['buffer'],
+        result: 'pointer',
+      },
+      client_list_tasks: {
+        parameters: ['buffer'],
+        result: 'pointer',
+      },
+      client_cancel_task: {
+        parameters: ['buffer'],
+        result: 'pointer',
+      },
+      client_list_task_steps: {
+        parameters: ['buffer'],
+        result: 'pointer',
+      },
+      client_get_step: {
+        parameters: ['buffer', 'buffer'],
+        result: 'pointer',
+      },
+      client_get_step_audit_history: {
+        parameters: ['buffer', 'buffer'],
+        result: 'pointer',
+      },
+      client_health_check: {
+        parameters: [],
+        result: 'pointer',
       },
     }) as DenoFfiLibrary;
   }
@@ -396,5 +439,80 @@ export class DenoRuntime extends BaseTaskerRuntime {
     const msgBuf = this.toCString(message);
     const fieldsBuf = fields ? this.toCString(this.toJson(fields)) : null;
     symbols.log_trace(msgBuf, fieldsBuf);
+  }
+
+  // ==========================================================================
+  // Client API Operations (TAS-231)
+  // ==========================================================================
+
+  private parseClientResult(result: PointerValue): ClientResult {
+    const jsonStr = this.fromCString(result);
+    if (result !== null) this.ensureLoaded().free_rust_string(result);
+    const parsed = this.parseJson<ClientResult>(jsonStr);
+    return (
+      parsed ?? {
+        success: false,
+        data: null,
+        error: 'Failed to parse client result',
+        recoverable: null,
+      }
+    );
+  }
+
+  clientCreateTask(requestJson: string): ClientResult {
+    const symbols = this.ensureLoaded();
+    const buf = this.toCString(requestJson);
+    const result = symbols.client_create_task(buf);
+    return this.parseClientResult(result);
+  }
+
+  clientGetTask(taskUuid: string): ClientResult {
+    const symbols = this.ensureLoaded();
+    const buf = this.toCString(taskUuid);
+    const result = symbols.client_get_task(buf);
+    return this.parseClientResult(result);
+  }
+
+  clientListTasks(paramsJson: string): ClientResult {
+    const symbols = this.ensureLoaded();
+    const buf = this.toCString(paramsJson);
+    const result = symbols.client_list_tasks(buf);
+    return this.parseClientResult(result);
+  }
+
+  clientCancelTask(taskUuid: string): ClientResult {
+    const symbols = this.ensureLoaded();
+    const buf = this.toCString(taskUuid);
+    const result = symbols.client_cancel_task(buf);
+    return this.parseClientResult(result);
+  }
+
+  clientListTaskSteps(taskUuid: string): ClientResult {
+    const symbols = this.ensureLoaded();
+    const buf = this.toCString(taskUuid);
+    const result = symbols.client_list_task_steps(buf);
+    return this.parseClientResult(result);
+  }
+
+  clientGetStep(taskUuid: string, stepUuid: string): ClientResult {
+    const symbols = this.ensureLoaded();
+    const tBuf = this.toCString(taskUuid);
+    const sBuf = this.toCString(stepUuid);
+    const result = symbols.client_get_step(tBuf, sBuf);
+    return this.parseClientResult(result);
+  }
+
+  clientGetStepAuditHistory(taskUuid: string, stepUuid: string): ClientResult {
+    const symbols = this.ensureLoaded();
+    const tBuf = this.toCString(taskUuid);
+    const sBuf = this.toCString(stepUuid);
+    const result = symbols.client_get_step_audit_history(tBuf, sBuf);
+    return this.parseClientResult(result);
+  }
+
+  clientHealthCheck(): ClientResult {
+    const symbols = this.ensureLoaded();
+    const result = symbols.client_health_check();
+    return this.parseClientResult(result);
   }
 }

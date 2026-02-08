@@ -215,6 +215,32 @@ echo "  Normalized: ../../coverage-reports/ruby/tasker-worker-rb-coverage.json"
 '''
 
 # =============================================================================
+# Client API Integration Test Tasks (TAS-231)
+# =============================================================================
+# Tests the client FFI functions against a running orchestration server.
+# Requires: FFI_CLIENT_TESTS=true, DATABASE_URL, orchestration server running.
+
+[tasks.test-client]
+description = "Run client API integration tests (skips gracefully if FFI_CLIENT_TESTS not set)"
+dependencies = ["setup", "compile"]
+script = '''
+echo "🧪 Running client API integration tests..."
+bundle exec rspec spec/integration/client_api_spec.rb --format documentation
+'''
+
+[tasks.test-client-ci]
+description = "Run client API integration tests with CI output (JUnit XML)"
+dependencies = ["setup", "compile"]
+script = '''
+mkdir -p ../../target
+echo "🧪 Running client API integration tests (CI)..."
+bundle exec rspec spec/integration/client_api_spec.rb \
+  --format documentation \
+  --format RspecJunitFormatter \
+  --out ../../target/ruby-client-results.xml
+'''
+
+# =============================================================================
 # Documentation Tasks
 # =============================================================================
 

@@ -268,6 +268,50 @@ impl ClientAuthConfig {
     }
 }
 
+// =============================================================================
+// Conversions from tasker-shared config types
+// =============================================================================
+
+impl From<tasker_shared::config::tasker::ClientTransport> for Transport {
+    fn from(t: tasker_shared::config::tasker::ClientTransport) -> Self {
+        match t {
+            tasker_shared::config::tasker::ClientTransport::Rest => Transport::Rest,
+            tasker_shared::config::tasker::ClientTransport::Grpc => Transport::Grpc,
+        }
+    }
+}
+
+impl From<tasker_shared::config::tasker::ClientAuthMethod> for ClientAuthConfig {
+    fn from(method: tasker_shared::config::tasker::ClientAuthMethod) -> Self {
+        match method {
+            tasker_shared::config::tasker::ClientAuthMethod::Bearer { token } => ClientAuthConfig {
+                method: ClientAuthMethod::BearerToken(token),
+            },
+            tasker_shared::config::tasker::ClientAuthMethod::ApiKey { key, header_name } => {
+                ClientAuthConfig {
+                    method: ClientAuthMethod::ApiKey { key, header_name },
+                }
+            }
+        }
+    }
+}
+
+impl From<&tasker_shared::config::tasker::OrchestrationClientConfig> for ClientConfig {
+    fn from(config: &tasker_shared::config::tasker::OrchestrationClientConfig) -> Self {
+        Self {
+            transport: config.transport.into(),
+            orchestration: ApiEndpointConfig {
+                base_url: config.base_url.clone(),
+                timeout_ms: config.timeout_ms,
+                max_retries: config.max_retries,
+                auth_token: None,
+                auth: config.auth.clone().map(Into::into),
+            },
+            ..Default::default()
+        }
+    }
+}
+
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {

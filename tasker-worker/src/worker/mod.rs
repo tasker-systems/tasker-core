@@ -5,6 +5,7 @@
 pub(crate) mod actor_command_processor; // TAS-69: Actor-based command processor (pure routing)
 pub(crate) mod actors; // TAS-69: Actor-based architecture for worker system
 pub mod channels; // TAS-133: Semantic NewType channel wrappers
+pub mod client_bridge; // TAS-231: FFI client bridge for orchestration API access
 pub(crate) mod command_processor;
 pub(crate) mod core;
 pub(crate) mod domain_event_commands; // TAS-65/TAS-69: Domain event command types

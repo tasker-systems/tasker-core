@@ -59,6 +59,31 @@ export const SKIP_LIBRARY_MESSAGE =
   'Skipping: TASKER_FFI_LIBRARY_PATH not set. Set the environment variable and build with: cargo build -p tasker-worker-ts';
 
 /**
+ * Check if client API integration tests should run.
+ *
+ * Client tests require:
+ * 1. FFI_CLIENT_TESTS=true environment variable
+ * 2. All bootstrap test prerequisites (DATABASE_URL, FFI library)
+ * 3. Orchestration server running at TASKER_ORCHESTRATION_URL
+ */
+export function shouldRunClientTests(): boolean {
+  return process.env.FFI_CLIENT_TESTS === 'true' && shouldRunBootstrapTests();
+}
+
+/**
+ * Get the orchestration server URL for client tests.
+ */
+export function getOrchestrationUrl(): string {
+  return process.env.TASKER_ORCHESTRATION_URL ?? 'http://localhost:8080';
+}
+
+/**
+ * Skip message for tests requiring client API (orchestration server).
+ */
+export const SKIP_CLIENT_MESSAGE =
+  'Skipping: Set FFI_CLIENT_TESTS=true with orchestration server running';
+
+/**
  * Assert that a value is a non-empty string.
  */
 export function assertNonEmptyString(value: unknown): value is string {

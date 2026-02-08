@@ -50,6 +50,8 @@ pub struct RubyBridgeHandle {
     /// TAS-65 Phase 4.1: In-process event receiver for fast domain events
     /// Ruby can poll this channel to receive domain events with delivery_mode: fast
     pub in_process_event_receiver: Option<Arc<Mutex<broadcast::Receiver<DomainEvent>>>>,
+    /// TAS-231: FFI client bridge for orchestration API access
+    pub client: Option<Arc<tasker_worker::FfiClientBridge>>,
     /// Tokio runtime for async FFI operations
     pub runtime: tokio::runtime::Runtime,
 }
@@ -60,6 +62,7 @@ impl RubyBridgeHandle {
         ffi_dispatch_channel: Arc<FfiDispatchChannel>,
         domain_event_publisher: Arc<tasker_shared::events::domain_events::DomainEventPublisher>,
         in_process_event_receiver: Option<broadcast::Receiver<DomainEvent>>,
+        client: Option<Arc<tasker_worker::FfiClientBridge>>,
         runtime: tokio::runtime::Runtime,
     ) -> Self {
         Self {
@@ -67,6 +70,7 @@ impl RubyBridgeHandle {
             ffi_dispatch_channel,
             domain_event_publisher,
             in_process_event_receiver: in_process_event_receiver.map(|r| Arc::new(Mutex::new(r))),
+            client,
             runtime,
         }
     }
@@ -387,6 +391,9 @@ pub fn init_bridge(module: &RModule) -> Result<(), Error> {
 
     // TAS-77: Observability services FFI (health, metrics, templates, config)
     crate::observability_ffi::init_observability_ffi(module)?;
+
+    // TAS-231: Client API functions
+    crate::client_ffi::init_client_ffi(module)?;
 
     info!("✅ Ruby FFI bridge initialized");
     Ok(())

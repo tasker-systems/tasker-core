@@ -62,6 +62,16 @@ export {
 export type {
   BootstrapConfig as FfiBootstrapConfig,
   BootstrapResult as FfiBootstrapResult,
+  // Client API types (TAS-231)
+  ClientHealthResponse,
+  ClientPaginationInfo,
+  ClientResult,
+  ClientStepAuditResponse,
+  ClientStepReadiness,
+  ClientStepResponse,
+  ClientTaskListResponse,
+  ClientTaskRequest,
+  ClientTaskResponse,
   DependencyResult,
   FfiDispatchMetrics,
   FfiStepEvent,

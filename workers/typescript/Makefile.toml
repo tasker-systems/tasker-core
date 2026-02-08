@@ -70,6 +70,11 @@ script = '''
 echo "📝 Generating TypeScript bindings from Rust DTOs..."
 mkdir -p src/ffi/generated
 cargo test export_bindings --package tasker-worker-ts -- --nocapture 2>/dev/null
+# ts-rs exports to bindings/ directory; copy generated files to src/ffi/generated/
+if [ -d "bindings/src/ffi/generated" ]; then
+    cp bindings/src/ffi/generated/*.ts src/ffi/generated/
+    rm -rf bindings
+fi
 echo "✅ TypeScript bindings generated in src/ffi/generated/"
 '''
 
@@ -346,6 +351,34 @@ else
     echo "❌ Some FFI integration tests failed"
     exit 1
 fi
+'''
+
+# =============================================================================
+# Client API Integration Test Tasks (TAS-231)
+# =============================================================================
+# Tests the client FFI functions against a running orchestration server.
+# Requires: FFI_CLIENT_TESTS=true, DATABASE_URL, orchestration server running.
+
+[tasks.test-client]
+description = "Run client API integration tests (skips gracefully if FFI_CLIENT_TESTS not set)"
+dependencies = ["build-ffi", "install"]
+script_runner = "bash"
+script = '''
+source scripts/load-env.sh
+echo "🧪 Running client API integration tests..."
+bun test tests/integration/ffi/client-api.test.ts
+'''
+
+[tasks.test-client-ci]
+description = "Run client API integration tests with CI output"
+dependencies = ["build-ffi", "install"]
+script_runner = "bash"
+script = '''
+set -o pipefail
+source scripts/load-env.sh
+mkdir -p ../../target
+echo "🧪 Running client API integration tests (CI)..."
+bun test tests/integration/ffi/client-api.test.ts 2>&1 | tee ../../target/typescript-client-results.txt
 '''
 
 # =============================================================================

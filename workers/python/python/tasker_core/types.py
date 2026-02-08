@@ -2104,6 +2104,170 @@ def aggregate_batch_results(
     )
 
 
+# =============================================================================
+# TAS-231: Client API Types
+# =============================================================================
+# These types match the JSON responses from the orchestration API,
+# as returned by the client FFI functions (client_create_task, etc.).
+
+
+class ClientStepReadiness(BaseModel):
+    """Step readiness status within a task response."""
+
+    workflow_step_uuid: str = Field(description="Step UUID.")
+    task_uuid: str = Field(description="Parent task UUID.")
+    named_step_uuid: str = Field(description="Named step UUID.")
+    name: str = Field(description="Step name.")
+    current_state: str = Field(description="Current state of the step.")
+    dependencies_satisfied: bool = Field(description="Whether all dependencies are met.")
+    retry_eligible: bool = Field(description="Whether the step is eligible for retry.")
+    ready_for_execution: bool = Field(description="Whether the step is ready to execute.")
+    last_failure_at: str | None = Field(default=None, description="Last failure timestamp.")
+    next_retry_at: str | None = Field(default=None, description="Next retry timestamp.")
+    total_parents: int = Field(description="Total parent dependencies.")
+    completed_parents: int = Field(description="Completed parent dependencies.")
+    attempts: int = Field(description="Number of execution attempts.")
+    max_attempts: int = Field(description="Maximum allowed attempts.")
+    backoff_request_seconds: int | None = Field(
+        default=None, description="Backoff request in seconds."
+    )
+    last_attempted_at: str | None = Field(default=None, description="Last attempt timestamp.")
+
+
+class ClientTaskResponse(BaseModel):
+    """Task response from the orchestration API.
+
+    Returned by client_create_task and client_get_task.
+
+    Example:
+        >>> result = client_get_task(task_uuid)
+        >>> task = ClientTaskResponse.model_validate(result)
+        >>> print(f"Task {task.name}: {task.execution_status}")
+    """
+
+    task_uuid: str = Field(description="Task UUID.")
+    name: str = Field(description="Task name.")
+    namespace: str = Field(description="Task namespace.")
+    version: str = Field(description="Task version.")
+    status: str = Field(description="Current task status.")
+    created_at: str = Field(description="Creation timestamp.")
+    updated_at: str = Field(description="Last update timestamp.")
+    completed_at: str | None = Field(default=None, description="Completion timestamp.")
+    context: dict[str, Any] = Field(default_factory=dict, description="Task context data.")
+    initiator: str = Field(description="Who initiated the task.")
+    source_system: str = Field(description="Source system.")
+    reason: str = Field(description="Reason for the task.")
+    priority: int | None = Field(default=None, description="Task priority.")
+    tags: list[str] | None = Field(default=None, description="Task tags.")
+    correlation_id: str = Field(description="Correlation ID.")
+    parent_correlation_id: str | None = Field(default=None, description="Parent correlation ID.")
+
+    # Execution context
+    total_steps: int = Field(description="Total steps in the task.")
+    pending_steps: int = Field(description="Pending steps.")
+    in_progress_steps: int = Field(description="Steps in progress.")
+    completed_steps: int = Field(description="Completed steps.")
+    failed_steps: int = Field(description="Failed steps.")
+    ready_steps: int = Field(description="Steps ready for execution.")
+    execution_status: str = Field(description="Overall execution status.")
+    recommended_action: str = Field(description="Recommended action.")
+    completion_percentage: float = Field(description="Completion percentage (0-100).")
+    health_status: str = Field(description="Task health status.")
+
+    # Step readiness
+    steps: list[ClientStepReadiness] = Field(
+        default_factory=list, description="Step readiness details."
+    )
+
+
+class ClientPaginationInfo(BaseModel):
+    """Pagination information in list responses."""
+
+    page: int = Field(description="Current page number.")
+    per_page: int = Field(description="Items per page.")
+    total_count: int = Field(description="Total number of items.")
+    total_pages: int = Field(description="Total number of pages.")
+    has_next: bool = Field(description="Whether there is a next page.")
+    has_previous: bool = Field(description="Whether there is a previous page.")
+
+
+class ClientTaskListResponse(BaseModel):
+    """Task list response with pagination.
+
+    Returned by client_list_tasks.
+
+    Example:
+        >>> result = client_list_tasks(limit=50, offset=0)
+        >>> response = ClientTaskListResponse.model_validate(result)
+        >>> for task in response.tasks:
+        ...     print(f"{task.name}: {task.status}")
+    """
+
+    tasks: list[ClientTaskResponse] = Field(description="List of tasks.")
+    pagination: ClientPaginationInfo = Field(description="Pagination info.")
+
+
+class ClientStepResponse(BaseModel):
+    """Step response from the orchestration API.
+
+    Returned by client_get_step.
+    """
+
+    step_uuid: str = Field(description="Step UUID.")
+    task_uuid: str = Field(description="Parent task UUID.")
+    name: str = Field(description="Step name.")
+    created_at: str = Field(description="Creation timestamp.")
+    updated_at: str = Field(description="Last update timestamp.")
+    completed_at: str | None = Field(default=None, description="Completion timestamp.")
+    results: dict[str, Any] | None = Field(default=None, description="Step results.")
+
+    # Readiness fields
+    current_state: str = Field(description="Current state.")
+    dependencies_satisfied: bool = Field(description="Whether dependencies are met.")
+    retry_eligible: bool = Field(description="Whether eligible for retry.")
+    ready_for_execution: bool = Field(description="Whether ready to execute.")
+    total_parents: int = Field(description="Total parent dependencies.")
+    completed_parents: int = Field(description="Completed parent dependencies.")
+    attempts: int = Field(description="Number of attempts.")
+    max_attempts: int = Field(description="Maximum allowed attempts.")
+    last_failure_at: str | None = Field(default=None, description="Last failure timestamp.")
+    next_retry_at: str | None = Field(default=None, description="Next retry timestamp.")
+    last_attempted_at: str | None = Field(default=None, description="Last attempt timestamp.")
+
+
+class ClientStepAuditResponse(BaseModel):
+    """Step audit history response (SOC2 compliance).
+
+    Returned by client_get_step_audit_history.
+    """
+
+    audit_uuid: str = Field(description="Audit record UUID.")
+    workflow_step_uuid: str = Field(description="Step UUID.")
+    transition_uuid: str = Field(description="Transition UUID.")
+    task_uuid: str = Field(description="Task UUID.")
+    recorded_at: str = Field(description="When the audit was recorded.")
+    worker_uuid: str | None = Field(default=None, description="Worker UUID.")
+    correlation_id: str | None = Field(default=None, description="Correlation ID.")
+    success: bool = Field(description="Whether the execution succeeded.")
+    execution_time_ms: int | None = Field(
+        default=None, description="Execution time in milliseconds."
+    )
+    result: dict[str, Any] | None = Field(default=None, description="Execution result.")
+    step_name: str = Field(description="Step name.")
+    from_state: str | None = Field(default=None, description="State before transition.")
+    to_state: str = Field(description="State after transition.")
+
+
+class ClientHealthResponse(BaseModel):
+    """Health check response from the orchestration API.
+
+    Returned by client_health_check.
+    """
+
+    status: str = Field(description="Health status.")
+    timestamp: str = Field(description="Timestamp of the check.")
+
+
 __all__ = [
     # Phase 2: Bootstrap and lifecycle
     "WorkerState",
@@ -2150,4 +2314,12 @@ __all__ = [
     "create_batches",
     "BatchAggregationResult",
     "aggregate_batch_results",
+    # TAS-231: Client API types
+    "ClientStepReadiness",
+    "ClientTaskResponse",
+    "ClientPaginationInfo",
+    "ClientTaskListResponse",
+    "ClientStepResponse",
+    "ClientStepAuditResponse",
+    "ClientHealthResponse",
 ]
