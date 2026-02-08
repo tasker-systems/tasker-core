@@ -362,6 +362,7 @@ fi
 [tasks.test-client]
 description = "Run client API integration tests (skips gracefully if FFI_CLIENT_TESTS not set)"
 dependencies = ["build-ffi", "install"]
+script_runner = "bash"
 script = '''
 source scripts/load-env.sh
 echo "🧪 Running client API integration tests..."
