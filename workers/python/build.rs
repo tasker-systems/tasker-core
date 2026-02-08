@@ -1,4 +1,4 @@
-//! Build script for tasker-worker-py
+//! Build script for tasker-py
 //!
 //! Captures build-time information like the Rust compiler version.
 

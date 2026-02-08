@@ -4,7 +4,7 @@
 # Demonstrates retry behavior via Python FFI
 #
 # Template: test_scenarios/retryable_error_only_py:1.0.0
-# Implementation: Python FFI with tasker-worker-py (PyO3)
+# Implementation: Python FFI with tasker-py (PyO3)
 #
 ---
 name: retryable_error_only_py

@@ -23,7 +23,7 @@ def get_rust_version() -> str:
     """Return the Rust library version for debugging.
 
     Returns:
-        Version string including rustc version (e.g., "tasker-worker-py 0.1.0 (rustc 1.70.0)")
+        Version string including rustc version (e.g., "tasker-py 0.1.0 (rustc 1.70.0)")
     """
     ...
 

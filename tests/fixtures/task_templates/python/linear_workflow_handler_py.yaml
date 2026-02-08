@@ -4,7 +4,7 @@
 # Demonstrates sequential mathematical operations using Python handlers called from Rust
 #
 # Template: linear_workflow/mathematical_sequence_py:1.0.0
-# Implementation: Python FFI with tasker-worker-py (PyO3)
+# Implementation: Python FFI with tasker-py (PyO3)
 # Updated: 2025-12-13
 #
 # Mathematical Pattern:

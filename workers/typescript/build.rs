@@ -1,4 +1,4 @@
-//! Build script for tasker-worker-ts
+//! Build script for tasker-ts
 //!
 //! Captures build-time information like the Rust compiler version.
 

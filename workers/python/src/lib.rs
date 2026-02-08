@@ -37,7 +37,7 @@ mod event_dispatch;
 mod ffi_logging;
 mod observability;
 
-/// Returns the version of the tasker-worker-py package
+/// Returns the version of the tasker-py package
 #[pyfunction]
 fn get_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -47,7 +47,7 @@ fn get_version() -> &'static str {
 #[pyfunction]
 fn get_rust_version() -> String {
     format!(
-        "tasker-worker-py {} (rustc {})",
+        "tasker-py {} (rustc {})",
         env!("CARGO_PKG_VERSION"),
         env!("RUSTC_VERSION")
     )
@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn test_get_rust_version() {
         let version = get_rust_version();
-        assert!(version.contains("tasker-worker-py"));
+        assert!(version.contains("tasker-py"));
         assert!(version.contains("rustc"));
     }
 }

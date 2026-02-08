@@ -4,7 +4,7 @@
 # Demonstrates parallel execution followed by convergence using TypeScript handlers called from Rust
 #
 # Template: diamond_workflow/parallel_computation_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts (Bun FFI)
+# Implementation: TypeScript FFI with tasker-ts (Bun FFI)
 # Updated: 2025-12-23
 #
 # Diamond Pattern:

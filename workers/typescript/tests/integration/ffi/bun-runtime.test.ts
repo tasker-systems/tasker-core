@@ -5,7 +5,7 @@
  * Verifies that Bun's bun:ffi correctly interfaces with the native code.
  *
  * Prerequisites:
- * - Build FFI library: cargo build -p tasker-worker-ts --release
+ * - Build FFI library: cargo build -p tasker-ts --release
  * - (Optional) DATABASE_URL for bootstrap tests
  *
  * Run: bun test tests/integration/ffi/bun-runtime.test.ts

@@ -51,7 +51,7 @@ export interface TaskerRuntime {
   // ============================================================================
 
   /**
-   * Get the version of the tasker-worker-ts package
+   * Get the version of the tasker-ts package
    */
   getVersion(): string;
 

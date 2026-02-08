@@ -106,7 +106,7 @@ describe('Runtime Detection', () => {
     });
 
     it('returns TASKER_FFI_LIBRARY_PATH when set', () => {
-      const testPath = '/test/path/libtasker_worker.dylib';
+      const testPath = '/test/path/libtasker_ts.dylib';
       process.env.TASKER_FFI_LIBRARY_PATH = testPath;
       const path = getLibraryPath();
       expect(path).toBe(testPath);
@@ -117,7 +117,7 @@ describe('Runtime Detection', () => {
       const basePath = '/custom/path';
       const path = getLibraryPath(basePath);
       expect(path).toStartWith(basePath);
-      expect(path).toContain('tasker_worker');
+      expect(path).toContain('tasker_ts');
     });
 
     it('includes correct library extension when using base path', () => {
@@ -144,7 +144,7 @@ describe('Runtime Detection', () => {
     });
 
     it('prefers env var over base path', () => {
-      const envPath = '/env/path/libtasker_worker.dylib';
+      const envPath = '/env/path/libtasker_ts.dylib';
       process.env.TASKER_FFI_LIBRARY_PATH = envPath;
       const path = getLibraryPath('/ignored/base');
       expect(path).toBe(envPath);

@@ -4,7 +4,7 @@
 # Demonstrates parallel execution followed by convergence using Ruby handlers called from Rust
 #
 # Template: diamond_workflow/parallel_computation:1.0.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Updated: 2025-09-24 (Fixed Template Format)
 #
 # Diamond Pattern:

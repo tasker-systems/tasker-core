@@ -312,11 +312,11 @@ jobs:
           cd workers/typescript
           bun install --frozen-lockfile
           bun run build
-          if [ -f "../../target/debug/libtasker_worker.so" ]; then
-            echo "✅ FFI library found at target/debug/libtasker_worker.so"
+          if [ -f "../../target/debug/libtasker_ts.so" ]; then
+            echo "✅ FFI library found at target/debug/libtasker_ts.so"
           else
             echo "⚠️ FFI library not found, building..."
-            cargo build -p tasker-worker-ts
+            cargo build -p tasker-ts
           fi
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
@@ -541,11 +541,11 @@ jobs:
           cd workers/typescript
           bun install --frozen-lockfile
           bun run build
-          if [ -f "../../target/debug/libtasker_worker.so" ]; then
-            echo "✅ FFI library found at target/debug/libtasker_worker.so"
+          if [ -f "../../target/debug/libtasker_ts.so" ]; then
+            echo "✅ FFI library found at target/debug/libtasker_ts.so"
           else
             echo "⚠️ FFI library not found, building..."
-            cargo build -p tasker-worker-ts
+            cargo build -p tasker-ts
           fi
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test

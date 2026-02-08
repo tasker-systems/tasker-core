@@ -86,7 +86,7 @@ uv run pytest                   # Run tests
 ```bash
 cd workers/typescript
 bun install                     # Install dependencies
-cargo build -p tasker-worker-ts --release  # Build Rust cdylib
+cargo build -p tasker-ts --release  # Build Rust cdylib
 bun run build                   # Build TypeScript
 bun test                        # Run tests
 ```

@@ -4,7 +4,7 @@
 # Demonstrates DAG pattern with parallel extraction and aggregation
 #
 # Template: data_pipeline/analytics_pipeline:1.0.0
-# Implementation: Python FFI with tasker-worker-py
+# Implementation: Python FFI with tasker-py
 # Blog Post: Post 02 - Data Pipeline Resilience (TAS-91)
 #
 # Business Workflow Pattern (8 steps):

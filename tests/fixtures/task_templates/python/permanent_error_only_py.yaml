@@ -4,7 +4,7 @@
 # Demonstrates non-retryable error behavior via Python FFI
 #
 # Template: test_scenarios/permanent_error_only_py:1.0.0
-# Implementation: Python FFI with tasker-worker-py (PyO3)
+# Implementation: Python FFI with tasker-py (PyO3)
 #
 ---
 name: permanent_error_only_py

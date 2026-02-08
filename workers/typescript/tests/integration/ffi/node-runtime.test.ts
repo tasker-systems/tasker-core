@@ -5,7 +5,7 @@
  * Verifies that ffi-napi correctly interfaces with the native code.
  *
  * Prerequisites:
- * - Build FFI library: cargo build -p tasker-worker-ts --release
+ * - Build FFI library: cargo build -p tasker-ts --release
  * - Install ffi-napi: bun install (includes ffi-napi dependency)
  * - (Optional) DATABASE_URL for bootstrap tests
  *

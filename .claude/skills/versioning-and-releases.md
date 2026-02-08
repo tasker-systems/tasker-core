@@ -111,9 +111,9 @@ Individual binding changed (workers/ruby, workers/python, workers/typescript):
 | Package | Registry | Build Tool |
 |---------|----------|------------|
 | Rust crates (6) | crates.io | `cargo publish` |
-| `tasker-worker-rb` | RubyGems | `rake compile` + `gem push` |
-| `tasker-worker-py` | PyPI | `maturin build` + `maturin publish` |
-| `@tasker-systems/worker` | npm | `cargo build` + `bun run build` + `npm publish` |
+| `tasker-rb` | RubyGems | `rake compile` + `gem push` |
+| `tasker-py` | PyPI | `maturin build` + `maturin publish` |
+| `@tasker-systems/tasker` | npm | `cargo build` + `bun run build` + `npm publish` |
 
 ### Not Published
 

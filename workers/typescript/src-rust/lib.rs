@@ -51,7 +51,7 @@ mod ffi_logging;
 // Re-export bridge functions for internal use
 use bridge::WORKER_SYSTEM;
 
-/// Returns the version of the tasker-worker-ts package.
+/// Returns the version of the tasker-ts package.
 ///
 /// # Safety
 ///
@@ -75,7 +75,7 @@ pub extern "C" fn get_version() -> *mut c_char {
 #[no_mangle]
 pub extern "C" fn get_rust_version() -> *mut c_char {
     let version = format!(
-        "tasker-worker-ts {} (rustc {})",
+        "tasker-ts {} (rustc {})",
         env!("CARGO_PKG_VERSION"),
         env!("RUSTC_VERSION")
     );
@@ -840,7 +840,7 @@ mod tests {
         // SAFETY: version_ptr was returned by get_rust_version() and is a valid C string
         unsafe {
             let version = CStr::from_ptr(version_ptr).to_str().unwrap();
-            assert!(version.contains("tasker-worker-ts"));
+            assert!(version.contains("tasker-ts"));
             assert!(version.contains("rustc"));
             free_rust_string(version_ptr);
         }

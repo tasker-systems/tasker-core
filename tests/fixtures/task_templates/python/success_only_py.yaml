@@ -4,7 +4,7 @@
 # Demonstrates a minimal successful handler execution via Python FFI
 #
 # Template: test_scenarios/success_only_py:1.0.0
-# Implementation: Python FFI with tasker-worker-py (PyO3)
+# Implementation: Python FFI with tasker-py (PyO3)
 #
 ---
 name: success_only_py

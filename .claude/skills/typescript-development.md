@@ -19,7 +19,7 @@ Use this skill when writing, reviewing, or modifying TypeScript code in `workers
 ```bash
 cd workers/typescript
 cargo make install                          # bun install --frozen-lockfile
-cargo build -p tasker-worker-ts --release   # Build Rust FFI cdylib
+cargo build -p tasker-ts --release   # Build Rust FFI cdylib
 bun run build                               # Build TypeScript
 ```
 

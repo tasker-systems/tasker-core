@@ -18,14 +18,14 @@
 |-------|----------|----------|-----------|--------|
 | tasker-cli | rust | 8.82% | 30% | **FAIL** |
 | tasker-client * | rust | 78.24% | 60% | PASS |
-| tasker-worker-py | python | 81.57% | 80% | PASS |
+| tasker-py | python | 81.57% | 80% | PASS |
 | tasker-orchestration * | rust | 76.02% | 55% | PASS |
 | tasker-pgmq * | rust | 68.58% | 65% | PASS |
 | tasker-shared * | rust | 78.94% | 70% | PASS |
 | tasker-worker * | rust | 49.93% | 55% | **FAIL** |
-| tasker-worker-rb | ruby | 70.44% | 70% | PASS |
+| tasker-rb | ruby | 70.44% | 70% | PASS |
 | tasker-worker-rust * | rust | 64.37% | 55% | PASS |
-| tasker-worker-ts | typescript | 75.88% | 60% | PASS |
+| tasker-ts | typescript | 75.88% | 60% | PASS |
 
 _\* Merged from multiple reports (unit/integration + E2E test coverage)._
 
@@ -44,7 +44,7 @@ _\* Merged from multiple reports (unit/integration + E2E test coverage)._
 | tasker-worker | `tasker-worker/src/testing/environment.rs` | 143 |
 | tasker-cli | `tasker-cli/src/commands/worker.rs` | 122 |
 | tasker-shared | `tasker-shared/src/database/migrator.rs` | 85 |
-| tasker-worker-py | `python/tasker_core/examples/checkpoint_yield/handlers.py` | 76 |
+| tasker-py | `python/tasker_core/examples/checkpoint_yield/handlers.py` | 76 |
 | tasker-worker | `tasker-worker/src/bin/server.rs` | 71 |
 | tasker-orchestration | `tasker-orchestration/src/web/extractors.rs` | 47 |
 | tasker-cli | `tasker-cli/src/main.rs` | 37 |

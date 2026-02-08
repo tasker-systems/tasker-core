@@ -131,11 +131,11 @@ export function getLibraryFilename(): string {
 
   switch (platform) {
     case 'darwin':
-      return 'libtasker_worker.dylib';
+      return 'libtasker_ts.dylib';
     case 'linux':
-      return 'libtasker_worker.so';
+      return 'libtasker_ts.so';
     case 'win32':
-      return 'tasker_worker.dll';
+      return 'tasker_ts.dll';
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }
@@ -168,6 +168,6 @@ export function getLibraryPath(basePath?: string): string {
 
   throw new Error(
     'FFI library path not configured. Set TASKER_FFI_LIBRARY_PATH environment variable.\n' +
-      'Example: export TASKER_FFI_LIBRARY_PATH=/path/to/target/debug/libtasker_worker.dylib'
+      'Example: export TASKER_FFI_LIBRARY_PATH=/path/to/target/debug/libtasker_ts.dylib'
   );
 }

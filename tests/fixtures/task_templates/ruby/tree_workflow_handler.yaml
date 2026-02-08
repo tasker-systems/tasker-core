@@ -4,7 +4,7 @@
 # Demonstrates complex hierarchical tree structure with multiple branches and convergence
 #
 # Template: tree_workflow/hierarchical_tree:1.0.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Updated: 2025-09-24 (Fixed Template Format)
 #
 # Tree Pattern (8 steps):

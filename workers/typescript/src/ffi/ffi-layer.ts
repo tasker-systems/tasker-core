@@ -78,8 +78,8 @@ export class FfiLayer {
     if (!path) {
       throw new Error(
         'FFI library not found. TASKER_FFI_LIBRARY_PATH environment variable must be set to the path of the compiled library.\n' +
-          'Example: export TASKER_FFI_LIBRARY_PATH=/path/to/target/debug/libtasker_worker.dylib\n' +
-          'Build the library with: cargo build -p tasker-worker-ts'
+          'Example: export TASKER_FFI_LIBRARY_PATH=/path/to/target/debug/libtasker_ts.dylib\n' +
+          'Build the library with: cargo build -p tasker-ts'
       );
     }
 

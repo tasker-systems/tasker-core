@@ -1,9 +1,9 @@
 [package]
-name = "tasker-worker-py"
+name = "tasker-py"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.70"
-description = "Python FFI bindings for tasker-core worker"
+description = "Python FFI bindings for tasker-core"
 repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
 keywords = ["ffi", "pyo3", "python", "tasker", "workflow"]

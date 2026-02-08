@@ -35,7 +35,7 @@ Build artifacts go to `$CARGO_TARGET_DIR` if set, otherwise `../../target/`:
 echo ${CARGO_TARGET_DIR:-../../target}
 
 # FFI library location
-ls ${CARGO_TARGET_DIR:-../../target}/release/libtasker_worker.*
+ls ${CARGO_TARGET_DIR:-../../target}/release/libtasker_ts.*
 ```
 
 **Local Development Note**: If using external cache (see `~/bin/development_cache_init.sh`),
@@ -81,7 +81,7 @@ Runtime detection happens automatically via `src/ffi/runtime.ts`.
 
 ### FFI Library
 
-The Rust cdylib (`libtasker_worker.{dylib,so,dll}`) exports:
+The Rust cdylib (`libtasker_ts.{dylib,so,dll}`) exports:
 
 - `get_version()` / `get_rust_version()` - Version info
 - `health_check()` - Library health
@@ -122,7 +122,7 @@ The TypeScript worker is part of the CI pipeline:
 
 1. **build-workers.yml**: `make build` compiles Rust FFI + TypeScript
 2. **test-typescript-framework.yml**: Runs `bun test` for coherence tests
-3. Artifacts uploaded: `dist/`, `libtasker_worker.{so,dylib}`
+3. Artifacts uploaded: `dist/`, `libtasker_ts.{so,dylib}`
 
 ---
 
@@ -150,7 +150,7 @@ The TypeScript worker is part of the CI pipeline:
 ### "Library not found" errors
 ```bash
 # Check library exists
-ls ${CARGO_TARGET_DIR:-../../target}/release/libtasker_worker.*
+ls ${CARGO_TARGET_DIR:-../../target}/release/libtasker_ts.*
 
 # Rebuild if missing
 make build-ffi

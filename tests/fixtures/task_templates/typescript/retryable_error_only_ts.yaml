@@ -4,7 +4,7 @@
 # Demonstrates retry behavior via TypeScript FFI
 #
 # Template: test_scenarios/retryable_error_only_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts (Bun FFI)
+# Implementation: TypeScript FFI with tasker-ts (Bun FFI)
 #
 ---
 name: retryable_error_only_ts

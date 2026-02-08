@@ -10,7 +10,7 @@
 # - Custom publisher specification
 #
 # Template: domain_events_py/domain_event_publishing_py:1.0.0
-# Implementation: Python FFI with tasker-worker-py
+# Implementation: Python FFI with tasker-py
 # Created: 2025-12-18
 #
 ---

@@ -5,7 +5,7 @@
  * Verifies full round-trip: TypeScript -> C FFI -> Rust -> REST API -> PostgreSQL -> response.
  *
  * Prerequisites:
- * - FFI library built: cargo build -p tasker-worker-ts
+ * - FFI library built: cargo build -p tasker-ts
  * - DATABASE_URL set and database accessible
  * - Orchestration server running (default: http://localhost:8080)
  * - FFI_CLIENT_TESTS=true environment variable

@@ -4,7 +4,7 @@
 # Demonstrates complete order checkout workflow with cart validation, payment, inventory, and confirmation
 #
 # Template: ecommerce/order_processing:1.0.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Blog Post: Post 01 - E-commerce Integration
 #
 # Business Workflow Pattern (5 steps):

@@ -4,7 +4,7 @@
 # Demonstrates namespace isolation with same workflow name in different namespaces
 #
 # Template: payments/process_refund:2.1.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Blog Post: Post 04 - Team Scaling (Namespace Isolation)
 #
 # Business Workflow Pattern (4 steps):

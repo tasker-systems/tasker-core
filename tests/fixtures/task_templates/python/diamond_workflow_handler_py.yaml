@@ -4,7 +4,7 @@
 # Demonstrates parallel execution followed by convergence using Python handlers called from Rust
 #
 # Template: diamond_workflow/parallel_computation_py:1.0.0
-# Implementation: Python FFI with tasker-worker-py (PyO3)
+# Implementation: Python FFI with tasker-py (PyO3)
 # Updated: 2025-12-13
 #
 # Diamond Pattern:

@@ -125,10 +125,10 @@ fi
 echo "📜 Starting TypeScript FFI worker on port $TYPESCRIPT_WORKER_PORT..."
 cd workers/typescript
 # Determine FFI library path based on platform
-if [ -f "../../target/debug/libtasker_worker.so" ]; then
-  FFI_LIB_PATH="$(pwd)/../../target/debug/libtasker_worker.so"
-elif [ -f "../../target/debug/libtasker_worker.dylib" ]; then
-  FFI_LIB_PATH="$(pwd)/../../target/debug/libtasker_worker.dylib"
+if [ -f "../../target/debug/libtasker_ts.so" ]; then
+  FFI_LIB_PATH="$(pwd)/../../target/debug/libtasker_ts.so"
+elif [ -f "../../target/debug/libtasker_ts.dylib" ]; then
+  FFI_LIB_PATH="$(pwd)/../../target/debug/libtasker_ts.dylib"
 else
   echo "⚠️ Warning: FFI library not found in target/debug/"
   FFI_LIB_PATH=""

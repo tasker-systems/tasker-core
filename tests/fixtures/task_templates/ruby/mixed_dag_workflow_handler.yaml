@@ -4,7 +4,7 @@
 # Demonstrates complex DAG with mixed dependency patterns: linear, parallel, and convergence
 #
 # Template: mixed_dag_workflow/complex_dag:1.0.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Updated: 2025-09-24 (Fixed Template Format)
 #
 # Complex DAG Pattern (7 steps):

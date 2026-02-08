@@ -128,7 +128,7 @@ def normalize_simplecov(input_path: Path) -> dict:
     return {
         "meta": {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "crate": "tasker-worker-rb",
+            "crate": "tasker-rb",
             "language": "ruby",
             "tool": "simplecov",
             "git_commit": git_commit,

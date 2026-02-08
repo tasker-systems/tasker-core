@@ -4,7 +4,7 @@
 # Demonstrates DAG pattern with parallel extraction and aggregation
 #
 # Template: data_pipeline/analytics_pipeline:1.0.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Blog Post: Post 02 - Data Pipeline Resilience
 #
 # Business Workflow Pattern (8 steps):

@@ -4,7 +4,7 @@
 # Tests that the resolver chain respects resolver hints.
 #
 # Template: resolver_tests/resolver_hints_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts
+# Implementation: TypeScript FFI with tasker-ts
 #
 # This template demonstrates resolver hints where the framework
 # bypasses the resolver chain and routes directly to a named resolver.

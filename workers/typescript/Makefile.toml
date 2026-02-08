@@ -69,7 +69,7 @@ description = "Generate TypeScript type definitions from Rust DTOs using ts-rs"
 script = '''
 echo "📝 Generating TypeScript bindings from Rust DTOs..."
 mkdir -p src/ffi/generated
-cargo test export_bindings --package tasker-worker-ts -- --nocapture 2>/dev/null
+cargo test export_bindings --package tasker-ts -- --nocapture 2>/dev/null
 # ts-rs exports to bindings/ directory; copy generated files to src/ffi/generated/
 if [ -d "bindings/src/ffi/generated" ]; then
     cp bindings/src/ffi/generated/*.ts src/ffi/generated/
@@ -81,12 +81,12 @@ echo "✅ TypeScript bindings generated in src/ffi/generated/"
 [tasks.build-ffi]
 description = "Build Rust FFI library (debug mode - aligns with sccache)"
 command = "cargo"
-args = ["build", "-p", "tasker-worker-ts"]
+args = ["build", "-p", "tasker-ts"]
 
 [tasks.build-ffi-release]
 description = "Build Rust FFI library (release, for production)"
 command = "cargo"
-args = ["build", "-p", "tasker-worker-ts", "--release"]
+args = ["build", "-p", "tasker-ts", "--release"]
 
 [tasks.build-ts]
 description = "Build TypeScript package"
@@ -179,10 +179,10 @@ bun test --coverage --coverage-reporter=lcov --coverage-dir=../../coverage-repor
 uv run --project ../../cargo-make/scripts/coverage python3 \
   ../../cargo-make/scripts/coverage/normalize-typescript.py \
   ../../coverage-reports/typescript \
-  ../../coverage-reports/typescript/tasker-worker-ts-coverage.json
+  ../../coverage-reports/typescript/tasker-ts-coverage.json
 
 echo "Coverage complete"
-echo "  Normalized: ../../coverage-reports/typescript/tasker-worker-ts-coverage.json"
+echo "  Normalized: ../../coverage-reports/typescript/tasker-ts-coverage.json"
 '''
 
 [tasks.coverage-json]
@@ -220,7 +220,7 @@ script = '''
 echo "🧹 Cleaning build artifacts..."
 rm -rf dist/
 rm -rf node_modules/
-cargo clean -p tasker-worker-ts
+cargo clean -p tasker-ts
 echo "✓ Clean complete"
 '''
 

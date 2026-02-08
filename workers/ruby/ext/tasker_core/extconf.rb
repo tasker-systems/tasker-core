@@ -10,7 +10,7 @@ unless find_executable('cargo')
 
     ❌ Rust toolchain not found!
 
-    tasker-worker-rb requires Rust to compile the native extension.
+    tasker-rb requires Rust to compile the native extension.
 
     Please install Rust:
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -33,6 +33,6 @@ end
 
 # Create the Rust makefile for the extension
 # This will compile the Rust code into a Ruby-loadable shared library
-create_rust_makefile('tasker_worker_rb')
+create_rust_makefile('tasker_rb')
 
 puts "✅ Configuration complete! Run 'make' to compile the extension."
