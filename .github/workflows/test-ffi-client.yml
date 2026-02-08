@@ -215,13 +215,13 @@ jobs:
           REDIS_URL: redis://localhost:6379
           FFI_CLIENT_TESTS: "true"
           TASKER_ORCHESTRATION_URL: http://localhost:8080
-          # Ruby-specific env
-          TASKER_CONFIG_PATH: config/tasker/generated/worker-test.toml
+          # Config paths must be absolute because cargo-make tasks run from workers/ subdirs
+          TASKER_CONFIG_PATH: ${{ github.workspace }}/config/tasker/generated/worker-test.toml
           TASKER_WEB_BIND_ADDRESS: "0.0.0.0:8182"
           TASKER_WORKER_GRPC_BIND_ADDRESS: "0.0.0.0:9182"
           TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
           # Python-specific env
-          PYTHON_HANDLER_PATH: workers/python/tests/handlers
+          PYTHON_HANDLER_PATH: ${{ github.workspace }}/workers/python/tests/handlers
           # TypeScript-specific env
           FFI_BOOTSTRAP_TESTS: "true"
 
