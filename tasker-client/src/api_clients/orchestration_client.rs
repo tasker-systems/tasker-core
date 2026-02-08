@@ -81,11 +81,12 @@ impl Default for OrchestrationApiConfig {
 // TAS-61 Phase 6D: Convert from canonical worker.orchestration_client config
 impl From<&tasker_shared::config::tasker::OrchestrationClientConfig> for OrchestrationApiConfig {
     fn from(config: &tasker_shared::config::tasker::OrchestrationClientConfig) -> Self {
+        let auth: Option<crate::config::ClientAuthConfig> = config.auth.clone().map(Into::into);
         Self {
             base_url: config.base_url.clone(),
-            timeout_ms: config.timeout_ms as u64,
+            timeout_ms: config.timeout_ms,
             max_retries: config.max_retries,
-            auth: config.auth.clone().map(|a| a.into()),
+            auth: auth.map(|a| a.to_web_auth_config()),
         }
     }
 }

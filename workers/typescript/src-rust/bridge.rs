@@ -44,6 +44,9 @@ pub struct TypeScriptBridgeHandle {
     /// Receiver for in-process domain events (fast path)
     pub in_process_event_receiver: Option<Arc<Mutex<broadcast::Receiver<DomainEvent>>>>,
 
+    /// TAS-231: FFI client bridge for orchestration API access
+    pub client: Option<Arc<tasker_worker::FfiClientBridge>>,
+
     /// Tokio runtime for async FFI operations
     pub runtime: tokio::runtime::Runtime,
 
@@ -189,12 +192,25 @@ pub fn bootstrap_worker_internal(config_json: Option<&str>) -> Result<String> {
     });
     info!("Subscribed to WorkerCore's in-process event bus for FFI domain events");
 
+    // TAS-231: Create FFI client bridge for orchestration API access
+    info!("Creating FFI client bridge for orchestration API access...");
+    let ffi_client = runtime.block_on(async {
+        let worker_core = system_handle.worker_core.lock().await;
+        tasker_worker::create_ffi_client_bridge(&worker_core, runtime.handle().clone()).await
+    });
+    if ffi_client.is_some() {
+        info!("FFI client bridge created successfully");
+    } else {
+        info!("FFI client bridge not available (orchestration client not configured)");
+    }
+
     // Store the bridge handle with FfiDispatchChannel
     *guard = Some(TypeScriptBridgeHandle {
         system_handle,
         ffi_dispatch_channel,
         domain_event_publisher,
         in_process_event_receiver: Some(Arc::new(Mutex::new(in_process_event_receiver))),
+        client: ffi_client,
         runtime,
         worker_id: worker_id_str.clone(),
     });

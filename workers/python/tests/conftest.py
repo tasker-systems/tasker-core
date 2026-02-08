@@ -133,3 +133,7 @@ def pytest_configure(config):
         "markers",
         "slow: marks tests as slow running",
     )
+    config.addinivalue_line(
+        "markers",
+        "client_integration: marks tests as client API integration tests (require orchestration server)",
+    )

@@ -73,6 +73,7 @@ pub use error::{Result, WorkerError};
 
 pub use health::WorkerHealthStatus;
 pub use tasker_shared::types::TaskSequenceStep;
+pub use worker::client_bridge::{create_ffi_client_bridge, FfiClientBridge, FfiClientError};
 pub use worker::{WorkerCore, WorkerCoreStatus};
 
 // TAS-112: Re-export ergonomic capability traits for handler development

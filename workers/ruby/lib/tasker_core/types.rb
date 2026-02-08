@@ -14,6 +14,7 @@ require_relative 'types/decision_point_outcome' # TAS-53: decision point outcome
 require_relative 'types/batch_processing_outcome' # TAS-59: batch processing outcomes
 require_relative 'types/step_context' # TAS-96: cross-language standard step context
 require_relative 'types/error_types' # TAS-96: cross-language standard error types
+require_relative 'types/client_types' # TAS-231: client API response types
 
 module TaskerCore
   # Centralized type definitions for TaskerCore domain objects
@@ -118,5 +119,14 @@ module TaskerCore
     StepCompletion = StepTypes::StepCompletion
 
     # Simple message types (UUID-based) - already defined in the namespace
+
+    # Client API types (TAS-231)
+    ClientTaskResponse = ClientTypes::TaskResponse
+    ClientTaskListResponse = ClientTypes::TaskListResponse
+    ClientStepResponse = ClientTypes::StepResponse
+    ClientStepAuditResponse = ClientTypes::StepAuditResponse
+    ClientHealthResponse = ClientTypes::HealthResponse
+    ClientPaginationInfo = ClientTypes::PaginationInfo
+    ClientStepReadiness = ClientTypes::StepReadiness
   end
 end

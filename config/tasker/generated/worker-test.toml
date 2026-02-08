@@ -238,6 +238,7 @@ log_subscriber_errors = true
 
 [worker.orchestration_client]
 base_url = "http://localhost:8080"
+transport = "rest"
 max_retries = 3
 timeout_ms = 30000
 

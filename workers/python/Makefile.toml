@@ -200,6 +200,32 @@ uv run pytest tests/ \
 '''
 
 # =============================================================================
+# Client API Integration Test Tasks (TAS-231)
+# =============================================================================
+# Tests the client FFI functions against a running orchestration server.
+# Requires: FFI_CLIENT_TESTS=true, DATABASE_URL, orchestration server running.
+
+[tasks.test-client]
+description = "Run client API integration tests (skips gracefully if FFI_CLIENT_TESTS not set)"
+dependencies = ["setup", "build-extension"]
+script = '''
+echo "🧪 Running client API integration tests..."
+uv run pytest tests/integration/test_client_api.py -v
+'''
+
+[tasks.test-client-ci]
+description = "Run client API integration tests with CI output (JUnit XML)"
+dependencies = ["setup", "build-extension"]
+script = '''
+mkdir -p ../../target
+echo "🧪 Running client API integration tests (CI)..."
+uv run pytest tests/integration/test_client_api.py \
+  -v \
+  --tb=short \
+  --junitxml=../../target/python-client-results.xml
+'''
+
+# =============================================================================
 # Rust Extension Tasks (for the FFI layer)
 # =============================================================================
 
