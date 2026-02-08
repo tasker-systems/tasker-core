@@ -9,6 +9,7 @@ import type {
   BootstrapConfig,
   BootstrapResult,
   CheckpointYieldData,
+  ClientResult,
   FfiDispatchMetrics,
   FfiDomainEvent,
   FfiStepEvent,
@@ -157,6 +158,75 @@ export interface TaskerRuntime {
   cleanupTimeouts(): void;
 
   // ============================================================================
+  // Client API Operations (TAS-231)
+  // ============================================================================
+
+  /**
+   * Create a task via the orchestration API client
+   *
+   * @param requestJson JSON string of ClientTaskRequest
+   * @returns ClientResult containing ClientTaskResponse on success
+   */
+  clientCreateTask(requestJson: string): ClientResult;
+
+  /**
+   * Get a task by UUID
+   *
+   * @param taskUuid The task UUID
+   * @returns ClientResult containing ClientTaskResponse on success
+   */
+  clientGetTask(taskUuid: string): ClientResult;
+
+  /**
+   * List tasks with optional filters
+   *
+   * @param paramsJson JSON string with limit, offset, namespace, status
+   * @returns ClientResult containing ClientTaskListResponse on success
+   */
+  clientListTasks(paramsJson: string): ClientResult;
+
+  /**
+   * Cancel a task
+   *
+   * @param taskUuid The task UUID to cancel
+   * @returns ClientResult with cancellation status
+   */
+  clientCancelTask(taskUuid: string): ClientResult;
+
+  /**
+   * List workflow steps for a task
+   *
+   * @param taskUuid The task UUID
+   * @returns ClientResult containing step list on success
+   */
+  clientListTaskSteps(taskUuid: string): ClientResult;
+
+  /**
+   * Get a specific workflow step
+   *
+   * @param taskUuid The task UUID
+   * @param stepUuid The step UUID
+   * @returns ClientResult containing ClientStepResponse on success
+   */
+  clientGetStep(taskUuid: string, stepUuid: string): ClientResult;
+
+  /**
+   * Get audit history for a workflow step (SOC2 compliance)
+   *
+   * @param taskUuid The task UUID
+   * @param stepUuid The step UUID
+   * @returns ClientResult containing audit history on success
+   */
+  clientGetStepAuditHistory(taskUuid: string, stepUuid: string): ClientResult;
+
+  /**
+   * Health check against the orchestration API
+   *
+   * @returns ClientResult containing ClientHealthResponse on success
+   */
+  clientHealthCheck(): ClientResult;
+
+  // ============================================================================
   // Logging
   // ============================================================================
 
@@ -217,6 +287,15 @@ export abstract class BaseTaskerRuntime implements TaskerRuntime {
   abstract getFfiDispatchMetrics(): FfiDispatchMetrics;
   abstract checkStarvationWarnings(): void;
   abstract cleanupTimeouts(): void;
+
+  abstract clientCreateTask(requestJson: string): ClientResult;
+  abstract clientGetTask(taskUuid: string): ClientResult;
+  abstract clientListTasks(paramsJson: string): ClientResult;
+  abstract clientCancelTask(taskUuid: string): ClientResult;
+  abstract clientListTaskSteps(taskUuid: string): ClientResult;
+  abstract clientGetStep(taskUuid: string, stepUuid: string): ClientResult;
+  abstract clientGetStepAuditHistory(taskUuid: string, stepUuid: string): ClientResult;
+  abstract clientHealthCheck(): ClientResult;
 
   abstract logError(message: string, fields?: LogFields): void;
   abstract logWarn(message: string, fields?: LogFields): void;

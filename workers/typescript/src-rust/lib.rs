@@ -42,6 +42,7 @@ use std::panic::{self, AssertUnwindSafe};
 use std::ptr;
 
 mod bridge;
+mod client_ffi;
 mod conversions;
 mod dto;
 mod error;
@@ -555,6 +556,249 @@ pub unsafe extern "C" fn free_rust_string(ptr: *mut c_char) {
         // SAFETY: We're taking ownership back of a CString we created.
         // The caller guarantees ptr was returned by one of our FFI functions.
         drop(unsafe { CString::from_raw(ptr) });
+    }
+}
+
+// =============================================================================
+// TAS-231: Client API FFI Functions
+// =============================================================================
+
+/// Create a new task via the orchestration API.
+///
+/// # Parameters
+/// - `request_json`: JSON string containing the task request
+///
+/// # Returns
+/// JSON string with the result, or null on error.
+/// The returned pointer must be freed with `free_rust_string`.
+///
+/// # Safety
+/// `request_json` must be a valid null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn client_create_task(request_json: *const c_char) -> *mut c_char {
+    if request_json.is_null() {
+        return json_error("client_create_task: null pointer received");
+    }
+
+    // SAFETY: Caller guarantees request_json is a valid null-terminated C string
+    let request_str = match unsafe { CStr::from_ptr(request_json) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_create_task: invalid UTF-8"),
+    };
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        client_ffi::client_create_task_internal(&request_str)
+    })) {
+        Ok(Ok(result)) => match CString::new(result) {
+            Ok(s) => s.into_raw(),
+            Err(_) => json_error("Failed to create result string"),
+        },
+        Ok(Err(e)) => json_error(&format!("client_create_task failed: {e}")),
+        Err(_) => json_error("client_create_task panicked unexpectedly"),
+    }
+}
+
+/// Get a task by UUID.
+///
+/// # Safety
+/// `task_uuid` must be a valid null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn client_get_task(task_uuid: *const c_char) -> *mut c_char {
+    if task_uuid.is_null() {
+        return json_error("client_get_task: null pointer received");
+    }
+
+    // SAFETY: Caller guarantees task_uuid is a valid null-terminated C string
+    let uuid_str = match unsafe { CStr::from_ptr(task_uuid) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_get_task: invalid UTF-8"),
+    };
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        client_ffi::client_get_task_internal(&uuid_str)
+    })) {
+        Ok(Ok(result)) => match CString::new(result) {
+            Ok(s) => s.into_raw(),
+            Err(_) => json_error("Failed to create result string"),
+        },
+        Ok(Err(e)) => json_error(&format!("client_get_task failed: {e}")),
+        Err(_) => json_error("client_get_task panicked unexpectedly"),
+    }
+}
+
+/// List tasks with pagination and optional filters.
+///
+/// # Parameters
+/// - `params_json`: JSON string with `limit`, `offset`, `namespace`, `status`
+///
+/// # Safety
+/// `params_json` must be a valid null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn client_list_tasks(params_json: *const c_char) -> *mut c_char {
+    if params_json.is_null() {
+        return json_error("client_list_tasks: null pointer received");
+    }
+
+    // SAFETY: Caller guarantees params_json is a valid null-terminated C string
+    let params_str = match unsafe { CStr::from_ptr(params_json) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_list_tasks: invalid UTF-8"),
+    };
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        client_ffi::client_list_tasks_internal(&params_str)
+    })) {
+        Ok(Ok(result)) => match CString::new(result) {
+            Ok(s) => s.into_raw(),
+            Err(_) => json_error("Failed to create result string"),
+        },
+        Ok(Err(e)) => json_error(&format!("client_list_tasks failed: {e}")),
+        Err(_) => json_error("client_list_tasks panicked unexpectedly"),
+    }
+}
+
+/// Cancel a task.
+///
+/// # Safety
+/// `task_uuid` must be a valid null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn client_cancel_task(task_uuid: *const c_char) -> *mut c_char {
+    if task_uuid.is_null() {
+        return json_error("client_cancel_task: null pointer received");
+    }
+
+    // SAFETY: Caller guarantees task_uuid is a valid null-terminated C string
+    let uuid_str = match unsafe { CStr::from_ptr(task_uuid) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_cancel_task: invalid UTF-8"),
+    };
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        client_ffi::client_cancel_task_internal(&uuid_str)
+    })) {
+        Ok(Ok(result)) => match CString::new(result) {
+            Ok(s) => s.into_raw(),
+            Err(_) => json_error("Failed to create result string"),
+        },
+        Ok(Err(e)) => json_error(&format!("client_cancel_task failed: {e}")),
+        Err(_) => json_error("client_cancel_task panicked unexpectedly"),
+    }
+}
+
+/// List workflow steps for a task.
+///
+/// # Safety
+/// `task_uuid` must be a valid null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn client_list_task_steps(task_uuid: *const c_char) -> *mut c_char {
+    if task_uuid.is_null() {
+        return json_error("client_list_task_steps: null pointer received");
+    }
+
+    // SAFETY: Caller guarantees task_uuid is a valid null-terminated C string
+    let uuid_str = match unsafe { CStr::from_ptr(task_uuid) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_list_task_steps: invalid UTF-8"),
+    };
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        client_ffi::client_list_task_steps_internal(&uuid_str)
+    })) {
+        Ok(Ok(result)) => match CString::new(result) {
+            Ok(s) => s.into_raw(),
+            Err(_) => json_error("Failed to create result string"),
+        },
+        Ok(Err(e)) => json_error(&format!("client_list_task_steps failed: {e}")),
+        Err(_) => json_error("client_list_task_steps panicked unexpectedly"),
+    }
+}
+
+/// Get a specific workflow step.
+///
+/// # Safety
+/// Both parameters must be valid null-terminated C strings.
+#[no_mangle]
+pub unsafe extern "C" fn client_get_step(
+    task_uuid: *const c_char,
+    step_uuid: *const c_char,
+) -> *mut c_char {
+    if task_uuid.is_null() || step_uuid.is_null() {
+        return json_error("client_get_step: null pointer received");
+    }
+
+    // SAFETY: Caller guarantees task_uuid is a valid null-terminated C string
+    let t_uuid = match unsafe { CStr::from_ptr(task_uuid) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_get_step: invalid UTF-8 in task_uuid"),
+    };
+    // SAFETY: Caller guarantees step_uuid is a valid null-terminated C string
+    let s_uuid = match unsafe { CStr::from_ptr(step_uuid) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_get_step: invalid UTF-8 in step_uuid"),
+    };
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        client_ffi::client_get_step_internal(&t_uuid, &s_uuid)
+    })) {
+        Ok(Ok(result)) => match CString::new(result) {
+            Ok(s) => s.into_raw(),
+            Err(_) => json_error("Failed to create result string"),
+        },
+        Ok(Err(e)) => json_error(&format!("client_get_step failed: {e}")),
+        Err(_) => json_error("client_get_step panicked unexpectedly"),
+    }
+}
+
+/// Get audit history for a workflow step.
+///
+/// # Safety
+/// Both parameters must be valid null-terminated C strings.
+#[no_mangle]
+pub unsafe extern "C" fn client_get_step_audit_history(
+    task_uuid: *const c_char,
+    step_uuid: *const c_char,
+) -> *mut c_char {
+    if task_uuid.is_null() || step_uuid.is_null() {
+        return json_error("client_get_step_audit_history: null pointer received");
+    }
+
+    // SAFETY: Caller guarantees task_uuid is a valid null-terminated C string
+    let t_uuid = match unsafe { CStr::from_ptr(task_uuid) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_get_step_audit_history: invalid UTF-8 in task_uuid"),
+    };
+    // SAFETY: Caller guarantees step_uuid is a valid null-terminated C string
+    let s_uuid = match unsafe { CStr::from_ptr(step_uuid) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return json_error("client_get_step_audit_history: invalid UTF-8 in step_uuid"),
+    };
+
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        client_ffi::client_get_step_audit_history_internal(&t_uuid, &s_uuid)
+    })) {
+        Ok(Ok(result)) => match CString::new(result) {
+            Ok(s) => s.into_raw(),
+            Err(_) => json_error("Failed to create result string"),
+        },
+        Ok(Err(e)) => json_error(&format!("client_get_step_audit_history failed: {e}")),
+        Err(_) => json_error("client_get_step_audit_history panicked unexpectedly"),
+    }
+}
+
+/// Check if the orchestration API is healthy.
+///
+/// # Returns
+/// JSON string with the result, or null on error.
+/// The returned pointer must be freed with `free_rust_string`.
+#[no_mangle]
+pub extern "C" fn client_health_check() -> *mut c_char {
+    match panic::catch_unwind(client_ffi::client_health_check_internal) {
+        Ok(Ok(result)) => match CString::new(result) {
+            Ok(s) => s.into_raw(),
+            Err(_) => json_error("Failed to create result string"),
+        },
+        Ok(Err(e)) => json_error(&format!("client_health_check failed: {e}")),
+        Err(_) => json_error("client_health_check panicked unexpectedly"),
     }
 }
 

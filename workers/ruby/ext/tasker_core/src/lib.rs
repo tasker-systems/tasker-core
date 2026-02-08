@@ -2,6 +2,7 @@ use magnus::{Error as MagnusError, Module, Ruby};
 
 mod bootstrap;
 mod bridge;
+mod client_ffi; // TAS-231: Client API FFI functions
 mod conversions;
 mod diagnostics; // System diagnostics for troubleshooting
 mod event_publisher_ffi; // TAS-65 Phase 2.4a: Domain event publishing FFI

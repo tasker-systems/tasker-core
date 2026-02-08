@@ -486,6 +486,7 @@ system_impact = "Uses try_send with retry loop instead of blocking send to preve
 # How the worker connects to the orchestration API
 [worker.orchestration_client]
 base_url = "http://localhost:8080"
+transport = "rest"
 timeout_ms = 30000
 max_retries = 3
 
@@ -500,9 +501,15 @@ related = ["orchestration.web.bind_address"]
 test = { value = "http://localhost:8080", rationale = "Local orchestration for testing" }
 production = { value = "http://orchestration:8080", rationale = "Container-internal DNS in Kubernetes/Docker" }
 
+[worker.orchestration_client._docs.transport]
+description = "Transport protocol for communicating with the orchestration API"
+type = "ClientTransport"
+valid_range = "rest | grpc"
+system_impact = "Determines whether the worker uses REST (HTTP/JSON) or gRPC to reach the orchestration server"
+
 [worker.orchestration_client._docs.timeout_ms]
 description = "HTTP request timeout in milliseconds for orchestration API calls"
-type = "u32"
+type = "u64"
 valid_range = "100-300000"
 system_impact = "Worker-to-orchestration calls exceeding this timeout fail and may be retried"
 

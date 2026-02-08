@@ -30,6 +30,7 @@ use pyo3::prelude::*;
 
 mod bootstrap;
 mod bridge;
+mod client_ffi;
 mod conversions;
 mod error;
 mod event_dispatch;
@@ -129,6 +130,19 @@ fn _tasker_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(observability::get_health_check, m)?)?;
     m.add_function(wrap_pyfunction!(observability::get_metrics, m)?)?;
     m.add_function(wrap_pyfunction!(observability::get_worker_config, m)?)?;
+
+    // TAS-231: Client API functions
+    m.add_function(wrap_pyfunction!(client_ffi::client_create_task, m)?)?;
+    m.add_function(wrap_pyfunction!(client_ffi::client_get_task, m)?)?;
+    m.add_function(wrap_pyfunction!(client_ffi::client_list_tasks, m)?)?;
+    m.add_function(wrap_pyfunction!(client_ffi::client_cancel_task, m)?)?;
+    m.add_function(wrap_pyfunction!(client_ffi::client_list_task_steps, m)?)?;
+    m.add_function(wrap_pyfunction!(client_ffi::client_get_step, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        client_ffi::client_get_step_audit_history,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(client_ffi::client_health_check, m)?)?;
 
     // Module metadata
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;

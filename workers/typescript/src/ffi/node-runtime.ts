@@ -13,6 +13,7 @@ import type {
   BootstrapConfig,
   BootstrapResult,
   CheckpointYieldData,
+  ClientResult,
   FfiDispatchMetrics,
   FfiDomainEvent,
   FfiStepEvent,
@@ -45,13 +46,22 @@ interface KoffiLib {
   log_debug: (message: string, fieldsJson: string | null) => void;
   log_trace: (message: string, fieldsJson: string | null) => void;
   free_rust_string: (ptr: unknown) => void;
+  // Client API functions (TAS-231)
+  client_create_task: (requestJson: string) => unknown;
+  client_get_task: (taskUuid: string) => unknown;
+  client_list_tasks: (paramsJson: string) => unknown;
+  client_cancel_task: (taskUuid: string) => unknown;
+  client_list_task_steps: (taskUuid: string) => unknown;
+  client_get_step: (taskUuid: string, stepUuid: string) => unknown;
+  client_get_step_audit_history: (taskUuid: string, stepUuid: string) => unknown;
+  client_health_check: () => unknown;
 }
 
 /**
  * Node.js FFI runtime implementation using koffi
  */
 export class NodeRuntime extends BaseTaskerRuntime {
-  readonly name = 'node';
+  readonly name: string = 'node';
   private lib: KoffiLib | null = null;
   // biome-ignore lint/suspicious/noExplicitAny: koffi module type
   private koffi: any = null;
@@ -96,6 +106,15 @@ export class NodeRuntime extends BaseTaskerRuntime {
       log_debug: lib.func('void log_debug(str, str)'),
       log_trace: lib.func('void log_trace(str, str)'),
       free_rust_string: lib.func('void free_rust_string(void*)'),
+      // Client API functions (TAS-231)
+      client_create_task: lib.func('void* client_create_task(str)'),
+      client_get_task: lib.func('void* client_get_task(str)'),
+      client_list_tasks: lib.func('void* client_list_tasks(str)'),
+      client_cancel_task: lib.func('void* client_cancel_task(str)'),
+      client_list_task_steps: lib.func('void* client_list_task_steps(str)'),
+      client_get_step: lib.func('void* client_get_step(str, str)'),
+      client_get_step_audit_history: lib.func('void* client_get_step_audit_history(str, str)'),
+      client_health_check: lib.func('void* client_health_check()'),
     };
   }
 
@@ -292,5 +311,70 @@ export class NodeRuntime extends BaseTaskerRuntime {
   logTrace(message: string, fields?: LogFields): void {
     const lib = this.ensureLoaded();
     lib.log_trace(message, fields ? this.toJson(fields) : null);
+  }
+
+  // ==========================================================================
+  // Client API Operations (TAS-231)
+  // ==========================================================================
+
+  private parseClientResult(ptr: unknown): ClientResult {
+    const jsonStr = this.readAndFreeRustString(ptr);
+    const parsed = this.parseJson<ClientResult>(jsonStr);
+    return (
+      parsed ?? {
+        success: false,
+        data: null,
+        error: 'Failed to parse client result',
+        recoverable: null,
+      }
+    );
+  }
+
+  clientCreateTask(requestJson: string): ClientResult {
+    const lib = this.ensureLoaded();
+    const ptr = lib.client_create_task(requestJson);
+    return this.parseClientResult(ptr);
+  }
+
+  clientGetTask(taskUuid: string): ClientResult {
+    const lib = this.ensureLoaded();
+    const ptr = lib.client_get_task(taskUuid);
+    return this.parseClientResult(ptr);
+  }
+
+  clientListTasks(paramsJson: string): ClientResult {
+    const lib = this.ensureLoaded();
+    const ptr = lib.client_list_tasks(paramsJson);
+    return this.parseClientResult(ptr);
+  }
+
+  clientCancelTask(taskUuid: string): ClientResult {
+    const lib = this.ensureLoaded();
+    const ptr = lib.client_cancel_task(taskUuid);
+    return this.parseClientResult(ptr);
+  }
+
+  clientListTaskSteps(taskUuid: string): ClientResult {
+    const lib = this.ensureLoaded();
+    const ptr = lib.client_list_task_steps(taskUuid);
+    return this.parseClientResult(ptr);
+  }
+
+  clientGetStep(taskUuid: string, stepUuid: string): ClientResult {
+    const lib = this.ensureLoaded();
+    const ptr = lib.client_get_step(taskUuid, stepUuid);
+    return this.parseClientResult(ptr);
+  }
+
+  clientGetStepAuditHistory(taskUuid: string, stepUuid: string): ClientResult {
+    const lib = this.ensureLoaded();
+    const ptr = lib.client_get_step_audit_history(taskUuid, stepUuid);
+    return this.parseClientResult(ptr);
+  }
+
+  clientHealthCheck(): ClientResult {
+    const lib = this.ensureLoaded();
+    const ptr = lib.client_health_check();
+    return this.parseClientResult(ptr);
   }
 }

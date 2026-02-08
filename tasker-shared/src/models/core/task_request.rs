@@ -18,6 +18,14 @@ use super::named_task::NamedTask;
 use super::task::{NewTask, Task};
 use crate::errors::{TaskerError, TaskerResult};
 
+fn default_requested_at() -> NaiveDateTime {
+    chrono::Utc::now().naive_utc()
+}
+
+fn default_correlation_id() -> Uuid {
+    Uuid::new_v4()
+}
+
 /// TaskRequest represents an incoming request to create and execute a task
 /// This is the primary routing input that identifies which handler should process the task
 /// and contains all the information needed to create a Task instance from a NamedTask template
@@ -64,11 +72,13 @@ pub struct TaskRequest {
     pub reason: String,
 
     /// Tags associated with this task for categorization or filtering (Rails: tags)
+    #[serde(default)]
     #[builder(default)]
     pub tags: Vec<String>,
 
     // conditional workflows (decision points, deferred steps) not step-level bypass flags.
     /// Timestamp when the task was initially requested (Rails: requested_at)
+    #[serde(default = "default_requested_at")]
     #[builder(default = chrono::Utc::now().naive_utc())]
     pub requested_at: NaiveDateTime,
 
@@ -81,6 +91,7 @@ pub struct TaskRequest {
 
     /// Correlation ID for distributed tracing (auto-generated if not provided)
     /// TAS-29: Enables end-to-end request tracking across orchestration and workers
+    #[serde(default = "default_correlation_id")]
     #[builder(default = Uuid::new_v4())]
     pub correlation_id: Uuid,
 

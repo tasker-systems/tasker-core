@@ -570,6 +570,54 @@ command = "cargo"
 args = ["make", "test-ffi"]
 
 # =============================================================================
+# Client API Integration Test Tasks (TAS-231)
+# =============================================================================
+# Tests the client FFI functions against a running orchestration server.
+# Requires: FFI_CLIENT_TESTS=true, DATABASE_URL, orchestration server running.
+
+[tasks.test-client-python]
+description = "Run Python client API integration tests"
+cwd = "workers/python"
+command = "cargo"
+args = ["make", "test-client"]
+
+[tasks.test-client-ruby]
+description = "Run Ruby client API integration tests"
+cwd = "workers/ruby"
+command = "cargo"
+args = ["make", "test-client"]
+
+[tasks.test-client-typescript]
+description = "Run TypeScript client API integration tests"
+cwd = "workers/typescript"
+command = "cargo"
+args = ["make", "test-client"]
+
+[tasks.test-client-all]
+description = "Run all client API integration tests (Python, Ruby, TypeScript)"
+dependencies = ["test-client-python", "test-client-ruby", "test-client-typescript"]
+
+[tasks.tca]
+description = "Shortcut: test-client-all"
+alias = "test-client-all"
+
+[tasks.test-ffi-client]
+description = "Run all client FFI integration tests (Python, Ruby, TypeScript)"
+alias = "test-client-all"
+
+[tasks.test-ffi-client-py]
+description = "Run Python client FFI integration tests"
+alias = "test-client-python"
+
+[tasks.test-ffi-client-rb]
+description = "Run Ruby client FFI integration tests"
+alias = "test-client-ruby"
+
+[tasks.test-ffi-client-ts]
+description = "Run TypeScript client FFI integration tests"
+alias = "test-client-typescript"
+
+# =============================================================================
 # Environment Setup Tasks
 # =============================================================================
 

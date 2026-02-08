@@ -14,6 +14,16 @@
 // These types are automatically generated from Rust DTOs in src-rust/dto.rs.
 // Re-exported with API-friendly names (without Dto suffix).
 
+// Client API DTOs (TAS-231)
+import type { ClientHealthResponseDto } from './generated/ClientHealthResponseDto';
+import type { ClientPaginationInfoDto } from './generated/ClientPaginationInfoDto';
+import type { ClientResultDto } from './generated/ClientResultDto';
+import type { ClientStepAuditResponseDto } from './generated/ClientStepAuditResponseDto';
+import type { ClientStepReadinessDto } from './generated/ClientStepReadinessDto';
+import type { ClientStepResponseDto } from './generated/ClientStepResponseDto';
+import type { ClientTaskListResponseDto } from './generated/ClientTaskListResponseDto';
+import type { ClientTaskRequestDto } from './generated/ClientTaskRequestDto';
+import type { ClientTaskResponseDto } from './generated/ClientTaskResponseDto';
 import type { DependencyResultDto } from './generated/DependencyResultDto';
 import type { FfiDispatchMetricsDto } from './generated/FfiDispatchMetricsDto';
 import type { FfiStepEventDto } from './generated/FfiStepEventDto';
@@ -35,6 +45,17 @@ export type DependencyResult = DependencyResultDto;
 export type FfiStepEvent = FfiStepEventDto;
 export type FfiDispatchMetrics = FfiDispatchMetricsDto;
 
+// Client API types with API-friendly names (TAS-231)
+export type ClientTaskRequest = ClientTaskRequestDto;
+export type ClientTaskResponse = ClientTaskResponseDto;
+export type ClientTaskListResponse = ClientTaskListResponseDto;
+export type ClientStepResponse = ClientStepResponseDto;
+export type ClientStepAuditResponse = ClientStepAuditResponseDto;
+export type ClientStepReadiness = ClientStepReadinessDto;
+export type ClientPaginationInfo = ClientPaginationInfoDto;
+export type ClientHealthResponse = ClientHealthResponseDto;
+export type ClientResult = ClientResultDto;
+
 // Also export the Dto-suffixed types for explicit usage
 export type {
   DependencyResultDto,
@@ -46,6 +67,16 @@ export type {
   StepExecutionErrorDto,
   TaskDto,
   WorkflowStepDto,
+  // Client API Dto types (TAS-231)
+  ClientHealthResponseDto,
+  ClientPaginationInfoDto,
+  ClientResultDto,
+  ClientStepAuditResponseDto,
+  ClientStepReadinessDto,
+  ClientStepResponseDto,
+  ClientTaskListResponseDto,
+  ClientTaskRequestDto,
+  ClientTaskResponseDto,
 };
 
 // =============================================================================

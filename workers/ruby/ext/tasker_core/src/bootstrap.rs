@@ -192,12 +192,25 @@ pub fn bootstrap_worker() -> Result<Value, Error> {
     });
     info!("✅ Subscribed to WorkerCore's in-process event bus for FFI domain events");
 
+    // TAS-231: Create FFI client bridge for orchestration API access
+    info!("Creating FFI client bridge for orchestration API access...");
+    let ffi_client = runtime.block_on(async {
+        let worker_core = system_handle.worker_core.lock().await;
+        tasker_worker::create_ffi_client_bridge(&worker_core, runtime.handle().clone()).await
+    });
+    if ffi_client.is_some() {
+        info!("✅ FFI client bridge created successfully");
+    } else {
+        info!("FFI client bridge not available (orchestration client not configured)");
+    }
+
     // Store the bridge handle with FfiDispatchChannel
     *handle_guard = Some(RubyBridgeHandle::new(
         system_handle,
         ffi_dispatch_channel,
         domain_event_publisher,
         Some(in_process_event_receiver),
+        ffi_client,
         runtime,
     ));
 

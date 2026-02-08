@@ -2277,6 +2277,55 @@ pub struct WorkerWebConfig {
 
 impl_builder_default!(WorkerWebConfig);
 
+/// Transport protocol for client API communication.
+///
+/// Determines whether the client uses REST (HTTP/JSON) or gRPC for communication
+/// with orchestration services. Defaults to REST.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ClientTransport {
+    /// REST API using HTTP/JSON (default)
+    #[default]
+    Rest,
+    /// gRPC API using Protocol Buffers
+    Grpc,
+}
+
+impl std::fmt::Display for ClientTransport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ClientTransport::Rest => write!(f, "rest"),
+            ClientTransport::Grpc => write!(f, "grpc"),
+        }
+    }
+}
+
+fn default_client_api_key_header() -> String {
+    "X-API-Key".to_string()
+}
+
+/// Client-side authentication for outbound API requests.
+///
+/// This is NOT server-side JWT validation — it specifies how the client authenticates
+/// when making requests to the orchestration API (e.g., bearer token or API key).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ClientAuthMethod {
+    /// Bearer token authentication (JWT or opaque token)
+    Bearer {
+        /// The bearer token value
+        token: String,
+    },
+    /// API key authentication with custom header
+    ApiKey {
+        /// The API key value
+        key: String,
+        /// The header name to use (default: X-API-Key)
+        #[serde(default = "default_client_api_key_header")]
+        header_name: String,
+    },
+}
+
 /// Worker orchestration client configuration
 ///
 /// Configures how the worker connects to the orchestration API as a client.
@@ -2289,6 +2338,7 @@ impl_builder_default!(WorkerWebConfig);
 /// ```toml
 /// [worker.orchestration_client]
 /// base_url = "http://orchestration:8080"
+/// transport = "rest"
 /// timeout_ms = 30000
 /// max_retries = 3
 ///
@@ -2306,20 +2356,24 @@ pub struct OrchestrationClientConfig {
     #[builder(default = "http://localhost:8080".to_string())]
     pub base_url: String,
 
+    /// Transport protocol (rest or grpc)
+    #[serde(default)]
+    #[builder(default)]
+    pub transport: ClientTransport,
+
     /// Request timeout (milliseconds)
     #[validate(range(min = 100, max = 300000))]
     #[builder(default = 30000)]
-    pub timeout_ms: u32,
+    pub timeout_ms: u64,
 
     /// Maximum number of retry attempts
     #[validate(range(min = 0, max = 10))]
     #[builder(default = 3)]
     pub max_retries: u32,
 
-    /// Authentication configuration (optional)
+    /// Client-side authentication for outbound API requests (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[validate(nested)]
-    pub auth: Option<AuthConfig>,
+    pub auth: Option<ClientAuthMethod>,
 }
 
 impl_builder_default!(OrchestrationClientConfig);

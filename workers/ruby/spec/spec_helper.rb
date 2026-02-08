@@ -66,6 +66,9 @@ RSpec.configure do |config|
   config.mock_with :rspec do |mocks|
     mocks.verify_partial_doubles = true
   end
+
+  # TAS-231: Skip client integration tests unless FFI_CLIENT_TESTS=true
+  config.filter_run_excluding client_integration: true unless ENV['FFI_CLIENT_TESTS'] == 'true'
 end
 
 # Load TaskerCore components - FAIL FAST if cannot load

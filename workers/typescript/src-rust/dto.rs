@@ -418,6 +418,192 @@ impl FfiDomainEventDto {
     }
 }
 
+// =============================================================================
+// Client API DTOs (TAS-231: FFI Client Integration)
+// =============================================================================
+// These DTOs describe the JSON wire format of orchestration API responses.
+// They are used solely for TypeScript type generation via ts-rs, matching
+// the serde_json::Value output from FfiClientBridge methods.
+
+/// DTO for task creation request (input to client_create_task)
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientTaskRequestDto {
+    pub name: String,
+    pub namespace: String,
+    pub version: String,
+    #[cfg_attr(test, ts(type = "Record<string, unknown>"))]
+    pub context: serde_json::Value,
+    pub initiator: String,
+    pub source_system: String,
+    pub reason: String,
+    pub tags: Vec<String>,
+    pub requested_at: String,
+    #[cfg_attr(test, ts(type = "Record<string, unknown> | null"))]
+    pub options: Option<serde_json::Value>,
+    pub priority: Option<i32>,
+    pub correlation_id: String,
+    pub parent_correlation_id: Option<String>,
+    pub idempotency_key: Option<String>,
+}
+
+/// DTO for step readiness status (nested in task responses)
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientStepReadinessDto {
+    pub workflow_step_uuid: String,
+    pub task_uuid: String,
+    pub named_step_uuid: String,
+    pub name: String,
+    pub current_state: String,
+    pub dependencies_satisfied: bool,
+    pub retry_eligible: bool,
+    pub ready_for_execution: bool,
+    pub last_failure_at: Option<String>,
+    pub next_retry_at: Option<String>,
+    pub total_parents: i32,
+    pub completed_parents: i32,
+    pub attempts: i32,
+    pub max_attempts: i32,
+    pub backoff_request_seconds: Option<i32>,
+    pub last_attempted_at: Option<String>,
+}
+
+/// DTO for task response from the orchestration API
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientTaskResponseDto {
+    pub task_uuid: String,
+    pub name: String,
+    pub namespace: String,
+    pub version: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub completed_at: Option<String>,
+    #[cfg_attr(test, ts(type = "Record<string, unknown>"))]
+    pub context: serde_json::Value,
+    pub initiator: String,
+    pub source_system: String,
+    pub reason: String,
+    pub priority: Option<i32>,
+    pub tags: Option<Vec<String>>,
+    pub correlation_id: String,
+    pub parent_correlation_id: Option<String>,
+
+    // Execution context
+    pub total_steps: i64,
+    pub pending_steps: i64,
+    pub in_progress_steps: i64,
+    pub completed_steps: i64,
+    pub failed_steps: i64,
+    pub ready_steps: i64,
+    pub execution_status: String,
+    pub recommended_action: String,
+    pub completion_percentage: f64,
+    pub health_status: String,
+
+    // Step readiness
+    pub steps: Vec<ClientStepReadinessDto>,
+}
+
+/// DTO for pagination info in list responses
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientPaginationInfoDto {
+    pub page: u32,
+    pub per_page: u32,
+    pub total_count: u64,
+    pub total_pages: u32,
+    pub has_next: bool,
+    pub has_previous: bool,
+}
+
+/// DTO for task list response with pagination
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientTaskListResponseDto {
+    pub tasks: Vec<ClientTaskResponseDto>,
+    pub pagination: ClientPaginationInfoDto,
+}
+
+/// DTO for step response from the orchestration API
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientStepResponseDto {
+    pub step_uuid: String,
+    pub task_uuid: String,
+    pub name: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub completed_at: Option<String>,
+    #[cfg_attr(test, ts(type = "Record<string, unknown> | null"))]
+    pub results: Option<serde_json::Value>,
+
+    // Readiness fields
+    pub current_state: String,
+    pub dependencies_satisfied: bool,
+    pub retry_eligible: bool,
+    pub ready_for_execution: bool,
+    pub total_parents: i32,
+    pub completed_parents: i32,
+    pub attempts: i32,
+    pub max_attempts: i32,
+    pub last_failure_at: Option<String>,
+    pub next_retry_at: Option<String>,
+    pub last_attempted_at: Option<String>,
+}
+
+/// DTO for step audit history response (SOC2 compliance)
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientStepAuditResponseDto {
+    pub audit_uuid: String,
+    pub workflow_step_uuid: String,
+    pub transition_uuid: String,
+    pub task_uuid: String,
+    pub recorded_at: String,
+    pub worker_uuid: Option<String>,
+    pub correlation_id: Option<String>,
+    pub success: bool,
+    pub execution_time_ms: Option<i64>,
+    #[cfg_attr(test, ts(type = "Record<string, unknown> | null"))]
+    pub result: Option<serde_json::Value>,
+    pub step_name: String,
+    pub from_state: Option<String>,
+    pub to_state: String,
+}
+
+/// DTO for health check response
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientHealthResponseDto {
+    pub status: String,
+    pub timestamp: String,
+}
+
+/// DTO for client operation result wrapper (success/error envelope)
+///
+/// All TypeScript client FFI functions return this envelope format.
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(TS))]
+#[cfg_attr(test, ts(export, export_to = "src/ffi/generated/"))]
+pub struct ClientResultDto {
+    pub success: bool,
+    #[cfg_attr(test, ts(type = "unknown"))]
+    pub data: Option<serde_json::Value>,
+    pub error: Option<String>,
+    pub recoverable: Option<bool>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -474,6 +660,19 @@ mod tests {
         FfiDomainEventDto::export_all().expect("Failed to export FfiDomainEventDto");
         FfiDomainEventMetadataDto::export_all()
             .expect("Failed to export FfiDomainEventMetadataDto");
+
+        // Client API DTOs (TAS-231)
+        ClientTaskRequestDto::export_all().expect("Failed to export ClientTaskRequestDto");
+        ClientStepReadinessDto::export_all().expect("Failed to export ClientStepReadinessDto");
+        ClientTaskResponseDto::export_all().expect("Failed to export ClientTaskResponseDto");
+        ClientPaginationInfoDto::export_all().expect("Failed to export ClientPaginationInfoDto");
+        ClientTaskListResponseDto::export_all()
+            .expect("Failed to export ClientTaskListResponseDto");
+        ClientStepResponseDto::export_all().expect("Failed to export ClientStepResponseDto");
+        ClientStepAuditResponseDto::export_all()
+            .expect("Failed to export ClientStepAuditResponseDto");
+        ClientHealthResponseDto::export_all().expect("Failed to export ClientHealthResponseDto");
+        ClientResultDto::export_all().expect("Failed to export ClientResultDto");
 
         println!(
             "✅ TypeScript bindings exported to {}",

@@ -25,11 +25,12 @@ jobs:
 
   # ============================================================================
   # Stage 2: Parallel Test Execution
-  # All four test workflows run in parallel after build-workers completes:
+  # All five test workflows run in parallel after build-workers completes:
   #   - integration-tests: workspace-compile → unit-tests → E2E tests
   #   - ruby-framework-tests: Ruby FFI tests (rspec)
   #   - python-framework-tests: Python FFI tests (pytest)
   #   - typescript-framework-tests: TypeScript framework tests (bun test)
+  #   - ffi-client-tests: Client API tests across all FFI languages (TAS-231)
   # ============================================================================
   integration-tests:
     needs: [build-postgres, build-workers]
@@ -55,6 +56,12 @@ jobs:
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
 
+  ffi-client-tests:
+    needs: [build-postgres, build-workers]
+    uses: ./.github/workflows/test-ffi-client.yml
+    with:
+      postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
+
   # Code quality runs in parallel with everything after postgres is ready
   code-quality:
     needs: build-postgres
@@ -67,7 +74,7 @@ jobs:
   # Aggregates test results from all test stages
   # ============================================================================
   performance-analysis:
-    needs: [integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests]
+    needs: [integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, ffi-client-tests]
     runs-on: ubuntu-22.04
     if: always()
     steps:
@@ -102,5 +109,5 @@ jobs:
   # Final status check - all jobs must pass for CI to succeed
   # ============================================================================
   ci-success:
-    needs: [code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, performance-analysis]
+    needs: [code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, ffi-client-tests, performance-analysis]
     uses: ./.github/workflows/ci-success.yml

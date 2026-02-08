@@ -18,3 +18,14 @@ export type { StepDefinitionDto } from './StepDefinitionDto';
 export type { StepExecutionErrorDto } from './StepExecutionErrorDto';
 export type { TaskDto } from './TaskDto';
 export type { WorkflowStepDto } from './WorkflowStepDto';
+
+// Client API DTOs (TAS-231)
+export type { ClientHealthResponseDto } from './ClientHealthResponseDto';
+export type { ClientPaginationInfoDto } from './ClientPaginationInfoDto';
+export type { ClientResultDto } from './ClientResultDto';
+export type { ClientStepAuditResponseDto } from './ClientStepAuditResponseDto';
+export type { ClientStepReadinessDto } from './ClientStepReadinessDto';
+export type { ClientStepResponseDto } from './ClientStepResponseDto';
+export type { ClientTaskListResponseDto } from './ClientTaskListResponseDto';
+export type { ClientTaskRequestDto } from './ClientTaskRequestDto';
+export type { ClientTaskResponseDto } from './ClientTaskResponseDto';

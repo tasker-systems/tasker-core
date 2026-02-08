@@ -1,0 +1,280 @@
+name: FFI Client API Tests
+
+on:
+  workflow_call:
+    inputs:
+      postgres-image:
+        description: "PostgreSQL with PGMQ image tag"
+        required: true
+        type: string
+
+jobs:
+  ffi-client-tests:
+    name: FFI Client API Tests (with Orchestration Server)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: ${{ inputs.postgres-image }}
+        env:
+          POSTGRES_DB: tasker_rust_test
+          POSTGRES_USER: tasker
+          POSTGRES_PASSWORD: tasker
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tasker -d tasker_rust_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # TAS-156: Redis for distributed template cache
+      redis:
+        image: redis:7-alpine
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Free up disk space
+        uses: ./.github/actions/free-disk-space
+
+      # ========================================================================
+      # Setup all runtimes needed for FFI client tests
+      # ========================================================================
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+          working-directory: workers/ruby
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust build cache
+        uses: ./.github/actions/setup-rust-cache
+
+      - name: Setup shared environment variables
+        uses: ./.github/actions/setup-env
+
+      - name: Install protobuf compiler
+        uses: ./.github/actions/install-protobuf
+
+      - name: Install tools
+        uses: ./.github/actions/install-tools
+        with:
+          tools: "sqlx-cli make"
+
+      # ========================================================================
+      # Database setup
+      # ========================================================================
+      - name: Run database migrations
+        run: cargo sqlx migrate run
+        env:
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+
+      # ========================================================================
+      # Download and restore artifacts from build-workers
+      # ========================================================================
+      - name: Download core artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: core-artifacts
+          path: artifacts/core
+
+      - name: Download Ruby extension artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ruby-extension
+          path: artifacts/ruby
+        continue-on-error: true
+
+      - name: Download TypeScript artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: typescript-artifacts
+          path: artifacts/typescript
+        continue-on-error: true
+
+      - name: Restore artifacts to correct locations
+        run: ARTIFACTS_BASE=artifacts cargo-make/scripts/ci-restore-all-artifacts.sh
+
+      # ========================================================================
+      # Build FFI extensions (fallback if artifacts missing)
+      # ========================================================================
+      - name: Build Ruby FFI extension (if not from artifacts)
+        run: |
+          cd workers/ruby
+          if ls lib/tasker_core/*.so 2>/dev/null || ls lib/tasker_core/*.bundle 2>/dev/null; then
+            echo "✅ Ruby extension already available from artifacts"
+          else
+            echo "🔨 Building Ruby extension from source..."
+            bundle install
+            bundle exec rake compile
+          fi
+        env:
+          SQLX_OFFLINE: "true"
+
+      - name: Build Python FFI extension
+        run: |
+          echo "🔨 Building Python FFI extension (uses warm cache)..."
+          cd workers/python
+          uv sync --dev
+          uv run maturin develop
+        env:
+          SQLX_OFFLINE: "true"
+
+      - name: Setup TypeScript worker
+        run: |
+          cd workers/typescript
+          bun install --frozen-lockfile
+          if [ -f "../../target/debug/libtasker_worker.so" ]; then
+            echo "✅ FFI library found at target/debug/libtasker_worker.so"
+            echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/../../target/debug/libtasker_worker.so" >> $GITHUB_ENV
+          else
+            echo "⚠️ FFI library not found, building..."
+            cargo build -p tasker-worker-ts
+            echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/../../target/debug/libtasker_worker.so" >> $GITHUB_ENV
+          fi
+        env:
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+
+      # ========================================================================
+      # Start orchestration server
+      # ========================================================================
+      - name: Start orchestration server
+        run: |
+          echo "🚀 Starting orchestration server for client API tests..."
+          # Use pre-built binary from core-artifacts (avoids cargo compile)
+          if [ -x "target/debug/tasker-server" ]; then
+            echo "Using pre-built tasker-server binary"
+            ./target/debug/tasker-server &
+          else
+            echo "Pre-built binary not found, building from source..."
+            cargo build -p tasker-orchestration --bin tasker-server
+            ./target/debug/tasker-server &
+          fi
+          ORCH_PID=$!
+          echo "ORCHESTRATION_PID=$ORCH_PID" >> $GITHUB_ENV
+
+          # Wait for health check (60 retries x 2s = 120s max)
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ Orchestration server healthy (attempt $i)"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "❌ Orchestration server failed to start"
+              exit 1
+            fi
+            echo "⏳ Waiting for orchestration server... (attempt $i/60)"
+            sleep 2
+          done
+        env:
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+          REDIS_URL: redis://localhost:6379
+          TASKER_ENV: test
+          TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
+          SQLX_OFFLINE: "true"
+
+      # ========================================================================
+      # Run all FFI client tests
+      # ========================================================================
+      - name: Run FFI client API tests (all languages)
+        run: |
+          echo "🧪 Running FFI client API integration tests (Python, Ruby, TypeScript)..."
+          cargo make test-ffi-client
+        env:
+          TASKER_ENV: test
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+          REDIS_URL: redis://localhost:6379
+          FFI_CLIENT_TESTS: "true"
+          TASKER_ORCHESTRATION_URL: http://localhost:8080
+          # Config paths must be absolute because cargo-make tasks run from workers/ subdirs
+          TASKER_CONFIG_PATH: ${{ github.workspace }}/config/tasker/generated/worker-test.toml
+          TASKER_WEB_BIND_ADDRESS: "0.0.0.0:8182"
+          TASKER_WORKER_GRPC_BIND_ADDRESS: "0.0.0.0:9182"
+          TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
+          # Python-specific env
+          PYTHON_HANDLER_PATH: ${{ github.workspace }}/workers/python/tests/handlers
+          # TypeScript-specific env
+          FFI_BOOTSTRAP_TESTS: "true"
+
+      # ========================================================================
+      # Cleanup and results
+      # ========================================================================
+      - name: Stop orchestration server
+        if: always()
+        run: |
+          if [ -n "$ORCHESTRATION_PID" ]; then
+            echo "🛑 Stopping orchestration server (PID: $ORCHESTRATION_PID)..."
+            kill $ORCHESTRATION_PID 2>/dev/null || true
+            wait $ORCHESTRATION_PID 2>/dev/null || true
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ffi-client-test-results
+          path: |
+            target/python-client-results.xml
+            target/ruby-client-results.xml
+            target/typescript-client-results.txt
+          if-no-files-found: warn
+
+      - name: Display test summary
+        if: always()
+        run: |
+          echo "📊 FFI Client API Test Summary"
+          echo "==============================="
+          echo ""
+          echo "Python:"
+          if [ -f "target/python-client-results.xml" ]; then
+            test_count=$(grep -o '<testcase' target/python-client-results.xml | wc -l || echo "0")
+            echo "  Tests: $test_count"
+          else
+            echo "  ⚠️ No results file"
+          fi
+          echo ""
+          echo "Ruby:"
+          if [ -f "target/ruby-client-results.xml" ]; then
+            test_count=$(grep -o '<testcase' target/ruby-client-results.xml | wc -l || echo "0")
+            echo "  Tests: $test_count"
+          else
+            echo "  ⚠️ No results file"
+          fi
+          echo ""
+          echo "TypeScript:"
+          if [ -f "target/typescript-client-results.txt" ]; then
+            tail -5 target/typescript-client-results.txt
+          else
+            echo "  ⚠️ No results file"
+          fi
+          echo ""
+          echo "✅ FFI client API tests completed"
