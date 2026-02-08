@@ -9,7 +9,7 @@
 //! ## TypeScript Binding Generation
 //!
 //! These DTOs use `ts-rs` to automatically generate TypeScript type definitions.
-//! Run `cargo test export_bindings --package tasker-worker-ts` to regenerate
+//! Run `cargo test export_bindings --package tasker-ts` to regenerate
 //! the TypeScript types in `workers/typescript/src/ffi/generated/`.
 
 use std::collections::HashMap;
@@ -628,7 +628,7 @@ mod tests {
 
     /// Export all TypeScript bindings to `workers/typescript/src/ffi/generated/`
     ///
-    /// Run with: `cargo test export_bindings --package tasker-worker-ts`
+    /// Run with: `cargo test export_bindings --package tasker-ts`
     ///
     /// This test generates TypeScript type definitions from the Rust DTOs,
     /// ensuring the TypeScript types are always in sync with the Rust source of truth.

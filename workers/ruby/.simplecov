@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# SimpleCov configuration for tasker-worker-rb
+# SimpleCov configuration for tasker-rb
 # Activated when COVERAGE=true environment variable is set
 
 SimpleCov.start do

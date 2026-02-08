@@ -1,4 +1,4 @@
-# tasker-worker-py
+# tasker-py
 
 Python worker bindings for the Tasker workflow orchestration system.
 
@@ -28,7 +28,7 @@ uv run maturin develop
 ### From PyPI (when published)
 
 ```bash
-pip install tasker-worker-py
+pip install tasker-py
 ```
 
 ## Quick Start

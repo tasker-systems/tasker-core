@@ -96,7 +96,7 @@ def normalize_pytest_cov(input_path: Path) -> dict:
     return {
         "meta": {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "crate": "tasker-worker-py",
+            "crate": "tasker-py",
             "language": "python",
             "tool": "pytest-cov",
             "git_commit": git_commit,

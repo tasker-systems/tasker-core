@@ -4,7 +4,7 @@ set -euo pipefail
 # =============================================================================
 # Restore Ruby FFI extension from CI build
 # =============================================================================
-# Restores the Ruby FFI extension (tasker_worker_rb.bundle/.so) from the
+# Restores the Ruby FFI extension (tasker_rb.bundle/.so) from the
 # ruby-extension artifact produced by build-workers.yml
 #
 # Environment variables:

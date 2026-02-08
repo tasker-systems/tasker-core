@@ -3,7 +3,7 @@
 **Last Updated**: 2026-01-01
 **Audience**: TypeScript/JavaScript Developers
 **Status**: Active
-**Package**: `tasker-worker-ts`
+**Package**: `@tasker-systems/tasker`
 **Related Docs**: [Patterns and Practices](patterns-and-practices.md) | [Worker Event Systems](../worker-event-systems.md) | [API Convergence Matrix](api-convergence-matrix.md)
 **Related Tickets**: TAS-112 (Domain Events, Mixin Pattern)
 
@@ -20,7 +20,7 @@ The TypeScript worker provides a multi-runtime interface for integrating tasker-
 ```bash
 cd workers/typescript
 bun install                     # Install dependencies
-cargo build --release -p tasker-worker-ts  # Build FFI library
+cargo build --release -p tasker-ts  # Build FFI library
 ```
 
 ### Running the Server
@@ -44,7 +44,7 @@ deno run --allow-ffi --allow-env --allow-net bin/server.ts
 | `TASKER_ENV` | Environment (test/development/production) | development |
 | `TASKER_CONFIG_PATH` | Path to TOML configuration | Auto-detected |
 | `TASKER_TEMPLATE_PATH` | Path to task templates | Auto-detected |
-| `TASKER_FFI_LIBRARY_PATH` | Path to `libtasker_worker` | Auto-detected |
+| `TASKER_FFI_LIBRARY_PATH` | Path to `libtasker_ts` | Auto-detected |
 | `RUST_LOG` | Log level (trace/debug/info/warn/error) | info |
 | `PORT` | HTTP server port | 8081 |
 
@@ -108,12 +108,12 @@ runtime.stopWorker();
 For embedding in existing TypeScript applications:
 
 ```typescript
-import { createRuntime } from 'tasker-worker-ts';
-import { EventEmitter, EventPoller, HandlerRegistry, StepExecutionSubscriber } from 'tasker-worker-ts';
+import { createRuntime } from '@tasker-systems/tasker';
+import { EventEmitter, EventPoller, HandlerRegistry, StepExecutionSubscriber } from '@tasker-systems/tasker';
 
 // Bootstrap worker (headless mode via TOML: web.enabled = false)
 const runtime = createRuntime();
-await runtime.load('/path/to/libtasker_worker.dylib');
+await runtime.load('/path/to/libtasker_ts.dylib');
 runtime.bootstrapWorker({ namespace: 'my-app' });
 
 // Register handlers
@@ -184,8 +184,8 @@ TypeScript communicates with the Rust foundation via FFI polling:
 All handlers extend `StepHandler`:
 
 ```typescript
-import { StepHandler } from 'tasker-worker-ts';
-import type { StepContext, StepHandlerResult } from 'tasker-worker-ts';
+import { StepHandler } from '@tasker-systems/tasker';
+import type { StepContext, StepHandlerResult } from '@tasker-systems/tasker';
 
 export class ProcessOrderHandler extends StepHandler {
   static handlerName = 'process_order';
@@ -255,7 +255,7 @@ return this.failure(
 ### Error Types
 
 ```typescript
-import { ErrorType } from 'tasker-worker-ts';
+import { ErrorType } from '@tasker-systems/tasker';
 
 ErrorType.PERMANENT_ERROR   // Non-retryable failures
 ErrorType.RETRYABLE_ERROR   // Retryable failures
@@ -296,8 +296,8 @@ TypeScript uses composition via mixins rather than inheritance. You can use eith
 2. **Mixin functions** (applyAPI, applyDecision) - explicit composition
 
 ```typescript
-import { StepHandler } from 'tasker-worker-ts';
-import { applyAPI, APICapable } from 'tasker-worker-ts';
+import { StepHandler } from '@tasker-systems/tasker';
+import { applyAPI, APICapable } from '@tasker-systems/tasker';
 
 // Using mixin pattern (recommended for new code)
 class MyHandler extends StepHandler implements APICapable {
@@ -313,7 +313,7 @@ class MyHandler extends StepHandler implements APICapable {
 }
 
 // Or using wrapper class (simpler, backward compatible)
-import { ApiHandler } from 'tasker-worker-ts';
+import { ApiHandler } from '@tasker-systems/tasker';
 
 class MyHandler extends ApiHandler {
   async call(context: StepContext): Promise<StepHandlerResult> {
@@ -330,8 +330,8 @@ class MyHandler extends ApiHandler {
 For HTTP API integration with automatic error classification:
 
 ```typescript
-import { ApiHandler } from 'tasker-worker-ts';
-import type { StepContext, StepHandlerResult } from 'tasker-worker-ts';
+import { ApiHandler } from '@tasker-systems/tasker';
+import type { StepContext, StepHandlerResult } from '@tasker-systems/tasker';
 
 export class FetchUserHandler extends ApiHandler {
   static handlerName = 'fetch_user';
@@ -403,8 +403,8 @@ response.retryAfter      // Retry-After header value in seconds
 For dynamic workflow routing:
 
 ```typescript
-import { DecisionHandler } from 'tasker-worker-ts';
-import type { StepContext, StepHandlerResult } from 'tasker-worker-ts';
+import { DecisionHandler } from '@tasker-systems/tasker';
+import type { StepContext, StepHandlerResult } from '@tasker-systems/tasker';
 
 export class RoutingDecisionHandler extends DecisionHandler {
   static handlerName = 'routing_decision';
@@ -458,8 +458,8 @@ For processing large datasets in chunks. Cross-language aligned with Ruby and Py
 **Analyzer Handler** (creates batch configurations):
 
 ```typescript
-import { BatchableStepHandler } from 'tasker-worker-ts';
-import type { StepContext, BatchableResult } from 'tasker-worker-ts';
+import { BatchableStepHandler } from '@tasker-systems/tasker';
+import type { StepContext, BatchableResult } from '@tasker-systems/tasker';
 
 export class CsvAnalyzerHandler extends BatchableStepHandler {
   static handlerName = 'csv_analyzer';
@@ -586,7 +586,7 @@ export class CsvAggregatorHandler extends StepHandler {
 **Location**: `workers/typescript/src/handler/registry.ts`
 
 ```typescript
-import { HandlerRegistry } from 'tasker-worker-ts';
+import { HandlerRegistry } from '@tasker-systems/tasker';
 
 const registry = new HandlerRegistry();
 
@@ -632,7 +632,7 @@ import type {
   FfiStepEvent,
   BootstrapConfig,
   WorkerStatus,
-} from 'tasker-worker-ts';
+} from '@tasker-systems/tasker';
 
 // StepContext - created from FFI event
 const context = StepContext.fromFfiEvent(event, 'handler_name');
@@ -651,7 +651,7 @@ result.retryable;      // boolean
 ### Configuration Types
 
 ```typescript
-import type { BootstrapConfig } from 'tasker-worker-ts';
+import type { BootstrapConfig } from '@tasker-systems/tasker';
 
 const config: BootstrapConfig = {
   namespace: 'my-app',
@@ -669,8 +669,8 @@ const config: BootstrapConfig = {
 **Location**: `workers/typescript/src/events/event-emitter.ts`
 
 ```typescript
-import { EventEmitter } from 'tasker-worker-ts';
-import { StepEventNames } from 'tasker-worker-ts';
+import { EventEmitter } from '@tasker-systems/tasker';
+import { StepEventNames } from '@tasker-systems/tasker';
 
 const emitter = new EventEmitter();
 
@@ -692,7 +692,7 @@ emitter.emit(StepEventNames.STEP_EXECUTION_RECEIVED, {
 ### Event Names
 
 ```typescript
-import { StepEventNames } from 'tasker-worker-ts';
+import { StepEventNames } from '@tasker-systems/tasker';
 
 StepEventNames.STEP_EXECUTION_RECEIVED  // Step event received from FFI
 StepEventNames.STEP_EXECUTION_STARTED   // Handler execution started
@@ -706,7 +706,7 @@ StepEventNames.STEP_COMPLETION_SENT     // Result sent to FFI
 **Location**: `workers/typescript/src/events/event-poller.ts`
 
 ```typescript
-import { EventPoller } from 'tasker-worker-ts';
+import { EventPoller } from '@tasker-systems/tasker';
 
 const poller = new EventPoller(runtime, emitter, {
   pollingIntervalMs: 10,        // Poll every 10ms
@@ -738,7 +738,7 @@ TypeScript has full domain event support, matching Ruby and Python capabilities.
 Publishers transform step execution context into domain-specific events:
 
 ```typescript
-import { BasePublisher, StepEventContext, DomainEvent } from 'tasker-worker-ts';
+import { BasePublisher, StepEventContext, DomainEvent } from '@tasker-systems/tasker';
 
 export class PaymentEventPublisher extends BasePublisher {
   static publisherName = 'payment_events';
@@ -783,7 +783,7 @@ export class PaymentEventPublisher extends BasePublisher {
 Subscribers react to domain events matching specific patterns:
 
 ```typescript
-import { BaseSubscriber, InProcessDomainEvent, SubscriberResult } from 'tasker-worker-ts';
+import { BaseSubscriber, InProcessDomainEvent, SubscriberResult } from '@tasker-systems/tasker';
 
 export class AuditLoggingSubscriber extends BaseSubscriber {
   static subscriberName = 'audit_logger';
@@ -819,7 +819,7 @@ export class AuditLoggingSubscriber extends BaseSubscriber {
 Manage publishers and subscribers with singleton registries:
 
 ```typescript
-import { PublisherRegistry, SubscriberRegistry } from 'tasker-worker-ts';
+import { PublisherRegistry, SubscriberRegistry } from '@tasker-systems/tasker';
 
 // Publisher Registry
 const pubRegistry = PublisherRegistry.getInstance();
@@ -847,7 +847,7 @@ subRegistry.stopAll();
 Domain events integrate with the Rust FFI layer for cross-language event flow:
 
 ```typescript
-import { createFfiPollAdapter, InProcessDomainEventPoller } from 'tasker-worker-ts';
+import { createFfiPollAdapter, InProcessDomainEventPoller } from '@tasker-systems/tasker';
 
 // Create poller connected to Rust broadcast channel
 const poller = new InProcessDomainEventPoller();
@@ -877,7 +877,7 @@ The TypeScript worker handles signals for graceful shutdown:
 | `SIGINT` | Graceful shutdown (Ctrl+C) |
 
 ```typescript
-import { ShutdownController } from 'tasker-worker-ts';
+import { ShutdownController } from '@tasker-systems/tasker';
 
 const shutdown = new ShutdownController();
 
@@ -932,7 +932,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 ### Structured Logging
 
 ```typescript
-import { logInfo, logError, logWarn, logDebug } from 'tasker-worker-ts';
+import { logInfo, logError, logWarn, logDebug } from '@tasker-systems/tasker';
 
 // Simple logging
 logInfo('Processing started', { component: 'handler' });
@@ -1172,13 +1172,13 @@ WORKDIR /app
 # Copy built artifacts
 COPY workers/typescript/dist/ ./dist/
 COPY workers/typescript/package.json ./
-COPY target/release/libtasker_worker.dylib ./lib/
+COPY target/release/libtasker_ts.dylib ./lib/
 
 # Install production dependencies
 RUN bun install --production
 
 # Set environment
-ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_worker.dylib
+ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_ts.dylib
 ENV PORT=8081
 
 EXPOSE 8081

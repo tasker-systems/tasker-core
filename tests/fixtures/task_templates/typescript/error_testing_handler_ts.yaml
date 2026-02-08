@@ -4,7 +4,7 @@
 # Tests retryable errors, permanent errors, and mixed outcomes
 #
 # Template: test_errors/error_testing_handler_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts
+# Implementation: TypeScript FFI with tasker-ts
 #
 ---
 name: error_testing_handler_ts

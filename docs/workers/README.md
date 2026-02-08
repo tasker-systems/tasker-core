@@ -177,11 +177,11 @@ registry.register("my_handler", MyHandler)
 
 **TypeScript (in application)**:
 ```typescript
-import { createRuntime, HandlerRegistry, EventEmitter, EventPoller, StepExecutionSubscriber } from 'tasker-worker-ts';
+import { createRuntime, HandlerRegistry, EventEmitter, EventPoller, StepExecutionSubscriber } from '@tasker-systems/tasker';
 
 // Bootstrap worker (web server disabled via TOML config)
 const runtime = createRuntime();
-await runtime.load('/path/to/libtasker_worker.dylib');
+await runtime.load('/path/to/libtasker_ts.dylib');
 runtime.bootstrapWorker({ namespace: 'my-app' });
 
 // Register handlers
@@ -401,7 +401,7 @@ python bin/server.py
 # Install dependencies
 cd workers/typescript
 bun install
-cargo build --release -p tasker-worker-ts
+cargo build --release -p tasker-ts
 
 # Run server (Bun)
 bun run bin/server.ts

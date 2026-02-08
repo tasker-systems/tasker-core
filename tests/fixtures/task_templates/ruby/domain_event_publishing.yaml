@@ -10,7 +10,7 @@
 # - Custom publisher specification
 #
 # Template: domain_events/domain_event_publishing:1.0.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Created: 2025-11-28
 #
 ---

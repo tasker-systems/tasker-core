@@ -4,7 +4,7 @@
 # Demonstrates namespace isolation with same workflow name in different namespaces
 #
 # Template: payments/process_refund:1.0.0
-# Implementation: Python FFI with tasker-worker-py
+# Implementation: Python FFI with tasker-py
 # Blog Post: Post 04 - Team Scaling (Namespace Isolation)
 #
 # Business Workflow Pattern (4 steps):

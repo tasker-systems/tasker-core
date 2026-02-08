@@ -185,8 +185,8 @@ cargo make test-watch
 cargo make test-coverage
 
 # FFI tasks
-cargo make build-ffi        # cargo build -p tasker-worker-ts --release
-cargo make build-ffi-debug  # cargo build -p tasker-worker-ts (faster)
+cargo make build-ffi        # cargo build -p tasker-ts --release
+cargo make build-ffi-debug  # cargo build -p tasker-ts (faster)
 cargo make build-ts         # bun run build
 ```
 
@@ -333,7 +333,7 @@ dependencies = ["lint", "typecheck", "test"]
   ```toml
   [tasks.build-ffi]
   command = "cargo"
-  args = ["build", "-p", "tasker-worker-ts", "--release"]
+  args = ["build", "-p", "tasker-ts", "--release"]
   ```
 
 - **Script tasks**: Shell scripts

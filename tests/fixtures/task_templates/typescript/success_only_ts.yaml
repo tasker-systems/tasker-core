@@ -4,7 +4,7 @@
 # Single step that always succeeds - used for basic integration testing
 #
 # Template: test_scenarios/success_only_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts
+# Implementation: TypeScript FFI with tasker-ts
 #
 ---
 name: success_only_ts

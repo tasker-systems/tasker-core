@@ -208,10 +208,10 @@ COVERAGE=true COVERAGE_COLLECT_ONLY=true bundle exec rspec
 uv run --project ../../cargo-make/scripts/coverage python3 \
   ../../cargo-make/scripts/coverage/normalize-ruby.py \
   coverage/.resultset.json \
-  ../../coverage-reports/ruby/tasker-worker-rb-coverage.json
+  ../../coverage-reports/ruby/tasker-rb-coverage.json
 
 echo "Coverage complete"
-echo "  Normalized: ../../coverage-reports/ruby/tasker-worker-rb-coverage.json"
+echo "  Normalized: ../../coverage-reports/ruby/tasker-rb-coverage.json"
 '''
 
 # =============================================================================

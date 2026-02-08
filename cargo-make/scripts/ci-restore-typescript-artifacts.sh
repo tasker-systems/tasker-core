@@ -23,7 +23,7 @@ if [ -d "${ARTIFACTS_DIR}" ]; then
     # Restore FFI library to target/debug (matches sccache config)
     mkdir -p target/debug
 
-    for lib in libtasker_worker.so libtasker_worker.dylib; do
+    for lib in libtasker_ts.so libtasker_ts.dylib; do
         # Try flat structure first
         if [ -f "${ARTIFACTS_DIR}/${lib}" ]; then
             cp -f "${ARTIFACTS_DIR}/${lib}" target/debug/
@@ -36,17 +36,17 @@ if [ -d "${ARTIFACTS_DIR}" ]; then
     done
 
     # Verify FFI library and set environment variable
-    if [ -f target/debug/libtasker_worker.so ]; then
+    if [ -f target/debug/libtasker_ts.so ]; then
         echo ""
         echo "FFI library in target/debug/:"
-        ls -lh target/debug/libtasker_worker.* 2>/dev/null || true
-        export TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_worker.so"
+        ls -lh target/debug/libtasker_ts.* 2>/dev/null || true
+        export TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.so"
         echo "TASKER_FFI_LIBRARY_PATH=$TASKER_FFI_LIBRARY_PATH"
-    elif [ -f target/debug/libtasker_worker.dylib ]; then
+    elif [ -f target/debug/libtasker_ts.dylib ]; then
         echo ""
         echo "FFI library in target/debug/:"
-        ls -lh target/debug/libtasker_worker.* 2>/dev/null || true
-        export TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_worker.dylib"
+        ls -lh target/debug/libtasker_ts.* 2>/dev/null || true
+        export TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.dylib"
         echo "TASKER_FFI_LIBRARY_PATH=$TASKER_FFI_LIBRARY_PATH"
     else
         echo "  Warning: FFI library not found in artifacts"

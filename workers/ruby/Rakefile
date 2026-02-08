@@ -8,7 +8,7 @@ require 'rspec/core/rake_task'
 Dir.glob('lib/tasks/*.rake').each { |r| import r }
 
 # Configure the extension compilation
-Rake::ExtensionTask.new('tasker_worker_rb') do |ext|
+Rake::ExtensionTask.new('tasker_rb') do |ext|
   ext.lib_dir = 'lib/tasker_core'
   ext.ext_dir = 'ext/tasker_core'
   ext.source_pattern = '*.{rs,toml}'
@@ -34,7 +34,7 @@ end
 
 # Clean task to remove compiled artifacts
 task :clean do
-  rm_rf 'lib/tasker_core/tasker_worker_rb.so'
+  rm_rf 'lib/tasker_core/tasker_rb.so'
   rm_rf 'tmp/'
   sh 'cargo clean' if File.exist?('Cargo.toml')
 end
@@ -93,7 +93,7 @@ task :release_prep do
   Rake::Task[:spec].invoke
 
   # Build the gem
-  sh 'gem build tasker-worker-rb.gemspec'
+  sh 'gem build tasker-rb.gemspec'
 
   puts '✅ Release preparation complete!'
   puts '   Review the generated .gem file before pushing to RubyGems'

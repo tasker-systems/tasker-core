@@ -91,7 +91,7 @@ require 'active_support/core_ext'
 #    - PostgreSQL LISTEN/NOTIFY for real-time coordination
 #
 # Load Order (Important):
-# 1. Rust native extension (tasker_worker_rb) - provides FFI and base classes
+# 1. Rust native extension (tasker_rb) - provides FFI and base classes
 # 2. Ruby error classes - error hierarchy for classification
 # 3. Ruby models - data wrappers for FFI types
 # 4. Ruby handlers - step and task handler base classes
@@ -110,11 +110,11 @@ end
 begin
   Dotenv.load
   # Load the compiled Rust extension first (provides base classes)
-  require_relative 'tasker_core/tasker_worker_rb'
+  require_relative 'tasker_core/tasker_rb'
 rescue LoadError => e
   raise LoadError, <<~MSG
 
-    ❌ Failed to load tasker-worker-rb native extension!
+    ❌ Failed to load tasker-rb native extension!
 
     This usually means the Rust extension hasn't been compiled yet.
 

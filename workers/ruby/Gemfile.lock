@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    tasker-worker-rb (0.1.0)
+    tasker-rb (0.1.0)
       activesupport (~> 8.0)
       concurrent-ruby (~> 1.3.5)
       concurrent-ruby-ext (~> 1.3.5)
@@ -267,7 +267,7 @@ DEPENDENCIES
   ruby-prof (~> 1.0)
   simplecov (~> 0.22)
   simplecov_json_formatter (~> 0.1)
-  tasker-worker-rb!
+  tasker-rb!
   timecop (~> 0.9)
   webmock (~> 3.18)
   yard (~> 0.9)

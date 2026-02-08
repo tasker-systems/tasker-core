@@ -153,13 +153,13 @@ jobs:
         run: |
           cd workers/typescript
           bun install --frozen-lockfile
-          if [ -f "../../target/debug/libtasker_worker.so" ]; then
-            echo "✅ FFI library found at target/debug/libtasker_worker.so"
-            echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/../../target/debug/libtasker_worker.so" >> $GITHUB_ENV
+          if [ -f "../../target/debug/libtasker_ts.so" ]; then
+            echo "✅ FFI library found at target/debug/libtasker_ts.so"
+            echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/../../target/debug/libtasker_ts.so" >> $GITHUB_ENV
           else
             echo "⚠️ FFI library not found, building..."
-            cargo build -p tasker-worker-ts
-            echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/../../target/debug/libtasker_worker.so" >> $GITHUB_ENV
+            cargo build -p tasker-ts
+            echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/../../target/debug/libtasker_ts.so" >> $GITHUB_ENV
           fi
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test

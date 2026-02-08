@@ -5,7 +5,7 @@
  * Verifies that Deno.dlopen correctly interfaces with the native code.
  *
  * Prerequisites:
- * - Build FFI library: cargo build -p tasker-worker-ts --release
+ * - Build FFI library: cargo build -p tasker-ts --release
  * - (Optional) DATABASE_URL for bootstrap tests
  *
  * Run: deno test --allow-ffi --allow-env --allow-read tests/integration/ffi/deno-runtime.test.ts

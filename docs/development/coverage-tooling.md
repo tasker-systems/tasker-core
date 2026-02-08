@@ -314,9 +314,9 @@ Thresholds are defined in `coverage-thresholds.json` at the project root:
     "tasker-client": 60,
     "tasker-cli": 30
   },
-  "python": { "tasker-worker-py": 80 },
-  "ruby": { "tasker-worker-rb": 70 },
-  "typescript": { "tasker-worker-ts": 60 }
+  "python": { "tasker-py": 80 },
+  "ruby": { "tasker-rb": 70 },
+  "typescript": { "tasker-ts": 60 }
 }
 ```
 

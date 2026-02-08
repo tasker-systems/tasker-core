@@ -165,8 +165,8 @@ jobs:
         with:
           name: ruby-extension
           path: |
-            workers/ruby/lib/tasker_core/tasker_worker_rb.bundle
-            workers/ruby/lib/tasker_core/tasker_worker_rb.so
+            workers/ruby/lib/tasker_core/tasker_rb.bundle
+            workers/ruby/lib/tasker_core/tasker_rb.so
           retention-days: 1
           if-no-files-found: warn
 
@@ -290,8 +290,8 @@ jobs:
           name: typescript-artifacts
           path: |
             workers/typescript/dist/
-            target/debug/libtasker_worker.so
-            target/debug/libtasker_worker.dylib
+            target/debug/libtasker_ts.so
+            target/debug/libtasker_ts.dylib
           retention-days: 1
           if-no-files-found: warn
 

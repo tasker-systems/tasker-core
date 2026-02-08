@@ -13,8 +13,8 @@ set -euo pipefail
 # Expected artifact structure:
 #   ${ARTIFACTS_BASE}/
 #     core/           -> core-artifacts (tasker-server, tasker-worker, tasker-cli)
-#     ruby/           -> ruby-extension (tasker_worker_rb.bundle/.so)
-#     typescript/     -> typescript-artifacts (dist/, libtasker_worker.so/.dylib)
+#     ruby/           -> ruby-extension (tasker_rb.bundle/.so)
+#     typescript/     -> typescript-artifacts (dist/, libtasker_ts.so/.dylib)
 #     rust-worker/    -> rust-worker-artifact (rust-worker binary)
 #
 # Usage:

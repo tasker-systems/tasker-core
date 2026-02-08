@@ -4,7 +4,7 @@
 # Demonstrates microservices coordination with parallel execution
 #
 # Template: microservices/user_registration:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts
+# Implementation: TypeScript FFI with tasker-ts
 # Blog Post: Post 03 - Microservices Coordination (TAS-91)
 #
 # Business Workflow Pattern (5 steps):

@@ -138,8 +138,8 @@ class MyHandler(StepHandler, APIMixin, DecisionMixin):
 
 ```typescript
 // TypeScript uses mixin functions applied in constructor
-import { StepHandler } from 'tasker-worker-ts';
-import { applyAPI, applyDecision, APICapable, DecisionCapable } from 'tasker-worker-ts';
+import { StepHandler } from '@tasker-systems/tasker';
+import { applyAPI, applyDecision, APICapable, DecisionCapable } from '@tasker-systems/tasker';
 
 class MyHandler extends StepHandler implements APICapable, DecisionCapable {
   constructor() {
@@ -302,8 +302,8 @@ class MyAPIHandler extends APIHandler {
 
 After (composition):
 ```typescript
-import { StepHandler } from 'tasker-worker-ts';
-import { applyAPI, APICapable } from 'tasker-worker-ts';
+import { StepHandler } from '@tasker-systems/tasker';
+import { applyAPI, APICapable } from '@tasker-systems/tasker';
 
 class MyAPIHandler extends StepHandler implements APICapable {
   constructor() {

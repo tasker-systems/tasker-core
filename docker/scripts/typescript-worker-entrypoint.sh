@@ -108,11 +108,11 @@ validate_typescript_worker_environment() {
         fi
     else
         # Try to find the library in default locations
-        if [[ -f "/app/lib/libtasker_worker.so" ]]; then
-            export TASKER_FFI_LIBRARY_PATH="/app/lib/libtasker_worker.so"
+        if [[ -f "/app/lib/libtasker_ts.so" ]]; then
+            export TASKER_FFI_LIBRARY_PATH="/app/lib/libtasker_ts.so"
             log_info "FFI library found: ${TASKER_FFI_LIBRARY_PATH}"
-        elif [[ -f "/app/lib/libtasker_worker.dylib" ]]; then
-            export TASKER_FFI_LIBRARY_PATH="/app/lib/libtasker_worker.dylib"
+        elif [[ -f "/app/lib/libtasker_ts.dylib" ]]; then
+            export TASKER_FFI_LIBRARY_PATH="/app/lib/libtasker_ts.dylib"
             log_info "FFI library found: ${TASKER_FFI_LIBRARY_PATH}"
         else
             log_error "FFI library not found. Set TASKER_FFI_LIBRARY_PATH or ensure library is in /app/lib/"

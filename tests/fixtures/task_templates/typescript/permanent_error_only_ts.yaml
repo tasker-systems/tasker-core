@@ -4,7 +4,7 @@
 # Demonstrates non-retryable error behavior via TypeScript FFI
 #
 # Template: test_scenarios/permanent_error_only_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts (Bun FFI)
+# Implementation: TypeScript FFI with tasker-ts (Bun FFI)
 #
 ---
 name: permanent_error_only_ts

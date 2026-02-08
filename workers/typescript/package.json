@@ -1,5 +1,5 @@
 {
-  "name": "@tasker-systems/worker",
+  "name": "@tasker-systems/tasker",
   "version": "0.1.0",
   "description": "TypeScript worker for tasker-core workflow orchestration",
   "type": "module",

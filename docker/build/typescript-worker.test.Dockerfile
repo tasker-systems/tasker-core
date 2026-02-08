@@ -77,11 +77,11 @@ ENV SQLX_OFFLINE=true
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
-    cargo build -p tasker-worker-ts --release --locked && \
+    cargo build -p tasker-ts --release --locked && \
     # Copy the built library to a known location outside the cache
     mkdir -p /app/lib && \
-    cp /app/target/release/libtasker_worker.so /app/lib/ 2>/dev/null || \
-    cp /app/target/release/libtasker_worker.dylib /app/lib/ 2>/dev/null || \
+    cp /app/target/release/libtasker_ts.so /app/lib/ 2>/dev/null || \
+    cp /app/target/release/libtasker_ts.dylib /app/lib/ 2>/dev/null || \
     true
 
 # Install Bun dependencies
@@ -144,7 +144,7 @@ ENV TYPESCRIPT_WORKER_ENABLED=true
 ENV BUN_VERSION=1.3
 
 # FFI library path for runtime discovery
-ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_worker.so
+ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_ts.so
 
 # Template discovery paths for TypeScript handlers
 ENV TASKER_TEMPLATE_PATH=/app/typescript_templates

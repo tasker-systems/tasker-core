@@ -4,7 +4,7 @@
 # Demonstrates sequential mathematical operations using Ruby handlers called from Rust
 #
 # Template: linear_workflow/mathematical_sequence:1.0.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Updated: 2025-09-24 (Fixed Template Format)
 #
 # Mathematical Pattern:

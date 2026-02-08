@@ -4,7 +4,7 @@
 # Demonstrates TAS-53 Dynamic Workflows via TypeScript FFI
 #
 # Template: conditional_approval/approval_routing_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts (Bun FFI)
+# Implementation: TypeScript FFI with tasker-ts (Bun FFI)
 # Updated: 2025-12-23
 #
 # Approval Routing Logic:

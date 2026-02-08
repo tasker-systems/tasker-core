@@ -4,7 +4,7 @@
 # Demonstrates sequential mathematical operations using TypeScript handlers called from Rust
 #
 # Template: linear_workflow/mathematical_sequence_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts
+# Implementation: TypeScript FFI with tasker-ts
 #
 # Mathematical Pattern:
 # 1. Step 1: Square the initial even number (6 → 36)

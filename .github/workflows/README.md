@@ -527,7 +527,7 @@ bun run build
 
 ```bash
 # Requires FFI library to be built first
-cargo build -p tasker-worker-ts --release
+cargo build -p tasker-ts --release
 
 cd workers/typescript
 

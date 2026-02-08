@@ -250,7 +250,7 @@ def normalize_bun_coverage(coverage_dir: Path) -> dict:
     return {
         "meta": {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "crate": "tasker-worker-ts",
+            "crate": "tasker-ts",
             "language": "typescript",
             "tool": "bun-coverage",
             "git_commit": git_commit,

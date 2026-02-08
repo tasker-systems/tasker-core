@@ -1,1 +1,1 @@
-# Test package for tasker-worker-py
+# Test package for tasker-py

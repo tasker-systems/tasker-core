@@ -145,9 +145,9 @@ case "$RUNTIME_TYPE" in
         fi
         # Build the FFI library
         echo "🔨 Checking TypeScript FFI library..."
-        (cd "$PROJECT_ROOT" && cargo build -p tasker-worker-ts 2>/dev/null) || {
+        (cd "$PROJECT_ROOT" && cargo build -p tasker-ts 2>/dev/null) || {
             echo "   Building TypeScript FFI library..."
-            (cd "$PROJECT_ROOT" && cargo build -p tasker-worker-ts)
+            (cd "$PROJECT_ROOT" && cargo build -p tasker-ts)
         }
         ;;
 esac

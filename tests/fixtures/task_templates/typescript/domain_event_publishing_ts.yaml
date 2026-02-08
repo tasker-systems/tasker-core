@@ -4,7 +4,7 @@
 # Demonstrates domain events with different delivery modes via TypeScript FFI
 #
 # Template: domain_events/domain_event_publishing_ts:1.0.0
-# Implementation: TypeScript FFI with tasker-worker-ts (Bun FFI)
+# Implementation: TypeScript FFI with tasker-ts (Bun FFI)
 # Updated: 2025-12-23
 #
 # Event Types Demonstrated:

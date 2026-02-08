@@ -4,7 +4,7 @@
 # Demonstrates sophisticated business workflow with external service integration
 #
 # Template: order_fulfillment/business_workflow:1.0.0
-# Implementation: Ruby FFI with tasker-worker-rb
+# Implementation: Ruby FFI with tasker-rb
 # Updated: 2025-09-24 (Fixed Template Format)
 #
 # Business Workflow Pattern (4 steps):

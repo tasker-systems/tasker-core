@@ -34,7 +34,7 @@ def test_rust_version():
 
     rust_version = tasker_core.get_rust_version()
     assert isinstance(rust_version, str)
-    assert "tasker-worker-py" in rust_version
+    assert "tasker-py" in rust_version
     assert "rustc" in rust_version
 
 
