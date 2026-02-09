@@ -88,7 +88,7 @@ publish_phase() {
         fi
 
         log_info "Publishing ${crate}@${VERSION}..."
-        cargo publish -p "$crate"
+        cargo publish -p "$crate" --allow-dirty
     done
 }
 
