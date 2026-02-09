@@ -89,7 +89,7 @@ fi
 echo ""
 echo "  FFI bindings to publish:"
 for lang in ruby python typescript; do
-    LANG_UPPER="${lang^^}"
+    LANG_UPPER=$(echo "$lang" | tr '[:lower:]' '[:upper:]')
     VERSION_VAR="NEXT_${LANG_UPPER}_VERSION"
     VERSION_VAL="${!VERSION_VAR}"
     if [[ "$VERSION_VAL" != "unchanged" ]]; then
