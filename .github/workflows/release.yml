@@ -24,7 +24,7 @@ on:
 # This overrides all jobs — even tag-triggered runs will only dry-run.
 # =============================================================================
 env:
-  RELEASE_DRY_RUN: 'true'
+  RELEASE_DRY_RUN: 'false'
 
 concurrency:
   group: release
@@ -316,8 +316,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: '24'
 
       - name: Publish package
         run: .github/scripts/release/publish-component.sh
@@ -325,7 +324,6 @@ jobs:
           PUBLISH_SCRIPT: ./scripts/release/publish-typescript.sh
           VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
           IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Tag typescript release
         if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
