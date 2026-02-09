@@ -111,6 +111,11 @@ echo "  cargo make docs-generate   (dg)  Generate config docs"
 echo "  cargo make docs-coverage   (dc)  Show coverage stats"
 echo "  cargo make docs-check            Verify docs freshness (CI)"
 echo ""
+echo "CI Infrastructure:"
+echo "  cargo make ci-check                    Code quality + sanity check"
+echo "  cargo make ci-sanity-check  (csc)      Shell/workflow validation"
+echo "  cargo make ci-code-quality             fmt + clippy + docs + audit"
+echo ""
 echo "Run 'cargo make --list-all-steps' for all tasks"
 '''
 
@@ -845,8 +850,20 @@ script = { file = "${SCRIPTS_DIR}/clean-workers.sh" }
 # =============================================================================
 
 [tasks.ci-check]
-description = "CI: Run all quality checks"
+description = "CI: Run all quality checks + infrastructure sanity"
+dependencies = ["ci-code-quality", "ci-sanity-check"]
+
+[tasks.ci-code-quality]
+description = "CI: Run code quality checks (fmt, clippy, docs, audit)"
 dependencies = ["rust-fmt-check", "rust-clippy", "rust-docs", "rust-audit"]
+
+[tasks.ci-sanity-check]
+description = "CI: Validate shell scripts, workflows, and file references"
+script = { file = "${SCRIPTS_DIR}/ci-sanity-check.sh" }
+
+[tasks.csc]
+alias = "ci-sanity-check"
+description = "Shortcut for ci-sanity-check"
 
 [tasks.ci-test]
 description = "CI: Run all tests"

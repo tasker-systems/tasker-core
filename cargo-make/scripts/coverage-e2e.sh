@@ -40,7 +40,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(pwd)"
-SCRIPTS_DIR="${PROJECT_ROOT}/cargo-make/scripts"
+_SCRIPTS_DIR="${PROJECT_ROOT}/cargo-make/scripts"
 PID_DIR="${PROJECT_ROOT}/.pids"
 LOG_DIR="${PROJECT_ROOT}/.logs"
 

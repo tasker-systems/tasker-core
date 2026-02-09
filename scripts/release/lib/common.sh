@@ -121,8 +121,8 @@ update_workspace_dep_versions() {
     for toml_file in "${toml_files[@]}"; do
         for crate in "${WORKSPACE_CRATES[@]}"; do
             # Skip self-references (a crate doesn't depend on itself)
-            local crate_dir
-            crate_dir=$(basename "$(dirname "$toml_file")")
+            local _crate_dir
+            _crate_dir=$(basename "$(dirname "$toml_file")")
 
             # Match lines that reference this crate with a path but have a version field
             # Pattern: tasker-pgmq = { ... version = "..." ... }

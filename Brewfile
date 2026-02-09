@@ -114,6 +114,12 @@ brew "bottom"
 # grpcurl - gRPC client
 brew "grpcurl"
 
+# Shell script linter
+brew "shellcheck"
+
+# GitHub Actions workflow linter
+brew "actionlint"
+
 # -----------------------------------------------------------------------------
 # Performance & Profiling Tools (TAS-71)
 # -----------------------------------------------------------------------------

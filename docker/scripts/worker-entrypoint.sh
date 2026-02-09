@@ -8,7 +8,8 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly _SCRIPT_DIR
 readonly APP_NAME="${APP_NAME:-tasker-worker}"
 
 # Colors for output

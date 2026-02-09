@@ -58,7 +58,8 @@ ensure_cargo_tools() {
 is_external_path() {
     local path="$1"
     # Resolve to absolute path
-    local abs_path="$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path")" 2>/dev/null || echo "$path"
+    local abs_path
+    abs_path="$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path")" 2>/dev/null || echo "$path"
     [[ "$abs_path" == "$EXTERNAL_CACHE_ROOT"* ]]
 }
 

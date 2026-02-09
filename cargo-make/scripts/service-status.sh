@@ -33,7 +33,8 @@ check_service() {
         return 1
     fi
 
-    local pid=$(cat "$pid_file")
+    local pid
+    pid=$(cat "$pid_file")
 
     if kill -0 "$pid" 2>/dev/null; then
         # Try to get port from logs or process

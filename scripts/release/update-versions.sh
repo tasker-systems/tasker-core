@@ -22,7 +22,7 @@ CORE_VERSION=""
 RUBY_VERSION=""
 PYTHON_VERSION=""
 TS_VERSION=""
-DRY_RUN=false
+_DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
         --python=*)    PYTHON_VERSION="${1#*=}"; shift ;;
         --typescript)  TS_VERSION="$2"; shift 2 ;;
         --typescript=*) TS_VERSION="${1#*=}"; shift ;;
-        --dry-run)     DRY_RUN=true; shift ;;
+        --dry-run)     _DRY_RUN=true; shift ;;
         *) die "Unknown argument: $1" ;;
     esac
 done

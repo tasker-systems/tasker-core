@@ -23,7 +23,7 @@ cp "$REPORT_FILE" "${OUTPUT_DIR}/percentile_report.json"
 RUST_LINEAR=$(jq -r '.[] | select(.name == "tier1_core/workflow/linear_rust") | .p50_ms // empty' "$REPORT_FILE")
 RUST_DIAMOND=$(jq -r '.[] | select(.name == "tier1_core/workflow/diamond_rust") | .p50_ms // empty' "$REPORT_FILE")
 BATCH_P50=$(jq -r '.[] | select(.name == "tier5_batch/batch/csv_products_1000_rows") | .p50_ms // empty' "$REPORT_FILE")
-BATCH_P95=$(jq -r '.[] | select(.name == "tier5_batch/batch/csv_products_1000_rows") | .p95_ms // empty' "$REPORT_FILE")
+_BATCH_P95=$(jq -r '.[] | select(.name == "tier5_batch/batch/csv_products_1000_rows") | .p95_ms // empty' "$REPORT_FILE")
 
 # Generate the analysis document
 cat > "$OUTPUT_FILE" << 'HEADER'

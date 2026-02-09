@@ -218,15 +218,15 @@ for i in $(seq 1 "$COUNT"); do
         esac
 
         # TAS-177: Calculate gRPC port for services that have gRPC enabled
-        GRPC_BIND_ENV=""
+        _GRPC_BIND_ENV=""
         if [ "$SERVICE_TYPE" = "orchestration" ]; then
             GRPC_PORT=$((GRPC_BASE_PORT + i - 1))
             export TASKER_ORCHESTRATION_GRPC_BIND_ADDRESS="0.0.0.0:$GRPC_PORT"
-            GRPC_BIND_ENV="TASKER_ORCHESTRATION_GRPC_BIND_ADDRESS"
+            _GRPC_BIND_ENV="TASKER_ORCHESTRATION_GRPC_BIND_ADDRESS"
         elif [ "$SERVICE_TYPE" = "worker-rust" ]; then
             GRPC_PORT=$((GRPC_BASE_PORT + i - 1))
             export TASKER_WORKER_GRPC_BIND_ADDRESS="0.0.0.0:$GRPC_PORT"
-            GRPC_BIND_ENV="TASKER_WORKER_GRPC_BIND_ADDRESS"
+            _GRPC_BIND_ENV="TASKER_WORKER_GRPC_BIND_ADDRESS"
         fi
 
         TASKER_CONFIG_PATH="$CONFIG_PATH" \

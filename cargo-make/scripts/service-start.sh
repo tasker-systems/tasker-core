@@ -19,7 +19,7 @@ set -e
 
 SERVICE_NAME="${1:?Service name required}"
 shift
-COMMAND="$@"
+COMMAND="$*"
 
 if [ -z "$COMMAND" ]; then
     echo "❌ Error: Command required"
