@@ -47,7 +47,7 @@ concurrency:
 #     |          |          |
 #     +----------+----------+
 #           |
-#     release-summary     — reports results
+#     release-summary     — reports results, creates GitHub Release
 # =============================================================================
 
 jobs:
@@ -81,18 +81,11 @@ jobs:
 
       - name: Determine dry-run mode
         id: dry-run
-        run: |
-          # Forced dry-run overrides everything
-          if [[ "${{ env.RELEASE_DRY_RUN }}" == "true" ]]; then
-            echo "is_dry_run=true" >> $GITHUB_OUTPUT
-            echo "Forced dry-run mode enabled (RELEASE_DRY_RUN=true)"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "is_dry_run=${{ inputs.dry_run }}" >> $GITHUB_OUTPUT
-            echo "Manual trigger: dry_run=${{ inputs.dry_run }}"
-          else
-            echo "is_dry_run=false" >> $GITHUB_OUTPUT
-            echo "Tag-triggered release"
-          fi
+        run: .github/scripts/release/determine-dry-run.sh
+        env:
+          RELEASE_DRY_RUN_OVERRIDE: ${{ env.RELEASE_DRY_RUN }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
 
       - name: Calculate versions
         id: calc
@@ -101,23 +94,21 @@ jobs:
           if [[ -n "${{ inputs.from_ref }}" ]]; then
             EXTRA_ARGS="--from ${{ inputs.from_ref }}"
           fi
-
-          # calculate-versions.sh outputs KEY=VALUE pairs; redirect to GITHUB_OUTPUT
           # shellcheck disable=SC2086
-          ./scripts/release/calculate-versions.sh ${EXTRA_ARGS} >> $GITHUB_OUTPUT
+          ./scripts/release/calculate-versions.sh ${EXTRA_ARGS} >> "$GITHUB_OUTPUT"
 
       - name: Summary
-        run: |
-          echo "## Release Detection Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Changed | Next Version |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|---------|--------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Core (Rust) | ${{ steps.calc.outputs.CORE_CHANGED }} | ${{ steps.calc.outputs.NEXT_CORE_VERSION }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Ruby | ${{ steps.calc.outputs.RUBY_CHANGED }} | ${{ steps.calc.outputs.NEXT_RUBY_VERSION }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Python | ${{ steps.calc.outputs.PYTHON_CHANGED }} | ${{ steps.calc.outputs.NEXT_PYTHON_VERSION }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript | ${{ steps.calc.outputs.TYPESCRIPT_CHANGED }} | ${{ steps.calc.outputs.NEXT_TYPESCRIPT_VERSION }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Dry run:** ${{ steps.dry-run.outputs.is_dry_run }}" >> $GITHUB_STEP_SUMMARY
+        run: .github/scripts/release/detection-summary.sh
+        env:
+          CORE_CHANGED: ${{ steps.calc.outputs.CORE_CHANGED }}
+          RUBY_CHANGED: ${{ steps.calc.outputs.RUBY_CHANGED }}
+          PYTHON_CHANGED: ${{ steps.calc.outputs.PYTHON_CHANGED }}
+          TS_CHANGED: ${{ steps.calc.outputs.TYPESCRIPT_CHANGED }}
+          NEXT_CORE_VERSION: ${{ steps.calc.outputs.NEXT_CORE_VERSION }}
+          NEXT_RUBY_VERSION: ${{ steps.calc.outputs.NEXT_RUBY_VERSION }}
+          NEXT_PYTHON_VERSION: ${{ steps.calc.outputs.NEXT_PYTHON_VERSION }}
+          NEXT_TS_VERSION: ${{ steps.calc.outputs.NEXT_TYPESCRIPT_VERSION }}
+          IS_DRY_RUN: ${{ steps.dry-run.outputs.is_dry_run }}
 
   # ============================================================================
   # Stage 2: Pre-flight validation
@@ -153,11 +144,7 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Validate crate publishability
-        run: |
-          for crate in tasker-pgmq tasker-shared tasker-client tasker-orchestration tasker-worker tasker-cli; do
-            echo "Validating ${crate}..."
-            cargo publish -p "$crate" --dry-run --allow-dirty
-          done
+        run: .github/scripts/release/validate-publishability.sh
 
   # ============================================================================
   # Stage 3: Publish Rust crates
@@ -186,25 +173,19 @@ jobs:
         uses: ./.github/actions/install-protobuf
 
       - name: Publish crates
-        run: |
-          DRY_RUN_FLAG=""
-          if [[ "${{ needs.detect-and-calculate.outputs.is_dry_run }}" == "true" ]]; then
-            DRY_RUN_FLAG="--dry-run"
-          fi
-
-          ./scripts/release/publish-crates.sh \
-            "${{ needs.detect-and-calculate.outputs.next_core_version }}" \
-            ${DRY_RUN_FLAG} \
-            --on-duplicate=skip
+        run: .github/scripts/release/publish-component.sh
         env:
+          PUBLISH_SCRIPT: ./scripts/release/publish-crates.sh
+          VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Tag core release
         if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
-        run: |
-          VERSION="${{ needs.detect-and-calculate.outputs.next_core_version }}"
-          git tag "core-v${VERSION}"
-          git push origin "core-v${VERSION}"
+        run: .github/scripts/release/tag-component.sh
+        env:
+          COMPONENT: core
+          VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
 
   # ============================================================================
   # Stage 4: Publish FFI bindings (in parallel)
@@ -244,25 +225,19 @@ jobs:
         uses: ./.github/actions/install-protobuf
 
       - name: Publish gem
-        run: |
-          DRY_RUN_FLAG=""
-          if [[ "${{ needs.detect-and-calculate.outputs.is_dry_run }}" == "true" ]]; then
-            DRY_RUN_FLAG="--dry-run"
-          fi
-
-          ./scripts/release/publish-ruby.sh \
-            "${{ needs.detect-and-calculate.outputs.next_ruby_version }}" \
-            ${DRY_RUN_FLAG} \
-            --on-duplicate=skip
+        run: .github/scripts/release/publish-component.sh
         env:
+          PUBLISH_SCRIPT: ./scripts/release/publish-ruby.sh
+          VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
+          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
 
       - name: Tag ruby release
         if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
-        run: |
-          VERSION="${{ needs.detect-and-calculate.outputs.next_ruby_version }}"
-          git tag "ruby-v${VERSION}"
-          git push origin "ruby-v${VERSION}"
+        run: .github/scripts/release/tag-component.sh
+        env:
+          COMPONENT: ruby
+          VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
 
   publish-python:
     name: Publish Python Package
@@ -302,23 +277,18 @@ jobs:
         uses: ./.github/actions/install-protobuf
 
       - name: Publish package
-        run: |
-          DRY_RUN_FLAG=""
-          if [[ "${{ needs.detect-and-calculate.outputs.is_dry_run }}" == "true" ]]; then
-            DRY_RUN_FLAG="--dry-run"
-          fi
-
-          ./scripts/release/publish-python.sh \
-            "${{ needs.detect-and-calculate.outputs.next_python_version }}" \
-            ${DRY_RUN_FLAG} \
-            --on-duplicate=skip
+        run: .github/scripts/release/publish-component.sh
+        env:
+          PUBLISH_SCRIPT: ./scripts/release/publish-python.sh
+          VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
+          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
 
       - name: Tag python release
         if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
-        run: |
-          VERSION="${{ needs.detect-and-calculate.outputs.next_python_version }}"
-          git tag "python-v${VERSION}"
-          git push origin "python-v${VERSION}"
+        run: .github/scripts/release/tag-component.sh
+        env:
+          COMPONENT: python
+          VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
 
   publish-typescript:
     name: Publish TypeScript Package
@@ -350,25 +320,19 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Publish package
-        run: |
-          DRY_RUN_FLAG=""
-          if [[ "${{ needs.detect-and-calculate.outputs.is_dry_run }}" == "true" ]]; then
-            DRY_RUN_FLAG="--dry-run"
-          fi
-
-          ./scripts/release/publish-typescript.sh \
-            "${{ needs.detect-and-calculate.outputs.next_typescript_version }}" \
-            ${DRY_RUN_FLAG} \
-            --on-duplicate=skip
+        run: .github/scripts/release/publish-component.sh
         env:
+          PUBLISH_SCRIPT: ./scripts/release/publish-typescript.sh
+          VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
+          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Tag typescript release
         if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
-        run: |
-          VERSION="${{ needs.detect-and-calculate.outputs.next_typescript_version }}"
-          git tag "typescript-v${VERSION}"
-          git push origin "typescript-v${VERSION}"
+        run: .github/scripts/release/tag-component.sh
+        env:
+          COMPONENT: typescript
+          VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
 
   # ============================================================================
   # Stage 5: Release Summary
@@ -380,36 +344,53 @@ jobs:
     needs: [detect-and-calculate, publish-crates, publish-ruby, publish-python, publish-typescript]
     if: always()
     permissions:
-      contents: read
+      contents: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
       - name: Generate summary
-        run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          DRY_RUN="${{ needs.detect-and-calculate.outputs.is_dry_run }}"
-          if [[ "$DRY_RUN" == "true" ]]; then
-            echo "> **DRY RUN** — No packages were actually published." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "| Component | Result | Version |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Rust crates | ${{ needs.publish-crates.result }} | ${{ needs.detect-and-calculate.outputs.next_core_version }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Ruby gem | ${{ needs.publish-ruby.result }} | ${{ needs.detect-and-calculate.outputs.next_ruby_version }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Python wheel | ${{ needs.publish-python.result }} | ${{ needs.detect-and-calculate.outputs.next_python_version }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript | ${{ needs.publish-typescript.result }} | ${{ needs.detect-and-calculate.outputs.next_typescript_version }} |" >> $GITHUB_STEP_SUMMARY
+        run: .github/scripts/release/generate-summary.sh
+        env:
+          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
+          CRATES_RESULT: ${{ needs.publish-crates.result }}
+          RUBY_RESULT: ${{ needs.publish-ruby.result }}
+          PYTHON_RESULT: ${{ needs.publish-python.result }}
+          TS_RESULT: ${{ needs.publish-typescript.result }}
+          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          NEXT_RUBY_VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
+          NEXT_PYTHON_VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
+          NEXT_TS_VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
 
       - name: Check for failures
-        run: |
-          FAILED=false
-          for result in "${{ needs.publish-crates.result }}" "${{ needs.publish-ruby.result }}" "${{ needs.publish-python.result }}" "${{ needs.publish-typescript.result }}"; do
-            if [[ "$result" == "failure" ]]; then
-              FAILED=true
-            fi
-          done
+        id: check-failures
+        run: .github/scripts/release/check-failures.sh
+        env:
+          CRATES_RESULT: ${{ needs.publish-crates.result }}
+          RUBY_RESULT: ${{ needs.publish-ruby.result }}
+          PYTHON_RESULT: ${{ needs.publish-python.result }}
+          TS_RESULT: ${{ needs.publish-typescript.result }}
 
-          if [[ "$FAILED" == "true" ]]; then
-            echo "One or more publish jobs failed. Check individual job logs."
-            exit 1
-          fi
+      - name: Create GitHub Release
+        if: |
+          needs.detect-and-calculate.outputs.is_dry_run != 'true' &&
+          steps.check-failures.outputs.has_failures != 'true'
+        run: .github/scripts/release/create-github-release.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          CRATES_RESULT: ${{ needs.publish-crates.result }}
+          RUBY_RESULT: ${{ needs.publish-ruby.result }}
+          PYTHON_RESULT: ${{ needs.publish-python.result }}
+          TS_RESULT: ${{ needs.publish-typescript.result }}
+          NEXT_RUBY_VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
+          NEXT_PYTHON_VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
+          NEXT_TS_VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
+
+      - name: Log dry-run release (would have created)
+        if: |
+          needs.detect-and-calculate.outputs.is_dry_run == 'true' &&
+          steps.check-failures.outputs.has_failures != 'true'
+        run: .github/scripts/release/log-dry-run-release.sh
+        env:
+          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
