@@ -50,6 +50,10 @@
   ],
   "author": "Tasker Systems",
   "license": "MIT",
+  "homepage": "https://github.com/tasker-systems/tasker-core",
+  "bugs": {
+    "url": "https://github.com/tasker-systems/tasker-core/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tasker-systems/tasker-core.git",

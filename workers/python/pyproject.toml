@@ -5,6 +5,7 @@ description = "Python worker for Tasker workflow orchestration"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
+authors = [{ name = "Tasker Systems" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -24,6 +25,12 @@ dependencies = [
     "httpx>=0.27.0",
     "pyyaml>=6.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/tasker-systems/tasker-core"
+Repository = "https://github.com/tasker-systems/tasker-core"
+Documentation = "https://github.com/tasker-systems/tasker-core/tree/main/workers/python"
+"Bug Tracker" = "https://github.com/tasker-systems/tasker-core/issues"
 
 [project.optional-dependencies]
 dev = [
