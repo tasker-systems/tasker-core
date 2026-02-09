@@ -74,7 +74,7 @@ publish_phase() {
             # fail resolving them from the registry (chicken-and-egg problem).
             if [[ "$crate" == "tasker-pgmq" ]]; then
                 log_info "[dry-run] Validating ${crate}@${VERSION}"
-                cargo publish -p "$crate" --dry-run --allow-dirty
+                cargo publish -p "$crate" --dry-run
             else
                 log_info "[dry-run] Skipping ${crate}@${VERSION} (depends on unpublished workspace crates)"
             fi
@@ -88,7 +88,7 @@ publish_phase() {
         fi
 
         log_info "Publishing ${crate}@${VERSION}..."
-        cargo publish -p "$crate" --allow-dirty
+        cargo publish -p "$crate"
     done
 }
 

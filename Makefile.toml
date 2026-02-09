@@ -111,6 +111,10 @@ echo "  cargo make docs-generate   (dg)  Generate config docs"
 echo "  cargo make docs-coverage   (dc)  Show coverage stats"
 echo "  cargo make docs-check            Verify docs freshness (CI)"
 echo ""
+echo "Release:"
+echo "  cargo make release-prepare      (rp)   Prepare release branch + PR"
+echo "  cargo make release-prepare-dry  (rpd)  Dry-run of release preparation"
+echo ""
 echo "CI Infrastructure:"
 echo "  cargo make ci-check                    Code quality + sanity check"
 echo "  cargo make ci-sanity-check  (csc)      Shell/workflow validation"
@@ -2446,3 +2450,31 @@ description = "Shortcut for docs-generate"
 [tasks.dc]
 alias = "docs-coverage"
 description = "Shortcut for docs-coverage"
+
+# =============================================================================
+# Release Tasks
+# =============================================================================
+
+[tasks.release-prepare]
+description = "Prepare a release branch with version bumps (rp)"
+script = '''
+#!/bin/bash
+set -euo pipefail
+./scripts/release/release-prepare.sh
+'''
+
+[tasks.rp]
+alias = "release-prepare"
+description = "Shortcut for release-prepare"
+
+[tasks.release-prepare-dry]
+description = "Dry-run of release preparation (rpd)"
+script = '''
+#!/bin/bash
+set -euo pipefail
+./scripts/release/release-prepare.sh --dry-run
+'''
+
+[tasks.rpd]
+alias = "release-prepare-dry"
+description = "Shortcut for release-prepare-dry"

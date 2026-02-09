@@ -33,7 +33,7 @@ concurrency:
 # =============================================================================
 # Job DAG:
 #
-#   detect-and-calculate  (5 min)
+#   detect-and-read       (5 min)
 #           |
 #     pre-flight-check    (15 min) — fmt, clippy, cargo publish --dry-run
 #           |
@@ -52,26 +52,25 @@ concurrency:
 
 jobs:
   # ============================================================================
-  # Stage 1: Detect changes and calculate versions
+  # Stage 1: Read committed versions and detect changes for publish gating
   # ============================================================================
-  detect-and-calculate:
-    name: Detect Changes & Calculate Versions
+  detect-and-read:
+    name: Read Versions & Detect Changes
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
       contents: read
     outputs:
-      core_changed: ${{ steps.calc.outputs.CORE_CHANGED }}
-      ffi_core_changed: ${{ steps.calc.outputs.FFI_CORE_CHANGED }}
-      server_core_changed: ${{ steps.calc.outputs.SERVER_CORE_CHANGED }}
-      ruby_changed: ${{ steps.calc.outputs.RUBY_CHANGED }}
-      python_changed: ${{ steps.calc.outputs.PYTHON_CHANGED }}
-      typescript_changed: ${{ steps.calc.outputs.TYPESCRIPT_CHANGED }}
-      current_core_version: ${{ steps.calc.outputs.CURRENT_CORE_VERSION }}
-      next_core_version: ${{ steps.calc.outputs.NEXT_CORE_VERSION }}
-      next_ruby_version: ${{ steps.calc.outputs.NEXT_RUBY_VERSION }}
-      next_python_version: ${{ steps.calc.outputs.NEXT_PYTHON_VERSION }}
-      next_typescript_version: ${{ steps.calc.outputs.NEXT_TYPESCRIPT_VERSION }}
+      core_changed: ${{ steps.detect.outputs.CORE_CHANGED }}
+      ffi_core_changed: ${{ steps.detect.outputs.FFI_CORE_CHANGED }}
+      server_core_changed: ${{ steps.detect.outputs.SERVER_CORE_CHANGED }}
+      ruby_changed: ${{ steps.detect.outputs.RUBY_CHANGED }}
+      python_changed: ${{ steps.detect.outputs.PYTHON_CHANGED }}
+      typescript_changed: ${{ steps.detect.outputs.TYPESCRIPT_CHANGED }}
+      core_version: ${{ steps.read.outputs.CORE_VERSION }}
+      ruby_version: ${{ steps.read.outputs.RUBY_VERSION }}
+      python_version: ${{ steps.read.outputs.PYTHON_VERSION }}
+      typescript_version: ${{ steps.read.outputs.TYPESCRIPT_VERSION }}
       is_dry_run: ${{ steps.dry-run.outputs.is_dry_run }}
     steps:
       - name: Checkout code
@@ -87,27 +86,31 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
 
-      - name: Calculate versions
-        id: calc
+      - name: Read committed versions
+        id: read
+        run: ./scripts/release/read-versions.sh >> "$GITHUB_OUTPUT"
+
+      - name: Detect changes for publish gating
+        id: detect
         run: |
           EXTRA_ARGS=""
           if [[ -n "${{ inputs.from_ref }}" ]]; then
             EXTRA_ARGS="--from ${{ inputs.from_ref }}"
           fi
           # shellcheck disable=SC2086
-          ./scripts/release/calculate-versions.sh ${EXTRA_ARGS} >> "$GITHUB_OUTPUT"
+          ./scripts/release/detect-changes.sh ${EXTRA_ARGS} >> "$GITHUB_OUTPUT"
 
       - name: Summary
         run: .github/scripts/release/detection-summary.sh
         env:
-          CORE_CHANGED: ${{ steps.calc.outputs.CORE_CHANGED }}
-          RUBY_CHANGED: ${{ steps.calc.outputs.RUBY_CHANGED }}
-          PYTHON_CHANGED: ${{ steps.calc.outputs.PYTHON_CHANGED }}
-          TS_CHANGED: ${{ steps.calc.outputs.TYPESCRIPT_CHANGED }}
-          NEXT_CORE_VERSION: ${{ steps.calc.outputs.NEXT_CORE_VERSION }}
-          NEXT_RUBY_VERSION: ${{ steps.calc.outputs.NEXT_RUBY_VERSION }}
-          NEXT_PYTHON_VERSION: ${{ steps.calc.outputs.NEXT_PYTHON_VERSION }}
-          NEXT_TS_VERSION: ${{ steps.calc.outputs.NEXT_TYPESCRIPT_VERSION }}
+          CORE_CHANGED: ${{ steps.detect.outputs.CORE_CHANGED }}
+          RUBY_CHANGED: ${{ steps.detect.outputs.RUBY_CHANGED }}
+          PYTHON_CHANGED: ${{ steps.detect.outputs.PYTHON_CHANGED }}
+          TS_CHANGED: ${{ steps.detect.outputs.TYPESCRIPT_CHANGED }}
+          CORE_VERSION: ${{ steps.read.outputs.CORE_VERSION }}
+          RUBY_VERSION: ${{ steps.read.outputs.RUBY_VERSION }}
+          PYTHON_VERSION: ${{ steps.read.outputs.PYTHON_VERSION }}
+          TS_VERSION: ${{ steps.read.outputs.TYPESCRIPT_VERSION }}
           IS_DRY_RUN: ${{ steps.dry-run.outputs.is_dry_run }}
 
   # ============================================================================
@@ -117,7 +120,7 @@ jobs:
     name: Pre-flight Validation
     runs-on: ubuntu-22.04
     timeout-minutes: 15
-    needs: detect-and-calculate
+    needs: detect-and-read
     permissions:
       contents: read
     env:
@@ -153,8 +156,8 @@ jobs:
     name: Publish Rust Crates
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [detect-and-calculate, pre-flight-check]
-    if: needs.detect-and-calculate.outputs.core_changed == 'true'
+    needs: [detect-and-read, pre-flight-check]
+    if: needs.detect-and-read.outputs.core_changed == 'true'
     permissions:
       contents: write
     env:
@@ -162,11 +165,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-
-      - name: Bump versions
-        run: .github/scripts/release/bump-versions.sh
-        env:
-          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -181,16 +179,16 @@ jobs:
         run: .github/scripts/release/publish-component.sh
         env:
           PUBLISH_SCRIPT: ./scripts/release/publish-crates.sh
-          VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
-          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
+          VERSION: ${{ needs.detect-and-read.outputs.core_version }}
+          IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Tag core release
-        if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
+        if: needs.detect-and-read.outputs.is_dry_run != 'true'
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: core
-          VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          VERSION: ${{ needs.detect-and-read.outputs.core_version }}
 
   # ============================================================================
   # Stage 4: Publish FFI bindings (in parallel)
@@ -200,11 +198,12 @@ jobs:
     name: Publish Ruby Gem
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [detect-and-calculate, pre-flight-check, publish-crates]
-    # Run if ruby version is not 'unchanged', even if publish-crates was skipped
+    needs: [detect-and-read, pre-flight-check, publish-crates]
+    # Run if ruby or FFI core changed, even if publish-crates was skipped
     if: |
       always() && !cancelled() && !failure() &&
-      needs.detect-and-calculate.outputs.next_ruby_version != 'unchanged'
+      (needs.detect-and-read.outputs.ruby_changed == 'true' ||
+       needs.detect-and-read.outputs.ffi_core_changed == 'true')
     permissions:
       contents: write
     env:
@@ -212,12 +211,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-
-      - name: Bump versions
-        run: .github/scripts/release/bump-versions.sh
-        env:
-          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
-          NEXT_RUBY_VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -241,25 +234,26 @@ jobs:
         run: .github/scripts/release/publish-component.sh
         env:
           PUBLISH_SCRIPT: ./scripts/release/publish-ruby.sh
-          VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
-          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
+          VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
+          IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
 
       - name: Tag ruby release
-        if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
+        if: needs.detect-and-read.outputs.is_dry_run != 'true'
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: ruby
-          VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
+          VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
 
   publish-python:
     name: Publish Python Package
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [detect-and-calculate, pre-flight-check, publish-crates]
+    needs: [detect-and-read, pre-flight-check, publish-crates]
     if: |
       always() && !cancelled() && !failure() &&
-      needs.detect-and-calculate.outputs.next_python_version != 'unchanged'
+      (needs.detect-and-read.outputs.python_changed == 'true' ||
+       needs.detect-and-read.outputs.ffi_core_changed == 'true')
     permissions:
       contents: write
       id-token: write
@@ -269,12 +263,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-
-      - name: Bump versions
-        run: .github/scripts/release/bump-versions.sh
-        env:
-          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
-          NEXT_PYTHON_VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -299,24 +287,25 @@ jobs:
         run: .github/scripts/release/publish-component.sh
         env:
           PUBLISH_SCRIPT: ./scripts/release/publish-python.sh
-          VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
-          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
+          VERSION: ${{ needs.detect-and-read.outputs.python_version }}
+          IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
 
       - name: Tag python release
-        if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
+        if: needs.detect-and-read.outputs.is_dry_run != 'true'
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: python
-          VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
+          VERSION: ${{ needs.detect-and-read.outputs.python_version }}
 
   publish-typescript:
     name: Publish TypeScript Package
     runs-on: ubuntu-22.04
     timeout-minutes: 15
-    needs: [detect-and-calculate, pre-flight-check, publish-crates]
+    needs: [detect-and-read, pre-flight-check, publish-crates]
     if: |
       always() && !cancelled() && !failure() &&
-      needs.detect-and-calculate.outputs.next_typescript_version != 'unchanged'
+      (needs.detect-and-read.outputs.typescript_changed == 'true' ||
+       needs.detect-and-read.outputs.ffi_core_changed == 'true')
     permissions:
       contents: write
       id-token: write
@@ -326,12 +315,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-
-      - name: Bump versions
-        run: .github/scripts/release/bump-versions.sh
-        env:
-          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
-          NEXT_TYPESCRIPT_VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -347,15 +330,15 @@ jobs:
         run: .github/scripts/release/publish-component.sh
         env:
           PUBLISH_SCRIPT: ./scripts/release/publish-typescript.sh
-          VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
-          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
+          VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
+          IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
 
       - name: Tag typescript release
-        if: needs.detect-and-calculate.outputs.is_dry_run != 'true'
+        if: needs.detect-and-read.outputs.is_dry_run != 'true'
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: typescript
-          VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
+          VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
 
   # ============================================================================
   # Stage 5: Release Summary
@@ -364,7 +347,7 @@ jobs:
     name: Release Summary
     runs-on: ubuntu-22.04
     timeout-minutes: 5
-    needs: [detect-and-calculate, publish-crates, publish-ruby, publish-python, publish-typescript]
+    needs: [detect-and-read, publish-crates, publish-ruby, publish-python, publish-typescript]
     if: always()
     permissions:
       contents: write
@@ -375,15 +358,15 @@ jobs:
       - name: Generate summary
         run: .github/scripts/release/generate-summary.sh
         env:
-          IS_DRY_RUN: ${{ needs.detect-and-calculate.outputs.is_dry_run }}
+          IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
           CRATES_RESULT: ${{ needs.publish-crates.result }}
           RUBY_RESULT: ${{ needs.publish-ruby.result }}
           PYTHON_RESULT: ${{ needs.publish-python.result }}
           TS_RESULT: ${{ needs.publish-typescript.result }}
-          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
-          NEXT_RUBY_VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
-          NEXT_PYTHON_VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
-          NEXT_TS_VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
+          CORE_VERSION: ${{ needs.detect-and-read.outputs.core_version }}
+          RUBY_VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
+          PYTHON_VERSION: ${{ needs.detect-and-read.outputs.python_version }}
+          TS_VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
 
       - name: Check for failures
         id: check-failures
@@ -396,24 +379,24 @@ jobs:
 
       - name: Create GitHub Release
         if: |
-          needs.detect-and-calculate.outputs.is_dry_run != 'true' &&
+          needs.detect-and-read.outputs.is_dry_run != 'true' &&
           steps.check-failures.outputs.has_failures != 'true'
         run: .github/scripts/release/create-github-release.sh
         env:
           GH_TOKEN: ${{ github.token }}
-          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          CORE_VERSION: ${{ needs.detect-and-read.outputs.core_version }}
           CRATES_RESULT: ${{ needs.publish-crates.result }}
           RUBY_RESULT: ${{ needs.publish-ruby.result }}
           PYTHON_RESULT: ${{ needs.publish-python.result }}
           TS_RESULT: ${{ needs.publish-typescript.result }}
-          NEXT_RUBY_VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
-          NEXT_PYTHON_VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
-          NEXT_TS_VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
+          RUBY_VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
+          PYTHON_VERSION: ${{ needs.detect-and-read.outputs.python_version }}
+          TS_VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
 
       - name: Log dry-run release (would have created)
         if: |
-          needs.detect-and-calculate.outputs.is_dry_run == 'true' &&
+          needs.detect-and-read.outputs.is_dry_run == 'true' &&
           steps.check-failures.outputs.has_failures != 'true'
         run: .github/scripts/release/log-dry-run-release.sh
         env:
-          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          CORE_VERSION: ${{ needs.detect-and-read.outputs.core_version }}

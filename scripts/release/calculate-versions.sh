@@ -57,7 +57,7 @@ echo "NEXT_CORE_VERSION=${NEXT_CORE_VERSION}"
 #   - If nothing changed: "unchanged"
 # ---------------------------------------------------------------------------
 for lang in ruby python typescript; do
-    LANG_UPPER="${lang^^}"
+    LANG_UPPER=$(echo "$lang" | tr '[:lower:]' '[:upper:]')
 
     # Read the change flag for this language
     LANG_CHANGED_VAR="${LANG_UPPER}_CHANGED"
