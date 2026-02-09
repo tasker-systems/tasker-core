@@ -892,10 +892,11 @@ impl SqlFunctionExecutor {
             .into_iter()
             .filter_map(|dep| {
                 // Only include steps that are processed AND have non-null results
-                if dep.processed && dep.results.is_some() {
-                    let json_results = dep.results.unwrap();
-                    let results: StepExecutionResult = json_results.into();
-                    Some((dep.step_name, results))
+                if dep.processed {
+                    dep.results.map(|json_results| {
+                        let results: StepExecutionResult = json_results.into();
+                        (dep.step_name, results)
+                    })
                 } else {
                     None
                 }
