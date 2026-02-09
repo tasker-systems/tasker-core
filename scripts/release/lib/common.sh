@@ -30,6 +30,19 @@ confirm() {
 }
 
 # ---------------------------------------------------------------------------
+# Portable sed -i (GNU vs BSD/macOS)
+# ---------------------------------------------------------------------------
+# macOS sed requires `sed -i ''` while GNU sed uses `sed -i`.
+# This wrapper handles the difference transparently.
+sed_i() {
+    if sed --version 2>/dev/null | grep -q 'GNU'; then
+        sed -i "$@"
+    else
+        sed -i '' "$@"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Version arithmetic
 # ---------------------------------------------------------------------------
 
@@ -83,7 +96,7 @@ update_cargo_version() {
         log_info "Would update $file version: $current -> $version"
     else
         # Use sed to replace only the first `version = "..."` line
-        sed -i '0,/^version = ".*"/{s/^version = ".*"/version = "'"$version"'"/}' "$file"
+        sed_i '0,/^version = ".*"/{s/^version = ".*"/version = "'"$version"'"/}' "$file"
         log_info "Updated $file -> $version"
     fi
 }
@@ -131,7 +144,7 @@ update_workspace_dep_versions() {
                 if [[ "${DRY_RUN:-false}" == "true" ]]; then
                     log_info "Would update dep $crate version in $toml_file -> =$version"
                 else
-                    sed -i "s/\(${crate} = {.*\)version = \"=[^\"]*\"/\1version = \"=${version}\"/" "$toml_file"
+                    sed_i "s/\(${crate} = {.*\)version = \"=[^\"]*\"/\1version = \"=${version}\"/" "$toml_file"
                 fi
             fi
         done
@@ -154,9 +167,9 @@ update_ruby_version() {
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
         log_info "Would update $file -> VERSION='$binding_version', RUST_CORE_VERSION='$core_version'"
     else
-        sed -i "s/\(  VERSION = '\)[^']*'/\1${binding_version}'/" "$file"
-        sed -i "s/\(  Version = '\)[^']*'/\1${binding_version}'/" "$file"
-        sed -i "s/\(  RUST_CORE_VERSION = '\)[^']*'/\1${core_version}'/" "$file"
+        sed_i "s/\(  VERSION = '\)[^']*'/\1${binding_version}'/" "$file"
+        sed_i "s/\(  Version = '\)[^']*'/\1${binding_version}'/" "$file"
+        sed_i "s/\(  RUST_CORE_VERSION = '\)[^']*'/\1${core_version}'/" "$file"
         log_info "Updated Ruby version -> $binding_version (core: $core_version)"
     fi
 }
@@ -175,7 +188,7 @@ update_python_version() {
         current=$(grep -m1 '^version = ' "$file" | sed 's/version = "\(.*\)"/\1/')
         log_info "Would update $file version: $current -> $version"
     else
-        sed -i '0,/^version = ".*"/{s/^version = ".*"/version = "'"$version"'"/}' "$file"
+        sed_i '0,/^version = ".*"/{s/^version = ".*"/version = "'"$version"'"/}' "$file"
         log_info "Updated Python version -> $version"
     fi
 }
@@ -195,7 +208,7 @@ update_typescript_version() {
         log_info "Would update $file version: $current -> $version"
     else
         # Replace only the first "version" field (the package version, not a dependency version)
-        sed -i '0,/"version": "[^"]*"/{s/"version": "[^"]*"/"version": "'"$version"'"/}' "$file"
+        sed_i '0,/"version": "[^"]*"/{s/"version": "[^"]*"/"version": "'"$version"'"/}' "$file"
         log_info "Updated TypeScript version -> $version"
     fi
 }
