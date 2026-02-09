@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Validates that all Rust crates can be published via cargo publish --dry-run.
+# Validates Rust crate publishability via cargo publish --dry-run.
 #
-# Uses --no-verify to skip build verification because workspace crates depend
-# on each other and aren't on crates.io yet. Without --no-verify, cargo tries
-# to resolve dependencies from the registry and fails. Build correctness is
-# already validated by the clippy step. This step validates metadata, package
-# structure, and license compliance.
+# Only validates tasker-pgmq (the dependency chain root with zero workspace
+# dependencies). All other crates depend on unpublished workspace crates,
+# so cargo publish --dry-run fails resolving them from the registry — a
+# chicken-and-egg problem that only resolves once we publish in order.
+#
+# Build correctness for all crates is already validated by clippy.
+# The actual publish step runs crates in dependency order and will fail
+# fast if any crate has metadata or packaging issues.
 
-for crate in tasker-pgmq tasker-shared tasker-client tasker-orchestration tasker-worker tasker-cli; do
-  echo "Validating ${crate}..."
-  cargo publish -p "$crate" --dry-run --allow-dirty --no-verify
-done
+echo "Validating tasker-pgmq (dependency chain root)..."
+cargo publish -p tasker-pgmq --dry-run --allow-dirty
+
+echo ""
+echo "Remaining crates (tasker-shared, tasker-client, tasker-orchestration,"
+echo "tasker-worker, tasker-cli) depend on unpublished workspace crates and"
+echo "cannot be validated until published in order. Build correctness is"
+echo "covered by clippy."
