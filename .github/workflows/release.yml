@@ -163,6 +163,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Bump versions
+        run: .github/scripts/release/bump-versions.sh
+        env:
+          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -207,6 +212,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Bump versions
+        run: .github/scripts/release/bump-versions.sh
+        env:
+          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          NEXT_RUBY_VERSION: ${{ needs.detect-and-calculate.outputs.next_ruby_version }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -256,6 +267,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Bump versions
+        run: .github/scripts/release/bump-versions.sh
+        env:
+          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          NEXT_PYTHON_VERSION: ${{ needs.detect-and-calculate.outputs.next_python_version }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -307,6 +324,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Bump versions
+        run: .github/scripts/release/bump-versions.sh
+        env:
+          NEXT_CORE_VERSION: ${{ needs.detect-and-calculate.outputs.next_core_version }}
+          NEXT_TYPESCRIPT_VERSION: ${{ needs.detect-and-calculate.outputs.next_typescript_version }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
