@@ -226,8 +226,10 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'
-          bundler-cache: true
           working-directory: workers/ruby
+
+      - name: Install Ruby dependencies
+        run: cd workers/ruby && bundle install --jobs 4
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
