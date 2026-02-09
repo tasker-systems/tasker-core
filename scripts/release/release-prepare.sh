@@ -24,14 +24,16 @@ source "${SCRIPT_DIR}/lib/common.sh"
 # Parse arguments
 # ---------------------------------------------------------------------------
 DRY_RUN=false
+YES=false
 EXTRA_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --dry-run) DRY_RUN=true; shift ;;
+        --yes|-y)  YES=true; shift ;;
         --from)    EXTRA_ARGS+=(--from "$2"); shift 2 ;;
         --from=*)  EXTRA_ARGS+=(--from "${1#*=}"); shift ;;
-        *) die "Unknown argument: $1. Usage: $0 [--dry-run] [--from TAG]" ;;
+        *) die "Unknown argument: $1. Usage: $0 [--dry-run] [--yes] [--from TAG]" ;;
     esac
 done
 
@@ -144,8 +146,10 @@ fi
 # ---------------------------------------------------------------------------
 # Confirm
 # ---------------------------------------------------------------------------
-echo ""
-confirm "Create release branch and prepare PR?"
+if [[ "$YES" != "true" ]]; then
+    echo ""
+    confirm "Create release branch and prepare PR?"
+fi
 
 # ---------------------------------------------------------------------------
 # Build update-versions arguments

@@ -2460,7 +2460,7 @@ description = "Prepare a release branch with version bumps (rp)"
 script = '''
 #!/bin/bash
 set -euo pipefail
-./scripts/release/release-prepare.sh
+./scripts/release/release-prepare.sh --yes
 '''
 
 [tasks.rp]
