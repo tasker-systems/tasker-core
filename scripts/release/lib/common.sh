@@ -95,8 +95,13 @@ update_cargo_version() {
         current=$(grep -m1 '^version = ' "$file" | sed 's/version = "\(.*\)"/\1/')
         log_info "Would update $file version: $current -> $version"
     else
-        # Use sed to replace only the first `version = "..."` line
-        sed_i '0,/^version = ".*"/{s/^version = ".*"/version = "'"$version"'"/}' "$file"
+        # Replace only the first `version = "..."` line (the [package] version).
+        # Uses grep to find the line number — portable across GNU and BSD sed.
+        local line_num
+        line_num=$(grep -n -m1 '^version = ' "$file" | cut -d: -f1)
+        if [[ -n "$line_num" ]]; then
+            sed_i "${line_num}s/^version = \".*\"/version = \"${version}\"/" "$file"
+        fi
         log_info "Updated $file -> $version"
     fi
 }
@@ -188,7 +193,11 @@ update_python_version() {
         current=$(grep -m1 '^version = ' "$file" | sed 's/version = "\(.*\)"/\1/')
         log_info "Would update $file version: $current -> $version"
     else
-        sed_i '0,/^version = ".*"/{s/^version = ".*"/version = "'"$version"'"/}' "$file"
+        local line_num
+        line_num=$(grep -n -m1 '^version = ' "$file" | cut -d: -f1)
+        if [[ -n "$line_num" ]]; then
+            sed_i "${line_num}s/^version = \".*\"/version = \"${version}\"/" "$file"
+        fi
         log_info "Updated Python version -> $version"
     fi
 }
@@ -208,7 +217,11 @@ update_typescript_version() {
         log_info "Would update $file version: $current -> $version"
     else
         # Replace only the first "version" field (the package version, not a dependency version)
-        sed_i '0,/"version": "[^"]*"/{s/"version": "[^"]*"/"version": "'"$version"'"/}' "$file"
+        local line_num
+        line_num=$(grep -n -m1 '"version"' "$file" | cut -d: -f1)
+        if [[ -n "$line_num" ]]; then
+            sed_i "${line_num}s/\"version\": \"[^\"]*\"/\"version\": \"${version}\"/" "$file"
+        fi
         log_info "Updated TypeScript version -> $version"
     fi
 }
