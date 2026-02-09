@@ -68,8 +68,16 @@ publish_phase() {
 
     for crate in "${crates[@]}"; do
         if [[ "$DRY_RUN" == "true" ]]; then
-            log_info "[dry-run] Validating ${crate}@${VERSION}"
-            cargo publish -p "$crate" --dry-run --allow-dirty
+            # Only tasker-pgmq (dependency chain root with zero workspace deps)
+            # can be validated via --dry-run. All other crates depend on
+            # unpublished workspace crates, causing cargo publish --dry-run to
+            # fail resolving them from the registry (chicken-and-egg problem).
+            if [[ "$crate" == "tasker-pgmq" ]]; then
+                log_info "[dry-run] Validating ${crate}@${VERSION}"
+                cargo publish -p "$crate" --dry-run --allow-dirty
+            else
+                log_info "[dry-run] Skipping ${crate}@${VERSION} (depends on unpublished workspace crates)"
+            fi
             continue
         fi
 
