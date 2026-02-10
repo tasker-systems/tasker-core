@@ -54,12 +54,6 @@ bump_patch() {
     echo "${major}.${minor}.$((patch + 1))"
 }
 
-# Parse binding version's patch component: 0.1.8.2 -> 2
-binding_patch() {
-    local version="$1"
-    echo "${version##*.}"
-}
-
 # ---------------------------------------------------------------------------
 # File update helpers
 #
@@ -163,7 +157,7 @@ update_workspace_dep_versions() {
 }
 
 update_ruby_version() {
-    local binding_version="$1" core_version="$2"
+    local version="$1"
     local file="${REPO_ROOT}/workers/ruby/lib/tasker_core/version.rb"
 
     if [[ ! -f "$file" ]]; then
@@ -172,12 +166,10 @@ update_ruby_version() {
     fi
 
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "Would update $file -> VERSION='$binding_version', RUST_CORE_VERSION='$core_version'"
+        log_info "Would update $file -> VERSION='$version'"
     else
-        sed_i "s/\(  VERSION = '\)[^']*'/\1${binding_version}'/" "$file"
-        sed_i "s/\(  Version = '\)[^']*'/\1${binding_version}'/" "$file"
-        sed_i "s/\(  RUST_CORE_VERSION = '\)[^']*'/\1${core_version}'/" "$file"
-        log_info "Updated Ruby version -> $binding_version (core: $core_version)"
+        sed_i "s/\(  VERSION = '\)[^']*'/\1${version}'/" "$file"
+        log_info "Updated Ruby version -> $version"
     fi
 }
 

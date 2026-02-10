@@ -45,7 +45,9 @@ log_info "On duplicate: ${ON_DUPLICATE}"
 # ---------------------------------------------------------------------------
 # Pre-flight: verify credentials
 # ---------------------------------------------------------------------------
-if [[ "$DRY_RUN" != "true" ]]; then
+# In GitHub Actions, OIDC trusted publishing handles auth via rubygems/release-gem.
+# GEM_HOST_API_KEY is only required for local/manual publishing.
+if [[ "$DRY_RUN" != "true" && -z "${GITHUB_ACTIONS:-}" ]]; then
     require_env "GEM_HOST_API_KEY" "RubyGems publishing"
 fi
 

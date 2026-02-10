@@ -124,7 +124,7 @@ for lang in ruby python typescript; do
     if [[ "$VERSION_VAL" != "unchanged" ]]; then
         REASON=""
         if [[ "$FFI_CORE_CHANGED" == "true" ]]; then
-            REASON=" (core changed, reset to .0)"
+            REASON=" (core changed)"
         else
             REASON=" (binding-only change)"
         fi
