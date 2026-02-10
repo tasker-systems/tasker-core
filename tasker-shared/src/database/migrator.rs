@@ -48,7 +48,7 @@ use tracing::info;
 /// #[sqlx::test(migrator = "tasker_shared::database::migrator::MIGRATOR")]
 /// async fn test_feature(pool: PgPool) { /* ... */ }
 /// ```
-pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../migrations");
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 /// Result type for migration operations
 pub type MigrationResult<T> = Result<T, sqlx::migrate::MigrateError>;

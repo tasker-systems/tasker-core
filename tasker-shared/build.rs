@@ -20,20 +20,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         use std::path::PathBuf;
 
-        // Find the workspace root (where proto/ directory lives)
+        // Find proto directory: check crate-local first (published crate),
+        // then workspace root (development builds)
         let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
-        let workspace_root = manifest_dir
+        let local_proto = manifest_dir.join("proto");
+        let workspace_proto = manifest_dir
             .parent()
-            .expect("tasker-shared must be in workspace");
-        let proto_root = workspace_root.join("proto");
+            .map(|p| p.join("proto"))
+            .unwrap_or_default();
 
-        // Verify proto directory exists
-        if !proto_root.exists() {
+        let proto_root = if local_proto.join("tasker/v1").exists() {
+            local_proto
+        } else if workspace_proto.join("tasker/v1").exists() {
+            workspace_proto
+        } else {
             panic!(
-                "Proto directory not found at {:?}. Expected proto files at proto/tasker/v1/",
-                proto_root
+                "Proto directory not found. Checked {:?} and {:?}. Expected proto files at proto/tasker/v1/",
+                local_proto, workspace_proto
             );
-        }
+        };
 
         // List of proto files to compile
         let proto_files = [
