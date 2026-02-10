@@ -114,6 +114,8 @@ echo ""
 echo "Release:"
 echo "  cargo make release-prepare      (rp)   Prepare release branch + PR"
 echo "  cargo make release-prepare-dry  (rpd)  Dry-run of release preparation"
+echo "  cargo make release-run          (rr)   Trigger CI release (real publish)"
+echo "  cargo make release-run-dry      (rrd)  Trigger CI release (dry-run)"
 echo ""
 echo "CI Infrastructure:"
 echo "  cargo make ci-check                    Code quality + sanity check"
@@ -2478,3 +2480,35 @@ set -euo pipefail
 [tasks.rpd]
 alias = "release-prepare-dry"
 description = "Shortcut for release-prepare-dry"
+
+[tasks.release-run]
+description = "Trigger the GitHub Actions release workflow (real publish)"
+script = '''
+#!/bin/bash
+set -euo pipefail
+gh workflow run release.yml --ref main -f dry_run=false
+sleep 3
+echo ""
+echo "Release workflow triggered. Monitor at:"
+gh run list --workflow release.yml --limit 1
+'''
+
+[tasks.release-run-dry]
+description = "Trigger the GitHub Actions release workflow (dry-run)"
+script = '''
+#!/bin/bash
+set -euo pipefail
+gh workflow run release.yml --ref main -f dry_run=true
+sleep 3
+echo ""
+echo "Dry-run release triggered. Monitor at:"
+gh run list --workflow release.yml --limit 1
+'''
+
+[tasks.rr]
+alias = "release-run"
+description = "Shortcut for release-run"
+
+[tasks.rrd]
+alias = "release-run-dry"
+description = "Shortcut for release-run-dry"

@@ -23,16 +23,13 @@ All six publishable Rust crates version together during alpha:
 | 3 | `tasker-client`, `tasker-orchestration` | Depend on shared (can publish in parallel) |
 | 4 | `tasker-worker`, `tasker-ctl` | Depend on client/shared (can publish in parallel) |
 
-### FFI Language Bindings (0.1.N.P)
+### FFI Language Bindings (0.1.N)
 
-Two-tier version format:
-- `N` = tracks core Rust version
-- `P` = language-specific patch level
+FFI packages use the same 3-part semver as the core VERSION file. When core or FFI-facing code changes, bindings track the core version. When only a binding changes, it uses the current core version.
 
 Examples:
-- Core at 0.1.8, Ruby with 2 patches: `0.1.8.2`
-- Core bumps to 0.1.9, Ruby resets: `0.1.9.0`
-- Python-only fix: `0.1.8.0` -> `0.1.8.1`
+- Core at 0.1.8, any binding change: `0.1.8`
+- Core bumps to 0.1.9: all bindings get `0.1.9`
 
 ### Version Files Updated During Release
 
@@ -100,9 +97,9 @@ Individual binding changed (workers/ruby, workers/python, workers/typescript):
 |-----------|---------|
 | `release-YYYYMMDD-HHMM` | Human-initiated release |
 | `core-vX.Y.Z` | Created by CI after successful crates.io publish |
-| `ruby-vX.Y.Z.P` | Created by CI after successful gem publish |
-| `python-vX.Y.Z.P` | Created by CI after successful PyPI publish |
-| `typescript-vX.Y.Z.P` | Created by CI after successful npm publish |
+| `ruby-vX.Y.Z` | Created by CI after successful gem publish |
+| `python-vX.Y.Z` | Created by CI after successful PyPI publish |
+| `typescript-vX.Y.Z` | Created by CI after successful npm publish |
 
 ## Publishing
 
@@ -126,12 +123,12 @@ Each publish script checks if the version already exists on the registry before 
 
 ### Required Credentials (CI only)
 
-| Registry | Secret |
-|----------|--------|
-| crates.io | `CARGO_REGISTRY_TOKEN` |
-| RubyGems | `GEM_HOST_API_KEY` |
-| PyPI | `MATURIN_PYPI_TOKEN` |
-| npm | `NPM_TOKEN` |
+| Registry | Auth Method |
+|----------|-------------|
+| crates.io | `CARGO_REGISTRY_TOKEN` secret |
+| RubyGems | OIDC trusted publishing (environment: `rbgem`) |
+| PyPI | OIDC trusted publishing (environment: `pypi`) |
+| npm | OIDC trusted publishing (environment: `npm`) |
 
 ## References
 

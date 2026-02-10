@@ -4,6 +4,7 @@ version = "0.1.1"
 edition = "2021"
 rust-version = "1.70"
 description = "Python FFI bindings for tasker-core"
+readme = "README.md"
 repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
 keywords = ["ffi", "pyo3", "python", "tasker", "workflow"]

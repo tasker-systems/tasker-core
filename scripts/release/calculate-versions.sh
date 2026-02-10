@@ -12,9 +12,9 @@
 #   KEY=VALUE pairs suitable for eval:
 #     CURRENT_CORE_VERSION=0.1.0
 #     NEXT_CORE_VERSION=0.1.1
-#     NEXT_RUBY_VERSION=0.1.1.0|unchanged
-#     NEXT_PYTHON_VERSION=0.1.1.0|unchanged
-#     NEXT_TYPESCRIPT_VERSION=0.1.1.0|unchanged
+#     NEXT_RUBY_VERSION=0.1.1|unchanged
+#     NEXT_PYTHON_VERSION=0.1.1|unchanged
+#     NEXT_TYPESCRIPT_VERSION=0.1.1|unchanged
 #   Plus all variables from detect-changes.sh
 
 set -euo pipefail
@@ -51,10 +51,9 @@ echo "NEXT_CORE_VERSION=${NEXT_CORE_VERSION}"
 # ---------------------------------------------------------------------------
 # Calculate FFI binding versions
 #
-# Logic:
-#   - If FFI-facing core changed: reset binding patch to .0 (new core version)
-#   - If only the binding changed: increment the .P patch level
-#   - If nothing changed: "unchanged"
+# FFI packages use the same 3-part semver as the core VERSION file.
+# If core or FFI-facing code changed, bindings track the core version.
+# If only a binding changed, it uses the current core version.
 # ---------------------------------------------------------------------------
 for lang in ruby python typescript; do
     LANG_UPPER=$(echo "$lang" | tr '[:lower:]' '[:upper:]')
@@ -63,23 +62,13 @@ for lang in ruby python typescript; do
     LANG_CHANGED_VAR="${LANG_UPPER}_CHANGED"
     LANG_CHANGED="${!LANG_CHANGED_VAR}"
 
-    if [[ "$FFI_CORE_CHANGED" == "true" ]]; then
-        # Core changed: all bindings reset to .0 on the new core version
-        echo "NEXT_${LANG_UPPER}_VERSION=${NEXT_CORE_VERSION}.0"
-
-    elif [[ "$LANG_CHANGED" == "true" ]]; then
-        # Binding-only change: increment the language-specific patch level
-        LAST_LANG_TAG=$(git tag -l "${lang}-v*" --sort=-version:refname 2>/dev/null | head -n1 || true)
-
-        if [[ -n "$LAST_LANG_TAG" ]] && [[ "$LAST_LANG_TAG" =~ ${lang}-v([0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+) ]]; then
-            LAST_PATCH="${BASH_REMATCH[2]}"
-            NEXT_PATCH=$(( LAST_PATCH + 1 ))
-            echo "NEXT_${LANG_UPPER}_VERSION=${CURRENT_CORE_VERSION}.${NEXT_PATCH}"
+    if [[ "$FFI_CORE_CHANGED" == "true" || "$LANG_CHANGED" == "true" ]]; then
+        # FFI packages track core version
+        if [[ "$CORE_CHANGED" == "true" ]]; then
+            echo "NEXT_${LANG_UPPER}_VERSION=${NEXT_CORE_VERSION}"
         else
-            # No prior language tag — this is the first release for this binding
-            echo "NEXT_${LANG_UPPER}_VERSION=${CURRENT_CORE_VERSION}.0"
+            echo "NEXT_${LANG_UPPER}_VERSION=${CURRENT_CORE_VERSION}"
         fi
-
     else
         echo "NEXT_${LANG_UPPER}_VERSION=unchanged"
     fi

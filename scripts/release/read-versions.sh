@@ -9,9 +9,9 @@
 # Output:
 #   KEY=VALUE pairs suitable for >> $GITHUB_OUTPUT:
 #     CORE_VERSION=0.1.1
-#     RUBY_VERSION=0.1.1.0
-#     PYTHON_VERSION=0.1.1.0
-#     TYPESCRIPT_VERSION=0.1.1.0
+#     RUBY_VERSION=0.1.1
+#     PYTHON_VERSION=0.1.1
+#     TYPESCRIPT_VERSION=0.1.1
 
 set -euo pipefail
 

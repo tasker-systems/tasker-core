@@ -73,7 +73,7 @@ done
 # ---------------------------------------------------------------------------
 if [[ -n "$RUBY_VERSION" ]]; then
     log_section "Ruby binding"
-    update_ruby_version "$RUBY_VERSION" "$CORE_VERSION"
+    update_ruby_version "$RUBY_VERSION"
 fi
 
 # ---------------------------------------------------------------------------

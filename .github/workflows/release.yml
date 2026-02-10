@@ -206,6 +206,8 @@ jobs:
        needs.detect-and-read.outputs.ffi_core_changed == 'true')
     permissions:
       contents: write
+      id-token: write
+    environment: rbgem
     env:
       SQLX_OFFLINE: 'true'
     steps:
@@ -230,13 +232,27 @@ jobs:
       - name: Install protobuf compiler
         uses: ./.github/actions/install-protobuf
 
-      - name: Publish gem
+      - name: Build native extension and gem
+        run: |
+          cd workers/ruby
+          bundle exec rake compile
+          gem build tasker-rb.gemspec
+        env:
+          SQLX_OFFLINE: 'true'
+
+      - name: Publish gem (OIDC)
+        if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        uses: rubygems/release-gem@v1
+        with:
+          await-release: false
+
+      - name: Dry-run publish
+        if: needs.detect-and-read.outputs.is_dry_run == 'true'
         run: .github/scripts/release/publish-component.sh
         env:
           PUBLISH_SCRIPT: ./scripts/release/publish-ruby.sh
           VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
-          IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+          IS_DRY_RUN: 'true'
 
       - name: Tag ruby release
         if: needs.detect-and-read.outputs.is_dry_run != 'true'
