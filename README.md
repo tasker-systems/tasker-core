@@ -102,7 +102,8 @@ curl http://localhost:8080/health
 | `tasker-shared` | Core types, state machines, messaging abstraction |
 | `tasker-orchestration` | Task coordination, REST API |
 | `tasker-worker` | Step execution, FFI layer |
-| `tasker-client` | REST client and CLI |
+| `tasker-client` | REST client library |
+| `tasker-ctl` | CLI binary |
 | `workers/rust` | Native Rust workers |
 | `workers/ruby` | Ruby FFI bindings |
 | `workers/python` | Python FFI bindings |

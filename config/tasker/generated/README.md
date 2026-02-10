@@ -21,13 +21,13 @@ To regenerate these files after modifying base or environment configs:
 
 ```bash
 # Generate orchestration config
-cargo run --bin tasker-cli -- config generate \
+cargo run --bin tasker-ctl -- config generate \
   --context orchestration \
   --environment test \
   --output config/tasker/generated/orchestration-test.toml
 
 # Generate worker config
-cargo run --bin tasker-cli -- config generate \
+cargo run --bin tasker-ctl -- config generate \
   --context worker \
   --environment test \
   --output config/tasker/generated/worker-test.toml

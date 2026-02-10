@@ -192,7 +192,7 @@ async fn handle_coverage(base_dir: &str) -> ClientResult<()> {
     }
 
     println!();
-    println!("Run `tasker-cli docs reference` to generate full documentation.");
+    println!("Run `tasker-ctl docs reference` to generate full documentation.");
 
     Ok(())
 }

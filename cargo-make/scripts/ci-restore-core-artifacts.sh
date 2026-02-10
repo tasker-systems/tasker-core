@@ -4,7 +4,7 @@ set -euo pipefail
 # =============================================================================
 # Restore core artifacts from CI build
 # =============================================================================
-# Downloads/restores core binaries (tasker-server, tasker-worker, tasker-cli)
+# Downloads/restores core binaries (tasker-server, tasker-worker, tasker-ctl)
 # from the core-artifacts artifact produced by build-workers.yml
 #
 # Environment variables:
@@ -24,7 +24,7 @@ mkdir -p target/debug
 
 if [ -d "${ARTIFACTS_DIR}" ]; then
     # Copy core binaries
-    for binary in tasker-server tasker-worker tasker-cli; do
+    for binary in tasker-server tasker-worker tasker-ctl; do
         if [ -f "${ARTIFACTS_DIR}/${binary}" ]; then
             cp -f "${ARTIFACTS_DIR}/${binary}" target/debug/
             chmod +x "target/debug/${binary}"
@@ -35,7 +35,7 @@ if [ -d "${ARTIFACTS_DIR}" ]; then
     # Verify restoration
     echo ""
     echo "Core binaries in target/debug/:"
-    ls -lh target/debug/tasker-server target/debug/tasker-worker target/debug/tasker-cli 2>/dev/null || echo "  Warning: Some binaries missing"
+    ls -lh target/debug/tasker-server target/debug/tasker-worker target/debug/tasker-ctl 2>/dev/null || echo "  Warning: Some binaries missing"
 else
     echo "  Warning: Artifacts directory not found: ${ARTIFACTS_DIR}"
     echo "  Core binaries will need to be built from source"

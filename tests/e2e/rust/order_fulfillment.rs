@@ -78,7 +78,7 @@ async fn test_end_to_end_order_fulfillment_workflow() -> Result<()> {
 
     // Create order fulfillment workflow task
     println!("\n🎯 Creating order fulfillment workflow task...");
-    println!("   Equivalent CLI: cargo run --bin tasker-cli task create \\");
+    println!("   Equivalent CLI: cargo run --bin tasker-ctl task create \\");
     println!("     --namespace order_fulfillment \\");
     println!("     --name business_workflow \\");
     println!("     --input '<complex_order_structure>'");

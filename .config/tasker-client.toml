@@ -1,7 +1,7 @@
 # Tasker Client Configuration Profiles (TAS-177)
 #
 # Similar to .config/nextest.toml, this file defines named profiles for different
-# scenarios. Use with: tasker-cli --profile <name> <command>
+# scenarios. Use with: tasker-ctl --profile <name> <command>
 #
 # Profile precedence:
 #   1. Environment variables (highest)

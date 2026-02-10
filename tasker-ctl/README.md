@@ -1,21 +1,21 @@
-# tasker-cli
+# tasker-ctl
 
 Command-line interface for the [Tasker](https://github.com/tasker-systems/tasker-core) orchestration system. Manage tasks, monitor workers, inspect configuration, investigate DLQ entries, and generate documentation from the terminal.
 
 ## Overview
 
-`tasker-cli` provides operator-facing commands for the full Tasker lifecycle. Built on the `tasker-client` library, it supports REST and gRPC transports with profile-based configuration.
+`tasker-ctl` provides operator-facing commands for the full Tasker lifecycle. Built on the `tasker-client` library, it supports REST and gRPC transports with profile-based configuration.
 
 ## Installation
 
 ```bash
-cargo install tasker-cli
+cargo install tasker-ctl
 ```
 
 Or build from source:
 
 ```bash
-cargo build --release -p tasker-cli
+cargo build --release -p tasker-ctl
 ```
 
 ## Commands
@@ -50,20 +50,20 @@ cargo build --release -p tasker-cli
 
 ```bash
 # Create a task
-tasker-cli task create --name data_processing --namespace analytics \
+tasker-ctl task create --name data_processing --namespace analytics \
   --input '{"file": "/data/input.csv"}'
 
 # Monitor system health
-tasker-cli system health --orchestration --workers
+tasker-ctl system health --orchestration --workers
 
 # Investigate DLQ
-tasker-cli dlq list --status pending
+tasker-ctl dlq list --status pending
 
 # Generate config documentation
-tasker-cli docs reference --context all --output docs/config-reference.md
+tasker-ctl docs reference --context all --output docs/config-reference.md
 
 # Use a specific profile
-tasker-cli --profile staging task list
+tasker-ctl --profile staging task list
 ```
 
 ## Configuration

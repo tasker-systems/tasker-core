@@ -237,7 +237,7 @@ fn test_generated_config_includes_metadata_header() {
          # Source: {}\n\
          #\n\
          # This file is a MERGED configuration (base + environment overrides).\n\
-         # DO NOT EDIT manually - regenerate using: tasker-cli config generate\n\
+         # DO NOT EDIT manually - regenerate using: tasker-ctl config generate\n\
          #\n\
          # Environment Variable Overrides (applied at runtime):\n\
          # - DATABASE_URL: Override database.url (K8s secrets rotation)\n\
@@ -264,7 +264,7 @@ fn test_generated_config_includes_metadata_header() {
         content.contains("# This file is a MERGED configuration (base + environment overrides).")
     );
     assert!(
-        content.contains("# DO NOT EDIT manually - regenerate using: tasker-cli config generate")
+        content.contains("# DO NOT EDIT manually - regenerate using: tasker-ctl config generate")
     );
     assert!(content.contains("# - DATABASE_URL: Override database.url (K8s secrets rotation)"));
     assert!(content.contains("# - TASKER_TEMPLATE_PATH: Override worker.template_path (testing)"));

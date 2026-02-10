@@ -151,7 +151,7 @@ podman compose -f docker/docker-compose.test.yml up -d
 [workspace.members]
 - tasker-pgmq          # PGMQ wrapper with notification support
 - tasker-client        # API client library (REST + gRPC transport)
-- tasker-cli           # CLI binary (depends on tasker-client)
+- tasker-ctl           # CLI binary (depends on tasker-client)
 - tasker-orchestration # Core orchestration logic (see AGENTS.md)
 - tasker-shared        # Shared types, traits, utilities
 - tasker-worker        # Worker implementation (see AGENTS.md)

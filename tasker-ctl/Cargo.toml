@@ -1,5 +1,5 @@
 [package]
-name = "tasker-cli"
+name = "tasker-ctl"
 version = "0.1.1"
 edition = "2021"
 license = "MIT"
@@ -10,7 +10,7 @@ keywords = ["cli", "orchestration", "workflow", "task-management"]
 categories = ["command-line-utilities"]
 
 [[bin]]
-name = "tasker-cli"
+name = "tasker-ctl"
 path = "src/main.rs"
 
 [dependencies]
@@ -62,7 +62,7 @@ tempfile = { workspace = true }
 [lints]
 workspace = true
 
-# TAS-145: cargo-machete ignore list for tasker-cli
+# TAS-145: cargo-machete ignore list for tasker-ctl
 # These dependencies ARE used but machete may not detect them:
 # - rand: Used via rsa::rand_core::OsRng (transitive)
 # - regex: Used in config commands

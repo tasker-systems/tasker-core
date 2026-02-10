@@ -10,7 +10,7 @@
 #   Phase 1: tasker-pgmq
 #   Phase 2: tasker-shared
 #   Phase 3: tasker-client, tasker-orchestration
-#   Phase 4: tasker-worker, tasker-cli
+#   Phase 4: tasker-worker, tasker-ctl
 #
 # Requires CARGO_REGISTRY_TOKEN (skipped in dry-run mode).
 # Requires SQLX_OFFLINE=true (no database in release runner).
@@ -57,7 +57,7 @@ fi
 PHASE_1=("tasker-pgmq")
 PHASE_2=("tasker-shared")
 PHASE_3=("tasker-client" "tasker-orchestration")
-PHASE_4=("tasker-worker" "tasker-cli")
+PHASE_4=("tasker-worker" "tasker-ctl")
 
 publish_phase() {
     local phase_name="$1"

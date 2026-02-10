@@ -29,7 +29,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUST_CORE_PROJECTS=(
     "tasker-shared"
     "tasker-client"
-    "tasker-cli"
+    "tasker-ctl"
     "pgmq-notify"
     "tasker-worker"
     "tasker-orchestration"

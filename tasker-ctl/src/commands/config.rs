@@ -63,7 +63,7 @@ pub(crate) async fn handle_config_command(
                  # Source: {}\n\
                  #\n\
                  # This file is a MERGED configuration (base + environment overrides).\n\
-                 # DO NOT EDIT manually - regenerate using: tasker-cli config generate\n\
+                 # DO NOT EDIT manually - regenerate using: tasker-ctl config generate\n\
                  #\n\
                  # Environment Variable Overrides (applied at runtime):\n\
                  # - DATABASE_URL: Override database.url (K8s secrets rotation)\n\
@@ -421,10 +421,10 @@ pub(crate) async fn handle_config_command(
 
                 println!();
                 println!(
-                    "Use `tasker-cli docs explain -p <path>` for detailed parameter information."
+                    "Use `tasker-ctl docs explain -p <path>` for detailed parameter information."
                 );
                 println!(
-                    "Use `tasker-cli docs reference --context {}` for full documentation.",
+                    "Use `tasker-ctl docs reference --context {}` for full documentation.",
                     ctx_name
                 );
             }
@@ -462,16 +462,16 @@ pub(crate) async fn handle_config_command(
                 println!();
                 println!("Commands:");
                 println!(
-                    "  tasker-cli config explain --parameter <path>   Explain a specific parameter"
+                    "  tasker-ctl config explain --parameter <path>   Explain a specific parameter"
                 );
                 println!(
-                    "  tasker-cli config explain --context <name>     List parameters in a context"
+                    "  tasker-ctl config explain --context <name>     List parameters in a context"
                 );
                 println!(
-                    "  tasker-cli docs reference                      Full documentation reference"
+                    "  tasker-ctl docs reference                      Full documentation reference"
                 );
                 println!(
-                    "  tasker-cli docs coverage                       Detailed coverage statistics"
+                    "  tasker-ctl docs coverage                       Detailed coverage statistics"
                 );
             }
         }

@@ -193,7 +193,7 @@ Exposes `GET /config` (requires `system:config_read` permission). Secrets are re
 
 ```bash
 # Generate 2048-bit RSA key pair
-cargo run --bin tasker-cli -- auth generate-keys --output-dir ./keys --key-size 2048
+cargo run --bin tasker-ctl -- auth generate-keys --output-dir ./keys --key-size 2048
 
 # Output:
 #   keys/jwt-private-key.pem  (keep secret, used for token generation)

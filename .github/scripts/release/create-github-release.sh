@@ -22,7 +22,7 @@ if [[ "${CRATES_RESULT}" == "success" ]]; then
   BODY+="| tasker-client | ${VERSION} | [crates.io](https://crates.io/crates/tasker-client) |"$'\n'
   BODY+="| tasker-orchestration | ${VERSION} | [crates.io](https://crates.io/crates/tasker-orchestration) |"$'\n'
   BODY+="| tasker-worker | ${VERSION} | [crates.io](https://crates.io/crates/tasker-worker) |"$'\n'
-  BODY+="| tasker-cli | ${VERSION} | [crates.io](https://crates.io/crates/tasker-cli) |"$'\n'
+  BODY+="| tasker-ctl | ${VERSION} | [crates.io](https://crates.io/crates/tasker-ctl) |"$'\n'
 fi
 
 if [[ "${RUBY_RESULT}" == "success" && "${RUBY_VERSION}" != "unchanged" ]]; then

@@ -7,7 +7,7 @@
 //! Tasker workflow orchestration platform. It handles HTTP/gRPC communication, authentication,
 //! error handling, and provides strongly-typed interfaces for all API endpoints.
 //!
-//! For the CLI tool, see the `tasker-cli` crate which depends on this library.
+//! For the CLI tool, see the `tasker-ctl` crate which depends on this library.
 //!
 //! ## Features
 //!

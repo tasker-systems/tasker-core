@@ -92,7 +92,7 @@ max_connections = 50
 
 ```bash
 # Generate for deployment
-tasker-cli config generate \
+tasker-ctl config generate \
     --context orchestration \
     --environment production
 
@@ -103,7 +103,7 @@ tasker-cli config generate \
 
 ```bash
 # Validate before deployment
-tasker-cli config validate \
+tasker-ctl config validate \
     --context orchestration \
     --environment production
 

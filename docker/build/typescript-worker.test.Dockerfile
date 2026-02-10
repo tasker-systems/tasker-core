@@ -51,7 +51,7 @@ COPY src/ ./src/
 COPY tasker-shared/ ./tasker-shared/
 COPY tasker-worker/ ./tasker-worker/
 COPY tasker-client/ ./tasker-client/
-COPY tasker-cli/ ./tasker-cli/
+COPY tasker-ctl/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
 
 # Copy minimal workspace structure for crates we don't actually need
