@@ -49,25 +49,13 @@ log_info "On duplicate: ${ON_DUPLICATE}"
 # Local publishes use ~/.pypirc or MATURIN_PYPI_TOKEN.
 
 # ---------------------------------------------------------------------------
-# Build
+# Build + Publish
 # ---------------------------------------------------------------------------
-log_section "Building wheel"
 cd "${REPO_ROOT}/workers/python"
 
-# Build wheel only (no sdist). maturin's sdist builder hits a README conflict:
-# it includes both the workspace root README.md (via root Cargo.toml path dep)
-# and workers/python/README.md — both map to "README.md" in the tarball.
-# Wheel-only publishing avoids this entirely. sdist can be added later when
-# maturin supports workspace-aware sdist deduplication.
-# --manylinux auto: detect and apply the correct manylinux platform tag.
-# Without this, `maturin build` produces a plain `linux_x86_64` wheel
-# that PyPI rejects (only manylinux-tagged wheels are accepted).
-uv run maturin build --release --manylinux auto
-
-# ---------------------------------------------------------------------------
-# Publish
-# ---------------------------------------------------------------------------
 if [[ "$DRY_RUN" == "true" ]]; then
+    log_section "Building wheel (dry-run)"
+    uv run maturin build --release
     log_info "[dry-run] Would publish ${PYPI_PACKAGE}==${VERSION}"
     log_info "[dry-run] Built wheels:"
     ls -la "${REPO_ROOT}/target/wheels/"tasker_*.whl 2>/dev/null || log_warn "No wheel files found in target/wheels/"
@@ -75,8 +63,13 @@ else
     if pypi_exists_on_registry "$PYPI_PACKAGE" "$VERSION"; then
         handle_duplicate "$ON_DUPLICATE" "$PYPI_PACKAGE" "$VERSION" "PyPI"
     else
+        log_section "Building and publishing wheel"
+        # --no-sdist: skip source distribution to avoid maturin README conflict
+        # (workspace root README.md clashes with workers/python/README.md in tarball).
+        # --skip-existing: idempotent on re-runs.
+        # maturin publish auto-detects the correct manylinux platform tag.
         log_info "Publishing ${PYPI_PACKAGE}==${VERSION} (wheel only)..."
-        uv run maturin upload "${REPO_ROOT}/target/wheels/tasker_py-${VERSION}"*.whl
+        uv run maturin publish --no-sdist --skip-existing
     fi
 fi
 
