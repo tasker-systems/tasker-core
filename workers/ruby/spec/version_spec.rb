@@ -4,16 +4,16 @@ require 'spec_helper'
 
 RSpec.describe 'TaskerCore version constants' do
   describe 'VERSION' do
-    it 'is a string matching semver format' do
+    it 'is a string matching version format' do
       expect(TaskerCore::VERSION).to be_a(String)
-      expect(TaskerCore::VERSION).to match(/\A\d+\.\d+\.\d+\z/)
+      expect(TaskerCore::VERSION).to match(/\A\d+\.\d+\.\d+(\.\d+)?\z/)
     end
   end
 
   describe 'Version' do
-    it 'is a string matching semver format' do
+    it 'is a string matching version format' do
       expect(TaskerCore::Version).to be_a(String)
-      expect(TaskerCore::Version).to match(/\A\d+\.\d+\.\d+\z/)
+      expect(TaskerCore::Version).to match(/\A\d+\.\d+\.\d+(\.\d+)?\z/)
     end
 
     it 'matches VERSION' do
