@@ -130,9 +130,11 @@ update_workspace_dep_versions() {
         tasker-worker
     )
 
-    # Find all Cargo.toml files in the workspace
-    local -a toml_files
-    mapfile -t toml_files < <(find "$REPO_ROOT" -name Cargo.toml -not -path '*/target/*' -not -path '*/.cargo/*')
+    # Find all Cargo.toml files in the workspace (bash 3.2-compatible)
+    local -a toml_files=()
+    while IFS= read -r _f; do
+        toml_files+=("$_f")
+    done < <(find "$REPO_ROOT" -name Cargo.toml -not -path '*/target/*' -not -path '*/.cargo/*')
 
     local changes_found=false
 
