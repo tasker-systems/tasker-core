@@ -49,6 +49,19 @@ log_info "On duplicate: ${ON_DUPLICATE}"
 # Local publishes use ~/.pypirc or MATURIN_PYPI_TOKEN.
 
 # ---------------------------------------------------------------------------
+# Work around maturin sdist README conflict
+# ---------------------------------------------------------------------------
+# maturin's sdist builder includes the workspace root README.md (from the root
+# Cargo.toml) AND the local workers/python/README.md — both resolve to
+# "README.md" in the tarball, causing a duplicate file error.
+# Fix: remove the root README before building. Each CI job gets a fresh
+# checkout, so this doesn't affect other jobs.
+if [[ -f "${REPO_ROOT}/README.md" && -f "${REPO_ROOT}/workers/python/README.md" ]]; then
+    rm "${REPO_ROOT}/README.md"
+    log_info "Removed root README.md to avoid maturin sdist conflict"
+fi
+
+# ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
 log_section "Building wheel"

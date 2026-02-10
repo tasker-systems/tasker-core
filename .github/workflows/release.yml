@@ -240,11 +240,13 @@ jobs:
         env:
           SQLX_OFFLINE: 'true'
 
-      - name: Publish gem (OIDC)
+      - name: Configure RubyGems credentials (OIDC)
         if: needs.detect-and-read.outputs.is_dry_run != 'true'
-        uses: rubygems/release-gem@v1
-        with:
-          await-release: false
+        uses: rubygems/configure-rubygems-credentials@v1.0.0
+
+      - name: Publish gem
+        if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        run: gem push workers/ruby/tasker-rb-*.gem
 
       - name: Dry-run publish
         if: needs.detect-and-read.outputs.is_dry_run == 'true'
