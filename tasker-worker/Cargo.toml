@@ -1,6 +1,6 @@
 [package]
 name = "tasker-worker"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 default-run = "tasker-worker"
 description = "Worker foundation system for multi-language step execution"
@@ -88,7 +88,7 @@ opentelemetry = { workspace = true }
 opentelemetry-otlp = { workspace = true }
 # Message queue management
 pgmq = { workspace = true }
-tasker-pgmq = { path = "../tasker-pgmq", version = "=0.1.0" }
+tasker-pgmq = { path = "../tasker-pgmq", version = "=0.1.1" }
 rand = { workspace = true }
 regex = { workspace = true }
 # Web API testing and API Integration
@@ -103,8 +103,8 @@ serde_yaml = { workspace = true }
 sqlx = { workspace = true, optional = true }
 # System information
 sysinfo = { workspace = true }
-tasker-client = { package = "tasker-client", path = "../tasker-client", version = "=0.1.0" }
-tasker-shared = { package = "tasker-shared", path = "../tasker-shared", version = "=0.1.0" }
+tasker-client = { package = "tasker-client", path = "../tasker-client", version = "=0.1.1" }
+tasker-shared = { package = "tasker-shared", path = "../tasker-shared", version = "=0.1.1" }
 # Error handling
 thiserror = { workspace = true }
 tokio = { workspace = true }
