@@ -195,7 +195,7 @@ else
 fi
 
 if command -v bun &>/dev/null && [[ -f "${REPO_ROOT}/workers/typescript/bun.lock" ]]; then
-    (cd "${REPO_ROOT}/workers/typescript" && bun install --frozen-lockfile=false)
+    (cd "${REPO_ROOT}/workers/typescript" && bun install)
     log_info "Updated bun.lock"
 else
     log_warn "bun not found or bun.lock missing, skipping TypeScript lockfile"
