@@ -23,7 +23,7 @@ Initial alpha release of Tasker Core.
 - `tasker-pgmq` — PGMQ wrapper with PostgreSQL NOTIFY support
 - `tasker-shared` — Shared types, models, state machines, configuration
 - `tasker-client` — REST and gRPC API client library
-- `tasker-cli` — Command-line interface
+- `tasker-ctl` — Command-line interface
 - `tasker-orchestration` — Orchestration server with actor-based coordination
 - `tasker-worker` — Worker foundation with FFI support
 

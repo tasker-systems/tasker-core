@@ -9,7 +9,7 @@
 # Output:
 #   KEY=VALUE pairs suitable for `eval "$(./detect-changes.sh)"`:
 #     FFI_CORE_CHANGED=true|false     - tasker-pgmq, tasker-shared, tasker-worker
-#     SERVER_CORE_CHANGED=true|false   - tasker-orchestration, tasker-client, tasker-cli
+#     SERVER_CORE_CHANGED=true|false   - tasker-orchestration, tasker-client, tasker-ctl
 #     CORE_CHANGED=true|false          - any Rust crate changed
 #     RUBY_CHANGED=true|false
 #     PYTHON_CHANGED=true|false
@@ -79,7 +79,7 @@ fi
 
 # Server/client core: changes here only affect Rust crates, no FFI rebuild
 SERVER_CORE_CHANGED=false
-if changes_match '^(tasker-orchestration|tasker-client|tasker-cli)/'; then
+if changes_match '^(tasker-orchestration|tasker-client|tasker-ctl)/'; then
     SERVER_CORE_CHANGED=true
 fi
 

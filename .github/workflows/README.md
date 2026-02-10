@@ -165,7 +165,7 @@ cargo test --doc \
 **Command**:
 ```bash
 # Generate test configurations
-cargo run --package tasker-client --bin tasker-cli -- config generate \
+cargo run --package tasker-client --bin tasker-ctl -- config generate \
   --context orchestration --environment test \
   --source-dir config/tasker \
   --output config/tasker/generated/orchestration-test.toml
@@ -410,11 +410,11 @@ workers/typescript/tests/
 ```bash
 # Generate test configurations
 mkdir -p config/v2
-cargo run --quiet --package tasker-client --bin tasker-cli -- config generate \
+cargo run --quiet --package tasker-client --bin tasker-ctl -- config generate \
   --context orchestration --environment test \
   --source-dir config/v2 \
   --output config/tasker/generated/orchestration-test.toml
-cargo run --quiet --package tasker-client --bin tasker-cli -- config generate \
+cargo run --quiet --package tasker-client --bin tasker-ctl -- config generate \
   --context worker --environment test \
   --source-dir config/v2 \
   --output config/tasker/generated/worker-test.toml

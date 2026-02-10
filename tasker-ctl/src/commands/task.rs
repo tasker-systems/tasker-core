@@ -49,7 +49,7 @@ pub(crate) async fn handle_task_command(
                 name,
                 version,
                 context,
-                initiator: "tasker-cli".to_string(),
+                initiator: "tasker-ctl".to_string(),
                 source_system: "cli".to_string(),
                 reason: "CLI task creation".to_string(),
                 tags: Vec::new(),

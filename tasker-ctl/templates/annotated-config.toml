@@ -4,8 +4,8 @@
 # This is an annotated configuration file showing all available parameters
 # with their default values and documentation.
 #
-# Generate a deployable config: tasker-cli config generate
-# Look up a parameter:         tasker-cli docs explain -p <path>
+# Generate a deployable config: tasker-ctl config generate
+# Look up a parameter:         tasker-ctl docs explain -p <path>
 {% for section in sections %}
 
 # ─────────────────────────────────────────────────────────────

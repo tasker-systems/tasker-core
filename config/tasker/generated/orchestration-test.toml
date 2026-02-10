@@ -4,7 +4,7 @@
 # Source: config/tasker
 #
 # This file is a MERGED configuration (base + environment overrides).
-# DO NOT EDIT manually - regenerate using: tasker-cli config generate
+# DO NOT EDIT manually - regenerate using: tasker-ctl config generate
 #
 # Environment Variable Overrides (applied at runtime):
 # - DATABASE_URL: Override database.url (K8s secrets rotation)

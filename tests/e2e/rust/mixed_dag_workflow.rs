@@ -44,7 +44,7 @@ async fn test_end_to_end_mixed_dag_workflow() -> Result<()> {
 
     // Create mixed DAG workflow task
     println!("\n🎯 Creating mixed DAG workflow task...");
-    println!("   Equivalent CLI: cargo run --bin tasker-cli task create \\");
+    println!("   Equivalent CLI: cargo run --bin tasker-ctl task create \\");
     println!("     --namespace mixed_dag_workflow \\");
     println!("     --name complex_dag \\");
     println!("     --input '{{\"even_number\": 6}}'");

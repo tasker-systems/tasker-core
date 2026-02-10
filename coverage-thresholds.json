@@ -5,7 +5,7 @@
     "tasker-orchestration": 55,
     "tasker-worker": 55,
     "tasker-client": 60,
-    "tasker-cli": 30,
+    "tasker-ctl": 30,
     "tasker-worker-rust": 55
   },
   "python": {

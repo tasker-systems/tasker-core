@@ -10,7 +10,7 @@
 //! Run `docker-compose -f docker/docker-compose.test.yml up --build -d` before running tests
 //!
 //! This replicates the CLI command:
-//! `cargo run --bin tasker-cli task create --namespace linear_workflow --name mathematical_sequence --input '{"even_number": 8}'`
+//! `cargo run --bin tasker-ctl task create --namespace linear_workflow --name mathematical_sequence --input '{"even_number": 8}'`
 
 use anyhow::Result;
 use serde_json::json;
@@ -37,7 +37,7 @@ async fn test_end_to_end_linear_workflow_with_rust_worker() -> Result<()> {
 
     // Step 6: Create linear workflow task (equivalent to CLI command)
     println!("\n🎯 Step 6: Creating linear workflow task...");
-    println!("   Equivalent CLI: cargo run --bin tasker-cli task create \\");
+    println!("   Equivalent CLI: cargo run --bin tasker-ctl task create \\");
     println!("     --namespace linear_workflow \\");
     println!("     --name mathematical_sequence \\");
     println!("     --input '{{\"even_number\": 8}}'");

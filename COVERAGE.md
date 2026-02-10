@@ -16,7 +16,7 @@
 
 | Crate | Language | Coverage | Threshold | Status |
 |-------|----------|----------|-----------|--------|
-| tasker-cli | rust | 8.82% | 30% | **FAIL** |
+| tasker-ctl | rust | 8.82% | 30% | **FAIL** |
 | tasker-client * | rust | 78.24% | 60% | PASS |
 | tasker-py | python | 81.57% | 80% | PASS |
 | tasker-orchestration * | rust | 76.02% | 55% | PASS |
@@ -33,21 +33,21 @@ _\* Merged from multiple reports (unit/integration + E2E test coverage)._
 
 | Crate | File | Lines |
 |-------|------|-------|
-| tasker-cli | `tasker-cli/src/commands/config.rs` | 850 |
-| tasker-cli | `tasker-cli/src/commands/task.rs` | 360 |
-| tasker-cli | `tasker-cli/src/commands/docs.rs` | 317 |
-| tasker-cli | `tasker-cli/src/commands/auth.rs` | 258 |
+| tasker-ctl | `tasker-ctl/src/commands/config.rs` | 850 |
+| tasker-ctl | `tasker-ctl/src/commands/task.rs` | 360 |
+| tasker-ctl | `tasker-ctl/src/commands/docs.rs` | 317 |
+| tasker-ctl | `tasker-ctl/src/commands/auth.rs` | 258 |
 | tasker-worker | `tasker-worker/src/worker/step_claim.rs` | 251 |
 | tasker-worker | `tasker-worker/src/testing/factory.rs` | 231 |
-| tasker-cli | `tasker-cli/src/commands/system.rs` | 181 |
-| tasker-cli | `tasker-cli/src/commands/dlq.rs` | 150 |
+| tasker-ctl | `tasker-ctl/src/commands/system.rs` | 181 |
+| tasker-ctl | `tasker-ctl/src/commands/dlq.rs` | 150 |
 | tasker-worker | `tasker-worker/src/testing/environment.rs` | 143 |
-| tasker-cli | `tasker-cli/src/commands/worker.rs` | 122 |
+| tasker-ctl | `tasker-ctl/src/commands/worker.rs` | 122 |
 | tasker-shared | `tasker-shared/src/database/migrator.rs` | 85 |
 | tasker-py | `python/tasker_core/examples/checkpoint_yield/handlers.py` | 76 |
 | tasker-worker | `tasker-worker/src/bin/server.rs` | 71 |
 | tasker-orchestration | `tasker-orchestration/src/web/extractors.rs` | 47 |
-| tasker-cli | `tasker-cli/src/main.rs` | 37 |
+| tasker-ctl | `tasker-ctl/src/main.rs` | 37 |
 | tasker-worker | `tasker-worker/src/web/middleware/mod.rs` | 30 |
 | tasker-orchestration | `tasker-orchestration/src/web/middleware/mod.rs` | 22 |
 | tasker-worker | `tasker-worker/src/web/middleware/request_id.rs` | 17 |

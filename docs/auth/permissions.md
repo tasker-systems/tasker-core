@@ -270,7 +270,7 @@ for path, methods in spec["paths"].items():
 ## CLI: List Permissions
 
 ```bash
-cargo run --bin tasker-cli -- auth show-permissions
+cargo run --bin tasker-ctl -- auth show-permissions
 ```
 
 Outputs all 17 permissions with their resource grouping.

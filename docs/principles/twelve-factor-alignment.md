@@ -193,7 +193,7 @@ All logging goes to stdout/stderr. No file-based logging is built into the appli
 The CLI and deployment scripts serve this role.
 
 **Where this lives:**
-- `tasker-cli/` — task management (`create`, `list`, `cancel`), DLQ investigation (`dlq list`, `dlq recover`), system health, auth token management
+- `tasker-ctl/` — task management (`create`, `list`, `cancel`), DLQ investigation (`dlq list`, `dlq recover`), system health, auth token management
 - `docker/scripts/orchestration-entrypoint.sh` — `DEPLOYMENT_MODE=migrate-only` runs migrations and exits without starting the server
 - `config-validator` binary validates TOML configuration as a one-off check
 - Database migrations run as a distinct phase before application startup, with retry logic and timeout protection

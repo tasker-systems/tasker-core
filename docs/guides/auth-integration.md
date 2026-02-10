@@ -157,7 +157,7 @@ jwt_audience = "tasker-api"
 
 Generate keys with:
 ```bash
-tasker-cli auth generate-keys --output-dir /etc/tasker/keys
+tasker-ctl auth generate-keys --output-dir /etc/tasker/keys
 ```
 
 ---

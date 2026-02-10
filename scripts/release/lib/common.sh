@@ -125,7 +125,7 @@ update_workspace_dep_versions() {
         tasker-pgmq
         tasker-shared
         tasker-client
-        tasker-cli
+        tasker-ctl
         tasker-orchestration
         tasker-worker
     )

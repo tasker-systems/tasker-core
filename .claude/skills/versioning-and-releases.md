@@ -21,7 +21,7 @@ All six publishable Rust crates version together during alpha:
 | 1 | `tasker-pgmq` | No internal deps |
 | 2 | `tasker-shared` | Depends on pgmq |
 | 3 | `tasker-client`, `tasker-orchestration` | Depend on shared (can publish in parallel) |
-| 4 | `tasker-worker`, `tasker-cli` | Depend on client/shared (can publish in parallel) |
+| 4 | `tasker-worker`, `tasker-ctl` | Depend on client/shared (can publish in parallel) |
 
 ### FFI Language Bindings (0.1.N.P)
 
@@ -87,7 +87,7 @@ git push origin <tag>
 FFI-facing core changed (tasker-pgmq, tasker-shared, tasker-worker):
   -> Publish ALL core crates + ALL FFI bindings (reset patch to .0)
 
-Server/client core changed (tasker-orchestration, tasker-client, tasker-cli):
+Server/client core changed (tasker-orchestration, tasker-client, tasker-ctl):
   -> Publish core crates only (no FFI rebuild needed)
 
 Individual binding changed (workers/ruby, workers/python, workers/typescript):

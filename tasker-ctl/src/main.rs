@@ -19,7 +19,7 @@ use commands::{
 };
 
 #[derive(Parser, Debug)]
-#[command(name = "tasker-cli")]
+#[command(name = "tasker-ctl")]
 #[command(about = "Command-line interface for Tasker orchestration system")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
 pub(crate) struct Cli {
@@ -30,7 +30,7 @@ pub(crate) struct Cli {
     /// Configuration profile to use (TAS-177)
     ///
     /// Profiles are defined in .config/tasker-client.toml (like nextest).
-    /// Use `tasker-cli config show` to see available profiles.
+    /// Use `tasker-ctl config show` to see available profiles.
     ///
     /// Can also be set via TASKER_CLIENT_PROFILE environment variable.
     #[arg(short, long)]

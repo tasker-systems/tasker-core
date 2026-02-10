@@ -13,13 +13,13 @@ API-level security for orchestration (8080) and worker (8081) endpoints using JW
 ### 1. Generate Keys
 
 ```bash
-cargo run --bin tasker-cli -- auth generate-keys --output-dir ./keys
+cargo run --bin tasker-ctl -- auth generate-keys --output-dir ./keys
 ```
 
 ### 2. Generate a Token
 
 ```bash
-cargo run --bin tasker-cli -- auth generate-token \
+cargo run --bin tasker-ctl -- auth generate-token \
   --private-key ./keys/jwt-private-key.pem \
   --permissions "tasks:create,tasks:read,tasks:list,steps:read" \
   --subject my-service \
@@ -42,7 +42,7 @@ jwt_audience = "tasker-api"
 
 ```bash
 export TASKER_AUTH_TOKEN=<generated-token>
-cargo run --bin tasker-cli -- task list
+cargo run --bin tasker-ctl -- task list
 ```
 
 Or with curl:
@@ -85,7 +85,7 @@ curl -H "Authorization: Bearer $TASKER_AUTH_TOKEN" http://localhost:8080/v1/task
 ### Show All Permissions
 
 ```bash
-cargo run --bin tasker-cli -- auth show-permissions
+cargo run --bin tasker-ctl -- auth show-permissions
 ```
 
 ---
@@ -276,20 +276,20 @@ All endpoints remain accessible without auth when `enabled = false`.
 
 ```bash
 # Generate RSA key pair
-tasker-cli auth generate-keys [--output-dir ./keys] [--key-size 2048]
+tasker-ctl auth generate-keys [--output-dir ./keys] [--key-size 2048]
 
 # Generate JWT token
-tasker-cli auth generate-token \
+tasker-ctl auth generate-token \
   --permissions tasks:create,tasks:read \
   --subject my-service \
   --private-key ./keys/jwt-private-key.pem \
   --expiry-hours 24
 
 # List all permissions
-tasker-cli auth show-permissions
+tasker-ctl auth show-permissions
 
 # Validate a token
-tasker-cli auth validate-token \
+tasker-ctl auth validate-token \
   --token <JWT> \
   --public-key ./keys/jwt-public-key.pem
 ```

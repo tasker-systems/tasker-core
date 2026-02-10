@@ -45,7 +45,7 @@ curl http://localhost:8081/config | jq
 
 ```bash
 # Generate production orchestration config for deployment
-tasker-cli config generate \
+tasker-ctl config generate \
     --context orchestration \
     --environment production \
     --output config/tasker/orchestration-production.toml
@@ -58,7 +58,7 @@ export TASKER_CONFIG_PATH=/app/config/tasker/orchestration-production.toml
 
 ```bash
 # Validate orchestration config for production
-tasker-cli config validate \
+tasker-ctl config validate \
     --context orchestration \
     --environment production
 
@@ -389,7 +389,7 @@ All configuration endpoints are documented with OpenAPI 3.0 and Swagger UI.
 
 **Command Signature**:
 ```bash
-tasker-cli config generate \
+tasker-ctl config generate \
     --context <common|orchestration|worker> \
     --environment <test|development|production>
 ```
@@ -397,13 +397,13 @@ tasker-cli config generate \
 **Examples**:
 ```bash
 # Generate orchestration config for production
-tasker-cli config generate --context orchestration --environment production
+tasker-ctl config generate --context orchestration --environment production
 
 # Generate worker config for development
-tasker-cli config generate --context worker --environment development
+tasker-ctl config generate --context worker --environment development
 
 # Generate common config for test
-tasker-cli config generate --context common --environment test
+tasker-ctl config generate --context common --environment test
 ```
 
 **Output Location**: Automatically generated at:
@@ -434,7 +434,7 @@ config/tasker/generated/{context}-{environment}.toml
 
 **Command Signature**:
 ```bash
-tasker-cli config validate \
+tasker-ctl config validate \
     --context <common|orchestration|worker> \
     --environment <test|development|production>
 ```
@@ -442,10 +442,10 @@ tasker-cli config validate \
 **Examples**:
 ```bash
 # Validate orchestration config for production
-tasker-cli config validate --context orchestration --environment production
+tasker-ctl config validate --context orchestration --environment production
 
 # Validate worker config for test
-tasker-cli config validate --context worker --environment test
+tasker-ctl config validate --context worker --environment test
 ```
 
 **Validation Features**:
@@ -533,10 +533,10 @@ WORKDIR /app
 COPY . .
 
 # Build CLI tool
-RUN cargo build --release --bin tasker-cli
+RUN cargo build --release --bin tasker-ctl
 
 # Generate production config (single merged file)
-RUN ./target/release/tasker-cli config generate \
+RUN ./target/release/tasker-ctl config generate \
     --context orchestration \
     --environment production \
     --output config/tasker/orchestration-production.toml
@@ -573,7 +573,7 @@ CMD ["tasker-orchestration"]
 
 ```bash
 # Step 1: Generate merged configuration locally
-tasker-cli config generate \
+tasker-ctl config generate \
   --context orchestration \
   --environment production \
   --output orchestration-production.toml
@@ -647,10 +647,10 @@ cargo test --all-features
 **For Docker Compose** (Single-file loading):
 ```bash
 # Generate test configs first
-tasker-cli config generate --context orchestration --environment test \
+tasker-ctl config generate --context orchestration --environment test \
   --output config/tasker/generated/orchestration-test.toml
 
-tasker-cli config generate --context worker --environment test \
+tasker-ctl config generate --context worker --environment test \
   --output config/tasker/generated/worker-test.toml
 
 # Start services with generated configs
@@ -706,10 +706,10 @@ Each configuration context has specific validation rules:
 **Pre-Deployment Validation**:
 ```bash
 # Validate before generating deployment artifact
-tasker-cli config validate --context orchestration --environment production
+tasker-ctl config validate --context orchestration --environment production
 
 # Generate only if validation passes
-tasker-cli config generate --context orchestration --environment production
+tasker-ctl config generate --context orchestration --environment production
 ```
 
 **Runtime Validation**:
@@ -791,7 +791,7 @@ curl http://localhost:8080/config | jq '.metadata'
 **Manual Comparison**:
 ```bash
 # Generate what should be deployed
-tasker-cli config generate --context orchestration --environment production
+tasker-ctl config generate --context orchestration --environment production
 
 # Compare to runtime
 diff config/tasker/generated/orchestration-production.toml \
@@ -858,14 +858,14 @@ kubectl create secret generic tasker-db-url \
 # Ensure all environments validate
 for env in test development production; do
   echo "Validating $env..."
-  tasker-cli config validate --context orchestration --environment $env
+  tasker-ctl config validate --context orchestration --environment $env
 done
 ```
 
 **Integration Testing**:
 ```bash
 # Test with generated configs
-tasker-cli config generate --context orchestration --environment test
+tasker-ctl config generate --context orchestration --environment test
 export TASKER_CONFIG_PATH=config/tasker/generated/orchestration-test.toml
 cargo test --all-features
 ```
@@ -886,7 +886,7 @@ ls -la config/tasker/base/
 ls -la config/tasker/environments/$TASKER_ENV/
 
 # Validate config
-tasker-cli config validate --context orchestration --environment $TASKER_ENV
+tasker-ctl config validate --context orchestration --environment $TASKER_ENV
 ```
 
 **Issue**: Unexpected configuration values at runtime
@@ -901,7 +901,7 @@ cat config/tasker/generated/orchestration-$TASKER_ENV.toml
 **Issue**: Validation errors
 ```bash
 # Run validation with detailed output
-RUST_LOG=debug tasker-cli config validate \
+RUST_LOG=debug tasker-ctl config validate \
   --context orchestration \
   --environment production
 ```
@@ -929,7 +929,7 @@ RUST_LOG=tasker_shared::config=debug cargo run
 **Explain Command** (Deferred):
 ```bash
 # Get documentation for a parameter
-tasker-cli config explain --parameter database.pool.max_connections
+tasker-ctl config explain --parameter database.pool.max_connections
 
 # Shows:
 # - Purpose and system impact
@@ -942,10 +942,10 @@ tasker-cli config explain --parameter database.pool.max_connections
 **Detect-Unused Command** (Deferred):
 ```bash
 # Find unused configuration parameters
-tasker-cli config detect-unused --context orchestration
+tasker-ctl config detect-unused --context orchestration
 
 # Auto-remove with backup
-tasker-cli config detect-unused --context orchestration --fix
+tasker-ctl config detect-unused --context orchestration --fix
 ```
 
 ### 10.2 Operational Enhancements

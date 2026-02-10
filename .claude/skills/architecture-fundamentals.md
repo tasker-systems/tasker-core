@@ -17,7 +17,7 @@ PostgreSQL-backed orchestration with provider-agnostic messaging (PGMQ default, 
 ```
 tasker-pgmq          # PGMQ wrapper with notification support
 tasker-client        # API client library (REST + gRPC transport)
-tasker-cli           # CLI binary (config generate/validate, dry-run releases)
+tasker-ctl           # CLI binary (config generate/validate, dry-run releases)
 tasker-orchestration # Core orchestration logic (actors, services)
 tasker-shared        # Shared types, traits, utilities, state machines
 tasker-worker        # Worker implementation (handler dispatch, FFI)

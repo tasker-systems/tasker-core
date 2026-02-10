@@ -782,13 +782,13 @@ v_task_state_analysis (base view)
 
 ## CLI Usage Examples
 
-The `tasker-cli` tool provides commands for managing workflow steps directly from the command line.
+The `tasker-ctl` tool provides commands for managing workflow steps directly from the command line.
 
 ### List Workflow Steps
 
 ```bash
 # List all steps for a task
-tasker-cli task steps <TASK_UUID>
+tasker-ctl task steps <TASK_UUID>
 
 # Example output:
 # ✓ Found 3 workflow steps:
@@ -811,7 +811,7 @@ tasker-cli task steps <TASK_UUID>
 
 ```bash
 # Get detailed information about a specific step
-tasker-cli task step <TASK_UUID> <STEP_UUID>
+tasker-ctl task step <TASK_UUID> <STEP_UUID>
 
 # Example output:
 # ✓ Step Details:
@@ -831,7 +831,7 @@ tasker-cli task step <TASK_UUID> <STEP_UUID>
 When infrastructure is fixed and you want to reset attempt counter:
 
 ```bash
-tasker-cli task reset-step <TASK_UUID> <STEP_UUID> \
+tasker-ctl task reset-step <TASK_UUID> <STEP_UUID> \
   --reason "Database connection pool increased" \
   --reset-by "ops-team@example.com"
 
@@ -847,7 +847,7 @@ tasker-cli task reset-step <TASK_UUID> <STEP_UUID> \
 When you want to bypass a non-critical step:
 
 ```bash
-tasker-cli task resolve-step <TASK_UUID> <STEP_UUID> \
+tasker-ctl task resolve-step <TASK_UUID> <STEP_UUID> \
   --reason "Non-critical validation, bypassing" \
   --resolved-by "ops-team@example.com"
 
@@ -863,7 +863,7 @@ tasker-cli task resolve-step <TASK_UUID> <STEP_UUID> \
 When you've manually performed the step's work and need to provide results:
 
 ```bash
-tasker-cli task complete-step <TASK_UUID> <STEP_UUID> \
+tasker-ctl task complete-step <TASK_UUID> <STEP_UUID> \
   --result '{"validated": true, "score": 95}' \
   --metadata '{"verification_method": "manual_review"}' \
   --reason "Manual verification after infrastructure fix" \

@@ -74,10 +74,10 @@ Routes are split into **public** (never require auth) and **protected** (auth mi
 
 ```bash
 # 1. Generate RSA key pair
-cargo run --bin tasker-cli -- auth generate-keys --output-dir ./keys
+cargo run --bin tasker-ctl -- auth generate-keys --output-dir ./keys
 
 # 2. Generate a token
-cargo run --bin tasker-cli -- auth generate-token \
+cargo run --bin tasker-ctl -- auth generate-token \
   --private-key ./keys/jwt-private-key.pem \
   --permissions "tasks:create,tasks:read,tasks:list" \
   --subject my-service \

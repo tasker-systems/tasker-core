@@ -41,7 +41,7 @@ async fn test_end_to_end_diamond_workflow() -> Result<()> {
 
     // Create diamond workflow task
     println!("\n🎯 Creating diamond workflow task...");
-    println!("   Equivalent CLI: cargo run --bin tasker-cli task create \\");
+    println!("   Equivalent CLI: cargo run --bin tasker-ctl task create \\");
     println!("     --namespace diamond_workflow \\");
     println!("     --name diamond_pattern \\");
     println!("     --input '{{\"even_number\": 6}}'");

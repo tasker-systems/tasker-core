@@ -51,7 +51,7 @@ log_section "Core Rust crates"
 update_version_file "$CORE_VERSION"
 update_cargo_version "Cargo.toml" "$CORE_VERSION"
 
-for crate in tasker-pgmq tasker-shared tasker-client tasker-cli tasker-orchestration tasker-worker; do
+for crate in tasker-pgmq tasker-shared tasker-client tasker-ctl tasker-orchestration tasker-worker; do
     update_cargo_version "${crate}/Cargo.toml" "$CORE_VERSION"
 done
 

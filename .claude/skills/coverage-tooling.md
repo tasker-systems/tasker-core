@@ -31,7 +31,7 @@ cargo make coverage-check        # covc - exits 1 on failure
 | `coverage-e2e-pgmq` | - | E2E coverage with PGMQ backend only |
 | `coverage-e2e-rabbitmq` | - | E2E coverage with RabbitMQ backend only |
 | `coverage-foundational` | - | `tasker-shared` + `tasker-pgmq` |
-| `coverage-core` | - | `tasker-orchestration` + `tasker-worker` + `tasker-client` + `tasker-cli` |
+| `coverage-core` | - | `tasker-orchestration` + `tasker-worker` + `tasker-client` + `tasker-ctl` |
 
 ### Language Worker Coverage
 
@@ -94,7 +94,7 @@ Defined in `coverage-thresholds.json` at project root:
     "tasker-orchestration": 55,
     "tasker-worker": 55,
     "tasker-client": 60,
-    "tasker-cli": 30
+    "tasker-ctl": 30
   },
   "python": { "tasker-py": 80 },
   "ruby": { "tasker-rb": 70 },

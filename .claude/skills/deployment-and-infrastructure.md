@@ -87,7 +87,7 @@ RABBITMQ_URL=amqp://user:password@rabbitmq:5672/%2F
 
 ```dockerfile
 # Generate merged config at build time
-RUN tasker-cli config generate \
+RUN tasker-ctl config generate \
     --context orchestration \
     --environment production
 

@@ -45,7 +45,7 @@ async fn test_end_to_end_tree_workflow() -> Result<()> {
 
     // Create tree workflow task
     println!("\n🎯 Creating tree workflow task...");
-    println!("   Equivalent CLI: cargo run --bin tasker-cli task create \\");
+    println!("   Equivalent CLI: cargo run --bin tasker-ctl task create \\");
     println!("     --namespace tree_workflow \\");
     println!("     --name hierarchical_tree \\");
     println!("     --input '{{\"even_number\": 6}}'");

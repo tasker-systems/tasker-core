@@ -4,7 +4,7 @@ Transport-agnostic API client library for the [Tasker](https://github.com/tasker
 
 ## Overview
 
-`tasker-client` is the primary interface for external systems to interact with Tasker. It handles HTTP/gRPC communication, authentication, and provides strongly-typed interfaces for all API endpoints. The CLI tool (`tasker-cli`) is built on top of this library.
+`tasker-client` is the primary interface for external systems to interact with Tasker. It handles HTTP/gRPC communication, authentication, and provides strongly-typed interfaces for all API endpoints. The CLI tool (`tasker-ctl`) is built on top of this library.
 
 ## Features
 

@@ -17,6 +17,6 @@ cargo publish -p tasker-pgmq --dry-run --allow-dirty
 
 echo ""
 echo "Remaining crates (tasker-shared, tasker-client, tasker-orchestration,"
-echo "tasker-worker, tasker-cli) depend on unpublished workspace crates and"
+echo "tasker-worker, tasker-ctl) depend on unpublished workspace crates and"
 echo "cannot be validated until published in order. Build correctness is"
 echo "covered by clippy."

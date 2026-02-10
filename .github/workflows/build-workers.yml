@@ -85,10 +85,10 @@ jobs:
             --package tasker-worker \
             --package tasker-pgmq \
             --package tasker-client \
-            --package tasker-cli \
+            --package tasker-ctl \
             --bins
           echo "📦 Verifying binaries were created..."
-          ls -lh target/debug/tasker-server target/debug/tasker-worker target/debug/tasker-cli
+          ls -lh target/debug/tasker-server target/debug/tasker-worker target/debug/tasker-ctl
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
 
@@ -99,7 +99,7 @@ jobs:
           path: |
             target/debug/tasker-server
             target/debug/tasker-worker
-            target/debug/tasker-cli
+            target/debug/tasker-ctl
           retention-days: 1
           if-no-files-found: error
 

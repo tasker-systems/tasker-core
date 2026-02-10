@@ -34,7 +34,7 @@ tasker-core/
 ├── tasker-orchestration/     # Task coordination and lifecycle management
 ├── tasker-worker/            # Step execution and handler integration
 ├── tasker-client/            # API client library (REST + gRPC transport)
-├── tasker-cli/              # CLI binary (depends on tasker-client)
+├── tasker-ctl/              # CLI binary (depends on tasker-client)
 └── workers/
     ├── ruby/ext/tasker_core/ # Ruby FFI bindings
     └── rust/                 # Rust native worker
@@ -79,7 +79,7 @@ tasker-core/
                │                        │
                ▼                        │
 ┌──────────────────────────┐            │
-│    tasker-cli            │            │
+│    tasker-ctl            │            │
 │    CLI binary            │            │
 └──────────────────────────┘            │
                                         │
@@ -474,11 +474,11 @@ pub trait OrchestrationClient: Send + Sync {
 - When implementing client applications or FFI bindings
 - When building UI frontends (TUI, web) that need API access
 
-### tasker-cli
+### tasker-ctl
 
 **Purpose**: Command-line interface for Tasker (TAS-188: split from tasker-client)
 
-**Location**: `tasker-cli/`
+**Location**: `tasker-ctl/`
 
 **Key Responsibilities**:
 - CLI argument parsing and command dispatch (via clap)
@@ -489,15 +489,15 @@ pub trait OrchestrationClient: Send + Sync {
 **CLI Tools**:
 ```bash
 # Task management
-tasker-cli task create --template linear_workflow
-tasker-cli task get <uuid>
-tasker-cli task list --namespace payments
+tasker-ctl task create --template linear_workflow
+tasker-ctl task get <uuid>
+tasker-ctl task list --namespace payments
 
 # Health checks
-tasker-cli health
+tasker-ctl health
 
 # Configuration docs generation
-tasker-cli docs generate
+tasker-ctl docs generate
 ```
 
 **When to Use**:
