@@ -6,7 +6,7 @@
 use crate::cache::errors::{CacheError, CacheResult};
 use crate::cache::traits::CacheService;
 use crate::config::tasker::MemcachedConfig;
-use async_memcached::Client;
+use async_memcached::{AsciiProtocol, Client};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -64,13 +64,19 @@ impl CacheService for MemcachedCacheService {
             .map_err(|e| CacheError::BackendError(format!("Memcached GET failed: {}", e)))?;
 
         match result {
-            Some(value) => {
-                // async-memcached returns Value, we need to convert to String
-                let data = String::from_utf8(value.data)
-                    .map_err(|e| CacheError::BackendError(format!("Invalid UTF-8 data: {}", e)))?;
-                debug!(key = key, "Cache HIT (memcached)");
-                Ok(Some(data))
-            }
+            Some(value) => match value.data {
+                Some(bytes) => {
+                    let data = String::from_utf8(bytes).map_err(|e| {
+                        CacheError::BackendError(format!("Invalid UTF-8 data: {}", e))
+                    })?;
+                    debug!(key = key, "Cache HIT (memcached)");
+                    Ok(Some(data))
+                }
+                None => {
+                    debug!(key = key, "Cache MISS (memcached) - no data");
+                    Ok(None)
+                }
+            },
             None => {
                 debug!(key = key, "Cache MISS (memcached)");
                 Ok(None)
