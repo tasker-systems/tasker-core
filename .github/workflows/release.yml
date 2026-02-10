@@ -275,7 +275,7 @@ jobs:
           IS_DRY_RUN: 'true'
 
       - name: Tag ruby release
-        if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: ruby
@@ -346,7 +346,7 @@ jobs:
           IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
 
       - name: Tag python release
-        if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: python
