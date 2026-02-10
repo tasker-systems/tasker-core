@@ -211,28 +211,46 @@ jobs:
     env:
       SQLX_OFFLINE: 'true'
     steps:
+      - name: Check if already published
+        id: check-published
+        run: |
+          VERSION="${{ needs.detect-and-read.outputs.ruby_version }}"
+          if curl -sf "https://rubygems.org/api/v1/versions/tasker-rb.json" | grep -q "\"number\":\"${VERSION}\""; then
+            echo "tasker-rb ${VERSION} already exists on RubyGems — skipping build and publish"
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
+        if: steps.check-published.outputs.already_published != 'true'
         uses: actions/checkout@v6
 
       - name: Setup Rust
+        if: steps.check-published.outputs.already_published != 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Ruby
+        if: steps.check-published.outputs.already_published != 'true'
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'
           working-directory: workers/ruby
 
       - name: Install Ruby dependencies
+        if: steps.check-published.outputs.already_published != 'true'
         run: cd workers/ruby && bundle install --jobs 4
 
       - name: Setup Rust build cache
+        if: steps.check-published.outputs.already_published != 'true'
         uses: ./.github/actions/setup-rust-cache
 
       - name: Install protobuf compiler
+        if: steps.check-published.outputs.already_published != 'true'
         uses: ./.github/actions/install-protobuf
 
       - name: Build native extension and gem
+        if: steps.check-published.outputs.already_published != 'true'
         run: |
           cd workers/ruby
           bundle exec rake compile
@@ -241,15 +259,15 @@ jobs:
           SQLX_OFFLINE: 'true'
 
       - name: Configure RubyGems credentials (OIDC)
-        if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
         uses: rubygems/configure-rubygems-credentials@v1.0.0
 
       - name: Publish gem
-        if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
         run: gem push workers/ruby/tasker-rb-*.gem
 
       - name: Dry-run publish
-        if: needs.detect-and-read.outputs.is_dry_run == 'true'
+        if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run == 'true'
         run: .github/scripts/release/publish-component.sh
         env:
           PUBLISH_SCRIPT: ./scripts/release/publish-ruby.sh
@@ -279,29 +297,48 @@ jobs:
     env:
       SQLX_OFFLINE: 'true'
     steps:
+      - name: Check if already published
+        id: check-published
+        run: |
+          VERSION="${{ needs.detect-and-read.outputs.python_version }}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/tasker-py/${VERSION}/json")
+          if [[ "$STATUS" == "200" ]]; then
+            echo "tasker-py ${VERSION} already exists on PyPI — skipping build and publish"
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
+        if: steps.check-published.outputs.already_published != 'true'
         uses: actions/checkout@v6
 
       - name: Setup Rust
+        if: steps.check-published.outputs.already_published != 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Set up Python
+        if: steps.check-published.outputs.already_published != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install uv
+        if: steps.check-published.outputs.already_published != 'true'
         uses: astral-sh/setup-uv@v7
         with:
           version: 'latest'
 
       - name: Setup Rust build cache
+        if: steps.check-published.outputs.already_published != 'true'
         uses: ./.github/actions/setup-rust-cache
 
       - name: Install protobuf compiler
+        if: steps.check-published.outputs.already_published != 'true'
         uses: ./.github/actions/install-protobuf
 
       - name: Publish package
+        if: steps.check-published.outputs.already_published != 'true'
         run: .github/scripts/release/publish-component.sh
         env:
           PUBLISH_SCRIPT: ./scripts/release/publish-python.sh

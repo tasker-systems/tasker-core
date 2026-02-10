@@ -59,7 +59,10 @@ cd "${REPO_ROOT}/workers/python"
 # and workers/python/README.md — both map to "README.md" in the tarball.
 # Wheel-only publishing avoids this entirely. sdist can be added later when
 # maturin supports workspace-aware sdist deduplication.
-uv run maturin build --release
+# --manylinux auto: detect and apply the correct manylinux platform tag.
+# Without this, `maturin build` produces a plain `linux_x86_64` wheel
+# that PyPI rejects (only manylinux-tagged wheels are accepted).
+uv run maturin build --release --manylinux auto
 
 # ---------------------------------------------------------------------------
 # Publish
@@ -73,7 +76,7 @@ else
         handle_duplicate "$ON_DUPLICATE" "$PYPI_PACKAGE" "$VERSION" "PyPI"
     else
         log_info "Publishing ${PYPI_PACKAGE}==${VERSION} (wheel only)..."
-        uv run maturin upload "${REPO_ROOT}/target/wheels/"tasker_py-"${VERSION}"*.whl
+        uv run maturin upload "${REPO_ROOT}/target/wheels/tasker_py-${VERSION}"*.whl
     fi
 fi
 
