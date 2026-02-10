@@ -49,24 +49,16 @@ log_info "On duplicate: ${ON_DUPLICATE}"
 # Local publishes use ~/.pypirc or MATURIN_PYPI_TOKEN.
 
 # ---------------------------------------------------------------------------
-# Work around maturin sdist README conflict
-# ---------------------------------------------------------------------------
-# maturin's sdist builder includes the workspace root README.md (from the root
-# Cargo.toml) AND the local workers/python/README.md — both resolve to
-# "README.md" in the tarball, causing a duplicate file error.
-# Fix: remove the root README before building. Each CI job gets a fresh
-# checkout, so this doesn't affect other jobs.
-if [[ -f "${REPO_ROOT}/README.md" && -f "${REPO_ROOT}/workers/python/README.md" ]]; then
-    rm "${REPO_ROOT}/README.md"
-    log_info "Removed root README.md to avoid maturin sdist conflict"
-fi
-
-# ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
 log_section "Building wheel"
 cd "${REPO_ROOT}/workers/python"
 
+# Build wheel only (no sdist). maturin's sdist builder hits a README conflict:
+# it includes both the workspace root README.md (via root Cargo.toml path dep)
+# and workers/python/README.md — both map to "README.md" in the tarball.
+# Wheel-only publishing avoids this entirely. sdist can be added later when
+# maturin supports workspace-aware sdist deduplication.
 uv run maturin build --release
 
 # ---------------------------------------------------------------------------
@@ -80,8 +72,8 @@ else
     if pypi_exists_on_registry "$PYPI_PACKAGE" "$VERSION"; then
         handle_duplicate "$ON_DUPLICATE" "$PYPI_PACKAGE" "$VERSION" "PyPI"
     else
-        log_info "Publishing ${PYPI_PACKAGE}==${VERSION}..."
-        uv run maturin publish
+        log_info "Publishing ${PYPI_PACKAGE}==${VERSION} (wheel only)..."
+        uv run maturin upload "${REPO_ROOT}/target/wheels/"tasker_py-"${VERSION}"*.whl
     fi
 fi
 
