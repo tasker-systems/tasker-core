@@ -176,6 +176,32 @@ log_section "Bumping versions"
 "${SCRIPT_DIR}/update-versions.sh" ${UPDATE_ARGS}
 
 # ---------------------------------------------------------------------------
+# Refresh lockfiles (version bumps may have changed gemspec/pyproject/package.json)
+# ---------------------------------------------------------------------------
+log_section "Refreshing lockfiles"
+
+if command -v bundle &>/dev/null && [[ -f "${REPO_ROOT}/workers/ruby/Gemfile.lock" ]]; then
+    (cd "${REPO_ROOT}/workers/ruby" && bundle lock --update)
+    log_info "Updated Gemfile.lock"
+else
+    log_warn "bundle not found or Gemfile.lock missing, skipping Ruby lockfile"
+fi
+
+if command -v uv &>/dev/null && [[ -f "${REPO_ROOT}/workers/python/uv.lock" ]]; then
+    (cd "${REPO_ROOT}/workers/python" && uv lock)
+    log_info "Updated uv.lock"
+else
+    log_warn "uv not found or uv.lock missing, skipping Python lockfile"
+fi
+
+if command -v bun &>/dev/null && [[ -f "${REPO_ROOT}/workers/typescript/bun.lock" ]]; then
+    (cd "${REPO_ROOT}/workers/typescript" && bun install --frozen-lockfile=false)
+    log_info "Updated bun.lock"
+else
+    log_warn "bun not found or bun.lock missing, skipping TypeScript lockfile"
+fi
+
+# ---------------------------------------------------------------------------
 # Sanity check: verify workspace compiles
 # ---------------------------------------------------------------------------
 log_section "Sanity check (cargo check)"
