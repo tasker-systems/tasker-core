@@ -6046,7 +6046,7 @@ checksum = "df7f62577c25e07834649fc3b39fafdc597c0a3527dc1c60129201ccfcbaa50c"
 
 [[package]]
 name = "tasker-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "askama",
  "chrono",
@@ -6071,7 +6071,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-client"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6099,7 +6099,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "bigdecimal",
@@ -6127,7 +6127,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-orchestration"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6184,7 +6184,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-pgmq"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6211,7 +6211,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-py"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6230,7 +6230,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-rb"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6255,7 +6255,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-shared"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-memcached",
@@ -6329,7 +6329,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-ts"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6347,7 +6347,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-worker"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
