@@ -39,13 +39,13 @@ concurrency:
 #           |
 #     publish-crates        (20 min) — if core_changed
 #           |
-#     +----------+----------+----------+
-#     |          |          |          |
-#  publish-   publish-   publish-   publish-
-#  ruby       python     typescript containers
-#  (20 min)   (20 min)   (15 min)   (60 min)
-#     |          |          |          |
-#     +----------+----------+----------+
+#     +----------+----------+----------+--------------------+
+#     |          |          |          |                    |
+#  publish-   publish-   publish-   publish-containers     |
+#  ruby       python     typescript (4x matrix, amd64)    |
+#  (20 min)   (20 min)   (15 min)   (30 min each)        |
+#     |          |          |          |                    |
+#     +----------+----------+----------+--------------------+
 #           |
 #     release-summary       — reports results, creates GitHub Release
 # =============================================================================
@@ -398,12 +398,14 @@ jobs:
           VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
 
   # ============================================================================
-  # Stage 4b: Publish Container Images to GHCR (parallel with FFI jobs)
+  # Stage 4b: Publish Container Images to GHCR (parallel matrix, amd64)
   # ============================================================================
+  # Each image builds in its own parallel job via matrix strategy.
+  # amd64-only for now; add arm64 with native runners later (no QEMU).
   publish-containers:
-    name: Publish Container Images
+    name: Publish ${{ matrix.image.name }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 30
     needs: [detect-and-read, pre-flight-check]
     if: |
       always() && !cancelled() && !failure() &&
@@ -414,15 +416,24 @@ jobs:
       packages: write
     env:
       SQLX_OFFLINE: 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: tasker-orchestration
+            dockerfile: docker/build/orchestration.prod.Dockerfile
+          - name: tasker-worker-ruby
+            dockerfile: docker/build/ruby-worker.prod.Dockerfile
+          - name: tasker-worker-python
+            dockerfile: docker/build/python-worker.prod.Dockerfile
+          - name: tasker-worker-typescript
+            dockerfile: docker/build/typescript-worker.prod.Dockerfile
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
       - name: Free disk space
         uses: ./.github/actions/free-disk-space
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -434,101 +445,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- Orchestration ---
-      - name: Docker metadata (orchestration)
-        id: meta-orchestration
+      - name: Docker metadata
+        id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/tasker-orchestration
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
           tags: |
             type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
             type=sha,prefix=sha-
             type=raw,value=latest
 
-      - name: Build and push orchestration image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/build/orchestration.prod.Dockerfile
+          file: ${{ matrix.image.dockerfile }}
           push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta-orchestration.outputs.tags }}
-          labels: ${{ steps.meta-orchestration.outputs.labels }}
-          cache-from: type=gha,scope=orchestration
-          cache-to: type=gha,scope=orchestration,mode=max
-
-      # --- Ruby Worker ---
-      - name: Docker metadata (ruby worker)
-        id: meta-ruby-worker
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/tasker-worker-ruby
-          tags: |
-            type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
-            type=sha,prefix=sha-
-            type=raw,value=latest
-
-      - name: Build and push ruby worker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/build/ruby-worker.prod.Dockerfile
-          push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta-ruby-worker.outputs.tags }}
-          labels: ${{ steps.meta-ruby-worker.outputs.labels }}
-          cache-from: type=gha,scope=ruby-worker
-          cache-to: type=gha,scope=ruby-worker,mode=max
-
-      # --- Python Worker ---
-      - name: Docker metadata (python worker)
-        id: meta-python-worker
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/tasker-worker-python
-          tags: |
-            type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
-            type=sha,prefix=sha-
-            type=raw,value=latest
-
-      - name: Build and push python worker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/build/python-worker.prod.Dockerfile
-          push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta-python-worker.outputs.tags }}
-          labels: ${{ steps.meta-python-worker.outputs.labels }}
-          cache-from: type=gha,scope=python-worker
-          cache-to: type=gha,scope=python-worker,mode=max
-
-      # --- TypeScript Worker ---
-      - name: Docker metadata (typescript worker)
-        id: meta-typescript-worker
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/tasker-worker-typescript
-          tags: |
-            type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
-            type=sha,prefix=sha-
-            type=raw,value=latest
-
-      - name: Build and push typescript worker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/build/typescript-worker.prod.Dockerfile
-          push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta-typescript-worker.outputs.tags }}
-          labels: ${{ steps.meta-typescript-worker.outputs.labels }}
-          cache-from: type=gha,scope=typescript-worker
-          cache-to: type=gha,scope=typescript-worker,mode=max
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,scope=${{ matrix.image.name }},mode=max
 
   # ============================================================================
   # Stage 5: Release Summary
