@@ -4,13 +4,13 @@ set -euo pipefail
 # Checks if any publish jobs failed.
 #
 # Env:
-#   CRATES_RESULT, RUBY_RESULT, PYTHON_RESULT, TS_RESULT
+#   CRATES_RESULT, RUBY_RESULT, PYTHON_RESULT, TS_RESULT, CONTAINERS_RESULT
 #
 # Output (GITHUB_OUTPUT):
 #   has_failures - "true" or "false"
 
 FAILED=false
-for result in "${CRATES_RESULT}" "${RUBY_RESULT}" "${PYTHON_RESULT}" "${TS_RESULT}"; do
+for result in "${CRATES_RESULT}" "${RUBY_RESULT}" "${PYTHON_RESULT}" "${TS_RESULT}" "${CONTAINERS_RESULT}"; do
   if [[ "$result" == "failure" ]]; then
     FAILED=true
   fi
