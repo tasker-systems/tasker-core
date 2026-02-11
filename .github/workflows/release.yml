@@ -400,15 +400,15 @@ jobs:
   # ============================================================================
   # Stage 4b: Publish Container Images to GHCR (parallel with FFI jobs)
   # ============================================================================
+  # DISABLED: Multi-arch builds (amd64+arm64) exceed the 60-min timeout when
+  # building all images sequentially in one job. Needs redesign with fan-out
+  # jobs and layer caching. See TAS-197 for tracking.
   publish-containers:
     name: Publish Container Images
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     needs: [detect-and-read, pre-flight-check]
-    if: |
-      always() && !cancelled() && !failure() &&
-      (needs.detect-and-read.outputs.core_changed == 'true' ||
-       needs.detect-and-read.outputs.containers_changed == 'true')
+    if: false  # Disabled pending fan-out redesign
     permissions:
       contents: read
       packages: write
