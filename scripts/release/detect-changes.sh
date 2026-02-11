@@ -105,6 +105,12 @@ if changes_match '^workers/typescript/'; then
     TYPESCRIPT_CHANGED=true
 fi
 
+# Container infrastructure: Dockerfiles, compose configs, entrypoint scripts
+CONTAINERS_CHANGED=false
+if changes_match '^docker/'; then
+    CONTAINERS_CHANGED=true
+fi
+
 # ---------------------------------------------------------------------------
 # Output — eval-safe KEY=VALUE pairs
 # ---------------------------------------------------------------------------
@@ -115,3 +121,4 @@ echo "CORE_CHANGED=${CORE_CHANGED}"
 echo "RUBY_CHANGED=${RUBY_CHANGED}"
 echo "PYTHON_CHANGED=${PYTHON_CHANGED}"
 echo "TYPESCRIPT_CHANGED=${TYPESCRIPT_CHANGED}"
+echo "CONTAINERS_CHANGED=${CONTAINERS_CHANGED}"

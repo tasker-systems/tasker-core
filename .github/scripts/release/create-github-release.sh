@@ -47,8 +47,12 @@ if [[ "${CONTAINERS_RESULT}" == "success" ]]; then
   BODY+="| tasker-worker-typescript | [GHCR](https://ghcr.io/tasker-systems/tasker-worker-typescript) |"$'\n'
 fi
 
-gh release create "$TAG" \
-  --title "Tasker ${VERSION}" \
-  --notes "$BODY" \
-  --generate-notes \
-  --latest
+if gh release view "$TAG" >/dev/null 2>&1; then
+  echo "Release ${TAG} already exists — skipping creation"
+else
+  gh release create "$TAG" \
+    --title "Tasker ${VERSION}" \
+    --notes "$BODY" \
+    --generate-notes \
+    --latest
+fi
