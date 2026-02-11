@@ -67,6 +67,7 @@ jobs:
       ruby_changed: ${{ steps.detect.outputs.RUBY_CHANGED }}
       python_changed: ${{ steps.detect.outputs.PYTHON_CHANGED }}
       typescript_changed: ${{ steps.detect.outputs.TYPESCRIPT_CHANGED }}
+      containers_changed: ${{ steps.detect.outputs.CONTAINERS_CHANGED }}
       core_version: ${{ steps.read.outputs.CORE_VERSION }}
       ruby_version: ${{ steps.read.outputs.RUBY_VERSION }}
       python_version: ${{ steps.read.outputs.PYTHON_VERSION }}
@@ -107,6 +108,7 @@ jobs:
           RUBY_CHANGED: ${{ steps.detect.outputs.RUBY_CHANGED }}
           PYTHON_CHANGED: ${{ steps.detect.outputs.PYTHON_CHANGED }}
           TS_CHANGED: ${{ steps.detect.outputs.TYPESCRIPT_CHANGED }}
+          CONTAINERS_CHANGED: ${{ steps.detect.outputs.CONTAINERS_CHANGED }}
           CORE_VERSION: ${{ steps.read.outputs.CORE_VERSION }}
           RUBY_VERSION: ${{ steps.read.outputs.RUBY_VERSION }}
           PYTHON_VERSION: ${{ steps.read.outputs.PYTHON_VERSION }}
@@ -405,7 +407,8 @@ jobs:
     needs: [detect-and-read, pre-flight-check]
     if: |
       always() && !cancelled() && !failure() &&
-      needs.detect-and-read.outputs.core_changed == 'true'
+      (needs.detect-and-read.outputs.core_changed == 'true' ||
+       needs.detect-and-read.outputs.containers_changed == 'true')
     permissions:
       contents: read
       packages: write
