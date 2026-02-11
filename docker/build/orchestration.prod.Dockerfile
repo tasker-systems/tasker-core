@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
     protobuf-compiler \
+    libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -105,7 +106,7 @@ RUN strip target/release/tasker-server
 # =============================================================================
 # Runtime - Minimal runtime image
 # =============================================================================
-FROM debian:bookworm-slim AS runtime
+FROM cgr.dev/chainguard/wolfi-base:latest AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/tasker-systems/tasker-core"
 LABEL org.opencontainers.image.description="Tasker orchestration service - workflow task orchestration engine"
@@ -113,20 +114,14 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 \
-    libpq5 \
-    ca-certificates \
-    curl \
+# Install runtime dependencies (Wolfi/apk packages)
+RUN apk add --no-cache \
     bash \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN useradd -r -g daemon -u 999 tasker
-
-WORKDIR /app
+    libpq-16 \
+    openssl \
+    curl \
+    ca-certificates-bundle \
+    postgresql-16-client
 
 # Copy binary from builder (workspace target directory)
 COPY --from=builder /app/target/release/tasker-server ./tasker-orchestration
@@ -148,7 +143,7 @@ ENV APP_NAME=tasker-orchestration
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-USER tasker
+USER nonroot
 
 EXPOSE 8080 9190
 

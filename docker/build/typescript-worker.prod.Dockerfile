@@ -8,6 +8,7 @@
 # =============================================================================
 # TypeScript Builder - Compile FFI extensions with both Bun and Rust available
 # =============================================================================
+# NOTE: Chainguard bun image requires paid access — keep oven/bun for builder (ephemeral, not in prod image)
 FROM oven/bun:1.3-debian AS typescript_builder
 
 # Install system dependencies for FFI compilation
@@ -21,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     protobuf-compiler \
+    libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust toolchain
@@ -77,9 +79,9 @@ RUN bun install --frozen-lockfile
 RUN bun run build
 
 # =============================================================================
-# Runtime - TypeScript/Bun-driven worker image
+# Runtime - Chainguard hardened runtime with bun copied from builder
 # =============================================================================
-FROM oven/bun:1.3-slim AS runtime
+FROM cgr.dev/chainguard/wolfi-base:latest AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/tasker-systems/tasker-core"
 LABEL org.opencontainers.image.description="Tasker TypeScript worker - TypeScript FFI step handler execution via Bun"
@@ -87,18 +89,17 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Install runtime dependencies only (no build tools)
-# Note: oven/bun:1.3-slim is based on Debian Bookworm which uses libssl3 and libffi8
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 \
-    libpq5 \
-    libffi8 \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies (Wolfi/apk packages)
+RUN apk add --no-cache \
+    bash \
+    libpq-16 \
+    openssl \
+    libffi \
+    ca-certificates-bundle \
+    curl
 
-# Create non-root user
-RUN useradd -r -g daemon -u 999 tasker
+# Copy bun binary from builder (Chainguard bun image requires paid access)
+COPY --from=typescript_builder /usr/local/bin/bun /usr/local/bin/bun
 
 # Copy FFI library from builder
 COPY --from=typescript_builder /app/lib/ /app/lib/
@@ -124,9 +125,6 @@ RUN chmod 755 /app/typescript_worker_entrypoint.sh
 ENV APP_NAME=tasker-typescript-worker
 ENV TYPESCRIPT_WORKER_ENABLED=true
 
-# Bun-specific environment
-ENV BUN_VERSION=1.3
-
 # FFI library path for runtime discovery
 ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_ts.so
 
@@ -141,7 +139,7 @@ ENV TYPESCRIPT_HANDLER_PATH=/app/typescript_handlers
 HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8081/health || exit 1
 
-USER tasker
+USER nonroot
 
 EXPOSE 8081 9400
 

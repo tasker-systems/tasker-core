@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
     protobuf-compiler \
+    libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -104,7 +105,7 @@ RUN strip target/release/rust-worker
 # =============================================================================
 # Runtime - Minimal runtime image
 # =============================================================================
-FROM debian:bookworm-slim AS runtime
+FROM cgr.dev/chainguard/wolfi-base:latest AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/tasker-systems/tasker-core"
 LABEL org.opencontainers.image.description="Tasker Rust worker - native Rust step handler execution"
@@ -112,16 +113,13 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 \
-    libpq5 \
-    ca-certificates \
+# Install runtime dependencies (Wolfi/apk packages)
+RUN apk add --no-cache \
+    bash \
+    libpq-16 \
+    openssl \
     curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN useradd -r -g daemon -u 999 tasker
+    ca-certificates-bundle
 
 # Copy binary from builder
 COPY --from=builder /app/target/release/rust-worker ./
@@ -140,7 +138,7 @@ ENV APP_NAME=tasker-worker-rust
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8081/health || exit 1
 
-USER tasker
+USER nonroot
 
 EXPOSE 8081 9191
 

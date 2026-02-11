@@ -8,27 +8,28 @@
 # =============================================================================
 # Python Builder - Compile PyO3 extensions with both Python and Rust available
 # =============================================================================
-FROM python:3.12-bookworm AS python_builder
+FROM cgr.dev/chainguard/python:latest-dev AS python_builder
 
-# Install system dependencies for PyO3 compilation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    pkg-config \
+USER root
+
+# Install system dependencies for PyO3 compilation (Wolfi/apk packages)
+RUN apk add --no-cache \
+    build-base \
+    pkgconf \
     libffi-dev \
-    libssl-dev \
-    libpq-dev \
-    libclang-dev \
-    ca-certificates \
-    curl \
-    protobuf-compiler \
-    && rm -rf /var/lib/apt/lists/*
+    openssl-dev \
+    postgresql-16-dev \
+    clang-19 \
+    ca-certificates-bundle \
+    protobuf-dev \
+    curl
 
 # Install Rust toolchain
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:$PATH"
 
-# Set libclang path for bindgen (Debian Bookworm uses LLVM 14)
-ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib
+# Set libclang path for bindgen (Wolfi LLVM)
+ENV LIBCLANG_PATH=/usr/lib
 
 # Install UV using official Astral image (recommended approach)
 # See: https://docs.astral.sh/uv/guides/integration/docker/
@@ -91,7 +92,7 @@ RUN maturin develop --release --locked
 # =============================================================================
 # Runtime - Python-driven worker image
 # =============================================================================
-FROM python:3.12-slim-bookworm AS runtime
+FROM cgr.dev/chainguard/python:latest-dev AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/tasker-systems/tasker-core"
 LABEL org.opencontainers.image.description="Tasker Python worker - Python FFI step handler execution via PyO3"
@@ -99,17 +100,16 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Install runtime dependencies only (no build tools)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 \
-    libpq5 \
-    libffi8 \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+USER root
 
-# Create non-root user
-RUN useradd -r -g daemon -u 999 tasker
+# Install runtime dependencies (Wolfi/apk packages)
+RUN apk add --no-cache \
+    bash \
+    libpq-16 \
+    openssl \
+    libffi \
+    ca-certificates-bundle \
+    curl
 
 # Copy virtual environment from builder (includes compiled bytecode)
 COPY --from=python_builder /app/.venv /app/.venv
@@ -134,7 +134,6 @@ ENV PYTHON_WORKER_ENABLED=true
 ENV PYTHONPATH=/app/python_worker/python
 
 # Python-specific environment
-ENV PYTHON_VERSION=3.12
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONOPTIMIZE=2
@@ -150,7 +149,7 @@ ENV PYTHON_HANDLER_PATH=/app/python_handlers
 HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8081/health || exit 1
 
-USER tasker
+USER nonroot
 
 EXPOSE 8081 9300
 

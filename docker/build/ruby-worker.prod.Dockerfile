@@ -8,27 +8,29 @@
 # =============================================================================
 # Ruby Builder - Compile Ruby FFI extensions with both Ruby and Rust available
 # =============================================================================
-FROM ruby:3.4.4-bookworm AS ruby_builder
+FROM cgr.dev/chainguard/ruby:latest-dev AS ruby_builder
 
-# Install system dependencies for Ruby FFI compilation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    pkg-config \
+USER root
+
+# Install system dependencies for Ruby FFI compilation (Wolfi/apk packages)
+RUN apk add --no-cache \
+    build-base \
+    pkgconf \
     libffi-dev \
-    libssl-dev \
-    libpq-dev \
-    libclang-dev \
-    libyaml-dev \
-    zlib1g-dev \
-    ca-certificates \
-    protobuf-compiler \
-    && rm -rf /var/lib/apt/lists/*
+    openssl-dev \
+    postgresql-16-dev \
+    clang-19 \
+    yaml-dev \
+    zlib-dev \
+    ca-certificates-bundle \
+    protobuf-dev \
+    curl
 
 # Install Rust toolchain for FFI compilation
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
-# Set libclang path for bindgen (Debian Bookworm uses LLVM 14)
-ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib
+# Set libclang path for bindgen (Wolfi LLVM)
+ENV LIBCLANG_PATH=/usr/lib
 
 WORKDIR /app
 
@@ -73,9 +75,9 @@ ENV RB_SYS_CARGO_BUILD_ARGS="--locked"
 RUN bundle exec rake compile
 
 # =============================================================================
-# Runtime - Ruby-driven worker image (OPTIMIZED - using slim base)
+# Runtime - Ruby-driven worker image (Chainguard hardened)
 # =============================================================================
-FROM ruby:3.4.4-slim-bookworm AS runtime
+FROM cgr.dev/chainguard/ruby:latest-dev AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/tasker-systems/tasker-core"
 LABEL org.opencontainers.image.description="Tasker Ruby worker - Ruby FFI step handler execution via Magnus"
@@ -83,20 +85,19 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Install runtime dependencies only (no build tools)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 \
-    libpq5 \
-    postgresql-client \
-    libffi8 \
-    libyaml-0-2 \
-    zlib1g \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+USER root
 
-# Create non-root user
-RUN useradd -r -g daemon -u 999 tasker
+# Install runtime dependencies (Wolfi/apk packages)
+RUN apk add --no-cache \
+    bash \
+    libpq-16 \
+    openssl \
+    libffi \
+    yaml \
+    zlib \
+    ca-certificates-bundle \
+    curl \
+    postgresql-16-client
 
 # OPTIMIZATION: Copy only necessary Ruby worker files (exclude tmp/, spec/, doc/, etc.)
 # This avoids copying 1.3GB of Rust build artifacts from tmp/ directory
@@ -108,8 +109,9 @@ COPY --from=ruby_builder /app/workers/ruby/*.gemspec ./
 COPY --from=ruby_builder /app/workers/ruby/Rakefile ./
 
 # Copy bundled gems from builder (includes compiled extensions and all gems)
-# Gems install to /usr/local/bundle by default in Ruby Docker images
-COPY --from=ruby_builder /usr/local/bundle /usr/local/bundle
+# Chainguard Ruby images use /usr/lib/ruby/gems as the gem home
+# Copy from wherever bundler installed gems in the builder
+COPY --from=ruby_builder /usr/lib/ruby/gems /usr/lib/ruby/gems
 
 # Copy Ruby worker entrypoint script
 COPY docker/scripts/ruby-worker-entrypoint.sh /app/ruby_worker_entrypoint.sh
@@ -119,9 +121,6 @@ RUN chmod +x /app/ruby_worker_entrypoint.sh
 ENV APP_NAME=tasker-ruby-worker
 ENV RUBY_WORKER_ENABLED=true
 ENV BUNDLE_GEMFILE=/app/ruby_worker/Gemfile
-
-# Ruby-specific environment
-ENV RUBY_VERSION=3.4.4
 
 # Production environment settings
 ENV TASKER_ENV=production
@@ -140,7 +139,7 @@ ENV RUBY_GC_HEAP_INIT_SLOTS=600000
 HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8081/health || exit 1
 
-USER tasker
+USER nonroot
 
 EXPOSE 8081 9200
 
