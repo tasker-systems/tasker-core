@@ -91,8 +91,8 @@ jobs:
           file: ${{ steps.determine-version.outputs.dockerfile }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/tasker-pgmq:pg${{ steps.determine-version.outputs.version }}-${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/tasker-pgmq:pg${{ steps.determine-version.outputs.version }}-latest
+            ghcr.io/${{ github.repository_owner }}/tasker-postgres:pg${{ steps.determine-version.outputs.version }}-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/tasker-postgres:pg${{ steps.determine-version.outputs.version }}-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -101,7 +101,7 @@ jobs:
         run: |
           PG_VERSION="${{ steps.determine-version.outputs.version }}"
           if [[ "${{ steps.docker-build.outcome }}" == "success" ]]; then
-            echo "image=ghcr.io/${{ github.repository_owner }}/tasker-pgmq:pg${PG_VERSION}-${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "image=ghcr.io/${{ github.repository_owner }}/tasker-postgres:pg${PG_VERSION}-${{ github.sha }}" >> $GITHUB_OUTPUT
           else
             # Fallback to upstream PGMQ images
             if [[ "$PG_VERSION" == "17" ]]; then

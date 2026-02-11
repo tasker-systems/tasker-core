@@ -33,21 +33,21 @@ concurrency:
 # =============================================================================
 # Job DAG:
 #
-#   detect-and-read       (5 min)
+#   detect-and-read         (5 min)
 #           |
-#     pre-flight-check    (15 min) — fmt, clippy, cargo publish --dry-run
+#     pre-flight-check      (15 min) — fmt, clippy, cargo publish --dry-run
 #           |
-#     publish-crates      (20 min) — if core_changed
+#     publish-crates        (20 min) — if core_changed
 #           |
-#     +----------+----------+
-#     |          |          |
-#  publish-   publish-   publish-
-#  ruby       python     typescript
-#  (20 min)   (20 min)   (15 min)
-#     |          |          |
-#     +----------+----------+
+#     +----------+----------+----------+
+#     |          |          |          |
+#  publish-   publish-   publish-   publish-
+#  ruby       python     typescript containers
+#  (20 min)   (20 min)   (15 min)   (60 min)
+#     |          |          |          |
+#     +----------+----------+----------+
 #           |
-#     release-summary     — reports results, creates GitHub Release
+#     release-summary       — reports results, creates GitHub Release
 # =============================================================================
 
 jobs:
@@ -396,13 +396,145 @@ jobs:
           VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
 
   # ============================================================================
+  # Stage 4b: Publish Container Images to GHCR (parallel with FFI jobs)
+  # ============================================================================
+  publish-containers:
+    name: Publish Container Images
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    needs: [detect-and-read, pre-flight-check]
+    if: |
+      always() && !cancelled() && !failure() &&
+      needs.detect-and-read.outputs.core_changed == 'true'
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SQLX_OFFLINE: 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Free disk space
+        uses: ./.github/actions/free-disk-space
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Orchestration ---
+      - name: Docker metadata (orchestration)
+        id: meta-orchestration
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/tasker-orchestration
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push orchestration image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/build/orchestration.prod.Dockerfile
+          push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-orchestration.outputs.tags }}
+          labels: ${{ steps.meta-orchestration.outputs.labels }}
+          cache-from: type=gha,scope=orchestration
+          cache-to: type=gha,scope=orchestration,mode=max
+
+      # --- Ruby Worker ---
+      - name: Docker metadata (ruby worker)
+        id: meta-ruby-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/tasker-worker-ruby
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push ruby worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/build/ruby-worker.prod.Dockerfile
+          push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-ruby-worker.outputs.tags }}
+          labels: ${{ steps.meta-ruby-worker.outputs.labels }}
+          cache-from: type=gha,scope=ruby-worker
+          cache-to: type=gha,scope=ruby-worker,mode=max
+
+      # --- Python Worker ---
+      - name: Docker metadata (python worker)
+        id: meta-python-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/tasker-worker-python
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push python worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/build/python-worker.prod.Dockerfile
+          push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-python-worker.outputs.tags }}
+          labels: ${{ steps.meta-python-worker.outputs.labels }}
+          cache-from: type=gha,scope=python-worker
+          cache-to: type=gha,scope=python-worker,mode=max
+
+      # --- TypeScript Worker ---
+      - name: Docker metadata (typescript worker)
+        id: meta-typescript-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/tasker-worker-typescript
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push typescript worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/build/typescript-worker.prod.Dockerfile
+          push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-typescript-worker.outputs.tags }}
+          labels: ${{ steps.meta-typescript-worker.outputs.labels }}
+          cache-from: type=gha,scope=typescript-worker
+          cache-to: type=gha,scope=typescript-worker,mode=max
+
+  # ============================================================================
   # Stage 5: Release Summary
   # ============================================================================
   release-summary:
     name: Release Summary
     runs-on: ubuntu-22.04
     timeout-minutes: 5
-    needs: [detect-and-read, publish-crates, publish-ruby, publish-python, publish-typescript]
+    needs: [detect-and-read, publish-crates, publish-ruby, publish-python, publish-typescript, publish-containers]
     if: always()
     permissions:
       contents: write
@@ -418,6 +550,7 @@ jobs:
           RUBY_RESULT: ${{ needs.publish-ruby.result }}
           PYTHON_RESULT: ${{ needs.publish-python.result }}
           TS_RESULT: ${{ needs.publish-typescript.result }}
+          CONTAINERS_RESULT: ${{ needs.publish-containers.result }}
           CORE_VERSION: ${{ needs.detect-and-read.outputs.core_version }}
           RUBY_VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
           PYTHON_VERSION: ${{ needs.detect-and-read.outputs.python_version }}
@@ -431,6 +564,7 @@ jobs:
           RUBY_RESULT: ${{ needs.publish-ruby.result }}
           PYTHON_RESULT: ${{ needs.publish-python.result }}
           TS_RESULT: ${{ needs.publish-typescript.result }}
+          CONTAINERS_RESULT: ${{ needs.publish-containers.result }}
 
       - name: Create GitHub Release
         if: |
@@ -444,6 +578,7 @@ jobs:
           RUBY_RESULT: ${{ needs.publish-ruby.result }}
           PYTHON_RESULT: ${{ needs.publish-python.result }}
           TS_RESULT: ${{ needs.publish-typescript.result }}
+          CONTAINERS_RESULT: ${{ needs.publish-containers.result }}
           RUBY_VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
           PYTHON_VERSION: ${{ needs.detect-and-read.outputs.python_version }}
           TS_VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}

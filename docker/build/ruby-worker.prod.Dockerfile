@@ -8,58 +8,52 @@
 # =============================================================================
 # Ruby Builder - Compile Ruby FFI extensions with both Ruby and Rust available
 # =============================================================================
-FROM ruby:3.4.4-bullseye AS ruby_builder
+FROM cgr.dev/chainguard/ruby:latest-dev AS ruby_builder
 
-# Install system dependencies for Ruby FFI compilation
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    pkg-config \
+USER root
+
+# Install system dependencies for Ruby FFI compilation (Wolfi/apk packages)
+RUN apk add --no-cache \
+    build-base \
+    pkgconf \
     libffi-dev \
-    libssl-dev \
-    libpq-dev \
-    libclang-dev \
-    libyaml-dev \
-    zlib1g-dev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    openssl-dev \
+    postgresql-16-dev \
+    clang-19 \
+    yaml-dev \
+    zlib-dev \
+    ca-certificates-bundle \
+    protobuf-dev \
+    curl
 
 # Install Rust toolchain for FFI compilation
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
-# Set libclang path for bindgen (Debian Bullseye uses LLVM 11)
-ENV LIBCLANG_PATH=/usr/lib/llvm-11/lib
+# Set libclang path for bindgen (Wolfi LLVM)
+ENV LIBCLANG_PATH=/usr/lib
 
 WORKDIR /app
 
 # Copy workspace root files for Cargo workspace resolution
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
-# Note: src/ is empty now (no library code), but keep for workspace structure
+COPY src/ ./src/
 
 # Copy workspace crates needed by Ruby FFI extension
 COPY tasker-shared/ ./tasker-shared/
 COPY tasker-worker/ ./tasker-worker/
 COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-cli/
-COPY pgmq-notify/ ./pgmq-notify/
+COPY tasker-ctl/ ./tasker-ctl/
+COPY tasker-pgmq/ ./tasker-pgmq/
+COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
-# Cargo validates ALL workspace members even if unused, so we need their Cargo.toml files
-# We don't copy source code - just enough to satisfy workspace validation
-RUN mkdir -p tasker-orchestration/src && \
-    echo "pub fn main() {}" > tasker-orchestration/src/lib.rs
+COPY docker/scripts/create-workspace-stubs.sh /tmp/
+RUN chmod +x /tmp/create-workspace-stubs.sh && \
+    /tmp/create-workspace-stubs.sh tasker-orchestration workers/rust workers/python workers/typescript
 COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-
-RUN mkdir -p workers/rust/src && \
-    echo "pub fn main() {}" > workers/rust/src/lib.rs
 COPY workers/rust/Cargo.toml ./workers/rust/
-
-RUN mkdir -p workers/python/src && \
-    echo "pub fn main() {}" > workers/python/src/lib.rs
 COPY workers/python/Cargo.toml ./workers/python/
-
-RUN mkdir -p workers/typescript/src && \
-    echo "pub fn main() {}" > workers/typescript/src/lib.rs
 COPY workers/typescript/Cargo.toml ./workers/typescript/
 
 # Copy Ruby worker source code to proper workspace location
@@ -81,26 +75,29 @@ ENV RB_SYS_CARGO_BUILD_ARGS="--locked"
 RUN bundle exec rake compile
 
 # =============================================================================
-# Runtime - Ruby-driven worker image (OPTIMIZED - using slim base)
+# Runtime - Ruby-driven worker image (Chainguard hardened)
 # =============================================================================
-FROM ruby:3.4.4-slim-bullseye AS runtime
+FROM cgr.dev/chainguard/ruby:latest-dev AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/tasker-systems/tasker-core"
+LABEL org.opencontainers.image.description="Tasker Ruby worker - Ruby FFI step handler execution via Magnus"
+LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Install runtime dependencies only (no build tools)
-RUN apt-get update && apt-get install -y \
-    libssl1.1 \
-    libpq5 \
-    postgresql-client \
-    libffi7 \
-    libyaml-0-2 \
-    zlib1g \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+USER root
 
-# Create non-root user
-RUN useradd -r -g daemon -u 999 tasker
+# Install runtime dependencies (Wolfi/apk packages)
+RUN apk add --no-cache \
+    bash \
+    libpq-16 \
+    openssl \
+    libffi \
+    yaml \
+    zlib \
+    ca-certificates-bundle \
+    curl \
+    postgresql-16-client
 
 # OPTIMIZATION: Copy only necessary Ruby worker files (exclude tmp/, spec/, doc/, etc.)
 # This avoids copying 1.3GB of Rust build artifacts from tmp/ directory
@@ -112,10 +109,9 @@ COPY --from=ruby_builder /app/workers/ruby/*.gemspec ./
 COPY --from=ruby_builder /app/workers/ruby/Rakefile ./
 
 # Copy bundled gems from builder (includes compiled extensions and all gems)
-# Gems install to /usr/local/bundle by default in Ruby Docker images
-COPY --from=ruby_builder /usr/local/bundle /usr/local/bundle
-
-# Extensions are already compiled in ruby_builder stage
+# Chainguard Ruby images use /usr/lib/ruby/gems as the gem home
+# Copy from wherever bundler installed gems in the builder
+COPY --from=ruby_builder /usr/lib/ruby/gems /usr/lib/ruby/gems
 
 # Copy Ruby worker entrypoint script
 COPY docker/scripts/ruby-worker-entrypoint.sh /app/ruby_worker_entrypoint.sh
@@ -125,9 +121,6 @@ RUN chmod +x /app/ruby_worker_entrypoint.sh
 ENV APP_NAME=tasker-ruby-worker
 ENV RUBY_WORKER_ENABLED=true
 ENV BUNDLE_GEMFILE=/app/ruby_worker/Gemfile
-
-# Ruby-specific environment
-ENV RUBY_VERSION=3.4.4
 
 # Production environment settings
 ENV TASKER_ENV=production
@@ -146,9 +139,9 @@ ENV RUBY_GC_HEAP_INIT_SLOTS=600000
 HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8081/health || exit 1
 
-USER tasker
+USER nonroot
 
-EXPOSE 8081
+EXPOSE 8081 9200
 
 # Run Ruby worker entrypoint (not Rust binary)
 ENTRYPOINT ["/app/ruby_worker_entrypoint.sh"]

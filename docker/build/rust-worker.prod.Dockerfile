@@ -2,21 +2,23 @@
 # Rust Worker Service - Production Dockerfile
 # =============================================================================
 # Optimized for production deployment with minimal size and maximum security
-# Context: workers/rust/ directory
-# Usage: docker build -f Dockerfile.prod -t tasker-worker-rust:prod .
+# Context: tasker-core/ directory (workspace root)
+# Usage: docker build -f docker/build/rust-worker.prod.Dockerfile -t tasker-worker-rust:prod .
 
-FROM rust:1.90-bullseye AS chef
+FROM rust:1.90-bookworm AS chef
 
 # Install cargo-chef for dependency layer caching
 RUN cargo install cargo-chef
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     libpq-dev \
     build-essential \
     ca-certificates \
+    protobuf-compiler \
+    libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -36,20 +38,21 @@ COPY src/ ./src/
 # Copy workspace crates needed by rust worker
 COPY tasker-shared/ ./tasker-shared/
 COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-cli/
-COPY pgmq-notify/ ./pgmq-notify/
+COPY tasker-ctl/ ./tasker-ctl/
+COPY tasker-pgmq/ ./tasker-pgmq/
 COPY tasker-worker/ ./tasker-worker/
 COPY workers/rust/ ./workers/rust/
 COPY migrations/ ./migrations/
+COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
-RUN mkdir -p tasker-orchestration/src && \
-    echo "pub fn stub() {}" > tasker-orchestration/src/lib.rs
+COPY docker/scripts/create-workspace-stubs.sh /tmp/
+RUN chmod +x /tmp/create-workspace-stubs.sh && \
+    /tmp/create-workspace-stubs.sh tasker-orchestration workers/ruby workers/python workers/typescript
 COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-
-RUN mkdir -p workers/ruby/ext/tasker_core/src && \
-    echo "pub fn stub() {}" > workers/ruby/ext/tasker_core/src/lib.rs
 COPY workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
+COPY workers/python/Cargo.toml ./workers/python/
+COPY workers/typescript/Cargo.toml ./workers/typescript/
 
 # Generate dependency recipe
 RUN cargo chef prepare --recipe-path recipe.json
@@ -73,20 +76,21 @@ COPY src/ ./src/
 # Copy workspace crates needed by rust worker
 COPY tasker-shared/ ./tasker-shared/
 COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-cli/
-COPY pgmq-notify/ ./pgmq-notify/
+COPY tasker-ctl/ ./tasker-ctl/
+COPY tasker-pgmq/ ./tasker-pgmq/
 COPY tasker-worker/ ./tasker-worker/
 COPY workers/rust/ ./workers/rust/
 COPY migrations/ ./migrations/
+COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
-RUN mkdir -p tasker-orchestration/src && \
-    echo "pub fn stub() {}" > tasker-orchestration/src/lib.rs
+COPY docker/scripts/create-workspace-stubs.sh /tmp/
+RUN chmod +x /tmp/create-workspace-stubs.sh && \
+    /tmp/create-workspace-stubs.sh tasker-orchestration workers/ruby workers/python workers/typescript
 COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-
-RUN mkdir -p workers/ruby/ext/tasker_core/src && \
-    echo "pub fn stub() {}" > workers/ruby/ext/tasker_core/src/lib.rs
 COPY workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
+COPY workers/python/Cargo.toml ./workers/python/
+COPY workers/typescript/Cargo.toml ./workers/typescript/
 
 # Set offline mode for SQLx
 ENV SQLX_OFFLINE=true
@@ -101,20 +105,21 @@ RUN strip target/release/rust-worker
 # =============================================================================
 # Runtime - Minimal runtime image
 # =============================================================================
-FROM debian:bullseye-slim AS runtime
+FROM cgr.dev/chainguard/wolfi-base:latest AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/tasker-systems/tasker-core"
+LABEL org.opencontainers.image.description="Tasker Rust worker - native Rust step handler execution"
+LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libssl1.1 \
-    libpq5 \
-    ca-certificates \
+# Install runtime dependencies (Wolfi/apk packages)
+RUN apk add --no-cache \
+    bash \
+    libpq-16 \
+    openssl \
     curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN useradd -r -g daemon -u 999 tasker
+    ca-certificates-bundle
 
 # Copy binary from builder
 COPY --from=builder /app/target/release/rust-worker ./
@@ -129,15 +134,13 @@ RUN chmod +x ./scripts/*.sh
 # Set environment variables for the service
 ENV APP_NAME=tasker-worker-rust
 
-# Environment variables will be set by docker-compose
-
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8081/health || exit 1
 
-USER tasker
+USER nonroot
 
-EXPOSE 8081
+EXPOSE 8081 9191
 
 # Use worker-specific entrypoint
 ENTRYPOINT ["./scripts/worker-entrypoint.sh"]
