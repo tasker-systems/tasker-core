@@ -455,6 +455,30 @@ jobs:
           cache-from: type=gha,scope=orchestration
           cache-to: type=gha,scope=orchestration,mode=max
 
+      # --- Rust Worker ---
+      - name: Docker metadata (rust worker)
+        id: meta-rust-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/tasker-worker-rust
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.detect-and-read.outputs.core_version }}
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push rust worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/build/rust-worker.prod.Dockerfile
+          push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-rust-worker.outputs.tags }}
+          labels: ${{ steps.meta-rust-worker.outputs.labels }}
+          cache-from: type=gha,scope=rust-worker
+          cache-to: type=gha,scope=rust-worker,mode=max
+
       # --- Ruby Worker ---
       - name: Docker metadata (ruby worker)
         id: meta-ruby-worker
