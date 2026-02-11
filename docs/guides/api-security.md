@@ -1,4 +1,4 @@
-# API Security Guide (TAS-150)
+# API Security Guide
 
 API-level security for orchestration (8080) and worker (8081) endpoints using JWT bearer tokens and API key authentication with permission-based access control.
 
@@ -296,7 +296,7 @@ tasker-ctl auth validate-token \
 
 ---
 
-## gRPC Authentication (TAS-177)
+## gRPC Authentication
 
 gRPC endpoints support the same authentication methods as REST, using gRPC metadata instead of HTTP headers.
 

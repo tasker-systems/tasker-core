@@ -1,7 +1,7 @@
 # RCA: Parallel Execution Exposing Latent Timing Bugs
 
 **Date**: 2025-12-07
-**Related Ticket**: TAS-67 (Rust Worker Dual Event System)
+**Related**: Worker Dual-Channel Event System
 **Status**: Resolved
 **Impact**: Flaky E2E test `test_mixed_workflow_scenario`
 
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-During TAS-67 implementation (fire-and-forget handler dispatch), a previously hidden bug in the SQL function `get_task_execution_context()` became consistently reproducible. The bug was a **logical precedence error** that had always existed but was masked by sequential execution timing. Introducing true parallelism changed the probability distribution of state combinations, transforming a Heisenbug into a Bohrbug.
+During the dual-channel event system implementation (fire-and-forget handler dispatch), a previously hidden bug in the SQL function `get_task_execution_context()` became consistently reproducible. The bug was a **logical precedence error** that had always existed but was masked by sequential execution timing. Introducing true parallelism changed the probability distribution of state combinations, transforming a Heisenbug into a Bohrbug.
 
 This document captures the root cause analysis as a reference for understanding how architectural changes to concurrency can surface latent bugs in distributed systems.
 
@@ -77,9 +77,9 @@ steps:
     max_attempts: 2           # Fails, but becomes "ready" after backoff
 ```
 
-### Before TAS-67: Blocking Handler Dispatch
+### Before: Blocking Handler Dispatch
 
-The pre-TAS-67 architecture used blocking `.call()` in the event handler:
+The original architecture used blocking `.call()` in the event handler:
 
 ```rust
 // workers/rust/src/event_handler.rs (before)
@@ -106,9 +106,9 @@ t=151ms   ──► STATUS CHECK
 The backoff hadn't elapsed yet because steps were processed one at a time.
 ```
 
-### After TAS-67: Fire-and-Forget Handler Dispatch
+### After: Fire-and-Forget Handler Dispatch
 
-TAS-67 introduced non-blocking dispatch via channels:
+The dual-channel event system introduced non-blocking dispatch via channels:
 
 ```rust
 // Fire-and-forget pattern
@@ -316,7 +316,7 @@ async fn test_blocked_with_ready_steps() {
 
 ## Conclusion
 
-This bug exemplifies how **architectural improvements to concurrency can surface latent correctness issues**. The TAS-67 parallelization didn't introduce a bug—it revealed one that had been hidden by incidental sequential timing.
+This bug exemplifies how **architectural improvements to concurrency can surface latent correctness issues**. The parallelization didn't introduce a bug—it revealed one that had been hidden by incidental sequential timing.
 
 This is a **positive outcome**: the bug was found in testing rather than production. The fix ensures correct semantic precedence regardless of execution timing, making the system more robust under parallel load.
 
@@ -335,4 +335,4 @@ This is a **positive outcome**: the bug was found in testing rather than product
 - **Migration**: `migrations/20251207000000_fix_execution_status_priority.sql`
 - **Test**: `tests/e2e/ruby/error_scenarios_test.rs::test_mixed_workflow_scenario`
 - **SQL Function**: `get_task_execution_context()` in `migrations/20251001000000_fix_permanently_blocked_detection.sql`
-- **TAS-67**: See [TAS-67 ADR](./TAS-67-dual-event-system.md)
+- [Dual-Channel Event System ADR](./adr-005-dual-event-system.md)

@@ -1,7 +1,7 @@
 # FFI Memory Management in TypeScript Workers
 
 **Status**: Active  
-**Applies To**: TypeScript/Bun/Node.js FFI (TAS-100)  
+**Applies To**: TypeScript/Bun/Node.js FFI
 **Related**: Ruby (Magnus), Python (PyO3)
 
 ---
@@ -466,5 +466,4 @@ If the answer to all is "yes", you're following the pattern correctly.
 - **Rust FFI Guidelines**: https://doc.rust-lang.org/nomicon/ffi.html
 - **Bun FFI Documentation**: https://bun.sh/docs/api/ffi
 - **Node.js ffi-napi**: https://github.com/node-ffi-napi/node-ffi-napi
-- **TAS-101**: TypeScript FFI Bridge implementation
 - **docs/worker-crates/patterns-and-practices.md**: General worker patterns

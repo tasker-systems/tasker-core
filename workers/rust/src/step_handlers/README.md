@@ -1,7 +1,7 @@
 # Rust Step Handler Patterns
 
 This document describes recommended patterns for implementing step handlers in Rust workers.
-These patterns align with the cross-language API standards established in TAS-92.
+These patterns align with the cross-language API standards.
 
 ## Table of Contents
 

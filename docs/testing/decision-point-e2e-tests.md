@@ -1,6 +1,6 @@
-# Decision Point E2E Tests - TAS-53
+# Decision Point E2E Tests
 
-This document describes the E2E tests for TAS-53 Decision Point functionality and how to run them.
+This document describes the E2E tests for decision point functionality and how to run them.
 
 ## Test Location
 

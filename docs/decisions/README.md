@@ -8,14 +8,14 @@ This directory contains Architecture Decision Records that document significant 
 
 | ADR | Title | Date | Status |
 |-----|-------|------|--------|
-| [TAS-46](./TAS-46-actor-pattern.md) | Actor-Based Orchestration Architecture | 2025-10 | Accepted |
-| [TAS-51](./TAS-51-bounded-mpsc-channels.md) | Bounded MPSC Channels | 2025-10 | Accepted |
-| [TAS-54](./TAS-54-ownership-removal.md) | Processor UUID Ownership Removal | 2025-10 | Accepted |
-| [TAS-57](./TAS-57-backoff-consolidation.md) | Backoff Strategy Consolidation | 2025-10 | Accepted |
-| [TAS-67](./TAS-67-dual-event-system.md) | Worker Dual-Channel Event System | 2025-12 | Accepted |
-| [TAS-69](./TAS-69-worker-decomposition.md) | Worker Actor-Service Decomposition | 2025-12 | Accepted |
-| [TAS-100](./TAS-100-ffi-over-wasm.md) | FFI Over WASM for Language Workers | 2025-12 | Accepted |
-| [TAS-112](./TAS-112-composition-pattern.md) | Handler Composition Pattern | 2025-12 | Accepted |
+| [ADR-001](./adr-001-actor-pattern.md) | Actor-Based Orchestration Architecture | 2025-10 | Accepted |
+| [ADR-002](./adr-002-bounded-mpsc-channels.md) | Bounded MPSC Channels | 2025-10 | Accepted |
+| [ADR-003](./adr-003-ownership-removal.md) | Processor UUID Ownership Removal | 2025-10 | Accepted |
+| [ADR-004](./adr-004-backoff-consolidation.md) | Backoff Strategy Consolidation | 2025-10 | Accepted |
+| [ADR-005](./adr-005-dual-event-system.md) | Worker Dual-Channel Event System | 2025-12 | Accepted |
+| [ADR-006](./adr-006-worker-decomposition.md) | Worker Actor-Service Decomposition | 2025-12 | Accepted |
+| [ADR-007](./adr-007-ffi-over-wasm.md) | FFI Over WASM for Language Workers | 2025-12 | Accepted |
+| [ADR-008](./adr-008-composition-pattern.md) | Handler Composition Pattern | 2025-12 | Accepted |
 
 ### Root Cause Analyses
 
@@ -34,7 +34,7 @@ When creating a new ADR, use this template:
 
 **Status**: [Proposed | Accepted | Deprecated | Superseded]
 **Date**: YYYY-MM-DD
-**Ticket**: [TAS-XXX](https://linear.app/tasker-systems/issue/TAS-XXX)
+**Ticket**: TAS-XXX
 
 ## Context
 
@@ -104,5 +104,3 @@ Don't create an ADR for:
 ## Related Documentation
 
 - [Tasker Core Tenets](../principles/tasker-core-tenets.md) - Core design principles
-- [CHRONOLOGY](../CHRONOLOGY.md) - Development timeline
-- [Ticket Specifications](../ticket-specs/) - Detailed feature specs

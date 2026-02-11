@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-01-08
 **Audience**: Developers, Architects
-**Status**: Active (TAS-93 Complete)
+**Status**: Active
 **Related Docs**: [Worker Event Systems](../architecture/worker-event-systems.md) | [API Convergence Matrix](../workers/api-convergence-matrix.md)
 
 <- Back to [Guides](README.md)
@@ -11,7 +11,7 @@
 
 ## Overview
 
-Handler resolution is the process of converting a **callable address** (a string in your YAML template) into an **executable handler instance** that can process workflow steps. TAS-93 introduces a flexible, extensible resolver chain pattern that works consistently across all language workers.
+Handler resolution is the process of converting a **callable address** (a string in your YAML template) into an **executable handler instance** that can process workflow steps. The resolver chain pattern provides a flexible, extensible approach that works consistently across all language workers.
 
 This guide covers:
 - The mental model for handler resolution

@@ -19,7 +19,7 @@ Tasker Core implements a sophisticated **component-based configuration system** 
 |---------|-------------|---------|
 | **Component-Based Architecture** | 3 focused TOML files organized by common, orchestration, and worker | Easy to understand and maintain |
 | **Environment Overrides** | Test, development, production-specific settings | Safe defaults with production scale-out |
-| **Single-File Runtime Loading** | Load from pre-merged configuration files at runtime (TAS-50 Phase 3) | Deployment certainty - exact config known at build time |
+| **Single-File Runtime Loading** | Load from pre-merged configuration files at runtime | Deployment certainty - exact config known at build time |
 | **Runtime Observability** | `/config` API endpoints with secret redaction | Live inspection of deployed configurations |
 | **CLI Tools** | Generate and validate single deployable configs | Build-time verification, deployment artifacts |
 | **Context-Specific Validation** | Orchestration and worker-specific validation rules | Catch errors before deployment |
@@ -97,7 +97,7 @@ config/tasker/
 │       └── worker.toml
 │
 ├── orchestration-test.toml         # Generated merged configs (used at runtime via TASKER_CONFIG_PATH)
-├── orchestration-production.toml   # TAS-50 Phase 3: Single-file deployment artifacts
+├── orchestration-production.toml   # Single-file deployment artifacts
 ├── worker-test.toml
 └── worker-production.toml
 ```
@@ -131,7 +131,7 @@ export TASKER_ENV=production
 1. `TASKER_ENV` environment variable
 2. Default to "development" if not set
 
-### 1.4 Runtime Configuration Loading (TAS-50 Phase 3)
+### 1.4 Runtime Configuration Loading
 
 **Production/Docker Deployment**: Single-file loading via `TASKER_CONFIG_PATH`
 
@@ -224,7 +224,7 @@ max_connections = 50
 
 ---
 
-## Part 2: Runtime Observability (TAS-50 Phase 3)
+## Part 2: Runtime Observability
 
 ### 2.1 Configuration API Endpoints
 
@@ -381,7 +381,7 @@ All configuration endpoints are documented with OpenAPI 3.0 and Swagger UI.
 
 ---
 
-## Part 3: CLI Tools (TAS-50 Phase 1)
+## Part 3: CLI Tools
 
 ### 3.1 Generate Command
 
@@ -523,7 +523,7 @@ Tasker follows a **1:5:50 scaling pattern** across environments:
 
 ## Part 5: Deployment Workflows
 
-### 5.1 Docker Deployment (TAS-50 Phase 3)
+### 5.1 Docker Deployment
 
 **Build-Time Configuration Generation**:
 ```dockerfile
@@ -567,7 +567,7 @@ CMD ["tasker-orchestration"]
 - ✅ No runtime merging - exact config known at build time
 - ✅ Fail loudly if `TASKER_CONFIG_PATH` not set
 
-### 5.2 Kubernetes Deployment (TAS-50 Phase 3)
+### 5.2 Kubernetes Deployment
 
 **ConfigMap Strategy with Pre-Generated Config**:
 
@@ -924,7 +924,7 @@ RUST_LOG=tasker_shared::config=debug cargo run
 
 ## Part 10: Future Enhancements
 
-### 10.1 Planned Features (TAS-50 Phase 2)
+### 10.1 Planned Features
 
 **Explain Command** (Deferred):
 ```bash
@@ -971,7 +971,6 @@ tasker-ctl config detect-unused --context orchestration --fix
 
 - **[Environment Configuration Comparison](environment-configuration-comparison.md)** - Detailed comparison of configuration values across environments
 - **[Deployment Patterns](deployment-patterns.md)** - Deployment modes and strategies
-- **[TAS-50](https://linear.app/tasker-systems/issue/TAS-50)** - Detailed single-file runtime loading implementation
 - **[Quick Start Guide](quick-start.md)** - Getting started with Tasker
 
 ---
@@ -982,7 +981,7 @@ Tasker's configuration system provides:
 
 1. **Component-Based Architecture**: Focused TOML files with single responsibility
 2. **Environment Scaling**: 1:5:50 pattern from test → development → production
-3. **Single-File Runtime Loading (TAS-50 Phase 3)**: Deploy exact configuration known at build time via `TASKER_CONFIG_PATH`
+3. **Single-File Runtime Loading**: Deploy exact configuration known at build time via `TASKER_CONFIG_PATH`
 4. **Runtime Observability**: `/config` endpoints with comprehensive secret redaction
 5. **CLI Tools**: Generate and validate single deployable configs
 6. **Context-Specific Validation**: Catch errors before deployment

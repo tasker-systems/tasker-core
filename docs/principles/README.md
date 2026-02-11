@@ -24,11 +24,11 @@ This directory contains the core principles and design philosophy that guide Tas
 
 These principles emerged from:
 
-1. **Root Cause Analyses**: TAS-54's ownership removal revealed that "redundant protection with harmful side effects" is worse than minimal, well-understood protection
-2. **Cross-Language Development**: TAS-92/TAS-100/TAS-112 established patterns for consistent APIs across four languages
-3. **Architectural Migrations**: TAS-46/TAS-67/TAS-69 proved the actor pattern's effectiveness
+1. **Root Cause Analyses**: Ownership removal revealed that "redundant protection with harmful side effects" is worse than minimal, well-understood protection
+2. **Cross-Language Development**: Handler harmonization established patterns for consistent APIs across four languages
+3. **Architectural Migrations**: Actor pattern refactoring proved the pattern's effectiveness
 4. **Production Incidents**: Real bugs in parallel execution (Heisenbugs becoming Bohrbugs) shaped defensive design
-5. **Protocol Trust Analysis**: TAS-177's gRPC client refactoring exposed how silent defaults create phantom data that breaks consumer trust
+5. **Protocol Trust Analysis**: gRPC client refactoring exposed how silent defaults create phantom data that breaks consumer trust
 
 ## When to Consult These Documents
 

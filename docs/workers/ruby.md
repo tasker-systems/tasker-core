@@ -5,8 +5,6 @@
 **Status**: Active
 **Package**: `tasker_core` (gem)
 **Related Docs**: [Patterns and Practices](patterns-and-practices.md) | [Worker Event Systems](../worker-event-systems.md) | [API Convergence Matrix](api-convergence-matrix.md)
-**Related Tickets**: TAS-112 (Mixin Pattern, 0-indexed Cursors)
-
 <- Back to [Worker Crates Overview](README.md)
 
 ---
@@ -196,7 +194,7 @@ end
 
 ---
 
-## Composition Pattern (TAS-112)
+## Composition Pattern
 
 Ruby handlers use composition via mixins rather than inheritance. You can use either:
 1. **Wrapper classes** (Api, Decision, Batchable) - simpler, backward compatible
@@ -294,7 +292,7 @@ end
 
 **Location**: `lib/tasker_core/step_handler/decision.rb`
 
-For dynamic workflow routing (TAS-53):
+For dynamic workflow routing:
 
 ```ruby
 class RoutingDecisionHandler < TaskerCore::StepHandler::Decision
@@ -332,9 +330,9 @@ end
 
 **Location**: `lib/tasker_core/step_handler/batchable.rb`
 
-For processing large datasets in chunks (TAS-59, TAS-112):
+For processing large datasets in chunks:
 
-**⚠️ TAS-112 Breaking Change**: Cursors are now **0-indexed** (previously 1-indexed) to match Python, TypeScript, and Rust.
+**Breaking Change**: Cursors are now **0-indexed** (previously 1-indexed) to match Python, TypeScript, and Rust.
 
 ```ruby
 class CsvBatchProcessorHandler < TaskerCore::StepHandler::Batchable
@@ -367,7 +365,7 @@ end
 - `batch_worker_complete(processed_count:, result_data:)` - Complete batch
 - `create_cursor_configs(total_items, worker_count)` - Create 0-indexed cursor ranges
 
-**Cursor Indexing (TAS-112)**:
+**Cursor Indexing**:
 
 ```ruby
 # Creates 0-indexed cursor ranges

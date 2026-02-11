@@ -2,11 +2,11 @@
 
 **Status**: Accepted
 **Date**: 2025-12
-**Ticket**: [TAS-67](https://linear.app/tasker-systems/issue/TAS-67)
+**Ticket**: TAS-67
 
 ## Context
 
-The pre-TAS-67 Rust worker used a blocking `.call()` pattern in the event handler:
+The original Rust worker used a blocking `.call()` pattern in the event handler:
 
 ```rust
 let result = handler.call(&event.payload.task_sequence_step).await;  // BLOCKS
@@ -95,7 +95,6 @@ Increase buffer size to mask sequential execution.
 
 ## References
 
-- For historical implementation details, see [TAS-67](https://linear.app/tasker-systems/issue/TAS-67)
 - [Worker Event Systems](../architecture/worker-event-systems.md) - Architecture documentation
 - [RCA: Parallel Execution Timing Bugs](./rca-parallel-execution-timing-bugs.md) - Bug discovered during implementation
 - [FFI Callback Safety](../development/ffi-callback-safety.md) - FFI patterns established

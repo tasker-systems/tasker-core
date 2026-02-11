@@ -15,7 +15,7 @@ This document provides comprehensive documentation of the state machine architec
 
 The tasker-core system implements a sophisticated dual-state-machine architecture:
 
-1. **Task State Machine**: Manages overall workflow orchestration with 12 comprehensive states (TAS-41 enhancement)
+1. **Task State Machine**: Manages overall workflow orchestration with 12 comprehensive states
 2. **Workflow Step State Machine**: Manages individual step execution with 8 states including orchestration queuing
 
 Both state machines work in coordination to provide atomic, auditable, and resilient workflow execution with proper event-driven communication between orchestration and worker systems.
@@ -149,7 +149,7 @@ Task state transitions are driven by events defined in `tasker-shared/src/state_
 - `Timeout`: Operation timeout occurred
 - `ProcessorCrashed`: Processor became unavailable
 
-### Processor Ownership (TAS-41)
+### Processor Ownership
 
 The task state machine implements processor ownership for active states to prevent race conditions:
 
@@ -189,12 +189,12 @@ The workflow step state machine implements 9 states for individual step executio
 - **`Cancelled`**: Step was cancelled
 - **`ResolvedManually`**: Step was manually resolved by operator
 
-#### State Machine Evolution (TAS-42)
+#### State Machine Evolution
 
-Prior to TAS-42, the `Error` state was used for both retryable and permanent failures. The introduction of `WaitingForRetry` created a semantic change:
+Previously, the `Error` state was used for both retryable and permanent failures. The introduction of `WaitingForRetry` created a semantic change:
 
-- **Before TAS-42**: `Error` = any failure (retryable or permanent)
-- **After TAS-42**: `Error` = permanent failure only, `WaitingForRetry` = retryable failure awaiting backoff
+- **Before**: `Error` = any failure (retryable or permanent)
+- **After**: `Error` = permanent failure only, `WaitingForRetry` = retryable failure awaiting backoff
 
 This change required updates to:
 1. `get_step_readiness_status()` to recognize `WaitingForRetry` as a ready-eligible state
@@ -226,7 +226,7 @@ stateDiagram-v2
     InProgress --> EnqueuedForOrchestration : EnqueueForOrchestration(success)
     EnqueuedForOrchestration --> Complete : Complete(results) [orchestration]
 
-    %% Error Handling Path (TAS-42)
+    %% Error Handling Path
     InProgress --> EnqueuedAsErrorForOrchestration : EnqueueForOrchestration(error)
     EnqueuedAsErrorForOrchestration --> WaitingForRetry : WaitForRetry(error) [retryable]
     EnqueuedAsErrorForOrchestration --> Error : Fail(error) [permanent/max retries]
@@ -280,7 +280,7 @@ Step transitions are driven by `StepEvent` types:
 - `EnqueueForOrchestration(results)`: Worker completes, queues for orchestration
 - `Complete(results)`: Mark step complete (from orchestration or legacy direct)
 - `Fail(error)`: Mark step as permanently failed
-- `WaitForRetry(error)`: Mark step for retry after backoff (TAS-42)
+- `WaitForRetry(error)`: Mark step for retry after backoff
 
 #### Control Events
 - `Cancel`: Cancel step execution
@@ -364,7 +364,7 @@ CREATE TABLE tasker.task_transitions (
   task_uuid UUID NOT NULL,
   to_state VARCHAR NOT NULL,
   from_state VARCHAR,
-  processor_uuid UUID,           -- TAS-41: Ownership tracking
+  processor_uuid UUID,           -- Ownership tracking
   metadata JSONB,
   sort_key INTEGER NOT NULL,
   most_recent BOOLEAN DEFAULT false,
@@ -405,7 +405,7 @@ WorkflowStepTransition::get_current(pool, step_uuid) -> Option<WorkflowStepTrans
 
 ### Atomic Transitions with Ownership
 
-TAS-41 introduced atomic transitions with processor ownership:
+Atomic transitions with processor ownership:
 
 ```rust
 impl TaskTransitionPersistence {
@@ -470,7 +470,7 @@ Actions execute sequentially after transition persistence, ensuring consistency.
 
 This sophisticated state machine architecture provides the foundation for reliable, auditable, and scalable workflow orchestration in the tasker-core system.
 
-## Step Result Audit System (TAS-62)
+## Step Result Audit System
 
 The step result audit system provides SOC2-compliant audit trails for workflow step execution results, enabling complete attribution tracking for compliance and debugging.
 
@@ -592,4 +592,4 @@ The audit table includes optimized indexes:
 
 ### Historical Data
 
-The migration includes a backfill for existing transitions. Historical records will have NULL attribution (worker_uuid, correlation_id) since that data wasn't captured before TAS-62.
+The migration includes a backfill for existing transitions. Historical records will have NULL attribution (worker_uuid, correlation_id) since that data wasn't captured before the audit system was introduced.

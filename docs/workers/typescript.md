@@ -5,8 +5,6 @@
 **Status**: Active
 **Package**: `@tasker-systems/tasker`
 **Related Docs**: [Patterns and Practices](patterns-and-practices.md) | [Worker Event Systems](../worker-event-systems.md) | [API Convergence Matrix](api-convergence-matrix.md)
-**Related Tickets**: TAS-112 (Domain Events, Mixin Pattern)
-
 <- Back to [Worker Crates Overview](README.md)
 
 ---
@@ -289,7 +287,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 
 ## Specialized Handlers
 
-### Mixin Pattern (TAS-112)
+### Mixin Pattern
 
 TypeScript uses composition via mixins rather than inheritance. You can use either:
 1. **Wrapper classes** (ApiHandler, DecisionHandler) - simpler, backward compatible
@@ -727,7 +725,7 @@ poller.stop();
 
 ---
 
-## Domain Events (TAS-112)
+## Domain Events
 
 TypeScript has full domain event support, matching Ruby and Python capabilities. The domain events module provides BasePublisher, BaseSubscriber, and registries for custom event handling.
 
@@ -988,9 +986,9 @@ workers/typescript/
 │   │   ├── api.ts              # API handler
 │   │   ├── decision.ts         # Decision handler
 │   │   ├── batchable.ts        # Batchable handler
-│   │   ├── domain-events.ts    # Domain events module (TAS-112)
+│   │   ├── domain-events.ts    # Domain events module
 │   │   ├── registry.ts         # Handler registry
-│   │   └── mixins/             # Mixin modules (TAS-112)
+│   │   └── mixins/             # Mixin modules
 │   │       ├── index.ts        # Mixin exports
 │   │       ├── api.ts          # APIMixin, applyAPI
 │   │       └── decision.ts     # DecisionMixin, applyDecision

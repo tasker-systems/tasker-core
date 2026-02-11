@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-01-15
 **Audience**: Architects, Developers
-**Status**: Active (TAS-67 Complete, TAS-133 Messaging Abstraction)
+**Status**: Active
 **Related Docs**: [Worker Actors](worker-actors.md) | [Events and Commands](events-and-commands.md) | [Messaging Abstraction](messaging-abstraction.md)
 
 <- Back to [Documentation Hub](README.md)
@@ -15,12 +15,12 @@ This document provides comprehensive documentation of the worker event system ar
 
 The worker event system implements a **dual-channel architecture** for non-blocking step execution:
 
-1. **WorkerEventSystem**: Receives step execution events via provider-agnostic subscriptions (TAS-133)
+1. **WorkerEventSystem**: Receives step execution events via provider-agnostic subscriptions
 2. **HandlerDispatchService**: Fire-and-forget handler invocation with bounded concurrency
 3. **CompletionProcessorService**: Routes results back to orchestration
 4. **DomainEventSystem**: Fire-and-forget domain event publishing
 
-**Messaging Backend Support** (TAS-133): The worker event system supports multiple messaging backends (PGMQ, RabbitMQ) through a provider-agnostic abstraction. See [Messaging Abstraction](messaging-abstraction.md) for details.
+**Messaging Backend Support**: The worker event system supports multiple messaging backends (PGMQ, RabbitMQ) through a provider-agnostic abstraction. See [Messaging Abstraction](messaging-abstraction.md) for details.
 
 This architecture enables true parallel handler execution while maintaining strict ordering guarantees for domain events.
 
@@ -33,7 +33,7 @@ This architecture enables true parallel handler execution while maintaining stri
 
                     MessagingProvider (PGMQ or RabbitMQ)
                                   │
-                                  │ provider.subscribe_many() (TAS-133)
+                                  │ provider.subscribe_many()
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         WorkerEventSystem                                    │
@@ -110,7 +110,7 @@ This architecture enables true parallel handler execution while maintaining stri
 
 **Location**: `tasker-worker/src/worker/event_systems/worker_event_system.rs`
 
-Implements the `EventDrivenSystem` trait for worker namespace queue processing. Supports three deployment modes with provider-agnostic message handling (TAS-133):
+Implements the `EventDrivenSystem` trait for worker namespace queue processing. Supports three deployment modes with provider-agnostic message handling:
 
 | Mode | Description | PGMQ Behavior | RabbitMQ Behavior |
 |------|-------------|---------------|-------------------|
@@ -128,7 +128,7 @@ Implements the `EventDrivenSystem` trait for worker namespace queue processing. 
 - Converts `WorkerNotification` to `WorkerCommand` for processing
 
 ```rust
-// Worker notification to command conversion (TAS-133 provider-agnostic)
+// Worker notification to command conversion (provider-agnostic)
 match notification {
     // RabbitMQ style - full message delivered
     WorkerNotification::Message(msg) => {
@@ -153,7 +153,7 @@ match notification {
 
 **Location**: `tasker-worker/src/worker/handlers/dispatch_service.rs`
 
-Non-blocking handler dispatch with bounded parallelism. This is the core innovation of TAS-67.
+Non-blocking handler dispatch with bounded parallelism.
 
 **Architecture**:
 ```
@@ -197,7 +197,7 @@ tokio::spawn(async move {
 | Handler error | Failure result with `error_type=handler_error` |
 | Semaphore closed | Failure result with `error_type=semaphore_acquisition_failed` |
 
-#### Handler Resolution (TAS-93)
+#### Handler Resolution
 
 Before handler execution, the dispatch service resolves the handler using a **resolver chain pattern**:
 
@@ -417,7 +417,7 @@ completion_send_timeout_ms = 10000
 
 ## Integration with Worker Actors
 
-The event systems integrate with the worker actor architecture (TAS-69):
+The event systems integrate with the worker actor architecture:
 
 ```
 WorkerEventSystem
@@ -679,11 +679,11 @@ end
 
 ## Related Documentation
 
-- [Messaging Abstraction](messaging-abstraction.md) - Provider-agnostic messaging (TAS-133)
+- [Messaging Abstraction](messaging-abstraction.md) - Provider-agnostic messaging
 - [Backpressure Architecture](backpressure-architecture.md) - Unified backpressure strategy
 - [Worker Actor-Based Architecture](worker-actors.md) - Actor pattern implementation
 - [Events and Commands](events-and-commands.md) - Command pattern details
-- [TAS-67 ADR](../decisions/TAS-67-dual-event-system.md) - Dual-channel event system decision
+- [Dual-Channel Event System ADR](../decisions/adr-005-dual-event-system.md) - Dual-channel event system decision
 - [FFI Callback Safety](development/ffi-callback-safety.md) - FFI guidelines
 - [RCA: Parallel Execution Timing Bugs](../decisions/rca-parallel-execution-timing-bugs.md) - Lessons learned
 - [Backpressure Monitoring Runbook](operations/backpressure-monitoring.md) - Metrics and alerting

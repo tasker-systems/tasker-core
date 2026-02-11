@@ -2,7 +2,7 @@
 
 **Last Updated**: 2025-12-10
 **Owner**: Platform Engineering
-**Related**: TAS-51, TAS-75 | [ADR: Bounded MPSC Channels](../decisions/TAS-51-bounded-mpsc-channels.md) | [Circuit Breakers](../architecture/circuit-breakers.md) | [Backpressure Architecture](../architecture/backpressure-architecture.md)
+**Related**: [ADR: Bounded MPSC Channels](../decisions/adr-002-bounded-mpsc-channels.md) | [Circuit Breakers](../architecture/circuit-breakers.md) | [Backpressure Architecture](../architecture/backpressure-architecture.md)
 
 ## Overview
 
@@ -423,11 +423,10 @@ watch -n 5 'curl -s localhost:9090/api/v1/query?query=mpsc_channel_usage_percent
 **Architecture**:
 - [Backpressure Architecture](../architecture/backpressure-architecture.md) - How MPSC channels fit into the broader resilience strategy
 - [Circuit Breakers](../architecture/circuit-breakers.md) - Fault isolation working alongside bounded channels
-- [ADR: Bounded MPSC Channels](../decisions/TAS-51-bounded-mpsc-channels.md) - Design decisions
+- [ADR: Bounded MPSC Channels](../decisions/adr-002-bounded-mpsc-channels.md) - Design decisions
 
 **Development**:
 - [Developer Guidelines](../development/mpsc-channel-guidelines.md) - Creating and using MPSC channels
-- [TAS-51](https://linear.app/tasker-systems/issue/TAS-51) - Original implementation ticket
 
 **Operations**:
 - [Backpressure Monitoring](backpressure-monitoring.md) - Unified alerting and incident response

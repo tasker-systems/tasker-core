@@ -9,7 +9,7 @@ Every step handler receives a StepContext (or `TaskSequenceStep` in Rust) that c
 - **Task context** - Input data for the workflow (JSONB from task.context)
 - **Dependency results** - Results from upstream DAG steps
 - **Step configuration** - Handler-specific settings from the template
-- **Checkpoint data** - Batch processing state for resumability (TAS-125)
+- **Checkpoint data** - Batch processing state for resumability
 - **Retry information** - Current attempt count and max retries
 
 ## Cross-Language API Reference
@@ -33,7 +33,7 @@ Every step handler receives a StepContext (or `TaskSequenceStep` in Rust) that c
 | Get retry count | `retry_count()` | `retry_count` | `retry_count` | `retryCount` |
 | Get max retries | `max_retries()` | `max_retries` | `max_retries` | `maxRetries` |
 
-### Checkpoint Access (TAS-125)
+### Checkpoint Access
 
 | Operation | Rust | Ruby | Python | TypeScript |
 |-----------|------|------|--------|------------|
@@ -174,7 +174,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 
 ## Checkpoint Usage Guide
 
-Checkpoints enable resumable batch processing (TAS-125). When a handler processes large datasets, it can save progress via checkpoints and resume from where it left off on retry.
+Checkpoints enable resumable batch processing. When a handler processes large datasets, it can save progress via checkpoints and resume from where it left off on retry.
 
 ### Checkpoint Fields
 

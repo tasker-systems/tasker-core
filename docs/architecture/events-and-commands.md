@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-01-15
 **Audience**: Architects, Developers
-**Status**: Active (TAS-46 Actor Integration, TAS-133 Messaging Abstraction Complete)
+**Status**: Active
 **Related Docs**: [Documentation Hub](README.md) | [Actor-Based Architecture](actors.md) | [Messaging Abstraction](messaging-abstraction.md) | [States and Lifecycles](states-and-lifecycles.md) | [Deployment Patterns](deployment-patterns.md)
 
 ← Back to [Documentation Hub](README.md)
@@ -82,7 +82,7 @@ The Tasker system is built with the expectation of distributed deployment with m
 
 ### Event Types and Sources
 
-#### Queue-Level Events (Provider-Agnostic - TAS-133)
+#### Queue-Level Events (Provider-Agnostic)
 
 The system supports multiple messaging backends through `MessageNotification`:
 
@@ -117,9 +117,9 @@ pub enum MessageNotification {
 
 ## Command Pattern Architecture
 
-### TAS-40: Command Processor Replacement
+### Command Processor Pattern
 
-Both orchestration and worker systems implement the command pattern (TAS-40) to replace complex polling-based coordinators:
+Both orchestration and worker systems implement the command pattern to replace complex polling-based coordinators:
 
 **Benefits**:
 - **No Polling Loops (Except where intended for fallback)**: Pure tokio mpsc command processing
@@ -168,7 +168,7 @@ pub struct OrchestrationEventSystem {
 
 #### Orchestration Command Types
 
-The command processor handles both full-message and signal-only notification types (TAS-133):
+The command processor handles both full-message and signal-only notification types:
 
 ```rust
 pub enum OrchestrationCommand {
@@ -284,7 +284,7 @@ pub enum WorkerCommand {
     SendStepResult { result: StepExecutionResult, resp: CommandResponder<()> },
     ProcessStepCompletion { step_result: StepExecutionResult, correlation_id: Option<Uuid>, resp: CommandResponder<()> },
 
-    // Event integration (TAS-43)
+    // Event integration
     ExecuteStepFromMessage { queue_name: String, message: PgmqMessage, resp: CommandResponder<()> },
     ExecuteStepFromEvent { message_event: MessageReadyEvent, resp: CommandResponder<()> },
 
@@ -417,7 +417,7 @@ The system uses PostgreSQL Message Queue (PGMQ) for reliable message delivery:
 
 ### Circuit Breaker Integration
 
-All PGMQ operations are protected by circuit breakers (TAS-33):
+All PGMQ operations are protected by circuit breakers:
 
 ```rust
 pub struct UnifiedPgmqClient {
@@ -598,13 +598,13 @@ The event architecture supports integration with external systems:
 3. **Monitoring Integration**: Prometheus, DataDog, etc. for metrics export
 4. **API Integration**: REST and GraphQL APIs for external coordination
 
-## Actor Integration (TAS-46)
+## Actor Integration
 
 ### Overview
 
 The tasker-core system implements a **lightweight Actor pattern** that formalizes the relationship between Commands and Lifecycle Components. This architecture provides a consistent, type-safe foundation for orchestration component management with all lifecycle operations coordinated through actors.
 
-**Status**: TAS-46 Complete (Phases 1-7) - Production ready
+**Status**: Complete (Phases 1-7) - Production ready
 
 For comprehensive actor documentation, see [Actor-Based Architecture](actors.md).
 
@@ -652,7 +652,7 @@ The actor pattern integrates seamlessly with the command processor through direc
 // From: tasker-orchestration/src/orchestration/command_processor.rs
 
 async fn handle_finalize_task(&self, task_uuid: Uuid) -> TaskerResult<TaskFinalizationResult> {
-    // TAS-46: Direct actor-based task finalization
+    // Direct actor-based task finalization
     let msg = FinalizeTaskMessage { task_uuid };
     let result = self.actors.task_finalizer_actor.handle(msg).await?;
 
@@ -667,7 +667,7 @@ async fn handle_process_step_result(
     &self,
     step_result: StepExecutionResult,
 ) -> TaskerResult<StepProcessResult> {
-    // TAS-46: Direct actor-based step result processing
+    // Direct actor-based step result processing
     let msg = ProcessStepResultMessage {
         result: step_result.clone(),
     };
@@ -744,7 +744,7 @@ let result = actors.task_finalizer_actor.handle(msg).await?;
 actors.shutdown().await;  // Calls stopped() on all actors in reverse order
 ```
 
-**Current Actors** (TAS-46 Phase 2-3):
+**Current Actors**:
 - **TaskRequestActor**: Handles task initialization requests
 - **ResultProcessorActor**: Processes step execution results
 - **StepEnqueuerActor**: Manages batch processing of ready tasks
@@ -762,7 +762,7 @@ The actor pattern enhances the event-driven architecture by providing:
 
 ### Implementation Status
 
-The actor integration is complete (TAS-46 Phases 1-7):
+The actor integration is complete:
 
 1. **Phase 1** ✅: Actor infrastructure and test harness
    - OrchestrationActor, Handler<M>, Message traits

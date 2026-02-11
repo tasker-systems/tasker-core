@@ -17,7 +17,7 @@ Tasker Core is a single Git monorepo containing all deployable services: orchest
 - Environment-specific Docker Compose files produce different deploys from the same source: `docker/docker-compose.prod.yml`, `docker/docker-compose.dev.yml`, `docker/docker-compose.test.yml`, `docker/docker-compose.ci.yml`
 - Feature flags (`web-api`, `grpc-api`, `test-services`, `test-cluster`) control build variations without code branches
 
-**Gaps:** The monorepo means all crates share a single version today (v0.1.0). As the project matures toward independent crate publishing, version coordination will need more tooling. See `docs/ticket-specs/TAS-170/plan.md` for the release management plan.
+**Gaps:** The monorepo means all crates share a single version today (v0.1.0). As the project matures toward independent crate publishing, version coordination will need more tooling. Independent crate versioning and release management tooling will need to evolve as the project matures.
 
 ---
 

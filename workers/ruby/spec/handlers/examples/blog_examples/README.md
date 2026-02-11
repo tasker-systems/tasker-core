@@ -308,4 +308,4 @@ When adding new blog examples:
 7. Write Rust E2E test
 8. Update blog post with code references
 
-See `docs/ticket-specs/TAS-47/plan.md` for complete migration guide.
+See the worker documentation for migration patterns.

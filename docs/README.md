@@ -53,15 +53,15 @@ The documentation is organized by cognitive function:
 
 **Architecture**:
 - **[Crate Architecture](architecture/crate-architecture.md)** - Workspace structure and crate responsibilities
-- **[Messaging Abstraction](architecture/messaging-abstraction.md)** - Provider-agnostic messaging (PGMQ, RabbitMQ) - TAS-133
-- **[Actor-Based Architecture](architecture/actors.md)** - Lightweight actor pattern for orchestration (TAS-46)
-- **[Worker Actor Architecture](architecture/worker-actors.md)** - Actor pattern for worker step execution (TAS-69)
+- **[Messaging Abstraction](architecture/messaging-abstraction.md)** - Provider-agnostic messaging (PGMQ, RabbitMQ)
+- **[Actor-Based Architecture](architecture/actors.md)** - Lightweight actor pattern for orchestration
+- **[Worker Actor Architecture](architecture/worker-actors.md)** - Actor pattern for worker step execution
 - **[Worker Event Systems](architecture/worker-event-systems.md)** - Dual-channel event architecture for workers
 - **[Events and Commands](architecture/events-and-commands.md)** - Event-driven coordination patterns
 - **[Domain Events](architecture/domain-events.md)** - Business event publishing (durable, fast, broadcast)
 - **[States and Lifecycles](architecture/states-and-lifecycles.md)** - Dual state machine architecture
 - **[Idempotency and Atomicity](architecture/idempotency-and-atomicity.md)** - Defense-in-depth guarantees
-- **[Circuit Breakers](architecture/circuit-breakers.md)** - Fault isolation and cascade prevention (TAS-75)
+- **[Circuit Breakers](architecture/circuit-breakers.md)** - Fault isolation and cascade prevention
 - **[Backpressure Architecture](architecture/backpressure-architecture.md)** - Unified resilience strategy
 - **[Deployment Patterns](architecture/deployment-patterns.md)** - Hybrid, EventDriven, PollingOnly modes; PGMQ/RabbitMQ backends
 
@@ -128,7 +128,7 @@ docs/
 ├── architecture/                       # System structure and patterns
 │   ├── README.md                       # Architecture index
 │   ├── crate-architecture.md           # Workspace structure
-│   ├── messaging-abstraction.md        # Provider-agnostic messaging (TAS-133)
+│   ├── messaging-abstraction.md        # Provider-agnostic messaging
 │   ├── actors.md                       # Orchestration actor pattern
 │   ├── worker-actors.md                # Worker actor pattern
 │   ├── worker-event-systems.md         # Worker event architecture
@@ -192,7 +192,6 @@ docs/
 │   └── [ADR files]
 │
 └── ticket-specs/                       # Historical feature specifications
-    └── TAS-*/                          # Per-ticket documentation
 ```
 
 ---
@@ -232,7 +231,7 @@ docs/
 
 Tasker Core is a high-performance workflow orchestration system built in Rust, designed for:
 - **DAG-based workflow execution** with complex dependencies
-- **Provider-agnostic messaging** supporting PGMQ and RabbitMQ backends (TAS-133)
+- **Provider-agnostic messaging** supporting PGMQ and RabbitMQ backends
 - **Event-driven coordination** with polling fallback for reliability
 - **Multi-language worker support** (Rust native, Ruby, Python, TypeScript via FFI)
 
@@ -244,7 +243,7 @@ Tasker Core is a high-performance workflow orchestration system built in Rust, d
 | **Workflow Steps** | Individual units of work with dependencies |
 | **State Machines** | Dual state machines (Task + Step) for atomic transitions |
 | **Event Systems** | Real-time coordination via push notifications or polling |
-| **Message Queues** | Provider-agnostic messaging (PGMQ or RabbitMQ) - TAS-133 |
+| **Message Queues** | Provider-agnostic messaging (PGMQ or RabbitMQ) |
 | **Workers** | Autonomous step processors (Rust, Ruby, Python, TypeScript) |
 
 ---

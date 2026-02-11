@@ -119,7 +119,7 @@ Defined in `tasker-shared/src/state_machine/task_state_machine.rs`, the TaskStat
 1. **Current state retrieval**: Always fetch latest state from database
 2. **Event applicability**: Check if event is valid for current state
 3. **Terminal state protection**: Cannot transition from Complete/Error/Cancelled
-4. **Ownership tracking**: Processor UUID tracked for audit (not enforced after TAS-54)
+4. **Ownership tracking**: Processor UUID tracked for audit (not enforced after ownership removal)
 
 **Example Protection**:
 ```rust
@@ -313,7 +313,7 @@ let ready_steps = steps.iter()
 // Result: Each step enqueued exactly once
 ```
 
-#### State-Before-Queue Pattern (TAS-29)
+#### State-Before-Queue Pattern
 
 Ensures workers only see steps in correct state:
 
@@ -535,7 +535,7 @@ T7: Steps C, D have state = Pending → enqueue
    - Task state transitions validate current state
    - All updates in same transaction as state check
 
-3. **TAS-54: Ownership Removed**
+3. **Ownership Removed**
    - Processor UUID tracked for audit only
    - Not enforced for transitions
    - Any orchestrator can process results
@@ -560,7 +560,7 @@ T9: B deletes PGMQ message
 
 **Result**: Step processed exactly once, retry is harmless
 
-**Before TAS-54 (Ownership Enforced)**:
+**Before Ownership Removal (Ownership Enforced)**:
 ```
 // Orchestrator A owned task in EvaluatingResults state
 // A crashes
@@ -569,7 +569,7 @@ T9: B deletes PGMQ message
 // Error: Ownership violation → TASK STUCK
 ```
 
-**After TAS-54 (Ownership Audit-Only)**:
+**After Ownership Removal (Ownership Audit-Only)**:
 ```
 // Orchestrator A owned task in EvaluatingResults state
 // A crashes
@@ -578,7 +578,7 @@ T9: B deletes PGMQ message
 // B processes successfully → TASK RECOVERS
 ```
 
-See [TAS-54 ADR](../decisions/TAS-54-ownership-removal.md) for full analysis.
+See the [Ownership Removal ADR](../decisions/adr-003-ownership-removal.md) for full analysis.
 
 ### Task Finalization Idempotency
 
@@ -632,7 +632,7 @@ T6: B receives StateMachineError (invalid transition)
 - ✓ No data corruption
 - ⚠️ Orchestrator B gets error (not graceful)
 
-#### Future Enhancement (TAS-37)
+#### Future Enhancement: Atomic Finalization Claiming
 
 **Atomic claiming would make concurrent finalization graceful**:
 
@@ -647,7 +647,7 @@ WHERE task_uuid = $uuid
 RETURNING *;
 ```
 
-**With TAS-37**:
+**With atomic finalization claiming**:
 ```
 T0: Orchestrators A and B both receive finalization trigger
 T1: A calls claim_task_for_finalization() → succeeds
@@ -656,7 +656,7 @@ T3: A proceeds with finalization
 T4: B returns early (silent success, already claimed)
 ```
 
-See [TAS-37](https://linear.app/tasker-systems/issue/TAS-37) for specification (implementation deferred).
+This enhancement is deferred (implementation not yet scheduled).
 
 ---
 
@@ -683,7 +683,7 @@ FOR UPDATE;  -- Lock prevents concurrent modifications
 **Key Guarantees**:
 - Returns 0 rows if state doesn't match → safe retry
 - Row lock prevents concurrent transitions
-- Processor UUID tracked for audit, not enforced (TAS-54)
+- Processor UUID tracked for audit, not enforced
 
 ### Work Distribution Without Contention
 
@@ -819,13 +819,13 @@ See `tasker-orchestration/src/orchestration/lifecycle/task_initialization/workfl
 #### During Task Initialization
 
 ```
-Before TAS-54:
+Before ownership removal:
 T0: Orchestrator A initializes task 1
 T1: Task transitions to Initializing (processor_uuid = A)
 T2: A crashes
 T3: Task stuck in Initializing forever (ownership blocks recovery)
 
-After TAS-54:
+After ownership removal:
 T0: Orchestrator A initializes task 1
 T1: Task transitions to Initializing (processor_uuid = A for audit)
 T2: A crashes
@@ -931,9 +931,9 @@ See [Events and Commands](events-and-commands.md) for PGMQ architecture.
 
 ---
 
-## Multi-Instance Validation (TAS-73)
+## Multi-Instance Validation
 
-The defense-in-depth architecture was validated through comprehensive multi-instance cluster testing in TAS-73. This section documents the validation results and confirms the effectiveness of the protection mechanisms.
+The defense-in-depth architecture was validated through comprehensive multi-instance cluster testing. This section documents the validation results and confirms the effectiveness of the protection mechanisms.
 
 ### Test Configuration
 
@@ -1025,7 +1025,7 @@ Three tests showed intermittent failures under heavy parallelization:
 
 The following architectural decisions were validated by cluster testing:
 
-1. **TAS-54 (Ownership Removal)**: Processor UUID as audit-only (not enforced) enables automatic recovery
+1. **Ownership Removal**: Processor UUID as audit-only (not enforced) enables automatic recovery
 2. **SKIP LOCKED Pattern**: Effective for contention-free work distribution
 3. **State-Before-Queue Pattern**: Prevents workers from seeing uncommitted state
 4. **Find-or-Create Pattern**: Handles concurrent entity creation correctly
@@ -1034,7 +1034,7 @@ The following architectural decisions were validated by cluster testing:
 
 Testing identified one P2 improvement opportunity:
 
-**TAS-37: Atomic Finalization Claiming** (see [Atomic Finalization Design](../ticket-specs/TAS-73/atomic-finalization-design.md))
+**Atomic Finalization Claiming**
 - Current: Second orchestrator gets `StateMachineError` during concurrent finalization
 - Proposed: Transaction-based locking for graceful handling
 - Priority: P2 (operational improvement, correctness already ensured)
@@ -1100,7 +1100,7 @@ This enables:
 
 ### Audit Trail Without Enforcement
 
-**TAS-54 Decision**: Track ownership for observability, don't enforce for correctness
+**Ownership Decision**: Track ownership for observability, don't enforce for correctness
 
 ```rust
 // Processor UUID recorded in all transitions
@@ -1167,19 +1167,14 @@ When implementing new orchestration operations, ensure:
 ### Core Architecture
 - **[States and Lifecycles](states-and-lifecycles.md)** - Dual state machine architecture
 - **[Events and Commands](events-and-commands.md)** - Event-driven coordination patterns
-- **[Actor-Based Architecture](actors.md)** - Orchestration actor pattern (TAS-46)
+- **[Actor-Based Architecture](actors.md)** - Orchestration actor pattern
 - **[Task Readiness & Execution](../reference/task-and-step-readiness-and-execution.md)** - SQL functions and execution logic
 
 ### Implementation Details
-- **[TAS-54 ADR](../decisions/TAS-54-ownership-removal.md)** - Processor UUID ownership removal decision
-- **[TAS-37](https://linear.app/tasker-systems/issue/TAS-37)** - Atomic claiming (future enhancement)
-- **[TAS-41](https://linear.app/tasker-systems/issue/TAS-41)** - Enhanced state machines with ownership
+- **[Ownership Removal ADR](../decisions/adr-003-ownership-removal.md)** - Processor UUID ownership removal decision
 
-### Multi-Instance Validation (TAS-73)
+### Multi-Instance Validation
 - **[Cluster Testing Guide](../testing/cluster-testing-guide.md)** - Running multi-instance cluster tests
-- **[TAS-73 Research Findings](../ticket-specs/TAS-73/research-findings.md)** - Research and findings summary
-- **[TAS-73 Multi-Instance Deployment](../ticket-specs/TAS-73/multi-instance-deployment.md)** - Cluster deployment design
-- **[TAS-73 Atomic Finalization Design](../ticket-specs/TAS-73/atomic-finalization-design.md)** - P2 enhancement proposal
 
 ### Testing
 - **[Comprehensive Lifecycle Testing](../testing/comprehensive-lifecycle-testing-guide.md)** - Testing patterns including concurrent scenarios

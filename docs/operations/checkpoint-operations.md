@@ -1,8 +1,8 @@
 # Checkpoint Operations Guide
 
 **Last Updated**: 2026-01-06
-**Status**: Active (TAS-125)
-**Related**: [Batch Processing - Checkpoint Yielding](../guides/batch-processing.md#checkpoint-yielding-tas-125)
+**Status**: Active
+**Related**: [Batch Processing - Checkpoint Yielding](../guides/batch-processing.md#checkpoint-yielding)
 
 ---
 

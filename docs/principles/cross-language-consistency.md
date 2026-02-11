@@ -241,14 +241,14 @@ When APIs diverge, we follow this pattern:
 2. **Deprecation Period**: Mark old APIs deprecated (warnings in logs)
 3. **Breaking Release**: Remove old APIs, document migration
 
-Example timeline (from TAS-92):
+Example timeline:
 
 ```
-TAS-95: Python migration (non-breaking + breaking)
-TAS-96: Ruby migration (non-breaking + breaking)
-TAS-97: Rust alignment (already aligned)
-TAS-98: TypeScript alignment (new implementation)
-TAS-119: Breaking changes release (all languages together)
+Phase 1: Python migration (non-breaking + breaking)
+Phase 2: Ruby migration (non-breaking + breaking)
+Phase 3: Rust alignment (already aligned)
+Phase 4: TypeScript alignment (new implementation)
+Phase 5: Breaking changes release (all languages together)
 ```
 
 ---

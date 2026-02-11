@@ -18,7 +18,7 @@ Protection comes from four independent layers:
 
 Each layer catches what others might miss. No single layer is responsible for all protection.
 
-**Origin**: [TAS-54](https://linear.app/tasker-systems/issue/TAS-54) - Processor UUID ownership was removed when analysis proved it provided redundant protection with harmful side effects (blocking recovery after crashes).
+**Origin**: Processor UUID ownership was removed when analysis proved it provided redundant protection with harmful side effects (blocking recovery after crashes).
 
 **Lesson**: Find the minimal set of protections that prevents corruption. Additional layers that prevent recovery are worse than none.
 
@@ -35,7 +35,7 @@ The system supports three deployment modes:
 
 Events can be missed (network issues, connection drops). Polling ensures eventual consistency.
 
-**Origin**: [TAS-43](https://linear.app/tasker-systems/issue/TAS-43) - Event-driven task claiming was added for low-latency response while preserving reliability guarantees.
+**Origin**: Event-driven task claiming was added for low-latency response while preserving reliability guarantees.
 
 ---
 
@@ -55,7 +55,7 @@ This pattern enables:
 - Easier testing of individual capabilities
 - No diamond inheritance problems
 
-**Origin**: [TAS-112](https://linear.app/tasker-systems/issue/TAS-112) - Analysis revealed Batchable handlers already used composition. This was identified as the target architecture for all handlers.
+**Origin**: Analysis of cross-language handler harmonization revealed Batchable handlers already used composition. This was identified as the target architecture for all handlers.
 
 **See also**: [Composition Over Inheritance](./composition-over-inheritance.md)
 
@@ -73,7 +73,7 @@ Consistent touchpoints include:
 
 Each language expresses these idiomatically while maintaining conceptual consistency.
 
-**Origin**: [TAS-92](https://linear.app/tasker-systems/issue/TAS-92), [TAS-100](https://linear.app/tasker-systems/issue/TAS-100) - Cross-language API alignment established the "one obvious way" philosophy.
+**Origin**: Cross-language API alignment established the "one obvious way" philosophy.
 
 **See also**: [Cross-Language Consistency](./cross-language-consistency.md)
 
@@ -98,7 +98,7 @@ Worker uses five specialized actors:
 
 Each actor handles specific message types, enabling testability and clear ownership.
 
-**Origin**: [TAS-46](https://linear.app/tasker-systems/issue/TAS-46), [TAS-69](https://linear.app/tasker-systems/issue/TAS-69) - Actor pattern refactoring reduced monolithic processors from 1,575 LOC to ~150 LOC focused files.
+**Origin**: Actor pattern refactoring reduced monolithic processors from 1,575 LOC to ~150 LOC focused files.
 
 ---
 
@@ -115,7 +115,7 @@ All transitions are:
 - Audited (full history in transitions table)
 - Validated (state guards prevent invalid transitions)
 
-**Origin**: [TAS-41](https://linear.app/tasker-systems/issue/TAS-41) - Enhanced state machines with richer task states were introduced for better workflow visibility.
+**Origin**: Enhanced state machines with richer task states were introduced for better workflow visibility.
 
 ---
 
@@ -132,7 +132,7 @@ But not enforced for:
 - Ownership claims (blocks recovery)
 - Permission checks (redundant with state guards)
 
-**Origin**: [TAS-54](https://linear.app/tasker-systems/issue/TAS-54) - Ownership enforcement removal proved that audit trails provide value without enforcement costs.
+**Origin**: Ownership enforcement removal proved that audit trails provide value without enforcement costs.
 
 **Key insight**: When two actors receive identical messages, first succeeds atomically, second fails cleanly - no partial state, no corruption.
 
@@ -153,7 +153,7 @@ This freedom enables:
 - Learning from real implementation
 - Correcting course before users depend on specifics
 
-**Origin**: All major refactoring tickets (TAS-54, TAS-69, TAS-112) - Each made breaking changes that improved architecture fundamentally.
+**Origin**: All major refactoring efforts made breaking changes that improved architecture fundamentally.
 
 ---
 
@@ -173,7 +173,7 @@ Messaging is provider-agnostic:
 
 The database is not just storage—it's the coordination layer. Message delivery is pluggable.
 
-**Origin**: Core architecture decision - PostgreSQL's transactional guarantees eliminate entire classes of distributed systems problems. TAS-133 added messaging abstraction for deployment flexibility.
+**Origin**: Core architecture decision - PostgreSQL's transactional guarantees eliminate entire classes of distributed systems problems. The messaging abstraction was added for deployment flexibility.
 
 ---
 
@@ -188,7 +188,7 @@ Every MPSC channel is:
 
 Semaphores limit concurrent handler execution. Circuit breakers protect downstream services.
 
-**Origin**: [TAS-51](https://linear.app/tasker-systems/issue/TAS-51) - Bounded MPSC channels were mandated after analysis of unbounded channel risks.
+**Origin**: Bounded MPSC channels were mandated after analysis of unbounded channel risks.
 
 **Rule**: Never use `unbounded_channel()`. Always configure bounds via TOML.
 
@@ -224,7 +224,7 @@ A client that returns fabricated data
   = Debugging phantom bugs in production
 ```
 
-**Origin**: [TAS-177](https://linear.app/tasker-systems/issue/TAS-177) - gRPC client refactoring revealed pervasive `unwrap_or_default()` patterns that silently fabricated response data. Analysis showed consumers could receive "valid-looking" responses containing entirely phantom data, breaking the trust contract between client and caller.
+**Origin**: gRPC client refactoring revealed pervasive `unwrap_or_default()` patterns that silently fabricated response data. Analysis showed consumers could receive "valid-looking" responses containing entirely phantom data, breaking the trust contract between client and caller.
 
 **Key insight**: When a gRPC server omits required fields, that's a protocol violation—not an opportunity to be "helpful" with defaults. The server is broken; pretending otherwise delays the fix and misleads operators.
 

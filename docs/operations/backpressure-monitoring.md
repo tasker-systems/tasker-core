@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-02-05
 **Audience**: Operations, SRE, On-Call Engineers
-**Status**: Active (TAS-75, TAS-174)
+**Status**: Active
 **Related Docs**: [Backpressure Architecture](../backpressure-architecture.md) | [MPSC Channel Tuning](mpsc-channel-tuning.md)
 
 ---
@@ -54,7 +54,7 @@ This runbook provides guidance for monitoring, alerting, and responding to backp
 - **Description**: Request processing time
 - **Alert**: p99 > 5000ms
 
-### Messaging Metrics (TAS-174)
+### Messaging Metrics
 
 #### `messaging_circuit_breaker_state`
 - **Type**: Gauge
@@ -583,4 +583,3 @@ Import this dashboard for backpressure monitoring:
 - [Backpressure Architecture](../backpressure-architecture.md) - Strategy overview
 - [MPSC Channel Tuning](mpsc-channel-tuning.md) - Channel configuration
 - [Worker Event Systems](../worker-event-systems.md) - Worker architecture
-- [TAS-75](https://linear.app/tasker-systems/issue/TAS-75) - Implementation plan

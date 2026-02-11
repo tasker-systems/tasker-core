@@ -4,9 +4,7 @@ Python worker bindings for the Tasker workflow orchestration system.
 
 ## Status
 
-**Phase 1 (TAS-72-P1)**: Crate Foundation - Minimal FFI verification.
-
-See `docs/ticket-specs/TAS-72/` for the full implementation plan.
+Production ready. Python worker bindings provide full step handler execution via PyO3 FFI.
 
 ## Installation
 

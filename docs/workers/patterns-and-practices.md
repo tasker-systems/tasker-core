@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-01-06
 **Audience**: Developers, Architects
-**Status**: Active (TAS-125 Complete)
+**Status**: Active
 **Related Docs**: [Worker Event Systems](../worker-event-systems.md) | [Worker Actors](../worker-actors.md)
 
 <- Back to [Worker Crates Overview](README.md)
@@ -484,8 +484,8 @@ log_info("Processing order", context)
 ```
 TaskerCore::StepHandler::Base
 ├── TaskerCore::StepHandler::Api        # HTTP/REST API integration
-├── TaskerCore::StepHandler::Decision   # Dynamic workflow decisions (TAS-53)
-└── TaskerCore::StepHandler::Batchable  # Batch processing support (TAS-88)
+├── TaskerCore::StepHandler::Decision   # Dynamic workflow decisions
+└── TaskerCore::StepHandler::Batchable  # Batch processing support
 ```
 
 **Python** (Batchable is a mixin):
@@ -560,7 +560,7 @@ class CsvProcessorHandler(StepHandler, Batchable):
 
 ## Checkpoint Yielding
 
-Checkpoint yielding (TAS-125) enables batch workers to persist progress and yield control back to the orchestrator for re-dispatch. This is essential for long-running batch operations.
+Checkpoint yielding enables batch workers to persist progress and yield control back to the orchestrator for re-dispatch. This is essential for long-running batch operations.
 
 ### When to Use
 

@@ -2,8 +2,8 @@
 
 **Last Updated**: 2026-02-05
 **Audience**: Architects, Developers, Operations
-**Status**: Active (TAS-75, TAS-174)
-**Related Docs**: [Worker Event Systems](worker-event-systems.md) | [MPSC Channel Guidelines](development/mpsc-channel-guidelines.md) | [TAS-75](https://linear.app/tasker-systems/issue/TAS-75)
+**Status**: Active
+**Related Docs**: [Worker Event Systems](worker-event-systems.md) | [MPSC Channel Guidelines](development/mpsc-channel-guidelines.md)
 
 <- Back to [Documentation Hub](README.md)
 
@@ -140,9 +140,9 @@ The messaging layer provides the backbone between orchestration and workers. Pro
 | Visibility Timeout | **Implemented** | Messages return to queue after timeout |
 | Batch Size Limits | **Implemented** | Bounded message reads |
 | Queue Depth Check | **Planned** | Reject enqueue when depth exceeded |
-| Messaging Circuit Breaker | **Implemented (TAS-174)** | Fast-fail send/receive when provider unhealthy |
+| Messaging Circuit Breaker | **Implemented** | Fast-fail send/receive when provider unhealthy |
 
-> **Messaging Circuit Breaker (TAS-174)**: `MessageClient` wraps send/receive operations with circuit breaker protection. When the messaging provider (PGMQ or RabbitMQ) fails repeatedly, the breaker opens and returns `MessagingError::CircuitBreakerOpen` immediately, preventing slow timeouts from cascading into orchestration and worker processing loops. Ack/nack and health check operations bypass the breaker — ack/nack failures are safe (visibility timeout handles redelivery), and health check must work when the breaker is open to detect recovery. See [Circuit Breakers](circuit-breakers.md) for details.
+> **Messaging Circuit Breaker**: `MessageClient` wraps send/receive operations with circuit breaker protection. When the messaging provider (PGMQ or RabbitMQ) fails repeatedly, the breaker opens and returns `MessagingError::CircuitBreakerOpen` immediately, preventing slow timeouts from cascading into orchestration and worker processing loops. Ack/nack and health check operations bypass the breaker — ack/nack failures are safe (visibility timeout handles redelivery), and health check must work when the breaker is open to detect recovery. See [Circuit Breakers](circuit-breakers.md) for details.
 
 **Queue Depth Monitoring** (Planned):
 
@@ -182,7 +182,7 @@ poll_interval_ms = 250
 critical_threshold = 500
 overflow_threshold = 1000
 
-# Messaging circuit breaker (TAS-174)
+# Messaging circuit breaker
 [common.circuit_breakers.component_configs.messaging]
 failure_threshold = 5      # Failures before opening
 success_threshold = 2      # Successes in half-open to close
@@ -496,7 +496,7 @@ success_threshold = 2      # Successes in half-open to close
 failure_threshold = 5
 success_threshold = 2
 
-# Messaging circuit breaker (TAS-174) - PGMQ/RabbitMQ operations
+# Messaging circuit breaker - PGMQ/RabbitMQ operations
 [common.circuit_breakers.component_configs.messaging]
 failure_threshold = 5
 success_threshold = 2
@@ -571,8 +571,7 @@ See [Backpressure Monitoring Runbook](operations/backpressure-monitoring.md) for
 - [Worker Event Systems](worker-event-systems.md) - Dual-channel architecture
 - [MPSC Channel Guidelines](development/mpsc-channel-guidelines.md) - Channel creation guide
 - [MPSC Channel Tuning](operations/mpsc-channel-tuning.md) - Operational tuning
-- [TAS-51: Bounded MPSC Channels](../decisions/TAS-51-bounded-mpsc-channels.md) - ADR
-- [TAS-75](https://linear.app/tasker-systems/issue/TAS-75) - Backpressure architecture ticket
+- [Bounded MPSC Channels ADR](../decisions/adr-002-bounded-mpsc-channels.md)
 
 ---
 

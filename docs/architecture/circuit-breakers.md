@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-02-04
 **Audience**: Architects, Operators, Developers
-**Status**: Active (TAS-75, TAS-174)
+**Status**: Active
 **Related Docs**: [Backpressure Architecture](backpressure-architecture.md) | [Observability](observability/README.md) | [Operations: Backpressure Monitoring](operations/backpressure-monitoring.md)
 
 <- Back to [Documentation Hub](README.md)
@@ -60,7 +60,7 @@ Circuit breakers prevent cascading failures by failing fast when a component is 
 - **Open**: Failing fast. All calls rejected immediately. Waiting for timeout.
 - **Half-Open**: Testing recovery. Limited calls allowed. Single failure reopens.
 
-## Unified Trait: `CircuitBreakerBehavior` (TAS-174)
+## Unified Trait: `CircuitBreakerBehavior`
 
 All circuit breaker implementations share a common trait defined in `tasker-shared/src/resilience/behavior.rs`:
 
@@ -144,7 +144,7 @@ success_threshold = 3      # More successes needed for confidence
 - Different recovery semantics (skip vs reject)
 - Isolation prevents web failures from stopping polling (and vice versa)
 
-### 3. FFI Completion Circuit Breaker (TAS-75)
+### 3. FFI Completion Circuit Breaker
 
 **Purpose**: Protects Ruby/Python worker completion channels from backpressure.
 
@@ -175,7 +175,7 @@ slow_send_threshold_ms = 100     # Latency threshold (100ms)
 - `ffi_completion_slow_sends_total` - Sends exceeding latency threshold
 - `ffi_completion_circuit_open_rejections_total` - Rejections due to open circuit
 
-### 4. Messaging Circuit Breaker (TAS-174)
+### 4. Messaging Circuit Breaker
 
 **Purpose**: Protects message queue operations from provider failures (PGMQ or RabbitMQ).
 

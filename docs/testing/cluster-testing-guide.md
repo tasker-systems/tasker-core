@@ -9,7 +9,7 @@
 
 ## Overview
 
-This guide covers multi-instance cluster testing for validating horizontal scaling, race condition detection, and concurrent processing scenarios. The cluster testing infrastructure was developed as part of TAS-73 (Resiliency and Redundancy).
+This guide covers multi-instance cluster testing for validating horizontal scaling, race condition detection, and concurrent processing scenarios.
 
 **Key Capabilities**:
 - Run N orchestration instances with M worker instances
@@ -247,7 +247,7 @@ Verifies tasks are distributed across instances using round-robin.
 
 ---
 
-## Validation Results (TAS-73)
+## Validation Results
 
 The cluster testing infrastructure was validated with the following results:
 
@@ -279,7 +279,7 @@ Initial testing revealed intermittent failures under high parallelization:
 - **Additional Tuning**: Increased pool sizes (20→30 max, 1→2 min connections)
 - **Status**: ✅ Fixed - all 9 cluster tests now pass in parallel
 
-See [Connection Pool Deadlock Pattern](../ticket-specs/TAS-73/connection-pool-deadlock-pattern.md) for details.
+See the connection pool deadlock pattern documentation in `docs/ticket-specs/` for details.
 
 ### Domain Event Tests
 
@@ -396,7 +396,7 @@ cargo make test-rust-cluster
 
 ### Connection Pool Exhaustion
 
-If tests fail with "pool timed out" errors, the issue was likely fixed in TAS-73. Ensure you have the latest code with:
+If tests fail with "pool timed out" errors, ensure you have the latest code with:
 - Template loading before transaction in `task_initialization/service.rs`
 - Pool sizes: `max_connections=30`, `min_connections=2` in test config
 
@@ -441,7 +441,3 @@ cargo make setup-env-cluster
 
 - [Tooling](../development/tooling.md) - Cluster deployment tasks
 - [Idempotency and Atomicity](../architecture/idempotency-and-atomicity.md) - Protection mechanisms
-- [TAS-73 Connection Pool Deadlock Pattern](../ticket-specs/TAS-73/connection-pool-deadlock-pattern.md) - Transaction patterns
-- [TAS-73 Multi-Instance Deployment](../ticket-specs/TAS-73/multi-instance-deployment.md) - Design spec
-- [TAS-73 Test Feature Flags](../ticket-specs/TAS-73/test-feature-flags-design.md) - Feature flag design
-- [TAS-73 Research Findings](../ticket-specs/TAS-73/research-findings.md) - Research results

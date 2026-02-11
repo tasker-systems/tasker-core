@@ -1,4 +1,4 @@
-# External Auth Provider Integration (TAS-150)
+# External Auth Provider Integration
 
 Integrating Tasker's API security with external identity providers via JWKS endpoints.
 

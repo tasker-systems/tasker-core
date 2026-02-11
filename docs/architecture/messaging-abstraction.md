@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-01-15
 **Audience**: Architects, Developers
-**Status**: Active (TAS-133 Complete)
+**Status**: Active
 **Related Docs**: [Documentation Hub](README.md) | [Events and Commands](events-and-commands.md) | [Deployment Patterns](deployment-patterns.md) | [Crate Architecture](crate-architecture.md)
 
 <- Back to [Documentation Hub](README.md)
@@ -11,7 +11,7 @@
 
 ## Overview
 
-TAS-133 introduced a **provider-agnostic messaging abstraction** that enables Tasker Core to support multiple messaging backends through a unified interface. This architecture allows switching between PGMQ (PostgreSQL Message Queue) and RabbitMQ without changes to business logic.
+The **provider-agnostic messaging abstraction** enables Tasker Core to support multiple messaging backends through a unified interface. This architecture allows switching between PGMQ (PostgreSQL Message Queue) and RabbitMQ without changes to business logic.
 
 **Key Benefits**:
 - **Zero handler changes required**: Switching providers requires only configuration changes
@@ -434,7 +434,7 @@ pub enum OrchestrationCommand {
 
 ## Type-Safe Channel Wrappers
 
-TAS-133 introduced NewType wrappers for MPSC channels to prevent accidental misuse:
+NewType wrappers for MPSC channels prevent accidental misuse:
 
 ### Orchestration Channels
 
