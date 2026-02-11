@@ -7,7 +7,7 @@
 
 In high-throughput workflow orchestration systems, the core task tables (`tasks`, `workflow_steps`, `task_transitions`, `workflow_step_transitions`) can grow to millions of rows over time. Without proper management, this growth can lead to:
 
-> **Note**: As of TAS-128, all tables reside in the `tasker` schema with simplified names (e.g., `tasks` instead of `tasker_tasks`). With `search_path = tasker, public`, queries use unqualified table names.
+> **Note**: All tables reside in the `tasker` schema with simplified names (e.g., `tasks` instead of `tasker_tasks`). With `search_path = tasker, public`, queries use unqualified table names.
 
 - **Query Performance Degradation**: Even with proper indexes, very large tables require more I/O operations
 - **Maintenance Overhead**: VACUUM, ANALYZE, and index maintenance become increasingly expensive
@@ -73,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_workflow_step_transitions_state_lookup
 ```
 *Impact*: State lookups index only current state, not full audit history. Reduces index size by >90%.
 
-#### Correlation and Tracing Indexes (TAS-41)
+#### Correlation and Tracing Indexes
 
 **Distributed Tracing Support** (`migrations/tasker/20251007000000_add_correlation_ids.sql`):
 ```sql
@@ -88,11 +88,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_correlation_hierarchy
 ```
 *Impact*: Enables efficient distributed tracing and workflow hierarchy queries.
 
-#### Processor Ownership and Monitoring (TAS-41)
+#### Processor Ownership and Monitoring
 
 **Processor Tracking** (`migrations/tasker/20250912000000_tas41_richer_task_states.sql`):
 ```sql
--- Index for processor ownership queries (audit trail only after TAS-54)
+-- Index for processor ownership queries (audit trail only, enforcement removed)
 CREATE INDEX IF NOT EXISTS idx_task_transitions_processor
     ON task_transitions(processor_uuid)
     WHERE processor_uuid IS NOT NULL;
@@ -102,7 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_task_transitions_timeout
     ON task_transitions((transition_metadata->>'timeout_at'))
     WHERE most_recent = true;
 ```
-*Impact*: Enables processor-level debugging and timeout monitoring. Processor ownership enforcement removed in TAS-54 but audit trail preserved.
+*Impact*: Enables processor-level debugging and timeout monitoring. Processor ownership enforcement was removed but the audit trail is preserved.
 
 #### Dependency Graph Navigation
 
@@ -154,7 +154,7 @@ WITH prioritized_tasks AS (
 ...
 ```
 
-### 4. Staleness Exclusion (TAS-48)
+### 4. Staleness Exclusion
 
 The system automatically excludes stale tasks from active processing queues:
 
@@ -168,7 +168,7 @@ This prevents the active query set from growing indefinitely, even if old tasks 
 
 ### What We Considered
 
-During TAS-49 implementation, we initially designed an archive-and-delete strategy:
+We initially designed an archive-and-delete strategy:
 
 **Architecture**:
 - Mirror tables: `tasker.archived_tasks`, `tasker.archived_workflow_steps`, `tasker.archived_task_transitions`, `tasker.archived_workflow_step_transitions`
@@ -450,7 +450,7 @@ WHERE created_at > NOW() - INTERVAL '7 days';
 - [PostgreSQL Partitioning Documentation](https://www.postgresql.org/docs/current/ddl-partitioning.html)
 - [pg_partman Extension](https://github.com/pgpartman/pg_partman)
 - [pgmq Partitioned Queues](https://github.com/pgmq/pgmq?tab=readme-ov-file#partitioned-queues)
-- [TAS-49](https://linear.app/tasker-systems/issue/TAS-49)
+
 
 ## See Also
 

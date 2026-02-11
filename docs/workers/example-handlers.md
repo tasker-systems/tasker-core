@@ -2,8 +2,6 @@
 
 **Last Updated**: 2025-12-21
 **Status**: Active
-**Related Tickets**: TAS-92, TAS-98
-
 <- Back to [Worker Crates Overview](README.md)
 
 ---

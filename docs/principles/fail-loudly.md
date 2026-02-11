@@ -188,11 +188,11 @@ When implementing new conversions or response handling:
 
 ---
 
-## The TAS-177 Discovery
+## The Discovery
 
 ### What We Found
 
-During gRPC client implementation (TAS-177), analysis revealed pervasive patterns like:
+During gRPC client implementation, analysis revealed pervasive patterns like:
 
 ```rust
 // Found throughout conversions.rs

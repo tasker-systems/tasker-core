@@ -1,8 +1,6 @@
 # Composition Over Inheritance
 
 **Last Updated**: 2026-01-01
-**Related Tickets**: TAS-112 (Cross-Language Handler Harmonization)
-
 This document describes Tasker Core's approach to handler composition using mixins and traits rather than class hierarchies.
 
 ## The Core Principle
@@ -67,7 +65,7 @@ end
 
 ---
 
-## The TAS-112 Discovery
+## The Discovery
 
 Analysis of Batchable handlers revealed they already used the composition pattern:
 
@@ -84,7 +82,7 @@ class BatchHandler < Base
 end
 ```
 
-TAS-112 recommended migrating API and Decision handlers to match this pattern.
+The cross-language handler harmonization recommended migrating API and Decision handlers to match this pattern.
 
 ---
 
@@ -134,7 +132,7 @@ class MyHandler(StepHandler, APIMixin, DecisionMixin):
         return self.decision_success(["next_step"], response)
 ```
 
-### TypeScript Mixins (TAS-112)
+### TypeScript Mixins
 
 ```typescript
 // TypeScript uses mixin functions applied in constructor
@@ -244,7 +242,7 @@ pub enum BatchProcessingOutcome {
 
 ---
 
-## Migration Path (TAS-112)
+## Migration Path
 
 ### Cross-Language Migration Examples
 
@@ -327,14 +325,14 @@ impl APICapable for MyHandler { ... }
 impl DecisionCapable for MyHandler { ... }
 ```
 
-### Breaking Changes Implemented (TAS-112)
+### Breaking Changes Implemented
 
 The migration to composition involved breaking changes:
 1. Base class changes across all languages
 2. Module/mixin includes required
 3. Ruby cursor indexing changed from 1-indexed to 0-indexed
 
-All breaking changes were accumulated and released together in TAS-112.
+All breaking changes were accumulated and released together.
 
 ---
 
@@ -418,4 +416,3 @@ end
 - [Tasker Core Tenets](./tasker-core-tenets.md) - Tenet #3: Composition Over Inheritance
 - [Cross-Language Consistency](./cross-language-consistency.md) - How composition works across languages
 - [Patterns and Practices](../worker-crates/patterns-and-practices.md) - Handler patterns
-- [TAS-112 Specification](../ticket-specs/TAS-112/) - Original analysis

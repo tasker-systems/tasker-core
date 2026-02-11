@@ -1,4 +1,4 @@
-# OpenTelemetry Improvements (TAS-65)
+# OpenTelemetry Improvements
 
 **Last Updated**: 2025-12-01
 **Audience**: Developers, Operators
@@ -9,11 +9,11 @@
 
 ---
 
-This document describes the OpenTelemetry improvements implemented as part of TAS-65, including two-phase FFI telemetry initialization, domain event metrics, and enhanced observability for the distributed event system.
+This document describes the OpenTelemetry improvements for the domain event system, including two-phase FFI telemetry initialization, domain event metrics, and enhanced observability for the distributed event system.
 
 ## Overview
 
-TAS-65 introduced several telemetry improvements to support the domain event system while addressing FFI-specific challenges:
+These telemetry improvements support the domain event system while addressing FFI-specific challenges:
 
 | Improvement | Purpose | Impact |
 |-------------|---------|--------|
@@ -195,20 +195,20 @@ pub async fn bootstrap() -> Result<(WorkerSystemHandle, RustEventHandler)> {
     let worker_handle =
         WorkerBootstrap::bootstrap_with_event_system(Some(event_system.clone())).await?;
 
-    // TAS-65: Create step event publisher registry with domain event publisher
+    // Create step event publisher registry with domain event publisher
     info!("🔔 Setting up step event publisher registry...");
     let domain_event_publisher = {
         let worker_core = worker_handle.worker_core.lock().await;
         worker_core.domain_event_publisher()
     };
 
-    // TAS-65 Dual-Path: Create in-process event bus for fast event delivery
+    // Dual-Path: Create in-process event bus for fast event delivery
     info!("⚡ Creating in-process event bus for fast domain events...");
     let in_process_bus = Arc::new(RwLock::new(InProcessEventBus::new(
         InProcessEventBusConfig::default(),
     )));
 
-    // TAS-65 Dual-Path: Create event router for dual-path delivery
+    // Dual-Path: Create event router for dual-path delivery
     info!("🔀 Creating event router for dual-path delivery...");
     let event_router = Arc::new(RwLock::new(EventRouter::new(
         domain_event_publisher.clone(),
@@ -256,7 +256,7 @@ reads all values from environment variables at initialization time.
 
 ### New Metrics
 
-TAS-65 introduces metrics for domain event observability:
+Domain event observability metrics:
 
 | Metric | Type | Description |
 |--------|------|-------------|
@@ -539,7 +539,7 @@ ORDER BY message->'metadata'->>'fired_at';
 
 ### Domain Event Spans
 
-TAS-65 introduces spans for domain event operations:
+Domain event spans:
 
 ```
 Task Execution (root span)
@@ -675,7 +675,6 @@ info!(
 - **Metrics Reference**: [metrics-reference.md](metrics-reference.md) - Complete metrics catalog
 - **Domain Events**: [../domain-events.md](../domain-events.md) - Event system architecture
 - **Logging Standards**: [logging-standards.md](logging-standards.md) - Structured logging best practices
-- **TAS-65**: [TAS-65](https://linear.app/tasker-systems/issue/TAS-65) - Implementation details
 
 ---
 

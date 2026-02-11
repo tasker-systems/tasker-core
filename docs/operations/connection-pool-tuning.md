@@ -1,4 +1,4 @@
-# Connection Pool Tuning Guide (TAS-164)
+# Connection Pool Tuning Guide
 
 ## Overview
 

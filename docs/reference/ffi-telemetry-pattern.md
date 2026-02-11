@@ -1,4 +1,4 @@
-# FFI Telemetry Initialization Pattern (TAS-65)
+# FFI Telemetry Initialization Pattern
 
 ## Overview
 
@@ -87,7 +87,7 @@ pub fn init_ffi_logger() -> Result<(), Box<dyn std::error::Error>> {
 
     if telemetry_enabled {
         // Phase 1: Defer telemetry init to runtime context
-        println!("📡 TAS-65: Telemetry enabled - deferring logging init to runtime context");
+        println!("Telemetry enabled - deferring logging init to runtime context");
     } else {
         // Phase 1: Safe to initialize console-only logging
         tasker_shared::logging::init_console_only();
@@ -110,7 +110,7 @@ pub fn bootstrap_worker() -> Result<Value, Error> {
     // Create tokio runtime
     let runtime = tokio::runtime::Runtime::new()?;
 
-    // TAS-65 Phase 2: Initialize telemetry in Tokio runtime context
+    // Phase 2: Initialize telemetry in Tokio runtime context
     runtime.block_on(async {
         tasker_shared::logging::init_tracing();
     });
@@ -138,7 +138,7 @@ fn tasker_core(py: Python, m: &PyModule) -> PyResult<()> {
         .unwrap_or(false);
 
     if telemetry_enabled {
-        println!("📡 TAS-65: Telemetry enabled - deferring logging init to runtime context");
+        println!("Telemetry enabled - deferring logging init to runtime context");
     } else {
         tasker_shared::logging::init_console_only();
     }
@@ -161,7 +161,7 @@ pub fn bootstrap_worker() -> PyResult<String> {
             format!("Failed to create runtime: {}", e)
         ))?;
 
-    // TAS-65 Phase 2: Initialize telemetry in Tokio runtime context
+    // Phase 2: Initialize telemetry in Tokio runtime context
     runtime.block_on(async {
         tasker_shared::logging::init_tracing();
     });
@@ -192,7 +192,7 @@ pub fn init_wasm() {
     .unwrap_or(false);
 
     if telemetry_enabled {
-        web_sys::console::log_1(&"📡 TAS-65: Telemetry enabled - deferring logging init to runtime context".into());
+        web_sys::console::log_1(&"Telemetry enabled - deferring logging init to runtime context".into());
     } else {
         tasker_shared::logging::init_console_only();
     }
@@ -226,7 +226,7 @@ Enable telemetry in docker-compose with appropriate comments:
 
 ruby-worker:
   environment:
-    # TAS-65: Two-phase FFI telemetry initialization pattern implemented
+    # Two-phase FFI telemetry initialization pattern
     # Phase 1: Magnus init skips telemetry (no runtime)
     # Phase 2: bootstrap_worker() initializes telemetry in Tokio context
     TELEMETRY_ENABLED: "true"
@@ -242,7 +242,7 @@ ruby-worker:
 **Ruby Worker with Telemetry Enabled:**
 ```
 1. Magnus init:
-📡 TAS-65: Telemetry enabled - deferring logging init to runtime context
+Telemetry enabled - deferring logging init to runtime context
 
 2. After runtime creation:
 Console logging with OpenTelemetry initialized
@@ -401,7 +401,7 @@ pub fn init_with_config(config: TelemetryConfig) -> TaskerResult<()> {
 }
 ```
 
-## Phase 1.5: Worker Span Instrumentation with Trace Context Propagation (TAS-65)
+## Phase 1.5: Worker Span Instrumentation with Trace Context Propagation
 
 **Implemented**: 2025-11-24
 **Status**: ✅ **Production Ready** - Validated end-to-end with Ruby workers
@@ -447,7 +447,7 @@ pub async fn handle_execute_step(&self, step_message: SimpleStepMessage) -> Task
     // Fetch step details to get step_name and namespace
     let task_sequence_step = self.fetch_task_sequence_step(&step_message).await?;
 
-    // TAS-65 Phase 1.5a: Create span with all 5 required attributes
+    // Create span with all 5 required attributes
     let step_span = span!(
         Level::INFO,
         "worker.step_execution",
@@ -461,7 +461,7 @@ pub async fn handle_execute_step(&self, step_message: SimpleStepMessage) -> Task
     let execution_result = async {
         event!(Level::INFO, "step.execution_started");
 
-        // TAS-65 Phase 1.5b: Extract trace context for FFI propagation
+        // Extract trace context for FFI propagation
         let trace_id = Some(step_message.correlation_id.to_string());
         let span_id = Some(format!("span-{}", step_message.step_uuid));
 
@@ -490,7 +490,7 @@ pub async fn handle_execute_step(&self, step_message: SimpleStepMessage) -> Task
 - `.instrument(span)` pattern for async code
 - Trace context extracted and passed to FFI
 
-### Implementation: Data Structures (Phase 1.5b)
+### Implementation: Data Structures
 
 **File:** `tasker-shared/src/types/base.rs`
 
@@ -505,7 +505,7 @@ pub struct StepExecutionEvent {
     pub task_sequence_step: TaskSequenceStep,
     pub correlation_id: Uuid,
 
-    // TAS-65 Phase 1.5b: Trace context propagation
+    // Trace context propagation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
 
@@ -521,7 +521,7 @@ pub struct StepExecutionCompletionEvent {
     pub success: bool,
     pub result: Option<serde_json::Value>,
 
-    // TAS-65 Phase 1.5b: Trace context from Ruby
+    // Trace context from Ruby
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
 
@@ -550,11 +550,11 @@ def wrap_step_execution_event(event_data)
     task_sequence_step: TaskerCore::Models::TaskSequenceStepWrapper.new(event_data[:task_sequence_step])
   }
 
-  # TAS-29: Expose correlation_id at top level for easy access
+  # Expose correlation_id at top level for easy access
   wrapped[:correlation_id] = event_data[:correlation_id] if event_data[:correlation_id]
   wrapped[:parent_correlation_id] = event_data[:parent_correlation_id] if event_data[:parent_correlation_id]
 
-  # TAS-65 Phase 1.5b: Expose trace_id and span_id for distributed tracing
+  # Expose trace_id and span_id for distributed tracing
   wrapped[:trace_id] = event_data[:trace_id] if event_data[:trace_id]
   wrapped[:span_id] = event_data[:span_id] if event_data[:span_id]
 
@@ -578,7 +578,7 @@ def publish_step_completion(event_data:, success:, result: nil, error_message: n
     error_message: error_message
   }
 
-  # TAS-65 Phase 1.5b: Propagate trace context back to Rust
+  # Propagate trace context back to Rust
   completion_payload[:trace_id] = event_data[:trace_id] if event_data[:trace_id]
   completion_payload[:span_id] = event_data[:span_id] if event_data[:span_id]
 
@@ -600,7 +600,7 @@ end
 
 ```rust
 pub fn handle_completion(&self, completion: StepExecutionCompletionEvent) -> TaskerResult<()> {
-    // TAS-65 Phase 1.5b: Create linked span using trace context from Ruby
+    // Create linked span using trace context from Ruby
     let completion_span = if let (Some(trace_id), Some(span_id)) =
         (&completion.trace_id, &completion.span_id) {
         span!(
@@ -736,7 +736,7 @@ def wrap_step_execution_event(event_data):
         # ... other fields
     }
 
-    # TAS-65: Propagate trace context as opaque strings
+    # Propagate trace context as opaque strings
     if 'trace_id' in event_data:
         wrapped['trace_id'] = event_data['trace_id']
     if 'span_id' in event_data:
@@ -816,10 +816,6 @@ let span = span!(
 
 ## References
 
-- **TAS-65**: Distributed Event System Architecture
-- **TAS-65 Phase 1.5**: Worker Span Instrumentation (this document)
-- **TAS-29**: Correlation ID Implementation
-- **TAS-51**: Bounded MPSC Channels
 - **OpenTelemetry Rust**: https://github.com/open-telemetry/opentelemetry-rust
 - **Grafana LGTM Stack**: https://grafana.com/oss/lgtm-stack/
 - **W3C Trace Context**: https://www.w3.org/TR/trace-context/

@@ -5,8 +5,6 @@
 **Status**: Active
 **Package**: `tasker_core`
 **Related Docs**: [Patterns and Practices](patterns-and-practices.md) | [Worker Event Systems](../worker-event-systems.md) | [API Convergence Matrix](api-convergence-matrix.md)
-**Related Tickets**: TAS-112 (Lifecycle Hooks, Mixin Pattern)
-
 <- Back to [Worker Crates Overview](README.md)
 
 ---
@@ -255,7 +253,7 @@ def call(self, context: StepContext) -> StepHandlerResult:
 
 ---
 
-## Composition Pattern (TAS-112)
+## Composition Pattern
 
 Python handlers use composition via mixins (multiple inheritance) rather than single inheritance.
 
@@ -671,7 +669,7 @@ poller.stop(timeout=5.0)
 
 ---
 
-## Domain Events (TAS-112)
+## Domain Events
 
 Python has full domain event support with lifecycle hooks matching Ruby and TypeScript capabilities.
 

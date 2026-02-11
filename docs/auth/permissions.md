@@ -138,7 +138,7 @@ Set `strict_validation = false` if your identity provider includes additional sc
 
 ## Permission Check Implementation
 
-### TAS-176: Resource-Based Authorization
+### Resource-Based Authorization
 
 Permissions are enforced declaratively at the route level using `authorize()` wrappers. This ensures authorization happens **before** body deserialization:
 
@@ -210,7 +210,7 @@ Source: `tasker-shared/src/web/authorize.rs`, `tasker-shared/src/types/resources
 
 ## OpenAPI Documentation
 
-### Permission Extensions (TAS-176)
+### Permission Extensions
 
 Each protected endpoint in the OpenAPI spec includes an `x-required-permission` extension that documents the exact permission required:
 

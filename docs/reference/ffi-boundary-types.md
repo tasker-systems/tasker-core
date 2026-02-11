@@ -1,6 +1,6 @@
 # FFI Boundary Types Reference
 
-> TAS-112/TAS-123: Cross-language type harmonization for Rust ↔ Python/TypeScript boundaries
+Cross-language type harmonization for Rust, Python, and TypeScript boundaries.
 
 This document defines the canonical FFI boundary types that cross the Rust orchestration layer
 and the Python/TypeScript worker implementations. These types are critical for correct
@@ -179,7 +179,7 @@ pub struct BatchWorkerInputs {
 }
 
 pub struct BatchMetadata {
-    // TAS-125: checkpoint_interval removed - handlers decide when to checkpoint
+    // checkpoint_interval removed - handlers decide when to checkpoint
     pub cursor_field: String,
     pub failure_strategy: FailureStrategy,
 }
@@ -198,7 +198,7 @@ pub enum FailureStrategy {
 export type FailureStrategy = 'continue_on_failure' | 'fail_fast' | 'isolate';
 
 export interface BatchMetadata {
-  // TAS-125: checkpoint_interval removed - handlers decide when to checkpoint
+  // checkpoint_interval removed - handlers decide when to checkpoint
   cursor_field: string;
   failure_strategy: FailureStrategy;
 }
@@ -220,7 +220,7 @@ class FailureStrategy(str, Enum):
     ISOLATE = "isolate"
 
 class BatchMetadata(BaseModel):
-    # TAS-125: checkpoint_interval removed - handlers decide when to checkpoint
+    # checkpoint_interval removed - handlers decide when to checkpoint
     cursor_field: str
     failure_strategy: FailureStrategy
 

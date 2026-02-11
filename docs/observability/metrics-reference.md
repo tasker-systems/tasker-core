@@ -1,4 +1,4 @@
-# TAS-29 Phase 3.3: OpenTelemetry Metrics Reference
+# OpenTelemetry Metrics Reference
 
 **Status**: ✅ Complete
 **Export Interval**: 60 seconds
@@ -29,7 +29,7 @@ The Tasker system exports 47+ OpenTelemetry metrics across 5 domains:
 |--------|---------|-------------|
 | **Orchestration** | 11 | Task lifecycle, step coordination, finalization |
 | **Worker** | 10 | Step execution, claiming, result submission |
-| **Resilience** | 8+ | Circuit breakers (TAS-75), MPSC channels (TAS-51) |
+| **Resilience** | 8+ | Circuit breakers, MPSC channels |
 | **Database** | 7 | SQL query performance, connection pools |
 | **Messaging** | 11 | PGMQ queue operations, message processing |
 
@@ -681,7 +681,7 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_submission_duratio
 ## Resilience Metrics
 
 **Module**: `tasker-shared/src/metrics/worker.rs`, `tasker-orchestration/src/web/circuit_breaker.rs`
-**Instrumentation**: Circuit breakers (TAS-75), MPSC channels (TAS-51)
+**Instrumentation**: Circuit breakers, MPSC channels
 **Related Docs**: [Circuit Breakers](../circuit-breakers.md) | [Backpressure Architecture](../backpressure-architecture.md)
 
 ### Circuit Breaker Metrics
@@ -1278,5 +1278,5 @@ If histogram queries return no data:
 **Status**: All orchestration and worker metrics verified and producing data ✅
 
 **Recent Updates**:
-- 2025-12-10: Added Resilience Metrics section (TAS-75 circuit breakers, TAS-51 MPSC channels)
+- 2025-12-10: Added Resilience Metrics section (circuit breakers, MPSC channels)
 - 2025-10-08: Initial metrics verification completed

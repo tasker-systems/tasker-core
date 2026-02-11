@@ -2,11 +2,11 @@
 
 **Status**: Accepted
 **Date**: 2025-12
-**Ticket**: [TAS-112](https://linear.app/tasker-systems/issue/TAS-112)
+**Ticket**: TAS-112
 
 ## Context
 
-Cross-language step handler ergonomics research (TAS-112) revealed an architectural inconsistency:
+Cross-language step handler ergonomics research revealed an architectural inconsistency:
 
 - **Batchable handlers**: Already use **composition via mixins** (target pattern)
 - **API handlers**: Use inheritance (subclass pattern)
@@ -131,7 +131,6 @@ Let each language use its idiomatic pattern.
 
 ## References
 
-- [TAS-112 Specification](../ticket-specs/TAS-112/recommendations.md) - Full research synthesis
 - [Composition Over Inheritance](../principles/composition-over-inheritance.md) - Principle documentation
 - [Cross-Language Consistency](../principles/cross-language-consistency.md) - API philosophy
 - [API Convergence Matrix](../workers/api-convergence-matrix.md) - Cross-language API reference

@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-01-15
 **Audience**: Developers, Architects
-**Status**: Active (TAS-46 Actor Architecture, TAS-133 Messaging Abstraction Complete)
+**Status**: Active
 **Related Docs**: [Documentation Hub](README.md) | [Actor-Based Architecture](actors.md) | [Events and Commands](events-and-commands.md) | [Quick Start](quick-start.md)
 
 ← Back to [Documentation Hub](README.md)
@@ -148,7 +148,7 @@ pub struct PgmqClient {
 - SQL function executor and registry
 - Database utilities and migrations
 - Event system traits and types
-- **Messaging abstraction layer (TAS-133)**: Provider-agnostic messaging with PGMQ, RabbitMQ, and InMemory backends
+- **Messaging abstraction layer**: Provider-agnostic messaging with PGMQ, RabbitMQ, and InMemory backends
 - Factory system for testing
 - Metrics and observability primitives
 
@@ -183,7 +183,7 @@ pub mod event_system {
     pub enum DeploymentMode { Hybrid, EventDrivenOnly, PollingOnly }
 }
 
-// Messaging (TAS-133)
+// Messaging
 pub mod messaging {
     // Provider abstraction
     pub enum MessagingProvider { Pgmq, RabbitMq, InMemory }
@@ -229,7 +229,7 @@ pub mod messaging {
 **Location**: `tasker-orchestration/`
 
 **Key Responsibilities**:
-- Actor-based lifecycle coordination (TAS-46)
+- Actor-based lifecycle coordination
 - Task initialization and finalization
 - Step discovery and enqueueing
 - Result processing from workers
@@ -247,7 +247,7 @@ pub struct OrchestrationCore {
     pub async fn from_config(config: ConfigManager) -> Result<Self>;
 }
 
-// Actor-based coordination (TAS-46)
+// Actor-based coordination
 pub mod actors {
     pub struct ActorRegistry { /* ... */ }
     pub struct TaskRequestActor { /* ... */ }
@@ -287,7 +287,7 @@ pub mod web {
     pub async fn health_check() -> Result<HealthResponse>;
 }
 
-// gRPC API (Tonic) - TAS-177
+// gRPC API (Tonic)
 // Feature-gated behind `grpc-api`
 pub mod grpc {
     pub struct GrpcServer { /* ... */ }
@@ -315,7 +315,7 @@ pub mod event_systems {
 }
 ```
 
-**Actor Architecture** (TAS-46):
+**Actor Architecture**:
 
 The orchestration crate implements a lightweight actor pattern for lifecycle component coordination:
 
@@ -340,7 +340,7 @@ See [Actor-Based Architecture](actors.md) for comprehensive documentation.
 
 **Deployment**: Typically deployed as a server process (`tasker-server` binary)
 
-**Dual-Server Architecture (TAS-177)**:
+**Dual-Server Architecture**:
 
 Orchestration supports both REST and gRPC APIs running simultaneously via `SharedApiServices`:
 
@@ -444,7 +444,7 @@ pub struct RestOrchestrationClient {
     // Task, step, template, health operations
 }
 
-// gRPC client (TAS-177, feature-gated)
+// gRPC client (feature-gated)
 #[cfg(feature = "grpc")]
 pub struct GrpcOrchestrationClient {
     pub async fn connect(endpoint: &str) -> Result<Self>;
@@ -476,7 +476,7 @@ pub trait OrchestrationClient: Send + Sync {
 
 ### tasker-ctl
 
-**Purpose**: Command-line interface for Tasker (TAS-188: split from tasker-client)
+**Purpose**: Command-line interface for Tasker (split from tasker-client)
 
 **Location**: `tasker-ctl/`
 
@@ -786,7 +786,7 @@ Don't create a new crate when:
 ## Related Documentation
 
 - **[Actor-Based Architecture](actors.md)** - Actor pattern implementation in tasker-orchestration
-- **[Messaging Abstraction](messaging-abstraction.md)** - Provider-agnostic messaging (TAS-133)
+- **[Messaging Abstraction](messaging-abstraction.md)** - Provider-agnostic messaging
 - **[Quick Start](quick-start.md)** - Get running with the crates
 - **[Events and Commands](events-and-commands.md)** - How crates coordinate
 - **[States and Lifecycles](states-and-lifecycles.md)** - State machines in tasker-shared

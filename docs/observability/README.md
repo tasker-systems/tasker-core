@@ -31,7 +31,7 @@ All benchmark documentation has been consolidated in the `docs/benchmarks/` dire
 - `benchmark-quick-reference.md` - Superseded by [../benchmarks/README.md](../benchmarks/README.md)
 - `benchmark-strategy-summary.md` - Consolidated into benchmark-specific docs
 - `benchmarking-guide.md` - SQL benchmarks moved to [../benchmarks/sql-benchmarks.md](../benchmarks/sql-benchmarks.md)
-- `phase-5.4-distributed-benchmarks-plan.md` - Implementation complete, see [TAS-29](https://linear.app/tasker-systems/issue/TAS-29)
+- `phase-5.4-distributed-benchmarks-plan.md` - Implementation complete
 
 ---
 
@@ -104,10 +104,10 @@ info!(
 ### 3. **Tracing and OpenTelemetry**
 **Purpose**: Distributed request tracing across services
 
-**Status**: ✅ **Active** (TAS-65 Complete)
+**Status**: ✅ **Active**
 
 **Documentation**:
-- **[opentelemetry-improvements.md](./opentelemetry-improvements.md)** - TAS-65 telemetry enhancements
+- **[opentelemetry-improvements.md](./opentelemetry-improvements.md)** - Telemetry enhancements
 
 **Current Features**:
 - Distributed trace propagation via correlation IDs (UUIDv7)
@@ -121,7 +121,7 @@ info!(
 - Integration with Grafana LGTM stack (Prometheus, Tempo)
 - Domain event metrics (`/metrics/events` endpoint)
 
-**Two-Phase FFI Initialization** (TAS-65):
+**Two-Phase FFI Initialization**:
 - **Phase 1**: Console-only logging (safe during FFI bridge setup)
 - **Phase 2**: Full OpenTelemetry (after FFI established)
 
@@ -429,8 +429,6 @@ docker-compose logs orchestration | jq 'select(.level == "ERROR")'
 ## Related Documentation
 
 - **Benchmarks**: [../benchmarks/README.md](../benchmarks/README.md)
-- **Architecture**: [TAS-29](https://linear.app/tasker-systems/issue/TAS-29)
-- **Race Conditions**: [TAS-29](https://linear.app/tasker-systems/issue/TAS-29)
 - **SQL Functions**: [../task-and-step-readiness-and-execution.md](../task-and-step-readiness-and-execution.md)
 
 ---
@@ -443,7 +441,7 @@ docker-compose logs orchestration | jq 'select(.level == "ERROR")'
 - `metrics-reference.md` - Complete metrics catalog
 - `metrics-verification.md` - Verification procedures
 - `logging-standards.md` - Logging best practices
-- `opentelemetry-improvements.md` - TAS-65 telemetry enhancements
+- `opentelemetry-improvements.md` - Telemetry enhancements
 - `VERIFICATION_RESULTS.md` - Test results
 
 **Archived** (superseded by `docs/benchmarks/`):

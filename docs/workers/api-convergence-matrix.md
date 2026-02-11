@@ -2,8 +2,6 @@
 
 **Last Updated**: 2026-01-08
 **Status**: Active
-**Related Tickets**: TAS-92, TAS-93, TAS-95, TAS-96, TAS-97, TAS-98, TAS-112, TAS-125
-
 <- Back to [Worker Crates Overview](README.md)
 
 ---
@@ -11,18 +9,6 @@
 ## Overview
 
 This document provides a quick reference for the aligned APIs across Ruby, Python, TypeScript, and Rust worker implementations. All four languages share consistent patterns for handler execution, result creation, registry operations, and composition via mixins/traits.
-
-**TAS-112 Updates (2026-01-01)**:
-- Added TypeScript to all cross-language tables
-- Added composition pattern (mixin/trait) documentation
-- Added lifecycle hooks for publishers and subscribers
-- Updated domain events section with cross-language parity
-
-**TAS-93 Updates (2026-01-08)**:
-- Added Resolver Chain API section with cross-language parity
-- Documented StepHandlerResolver interface for custom resolvers
-- Added HandlerDefinition fields and method dispatch patterns
-- Links to new Handler Resolution Guide
 
 ---
 
@@ -37,7 +23,7 @@ This document provides a quick reference for the aligned APIs across Ruby, Pytho
 
 ---
 
-## Composition Pattern (TAS-112)
+## Composition Pattern
 
 All languages use composition via mixins/traits rather than inheritance hierarchies.
 
@@ -153,7 +139,7 @@ Use these standard values for consistent error classification:
 
 ---
 
-## Resolver Chain API (TAS-93)
+## Resolver Chain API
 
 Handler resolution uses a chain-of-responsibility pattern to convert callable addresses into executable handlers.
 
@@ -257,11 +243,11 @@ See [Handler Resolution Guide](../guides/handler-resolution.md) for complete doc
 - `items_succeeded` / `items_failed`
 - `start_cursor`, `end_cursor`, `batch_size`, `last_cursor`
 
-**Cursor Indexing (TAS-112):**
+**Cursor Indexing:**
 - All languages use **0-indexed cursors** (start at 0, not 1)
 - Ruby was updated from 1-indexed to 0-indexed for consistency
 
-### Checkpoint Yielding (TAS-125)
+### Checkpoint Yielding
 
 Checkpoint yielding enables batch workers to persist progress and yield control for re-dispatch.
 
@@ -304,7 +290,7 @@ See [Batch Processing Guide - Checkpoint Yielding](../guides/batch-processing.md
 | TypeScript | `BasePublisher` | `publish(ctx)` |
 | Rust | `StepEventPublisher` trait | `publish(ctx)` |
 
-### Publisher Lifecycle Hooks (TAS-112)
+### Publisher Lifecycle Hooks
 
 All languages support publisher lifecycle hooks for instrumentation:
 
@@ -336,7 +322,7 @@ All languages support publisher lifecycle hooks for instrumentation:
 | TypeScript | `BaseSubscriber` | `subscribesTo()`, `handle(event)` |
 | Rust | EventHandler closures | N/A |
 
-### Subscriber Lifecycle Hooks (TAS-112)
+### Subscriber Lifecycle Hooks
 
 All languages support subscriber lifecycle hooks:
 
@@ -358,7 +344,7 @@ All languages support subscriber lifecycle hooks:
 
 ## Migration Summary
 
-### Ruby (TAS-96, TAS-112)
+### Ruby
 
 | Before | After |
 |--------|-------|
@@ -368,7 +354,7 @@ All languages support subscriber lifecycle hooks:
 | `sequence.get_results('step')` | `context.get_dependency_result('step')` |
 | 1-indexed cursors | 0-indexed cursors |
 
-### Python (TAS-95, TAS-112)
+### Python
 
 | Before | After |
 |--------|-------|
@@ -377,7 +363,7 @@ All languages support subscriber lifecycle hooks:
 | N/A | `self.success(result, metadata)` |
 | N/A | Publisher/Subscriber lifecycle hooks |
 
-### TypeScript (TAS-112)
+### TypeScript
 
 | Before | After |
 |--------|-------|
@@ -386,7 +372,7 @@ All languages support subscriber lifecycle hooks:
 | N/A | Publisher/Subscriber lifecycle hooks |
 | N/A | `applyAPI(this)`, `applyDecision(this)` mixins |
 
-### Rust (TAS-97, TAS-112)
+### Rust
 
 | Before | After |
 |--------|-------|
@@ -405,4 +391,4 @@ All languages support subscriber lifecycle hooks:
 - [Rust Worker](rust.md) - Rust implementation details
 - [Composition Over Inheritance](../principles/composition-over-inheritance.md) - Why mixins over inheritance
 - [FFI Boundary Types](../reference/ffi-boundary-types.md) - Cross-language type alignment
-- [Handler Resolution Guide](../guides/handler-resolution.md) - Custom resolver strategies (TAS-93)
+- [Handler Resolution Guide](../guides/handler-resolution.md) - Custom resolver strategies

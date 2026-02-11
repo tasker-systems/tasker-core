@@ -1,6 +1,6 @@
 # Comprehensive Lifecycle Testing Framework Guide
 
-This guide demonstrates the complete lifecycle testing framework implemented for TAS-42, showing patterns, examples, and best practices for validating task and workflow step lifecycles with integrated SQL function validation.
+This guide demonstrates the complete lifecycle testing framework, showing patterns, examples, and best practices for validating task and workflow step lifecycles with integrated SQL function validation.
 
 ## Table of Contents
 

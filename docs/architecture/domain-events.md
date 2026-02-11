@@ -2,7 +2,7 @@
 
 **Last Updated**: 2025-12-01
 **Audience**: Architects, Developers
-**Status**: Active (TAS-65 Complete)
+**Status**: Active
 **Related Docs**: [Documentation Hub](README.md) | [Events and Commands](events-and-commands.md) | [Observability](observability/README.md) | [States and Lifecycles](states-and-lifecycles.md)
 
 ← Back to [Documentation Hub](README.md)
@@ -548,7 +548,7 @@ Ruby subscribers extend `TaskerCore::DomainEvents::BaseSubscriber` and use the c
 **Real Example: LoggingSubscriber** (`workers/ruby/spec/handlers/examples/domain_events/subscribers/logging_subscriber.rb`):
 
 ```ruby
-# TAS-65: Example logging subscriber for fast/in-process domain events
+# Example logging subscriber for fast/in-process domain events
 module DomainEvents
   module Subscribers
     class LoggingSubscriber < TaskerCore::DomainEvents::BaseSubscriber
@@ -574,7 +574,7 @@ end
 **Real Example: MetricsSubscriber** (`workers/ruby/spec/handlers/examples/domain_events/subscribers/metrics_subscriber.rb`):
 
 ```ruby
-# TAS-65: Example metrics subscriber for fast/in-process domain events
+# Example metrics subscriber for fast/in-process domain events
 module DomainEvents
   module Subscribers
     class MetricsSubscriber < TaskerCore::DomainEvents::BaseSubscriber
@@ -663,13 +663,13 @@ Domain event system configuration is part of the worker configuration in `worker
 ```toml
 # config/tasker/base/worker.toml
 
-# TAS-65: In-process event bus configuration for fast domain event delivery
+# In-process event bus configuration for fast domain event delivery
 [worker.mpsc_channels.in_process_events]
 broadcast_buffer_size = 2000        # Channel capacity for broadcast events
 log_subscriber_errors = true        # Log errors from event subscribers
 dispatch_timeout_ms = 5000          # Timeout for event dispatch
 
-# TAS-65/TAS-69: Domain Event System MPSC Configuration
+# Domain Event System MPSC Configuration
 [worker.mpsc_channels.domain_events]
 command_buffer_size = 1000          # Channel capacity for domain event commands
 shutdown_drain_timeout_ms = 5000    # Time to drain events on shutdown
@@ -685,13 +685,13 @@ deduplication_cache_size = 10000    # Event deduplication cache size
 
 **Test Environment** (`config/tasker/environments/test/worker.toml`):
 ```toml
-# TAS-65: In-process event bus - smaller buffers for testing
+# In-process event bus - smaller buffers for testing
 [worker.mpsc_channels.in_process_events]
 broadcast_buffer_size = 1000
 log_subscriber_errors = true
 dispatch_timeout_ms = 2000
 
-# TAS-65/TAS-69: Domain Event System - smaller buffers for testing
+# Domain Event System - smaller buffers for testing
 [worker.mpsc_channels.domain_events]
 command_buffer_size = 100
 shutdown_drain_timeout_ms = 1000
@@ -703,13 +703,13 @@ deduplication_cache_size = 1000
 
 **Production Environment** (`config/tasker/environments/production/worker.toml`):
 ```toml
-# TAS-65: In-process event bus - large buffers for production throughput
+# In-process event bus - large buffers for production throughput
 [worker.mpsc_channels.in_process_events]
 broadcast_buffer_size = 5000
 log_subscriber_errors = false       # Reduce log noise in production
 dispatch_timeout_ms = 10000
 
-# TAS-65/TAS-69: Domain Event System - large buffers for production throughput
+# Domain Event System - large buffers for production throughput
 [worker.mpsc_channels.domain_events]
 command_buffer_size = 5000
 shutdown_drain_timeout_ms = 10000
@@ -760,7 +760,7 @@ The worker uses an event-driven command pattern for step execution and domain ev
 // Worker command processor receives step completions via FFI channel
 match self.handle_send_step_result(step_result.clone()).await {
     Ok(()) => {
-        // TAS-65/TAS-69: Dispatch domain events AFTER successful orchestration notification
+        // Dispatch domain events AFTER successful orchestration notification.
         // Domain events are declarative of what HAS happened - the step is only
         // truly complete once orchestration has been notified successfully.
         // Fire-and-forget semantics (try_send) - never blocks the worker.
@@ -1045,7 +1045,6 @@ info!(
 - **Events and Commands**: [events-and-commands.md](events-and-commands.md) - System event architecture
 - **Observability**: [observability/README.md](observability/README.md) - Metrics and monitoring
 - **States and Lifecycles**: [states-and-lifecycles.md](states-and-lifecycles.md) - Task/step state machines
-- **TAS-65**: [TAS-65](https://linear.app/tasker-systems/issue/TAS-65) - Domain events implementation ticket
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2025-12
-**Ticket**: [TAS-69](https://linear.app/tasker-systems/issue/TAS-69)
+**Ticket**: TAS-69
 
 ## Context
 
@@ -11,11 +11,11 @@ The tasker-worker crate had a monolithic command processor architecture:
 - `WorkerProcessor`: 1,575 lines of code
 - All command handling inline
 - Difficult to test individual behaviors
-- Inconsistent with orchestration architecture (TAS-46)
+- Inconsistent with orchestration actor architecture
 
 ## Decision
 
-Transform the worker from monolithic command processor to **actor-based design**, mirroring the orchestration pattern from TAS-46.
+Transform the worker from monolithic command processor to **actor-based design**, mirroring the orchestration actor pattern.
 
 **Before: Monolithic Design**
 ```
@@ -103,6 +103,5 @@ Use production actor framework.
 
 ## References
 
-- For historical implementation details, see [TAS-69](https://linear.app/tasker-systems/issue/TAS-69)
 - [Worker Actors](../architecture/worker-actors.md) - Architecture documentation
-- [TAS-46 Actor Pattern](./TAS-46-actor-pattern.md) - Orchestration actor precedent
+- [Actor Pattern](./adr-001-actor-pattern.md) - Orchestration actor precedent

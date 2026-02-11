@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-01-15
 **Audience**: Architects, Operators
-**Status**: Active (TAS-133 Messaging Abstraction Complete)
+**Status**: Active
 **Related Docs**: [Documentation Hub](README.md) | [Quick Start](quick-start.md) | [Observability](observability/README.md) | [Messaging Abstraction](messaging-abstraction.md)
 
 ← Back to [Documentation Hub](README.md)
@@ -18,13 +18,13 @@ Tasker Core supports three deployment modes, each optimized for different operat
 - **EventDrivenOnly Mode** - Pure event-driven for lowest latency
 - **PollingOnly Mode** - Traditional polling for restricted environments
 
-**Messaging Backend Options** (TAS-133):
+**Messaging Backend Options**:
 - **PGMQ** (Default) - PostgreSQL-based, single infrastructure dependency
 - **RabbitMQ** - AMQP broker, higher throughput for high-volume scenarios
 
 ---
 
-## Messaging Backend Selection (TAS-133)
+## Messaging Backend Selection
 
 Tasker Core supports multiple messaging backends through a provider-agnostic abstraction layer. The choice of backend affects deployment architecture and operational requirements.
 
@@ -1145,7 +1145,7 @@ readinessProbe:
   failureThreshold: 2
 ```
 
-### gRPC Health Checks (TAS-177)
+### gRPC Health Checks
 
 Tasker Core exposes gRPC health endpoints alongside REST for Kubernetes gRPC health probes.
 

@@ -1,4 +1,4 @@
-# TAS-29 Phase 5.4: Distributed Benchmarking Strategy
+# Distributed Benchmarking Strategy
 
 **Status**: 🎯 Framework Complete | Implementation In Progress
 **Last Updated**: 2025-10-08
@@ -306,7 +306,7 @@ For tracking performance over time:
 ```markdown
 # Performance Baseline Comparison
 Baseline: main branch (2025-10-01)
-Current: feature/tas-29 (2025-10-08)
+Current: feature/benchmarks (2025-10-08)
 
 | Benchmark | Baseline | Current | Change | Status |
 |-----------|----------|---------|--------|--------|
@@ -425,4 +425,3 @@ export TASKER_TEST_WORKER_URL="http://localhost:9081"
 
 - **Full Plan**: [phase-5.4-distributed-benchmarks-plan.md](./phase-5.4-distributed-benchmarks-plan.md)
 - **SQL Benchmarks**: [benchmarking-guide.md](./benchmarking-guide.md)
-- **Ticket**: [TAS-29](https://linear.app/tasker-systems/issue/TAS-29)

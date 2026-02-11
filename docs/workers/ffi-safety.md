@@ -1,4 +1,4 @@
-# FFI Safety Safeguards (TAS-173)
+# FFI Safety Safeguards
 
 **Last Updated**: 2026-02-02
 **Status**: Production Implementation
@@ -124,14 +124,14 @@ A poisoned mutex (from a previous panic) produces a language exception rather th
 Post-bootstrap access to the `EventRouter` uses fallible error handling rather than `.expect()`:
 
 ```rust
-// TAS-173: Use ok_or_else instead of expect to prevent panic at FFI boundary
+// Use ok_or_else instead of expect to prevent panic at FFI boundary
 let event_router = worker_core.event_router().ok_or_else(|| {
     error!("EventRouter not available from WorkerCore after bootstrap");
     // Return language-appropriate error
 })?;
 ```
 
-## Callback Safety (TAS-67)
+## Callback Safety
 
 The `FfiDispatchChannel` uses a fire-and-forget pattern for post-completion callbacks, preventing the host process from being blocked or deadlocked by Rust-side async operations:
 

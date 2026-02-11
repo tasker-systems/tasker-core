@@ -1,13 +1,13 @@
-# ADR: TAS-51 Bounded MPSC Channel Migration
+# ADR: Bounded MPSC Channel Migration
 
 **Status**: Implemented
 **Date**: 2025-10-14
 **Decision Makers**: Engineering Team
-**Related Tickets**: TAS-51, TAS-40, TAS-46, TAS-43
+**Ticket**: TAS-51
 
 ## Context and Problem Statement
 
-Prior to TAS-51, the tasker-core system had inconsistent and risky MPSC channel usage:
+Prior to this change, the tasker-core system had inconsistent and risky MPSC channel usage:
 
 1. **Unbounded Channels (3 critical sites)**: Risk of unbounded memory growth under load
    - PGMQ notification listener: Could exhaust memory during notification bursts
@@ -250,11 +250,9 @@ let (tx, rx) = mpsc::channel(buffer_size);
 
 ## References
 
-- **Ticket**: [TAS-51](https://linear.app/tasker-systems/issue/TAS-51)
-- **Implementation PR**: `jcoletaylor/tas-51-bounded-mpsc-channels`
 - **Configuration Files**: `config/tasker/base/mpsc_channels.toml`
 - **Rust Module**: `tasker-shared/src/config/mpsc_channels.rs`
-- **Related ADRs**: TAS-40 (Command Pattern), TAS-46 (Actor Pattern)
+- **Related ADRs**: Command Pattern, [Actor Pattern](./adr-001-actor-pattern.md)
 
 ## Lessons Learned
 

@@ -1,10 +1,10 @@
-# Library Deployment Patterns (TAS-77)
+# Library Deployment Patterns
 
 This document describes the library deployment patterns feature that enables applications to consume worker observability data (health, metrics, templates, configuration) either via the HTTP API or directly through FFI, without running a web server.
 
 ## Overview
 
-Prior to TAS-77, applications needed to run the worker's HTTP server to access observability data. This created deployment overhead for applications that only needed programmatic access to health checks, metrics, or template information.
+Previously, applications needed to run the worker's HTTP server to access observability data. This created deployment overhead for applications that only needed programmatic access to health checks, metrics, or template information.
 
 The library deployment patterns feature:
 1. **Extracts observability logic into reusable services** - Business logic moved from HTTP handlers to service classes

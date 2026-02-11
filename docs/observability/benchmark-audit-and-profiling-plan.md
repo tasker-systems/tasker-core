@@ -1,4 +1,4 @@
-# Benchmark Audit & Profiling Plan (TAS-29)
+# Benchmark Audit & Profiling Plan
 
 **Created**: 2025-10-09
 **Status**: 📋 Planning
@@ -349,7 +349,7 @@ samply record --output=baseline-result-processor-pre-refactor.json \
   lifecycle::result_processor::tests --all-features
 ```
 
-**Deliverables** (completed, profiles removed in TAS-166 — superseded by cluster benchmarks):
+**Deliverables** (completed, profiles removed — superseded by cluster benchmarks):
 - ~~Baseline profile files in `profiles/pre-refactor/`~~ (removed)
 - Performance baselines now in `docs/benchmarks/README.md`
 
@@ -366,7 +366,7 @@ samply record --output=baseline-result-processor-pre-refactor.json \
 6. ✅ Recursive call depth
 
 **Document Findings**:
-Performance baselines are now documented in `docs/benchmarks/README.md` (TAS-166).
+Performance baselines are now documented in `docs/benchmarks/README.md`.
 The original `lifecycle-performance-baseline.md` was removed — its measurements had
 data quality issues and the refactor it targeted is complete.
 
@@ -580,7 +580,7 @@ jobs:
    - Run profiling plan Phase 1
    - Generate flamegraphs
    - Document hot paths
-4. ✅ **Baseline Document**: Superseded by `docs/benchmarks/README.md` (TAS-166)
+4. ✅ **Baseline Document**: Superseded by `docs/benchmarks/README.md`
 
 ### During Actor/Services Refactor
 

@@ -2,14 +2,14 @@
 
 **Last Updated**: 2025-12-04
 **Audience**: Architects, Developers
-**Status**: Active (TAS-69 Complete)
+**Status**: Active
 **Related Docs**: [Documentation Hub](README.md) | [Actor-Based Architecture](actors.md) | [Events and Commands](events-and-commands.md)
 
 <- Back to [Documentation Hub](README.md)
 
 ---
 
-This document provides comprehensive documentation of the worker actor-based architecture in tasker-worker, covering the lightweight Actor pattern that mirrors the orchestration architecture (TAS-46) for step execution and worker coordination.
+This document provides comprehensive documentation of the worker actor-based architecture in tasker-worker, covering the lightweight Actor pattern that mirrors the orchestration architecture for step execution and worker coordination.
 
 ## Overview
 
@@ -26,7 +26,7 @@ This architecture provides consistency between orchestration and worker systems,
 
 ## Implementation Status
 
-**TAS-69 Complete**: All phases implemented and production-ready
+**Complete**: All phases implemented and production-ready
 
 - **Phase 1**: Core abstractions (traits, registry, lifecycle management)
 - **Phase 2**: Service decomposition from 1575 LOC command_processor.rs
@@ -186,20 +186,15 @@ pub struct WorkerActorRegistry {
     /// Worker ID for this registry
     worker_id: String,
 
-    /// Step executor actor for step execution (TAS-69)
-    pub step_executor_actor: Arc<StepExecutorActor>,
+    /// Step executor actor for step execution    pub step_executor_actor: Arc<StepExecutorActor>,
 
-    /// FFI completion actor for handling step completions (TAS-69)
-    pub ffi_completion_actor: Arc<FFICompletionActor>,
+    /// FFI completion actor for handling step completions    pub ffi_completion_actor: Arc<FFICompletionActor>,
 
-    /// Template cache actor for template management (TAS-69)
-    pub template_cache_actor: Arc<TemplateCacheActor>,
+    /// Template cache actor for template management    pub template_cache_actor: Arc<TemplateCacheActor>,
 
-    /// Domain event actor for event dispatching (TAS-69)
-    pub domain_event_actor: Arc<DomainEventActor>,
+    /// Domain event actor for event dispatching    pub domain_event_actor: Arc<DomainEventActor>,
 
-    /// Worker status actor for health and status (TAS-69)
-    pub worker_status_actor: Arc<WorkerStatusActor>,
+    /// Worker status actor for health and status    pub worker_status_actor: Arc<WorkerStatusActor>,
 }
 ```
 
@@ -559,7 +554,7 @@ pub async fn dispatch_domain_events(
 
 ## Comparison with Orchestration Actors
 
-| Aspect | Orchestration (TAS-46) | Worker (TAS-69) |
+| Aspect | Orchestration | Worker |
 |--------|----------------------|-----------------|
 | **Actor Count** | 4 actors | 5 actors |
 | **Registry** | `ActorRegistry` | `WorkerActorRegistry` |
@@ -573,7 +568,7 @@ pub async fn dispatch_domain_events(
 
 ### 1. Consistency with Orchestration
 
-Same patterns and traits as TAS-46:
+Same patterns and traits as orchestration actors:
 - Identical `Handler<M>` trait interface
 - Similar registry lifecycle management
 - Consistent message-based communication
@@ -610,13 +605,13 @@ impl Handler<ExecuteStepMessage> for StepExecutorActor {
 
 ## Detailed Analysis
 
-For historical implementation details, see [TAS-69](https://linear.app/tasker-systems/issue/TAS-69) and the [TAS-69 ADR](../decisions/TAS-69-worker-decomposition.md).
+For design rationale, see the [Worker Decomposition ADR](../decisions/adr-006-worker-decomposition.md).
 
 ## Summary
 
 The worker actor-based architecture provides a consistent, type-safe foundation for step execution in tasker-worker. Key takeaways:
 
-1. **Mirrors Orchestration**: Same patterns as TAS-46 for consistency
+1. **Mirrors Orchestration**: Same patterns as orchestration actors for consistency
 2. **Lock-Free Performance**: Stateless services and AtomicU64 counters
 3. **Type Safety**: Compile-time verification of message contracts
 4. **Pure Routing**: Command processor delegates without business logic

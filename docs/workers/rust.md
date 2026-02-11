@@ -5,8 +5,6 @@
 **Status**: Active
 **Package**: `workers-rust`
 **Related Docs**: [Patterns and Practices](patterns-and-practices.md) | [Worker Event Systems](../worker-event-systems.md) | [API Convergence Matrix](api-convergence-matrix.md)
-**Related Tickets**: TAS-112 (Handler Capability Traits)
-
 <- Back to [Worker Crates Overview](README.md)
 
 ---
@@ -90,7 +88,7 @@ pub async fn bootstrap() -> Result<RustWorkerBootstrapResult> {
     // Bootstrap worker foundation
     let worker_handle = WorkerBootstrap::bootstrap_with_event_system(...).await?;
 
-    // Set up dispatch service (TAS-67 non-blocking path)
+    // Set up dispatch service (non-blocking path)
     let dispatch_service = HandlerDispatchService::with_callback(...);
 
     Ok(RustWorkerBootstrapResult {
@@ -146,7 +144,7 @@ The Rust worker uses the `HandlerDispatchService` for non-blocking handler execu
 
 ## Handler Development
 
-### Capability Traits (TAS-112)
+### Capability Traits
 
 Rust uses traits for handler composition, matching the mixin pattern in Ruby/Python/TypeScript.
 
@@ -490,7 +488,7 @@ impl RustStepHandler for FailNTimesHandler {
 
 ## Domain Events
 
-### TAS-65: Post-Execution Publishing
+### Post-Execution Publishing
 
 Handlers can publish domain events after step execution using the `StepEventPublisher` trait:
 

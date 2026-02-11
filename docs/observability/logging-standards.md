@@ -3,7 +3,7 @@
 **Version**: 1.0
 **Last Updated**: 2025-10-07
 **Status**: Active
-**Related**: TAS-29 Phase 1.5 - Observability Standardization
+**Related**: Observability Standardization
 
 ---
 
@@ -24,7 +24,7 @@
 
 **Principles**:
 - **Production-First**: Logs must be parseable, searchable, and professional
-- **Correlation-Driven**: All operations include correlation_id for distributed tracing (TAS-29)
+- **Correlation-Driven**: All operations include correlation_id for distributed tracing
 - **Structured**: Fields over string interpolation for aggregation and querying
 - **Concise**: Clear, actionable messages without noise
 - **Consistent**: Predictable patterns across all code
@@ -32,7 +32,7 @@
 **Anti-Patterns to Avoid**:
 - ❌ Emojis (🚀✅❌) - Breaks log parsers, unprofessional
 - ❌ All-caps prefixes ("BOOTSTRAP:", "CORE:") - Redundant with module paths
-- ❌ Ticket references ("TAS-40", "JIRA-123") - Internal, meaningless externally
+- ❌ Ticket references ("JIRA-123", "PROJ-40") - Internal, meaningless externally
 - ❌ String interpolation - Use structured fields instead
 - ❌ Verbose messages - Be concise, let fields provide detail
 
@@ -179,7 +179,7 @@ trace!(
 
 **Always Include**:
 ```rust
-correlation_id = %correlation_id,  // TAS-29: ALWAYS when available
+correlation_id = %correlation_id,  // ALWAYS when available
 ```
 
 **When Task Context Available**:
@@ -216,7 +216,7 @@ error_type = %type_name::<E>(),   // Optional: Error type
 ### Field Ordering (MANDATORY)
 
 **Standard Order**:
-1. **correlation_id** (always first - TAS-29)
+1. **correlation_id** (always first)
 2. **Entity IDs** (task_uuid, step_uuid, namespace)
 3. **Operation/Action** (operation, state, status)
 4. **Measurements** (duration_ms, count, size)
@@ -296,7 +296,7 @@ max_retries          // Not max_attempts
 **DON'T**:
 - ❌ Use emojis: "🚀 Starting..." → "Starting orchestration system"
 - ❌ Use all-caps prefixes: "BOOTSTRAP: Starting..." → "Starting orchestration bootstrap"
-- ❌ Include ticket numbers: "TAS-40: Processing..." → "Processing command"
+- ❌ Include ticket numbers: "PROJ-40: Processing..." → "Processing command"
 - ❌ Be redundant: "Successfully enqueued step successfully" → "Step enqueued"
 - ❌ Include technical jargon: "Atomic CAS transition succeeded" → "State transition complete"
 - ❌ Be verbose: Keep messages under 10 words ideally
@@ -315,7 +315,7 @@ info!("Starting orchestration system bootstrap");
 **Operation Completion**:
 ```rust
 // ❌ BEFORE
-info!("✅ STEP_ENQUEUER: Successfully marked step {} as enqueued (TAS-32)", step_uuid);
+info!("✅ STEP_ENQUEUER: Successfully marked step {} as enqueued", step_uuid);
 
 // ✅ AFTER
 info!(
@@ -649,7 +649,7 @@ pub async fn shutdown(&mut self) -> Result<()> {
 Before merging, verify:
 - [ ] No emojis in log messages
 - [ ] No all-caps component prefixes
-- [ ] No TAS-XX references in runtime logs
+- [ ] No ticket references in runtime logs
 - [ ] correlation_id present in all task/step operations
 - [ ] Structured fields follow standard ordering
 - [ ] Messages are concise and actionable
@@ -666,8 +666,8 @@ Before merging, verify:
 # Check for all-caps prefixes
 ! grep -rE '(info|debug|warn|error)!\(".*[A-Z_]{3,}:' src/
 
-# Check for TAS-XX in logs (allow in comments)
-! grep -rE '(info|debug|warn|error)!.*TAS-[0-9]' src/
+# Check for ticket references in logs (allow in comments)
+! grep -rE '(info|debug|warn|error)!.*[A-Z]+-[0-9]+' src/
 ```
 
 ### Pre-commit Hook
@@ -723,7 +723,7 @@ A: No. Never use emojis in any log message. They break parsers and are unprofess
 **Q: Should correlation_id really always be first?**
 A: Yes. This enables easy correlation across all logs. It's the #1 most important field for distributed tracing.
 
-**Q: What about TAS-XX in module docs?**
+**Q: What about ticket references in module docs?**
 A: Acceptable in module-level documentation for architectural context. Remove from runtime logs and inline comments.
 
 **Q: Can I include stack traces in logs?**
@@ -733,7 +733,6 @@ A: Use `error = %e` which includes the error chain. Only add explicit backtrace 
 
 ## References
 
-- [TAS-29](https://linear.app/tasker-systems/issue/TAS-29)
 - [Tracing Crate Documentation](https://docs.rs/tracing)
 - [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/)
 

@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2025-10
-**Ticket**: [TAS-46](https://linear.app/tasker-systems/issue/TAS-46)
+**Ticket**: TAS-46
 
 ## Context
 
@@ -83,6 +83,6 @@ Define `Service` trait and implement on each lifecycle component.
 
 ## References
 
-- [TAS-46](https://linear.app/tasker-systems/issue/TAS-46) - Full implementation details
+- See the actor pattern implementation in `tasker-orchestration/`
 - [Actors Architecture](../architecture/actors.md) - Actor pattern documentation
 - [Events and Commands](../architecture/events-and-commands.md) - Integration context

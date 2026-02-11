@@ -272,15 +272,15 @@ curl "http://localhost:16686/api/traces?tags=correlation_id:xyz-789"
 
 ## Recommendations
 
-### For TAS-29 Completion
+### Completion Criteria
 
-✅ **Mark as complete** with 4 working benchmarks:
-1. SQL Functions (Phase 5.2)
+✅ **Complete** with 4 working benchmarks:
+1. SQL Functions
 2. Task Initialization
 3. Event Propagation
 4. E2E Latency
 
-📋 **Document** that worker-level metrics come from OpenTelemetry (Phase 3.3)
+📋 **Document** that worker-level metrics come from OpenTelemetry
 
 ### For Future Enhancement
 

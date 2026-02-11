@@ -13,7 +13,7 @@
 
 Conditional workflows enable **runtime decision-making** that dynamically determines which workflow steps to execute based on business logic. Unlike static DAG workflows where all steps are predefined, conditional workflows use **decision point steps** to create steps on-demand based on runtime conditions.
 
-**TAS-53 Dynamic Workflow Decision Points** introduces this capability through:
+**Dynamic Workflow Decision Points** provide this capability through:
 - **Decision Point Steps**: Special step type that evaluates business logic and returns step names to create
 - **Deferred Steps**: Step type with dynamic dependency resolution using intersection semantics
 - **Type-Safe Integration**: Ruby and Rust helpers ensuring clean serialization between languages
@@ -221,7 +221,7 @@ name: approval_routing
 namespace_name: conditional_approval
 version: 1.0.0
 description: >
-  Ruby implementation of conditional approval workflow demonstrating TAS-53 dynamic decision points.
+  Ruby implementation of conditional approval workflow demonstrating dynamic decision points.
   Routes approval requests through different paths based on amount thresholds.
 task_handler:
   callable: tasker_worker_ruby::TaskHandler
@@ -362,7 +362,7 @@ module ConditionalApproval
         # Make routing decision based on amount
         route = determine_route(amount)
 
-        # TAS-53: Use Decision base class helper for clean outcome serialization
+        # Use Decision base class helper for clean outcome serialization
         decision_success(
           steps: route[:steps],
           result_data: {
@@ -1177,8 +1177,6 @@ When implementing decision point workflows, ensure:
 - **[Quick Start](quick-start.md)** - Getting started guide
 - **[Crate Architecture](crate-architecture.md)** - System architecture overview
 - **[Decision Point E2E Tests](testing/decision-point-e2e-tests.md)** - Detailed test documentation
-- **[TAS-53](https://linear.app/tasker-systems/issue/TAS-53)** - Implementation details and learnings
-
 ---
 
 ← Back to [Documentation Hub](README.md)

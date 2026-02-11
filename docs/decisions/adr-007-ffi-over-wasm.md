@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2025-12
-**Ticket**: [TAS-100](https://linear.app/tasker-systems/issue/TAS-100)
+**Ticket**: TAS-100
 
 ## Context
 
@@ -14,7 +14,7 @@ Ruby (Magnus) and Python (PyO3) workers already used FFI successfully.
 
 ## Decision
 
-**Proceed with FFI for all language workers.** Reserve WASM for future serverless handler execution (TAS-150+).
+**Proceed with FFI for all language workers.** Reserve WASM for future serverless handler execution.
 
 **Decision Matrix**:
 
@@ -59,9 +59,9 @@ Ruby (Magnus) and Python (PyO3) workers already used FFI successfully.
 
 ## Future Vision
 
-**WASM Research (TAS-109)**: Revisit when WASI 0.3+ stabilizes with networking.
+**WASM Research**: Revisit when WASI 0.3+ stabilizes with networking.
 
-**Serverless WASM Handlers (TAS-150+)**:
+**Serverless WASM Handlers**:
 - Compile individual handlers to WASM (not orchestration)
 - Deploy to serverless platforms (AWS Lambda, Cloudflare Workers)
 - Cold start optimization (1ms vs 100ms)
@@ -93,6 +93,5 @@ Use Spin's WASM abstraction layer.
 
 ## References
 
-- [TAS-100 Specification](../ticket-specs/TAS-100/analysis.md) - Full analysis
 - [Cross-Language Consistency](../principles/cross-language-consistency.md) - API philosophy
 - [Workers Documentation](../workers/) - Language-specific implementation guides

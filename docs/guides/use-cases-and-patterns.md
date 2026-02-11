@@ -830,7 +830,7 @@ end
 
 ### Key Features
 
-**Decision Point Steps** (TAS-53):
+**Decision Point Steps**:
 - Special step type that returns `DecisionPointOutcome`
 - Can return `NoBranches` (no additional steps) or `CreateSteps` (list of step names)
 - Fully atomic - either all steps created or none

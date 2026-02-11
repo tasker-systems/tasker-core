@@ -1,9 +1,9 @@
-# ADR: TAS-57 Backoff Logic Consolidation
+# ADR: Backoff Logic Consolidation
 
 **Status**: Implemented
 **Date**: 2025-10-29
 **Deciders**: Engineering Team
-**Related**: [TAS-42](https://linear.app/tasker-systems/issue/TAS-42), [TAS-57](https://linear.app/tasker-systems/issue/TAS-57)
+**Ticket**: TAS-57
 
 ## Context
 
@@ -255,8 +255,7 @@ END
    - `tasker-orchestration/src/orchestration/backoff_calculator.rs`: Atomic updates
 
 4. **Documentation**:
-   - `docs/task-and-step-readiness-and-execution.md`: TAS-57 section added
-   - [TAS-57](https://linear.app/tasker-systems/issue/TAS-57): Complete specification
+   - `docs/task-and-step-readiness-and-execution.md`: Backoff section added
    - This ADR
 
 ### Migration Path
@@ -299,7 +298,6 @@ Since this is greenfield alpha:
 
 ## References
 
-- [TAS-57](https://linear.app/tasker-systems/issue/TAS-57)
 - [Task and Step Readiness Documentation](../task-and-step-readiness-and-execution.md)
 - [States and Lifecycles Documentation](../states-and-lifecycles.md)
 - [BackoffCalculator Implementation](../../tasker-orchestration/src/orchestration/backoff_calculator.rs)
@@ -307,9 +305,7 @@ Since this is greenfield alpha:
 
 ## Related ADRs
 
-- TAS-42: WaitingForRetry State Introduction (created the dual-path problem)
-- TAS-41: Enhanced State Machines (processor tracking context)
-- TAS-54: Processor Ownership Removal (concurrent access patterns)
+- [Ownership Removal](./adr-003-ownership-removal.md) - Concurrent access patterns
 
 ---
 

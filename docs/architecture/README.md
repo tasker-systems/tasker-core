@@ -7,7 +7,7 @@ This directory contains architectural reference documentation describing how Tas
 | Document | Description |
 |----------|-------------|
 | [Crate Architecture](./crate-architecture.md) | Workspace structure and crate responsibilities |
-| [Messaging Abstraction](./messaging-abstraction.md) | Provider-agnostic messaging (PGMQ, RabbitMQ) - TAS-133 |
+| [Messaging Abstraction](./messaging-abstraction.md) | Provider-agnostic messaging (PGMQ, RabbitMQ) |
 | [Actors](./actors.md) | Actor-based orchestration lifecycle components |
 | [Worker Actors](./worker-actors.md) | Actor pattern for worker step execution |
 | [Worker Event Systems](./worker-event-systems.md) | Dual-channel event architecture for workers |

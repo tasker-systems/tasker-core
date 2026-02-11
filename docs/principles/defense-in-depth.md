@@ -163,11 +163,11 @@ Even if the same result arrives multiple times (network retries, duplicate messa
 
 ---
 
-## The TAS-54 Discovery: Ownership Was Harmful
+## The Discovery: Ownership Was Harmful
 
 ### What We Learned
 
-TAS-54 analyzed processor UUID "ownership" enforcement:
+Analysis of processor UUID "ownership" enforcement revealed:
 
 ```rust
 // OLD: Ownership enforcement (REMOVED)
@@ -263,4 +263,4 @@ Together they ensure: if something goes wrong, we know about it—either protect
 - [Fail Loudly](./fail-loudly.md) - Errors as first-class citizens
 - [Idempotency and Atomicity](../idempotency-and-atomicity.md) - Implementation details
 - [States and Lifecycles](../states-and-lifecycles.md) - State machine specifications
-- [TAS-54 ADR](../decisions/TAS-54-ownership-removal.md) - Processor UUID ownership removal decision
+- [Ownership Removal ADR](../decisions/adr-003-ownership-removal.md) - Processor UUID ownership removal decision

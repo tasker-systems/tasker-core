@@ -1,7 +1,7 @@
 # Batch Processing in Tasker
 
 **Last Updated**: 2026-01-06
-**Status**: Production Ready (TAS-59, TAS-125 Complete)
+**Status**: Production Ready
 **Related**: [Conditional Workflows](./conditional-workflows.md), [DLQ System](./dlq-system.md)
 
 ---
@@ -11,7 +11,7 @@
 - [Overview](#overview)
 - [Architecture Foundations](#architecture-foundations)
 - [Core Concepts](#core-concepts)
-- [Checkpoint Yielding (TAS-125)](#checkpoint-yielding-tas-125)
+- [Checkpoint Yielding](#checkpoint-yielding)
 - [Workflow Pattern](#workflow-pattern)
 - [Data Structures](#data-structures)
 - [Implementation Patterns](#implementation-patterns)
@@ -121,10 +121,10 @@ tx.commit().await?; // Atomic - all workers or none
 - **Cursor preservation during retry**: `workflow_steps.results` field preserved by `ResetForRetry` action
 - **Additional staleness detection**: Checkpoint timestamp tracking alongside duration-based detection
 
-**Key Simplification (TAS-49 Integration):**
+**Key Simplification:**
 - ❌ **No BatchRecoveryService** - Uses standard retry + DLQ
 - ❌ **No duplicate timeout settings** - Uses `lifecycle` config only
-- ✅ **Cursor data preserved** during `ResetForRetry` (verified in TAS-59 plan)
+- ✅ **Cursor data preserved** during `ResetForRetry`
 
 **Configuration Example**: `tests/fixtures/task_templates/ruby/batch_processing_products_csv.yaml:749-752`
 
@@ -137,7 +137,7 @@ tx.commit().await?; // Atomic - all workers or none
     backoff_multiplier: 2.0            # Exponential backoff
 ```
 
-### 3. Deferred Convergence (TAS-53)
+### 3. Deferred Convergence
 
 **What Batch Processing Inherits:**
 - **Intersection semantics**: Wait for declared dependencies ∩ actually created steps
@@ -511,7 +511,7 @@ async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult
 
 ---
 
-## Checkpoint Yielding (TAS-125)
+## Checkpoint Yielding
 
 Checkpoint yielding enables **handler-driven progress persistence** during long-running batch operations. Handlers explicitly checkpoint their progress, persist state to the database, and yield control back to the orchestrator for re-dispatch.
 
@@ -3042,15 +3042,13 @@ Batch processing in Tasker provides a robust, production-ready pattern for paral
 - **Deferred Convergence**: Intersection semantics aggregate dynamic worker counts
 - **DLQ**: Standard operator workflows with cursor preservation
 
-**Production Readiness** (TAS-59 Complete):
+**Production Readiness**:
 - 908 tests passing (Ruby workers)
 - Real-world CSV processing (1000 rows)
 - Docker integration working
 - Code review complete with recommended fixes
-- Ready for PR submission
 
 **For More Information**:
-- **Implementation Details**: See [TAS-59](https://linear.app/tasker-systems/issue/TAS-59)
 - **Conditional Workflows**: See `docs/conditional-workflows.md`
 - **DLQ System**: See `docs/dlq-system.md`
 - **Code Examples**: See `workers/rust/src/step_handlers/batch_processing_*.rs`

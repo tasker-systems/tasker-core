@@ -46,7 +46,7 @@ The SQL functions are organized into logical categories as defined in
 - **`calculate_step_depth(step_uuid)`**: Individual step depth analysis
 - **`get_step_transitive_dependencies(step_uuid)`**: Full dependency tree traversal
 
-#### 3. State Management (TAS-41 Enhanced)
+#### 3. State Management
 - **`transition_task_state_atomic(task_uuid, from_state, to_state, processor_uuid)`**:
   Atomic state transitions with ownership
 - **`get_current_task_state(task_uuid)`**: Current task state resolution
@@ -69,7 +69,7 @@ The SQL functions are organized into logical categories as defined in
 ### Core Tables
 
 The SQL functions operate on a comprehensive schema designed for UUID v7
-performance and scalability. As of TAS-128, all tables reside in the `tasker` schema
+performance and scalability. All tables reside in the `tasker` schema
 with simplified names. With `search_path = tasker, public`, queries use unqualified
 table names.
 
@@ -85,9 +85,9 @@ table names.
 - **`named_steps`**: Step type definitions and handlers
 - **`workflow_step_edges`**: Step dependency relationships (DAG structure)
 
-#### TAS-41 Enhancements
+#### Richer Task State Enhancements
 
-The TAS-41 migration (`migrations/tasker/20251209000000_tas41_richer_task_states.sql`) enhanced the
+The richer task states migration (`migrations/tasker/20251209000000_tas41_richer_task_states.sql`) enhanced the
 schema with:
 
 **Task State Management**:
@@ -124,7 +124,7 @@ CREATE OR REPLACE FUNCTION transition_task_state_atomic(
 
 ### Recent Enhancements
 
-#### TAS-42: WaitingForRetry State Support (Migration 20250927000000)
+#### WaitingForRetry State Support (Migration 20250927000000)
 
 The step readiness system was enhanced to support the new `WaitingForRetry` state, which distinguishes retryable failures from permanent errors:
 
@@ -134,11 +134,11 @@ The step readiness system was enhanced to support the new `WaitingForRetry` stat
 3. **Backoff Calculation**: Centralized exponential backoff logic with configurable backoff periods
 4. **Performance Optimization**: Introduced task-scoped CTEs to eliminate table scans for batch operations
 
-**Semantic Impact (TAS-42)**:
+**Semantic Impact**:
 - **Before**: `error` state included both retryable and permanent failures
 - **After**: `error` = permanent only, `waiting_for_retry` = awaiting backoff for retry
 
-#### TAS-57: Backoff Logic Consolidation (October 2025)
+#### Backoff Logic Consolidation (October 2025)
 
 The backoff calculation system was consolidated to eliminate configuration conflicts and race conditions:
 
@@ -491,7 +491,7 @@ pub struct ReadyTaskInfo {
 
 ## State Management and Atomic Transitions
 
-### TAS-41 Atomic State Transitions
+### Atomic State Transitions
 
 The enhanced state machine provides atomic transitions with processor ownership:
 

@@ -1,15 +1,14 @@
-# TAS-224: Focused Architectural and Security Audit Report
+# Focused Architectural and Security Audit Report
 
 **Audit Date**: 2026-02-05
 **Auditor**: Claude (Opus 4.6 / Sonnet 4.5 sub-agents)
-**Branch**: `jcoletaylor/tas-224-focused-architectural-and-security-audit`
 **Status**: Complete
 
 ---
 
 ## Executive Summary
 
-This audit evaluates all Tasker Core crates for alpha readiness across security, error handling, resilience, and architecture dimensions. Findings are categorized by severity (Critical/High/Medium/Low/Info) per the methodology defined in TAS-224.
+This audit evaluates all Tasker Core crates for alpha readiness across security, error handling, resilience, and architecture dimensions. Findings are categorized by severity (Critical/High/Medium/Low/Info) per the methodology defined in the audit specification.
 
 ### Alpha Readiness Verdict
 
@@ -26,17 +25,17 @@ This audit evaluates all Tasker Core crates for alpha readiness across security,
 
 ### High-Severity Findings (Must Fix Before Alpha)
 
-| ID | Finding | Crate | Fix Effort | Ticket |
-|----|---------|-------|------------|--------|
-| S-1 | Queue name validation missing | tasker-shared | Small | TAS-226 |
-| S-2 | SQL error details exposed to clients | tasker-shared | Medium | TAS-230 |
-| S-3 | `#[allow]` → `#[expect]` (systemic) | All | Small (batch) | TAS-227 |
-| P-1 | NOTIFY channel name unvalidated | tasker-pgmq | Small | TAS-226 |
-| O-1 | No actor panic recovery | tasker-orchestration | Medium | TAS-228 |
-| O-2 | Graceful shutdown lacks timeout | tasker-orchestration | Small | TAS-228 |
-| W-1 | checkpoint_yield blocks FFI without timeout | tasker-worker | Small | TAS-229 |
-| X-1 | `bytes` v1.11.0 CVE (RUSTSEC-2026-0007) | Workspace | Trivial | TAS-225 |
-| P-2 | CLI migration SQL generation unescaped | tasker-pgmq | Small | TAS-226 |
+| ID | Finding | Crate | Fix Effort | Remediation |
+|----|---------|-------|------------|-------------|
+| S-1 | Queue name validation missing | tasker-shared | Small | Queue name validation |
+| S-2 | SQL error details exposed to clients | tasker-shared | Medium | Error message sanitization |
+| S-3 | `#[allow]` → `#[expect]` (systemic) | All | Small (batch) | Lint compliance cleanup |
+| P-1 | NOTIFY channel name unvalidated | tasker-pgmq | Small | Queue name validation |
+| O-1 | No actor panic recovery | tasker-orchestration | Medium | Shutdown and recovery hardening |
+| O-2 | Graceful shutdown lacks timeout | tasker-orchestration | Small | Shutdown and recovery hardening |
+| W-1 | checkpoint_yield blocks FFI without timeout | tasker-worker | Small | FFI checkpoint timeout |
+| X-1 | `bytes` v1.11.0 CVE (RUSTSEC-2026-0007) | Workspace | Trivial | Dependency upgrade |
+| P-2 | CLI migration SQL generation unescaped | tasker-pgmq | Small | Queue name validation |
 
 ---
 
@@ -53,7 +52,7 @@ The `tasker-shared` crate is the largest and most foundational crate in the work
 - **Comprehensive input validation**: JSONB validation with size/depth/key count limits (`src/validation.rs`), namespace validation with PostgreSQL identifier rules, XSS sanitization
 - **100% SQLx macro usage**: All database queries use compile-time verified `sqlx::query!` macros, zero string interpolation in SQL
 - **Lock-free circuit breakers**: Atomic state management (`AtomicU8` for state, `AtomicU64` for metrics), proper memory ordering, correct state machine transitions
-- **All MPSC channels bounded and config-driven**: Full TAS-51 compliance
+- **All MPSC channels bounded and config-driven**: Full bounded-channel compliance
 - **Exemplary config security**: Environment variable allowlist with regex validation, TOML injection prevention via `escape_toml_string()`, fail-fast on validation errors
 - **No hardcoded secrets**: All sensitive values come from env vars or file paths
 - **Well-organized API surface**: Feature-gated modules (web-api, grpc-api), selective re-exports
@@ -91,14 +90,14 @@ impl From<sqlx::Error> for TaskerError {
 
 **Recommendation**: Create a sanitized error mapper that logs full details internally but returns generic messages to API clients (e.g., "Database operation failed" with an internal error ID for correlation).
 
-### Finding S-3 (HIGH): `#[allow]` Used Instead of `#[expect]` (TAS-58 Violation)
+### Finding S-3 (HIGH): `#[allow]` Used Instead of `#[expect]` (Lint Policy Violation)
 
 **Locations**:
 - `src/messaging/execution_types.rs:383` — `#[allow(clippy::too_many_arguments)]`
 - `src/web/authorize.rs:194` — `#[allow(dead_code)]`
 - `src/utils/serde.rs:46-47` — `#[allow(dead_code)]`
 
-TAS-58 mandates `#[expect(lint_name, reason = "...")]` instead of `#[allow]`. This is a policy compliance issue.
+Project lint policy mandates `#[expect(lint_name, reason = "...")]` instead of `#[allow]`. This is a policy compliance issue.
 
 **Recommendation**: Convert all `#[allow]` to `#[expect]` with documented reasons.
 
@@ -184,7 +183,7 @@ The `tasker-pgmq` crate is a PGMQ wrapper providing PostgreSQL LISTEN/NOTIFY sup
 - **Payload uses parameterized queries**: Message payloads bound via `$1` parameter in NOTIFY
 - **Payload size validation**: Enforces pg_notify 8KB limit
 - **Comprehensive thiserror error types** with context preservation
-- **TAS-51 compliant**: All MPSC channels bounded
+- **Bounded channels**: All MPSC channels bounded
 - **Good test coverage**: 6 integration test files covering major flows
 - **Clean separation from tasker-shared**: No duplication, standalone library
 
@@ -262,7 +261,7 @@ Regex::new(&self.queue_naming_pattern)
 
 Original regex error details discarded.
 
-### Finding P-8 (LOW): `#[allow]` Instead of `#[expect]` (TAS-58)
+### Finding P-8 (LOW): `#[allow]` Instead of `#[expect]` (Lint Policy)
 
 **Location**: `tasker-pgmq/src/emitter.rs:299-320` — 3 instances of `#[allow(dead_code)]` on `EmitterFactory`.
 
@@ -284,7 +283,7 @@ The `tasker-orchestration` crate handles core orchestration logic: actors, state
 - **State transitions enforce ownership**: No API endpoint allows direct state manipulation
 - **Sanitized error responses**: No stack traces, database errors genericized, consistent JSON format
 - **Backpressure checked before resource operations**: 503 with Retry-After header
-- **Full TAS-51 compliance**: All MPSC channels bounded and config-driven (0 unbounded channels)
+- **Full bounded-channel compliance**: All MPSC channels bounded and config-driven (0 unbounded channels)
 - **HTTP request timeout**: `TimeoutLayer` with configurable 30s default
 
 ### Finding O-1 (HIGH): No Actor Panic Recovery
@@ -305,7 +304,7 @@ Shutdown calls `coordinator.lock().await.stop().await` and `orchestration_handle
 
 **Recommendation**: Add 30-second timeout with force-kill fallback.
 
-### Finding O-3 (HIGH): `#[allow]` Instead of `#[expect]` (TAS-58)
+### Finding O-3 (HIGH): `#[allow]` Instead of `#[expect]` (Lint Policy)
 
 21 instances of `#[allow]` found across the crate (most without `reason =` clause):
 - `src/actors/traits.rs:67,81`
@@ -390,7 +389,7 @@ The `tasker-worker` crate handles handler dispatch, FFI integration, and complet
 - **Error classification preserved**: Permanent/Retryable distinction maintained across FFI boundary
 - **Fire-and-forget callbacks**: Spawned into runtime, 5s timeout, no deadlock risk
 - **FFI completion circuit breaker**: Latency-based, 100ms threshold, lock-free metrics
-- **All MPSC channels bounded** — full TAS-51 compliance
+- **All MPSC channels bounded** — full bounded-channel compliance
 - **No production unwrap()/expect()** in core paths
 
 ### Finding W-1 (HIGH): `checkpoint_yield` Blocks FFI Thread Without Timeout
@@ -417,7 +416,7 @@ Uses `block_on` which blocks the Ruby/Python thread while persisting checkpoint 
 
 The `FfiDispatchChannel` uses `Arc<Mutex<mpsc::Receiver>>` (thread-safe) but lacks documentation about thread-safety guarantees, `poll()` contention behavior, and `block_on` safety in FFI context.
 
-### Finding W-4 (MEDIUM): `#[allow]` vs `#[expect]` (TAS-58)
+### Finding W-4 (MEDIUM): `#[allow]` vs `#[expect]` (Lint Policy)
 
 5 instances in `web/middleware/mod.rs` and `web/middleware/request_id.rs`.
 
@@ -435,7 +434,7 @@ Several instances, appear to be for optional fields (likely legitimate), but war
 
 **Overall Rating**: A (Excellent — cleanest crates in the workspace)
 
-These client crates demonstrate the strongest compliance across all audit dimensions. Notably, **TAS-58 compliant** (using `#[expect]` already). No Critical or High findings.
+These client crates demonstrate the strongest compliance across all audit dimensions. Notably, **lint policy compliant** (using `#[expect]` already). No Critical or High findings.
 
 ### Strengths
 
@@ -446,7 +445,7 @@ These client crates demonstrate the strongest compliance across all audit dimens
 - **Complete transport abstraction**: REST and gRPC both implement 11/11 methods
 - **HTTP/gRPC timeouts configured**: 30s request, 10s connect
 - **Exponential backoff retry** for `create_task` with configurable max retries
-- **TAS-58 compliant** — uses `#[expect]` with reasons
+- **Lint policy compliant** — uses `#[expect]` with reasons
 - **User-facing CLI errors informative** without leaking internals
 
 ### Finding C-1 (MEDIUM): TLS Certificate Validation Not Explicitly Enforced
@@ -486,16 +485,16 @@ All 4 language workers share common architecture via `FfiDispatchChannel` for po
 - **Starvation detection functional** in all workers
 - **Proper Arc usage** for thread-safe shared ownership across FFI
 - **TypeScript C FFI: Correct string memory management** with `into_raw()`/`from_raw()` pattern and `free_rust_string()` for caller cleanup
-- **Checkpoint support uniformly implemented** across all 4 workers (TAS-125)
+- **Checkpoint support uniformly implemented** across all 4 workers
 - **Consistent error hierarchy** across all languages
 
 ### Finding LW-1 (MEDIUM): TypeScript FFI Missing Safety Documentation
 
 **Location**: `workers/typescript/src-rust/lib.rs:38`
 
-`#![allow(clippy::missing_safety_doc)]` — suppresses docs for 9 `unsafe extern "C"` functions. Should use `#[expect]` per TAS-58 and add `# Safety` sections.
+`#![allow(clippy::missing_safety_doc)]` — suppresses docs for 9 `unsafe extern "C"` functions. Should use `#[expect]` per lint policy and add `# Safety` sections.
 
-### Finding LW-2 (MEDIUM): Rust Worker `#[allow(dead_code)]` (TAS-58)
+### Finding LW-2 (MEDIUM): Rust Worker `#[allow(dead_code)]` (Lint Policy)
 
 **Location**: `workers/rust/src/event_subscribers/logging_subscriber.rs:60,98,132`
 
@@ -537,7 +536,7 @@ Transitive from `lapin` (RabbitMQ) → `amq-protocol` → `tcp-stream` → `rust
 
 **Zero warnings** across entire workspace with `--all-targets --all-features`. Excellent.
 
-### Systemic: `#[allow]` vs `#[expect]` (TAS-58)
+### Systemic: `#[allow]` vs `#[expect]` (Lint Policy)
 
 **27 instances** of `#[allow]` found across all crates. Distribution:
 - tasker-shared: ~5 instances
@@ -572,19 +571,19 @@ Each crate was evaluated across these dimensions:
 4. **Architecture** — API surface, documentation consistency, test coverage, dead code
 5. **FFI-Specific** (language workers) — Error classification, deadlock risk, starvation detection, memory safety
 
-Severity definitions follow the TAS-224 ticket specification.
+Severity definitions follow the audit specification.
 
 ---
 
 ## Appendix: Remediation Tracking
 
-Sub-tickets created under TAS-224 for all High-severity findings:
+Remediation work items for all High-severity findings:
 
-| Ticket | Findings | Priority | Summary |
-|--------|----------|----------|---------|
-| TAS-225 | X-1 | Urgent | Upgrade `bytes` to fix RUSTSEC-2026-0007 CVE |
-| TAS-226 | S-1, P-1, P-2 | High | Add queue name and NOTIFY channel validation |
-| TAS-227 | S-3, O-3, W-4, LW-1, LW-2, P-8 | Medium | Replace `#[allow]` with `#[expect]` workspace-wide |
-| TAS-228 | O-1, O-2 | High | Add shutdown timeout and actor panic recovery |
-| TAS-229 | W-1 | High | Add timeout to `checkpoint_yield` `block_on` |
-| TAS-230 | S-2 | High | Sanitize database error messages in API responses |
+| Work Item | Findings | Priority | Summary |
+|-----------|----------|----------|---------|
+| Dependency upgrade | X-1 | Urgent | Upgrade `bytes` to fix RUSTSEC-2026-0007 CVE |
+| Queue name validation | S-1, P-1, P-2 | High | Add queue name and NOTIFY channel validation |
+| Lint compliance cleanup | S-3, O-3, W-4, LW-1, LW-2, P-8 | Medium | Replace `#[allow]` with `#[expect]` workspace-wide |
+| Shutdown and recovery hardening | O-1, O-2 | High | Add shutdown timeout and actor panic recovery |
+| FFI checkpoint timeout | W-1 | High | Add timeout to `checkpoint_yield` `block_on` |
+| Error message sanitization | S-2 | High | Sanitize database error messages in API responses |

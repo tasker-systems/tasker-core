@@ -144,7 +144,7 @@ This is also used as a graceful fallback when Redis connection fails.
 
 ## Circuit Breaker Protection
 
-The cache circuit breaker (TAS-171) prevents repeated timeout penalties when
+The cache circuit breaker prevents repeated timeout penalties when
 Redis/Dragonfly is unavailable. Instead of waiting for connection timeouts on
 every request, the circuit breaker fails fast after detecting failures.
 
