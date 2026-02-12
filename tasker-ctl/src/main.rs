@@ -5,9 +5,13 @@
 //!
 //! This is the CLI binary crate. The API client library lives in `tasker-client`.
 
+pub(crate) mod cli_config;
 pub(crate) mod commands;
 #[cfg(feature = "docs-gen")]
 pub(crate) mod docs;
+pub(crate) mod output;
+pub(crate) mod plugins;
+pub(crate) mod template_engine;
 
 use clap::{Parser, Subcommand};
 use tasker_client::ClientConfig;
@@ -15,13 +19,15 @@ use tracing::info;
 
 use commands::{
     handle_auth_command, handle_config_command, handle_dlq_command, handle_docs_command,
-    handle_system_command, handle_task_command, handle_worker_command,
+    handle_plugin_command, handle_system_command, handle_task_command, handle_template_command,
+    handle_worker_command,
 };
 
 #[derive(Parser, Debug)]
 #[command(name = "tasker-ctl")]
 #[command(about = "Command-line interface for Tasker orchestration system")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
+#[command(styles = output::clap_styles())]
 pub(crate) struct Cli {
     /// Configuration file path (default: ~/.tasker/config.toml)
     #[arg(short, long)]
@@ -78,6 +84,14 @@ pub(crate) enum Commands {
     /// Configuration documentation generation (TAS-175)
     #[command(subcommand)]
     Docs(DocsCommands),
+
+    /// Plugin management (TAS-126: discover and validate CLI plugins)
+    #[command(subcommand)]
+    Plugin(PluginCommands),
+
+    /// Template operations (TAS-126: list, inspect, and generate from plugin templates)
+    #[command(subcommand)]
+    Template(TemplateCommands),
 }
 
 #[derive(Debug, Subcommand)]
@@ -557,6 +571,69 @@ pub(crate) enum DlqCommands {
     Stats,
 }
 
+/// TAS-126: Plugin management commands
+#[derive(Debug, Subcommand)]
+pub(crate) enum PluginCommands {
+    /// List discovered plugins from configured paths
+    List,
+
+    /// Validate a plugin directory (checks manifest and template references)
+    Validate {
+        /// Path to the plugin directory to validate
+        #[arg(value_name = "PATH")]
+        path: String,
+    },
+}
+
+/// TAS-126: Template operations commands
+#[derive(Debug, Subcommand)]
+pub(crate) enum TemplateCommands {
+    /// List available templates from discovered plugins
+    List {
+        /// Filter by language (e.g., ruby, python, rust, typescript)
+        #[arg(short, long)]
+        language: Option<String>,
+
+        /// Filter by framework (e.g., rails, django, axum)
+        #[arg(short, long)]
+        framework: Option<String>,
+    },
+
+    /// Show detailed information about a template
+    Info {
+        /// Template name
+        #[arg(value_name = "NAME")]
+        name: String,
+
+        /// Scope to a specific plugin
+        #[arg(short, long)]
+        plugin: Option<String>,
+    },
+
+    /// Generate files from a template
+    Generate {
+        /// Template name to generate from
+        #[arg(value_name = "TEMPLATE")]
+        template: String,
+
+        /// Template parameters as key=value pairs (repeatable)
+        #[arg(short, long = "param", value_name = "KEY=VALUE")]
+        param: Vec<String>,
+
+        /// Target language (selects plugin by language)
+        #[arg(short, long)]
+        language: Option<String>,
+
+        /// Scope to a specific plugin
+        #[arg(long)]
+        plugin: Option<String>,
+
+        /// Output directory (default: current directory or config default)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+}
+
 #[tokio::main]
 async fn main() -> tasker_client::ClientResult<()> {
     let cli = Cli::parse();
@@ -601,5 +678,13 @@ async fn main() -> tasker_client::ClientResult<()> {
         Commands::Dlq(dlq_cmd) => handle_dlq_command(dlq_cmd, &config).await,
         Commands::Auth(auth_cmd) => handle_auth_command(auth_cmd).await,
         Commands::Docs(docs_cmd) => handle_docs_command(docs_cmd).await,
+        Commands::Plugin(plugin_cmd) => {
+            let cli_config = cli_config::load_cli_config();
+            handle_plugin_command(plugin_cmd, &cli_config).await
+        }
+        Commands::Template(template_cmd) => {
+            let cli_config = cli_config::load_cli_config();
+            handle_template_command(template_cmd, &cli_config).await
+        }
     }
 }

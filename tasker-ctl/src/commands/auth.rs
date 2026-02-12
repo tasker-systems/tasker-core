@@ -9,6 +9,7 @@ use tasker_shared::config::WebAuthConfig;
 use tasker_shared::types::auth::JwtAuthenticator;
 use tasker_shared::types::permissions::Permission;
 
+use crate::output;
 use crate::AuthCommands;
 
 pub(crate) async fn handle_auth_command(cmd: AuthCommands) -> ClientResult<()> {
@@ -42,7 +43,7 @@ fn generate_keys(output_dir: &str, key_size: usize) -> ClientResult<()> {
 
     // Validate key size
     if key_size < 2048 {
-        eprintln!("Error: Key size must be at least 2048 bits for security");
+        output::error("Key size must be at least 2048 bits for security");
         return Err(tasker_client::ClientError::InvalidInput(
             "Key size must be at least 2048 bits".to_string(),
         ));
@@ -56,7 +57,7 @@ fn generate_keys(output_dir: &str, key_size: usize) -> ClientResult<()> {
         ))
     })?;
 
-    println!("Generating {}-bit RSA key pair...", key_size);
+    output::dim(format!("Generating {}-bit RSA key pair...", key_size));
 
     let mut rng = OsRng;
     let private_key = RsaPrivateKey::new(&mut rng, key_size).map_err(|e| {
@@ -89,18 +90,21 @@ fn generate_keys(output_dir: &str, key_size: usize) -> ClientResult<()> {
         tasker_client::ClientError::config_error(format!("Failed to write public key: {}", e))
     })?;
 
-    println!("Keys generated successfully:");
-    println!("  Private key: {}", private_key_path.display());
-    println!("  Public key:  {}", public_key_path.display());
-    println!();
-    println!("Add to your configuration:");
-    println!("  jwt_public_key_path = \"{}\"", public_key_path.display());
-    println!();
-    println!("Or set environment variable:");
-    println!(
+    output::success("Keys generated successfully:");
+    output::label("  Private key", private_key_path.display());
+    output::label("  Public key", public_key_path.display());
+    output::blank();
+    output::hint("Add to your configuration:");
+    output::plain(format!(
+        "  jwt_public_key_path = \"{}\"",
+        public_key_path.display()
+    ));
+    output::blank();
+    output::hint("Or set environment variable:");
+    output::plain(format!(
         "  export TASKER_JWT_PUBLIC_KEY_PATH={}",
         public_key_path.display()
-    );
+    ));
 
     Ok(())
 }
@@ -137,10 +141,10 @@ fn generate_token(
     // Validate permissions (warn about unknown ones)
     let unknown = tasker_shared::types::permissions::validate_permissions(&perms);
     if !unknown.is_empty() {
-        eprintln!(
-            "Warning: Unknown permissions (will still be included): {}",
+        output::warning(format!(
+            "Unknown permissions (will still be included): {}",
             unknown.join(", ")
-        );
+        ));
     }
 
     // Create authenticator with the private key
@@ -167,6 +171,7 @@ fn generate_token(
             tasker_client::ClientError::config_error(format!("Failed to generate token: {}", e))
         })?;
 
+    // Raw token to stdout for piping; metadata to stderr
     println!("{}", token);
     eprintln!();
     eprintln!("Token details:");
@@ -184,11 +189,17 @@ fn generate_token(
 }
 
 fn show_permissions() -> ClientResult<()> {
-    println!("Available Permissions");
-    println!("=====================");
-    println!();
-    println!("{:<25} {:<15} Description", "Permission", "Resource");
-    println!("{:<25} {:<15} -----------", "---------", "--------");
+    output::header("Available Permissions");
+    output::plain("=====================");
+    output::blank();
+    output::plain(format!(
+        "{:<25} {:<15} Description",
+        "Permission", "Resource"
+    ));
+    output::plain(format!(
+        "{:<25} {:<15} -----------",
+        "---------", "--------"
+    ));
 
     let all_permissions = [
         (Permission::TasksCreate, "Create new tasks"),
@@ -211,20 +222,20 @@ fn show_permissions() -> ClientResult<()> {
     ];
 
     for (perm, description) in &all_permissions {
-        println!(
+        output::plain(format!(
             "{:<25} {:<15} {}",
             perm.as_str(),
             perm.resource(),
             description
-        );
+        ));
     }
 
-    println!();
-    println!("Wildcards:");
-    println!("  tasks:*    - All task permissions");
-    println!("  steps:*    - All step permissions");
-    println!("  dlq:*      - All DLQ permissions");
-    println!("  *          - All permissions (superuser)");
+    output::blank();
+    output::header("Wildcards:");
+    output::plain("  tasks:*    - All task permissions");
+    output::plain("  steps:*    - All step permissions");
+    output::plain("  dlq:*      - All DLQ permissions");
+    output::plain("  *          - All permissions (superuser)");
 
     Ok(())
 }
@@ -255,50 +266,47 @@ fn validate_token(token: &str, public_key_path: &str) -> ClientResult<()> {
     // Validate token
     match authenticator.validate_token(token) {
         Ok(claims) => {
-            println!("Token is valid");
-            println!();
-            println!("Claims:");
-            println!("  Subject: {}", claims.sub);
-            println!("  Issuer: {}", claims.iss);
-            println!("  Audience: {}", claims.aud);
-            println!(
-                "  Issued at: {}",
+            output::success("Token is valid");
+            output::blank();
+            output::header("Claims:");
+            output::label("  Subject", &claims.sub);
+            output::label("  Issuer", &claims.iss);
+            output::label("  Audience", &claims.aud);
+            output::label(
+                "  Issued at",
                 chrono::DateTime::from_timestamp(claims.iat, 0)
                     .map(|dt| dt.to_rfc3339())
-                    .unwrap_or_else(|| "unknown".to_string())
+                    .unwrap_or_else(|| "unknown".to_string()),
             );
-            println!(
-                "  Expires: {}",
+            output::label(
+                "  Expires",
                 chrono::DateTime::from_timestamp(claims.exp, 0)
                     .map(|dt| dt.to_rfc3339())
-                    .unwrap_or_else(|| "unknown".to_string())
+                    .unwrap_or_else(|| "unknown".to_string()),
             );
 
             if !claims.permissions.is_empty() {
-                println!("  Permissions:");
+                output::label("  Permissions", "");
                 for perm in &claims.permissions {
                     let known = Permission::from_str_opt(perm).is_some();
                     let marker = if known { "" } else { " (unknown)" };
-                    println!("    - {}{}", perm, marker);
+                    output::plain(format!("    - {}{}", perm, marker));
                 }
             }
 
             if !claims.worker_namespaces.is_empty() {
-                println!(
-                    "  Worker namespaces: {}",
-                    claims.worker_namespaces.join(", ")
-                );
+                output::label("  Worker namespaces", claims.worker_namespaces.join(", "));
             }
 
             // Check expiry
             let now = chrono::Utc::now().timestamp();
             if claims.exp < now {
-                eprintln!();
-                eprintln!("WARNING: Token has expired!");
+                output::blank();
+                output::warning("Token has expired!");
             }
         }
         Err(e) => {
-            eprintln!("Token validation failed: {}", e);
+            output::error(format!("Token validation failed: {}", e));
             return Err(tasker_client::ClientError::config_error(format!(
                 "Token validation failed: {}",
                 e

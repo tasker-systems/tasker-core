@@ -15,6 +15,7 @@ use crate::docs::{
 #[cfg(feature = "docs-gen")]
 use askama::Template;
 
+use crate::output;
 use crate::DocsCommands;
 
 pub(crate) async fn handle_docs_command(cmd: DocsCommands) -> ClientResult<()> {
@@ -143,12 +144,12 @@ async fn handle_section(
             write_output(&rendered, output)?;
         }
         None => {
-            eprintln!("Section not found: {}", path);
-            eprintln!("Available sections:");
+            output::error(format!("Section not found: {}", path));
+            output::hint("Available sections:");
             for s in &sections {
-                eprintln!("  {}", s.path);
+                output::plain(format!("  {}", s.path));
                 for sub in &s.subsections {
-                    eprintln!("    {}", sub.path);
+                    output::plain(format!("    {}", sub.path));
                 }
             }
         }
@@ -167,14 +168,14 @@ async fn handle_coverage(base_dir: &str) -> ClientResult<()> {
         0
     };
 
-    println!("Configuration Documentation Coverage");
-    println!("====================================");
-    println!();
-    println!(
+    output::header("Configuration Documentation Coverage");
+    output::plain("====================================");
+    output::blank();
+    output::plain(format!(
         "  Total:      {}/{} parameters ({}%)",
         documented, total, percent
-    );
-    println!();
+    ));
+    output::blank();
 
     for (ctx, ctx_total, ctx_documented) in &per_context {
         let ctx_percent = if *ctx_total > 0 {
@@ -182,17 +183,17 @@ async fn handle_coverage(base_dir: &str) -> ClientResult<()> {
         } else {
             0
         };
-        println!(
+        output::plain(format!(
             "  {:15} {}/{} ({}%)",
             format!("{}:", ctx),
             ctx_documented,
             ctx_total,
             ctx_percent
-        );
+        ));
     }
 
-    println!();
-    println!("Run `tasker-ctl docs reference` to generate full documentation.");
+    output::blank();
+    output::hint("Run `tasker-ctl docs reference` to generate full documentation.");
 
     Ok(())
 }
@@ -210,12 +211,12 @@ async fn handle_explain(
             print!("{}", rendered);
         }
         None => {
-            eprintln!("Parameter not found: {}", parameter);
-            eprintln!();
-            eprintln!("Hint: Use dotted path including context prefix, e.g.:");
-            eprintln!("  common.database.pool.max_connections");
-            eprintln!("  orchestration.dlq.enabled");
-            eprintln!("  worker.step_processing.max_retries");
+            output::error(format!("Parameter not found: {}", parameter));
+            output::blank();
+            output::hint("Use dotted path including context prefix, e.g.:");
+            output::plain("  common.database.pool.max_connections");
+            output::plain("  orchestration.dlq.enabled");
+            output::plain("  worker.step_processing.max_retries");
         }
     }
 
@@ -446,7 +447,7 @@ pub(crate) fn write_output(content: &str, output: Option<&str>) -> ClientResult<
         std::fs::write(path, content).map_err(|e| {
             tasker_client::ClientError::ConfigError(format!("Failed to write to '{}': {}", path, e))
         })?;
-        println!("Written to: {}", path);
+        output::success(format!("Written to: {}", path));
     } else {
         println!("{}", content);
     }

@@ -76,7 +76,7 @@ module Microservices
         end
 
         # Validate email format
-        unless user_info[:email].match?(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i)
+        unless user_info[:email].match?(/\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i)
           raise TaskerCore::Errors::PermanentError.new(
             "Invalid email format: #{user_info[:email]}",
             error_code: 'INVALID_EMAIL_FORMAT'

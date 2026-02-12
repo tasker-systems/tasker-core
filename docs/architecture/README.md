@@ -18,6 +18,7 @@ This directory contains architectural reference documentation describing how Tas
 | [Backpressure Architecture](./backpressure-architecture.md) | Unified resilience and flow control |
 | [Circuit Breakers](./circuit-breakers.md) | Fault isolation and cascade prevention |
 | [Deployment Patterns](./deployment-patterns.md) | Hybrid, EventDriven, PollingOnly modes; PGMQ/RabbitMQ backends |
+| [Tasker CLI](./tasker-ctl.md) | CLI architecture, plugin system, template engine, output styling |
 
 ## When to Read These
 
