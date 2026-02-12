@@ -20,6 +20,7 @@
 | TAS-89-8: Documentation | Implement | **Keep** - developer experience | Keep |
 
 ### Consolidation Result
+
 - **8 original tickets** → **6 final tickets**
 - Event Publishing and Template Cache Refresh merged into Fix Now Cleanup as Items 4 and 5
 
@@ -30,11 +31,13 @@
 ### TAS-89-4: Event Publishing - **SUPERSEDED**
 
 #### Original Proposal
+
 Implement `publish_task_initialized_event` to publish a domain event when tasks are initialized.
 
 #### Analysis
 
 **Current Code** (`tasker-orchestration/src/orchestration/lifecycle/task_initialization/service.rs:336-347`):
+
 ```rust
 async fn publish_task_initialized(
     &self,
@@ -68,6 +71,7 @@ async fn publish_task_initialized(
 
 4. **System Event Architecture Already Handles This**
    Per `docs/architecture/events-and-commands.md:149`:
+
    ```rust
    InitializeTask { request: TaskRequestMessage, resp: CommandResponder<TaskInitializeResult> }
    ```
@@ -75,6 +79,7 @@ async fn publish_task_initialized(
    Task initialization flows through PGMQ → Command → Actor, which IS the event system for internal coordination.
 
 **Recommendation**: **Remove the stub** rather than implement it. The functionality was superseded by:
+
 - Comprehensive structured logging
 - OpenTelemetry metrics
 - PGMQ-based system event architecture
@@ -84,11 +89,13 @@ async fn publish_task_initialized(
 ### TAS-89-6: Template Cache Refresh - **QUESTIONABLE USE CASE**
 
 #### Original Proposal
+
 Implement `RefreshNamespace` and `RefreshAll` commands in `TemplateCacheActor`.
 
 #### Analysis
 
 **Current Code** (`tasker-worker/src/worker/actors/template_cache_actor.rs:87-101`):
+
 ```rust
 match msg.namespace {
     Some(ref ns) => {
@@ -122,6 +129,7 @@ match msg.namespace {
 
 4. **Implementation Is Trivial If Needed**
    The actor just needs to call existing `TaskTemplateManager` methods:
+
    ```rust
    self.task_template_manager.clear_cache().await;  // Already exists
    ```
@@ -129,11 +137,13 @@ match msg.namespace {
 **Recommendation**: Two options:
 
 **Option A - Remove (Recommended)**:
+
 - Delete the `RefreshNamespace`/`RefreshAll` commands
 - Remove the no-op handler
 - Document that cache management is via HTTP API (`/templates/cache`)
 
 **Option B - Wire Up Existing Methods**:
+
 - Connect actor to existing `TaskTemplateManager.clear_cache()`
 - Minimal effort (~5 lines of code)
 - Provides programmatic cache control
@@ -145,21 +155,27 @@ The user should decide based on whether programmatic cache refresh (vs HTTP API)
 ### Tickets to Keep Unchanged
 
 #### TAS-89-1: Fix Now Cleanup
+
 **Keep**: Removing `orchestration_api_reachable` and orphaned guards is straightforward cleanup with clear value.
 
 #### TAS-89-2: Worker Health Checks
+
 **Keep**: Real database connectivity checks for Kubernetes probes are critical for operational reliability.
 
 #### TAS-89-3: Worker Metrics
+
 **Keep**: OpenTelemetry metrics for handler execution times improve observability.
 
 #### TAS-89-5: Orchestration Metrics
+
 **Keep**: Capacity planning metrics for step enqueueing and result processing are valuable.
 
 #### TAS-89-7: #[expect] Migration
+
 **Keep**: Code hygiene improvement with no runtime impact.
 
 #### TAS-89-8: Documentation
+
 **Keep**: Developer experience improvement with no runtime impact.
 
 ---

@@ -101,6 +101,7 @@ pub struct SystemContext {
 ### Module Structure Cleanup
 
 **Before cleanup:**
+
 ```
 tasker-shared/src/messaging/
 ├── mod.rs
@@ -124,6 +125,7 @@ tasker-shared/src/messaging/
 ```
 
 **After cleanup:**
+
 ```
 tasker-shared/src/messaging/
 ├── mod.rs

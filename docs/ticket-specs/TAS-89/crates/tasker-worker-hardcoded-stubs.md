@@ -8,6 +8,7 @@
 ## Executive Summary
 
 Found **critical silent bugs** in health check code that is **exposed to Kubernetes probes**. The worker reports "healthy" and "ready" even when:
+
 - It cannot reach the orchestration API
 - The event system is broken
 - Database connectivity is unknown
@@ -21,6 +22,7 @@ Found **critical silent bugs** in health check code that is **exposed to Kuberne
 ### 1. Orchestration API Connectivity - HARDCODED TRUE
 
 **Locations**:
+
 - `worker/core.rs:659`
 - `worker/services/worker_status/service.rs:109`
 
@@ -31,6 +33,7 @@ orchestration_api_reachable: true,  // HARDCODED
 ```
 
 **Call Path (Kubernetes Readiness Probe)**:
+
 ```
 GET /health/ready
     └─ HealthService.readiness()
@@ -40,6 +43,7 @@ GET /health/ready
 ```
 
 **Impact**:
+
 - Kubernetes readiness probe returns "ready" even if orchestration API is down
 - Load balancer routes traffic to workers that can't process tasks
 - Tasks get stuck with no error indication
@@ -65,6 +69,7 @@ async fn check_event_system(&self) -> ComponentHealth {
 ```
 
 **Call Path (Detailed Health Endpoint)**:
+
 ```
 GET /health/detailed
     └─ HealthService.detailed_health()
@@ -73,6 +78,7 @@ GET /health/detailed
 ```
 
 **Impact**:
+
 - Event router could be completely broken
 - Health endpoint reports "Event system: healthy"
 - Domain events fail silently while monitoring shows green

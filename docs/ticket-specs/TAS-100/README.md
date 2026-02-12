@@ -16,6 +16,7 @@ This parent ticket coordinates the implementation of a TypeScript worker for tas
 ### Why TypeScript/JavaScript?
 
 The JavaScript/TypeScript ecosystem is ubiquitous in modern web development:
+
 - **Bun**: Modern, fast runtime with excellent TypeScript support
 - **Node.js**: Dominant runtime with massive ecosystem
 - **Universal adoption**: Most teams have JavaScript expertise
@@ -25,6 +26,7 @@ The JavaScript/TypeScript ecosystem is ubiquitous in modern web development:
 After analyzing WASM/WASI maturity (as of December 2025):
 
 **WASM Limitations**:
+
 - No mature PostgreSQL client for WASI
 - No direct PGMQ integration without host functions
 - Single-threaded execution model incompatible with our Tokio runtime
@@ -32,6 +34,7 @@ After analyzing WASM/WASI maturity (as of December 2025):
 - Cannot port existing Axum web server or async patterns
 
 **FFI Advantages**:
+
 - **Pattern Consistency**: Matches Ruby (Magnus) and Python (PyO3)
 - **Proven Architecture**: Dual-channel (dispatch + completion) works perfectly
 - **Production Ready**: Bun FFI experimental but stabilizing; Node FFI mature
@@ -166,6 +169,7 @@ const adapter: FfiAdapter = detectRuntime() === 'bun'
 ### C. Registry API Parity
 
 Target methods for all languages:
+
 - `register(name, handlerClass)`
 - `isRegistered(name) -> boolean`
 - `resolve(name) -> handlerInstance`
@@ -180,6 +184,7 @@ Target methods for all languages:
 ### E. Error Fields
 
 Standardize across all languages:
+
 - `errorMessage`, `errorType`, `errorCode` (optional), `retryable`
 - Recommended `errorType` values: `permanent_error`, `retryable_error`, `validation_error`, `timeout`, `handler_error`
 
@@ -342,12 +347,14 @@ docs/ticket-specs/TAS-100/
 ## Risk Assessment
 
 **Medium Risk**:
+
 - Bun FFI is experimental with known bugs
 - Node FFI is mature but adds dependency overhead
 - Runtime detection adds complexity
 - TypeScript compilation target compatibility
 
 **Mitigation**:
+
 - Start with Node.js for stability, add Bun as enhancement
 - Comprehensive test coverage across both runtimes
 - Runtime adapter pattern isolates FFI differences

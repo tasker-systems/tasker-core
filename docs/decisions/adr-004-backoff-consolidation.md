@@ -24,6 +24,7 @@ The tasker-core distributed workflow orchestration system had multiple, potentia
    - Lack of timestamp synchronization
 
 4. **Hardcoded SQL Values**: The SQL migration contained non-configurable exponential backoff logic:
+
    ```sql
    -- Old hardcoded implementation
    power(2, COALESCE(attempts, 1)) * interval '1 second', interval '30 seconds'
@@ -38,12 +39,14 @@ We consolidated the backoff logic with the following architectural decisions:
 **Decision**: All backoff parameters originate from TOML configuration files.
 
 **Rationale**:
+
 - Centralized configuration management
 - Environment-specific overrides (test/development/production)
 - Runtime validation and type safety
 - Clear documentation of system behavior
 
 **Implementation**:
+
 ```toml
 # config/tasker/base/orchestration.toml
 [backoff]
@@ -59,12 +62,14 @@ jitter_max_percentage = 0.1
 **Decision**: Standardize on 60 seconds as the maximum backoff delay.
 
 **Rationale**:
+
 - **Balance**: 60 seconds balances retry speed with system load reduction
 - **Not Too Short**: 30 seconds (old SQL max) insufficient for rate limiting scenarios
 - **Not Too Long**: 300 seconds (old TOML config) creates excessive delays in failure scenarios
 - **Alignment**: Matches Rust code defaults and production requirements
 
 **Impact**:
+
 - Tasks recover faster from transient failures
 - Rate-limited APIs get adequate cooldown
 - User experience improved with reasonable retry times
@@ -74,6 +79,7 @@ jitter_max_percentage = 0.1
 **Decision**: SQL functions accept configuration parameters with sensible defaults.
 
 **Implementation**:
+
 ```sql
 CREATE OR REPLACE FUNCTION calculate_step_next_retry_time(
     backoff_request_seconds INTEGER,
@@ -86,6 +92,7 @@ CREATE OR REPLACE FUNCTION calculate_step_next_retry_time(
 ```
 
 **Rationale**:
+
 - Eliminates hardcoded values in SQL
 - Allows runtime configuration without schema changes
 - Maintains SQL fallback safety net
@@ -96,6 +103,7 @@ CREATE OR REPLACE FUNCTION calculate_step_next_retry_time(
 **Decision**: Use PostgreSQL SELECT FOR UPDATE for atomic backoff updates.
 
 **Implementation**:
+
 ```rust
 // Rust BackoffCalculator
 async fn update_backoff_atomic(&self, step_uuid: &Uuid, delay_seconds: u32) {
@@ -114,12 +122,14 @@ async fn update_backoff_atomic(&self, step_uuid: &Uuid, delay_seconds: u32) {
 ```
 
 **Rationale**:
+
 - **Correctness**: Prevents lost updates from concurrent orchestrators
 - **Simplicity**: PostgreSQL's row-level locking is well-understood and reliable
 - **Performance**: Minimal overhead - locks only held during UPDATE operation
 - **Idempotency**: Multiple retries produce consistent results
 
 **Alternative Considered**: Optimistic concurrency with version field
+
 - **Rejected**: More complex implementation, retry logic in application layer
 - **Benefit of Chosen Approach**: Database guarantees atomicity
 
@@ -128,17 +138,20 @@ async fn update_backoff_atomic(&self, step_uuid: &Uuid, delay_seconds: u32) {
 **Decision**: Always update both `backoff_request_seconds` and `last_attempted_at` atomically.
 
 **Rationale**:
+
 - SQL fallback calculation: `last_attempted_at + backoff_request_seconds`
 - Prevents timing window where calculation uses stale timestamp
 - Single transaction ensures consistency
 
 **Before**:
+
 ```rust
 // Old: Only updated backoff_request_seconds
 sqlx::query!("UPDATE tasker_workflow_steps SET backoff_request_seconds = $1 ...")
 ```
 
 **After**:
+
 ```rust
 // New: Updates both atomically
 sqlx::query!(
@@ -154,11 +167,13 @@ sqlx::query!(
 **Decision**: Maintain both Rust calculation and SQL fallback, but ensure they use same configuration.
 
 **Rationale**:
+
 - **Rust Primary**: Fast, configurable, with jitter support
 - **SQL Fallback**: Safety net if `backoff_request_seconds` is NULL
 - **Consistency**: Both paths now use same max delay and multiplier
 
 **Path Selection Logic**:
+
 ```sql
 CASE
     -- Primary: Rust-calculated backoff
@@ -261,12 +276,14 @@ END
 ### Migration Path
 
 Since this is greenfield alpha:
+
 1. Drop and recreate test database
 2. Run migrations with updated SQL functions
 3. Rebuild sqlx cache
 4. Run full test suite
 
 **Future Production Path** (when needed):
+
 1. Deploy parameterized SQL functions alongside old functions
 2. Update Rust code to use new atomic methods
 3. Enable in staging, monitor metrics
@@ -286,12 +303,14 @@ Since this is greenfield alpha:
 ### Monitoring Recommendations
 
 **Key Metrics to Track**:
+
 - `backoff_calculation_duration_seconds`: Time to calculate and apply backoff
 - `backoff_lock_contention_total`: Lock acquisition failures
 - `backoff_sql_fallback_total`: Frequency of SQL fallback usage
 - `backoff_delay_applied_seconds`: Histogram of actual delays
 
 **Alert Conditions**:
+
 - SQL fallback usage > 5% (indicates Rust path failing)
 - Lock contention > threshold (indicates hot spots)
 - Backoff delays > max_backoff_seconds (configuration issue)

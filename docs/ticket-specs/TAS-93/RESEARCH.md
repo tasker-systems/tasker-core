@@ -32,6 +32,7 @@ instance.call(context) → result
 ```
 
 This creates three implicit constraints:
+
 1. Callable must be fully-qualified class name
 2. Class must be instantiable with no/optional arguments
 3. Class must have `call` method with expected signature
@@ -158,6 +159,7 @@ handler:
 ### Defense in Depth Implication
 
 Resolution is a critical path operation. If it fails:
+
 - Step must not be marked as executed
 - Error must be traceable with correlation IDs
 - Retry logic should not be affected by resolution failures
@@ -165,6 +167,7 @@ Resolution is a critical path operation. If it fails:
 ### Composition Implication
 
 Bad: Resolver inheritance hierarchy
+
 ```
 BaseResolver
   ├── ClassResolver
@@ -173,6 +176,7 @@ BaseResolver
 ```
 
 Good: Resolver chain with pluggable resolvers
+
 ```
 ResolverChain
   → ExplicitMappingResolver
@@ -197,6 +201,7 @@ handler:
 ```
 
 **Problems identified**:
+
 1. Which parts map 1:1 to code paths at runtime?
 2. Which are informational/disambiguation for developer-space resolution?
 3. Which control framework-level precedence?
@@ -207,6 +212,7 @@ handler:
 The original `callable: "module.namespace.HandlerClass"` model had a key virtue: **it was like DNS - a single address string that uniquely identifies the target.**
 
 Splitting it creates ambiguity:
+
 - Is lookup key `"namespace::class"`? `"namespace.class"`? Just `"class"` within namespace?
 - Different languages have different separator conventions
 - Resolver must know how to assemble components
@@ -231,6 +237,7 @@ The solution cleanly separates three concerns:
 ### Framework vs Resolver Responsibilities
 
 **Resolvers only care about `callable`** - it's their lookup key:
+
 ```ruby
 class MyCustomResolver < StepHandlerResolver
   def resolve(definition, config)
@@ -246,6 +253,7 @@ end
 ```
 
 **Framework handles `method` dispatch**:
+
 ```ruby
 class ResolverChain
   def resolve(definition, config)
@@ -263,6 +271,7 @@ end
 ```
 
 This separation means:
+
 - **Resolvers have single responsibility**: address → instance
 - **Method dispatch is orthogonal**: resolvers don't need to handle it
 - **Custom resolvers are simple to write**: just implement lookup logic
@@ -275,11 +284,13 @@ This separation means:
 ### Option A: String Parsing (Rejected)
 
 Parse callable strings based on conventions:
+
 - `Module::Class` → Class resolution
 - `Module::Class.method` → Method dispatch
 - `Module::Class#method` → Ruby-style method
 
 **Rejected because**:
+
 - Ambiguous across languages
 - Requires complex parsing logic
 - Error-prone edge cases
@@ -296,6 +307,7 @@ handler:
 ```
 
 **Rejected because**:
+
 - Ambiguous how components combine for lookup
 - Different languages use different separators
 - Resolver must know assembly rules
@@ -313,6 +325,7 @@ handler:
 ```
 
 **Selected because**:
+
 - Preserves FQDN/DNS-like model
 - Unambiguous - resolver receives exact string
 - Clean separation of concerns
@@ -377,6 +390,7 @@ raise ResolutionError.new(
 Method dispatch doesn't change step definition - only resolution target.
 
 Each step in the DAG still has:
+
 - ✅ Unique name
 - ✅ Clear dependencies
 - ✅ Its own retry configuration
@@ -388,6 +402,7 @@ The handler class is just a code organization convenience. Bounded responsibilit
 ### When Method Dispatch is Appropriate
 
 ✅ Closely related operations on the same entity:
+
 ```yaml
 steps:
   - name: validate_order    → OrderWorkflowHandler.validate
@@ -396,6 +411,7 @@ steps:
 ```
 
 ❌ Unrelated concerns in same handler:
+
 ```yaml
 # DON'T DO THIS
 steps:
@@ -414,6 +430,7 @@ steps:
 **Impact**: Medium
 
 **Mitigations**:
+
 1. Clear documentation of built-in resolver format expectations
 2. Error messages show which resolvers were tried
 3. Examples mapping format → resolver
@@ -424,6 +441,7 @@ steps:
 **Impact**: High (violates bounded responsibility)
 
 **Mitigations**:
+
 1. Documentation emphasizing appropriate use cases
 2. Linting warnings if handler has >5 step-like methods
 3. Example patterns showing good vs. bad usage
@@ -434,6 +452,7 @@ steps:
 **Impact**: Medium
 
 **Mitigations**:
+
 1. Comprehensive resolution logging with correlation IDs
 2. Each resolver logs can_resolve? result
 3. Error messages list all resolvers tried
@@ -444,6 +463,7 @@ steps:
 **Impact**: High
 
 **Mitigations**:
+
 1. Shared interface definition
 2. Cross-language test fixtures
 3. API convergence matrix updates
@@ -474,7 +494,8 @@ steps:
 
 **Decision**: No. Keep `callable` as single string field.
 
-**Rationale**: 
+**Rationale**:
+
 - Preserves FQDN/DNS-like model
 - Avoids assembly ambiguity
 - Resolver defines its own format
@@ -487,6 +508,7 @@ steps:
 **Decision**: No. Resolvers return instances. Framework wraps for method dispatch.
 
 **Rationale**:
+
 - Single responsibility for resolvers
 - Method dispatch is orthogonal to resolution
 - Consistent behavior across all resolvers
@@ -505,23 +527,29 @@ steps:
 ## Files Examined
 
 ### Ruby Worker
+
 - `workers/ruby/lib/tasker_core/registry/handler_registry.rb`
 - `workers/ruby/lib/tasker_core/registry/step_handler_resolver.rb`
 
 ### Python Worker
+
 - `workers/python/python/tasker_core/handler.py`
 
 ### TypeScript Worker
+
 - `workers/typescript/src/handler/registry.ts`
 
 ### Rust Worker
+
 - `workers/rust/src/step_handlers/registry.rs` (lines 232-334 - explicit mapping)
 
 ### Shared
+
 - `tasker-shared/src/models/core/task_template/mod.rs`
 - `tasker-worker/src/worker/task_template_manager.rs`
 
 ### Documentation
+
 - `docs/principles/tasker-core-tenets.md`
 - `docs/principles/cross-language-consistency.md`
 - `docs/principles/composition-over-inheritance.md`

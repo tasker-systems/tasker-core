@@ -57,24 +57,28 @@ cargo bench --package tasker-shared --features benchmarks -- --baseline main
 The benchmarks use **intelligent sampling** to ensure representative results:
 
 ### Task Sampling
+
 - Samples 5 diverse tasks from different `named_task_uuid` types
 - Distributes samples across different workflow patterns
 - Maintains deterministic ordering (same UUIDs in same order each run)
 - Provides consistent results while capturing complexity variance
 
 ### Step Sampling
+
 - Samples 10 diverse steps from different tasks
 - Selects up to 2 steps per task for variety
 - Captures different DAG depths and dependency patterns
 - Helps identify performance variance in recursive queries
 
 ### Benefits
+
 1. **Representativeness**: No bias from single task/step selection
 2. **Consistency**: Same samples = comparable baseline comparisons
 3. **Variance Detection**: Criterion can measure performance across complexities
 4. **Real-world Accuracy**: Reflects actual production workload diversity
 
 **Example Output**:
+
 ```
 step_readiness_status/calculate_readiness/0    2.345 ms
 step_readiness_status/calculate_readiness/1    1.234 ms  (simple linear task)
@@ -94,19 +98,23 @@ step_readiness_status/calculate_readiness/4    2.789 ms
 **Hot path**: Orchestration coordinator → Task discovery
 
 **Test parameters**:
+
 - Batch size: 1, 10, 50, 100 tasks
 - Measures function overhead even with empty database
 
 **Expected performance**:
+
 - **Empty DB**: < 5ms for any batch size (function overhead)
 - **With data**: Should scale linearly, not exponentially
 
 **Optimization targets**:
+
 - Index on task state
 - Index on namespace for filtering
 - Efficient processor ownership checks
 
 **Example output**:
+
 ```
 get_next_ready_tasks/batch_size/1
                         time:   [2.1234 ms 2.1567 ms 2.1845 ms]
@@ -131,16 +139,19 @@ get_next_ready_tasks/batch_size/100
 **Dependencies**: Requires test data (tasks with steps)
 
 **Expected performance**:
+
 - **Simple linear**: < 10ms
 - **Diamond pattern**: < 20ms
 - **Complex DAG**: < 50ms
 
 **Optimization targets**:
+
 - Parent step completion checks
 - Dependency graph traversal
 - Retry backoff calculations
 
 **Graceful degradation**:
+
 ```
 ⚠️  Skipping step_readiness_status benchmark - no test data found
     Run integration tests first to populate test data
@@ -155,11 +166,13 @@ get_next_ready_tasks/batch_size/100
 **Hot path**: All orchestration operations (initialization, enqueuing, finalization)
 
 **Expected performance**:
+
 - **Successful transition**: < 15ms
 - **Failed transition (wrong state)**: < 10ms (faster path)
 - **Contention scenario**: < 50ms with backoff
 
 **Optimization targets**:
+
 - Atomic compare-and-swap efficiency
 - Index on task_uuid + processor_uuid
 - Transition history table size
@@ -175,11 +188,13 @@ get_next_ready_tasks/batch_size/100
 **Dependencies**: Requires test data (tasks in database)
 
 **Expected performance**:
+
 - **Simple tasks**: < 10ms
 - **Complex tasks**: < 25ms
 - **With many steps**: < 50ms
 
 **Optimization targets**:
+
 - Step aggregation queries
 - State calculation efficiency
 - Join optimization for step counts
@@ -195,11 +210,13 @@ get_next_ready_tasks/batch_size/100
 **Dependencies**: Requires test data (steps with dependencies)
 
 **Expected performance**:
+
 - **Linear dependencies**: < 5ms
 - **Diamond pattern**: < 10ms
 - **Complex DAG (10+ levels)**: < 25ms
 
 **Optimization targets**:
+
 - Recursive CTE performance
 - Index on step dependencies
 - Materialized dependency graphs (future)
@@ -215,11 +232,13 @@ get_next_ready_tasks/batch_size/100
 **How it works**: Runs EXPLAIN ANALYZE **once per function** (no repeated iterations since query plans don't change between executions)
 
 **Functions analyzed**:
+
 - `get_next_ready_tasks()` - Task discovery query plans
 - `get_task_execution_context()` - Task status aggregation plans
 - `get_step_transitive_dependencies()` - Recursive CTE dependency traversal plans
 
 **Purpose**: Identify optimization opportunities:
+
 - Sequential scans (need indexes)
 - Nested loop performance
 - Buffer hit ratios
@@ -227,6 +246,7 @@ get_next_ready_tasks/batch_size/100
 - Recursive CTE efficiency
 
 **Automatic Query Plan Logging**: Captures each query plan once and analyzes, printing:
+
 - ⏱️ Execution Time: Actual query execution duration
 - 📋 Planning Time: Time spent planning the query
 - 📦 Node Type: Primary operation type (Aggregate, Index Scan, etc.)
@@ -235,6 +255,7 @@ get_next_ready_tasks/batch_size/100
 - 📊 Buffer Hit Ratio: Cache efficiency (higher is better)
 
 **Example output**:
+
 ```
 ════════════════════════════════════════════════════════════════════════════════
 📊 QUERY PLAN ANALYSIS
@@ -251,12 +272,14 @@ get_next_ready_tasks/batch_size/100
 ```
 
 **Saving Full Plans**:
+
 ```bash
 # Save complete JSON plans to target/query_plan_*.json
 SAVE_QUERY_PLANS=1 cargo bench --package tasker-shared --features benchmarks
 ```
 
 **Red flags to investigate**:
+
 - "Seq Scan" on large tables → Add index
 - "Nested Loop" with high iteration count → Optimize join strategy
 - "Sort" operations on large datasets → Add index for ORDER BY
@@ -281,6 +304,7 @@ Found 3 outliers among 50 measurements (6.00%)
 ```
 
 **Key metrics**:
+
 - **[2.2156 ms 2.2489 ms 2.2756 ms]**: Lower bound, mean, upper bound (95% confidence)
 - **change**: Comparison to baseline (if available)
 - **p-value**: Statistical significance (p < 0.05 = significant)
@@ -306,6 +330,7 @@ Based on Phase 3 metrics verification (26 tasks executed):
 ### Workflow
 
 1. **Establish Baseline**
+
    ```bash
    cargo bench --package tasker-shared --features benchmarks -- --save-baseline main
    ```
@@ -313,11 +338,13 @@ Based on Phase 3 metrics verification (26 tasks executed):
 2. **Make Changes** (e.g., add index, optimize query)
 
 3. **Compare**
+
    ```bash
    cargo bench --package tasker-shared --features benchmarks -- --baseline main
    ```
 
 4. **Review Output**
+
    ```
    get_next_ready_tasks/batch_size/100
                         time:   [2.0123 ms 2.0456 ms 2.0789 ms]
@@ -338,6 +365,7 @@ Based on Phase 3 metrics verification (26 tasks executed):
 **EXPLAIN shows**: `Seq Scan on tasks`
 
 **Solution**:
+
 ```sql
 CREATE INDEX idx_tasks_state ON tasker.tasks(current_state)
 WHERE complete = false;
@@ -350,6 +378,7 @@ WHERE complete = false;
 **EXPLAIN shows**: `Nested Loop` with high row counts
 
 **Solution**: Use CTE or adjust join strategy
+
 ```sql
 WITH parent_status AS (
   SELECT ... -- Pre-compute parent completions
@@ -365,6 +394,7 @@ JOIN parent_status ps ON ...
 **EXPLAIN shows**: Large scan of `task_transitions`
 
 **Solution**: Partition by date or archive old transitions
+
 ```sql
 CREATE TABLE tasker.task_transitions_archive (LIKE tasker.task_transitions);
 -- Move old data periodically
@@ -377,16 +407,19 @@ CREATE TABLE tasker.task_transitions_archive (LIKE tasker.task_transitions);
 The benchmark results should correlate with production metrics:
 
 **From metrics-reference.md**:
+
 - `tasker_task_initialization_duration_milliseconds` → Benchmark: task discovery + initialization
 - `tasker_step_result_processing_duration_milliseconds` → Benchmark: step readiness + state transitions
 - `tasker_task_finalization_duration_milliseconds` → Benchmark: finalization claiming
 
 **Validation approach**:
+
 1. Run benchmarks: Get ~2ms for task discovery
 2. Check metrics: `tasker_task_initialization_duration` P95 = ~45ms
 3. Calculate overhead: 45ms - 2ms = 43ms (business logic + framework)
 
 This helps identify where optimization efforts should focus:
+
 - If benchmark is slow → Optimize SQL/indexes
 - If benchmark is fast but metrics slow → Optimize Rust code
 
@@ -507,6 +540,7 @@ cargo test --package tasker-shared --all-features
 **Phase 5.2 Status**: ✅ **COMPLETE**
 
 **Benchmarks Implemented**:
+
 - ✅ `get_next_ready_tasks()` - 4 batch sizes
 - ✅ `get_step_readiness_status()` - with graceful skip
 - ✅ `transition_task_state_atomic()` - atomic operations
@@ -515,6 +549,7 @@ cargo test --package tasker-shared --all-features
 - ✅ `EXPLAIN ANALYZE` - query plan capture with automatic analysis
 
 **Documentation Complete**:
+
 - ✅ Quick start guide
 - ✅ Interpretation guidance
 - ✅ Optimization patterns

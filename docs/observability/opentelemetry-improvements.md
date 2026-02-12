@@ -54,6 +54,7 @@ flowchart LR
 ```
 
 Worker Bootstrap Sequence:
+
 1. Load Rust worker library
 2. Initialize Phase 1 (console-only logging)
 3. Execute FFI bridge setup (Ruby/Python)
@@ -326,17 +327,20 @@ pub struct InProcessEventBusStats {
 ### Prometheus Queries
 
 **Event publication rate by namespace:**
+
 ```promql
 sum by (namespace) (rate(tasker_domain_events_published_total[5m]))
 ```
 
 **Event failure rate:**
+
 ```promql
 rate(tasker_domain_events_failed_total[5m]) /
 rate(tasker_domain_events_published_total[5m])
 ```
 
 **Publication latency (P95):**
+
 ```promql
 histogram_quantile(0.95,
   sum by (le) (rate(tasker_domain_events_publish_duration_milliseconds_bucket[5m]))
@@ -344,6 +348,7 @@ histogram_quantile(0.95,
 ```
 
 **Latency by delivery mode:**
+
 ```promql
 histogram_quantile(0.95,
   sum by (delivery_mode, le) (
@@ -359,11 +364,13 @@ histogram_quantile(0.95,
 The worker exposes domain event statistics through a dedicated metrics endpoint:
 
 **Request:**
+
 ```bash
 curl http://localhost:8081/metrics/events
 ```
 
 **Response:**
+
 ```json
 {
   "router": {
@@ -519,12 +526,14 @@ pub async fn publish_event(
 ### Querying by Correlation ID
 
 **Find all events for a task:**
+
 ```bash
 # In Grafana/Tempo
 correlation_id = "0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"
 ```
 
 **In PostgreSQL (PGMQ queues):**
+
 ```sql
 SELECT
     message->>'event_name' as event,
@@ -572,11 +581,15 @@ Task Execution (root span)
 **Cause**: `init_console_only()` was called but `init_tracing()` was never called, or `TELEMETRY_ENABLED=false`
 
 **Fix**:
+
 1. Check initialization logs:
+
    ```bash
    grep -E "(Console-only|OpenTelemetry)" logs/worker.log
    ```
+
 2. Verify `TELEMETRY_ENABLED=true` is set:
+
    ```bash
    grep "opentelemetry_enabled" logs/worker.log
    ```
@@ -588,15 +601,21 @@ Task Execution (root span)
 **Cause**: Events not being published or the event router/bus not tracking statistics
 
 **Fix**:
+
 1. Verify events are being published:
+
    ```bash
    grep "Domain event published successfully" logs/worker.log
    ```
+
 2. Check event router initialization:
+
    ```bash
    grep "event router" logs/worker.log
    ```
+
 3. Verify in-process event bus is configured:
+
    ```bash
    grep "in-process event bus" logs/worker.log
    ```
@@ -608,6 +627,7 @@ Task Execution (root span)
 **Cause**: `EventMetadata` not constructed with task's correlation_id
 
 **Fix**: Verify `EventMetadata` is constructed with the correct correlation_id from the task:
+
 ```rust
 // When constructing EventMetadata, always use the task's correlation_id
 let metadata = EventMetadata {

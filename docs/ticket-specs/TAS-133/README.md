@@ -12,9 +12,10 @@
 This ticket implements a strategy pattern abstraction for Tasker's messaging layer, enabling provider-agnostic queue operations while maintaining PGMQ as the default, batteries-included implementation. The abstraction enables RabbitMQ (via `lapin`) as a first-class alternative in tasker-core, with a clear trait boundary for community-contributed providers (SQS, Redis, Kafka) in tasker-contrib.
 
 **Key Evolution from TAS-35**:
+
 - Reflects Core/Contrib architectural split
 - Multi-language worker support (not Ruby-centric)
-- Integrates with existing `UnifiedMessageClient` 
+- Integrates with existing `UnifiedMessageClient`
 - Explicit `lapin` recommendation over `rabbitmq-stream-rust-client`
 - FFI boundary considerations for cross-language consistency
 - Push-based notification support (leveraging Tasker's pg_notify architecture)
@@ -72,6 +73,7 @@ Tasker is tightly coupled to PGMQ through the `UnifiedMessageClient` abstraction
 ### Why RabbitMQ in Core (Not Contrib)?
 
 RabbitMQ represents a meaningfully different operational model that benefits from first-party support:
+
 - Validates the trait abstraction is genuinely provider-agnostic
 - Provides a "reference alternative" for contrib implementers
 - Common enough that first-party support adds significant value
@@ -89,6 +91,7 @@ RabbitMQ represents a meaningfully different operational model that benefits fro
 | Fit for Tasker | ✅ Perfect | Overkill |
 
 Tasker's messaging model is work queues (dequeue, process, ack), not event streaming. `lapin` aligns with:
+
 - `basic_consume` with manual ack (matches PGMQ visibility timeout semantics)
 - Dead letter exchanges for failed messages
 - Direct queue routing (no complex exchange topologies needed)
@@ -96,6 +99,7 @@ Tasker's messaging model is work queues (dequeue, process, ack), not event strea
 ### Push-Based Notifications
 
 Tasker achieves exceptional throughput via `tasker-pgmq` + `pg_notify` push notifications:
+
 - Complex 7-step DAG completion: **< 133ms** end-to-end
 - Hundreds of concurrent tasks on resource-constrained hardware
 - Sub-millisecond latency exposed previously invisible transaction races
@@ -508,6 +512,7 @@ impl MessagingServiceFactory {
 - [ ] Update configuration schema
 
 **Deliverables**:
+
 - `tasker-core/src/services/messaging/traits.rs`
 - `tasker-core/src/services/messaging/pgmq.rs` (refactored)
 - `tasker-core/src/services/messaging/factory.rs`
@@ -525,6 +530,7 @@ impl MessagingServiceFactory {
 - [ ] Integration tests against local RabbitMQ
 
 **Deliverables**:
+
 - `tasker-core/src/services/messaging/rabbitmq.rs`
 - Docker Compose addition for RabbitMQ testing
 - Integration test suite
@@ -541,6 +547,7 @@ impl MessagingServiceFactory {
 - [ ] Architecture documentation updates
 
 **Deliverables**:
+
 - `tests/services/messaging/conformance.rs`
 - `docs/architecture/messaging-abstraction.md`
 - `docs/guides/messaging-provider-migration.md`
@@ -555,6 +562,7 @@ impl MessagingServiceFactory {
 - [ ] CLI command for provider health check
 
 **Deliverables**:
+
 - Contrib documentation
 - Reference stub implementation
 - CLI enhancements

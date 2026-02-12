@@ -73,6 +73,7 @@ Resource-level wildcards allow broad access within a resource domain:
 **Note:** Global wildcards (`*`) are NOT supported. Use explicit resource wildcards for broad access (e.g., `tasks:*`, `system:*`). This follows AWS IAM-style resource-level granularity.
 
 Wildcard matching is implemented in `permission_matches()`:
+
 - `resource:*` → matches if required permission's resource component equals the prefix
 - Exact string → matches if strings are identical
 
@@ -154,6 +155,7 @@ Router::new()
 ```
 
 The `authorize()` wrapper:
+
 1. Extracts `SecurityContext` from request extensions (set by auth middleware)
 2. If resource is public (Health/Metrics/Docs) → proceeds to handler
 3. If auth disabled (`AuthMethod::Disabled`) → proceeds to handler
@@ -186,6 +188,7 @@ The `ResourceAction` type maps resource+action combinations to permissions:
 ### Public Resources
 
 These resources don't require authentication:
+
 - `Resource::Health` - Health check endpoints
 - `Resource::Metrics` - Prometheus metrics
 - `Resource::Docs` - OpenAPI/Swagger documentation
@@ -236,6 +239,7 @@ Each protected endpoint in the OpenAPI spec includes an `x-required-permission` 
 OpenAPI 3.x only formally supports scopes for OAuth2 and OpenID Connect security schemes—not for HTTP Bearer or API Key authentication. Since Tasker uses JWT Bearer tokens with JWKS validation (not OAuth2 flows), we use vendor extensions (`x-required-permission`) to document permissions in a standards-compliant way.
 
 This approach:
+
 - Is OpenAPI compliant (tools ignore unknown `x-` fields gracefully)
 - Doesn't misrepresent our authentication mechanism
 - Is machine-readable for SDK generators and tooling

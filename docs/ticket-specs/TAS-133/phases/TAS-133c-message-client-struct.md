@@ -70,10 +70,12 @@ impl MessageClient {
 ### StepMessage Consolidation
 
 **Current state**:
+
 - `SimpleStepMessage` - UUID-based, actively used
 - `StepMessage` - Embedded context, legacy/deprecated
 
 **After this phase**:
+
 - `StepMessage` - UUID-based (renamed from `SimpleStepMessage`)
 - Old `StepMessage` deleted
 

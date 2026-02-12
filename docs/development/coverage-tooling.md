@@ -340,6 +340,7 @@ Usage: normalize-rust.py <input_json> <output_json> --crate <crate_name>
 ```
 
 Key behaviors:
+
 - Filters out external dependency files (`index.crates.io-*`, `.cargo/registry/`, `target/`)
 - Scopes files and functions to the target crate's `src/` directory
 - Batch-demangles all Rust symbols through `rustfilt` in a single subprocess
@@ -525,11 +526,13 @@ graceful SIGTERM shutdown with SIGKILL fallback. Uses `cov-` prefix for PID/log
 files to avoid colliding with normal service instances.
 
 **Prerequisites:**
+
 - At least one messaging backend available (PostgreSQL for PGMQ, or RabbitMQ)
 - `cargo-llvm-cov` installed
 - Ports 8080/8081 available (stop existing services first)
 
 **Output:**
+
 - `coverage-reports/rust/e2e-raw.json` -- single raw report from all backend passes
 - `coverage-reports/rust/tasker-orchestration-e2e-coverage.json` -- orchestration coverage
 - `coverage-reports/rust/tasker-worker-rust-e2e-coverage.json` -- rust worker coverage
@@ -581,6 +584,7 @@ gives each test its own process, preventing env var leakage.
 
 HTML reports are great for humans but can't be diffed, aggregated, or enforced
 in CI. The normalized JSON enables:
+
 - Cross-language aggregation (Rust + Python + Ruby + TypeScript in one report)
 - Threshold enforcement with exit codes
 - File-level gap analysis via `jq`

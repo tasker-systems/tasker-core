@@ -32,6 +32,7 @@ This guide provides practical examples of when and how to use Tasker Core for wo
 ### Problem Statement
 
 An e-commerce platform needs to coordinate multiple steps when processing orders:
+
 - Validate order details and inventory
 - Reserve inventory and process payment (parallel)
 - Ship order after both payment and inventory confirmed
@@ -95,6 +96,7 @@ Task: order_fulfillment_#{order_id}
 ### Implementation Pattern
 
 **Task Template** (YAML configuration):
+
 ```yaml
 namespace: fulfillment
 name: order_fulfillment
@@ -123,6 +125,7 @@ steps:
 ```
 
 **Step Handler** (Rust implementation):
+
 ```rust
 pub struct ValidateOrderHandler;
 
@@ -155,6 +158,7 @@ impl StepHandler for ValidateOrderHandler {
 ```
 
 **Ruby Handler Alternative**:
+
 ```ruby
 class ProcessPaymentHandler < TaskerCore::StepHandler
   def execute(context)
@@ -186,21 +190,25 @@ end
 ### Key Patterns
 
 **1. Parallel Execution**
+
 - `reserve_inventory` and `process_payment` both depend only on earlier steps
 - Tasker automatically executes them in parallel
 - `ship_order` waits for both to complete
 
 **2. Idempotent Handlers**
+
 - Use `step_uuid` as idempotency key for external APIs
 - Check if operation already completed before retrying
 - Handle duplicate executions gracefully
 
 **3. Smart Retry Logic**
+
 - Network errors → retryable with exponential backoff
 - Business logic failures → permanent, no retry
 - Configure max_attempts based on criticality
 
 **4. Data Flow**
+
 - Early steps provide data to later steps via results
 - Access parent results: `context.parent_results["validate_order"]`
 - Build context as workflow progresses
@@ -208,6 +216,7 @@ end
 ### Observability
 
 Monitor these metrics for order fulfillment:
+
 ```rust
 // Track order processing stages
 metrics::counter!("orders.validated").increment(1);
@@ -229,6 +238,7 @@ metrics::histogram!("order.fulfillment_time_ms").record(elapsed_ms);
 ### Problem Statement
 
 A fintech platform needs to process payments with strict requirements:
+
 - Multiple payment methods (card, bank transfer, wallet)
 - Regulatory compliance and audit trails
 - Automatic retry for transient failures
@@ -285,6 +295,7 @@ Task: payment_processing_#{payment_id}
 ### Implementation Highlights
 
 **Retry Strategy for Payment Gateway**:
+
 ```rust
 impl StepHandler for AuthorizePaymentHandler {
     async fn execute(&self, context: StepContext) -> Result<StepResult> {
@@ -328,6 +339,7 @@ impl StepHandler for AuthorizePaymentHandler {
 ```
 
 **Idempotency Pattern**:
+
 ```rust
 async fn capture_payment(context: &StepContext) -> Result<StepResult> {
     let idempotency_key = context.step_uuid.to_string();
@@ -354,16 +366,19 @@ async fn capture_payment(context: &StepContext) -> Result<StepResult> {
 ### Key Patterns
 
 **1. Two-Phase Commit**
+
 - Authorize (reserve) → Capture (settle)
 - Allows cancellation between phases
 - Common in payment processing
 
 **2. Audit Trail**
+
 - Every state transition recorded
 - Regulatory compliance built-in
 - Forensic investigation support
 
 **3. Circuit Breaking**
+
 - Protect against payment gateway failures
 - Automatic backoff when gateway degraded
 - Fallback to alternate gateways
@@ -375,6 +390,7 @@ async fn capture_payment(context: &StepContext) -> Result<StepResult> {
 ### Problem Statement
 
 A data analytics platform needs to process data through multiple transformation stages:
+
 - Extract data from multiple sources (APIs, databases, files)
 - Transform data (clean, enrich, aggregate)
 - Load to data warehouse
@@ -430,6 +446,7 @@ Task: etl_customer_data_#{date}
 ### Implementation Pattern
 
 **Partition-Based Processing**:
+
 ```rust
 pub struct ExtractCustomerProfilesHandler;
 
@@ -459,6 +476,7 @@ impl StepHandler for ExtractCustomerProfilesHandler {
 ```
 
 **Error Handling for Data Quality**:
+
 ```rust
 async fn enrich_customer_data(context: &StepContext) -> Result<StepResult> {
     let partition_file: String = context.configuration.get("partition_file")?;
@@ -511,16 +529,19 @@ async fn enrich_customer_data(context: &StepContext) -> Result<StepResult> {
 ### Key Patterns
 
 **1. Partition-Based Parallelism**
+
 - Split large datasets into partitions
 - Process partitions independently
 - Aggregate results in final step
 
 **2. Graceful Degradation**
+
 - Skip corrupted individual records
 - Continue processing remaining data
 - Report data quality issues
 
 **3. Monitoring Data Quality**
+
 - Track record counts through pipeline
 - Alert on unexpected error rates
 - Validate schema at boundaries
@@ -532,6 +553,7 @@ async fn enrich_customer_data(context: &StepContext) -> Result<StepResult> {
 ### Problem Statement
 
 Coordinate operations across multiple microservices:
+
 - User registration flow (auth, profile, notifications, analytics)
 - Distributed transactions with compensation
 - Service dependency management
@@ -631,6 +653,7 @@ impl StepHandler for CreateUserProfileHandler {
 ```
 
 **Compensation Handler**:
+
 ```rust
 pub struct DeleteAuthAccountHandler;
 
@@ -664,16 +687,19 @@ impl StepHandler for DeleteAuthAccountHandler {
 ### Key Patterns
 
 **1. Correlation IDs**
+
 - Pass correlation_id through all services
 - Enable end-to-end tracing
 - Simplify debugging distributed issues
 
 **2. Compensation (Saga Pattern)**
+
 - Define compensation steps for cleanup
 - Execute on permanent failures
 - Best-effort execution, log failures
 
 **3. Service Circuit Breakers**
+
 - Wrap service calls in circuit breakers
 - Fail fast when services degraded
 - Automatic recovery detection
@@ -685,6 +711,7 @@ impl StepHandler for DeleteAuthAccountHandler {
 ### Problem Statement
 
 Run periodic jobs with dependencies:
+
 - Daily report generation (depends on data refresh)
 - Scheduled data backups (depends on maintenance window)
 - Cleanup jobs (depends on retention policies)
@@ -725,6 +752,7 @@ pub async fn schedule_daily_reports() -> Result<Uuid> {
 ### Problem Statement
 
 Many workflows require **runtime decision-making** where the execution path depends on business logic evaluated at runtime:
+
 - Approval routing based on request amount or risk level
 - Tiered processing based on customer status
 - Compliance checks varying by jurisdiction
@@ -733,6 +761,7 @@ Many workflows require **runtime decision-making** where the execution path depe
 ### Why Use Decision Points?
 
 **Traditional Approach (Static DAG)**:
+
 ```yaml
 # Must define ALL possible paths upfront
 Steps:
@@ -744,6 +773,7 @@ Steps:
 ```
 
 **Decision Point Approach (Dynamic DAG)**:
+
 ```yaml
 # Create ONLY the needed path at runtime
 Steps:
@@ -809,21 +839,25 @@ end
 ### Real-World Scenarios
 
 **1. E-Commerce Returns Processing**
+
 - Low-value returns: Auto-approve
 - Medium-value: Manager review
 - High-value or suspicious: Fraud investigation + manager review
 
 **2. Financial Risk Assessment**
+
 - Low-risk transactions: Standard processing
 - Medium-risk: Additional verification
 - High-risk: Manual review + compliance checks + legal review
 
 **3. Healthcare Prior Authorization**
+
 - Standard procedures: Auto-approve
 - Specialized care: Medical director review
 - Experimental treatments: Medical director + insurance review + compliance
 
 **4. Customer Support Escalation**
+
 - Simple issues: Tier 1 resolution
 - Complex issues: Tier 2 specialist
 - VIP customers: Immediate senior support + account manager notification
@@ -831,17 +865,20 @@ end
 ### Key Features
 
 **Decision Point Steps**:
+
 - Special step type that returns `DecisionPointOutcome`
 - Can return `NoBranches` (no additional steps) or `CreateSteps` (list of step names)
 - Fully atomic - either all steps created or none
 - Supports nested decisions (configurable depth limit)
 
 **Deferred Steps**:
+
 - Use intersection semantics for dependencies
 - Wait for: (declared dependencies) ∩ (actually created steps)
 - Enable convergence regardless of path taken
 
 **Type-Safe Implementation**:
+
 - Ruby: `TaskerCore::StepHandler::Decision` base class
 - Rust: `DecisionPointOutcome` enum with serde support
 - Automatic validation and serialization
@@ -851,6 +888,7 @@ end
 See the complete guide: **[Conditional Workflows and Decision Points](conditional-workflows.md)**
 
 Covers:
+
 - When to use conditional workflows
 - YAML configuration
 - Ruby and Rust implementation patterns
@@ -861,18 +899,21 @@ Covers:
 
 ## Anti-Patterns
 
-### ❌ Don't Use Tasker Core For:
+### ❌ Don't Use Tasker Core For
 
 **1. Simple Cron Jobs**
+
 ```yaml
 # ❌ Anti-pattern: Single-step scheduled job
 Task: send_daily_email
   Steps:
     - send_email  # No dependencies, no retry needed
 ```
+
 **Why**: Overhead not justified. Use native cron or systemd timers.
 
 **2. Real-Time Sub-Millisecond Operations**
+
 ```yaml
 # ❌ Anti-pattern: High-frequency trading
 Task: execute_trade_#{microseconds}
@@ -880,9 +921,11 @@ Task: execute_trade_#{microseconds}
     - check_price   # Needs <1ms latency
     - execute_order
 ```
+
 **Why**: Architectural overhead (~10-20ms) too high. Use in-memory queues or direct service calls.
 
 **3. Pure Fan-Out**
+
 ```yaml
 # ❌ Anti-pattern: Simple message broadcasting
 Task: broadcast_notification
@@ -892,15 +935,18 @@ Task: broadcast_notification
     - send_to_user_3
     # ... 1000s of independent steps
 ```
+
 **Why**: Use message bus (Kafka, RabbitMQ) for pub/sub patterns. Tasker is for orchestration, not broadcasting.
 
 **4. Stateless Single Operations**
+
 ```yaml
 # ❌ Anti-pattern: Single API call with no retry
 Task: fetch_user_data
   Steps:
     - call_api  # No dependencies, no state management needed
 ```
+
 **Why**: Direct API call with client-side retry is simpler.
 
 ---

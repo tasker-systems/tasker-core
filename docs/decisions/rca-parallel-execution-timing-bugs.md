@@ -141,6 +141,7 @@ t=151ms   ──► STATUS CHECK
 ### The "Both States" Window
 
 The bug manifests when checking status while the task has BOTH:
+
 - At least one permanently blocked step
 - At least one ready step (e.g., retryable step after backoff)
 
@@ -205,6 +206,7 @@ A task with permanent failures is **blocked by failures** regardless of what els
 > "If work is available, we're making progress"
 
 This is **incorrect** for workflows where:
+
 - Convergence points require ALL branches to complete
 - Final task status depends on ALL steps succeeding
 - Partial progress doesn't constitute overall success

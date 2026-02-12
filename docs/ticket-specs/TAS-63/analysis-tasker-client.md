@@ -3,6 +3,7 @@
 ## Strategy
 
 Two-pronged approach:
+
 1. **New unit tests** in tasker-client for error.rs, conversions.rs, common.rs (no infrastructure needed)
 2. **Instrumentation of existing E2E tests** via `coverage-crate-integrated` to credit tasker-client for coverage it already earns through root tests
 3. **Targeted new integration tests** in `tasker-client/tests/` only for API methods NOT already exercised by root E2E tests
@@ -10,10 +11,12 @@ Two-pronged approach:
 ## What Existing Root E2E Tests Already Cover
 
 `tests/e2e/rust/` exercises these tasker-client methods (via REST):
+
 - **OrchestrationApiClient**: `create_task`, `get_task`, `list_tasks`, `get_basic_health`, `readiness_probe`, `liveness_probe`, `get_detailed_health`, `get_config`, `get_prometheus_metrics`
 - **WorkerApiClient**: `health_check`, `readiness_probe`, `liveness_probe`, `get_detailed_health`, `get_config`, `get_prometheus_metrics`, `get_worker_metrics`, `get_domain_event_stats`, `list_templates`
 
 **NOT covered by existing tests** (needs new tests):
+
 - **OrchestrationApiClient**: `cancel_task`, `list_task_steps`, `get_step`, `get_step_audit_history`, DLQ endpoints (list/get/stats/update), analytics endpoints (bottlenecks, staleness, investigation_queue, performance_metrics), `list_templates`, `get_template`
 - **WorkerApiClient**: `get_template`, `validate_template`, `get_handler_registry`
 - **gRPC clients**: Nothing (all root E2E uses REST)
@@ -24,12 +27,14 @@ Two-pronged approach:
 ## Phase 1: Unit Tests (no infrastructure)
 
 ### 1A. `tasker-client/src/error.rs` — add `#[cfg(test)] mod tests`
+
 - ~12 tests: constructor functions, `is_recoverable()` for every variant, `Display` output, `From` impls
 - Estimated: 27 additional lines covered (10% → ~100%)
 
 ### 1B. `tasker-client/src/grpc_clients/conversions.rs` — expand `#[cfg(test)] mod tests`
+
 - ~60-70 tests grouped by:
-  - Timestamp conversions (proto_timestamp_to_datetime, _to_string variants)
+  - Timestamp conversions (proto_timestamp_to_datetime,_to_string variants)
   - JSON/Struct conversions (prost_value_to_json for all Kind variants)
   - State string conversions (all task/step state variants)
   - Task response conversions (proto_task_to_domain, create/get/list response, error paths)
@@ -42,6 +47,7 @@ Two-pronged approach:
 - Estimated: ~700 additional lines covered (8.6% → ~70%)
 
 ### 1C. `tasker-client/src/grpc_clients/common.rs` — expand `#[cfg(test)] mod tests`
+
 - ~8 tests: `AuthInterceptor::call()` for bearer/api-key/no-auth paths, additional `Status` → `ClientError` mappings (PermissionDenied, Cancelled, ResourceExhausted)
 - Estimated: ~35 additional lines covered (59.5% → ~78%)
 
@@ -87,6 +93,7 @@ Only for methods NOT already covered by root E2E tests.
 ### 3A. Cargo.toml changes
 
 Add to `tasker-client/Cargo.toml`:
+
 ```toml
 [features]
 default = ["grpc"]
@@ -103,6 +110,7 @@ test-services = []  # Integration tests requiring running services
 Feature gate: `#![cfg(feature = "test-services")]`
 
 Tests for orchestration methods NOT covered by root E2E:
+
 - `test_cancel_task` — create task then cancel
 - `test_list_task_steps` — create task, list its steps
 - `test_get_step` — get individual step by UUID
@@ -123,6 +131,7 @@ Tests for orchestration methods NOT covered by root E2E:
 Feature gate: `#![cfg(all(feature = "test-services", feature = "grpc"))]`
 
 Exercises gRPC client code (currently 3-10% coverage). Tests orchestration + worker gRPC methods:
+
 - Health checks (orchestration + worker)
 - Task lifecycle (create, get, list, cancel)
 - Step operations
@@ -154,6 +163,7 @@ Also exercises `conversions.rs` indirectly (real proto data round-trips).
 ## Verification
 
 After each phase:
+
 ```bash
 # Phase 1: Unit tests only
 cargo test --package tasker-client --all-features

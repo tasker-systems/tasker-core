@@ -1,8 +1,8 @@
 # Why Tasker
 
-**Last Updated**: 2025-01-09
+**Last Updated**: 2025-02-12
 **Audience**: Engineers evaluating workflow orchestration tools
-**Status**: Pre-Alpha
+**Status**: Early Release (0.1.x)
 
 ---
 
@@ -100,6 +100,7 @@ Tasker is built in Rust not for marketing purposes, but because workflow orchest
 ### The Honest Assessment
 
 Tasker excels when:
+
 - You need polyglot worker support across Ruby, Python, TypeScript, and Rust
 - Your team already has Postgres expertise and wants to avoid additional infrastructure
 - You want to bring orchestration to existing business logic rather than rewriting
@@ -107,6 +108,7 @@ Tasker excels when:
 - Performance matters and you're willing to trade ecosystem breadth for it
 
 Tasker may not be the right choice when:
+
 - You need the battle-tested maturity and ecosystem of Airflow
 - Your workflows require Temporal-style durable execution with deterministic replay
 - You're an all-Python team and Prefect's ergonomics fit perfectly
@@ -117,7 +119,7 @@ Tasker may not be the right choice when:
 
 ## What Tasker Is (and Isn't)
 
-### Tasker Is:
+### Tasker Is
 
 - **A workflow orchestration engine** for step-based DAG execution with complex dependencies
 - **PostgreSQL-native with flexible messaging** using PGMQ (default) or RabbitMQ
@@ -125,7 +127,7 @@ Tasker may not be the right choice when:
 - **Focused on developer experience** for teams who want minimal intrusion
 - **Open source (MIT license)** and built as a labor of love
 
-### Tasker Is Not:
+### Tasker Is Not
 
 - **A data orchestration platform** like Dagster with asset lineage and data quality primitives
 - **A durable execution engine** like Temporal with deterministic replay and unlimited durability
@@ -137,21 +139,23 @@ Tasker may not be the right choice when:
 
 ## Current State
 
-Tasker is pre-alpha software. This is important context:
+Tasker is in early release (0.1.x). This is important context:
 
 **What this means:**
-- The architecture is solidifying but breaking changes are expected
-- Documentation is comprehensive but evolving
-- There are no production deployments (that I know of) outside development
-- You should not bet critical business processes on Tasker today
 
-**What this enables:**
-- Rapid iteration based on real feedback
-- Willingness to break APIs to get the design right
-- Focus on architectural correctness over backward compatibility
-- Honest experimentation without legacy constraints
+- The architecture has solidified but breaking changes may still occur
+- Documentation is comprehensive and continuously improving
+- Early adopters are beginning to explore the system
+- We follow semantic versioning and aim to communicate breaking changes clearly
 
-If you're evaluating Tasker, I'd encourage you to explore it for non-critical workloads, provide feedback, and help shape what it becomes. If you need production-ready workflow orchestration today, please consider the established tools above—I genuinely recommend them for their respective strengths.
+**Our commitment:**
+
+- Intentional about breaking changes—we weigh architectural correctness against user impact
+- Migration guidance provided where practical
+- Release notes document all significant changes
+- Responsive to community feedback
+
+If you're evaluating Tasker, we encourage you to explore it, provide feedback, and help shape its direction. For production-critical workloads, evaluate whether the current stability level meets your needs, or consider the established tools above.
 
 ---
 

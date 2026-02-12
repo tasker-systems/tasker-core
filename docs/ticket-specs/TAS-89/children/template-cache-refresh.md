@@ -82,6 +82,7 @@ match msg.namespace {
 ### Production Reality
 
 In typical Kubernetes deployments:
+
 - Templates mounted as read-only ConfigMaps
 - Template changes require re-deployment
 - Hot-reloading mid-execution is risky (could break running tasks)
@@ -95,11 +96,13 @@ In typical Kubernetes deployments:
 **Remove the no-op handlers entirely.**
 
 **Rationale**:
+
 - Cache operations available via HTTP API
 - No realistic production use case for actor-level refresh
 - Removes dead code
 
 **Changes**:
+
 1. Remove `RefreshNamespace`/`RefreshAll` command variants
 2. Remove no-op handler in `TemplateCacheActor`
 3. Document that cache management is via HTTP API
@@ -113,11 +116,13 @@ In typical Kubernetes deployments:
 **Connect actor to existing `TaskTemplateManager` methods.**
 
 **Rationale**:
+
 - Provides programmatic cache control for FFI consumers
 - Trivial to implement
 - May have niche development use case
 
 **Changes**:
+
 ```rust
 // In template_cache_actor.rs
 match msg.namespace {
@@ -140,6 +145,7 @@ match msg.namespace {
 **Option A (Remove)** unless there's a specific requirement for programmatic cache control.
 
 The HTTP API already provides:
+
 - `DELETE /templates/cache` for clearing
 - `POST /templates/cache/maintain` for maintenance
 
@@ -150,12 +156,14 @@ If an FFI consumer needs cache control, they can call the HTTP API.
 ## Files to Modify
 
 ### Option A (Remove)
+
 | File | Change |
 |------|--------|
 | `tasker-worker/src/worker/actors/template_cache_actor.rs` | Remove handler TODOs, log-only |
 | `tasker-worker/src/worker/actors/messages.rs` | Keep message (for future use) or remove |
 
 ### Option B (Wire Up)
+
 | File | Change |
 |------|--------|
 | `tasker-worker/src/worker/actors/template_cache_actor.rs` | Call `clear_cache()` |
@@ -165,12 +173,14 @@ If an FFI consumer needs cache control, they can call the HTTP API.
 ## Acceptance Criteria
 
 ### Option A
+
 - [ ] No-op TODOs removed
 - [ ] Handler either removed or returns Ok(()) with no TODO
 - [ ] Tests pass
 - [ ] Documentation notes cache management via HTTP
 
 ### Option B
+
 - [ ] Handler calls `task_template_manager.clear_cache().await`
 - [ ] Tests verify cache is cleared
 - [ ] Integration test for FFI cache control
@@ -180,6 +190,7 @@ If an FFI consumer needs cache control, they can call the HTTP API.
 ## Risk Assessment
 
 **Risk**: None (either option)
+
 - Option A: Removing no-op code
 - Option B: Wiring to existing, tested functionality
 

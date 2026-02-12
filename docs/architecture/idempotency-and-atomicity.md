@@ -35,12 +35,14 @@ PostgreSQL provides fundamental atomic guarantees through several mechanisms:
 **Purpose**: Prevent duplicate creation of entities
 
 **Key Constraints**:
+
 - `tasker.tasks.identity_hash` (UNIQUE) - Prevents duplicate task creation from identical requests
 - `tasker.task_namespaces.name` (UNIQUE) - Namespace name uniqueness
 - `tasker.named_tasks (namespace_id, name, version)` (UNIQUE) - Task template uniqueness
 - `tasker.named_steps.system_name` (UNIQUE) - Step handler uniqueness
 
 **Example Protection**:
+
 ```rust
 // Two orchestrators receive identical TaskRequestMessage
 // Orchestrator A creates task first -> commits successfully
@@ -57,6 +59,7 @@ See [Task Initialization](#task-initialization-idempotency) for details on how t
 **Locking Patterns**:
 
 1. **`FOR UPDATE`** - Exclusive lock, blocks concurrent transactions
+
    ```sql
    -- Used in: transition_task_state_atomic()
    SELECT * FROM tasker.tasks WHERE task_uuid = $1 FOR UPDATE;
@@ -64,6 +67,7 @@ See [Task Initialization](#task-initialization-idempotency) for details on how t
    ```
 
 2. **`FOR UPDATE SKIP LOCKED`** - Lock-free work distribution
+
    ```sql
    -- Used in: get_next_ready_tasks()
    SELECT * FROM tasker.tasks
@@ -74,6 +78,7 @@ See [Task Initialization](#task-initialization-idempotency) for details on how t
    ```
 
 **Example Protection**:
+
 ```rust
 // Scenario: Two orchestrators attempt state transition on same task
 // Orchestrator A: BEGIN; SELECT FOR UPDATE; UPDATE state; COMMIT;
@@ -87,6 +92,7 @@ See [Task Initialization](#task-initialization-idempotency) for details on how t
 **Purpose**: Validate expected state before making changes
 
 **Pattern**: All state transitions validate current state in the same transaction as the update
+
 ```sql
 -- From transition_task_state_atomic()
 UPDATE tasker.tasks
@@ -97,6 +103,7 @@ RETURNING *;
 ```
 
 **Example Protection**:
+
 ```rust
 // Orchestrator A and B both think task is in "Pending" state
 // A transitions: WHERE state = 'Pending' -> succeeds, now "Initializing"
@@ -122,6 +129,7 @@ Defined in `tasker-shared/src/state_machine/task_state_machine.rs`, the TaskStat
 4. **Ownership tracking**: Processor UUID tracked for audit (not enforced after ownership removal)
 
 **Example Protection**:
+
 ```rust
 // TaskStateMachine prevents invalid transitions
 let mut state_machine = TaskStateMachine::new(task, context);
@@ -147,6 +155,7 @@ Defined in `tasker-shared/src/state_machine/step_state_machine.rs`, the StepStat
 3. **Retry eligibility**: Validates max_attempts and backoff timing
 
 **Example Protection**:
+
 ```rust
 // Worker attempts to claim already-processing step
 let mut step_machine = StepStateMachine::new(step.into(), context);
@@ -164,6 +173,7 @@ match step_machine.current_state().await {
 ```
 
 This prevents:
+
 - Multiple workers executing the same step concurrently
 - Marking steps complete that weren't started
 - Retrying steps that exceeded max_attempts
@@ -204,6 +214,7 @@ tx.commit().await?;
 ```
 
 **Example Protection**:
+
 ```rust
 // Scenario: Task creation partially fails
 // - Namespace created ✓
@@ -276,6 +287,7 @@ pub async fn resolve_namespace(
 ```
 
 **Why This Works**:
+
 - First attempt: Finds existing → idempotent
 - Create attempt: Unique constraint prevents duplicates
 - Retry after unique violation: Gets the winner → idempotent
@@ -303,6 +315,7 @@ let ready_steps = steps.iter()
 ```
 
 **Example Protection**:
+
 ```rust
 // Scenario: Orchestrator crash mid-batch
 // Before crash: Enqueued steps 1-5 of 10
@@ -332,6 +345,7 @@ pgmq_client.send_with_notify(queue_name, step_message).await?;
 ```
 
 **Why Order Matters**:
+
 ```rust
 // Wrong order (queue-before-state):
 // 1. Send PGMQ message
@@ -363,6 +377,7 @@ See [Events and Commands](events-and-commands.md) for event system details.
 #### Protection Mechanisms
 
 1. **Identity Hash Unique Constraint**
+
    ```rust
    // Tasks are identified by hash of (namespace, task_name, context)
    let identity_hash = calculate_identity_hash(namespace, name, context);
@@ -403,6 +418,7 @@ T8: B transaction rolled back
 ```
 
 **Result**:
+
 - Exactly one task created
 - No partial state in database
 - Orchestrator B receives clear error
@@ -436,6 +452,7 @@ See `tasker-shared/src/models/core/workflow_step_edge.rs:236-270` for cycle dete
 #### Multi-Layer Protection
 
 1. **SQL-Level Row Locking**
+
    ```sql
    -- get_next_ready_tasks() uses SKIP LOCKED
    SELECT task_uuid FROM tasker.tasks
@@ -443,9 +460,11 @@ See `tasker-shared/src/models/core/workflow_step_edge.rs:236-270` for cycle dete
    FOR UPDATE SKIP LOCKED  -- Prevents concurrent claiming
    LIMIT $batch_size;
    ```
+
    Each orchestrator gets different tasks, no overlap
 
 2. **State Machine Compare-and-Swap**
+
    ```rust
    // Only transition if task in expected state
    state_machine.transition(TaskEvent::EnqueueSteps(uuids)).await?;
@@ -453,6 +472,7 @@ See `tasker-shared/src/models/core/workflow_step_edge.rs:236-270` for cycle dete
    ```
 
 3. **Step State Filtering**
+
    ```rust
    // Only enqueue steps in specific states
    let enqueueable = steps.filter(|s| matches!(
@@ -462,6 +482,7 @@ See `tasker-shared/src/models/core/workflow_step_edge.rs:236-270` for cycle dete
    ```
 
 4. **State-Before-Queue Ordering**
+
    ```rust
    // 1. Commit step state to Enqueued
    step.transition(StepEvent::Enqueue).await?;
@@ -510,6 +531,7 @@ T7: Steps C, D have state = Pending → enqueue
 #### Protection Mechanisms
 
 1. **State Guard Validation**
+
    ```rust
    // TaskCoordinator validates step state before processing result
    let current_state = step_state_machine.current_state().await?;
@@ -561,6 +583,7 @@ T9: B deletes PGMQ message
 **Result**: Step processed exactly once, retry is harmless
 
 **Before Ownership Removal (Ownership Enforced)**:
+
 ```
 // Orchestrator A owned task in EvaluatingResults state
 // A crashes
@@ -570,6 +593,7 @@ T9: B deletes PGMQ message
 ```
 
 **After Ownership Removal (Ownership Audit-Only)**:
+
 ```
 // Orchestrator A owned task in EvaluatingResults state
 // A crashes
@@ -589,6 +613,7 @@ See the [Ownership Removal ADR](../decisions/adr-003-ownership-removal.md) for f
 #### Current Protection (Sufficient for Recovery)
 
 1. **State Guard Protection**
+
    ```rust
    // TaskFinalizer checks current task state
    let context = ExecutionContextProvider::fetch(task_uuid).await?;
@@ -606,6 +631,7 @@ See the [Ownership Removal ADR](../decisions/adr-003-ownership-removal.md) for f
    ```
 
 2. **Idempotent for Recovery**
+
    ```rust
    // Scenario: Orchestrator crashes during finalization
    // - Task state already Complete → state guard returns early
@@ -628,6 +654,7 @@ T6: B receives StateMachineError (invalid transition)
 ```
 
 **Result**:
+
 - ✓ Task finalized exactly once (correct)
 - ✓ No data corruption
 - ⚠️ Orchestrator B gets error (not graceful)
@@ -648,6 +675,7 @@ RETURNING *;
 ```
 
 **With atomic finalization claiming**:
+
 ```
 T0: Orchestrators A and B both receive finalization trigger
 T1: A calls claim_task_for_finalization() → succeeds
@@ -681,6 +709,7 @@ FOR UPDATE;  -- Lock prevents concurrent modifications
 ```
 
 **Key Guarantees**:
+
 - Returns 0 rows if state doesn't match → safe retry
 - Row lock prevents concurrent transitions
 - Processor UUID tracked for audit, not enforced
@@ -710,6 +739,7 @@ LIMIT $batch_size;
 ```
 
 **Key Guarantees**:
+
 - Each orchestrator gets different tasks
 - No blocking or contention
 - Dynamic priority (Pending before WaitingForRetry)
@@ -739,6 +769,7 @@ WHERE step.uuid = $step_uuid;
 ```
 
 **Key Guarantees**:
+
 - Atomic dependency check
 - Handles retry logic with backoff
 - Prevents premature execution
@@ -771,6 +802,7 @@ WHERE to_step_uuid = $proposed_from;
 **Returns**: True if adding edge would create cycle
 
 **Enforcement**: Called by `WorkflowStepBuilder` during task initialization
+
 - Self-reference check: `from_uuid == to_uuid`
 - Path check: Would adding edge create cycle?
 - Error before commit: Transaction rolled back on cycle
@@ -788,6 +820,7 @@ See `tasker-orchestration/src/orchestration/lifecycle/task_initialization/workfl
 **Protection**:
 
 1. **Work Distribution**:
+
    ```sql
    -- Each orchestrator gets different tasks via SKIP LOCKED
    Orchestrator A: Tasks [1, 2, 3]
@@ -795,6 +828,7 @@ See `tasker-orchestration/src/orchestration/lifecycle/task_initialization/workfl
    ```
 
 2. **State Transitions**:
+
    ```rust
    // Both attempt to transition same task (shouldn't happen, but...)
    A: transition(Pending -> Initializing) → succeeds
@@ -802,6 +836,7 @@ See `tasker-orchestration/src/orchestration/lifecycle/task_initialization/workfl
    ```
 
 3. **Step Enqueueing**:
+
    ```rust
    // Task in EnqueuingSteps state
    A: Processes task, enqueues steps A, B
@@ -889,6 +924,7 @@ match result {
 ```
 
 **Key Pattern**: Operations are designed to be retry-safe
+
 - Database constraints prevent duplicates
 - State guards prevent invalid transitions
 - Find-or-create handles concurrent creation
@@ -923,6 +959,7 @@ pgmq.delete(duplicate.msg_id).await?;
 ```
 
 **Protection**:
+
 - State guards: Check current state before processing
 - Idempotent handlers: Safe to process same message multiple times
 - Message deletion: Only after confirmed processing
@@ -1011,12 +1048,14 @@ Three tests showed intermittent failures under heavy parallelization:
 ### Stress Test Results
 
 **Rapid Task Burst Test**:
+
 - 25 tasks created in <1 second
 - All tasks completed successfully
 - No duplicate UUIDs
 - Creation rate: ~50 tasks/second sustained
 
 **Round-Robin Distribution Test**:
+
 - Tasks distributed evenly across orchestration instances
 - Load balancing working correctly
 - No single-instance bottleneck
@@ -1035,6 +1074,7 @@ The following architectural decisions were validated by cluster testing:
 Testing identified one P2 improvement opportunity:
 
 **Atomic Finalization Claiming**
+
 - Current: Second orchestrator gets `StateMachineError` during concurrent finalization
 - Proposed: Transaction-based locking for graceful handling
 - Priority: P2 (operational improvement, correctness already ensured)
@@ -1093,6 +1133,7 @@ All critical operations are designed to be **safely retryable**:
 - **No Side Effects**: Operations don't accumulate partial state
 
 This enables:
+
 - Automatic retry after transient failures
 - Duplicate message handling
 - Recovery after crashes
@@ -1124,6 +1165,7 @@ impl TaskStateMachine {
 ```
 
 **Why This Works**:
+
 - State guards provide correctness (current state validation)
 - Processor UUID provides observability (who did what when)
 - No ownership blocking means automatic recovery
@@ -1136,6 +1178,7 @@ impl TaskStateMachine {
 When implementing new orchestration operations, ensure:
 
 ### Database Layer
+
 - [ ] Unique constraints for entities that must be singular
 - [ ] `FOR UPDATE` locking for state transitions
 - [ ] `FOR UPDATE SKIP LOCKED` for work distribution
@@ -1143,18 +1186,21 @@ When implementing new orchestration operations, ensure:
 - [ ] Transaction wrapping for multi-step operations
 
 ### State Machine Layer
+
 - [ ] Current state retrieval before transitions
 - [ ] Event applicability validation
 - [ ] Terminal state protection
 - [ ] Error handling for invalid transitions
 
 ### Application Layer
+
 - [ ] Find-or-create pattern for shared entities
 - [ ] State-based filtering before processing
 - [ ] State-before-queue ordering for events
 - [ ] Idempotent message handlers
 
 ### Testing
+
 - [ ] Concurrent operation tests (multiple orchestrators)
 - [ ] Crash recovery tests (mid-operation failures)
 - [ ] Retry safety tests (duplicate message handling)
@@ -1165,18 +1211,22 @@ When implementing new orchestration operations, ensure:
 ## Related Documentation
 
 ### Core Architecture
+
 - **[States and Lifecycles](states-and-lifecycles.md)** - Dual state machine architecture
 - **[Events and Commands](events-and-commands.md)** - Event-driven coordination patterns
 - **[Actor-Based Architecture](actors.md)** - Orchestration actor pattern
 - **[Task Readiness & Execution](../reference/task-and-step-readiness-and-execution.md)** - SQL functions and execution logic
 
 ### Implementation Details
+
 - **[Ownership Removal ADR](../decisions/adr-003-ownership-removal.md)** - Processor UUID ownership removal decision
 
 ### Multi-Instance Validation
+
 - **[Cluster Testing Guide](../testing/cluster-testing-guide.md)** - Running multi-instance cluster tests
 
 ### Testing
+
 - **[Comprehensive Lifecycle Testing](../testing/comprehensive-lifecycle-testing-guide.md)** - Testing patterns including concurrent scenarios
 
 ---

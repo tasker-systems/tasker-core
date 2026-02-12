@@ -13,6 +13,7 @@ When data is missing, malformed, or unexpected, the correct response is an expli
 ## The Problem: Phantom Data
 
 "Phantom data" is data that:
+
 - Looks valid to consumers
 - Passes type checks and validation
 - Contains no actual information from the source
@@ -33,6 +34,7 @@ fn get_pool_utilization(response: Response) -> PoolUtilization {
 ```
 
 A monitoring system receiving this response sees:
+
 - `utilization_percent: 0.0` — "Great, the system is idle!"
 - Reality: The server never sent pool data. The system might be at 100% load.
 
@@ -77,6 +79,7 @@ fn get_pool_utilization(response: Response) -> Result<PoolUtilization, ClientErr
 ```
 
 Now the consumer:
+
 - Knows data is missing
 - Can retry, alert, or degrade gracefully
 - Never operates on phantom values
@@ -127,18 +130,21 @@ fn convert_response(r: Response) -> Result<DomainType, ClientError> {
 Not every `unwrap_or_default()` is wrong. Defaults are acceptable when:
 
 1. **The field is explicitly optional in the domain model**
+
    ```rust
    // Optional metadata that may legitimately be absent
    let metadata: Option<Value> = response.metadata;
    ```
 
 2. **The default is semantically meaningful**
+
    ```rust
    // Empty tags list is valid—means "no tags"
    let tags = response.tags.unwrap_or_default(); // Vec<String>
    ```
 
 3. **Absence cannot be confused with a valid value**
+
    ```rust
    // description being None vs "" are distinguishable
    let description: Option<String> = response.description;
@@ -151,24 +157,28 @@ Not every `unwrap_or_default()` is wrong. Defaults are acceptable when:
 When reviewing code, these patterns indicate potential phantom data:
 
 ### 1. `unwrap_or_default()` on Numeric Types
+
 ```rust
 // RED FLAG: 0 looks like a valid measurement
 let active_connections = pool.active.unwrap_or_default();
 ```
 
 ### 2. `unwrap_or_else(|| ...)` with Fabricated Values
+
 ```rust
 // RED FLAG: "unknown" looks like real status
 let status = check.status.unwrap_or_else(|| "unknown".to_string());
 ```
 
 ### 3. Default Structs for Missing Nested Data
+
 ```rust
 // RED FLAG: Entire section fabricated
 let config = response.config.unwrap_or_else(default_config);
 ```
 
 ### 4. Silent Fallbacks in Health Checks
+
 ```rust
 // RED FLAG: Health check that never fails is useless
 let health = check_health().unwrap_or(HealthStatus::Ok);
@@ -220,6 +230,7 @@ let checks = response.checks.ok_or_else(|| {
 ```
 
 Now a malformed server response immediately fails with:
+
 ```
 Error: Invalid response: ReadinessResponse.checks - Readiness response missing required health checks
 ```

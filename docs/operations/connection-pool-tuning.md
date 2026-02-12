@@ -17,6 +17,7 @@ max_connections = (peak_concurrent_operations * avg_hold_time_ms) / 1000 + headr
 ```
 
 Rules of thumb:
+
 - **Orchestration pool**: 2-3x the number of concurrent tasks expected
 - **PGMQ pool**: 1-2x the number of workers × batch size
 - **min_connections**: 20-30% of max to avoid cold-start latency
@@ -44,11 +45,13 @@ Rules of thumb:
 ### Slow Acquires
 
 The `slow_acquire_threshold_ms` setting controls when an acquire is classified as "slow":
+
 - **Production (50ms)**: Tight threshold for SLO-sensitive workloads
 - **Development (200ms)**: Relaxed for local debugging with fewer resources
 - **Test (500ms)**: Very relaxed for CI environments with contention
 
 A high `slow_acquires` count relative to `total_acquires` (>5%) suggests:
+
 1. Pool is undersized for the workload
 2. Connections are held too long (long queries or transactions)
 3. Connection creation is slow (network latency to DB)
@@ -56,6 +59,7 @@ A high `slow_acquires` count relative to `total_acquires` (>5%) suggests:
 ### Acquire Errors
 
 Non-zero `acquire_errors` indicates pool exhaustion (timeout waiting for connection). Remediation:
+
 1. Increase `max_connections`
 2. Increase `acquire_timeout_seconds` (masks the problem)
 3. Reduce query execution time
@@ -72,6 +76,7 @@ pg_max_connections >= sum(service_max_pool * service_instance_count) + superuser
 ```
 
 Default PostgreSQL `max_connections` is 100. For production:
+
 - Set `max_connections = 500` or higher
 - Reserve 5-10 connections for superuser (`superuser_reserved_connections`)
 - Monitor with `SELECT count(*) FROM pg_stat_activity`
@@ -79,12 +84,14 @@ Default PostgreSQL `max_connections` is 100. For production:
 ### Connection Overhead
 
 Each PostgreSQL connection consumes ~5-10MB RAM. Size accordingly:
+
 - 100 connections ~ 0.5-1GB additional RAM
 - 500 connections ~ 2.5-5GB additional RAM
 
 ### Statement Timeout
 
 The `statement_timeout` database variable protects against runaway queries:
+
 - Production: 30s (default)
 - Test: 5s (fail fast)
 

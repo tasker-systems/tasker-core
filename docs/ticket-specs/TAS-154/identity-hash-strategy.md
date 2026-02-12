@@ -30,6 +30,7 @@ Task identity is domain-specific:
 | Retry with same params | Intentional | **Allow** |
 
 A TaskRequest with identical context might be:
+
 - An accidental duplicate (network retry, user double-click) → should deduplicate
 - An intentional repetition (scheduled job, legitimate re-run) → should allow
 
@@ -198,16 +199,19 @@ impl Task {
 ## Edge Cases
 
 ### CallerProvided without key
+
 - **Behavior**: Return 400 Bad Request with clear error message
 - **Rationale**: Named task explicitly requires caller to manage idempotency
 
 ### Key collision across named tasks
+
 - **Current**: `identity_hash` is globally unique (could collide)
 - **Option A**: Include `named_task_uuid` in hash even for caller-provided keys
 - **Option B**: Document that keys should be globally unique
 - **Recommendation**: Option A (safer, prevents cross-task collisions)
 
 ### Migration of existing tasks
+
 - **No migration needed**: Existing tasks have valid identity_hash values
 - **Existing named tasks**: Default to STRICT (current behavior)
 
@@ -312,18 +316,21 @@ TaskRequest {
 ### Anti-Patterns to Avoid
 
 ❌ **Don't rely on submission timing for identity**
+
 ```rust
 // BAD: Hoping requests are "far enough apart"
 TaskRequest { context: json!({ "customer_id": 123 }) }
 ```
 
 ❌ **Don't use ALWAYS_UNIQUE when you need deduplication**
+
 ```rust
 // BAD: Creates duplicate work on network retries
 // Named task with AlwaysUnique for payment processing
 ```
 
 ✅ **Do make identity explicit**
+
 ```rust
 // GOOD: Clear what makes this task unique
 TaskRequest {

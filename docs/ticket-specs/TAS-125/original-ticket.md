@@ -8,9 +8,9 @@ Enable batch workers to persist intermediate checkpoint progress **during** proc
 
 **Related Tickets**:
 
-* [TAS-59](https://linear.app/tasker-systems/issue/TAS-59/batch-processing-implementation-plan): Batch Processing Implementation (defines `checkpoint_interval` config)
-* [TAS-64](https://linear.app/tasker-systems/issue/TAS-64/retryability-and-resumability-e2e-testing): Retryability E2E Testing (validates cursor resumption)
-* [TAS-118](https://linear.app/tasker-systems/issue/TAS-118/phase-6-batch-processing-lifecycle-analysis): Batch Processing Lifecycle Analysis (identifies checkpoint write gap)
+- [TAS-59](https://linear.app/tasker-systems/issue/TAS-59/batch-processing-implementation-plan): Batch Processing Implementation (defines `checkpoint_interval` config)
+- [TAS-64](https://linear.app/tasker-systems/issue/TAS-64/retryability-and-resumability-e2e-testing): Retryability E2E Testing (validates cursor resumption)
+- [TAS-118](https://linear.app/tasker-systems/issue/TAS-118/phase-6-batch-processing-lifecycle-analysis): Batch Processing Lifecycle Analysis (identifies checkpoint write gap)
 
 **Full Specification**: `docs/ticket-specs/TAS-125/checkpoint-plan.md`
 
@@ -21,20 +21,20 @@ Enable batch workers to persist intermediate checkpoint progress **during** proc
 ### Current State
 
 1. **Configuration exists but is unused**:
-   * `checkpoint_interval` is defined in `BatchConfiguration` (YAML templates)
-   * Passed to workers via `BatchMetadata.checkpoint_interval`
-   * **Not actually used for persisting intermediate progress**
+   - `checkpoint_interval` is defined in `BatchConfiguration` (YAML templates)
+   - Passed to workers via `BatchMetadata.checkpoint_interval`
+   - **Not actually used for persisting intermediate progress**
 2. **Checkpoint data only persists at step boundaries**:
-   * When step **succeeds**: `last_cursor` included in final result
-   * When step **fails**: `CheckpointProgress` stored in `metadata.context`
-   * When step **crashes**: All progress is lost
+   - When step **succeeds**: `last_cursor` included in final result
+   - When step **fails**: `CheckpointProgress` stored in `metadata.context`
+   - When step **crashes**: All progress is lost
 
 ### Gap
 
 If a batch worker processing 10,000 items with `checkpoint_interval: 1000` crashes at item 8,000:
 
-* **Today**: Recovery starts from 0 (or previous attempt's final `last_cursor`)
-* **After TAS-125**: Recovery starts from 7,000 (last persisted checkpoint)
+- **Today**: Recovery starts from 0 (or previous attempt's final `last_cursor`)
+- **After TAS-125**: Recovery starts from 7,000 (last persisted checkpoint)
 
 ---
 
@@ -118,10 +118,10 @@ ALTER TABLE tasker_workflow_steps ADD COLUMN checkpoint JSONB;
 
 **Rationale for dedicated column**:
 
-* Clean separation: `checkpoint` is orchestration bookkeeping, `results` is business output
-* Simple read path: `step.checkpoint?.cursor`
-* Independent lifecycle: checkpoint updates don't mutate results
-* ResetForRetry semantics clearer: explicitly preserve/clear checkpoint
+- Clean separation: `checkpoint` is orchestration bookkeeping, `results` is business output
+- Simple read path: `step.checkpoint?.cursor`
+- Independent lifecycle: checkpoint updates don't mutate results
+- ResetForRetry semantics clearer: explicitly preserve/clear checkpoint
 
 ---
 
@@ -198,43 +198,43 @@ curl -X PATCH /v1/tasks/{task}/workflow_steps/{step} \
 
 ### Phase 1: Schema & Core Types (2-3 days)
 
-* Add `checkpoint` column migration
-* Create `CheckpointYieldData` type in tasker-shared
-* Create `CheckpointService` for persistence logic
-* Update `WorkflowStep` model with checkpoint accessors
-* Update `reset_for_retry` to support `reset_checkpoint` flag
+- Add `checkpoint` column migration
+- Create `CheckpointYieldData` type in tasker-shared
+- Create `CheckpointService` for persistence logic
+- Update `WorkflowStep` model with checkpoint accessors
+- Update `reset_for_retry` to support `reset_checkpoint` flag
 
 ### Phase 2: Rust Handler Support (2-3 days)
 
-* Create `BatchWorkerResult` enum
-* Update `CompletionProcessorService` to handle checkpoint yields
-* Implement checkpoint persistence in completion flow
-* Implement re-dispatch logic
-* Add checkpoint context to `BatchWorkerContext`
+- Create `BatchWorkerResult` enum
+- Update `CompletionProcessorService` to handle checkpoint yields
+- Implement checkpoint persistence in completion flow
+- Implement re-dispatch logic
+- Add checkpoint context to `BatchWorkerContext`
 
 ### Phase 3: FFI Bridge Extension (3-4 days)
 
-* Add `checkpoint_yield_step_event` FFI function
-* Update `FfiDispatchChannel` with `checkpoint_yield()` method
-* Create Ruby `StepHandlerCallResult::CheckpointYield` type
-* Add `checkpoint_yield()` helper to `Batchable` base class
-* Update `EventBridge` with `publish_step_checkpoint_yield()`
-* Mirror changes for Python/TypeScript
+- Add `checkpoint_yield_step_event` FFI function
+- Update `FfiDispatchChannel` with `checkpoint_yield()` method
+- Create Ruby `StepHandlerCallResult::CheckpointYield` type
+- Add `checkpoint_yield()` helper to `Batchable` base class
+- Update `EventBridge` with `publish_step_checkpoint_yield()`
+- Mirror changes for Python/TypeScript
 
 ### Phase 4: Handler Migration & Testing (3-4 days)
 
-* Update CSV batch processing example to use checkpoint yields
-* Create integration tests for checkpoint-yield-resume cycle
-* Test error scenarios (persist failure, re-dispatch failure)
-* Test ResetForRetry with/without checkpoint reset
-* Performance testing with various checkpoint intervals
+- Update CSV batch processing example to use checkpoint yields
+- Create integration tests for checkpoint-yield-resume cycle
+- Test error scenarios (persist failure, re-dispatch failure)
+- Test ResetForRetry with/without checkpoint reset
+- Performance testing with various checkpoint intervals
 
 ### Phase 5: Documentation & Operator Tools (1-2 days)
 
-* Update [batch-processing.md](http://batch-processing.md) guide
-* Document operator workflows for checkpoint inspection
-* Add checkpoint metrics to monitoring
-* Update DLQ documentation for checkpoint-aware resolution
+- Update [batch-processing.md](http://batch-processing.md) guide
+- Document operator workflows for checkpoint inspection
+- Add checkpoint metrics to monitoring
+- Update DLQ documentation for checkpoint-aware resolution
 
 **Total Estimate**: 11-16 days
 
@@ -256,23 +256,24 @@ curl -X PATCH /v1/tasks/{task}/workflow_steps/{step} \
 
 ### Rust Types
 
-* `CheckpointProgress`: `tasker-shared/src/models/core/batch_worker.rs`
-* `BatchWorkerInputs`: `tasker-shared/src/models/core/batch_worker.rs`
-* `FfiDispatchChannel`: `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs`
-* `CompletionProcessorService`: `tasker-worker/src/worker/handlers/completion_processor.rs`
+- `CheckpointProgress`: `tasker-shared/src/models/core/batch_worker.rs`
+- `BatchWorkerInputs`: `tasker-shared/src/models/core/batch_worker.rs`
+- `FfiDispatchChannel`: `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs`
+- `CompletionProcessorService`: `tasker-worker/src/worker/handlers/completion_processor.rs`
 
 ### Ruby
 
-* `Batchable`: `workers/ruby/lib/tasker_core/step_handler/batchable.rb`
-* `EventBridge`: `workers/ruby/lib/tasker_core/event_bridge.rb`
+- `Batchable`: `workers/ruby/lib/tasker_core/step_handler/batchable.rb`
+- `EventBridge`: `workers/ruby/lib/tasker_core/event_bridge.rb`
 
 ### Documentation
 
-* Full specification: `docs/ticket-specs/TAS-125/checkpoint-plan.md`
-* Batch processing guide: `docs/guides/batch-processing.md`
-* Worker event systems: `docs/architecture/worker-event-systems.md`
+- Full specification: `docs/ticket-specs/TAS-125/checkpoint-plan.md`
+- Batch processing guide: `docs/guides/batch-processing.md`
+- Worker event systems: `docs/architecture/worker-event-systems.md`
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-125/batchable-handler-checkpoint](https://linear.app/tasker-systems/issue/TAS-125/batchable-handler-checkpoint)
 - Identifier: TAS-125
 - Status: In Progress
@@ -293,9 +294,9 @@ curl -X PATCH /v1/tasks/{task}/workflow_steps/{step} \
 
   ### Current State
 
-  * `checkpoint_interval` exists in `BatchWorkerConfig` across all languages (Ruby, Rust, Python, TypeScript)
-  * **No language has checkpoint write capability** - this is documented as "Future Enhancement" in Rust examples
-  * The orchestration layer has the infrastructure to persist checkpoints (via `last_cursor` in step results), but there's no explicit API for handlers to write intermediate checkpoints during processing
+  - `checkpoint_interval` exists in `BatchWorkerConfig` across all languages (Ruby, Rust, Python, TypeScript)
+  - **No language has checkpoint write capability** - this is documented as "Future Enhancement" in Rust examples
+  - The orchestration layer has the infrastructure to persist checkpoints (via `last_cursor` in step results), but there's no explicit API for handlers to write intermediate checkpoints during processing
 
   ### What Works Today
 
@@ -318,9 +319,9 @@ curl -X PATCH /v1/tasks/{task}/workflow_steps/{step} \
 
   ### Reference Files
 
-  * Ruby: `workers/ruby/lib/tasker_core/step_handler/batchable.rb` - `checkpoint_interval` defined but unused
-  * Rust: `workers/rust/src/step_handlers/batch_processing_example.rs` - documents "Future Enhancement: checkpoint writing"
-  * Python/TypeScript: `BatchWorkerConfig` type includes `checkpoint_interval`
+  - Ruby: `workers/ruby/lib/tasker_core/step_handler/batchable.rb` - `checkpoint_interval` defined but unused
+  - Rust: `workers/rust/src/step_handlers/batch_processing_example.rs` - documents "Future Enhancement: checkpoint writing"
+  - Python/TypeScript: `BatchWorkerConfig` type includes `checkpoint_interval`
 
   ### Related
 

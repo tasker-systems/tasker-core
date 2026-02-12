@@ -62,12 +62,14 @@ pub struct UnifiedPgmqClient {
 ```
 
 **Responsibilities:**
+
 - Wraps `PgmqClient` from the pgmq-notify crate
 - Implements `PgmqClientTrait` for low-level message queue operations
 - Provides notification-based event processing for LISTEN/NOTIFY patterns
 - Handles queue management (create, read, write, delete messages)
 
 **Key Methods:**
+
 - `create_queue(queue_name)` - Create PGMQ queue
 - `send_message(queue_name, message)` - Send step execution message
 - `read_messages(queue_name, timeout, limit)` - Receive messages from queue
@@ -266,17 +268,20 @@ impl SystemContext {
 ### 1. Update SystemContext Field Type
 
 **Current:**
+
 ```rust
 pub message_client: Arc<UnifiedPgmqClient>,
 ```
 
 **Proposed (Enum Dispatch):**
+
 ```rust
 pub messaging_provider: Arc<MessagingProvider>,
 pub message_client: Arc<MessageClient>,
 ```
 
 We use **enum dispatch** instead of `Arc<dyn MessagingService>` for hot-path performance:
+
 - No vtable indirection on every send/receive
 - Compiler can inline provider methods
 - No generic proliferation (`SystemContext` stays non-generic)
@@ -395,6 +400,7 @@ impl MessageClient {
 ```
 
 SystemContext exposes both:
+
 ```rust
 pub struct SystemContext {
     pub messaging_provider: Arc<MessagingProvider>,  // Low-level enum dispatch
@@ -452,11 +458,13 @@ We use enum dispatch for both `MessagingProvider` and `MessageRouterKind`:
 | Binary size | Smaller | Slightly larger (all variants compiled) |
 
 **When to use `dyn` trait objects:**
+
 - Plugin systems where types are unknown at compile time
 - Runtime-loaded extensions
 - When you need unbounded extensibility
 
 **When to use enum dispatch:**
+
 - Closed set of known variants
 - Hot-path operations (messaging, routing)
 - When all variants are known at compile time

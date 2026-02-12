@@ -288,6 +288,7 @@ pub enum MessagingProvider {
 ```
 
 **Benefits of the enum approach:**
+
 - **Stack-allocated**: No heap allocation overhead
 - **Exhaustive matching**: Compiler ensures all variants are handled
 - **Optimized dispatch**: Compiler can inline and optimize match arms
@@ -306,6 +307,7 @@ pub struct Provider<Caps> {
 ```
 
 **Problems with this approach:**
+
 - Introduces heap allocation where we have stack-allocated enums
 - Adds vtable indirection overhead
 - More complex type signatures throughout the codebase
@@ -314,6 +316,7 @@ pub struct Provider<Caps> {
 ### Recommendation
 
 **Keep the current enum-based `MessagingProvider`**. The compile-time safety we need comes from:
+
 - Phase 1: NewType channel wrappers
 - Phase 2: Message source types (`SignalOnlyNotification` vs `FullMessageNotification`)
 - Phase 3: Directional command naming
@@ -329,33 +332,40 @@ These three phases address the actual problems we encountered without over-engin
 Based on codebase analysis, several patterns are already well-designed:
 
 **Orchestration Commands** (`tasker-orchestration/src/orchestration/command_processor.rs:40-126`)
+
 - ✅ `ProcessStepResultFromMessage` / `ProcessStepResultFromMessageEvent` - clear source encoding
 - ✅ `InitializeTaskFromMessage` / `InitializeTaskFromMessageEvent` - clear source encoding
 - ✅ `FinalizeTaskFromMessage` / `FinalizeTaskFromMessageEvent` - clear source encoding
 
 **Worker Commands** (`tasker-worker/src/worker/command_processor.rs:30-94`)
+
 - ✅ `ExecuteStepFromMessage` (line 83) - provider-agnostic full message
 - ✅ `ExecuteStepFromEvent` (line 90) - event-driven signal-only
 
 **Message Handle Enum** (`tasker-shared/src/messaging/service/types.rs:185-277`)
+
 - ✅ `MessageHandle::Pgmq`, `MessageHandle::RabbitMq`, `MessageHandle::InMemory` - provider-specific dispatch
 
 ### What Needs Improvement
 
 **Generic Channel Types** - No semantic meaning in channel types:
+
 - `tasker-worker/src/worker/event_systems/worker_event_system.rs:357` - generic `mpsc::channel::<WorkerNotification>`
 - `tasker-worker/src/worker/actor_command_processor.rs:133` - generic `mpsc::channel(command_buffer_size)`
 - `tasker-orchestration/src/orchestration/event_systems/orchestration_event_system.rs:455,520` - generic channels
 
 **MessageNotification Naming** (`tasker-shared/src/messaging/service/types.rs:871-961`)
+
 - `Available { queue_name, msg_id }` → should be `Signal(SignalOnlyNotification)`
 - `Message(QueuedMessage<Vec<u8>>)` → should be `Full(FullMessageNotification)`
 
 **Worker Notification Naming** (`tasker-worker/src/worker/worker_queues/events.rs:43-55`)
+
 - `Event(WorkerQueueEvent)` → could be `PgmqSignal(...)` for clarity
 - `StepMessageWithPayload(...)` → could be `FullMessage(...)` for consistency
 
 **Orchestration Notification Naming** (`tasker-orchestration/src/orchestration/orchestration_queues/listener.rs:113-125`)
+
 - `Event(OrchestrationQueueEvent)` → could be `PgmqSignal(...)`
 - `StepResultWithPayload(...)` → could be `FullMessage(...)`
 
@@ -501,6 +511,7 @@ impl FullMessageNotification {
 **File**: `tasker-worker/src/worker/worker_queues/listener.rs`
 
 Update `process_subscription_stream()` to emit new notification types:
+
 - `MessageNotification::Available` → `WorkerNotification::Signal(...)`
 - `MessageNotification::Message` → `WorkerNotification::FullMessage(...)`
 
@@ -516,6 +527,7 @@ Update `process_subscription_stream()` to emit new notification types:
 #### 2.6 Update Event System Handlers
 
 **Files to update**:
+
 - `tasker-worker/src/worker/event_systems/worker_event_system.rs:387-470` - match on new variants
 - `tasker-orchestration/src/orchestration/event_systems/orchestration_event_system.rs:560-650` - match on new variants
 
@@ -544,6 +556,7 @@ Update match arms (around line 200+) to use new variant names.
 #### 3.3 Update Command Senders
 
 **Files**:
+
 - `tasker-worker/src/worker/event_systems/worker_event_system.rs` - update command creation
 - `tasker-worker/src/worker/worker_queues/fallback_poller.rs` - update command creation
 
@@ -583,6 +596,7 @@ See "Part 4: Provider Abstraction (Keep Current Approach)" for rationale.
 ## Command Flow Summary
 
 ### Worker Flow (Signal-Only Path - PGMQ)
+
 ```
 WorkerQueueListener
   → receives MessageNotification::Available (signal-only)
@@ -596,6 +610,7 @@ ActorCommandProcessor
 ```
 
 ### Worker Flow (Full Message Path - RabbitMQ)
+
 ```
 WorkerQueueListener
   → receives MessageNotification::Message (full payload)
@@ -609,6 +624,7 @@ ActorCommandProcessor
 ```
 
 ### Orchestration Flow (Similar Pattern)
+
 ```
 OrchestrationQueueListener
   → Signal path: OrchestrationNotification::Signal → ProcessStepResultFromSignal
@@ -645,6 +661,7 @@ OrchestrationQueueListener
 **Status**: Known issue, to be addressed after baseline established
 
 **Affected Tests** (6 total):
+
 - `tasker-shared::domain_events_test::test_publish_event`
 - `tasker-shared::domain_events_test::test_publish_event_with_correlation`
 - `tasker-shared::domain_events_test::test_multiple_namespaces`
@@ -653,6 +670,7 @@ OrchestrationQueueListener
 - `tasker-worker-rust::payment_event_publisher_integration_test::test_end_to_end_payment_flow`
 
 **Root Cause**: Tests verify message publishing by directly querying PGMQ tables:
+
 ```rust
 // Direct PGMQ table query - fails when RabbitMQ is broker
 let message_count: i64 =
@@ -664,6 +682,7 @@ let message_count: i64 =
 **Fix**: Replace direct PGMQ table queries with provider-agnostic `receive_messages()` API for verification, consistent with TAS-133 abstraction goals.
 
 **Files to Update**:
+
 - `tasker-shared/tests/domain_events_test.rs` (lines 192-195, 254-259, 312-316)
 - `workers/rust/tests/payment_event_publisher_integration_test.rs` (lines 322-325, 400-403, 495-498)
 

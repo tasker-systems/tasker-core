@@ -192,6 +192,7 @@ async fn latency_reflects_actual_processing_time() {
 ## Risk Assessment
 
 **Risk**: Low
+
 - Adding metrics tracking has minimal performance overhead
 - No change to existing behavior, only adds measurement
 - Metrics are informational, not control-flow affecting

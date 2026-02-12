@@ -14,6 +14,7 @@
 The **provider-agnostic messaging abstraction** enables Tasker Core to support multiple messaging backends through a unified interface. This architecture allows switching between PGMQ (PostgreSQL Message Queue) and RabbitMQ without changes to business logic.
 
 **Key Benefits**:
+
 - **Zero handler changes required**: Switching providers requires only configuration changes
 - **Provider-specific optimizations**: Each backend can leverage its native strengths
 - **Testability**: In-memory provider for fast unit testing
@@ -34,11 +35,13 @@ Different messaging providers have fundamentally different delivery models:
 | **InMemory** | Push | Yes | Full message | No |
 
 **PGMQ (Signal-Only)**:
+
 - `pg_notify` sends a signal that a message exists
 - Worker must fetch the message after receiving the signal
 - Fallback polling catches missed signals
 
 **RabbitMQ (Full Message Push)**:
+
 - `basic_consume()` delivers complete messages
 - No separate fetch required
 - Protocol guarantees delivery
@@ -189,6 +192,7 @@ impl SupportsPushNotifications for PgmqMessagingService {
 ```
 
 **Characteristics**:
+
 - Uses PostgreSQL for storage and delivery
 - `pg_notify` for real-time notifications
 - Fallback polling required for reliability
@@ -220,6 +224,7 @@ impl SupportsPushNotifications for RabbitMqMessagingService {
 ```
 
 **Characteristics**:
+
 - Native push delivery via AMQP protocol
 - No fallback polling needed
 - Higher throughput for high-volume scenarios
@@ -240,6 +245,7 @@ impl SupportsPushNotifications for InMemoryMessagingService {
 ```
 
 **Use Cases**:
+
 - Unit testing without external dependencies
 - Integration testing with controlled timing
 - Development environments
@@ -292,6 +298,7 @@ impl MessagingProvider {
 ```
 
 **Benefits**:
+
 - Zero-cost abstraction (no vtable indirection)
 - Exhaustive match ensures all providers handled
 - Easy to add new providers
@@ -427,6 +434,7 @@ pub enum OrchestrationCommand {
 ```
 
 **Routing Logic**:
+
 - `MessageNotification::Message` -> `ProcessStepResultFromMessage`
 - `MessageNotification::Available` -> `ProcessStepResultFromMessageEvent`
 
@@ -489,6 +497,7 @@ impl ChannelFactory {
 ```
 
 **Benefits**:
+
 - Compile-time prevention of channel misuse
 - Self-documenting function signatures
 - Zero runtime overhead (NewTypes compile away)
@@ -531,10 +540,12 @@ heartbeat_seconds = 60
 
 1. **Deploy RabbitMQ infrastructure**
 2. **Update configuration**:
+
    ```bash
    export TASKER_MESSAGING_BACKEND=rabbitmq
    export RABBITMQ_URL=amqp://user:pass@rabbitmq:5672/%2F
    ```
+
 3. **Restart services** - No code changes required
 
 ### Gradual Migration

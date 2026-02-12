@@ -525,10 +525,12 @@ match process_message(&msg).await {
 Current Tasker code **doesn't explicitly nack** - it relies on VTT expiry. For RabbitMQ:
 
 **Option A**: Abstract away nack entirely
+
 - PGMQ impl: no-op
 - RabbitMQ impl: auto-nack on Drop if not acked
 
 **Option B**: Add explicit nack to pattern
+
 - More explicit error handling
 - Better for dead letter routing
 
@@ -537,6 +539,7 @@ Current Tasker code **doesn't explicitly nack** - it relies on VTT expiry. For R
 ### 3. Receipt Handle Lifecycle
 
 Receipt handles must be valid until ack/nack. This is naturally handled by:
+
 - PGMQ: msg_id is just an i64, always valid
 - RabbitMQ: delivery_tag valid until channel closes
 
@@ -545,6 +548,7 @@ Receipt handles must be valid until ack/nack. This is naturally handled by:
 PGMQ deletes are individual. RabbitMQ can batch ack (`basic_ack` with `multiple=true`).
 
 Consider adding to trait:
+
 ```rust
 async fn ack_messages(&self, queue: &str, handles: &[ReceiptHandle]) -> Result<(), MessagingError>;
 ```

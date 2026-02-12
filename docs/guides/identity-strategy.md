@@ -28,6 +28,7 @@ Task identity is domain-specific:
 | Retry with same params | Intentional | **Allow** |
 
 A TaskRequest with identical context might be:
+
 - An accidental duplicate (network retry, user double-click) → should deduplicate
 - An intentional repetition (scheduled job, legitimate re-run) → should allow
 
@@ -42,11 +43,13 @@ identity_hash = hash(named_task_uuid, normalized_context)
 Same named task + same context = same identity hash = deduplicated.
 
 **Use when:**
+
 - Accidental duplicates are a risk (payments, orders, notifications)
 - Context fully describes the work to be done
 - Network retries or user double-clicks should be safe
 
 **Example:**
+
 ```rust
 // Payment processing - same payment_id should never create duplicate tasks
 TaskRequest {
@@ -71,11 +74,13 @@ identity_hash = hash(named_task_uuid, idempotency_key)
 Caller must provide `idempotency_key`. Request is rejected with **400 Bad Request** if the key is missing.
 
 **Use when:**
+
 - Caller has a natural idempotency key (order_id, transaction_id, request_id)
 - Caller needs control over deduplication scope
 - Similar to Stripe's Idempotency-Key pattern
 
 **Example:**
+
 ```rust
 // Order processing - caller controls idempotency with their order ID
 TaskRequest {
@@ -99,11 +104,13 @@ identity_hash = uuidv7()
 Every request creates a new task. No deduplication.
 
 **Use when:**
+
 - Every submission should create work (notifications, events)
 - Repetition is intentional (scheduled jobs, cron-like triggers)
 - Context doesn't define uniqueness
 
 **Example:**
+
 ```rust
 // Notification sending - every call should send a notification
 TaskRequest {
@@ -151,6 +158,7 @@ TaskRequest {
 ```
 
 **Precedence:**
+
 1. `idempotency_key` (if provided) → always uses hash of key
 2. Named task's `identity_strategy` → applies if no key provided
 3. Default → STRICT (if strategy not configured)

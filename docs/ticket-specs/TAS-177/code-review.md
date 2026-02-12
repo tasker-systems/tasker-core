@@ -44,6 +44,7 @@ This document provides a comprehensive code review of the gRPC implementation fo
 ### 5. Cross-Transport Behavioral Differences
 
 **Issues:**
+
 - `cancel_task`: gRPC returns `success: false`, REST returns `400 Bad Request`
 - `DuplicateTask`: gRPC uses `INVALID_ARGUMENT`, REST returns `409 Conflict` (should use `ALREADY_EXISTS`)
 
@@ -118,16 +119,19 @@ The following aspects of the implementation demonstrate good engineering practic
 ## Security Assessment Summary
 
 ### Critical Security Issues
+
 - **Authentication bypass** in worker gRPC services
 - **Information leakage** through detailed error messages
 - **Permission enumeration** through error responses
 
 ### Recommendations Priority
+
 1. **Immediate:** Fix authentication bypass (Issue #1)
 2. **Before release:** Implement generic error responses (Issues #3, #4, #7)
 3. **Next iteration:** Address architectural improvements
 
 ### Overall Security Posture
+
 The gRPC implementation maintains most security controls from the REST API, but the authentication bypass in worker services represents a significant vulnerability that must be addressed before production deployment.
 
 ---

@@ -13,6 +13,7 @@ The `tasker-cli` crate is the command-line interface binary for Tasker. It was e
 The crate has 9 source files. Only 1 file has coverage: `docs/templates.rs` at 88.49% (223/252 lines), which contains Askama template rendering logic with comprehensive unit tests. All 8 other files -- the `main.rs` entry point and 7 command handler modules -- have 0% coverage. This is inherent to binary crate architecture: the command handlers are compiled into the binary and cannot be invoked from `cargo test` library tests.
 
 The existing tests (37 total) come from two sources:
+
 - **`tests/config_commands_test.rs`** (26 tests): Integration tests for ConfigMerger, config validation, documentation loading, and environment variable substitution. These test utility logic defined in the test file itself, not the binary command handlers.
 - **`src/docs/templates.rs`** (11 tests): Unit tests for Askama template rendering (annotated config, reference docs, parameter explanations, section details).
 
@@ -43,6 +44,7 @@ The existing tests (37 total) come from two sources:
 **1. `commands/config.rs` -- 0% (0/850 lines)**
 
 The largest command module. Implements config generation, validation, explanation, source validation, usage analysis, dump, and show commands. Contains substantial business logic:
+
 - `ConfigMerger`: Merges base + environment TOML configurations
 - `ConfigValidator`: Validates generated configuration against JSON schema
 - `ParameterDocumentation`: Loads and queries parameter documentation
@@ -52,6 +54,7 @@ The largest command module. Implements config generation, validation, explanatio
 Much of the config_commands_test.rs integration test exercises `ConfigMerger` and related types, but because those types are defined inside the binary crate, the coverage is attributed to the test binary, not the source file.
 
 **Testing strategy**:
+
 - Extract `ConfigMerger`, `ConfigValidator`, and `ParameterDocumentation` into the library portion of the crate or into `tasker-client` so their coverage counts
 - Alternatively, use `assert_cmd` subprocess tests for `tasker-cli config generate`, `config validate`, and `config explain` (these require no network)
 
@@ -64,6 +67,7 @@ Much of the config_commands_test.rs integration test exercises `ConfigMerger` an
 Task CRUD operations: create, get, list, cancel, steps, step, reset-step, resolve-step, complete-step, step-audit. These are thin wrappers that parse CLI arguments, construct API client calls, and format output. The logic complexity is in JSON parsing for task creation and step action construction.
 
 **Testing strategy**:
+
 - Subprocess tests for `tasker-cli task list` (requires running services) are lower value
 - Extract input validation logic (JSON parsing, UUID validation) into testable functions
 - The `format_task_response()` and similar formatting functions could be extracted and tested
@@ -77,6 +81,7 @@ Task CRUD operations: create, get, list, cancel, steps, step, reset-step, resolv
 Documentation generation commands: reference, annotated, section, coverage, explain, index. Template rendering is already well-tested in `docs/templates.rs` (88.49%). The uncovered code is the CLI dispatch layer that loads data and invokes templates.
 
 **Testing strategy**:
+
 - Subprocess tests for `tasker-cli docs reference` and `tasker-cli docs index` (no network required)
 - These commands produce deterministic output from the config directory structure
 
@@ -91,6 +96,7 @@ Documentation generation commands: reference, annotated, section, coverage, expl
 Auth commands: generate-keys (RSA key pair generation), generate-token (JWT creation), show-permissions, validate-token. Contains cryptographic operations (RSA key generation, JWT signing) that have real correctness requirements.
 
 **Testing strategy**:
+
 - `generate-keys` and `show-permissions` can be tested via subprocess (no network)
 - RSA key generation and JWT signing logic could be extracted into testable functions
 - `validate-token` requires a valid token, testable with a generated fixture
@@ -151,9 +157,9 @@ CLI entry point with Clap argument definitions and command dispatch. This is boi
 
 **Focus**: Use `assert_cmd` for end-to-end CLI testing of commands that require no network.
 
-4. **Config commands** -- `config generate`, `config validate`, `config explain` with test fixtures
-5. **Docs commands** -- `docs reference`, `docs index`
-6. **Auth commands** -- `generate-keys`, `show-permissions`
+1. **Config commands** -- `config generate`, `config validate`, `config explain` with test fixtures
+2. **Docs commands** -- `docs reference`, `docs index`
+3. **Auth commands** -- `generate-keys`, `show-permissions`
 
 **Estimated result**: ~900+ lines covered / 2,527 total = **~35%+**
 

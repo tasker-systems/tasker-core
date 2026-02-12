@@ -12,6 +12,7 @@
 This analysis examines **domain event publishing integration** - how step handlers publish business events for external system integration and internal subscribers. Domain events differ from system events: they communicate business outcomes (payment processed, order fulfilled) rather than internal workflow coordination.
 
 **Key Findings**:
+
 1. **✅ Ruby Complete** - Full publisher/subscriber pattern with lifecycle hooks, FFI channel integration
 2. **⚠️ Python Partial** - Has `BasePublisher`/`BaseSubscriber` abstractions and poller, but no FFI integration examples
 3. **❌ TypeScript Missing** - No domain event support (only mentioned in bootstrap comments)
@@ -76,6 +77,7 @@ steps:
 ```
 
 **Publication Conditions**:
+
 - `success`: Publish only when step completes successfully
 - `failure`: Publish on any step failure (retryable or permanent)
 - `retryable_failure`: Publish only on retryable failures
@@ -83,6 +85,7 @@ steps:
 - `always`: Publish regardless of step outcome
 
 **Delivery Modes**:
+
 - `durable`: Published to PGMQ for external consumers (default)
 - `fast`: Published to in-process bus for internal subscribers only
 - `broadcast`: Published to both durable queue AND in-process bus
@@ -143,6 +146,7 @@ steps:
 ```
 
 **Key Design Decisions** (from `tasker-worker/src/worker/command_processor.rs:512-525`):
+
 1. **Events only after orchestration success**: Domain events are declarative of what HAS happened. If orchestration notification fails, step isn't truly complete.
 2. **Fire-and-forget via `try_send`**: Never blocks worker command loop. If channel full, events dropped and logged.
 3. **Context caching**: Step execution context cached when step claimed, retrieved for event building after completion.
@@ -286,6 +290,7 @@ end
 ```
 
 **Registration**:
+
 ```ruby
 # In bootstrap
 TaskerCore::DomainEvents::PublisherRegistry.instance.register(
@@ -294,6 +299,7 @@ TaskerCore::DomainEvents::PublisherRegistry.instance.register(
 ```
 
 **Analysis**:
+
 - ✅ **Complete lifecycle hooks**: `before_publish`, `after_publish`, `on_publish_error`
 - ✅ **Flexible transformation**: Can customize based on success/failure
 - ✅ **Conditional publishing**: Beyond YAML condition
@@ -382,6 +388,7 @@ class BasePublisher(ABC):
 ```
 
 **Analysis**:
+
 - ✅ **Has StepEventContext**: Matches Ruby's ctx pattern
 - ✅ **Has transform_payload**: Payload customization
 - ✅ **Has should_publish**: Conditional publishing
@@ -394,11 +401,13 @@ class BasePublisher(ABC):
 **Status**: ❌ **No domain event support**
 
 **Evidence**:
+
 - No `domain-events.ts` file in `workers/typescript/src/handler/`
 - `bootstrap.ts` line 29 mentions "Subscribing to domain events" but no implementation
 - No publisher or subscriber abstractions
 
 **Gap Assessment**:
+
 - TypeScript workers cannot define custom publishers
 - TypeScript workers cannot subscribe to fast events
 - TypeScript steps can still publish via YAML declarations (Rust handles it), but can't customize payloads
@@ -408,11 +417,13 @@ class BasePublisher(ABC):
 **Status**: ✅ **Complete orchestration, no handler-level API**
 
 Rust does NOT have a custom publisher trait for step handlers. This makes sense because:
+
 1. Rust handlers could implement publisher logic inline if needed
 2. Most payload transformation can be done in the handler's result
 3. Ruby/Python custom publishers exist to bridge FFI gap
 
 **GenericEventPublisher** (`tasker-shared/src/events/generic_publisher.rs`):
+
 ```rust
 pub struct GenericEventPublisher {
     domain_publisher: Arc<DomainEventPublisher>,
@@ -454,6 +465,7 @@ impl GenericEventPublisher {
 ```
 
 **Analysis**:
+
 - ✅ **Orchestration-level**: Used by command processor, not by handlers
 - ✅ **Schema validation**: Validates business payload against JSON schema
 - ✅ **Condition checking**: Honors YAML condition field
@@ -516,6 +528,7 @@ pub fn create_logging_subscriber(prefix: &str) -> EventHandler {
 ```
 
 **Metrics Subscriber** (`workers/rust/src/event_subscribers/metrics_subscriber.rs`):
+
 ```rust
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -562,6 +575,7 @@ impl EventMetricsCollector {
 ```
 
 **Registration**:
+
 ```rust
 use tasker_worker::worker::in_process_event_bus::InProcessEventBus;
 
@@ -579,6 +593,7 @@ bus.subscribe("*", metrics.create_handler()).unwrap();
 ```
 
 **Analysis**:
+
 - ✅ **Functional pattern**: Uses `Arc<dyn Fn(DomainEvent) -> Future>` (EventHandler type)
 - ✅ **Pattern matching**: Supports wildcard patterns (`*`, `payment.*`)
 - ✅ **Thread-safe**: Uses `AtomicU64` for metrics
@@ -727,6 +742,7 @@ end
 ```
 
 **Registration**:
+
 ```ruby
 # In bootstrap
 registry = TaskerCore::DomainEvents::SubscriberRegistry.instance
@@ -740,6 +756,7 @@ puts "By namespace: #{MetricsSubscriber.events_by_namespace}"
 ```
 
 **Analysis**:
+
 - ✅ **Class-level DSL**: `subscribes_to` pattern declaration
 - ✅ **Lifecycle management**: `start!`, `stop!`, `active?`
 - ✅ **Lifecycle hooks**: `before_handle`, `after_handle`, `on_handle_error`
@@ -933,6 +950,7 @@ class InProcessDomainEventPoller:
 ```
 
 **Analysis**:
+
 - ✅ **Has BaseSubscriber**: Abstract base with `subscribes_to()`, `handle()`
 - ✅ **Has InProcessDomainEventPoller**: Threaded poller with FFI integration
 - ✅ **Pattern matching**: Via `fnmatch` in `matches()` method
@@ -946,6 +964,7 @@ class InProcessDomainEventPoller:
 **Status**: ❌ **No subscriber support**
 
 **Gap Assessment**:
+
 - TypeScript cannot subscribe to fast events
 - No in-process event bus integration
 - No poller implementation
@@ -967,6 +986,7 @@ class InProcessDomainEventPoller:
 ## Functional Gaps Summary
 
 ### Rust (Complete Orchestration)
+
 1. ✅ **GenericEventPublisher** - Full schema validation and condition checking
 2. ✅ **DomainEventPublisher** - PGMQ publishing with correlation IDs
 3. ✅ **InProcessEventBus** - Fast event delivery to internal subscribers
@@ -975,6 +995,7 @@ class InProcessDomainEventPoller:
 6. ❌ **No custom publisher trait** - Not needed (handlers own transformation)
 
 ### Ruby (Most Complete Worker Support)
+
 1. ✅ **BasePublisher** - Full lifecycle hooks, payload transformation, conditional publishing
 2. ✅ **BaseSubscriber** - Pattern-based subscription with lifecycle management
 3. ✅ **PublisherRegistry** - Centralized publisher management
@@ -983,6 +1004,7 @@ class InProcessDomainEventPoller:
 6. ✅ **Lifecycle hooks** - Before/after/error for both publishers and subscribers
 
 ### Python (Good Core, Missing Hooks)
+
 1. ✅ **BasePublisher** - Has `publish()`, `transform_payload()`, `should_publish()`
 2. ✅ **BaseSubscriber** - Has `subscribes_to()`, `handle()`, `matches()`
 3. ✅ **InProcessDomainEventPoller** - Threaded poller with FFI integration
@@ -992,6 +1014,7 @@ class InProcessDomainEventPoller:
 7. ⚠️ **No registry** - Subscribers self-register via callbacks (less structured)
 
 ### TypeScript (Completely Missing)
+
 1. ❌ **No BasePublisher** - Cannot define custom publishers
 2. ❌ **No BaseSubscriber** - Cannot subscribe to fast events
 3. ❌ **No InProcessEventPoller** - No FFI integration
@@ -1007,6 +1030,7 @@ class InProcessDomainEventPoller:
 #### 1. Python Lifecycle Hooks
 
 **Add to BasePublisher**:
+
 ```python
 class BasePublisher(ABC):
     # ... existing methods ...
@@ -1033,6 +1057,7 @@ class BasePublisher(ABC):
 ```
 
 **Add to BaseSubscriber**:
+
 ```python
 class BaseSubscriber(ABC):
     # ... existing methods ...
@@ -1056,6 +1081,7 @@ class BaseSubscriber(ABC):
 #### 2. TypeScript Domain Events Complete Implementation
 
 **Create `workers/typescript/src/handler/domain-events.ts`**:
+
 ```typescript
 export interface StepEventContext {
   taskUuid: string;
@@ -1172,6 +1198,7 @@ export class InProcessDomainEventPoller {
 #### 3. Document Publishing Architecture
 
 **Create `docs/domain-events-publishing-flow.md`**:
+
 - Explain that handlers DON'T call publish APIs directly
 - Show YAML declaration → Rust orchestration flow
 - Document custom publisher use cases (payload transformation only)
@@ -1179,6 +1206,7 @@ export class InProcessDomainEventPoller {
 - Show FFI integration for subscribers
 
 **Update `docs/worker-crates/*.md`**:
+
 - Add domain events section to each language doc
 - Show custom publisher examples
 - Show subscriber examples
@@ -1187,6 +1215,7 @@ export class InProcessDomainEventPoller {
 #### 4. Standardize Event Structure
 
 **Ensure consistent event payload across languages**:
+
 ```json
 {
   "event_id": "UUID v7",
@@ -1214,12 +1243,14 @@ export class InProcessDomainEventPoller {
 #### 1. Handlers Don't Publish Events Directly
 
 **Wrong Understanding**:
+
 ```ruby
 # ❌ Handlers don't call this
 publish_domain_event("payment.processed", payload)
 ```
 
 **Correct Understanding**:
+
 ```yaml
 # ✅ Events declared in YAML
 publishes_events:
@@ -1245,6 +1276,7 @@ end
 ```
 
 **Custom Publisher Role**:
+
 ```ruby
 # ✅ Custom publisher transforms payload (called by Rust orchestration)
 class PaymentEventPublisher < TaskerCore::DomainEvents::BasePublisher
@@ -1265,18 +1297,21 @@ end
 #### 2. Subscribers Are for Internal Use Only
 
 **Fast Events** (in-process):
+
 - Internal Tasker subscribers (metrics, logging, secondary actions)
 - NOT part of the Task → WorkflowStep DAG
 - Best-effort delivery (may be lost)
 - Sub-millisecond latency
 
 **Durable Events** (PGMQ):
+
 - External consumers (analytics, audit, integration)
 - Persisted for reliability
 - External systems poll PGMQ queues
 - No internal Tasker subscribers
 
 **Wrong**:
+
 ```ruby
 # ❌ Don't use subscribers for critical business logic
 class ProcessRefundSubscriber < BaseSubscriber
@@ -1290,6 +1325,7 @@ end
 ```
 
 **Correct**:
+
 ```yaml
 # ✅ Critical business steps go in the DAG
 steps:
@@ -1321,6 +1357,7 @@ end
 ## Implementation Checklist
 
 ### Python Enhancements
+
 - [ ] Add lifecycle hooks to `BasePublisher`:
   - [ ] `before_publish(event_name, payload, metadata) -> bool`
   - [ ] `after_publish(event_name, payload, metadata) -> None`
@@ -1335,6 +1372,7 @@ end
 - [ ] Update examples to show lifecycle hooks
 
 ### TypeScript Complete Implementation
+
 - [ ] Create `workers/typescript/src/handler/domain-events.ts`:
   - [ ] `StepEventContext` interface
   - [ ] `BasePublisher` abstract class with full hooks
@@ -1353,6 +1391,7 @@ end
 - [ ] Update `bootstrap.ts` to actually initialize domain events
 
 ### Documentation
+
 - [ ] Create `docs/domain-events-publishing-flow.md`:
   - [ ] Explain YAML declaration model
   - [ ] Show orchestration publishing flow
@@ -1379,6 +1418,7 @@ end
   - [ ] Show all four languages
 
 ### Testing
+
 - [ ] Python: Test lifecycle hooks
 - [ ] TypeScript: Full domain events integration test
 - [ ] All languages: Verify event payload structure matches
@@ -1389,6 +1429,7 @@ end
 ## Next Phase
 
 **Phase 8: Conditional Workflows** will analyze how decision point handlers create dynamic workflow branches and how convergence steps aggregate results. Key questions:
+
 - Are DecisionPointOutcome structures identical?
 - Do all languages support routing context propagation?
 - Is convergence step handling consistent?

@@ -5,11 +5,13 @@
 The current `OrchestrationQueueListener` and `WorkerQueueListener` are hardcoded to use PGMQ's `PgmqNotifyListener`. This document outlines the migration to use the `SupportsPushNotifications::subscribe()` abstraction, enabling both PGMQ and RabbitMQ backends while preserving all existing functionality.
 
 **Key Changes:**
+
 1. Create provider-agnostic `MessageEvent` type in `tasker-shared/src/messaging/service/types.rs`
 2. Update domain event enums to use `MessageEvent` instead of `pgmq_notify::MessageReadyEvent`
 3. Refactor existing listeners to use `messaging_provider().subscribe()` internally (evolve in place)
 
 **Design Decision:** Rather than creating new `*EventProcessor` types and deprecating the existing listeners, we evolve the listeners in place. This approach:
+
 - Keeps the same API surface (event systems unchanged)
 - Preserves existing stats, health checks, and lifecycle methods
 - Reduces code churn and cognitive load
@@ -182,6 +184,7 @@ NEW Type:
 ```
 
 **Design Rationale:**
+
 - `MessageNotification` answers: "Do I have the full message or just a signal?" (delivery model)
 - `MessageEvent` answers: "What queue/namespace is this for?" (routing/classification)
 
@@ -289,6 +292,7 @@ impl From<pgmq_notify::MessageReadyEvent> for MessageEvent {
 ```
 
 **Checklist:**
+
 - [ ] Add `MessageEvent` struct to `types.rs`
 - [ ] Add conversion methods (`from_available`, `from_queued_message`)
 - [ ] Add `From<pgmq_notify::MessageReadyEvent>` for backward compatibility
@@ -298,6 +302,7 @@ impl From<pgmq_notify::MessageReadyEvent> for MessageEvent {
 #### Phase 0 Validation Gates
 
 **Type Properties (unit tests):**
+
 ```rust
 #[test]
 fn message_event_fields_are_accessible() {
@@ -315,6 +320,7 @@ fn message_event_display_format() {
 ```
 
 **Conversion Correctness (unit tests):**
+
 ```rust
 #[test]
 fn from_available_handles_some_msg_id() {
@@ -343,10 +349,12 @@ fn from_pgmq_event_preserves_all_fields() {
 ```
 
 **Trait Bounds (compile-time):**
+
 - `MessageEvent: Debug + Clone + PartialEq + Eq + Send + Sync`
 - `MessageEvent: Serialize + Deserialize` (for logging/debugging)
 
 **Documentation (rustdoc):**
+
 - Module-level doc explains the processing pipeline position
 - Each method has examples showing input → output
 - `from_available` and `from_queued_message` document the namespace requirement
@@ -404,6 +412,7 @@ pub enum WorkerQueueEvent {
 ```
 
 **Checklist:**
+
 - [ ] Update `OrchestrationQueueEvent` to use `MessageEvent`
 - [ ] Update `WorkerQueueEvent` to use `MessageEvent`
 - [ ] Update all code that accesses `.msg_id`, `.queue_name`, `.namespace` fields
@@ -413,6 +422,7 @@ pub enum WorkerQueueEvent {
 #### Phase 1 Validation Gates
 
 **Field Access Migration (compile-time):**
+
 ```rust
 // All existing field accesses must work with MessageEvent
 // BEFORE: event.msg_id (i64)
@@ -432,6 +442,7 @@ fn access_orchestration_event(event: &OrchestrationQueueEvent) {
 ```
 
 **Classification Equivalence (unit tests):**
+
 ```rust
 #[test]
 fn classifier_produces_same_variants_with_message_event() {
@@ -454,12 +465,14 @@ fn classifier_produces_same_variants_with_message_event() {
 ```
 
 **Downstream Compatibility (integration):**
+
 - `OrchestrationCommand::ProcessStepResultFromMessageEvent` accepts `MessageEvent`
 - `OrchestrationCommand::InitializeTaskFromMessageEvent` accepts `MessageEvent`
 - `WorkerCommand::ExecuteStepFromEvent` accepts `MessageEvent`
 - Command processors can extract `message_id` for database lookups
 
 **No pgmq_notify Import (grep verification):**
+
 ```bash
 # After Phase 1, these files should NOT import pgmq_notify::MessageReadyEvent:
 grep -r "pgmq_notify::MessageReadyEvent" tasker-orchestration/src/orchestration/orchestration_queues/events.rs
@@ -597,6 +610,7 @@ impl OrchestrationQueueListener {
 Same pattern as orchestration, but with worker-specific classification (pattern matching on queue names).
 
 **Checklist:**
+
 - [ ] Remove `PgmqNotifyListener` usage from `OrchestrationQueueListener`
 - [ ] Remove `PgmqNotifyListener` usage from `WorkerQueueListener`
 - [ ] Add `process_subscription_stream()` method to handle `MessageNotification`
@@ -607,6 +621,7 @@ Same pattern as orchestration, but with worker-specific classification (pattern 
 #### Phase 2 Validation Gates
 
 **API Surface Unchanged (compile-time):**
+
 ```rust
 // Event systems must compile WITHOUT modification
 // This is the key success criterion - same constructor signature
@@ -626,6 +641,7 @@ let stats = listener.stats();
 ```
 
 **Provider Abstraction Used (unit tests):**
+
 ```rust
 #[tokio::test]
 async fn listener_uses_messaging_provider_subscribe() {
@@ -646,6 +662,7 @@ async fn listener_uses_messaging_provider_subscribe() {
 ```
 
 **MessageNotification Handling (unit tests):**
+
 ```rust
 #[tokio::test]
 async fn listener_handles_available_notification() {
@@ -677,6 +694,7 @@ async fn listener_handles_message_notification() {
 ```
 
 **Stats Preservation (unit tests):**
+
 ```rust
 #[tokio::test]
 async fn listener_increments_events_received_stat() {
@@ -700,6 +718,7 @@ async fn listener_tracks_connection_errors() {
 ```
 
 **Lifecycle Correctness (unit tests):**
+
 ```rust
 #[tokio::test]
 async fn listener_stop_cancels_subscription_tasks() {
@@ -726,6 +745,7 @@ async fn listener_health_reflects_stream_state() {
 ```
 
 **No PgmqNotifyListener Import (grep verification):**
+
 ```bash
 # After Phase 2, listener files should NOT import PgmqNotifyListener:
 grep -r "PgmqNotifyListener" tasker-orchestration/src/orchestration/orchestration_queues/listener.rs
@@ -880,12 +900,14 @@ Each phase has validation gates defined in the Implementation Plan section above
 ### Phase 0: MessageEvent Type
 
 **Implementation:**
+
 - [ ] Add `MessageEvent` struct to `tasker-shared/src/messaging/service/types.rs`
 - [ ] Add conversion methods (`from_available`, `from_queued_message`)
 - [ ] Add `From<pgmq_notify::MessageReadyEvent>` for backward compatibility
 - [ ] Export from `tasker-shared/src/messaging/service/mod.rs`
 
 **Validation Gates (see Phase 0 Validation Gates):**
+
 - [ ] Type properties tests pass (field access, Display format)
 - [ ] Conversion correctness tests pass (Some/None msg_id, pgmq event preservation)
 - [ ] Trait bounds compile (`Debug + Clone + PartialEq + Eq + Send + Sync + Serialize + Deserialize`)
@@ -896,12 +918,14 @@ Each phase has validation gates defined in the Implementation Plan section above
 ### Phase 1: Domain Event Types
 
 **Implementation:**
+
 - [ ] Update `OrchestrationQueueEvent` to use `MessageEvent`
 - [ ] Update `WorkerQueueEvent` to use `MessageEvent`
 - [ ] Update `ConfigDrivenMessageEvent` classifier to work with `MessageEvent`
 - [ ] Update all code accessing inner event fields (`.msg_id` → `.message_id`, etc.)
 
 **Validation Gates (see Phase 1 Validation Gates):**
+
 - [ ] Field access migration compiles (all match arms access `message_id`, `queue_name`, `namespace`)
 - [ ] Classification equivalence tests pass (same queue_name → same variant)
 - [ ] Downstream compatibility verified (commands accept `MessageEvent`)
@@ -912,6 +936,7 @@ Each phase has validation gates defined in the Implementation Plan section above
 ### Phase 2: Refactor Listeners
 
 **Implementation:**
+
 - [ ] Remove `PgmqNotifyListener` usage from `OrchestrationQueueListener`
 - [ ] Remove `PgmqNotifyListener` usage from `WorkerQueueListener`
 - [ ] Add `process_subscription_stream()` to handle `MessageNotification`
@@ -920,6 +945,7 @@ Each phase has validation gates defined in the Implementation Plan section above
 - [ ] Update `is_healthy()` to track stream state
 
 **Validation Gates (see Phase 2 Validation Gates):**
+
 - [ ] API surface unchanged (event systems compile without modification)
 - [ ] Provider abstraction used (mock tests verify `subscribe()` called)
 - [ ] MessageNotification handling works (Available and Message variants)
@@ -930,6 +956,7 @@ Each phase has validation gates defined in the Implementation Plan section above
 *Note: E2E/integration tests deferred to TAS-133f*
 
 **Phase 2 Exit Criterion:** Package-specific tests pass AND grep verifications return empty
+
 ```bash
 cargo test -p tasker-orchestration --all-features -- listener
 cargo test -p tasker-worker --all-features -- listener
@@ -939,16 +966,19 @@ cargo test -p tasker-worker --all-features -- listener
 ### Post-Migration Validation (TAS-133e Scope)
 
 **Package-Level Success:**
+
 - [ ] `cargo test -p tasker-shared --all-features` passes
 - [ ] `cargo test -p tasker-orchestration --all-features` passes
 - [ ] `cargo test -p tasker-worker --all-features` passes
 - [ ] `cargo build --all-features` succeeds
 
 **Code Quality:**
+
 - [ ] `cargo clippy --all-features` passes
 - [ ] Grep verifications return empty (no pgmq_notify in domain types/listeners)
 
 **Final Exit Criterion (TAS-133e):**
+
 ```bash
 cargo build --all-features && \
 cargo test -p tasker-shared --all-features && \
@@ -995,6 +1025,7 @@ Each criterion has a verification method to objectively assess completion.
 ### How to Verify Each Criterion
 
 **1. Event Systems Unchanged:**
+
 ```bash
 git diff HEAD~N tasker-orchestration/src/orchestration/event_systems/
 git diff HEAD~N tasker-worker/src/worker/event_systems/
@@ -1002,6 +1033,7 @@ git diff HEAD~N tasker-worker/src/worker/event_systems/
 ```
 
 **2. Stats Structure Unchanged:**
+
 ```rust
 // Same struct fields exist - compile-time verification
 let stats: OrchestrationListenerStats = listener.stats();
@@ -1011,6 +1043,7 @@ let _ = stats.step_results_processed;
 ```
 
 **3. Package Tests Pass:**
+
 ```bash
 cargo test -p tasker-shared --all-features
 cargo test -p tasker-orchestration --all-features
@@ -1019,6 +1052,7 @@ cargo test -p tasker-worker --all-features
 ```
 
 **4. Clean Types:**
+
 ```bash
 grep -r "pgmq_notify::MessageReadyEvent" tasker-orchestration/src/orchestration/orchestration_queues/events.rs
 grep -r "pgmq_notify::MessageReadyEvent" tasker-worker/src/worker/worker_queues/events.rs
@@ -1026,6 +1060,7 @@ grep -r "pgmq_notify::MessageReadyEvent" tasker-worker/src/worker/worker_queues/
 ```
 
 **5. Clean Listeners:**
+
 ```bash
 grep -r "PgmqNotifyListener" tasker-orchestration/src/orchestration/orchestration_queues/listener.rs
 grep -r "PgmqNotifyListener" tasker-worker/src/worker/worker_queues/listener.rs
@@ -1033,6 +1068,7 @@ grep -r "PgmqNotifyListener" tasker-worker/src/worker/worker_queues/listener.rs
 ```
 
 **6. Builds Clean:**
+
 ```bash
 cargo build --all-features
 cargo clippy --all-features

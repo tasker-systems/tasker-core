@@ -53,6 +53,7 @@ The recommended execution order:
 ### C. Registry API Parity
 
 Target methods for all languages:
+
 - `register(name, handler_class)`
 - `is_registered(name) -> bool`
 - `resolve(name) -> handler_instance`
@@ -67,6 +68,7 @@ Target methods for all languages:
 ### E. Error Fields
 
 Standardize across all languages:
+
 - `error_message`, `error_type`, `error_code` (optional), `retryable`
 - Recommended `error_type` values: `permanent_error`, `retryable_error`, `validation_error`, `timeout`, `handler_error`
 

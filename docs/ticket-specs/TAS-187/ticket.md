@@ -15,6 +15,7 @@ The tasker-core workspace has **~4,444 unrestricted `pub` items** across 10 crat
 **Key finding**: An estimated **937-1,067 items (~21-24%) are candidates for restriction** to `pub(crate)` or private visibility. The biggest opportunities are in `tasker-worker` (~250-260 items), `tasker-shared` (~170-210 items), `tasker-orchestration` (~186 items), and `workers/rust` (~150 items).
 
 **Changes since initial audit (2026-01-31)**:
+
 - `tasker-cli` was extracted from `tasker-client` as a new binary crate (TAS-63). As a leaf binary with zero external consumers, all 31 of its pub items can become `pub(crate)`.
 - TAS-63 refactoring added/modified 308 files, expanding test infrastructure and adding coverage tooling. The pub item counts have shifted accordingly.
 - The workspace now has 10 crates (was 9).
@@ -93,6 +94,7 @@ pub use types::base::{HandlerMetadata, StepEventPayload, ...};
 #### Cross-Crate Import Analysis
 
 **Most-imported modules** (by external crate count):
+
 1. `errors` (TaskerError, TaskerResult) -- ALL 9 dependents
 2. `system_context` (SystemContext) -- orchestration, worker, tests (30+ files each)
 3. `models` -- ALL dependents (TaskRequest, Task, WorkflowStep most frequent)
@@ -105,6 +107,7 @@ pub use types::base::{HandlerMetadata, StepEventPayload, ...};
 10. `database` -- orchestration, worker, tests
 
 **Modules with ZERO external imports** (strongest restriction candidates):
+
 - `scopes/` -- no external imports found
 - `utils/` -- no external imports found
 - `validation/` -- no external imports found
@@ -146,6 +149,7 @@ pub use web::{create_app, state::AppState};
 #### Cross-Crate Import Analysis
 
 **Only 2 external files import from this crate** (both workspace root test helpers):
+
 - `tests/common/actor_test_harness.rs`: `actors::ActorRegistry`
 - `tests/common/lifecycle_test_manager.rs`: `orchestration::lifecycle::*`
 
@@ -169,6 +173,7 @@ This crate is almost entirely consumed through its binary (server) and web API, 
 #### High Priority Restriction: Lifecycle Internals (~89 items)
 
 The `orchestration/lifecycle/` sub-modules contain decomposed internals that are fully internal:
+
 - `result_processing/` (5 internal files: message_handler, metadata_processor, processing_context, state_transition_handler, task_coordinator) -- ~27 items
 - `task_finalization/` (5 internal components) -- ~22 items
 - `task_initialization/` (5 internal components) -- ~21 items
@@ -441,6 +446,7 @@ Note: These crates already use private modules, so this is primarily intent clar
 **Target**: Change `pub mod` to `pub(crate) mod` where entire modules are internal.
 
 Priority modules for `pub(crate) mod`:
+
 - `tasker-orchestration::orchestration::hydration`
 - `tasker-orchestration::orchestration::lifecycle::result_processing`
 - `tasker-orchestration::orchestration::lifecycle::task_finalization`
@@ -489,11 +495,13 @@ This would reduce the unrestricted public API surface from **~4,444 to ~3,526-3,
 These 31 existing `pub(crate)` items establish the project's pattern:
 
 ### tasker-orchestration (4 items)
+
 - `pub(crate) struct PgmqMessageResolver`
 - `pub(crate) enum CommandOutcome`
 - `pub(crate) mod command_outcome`, `pub(crate) mod pgmq_message_resolver`
 
 ### tasker-worker (10 items)
+
 - `pub(crate) struct OrchestrationResultSender`
 - `pub(crate) struct EventDrivenMessageProcessor`
 - `pub(crate) struct WorkerFallbackPoller`
@@ -503,14 +511,17 @@ These 31 existing `pub(crate)` items establish the project's pattern:
 - 4x `pub(crate)` channel inner fields (mpsc::Sender/Receiver)
 
 ### tasker-shared (2 items)
+
 - `pub(crate) struct PublishTransitionEventAction`
 - `pub(crate) struct TriggerStepDiscoveryAction`
 
 ### tasker-cli (15 items)
+
 - 9x `pub(crate)` functions in `commands/docs.rs`
 - 6x feature-gated `pub(crate)` items
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-187/public-api-visibility-audit](https://linear.app/tasker-systems/issue/TAS-187/public-api-visibility-audit)
 - Identifier: TAS-187
 - Status: In Progress

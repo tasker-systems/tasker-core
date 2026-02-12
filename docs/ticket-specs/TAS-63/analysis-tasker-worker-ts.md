@@ -11,6 +11,7 @@
 The TypeScript worker is the only crate currently passing its 60% coverage threshold. Coverage is distributed unevenly across 48 files: 17 files have 100% line coverage, while 7 files sit below 50% line coverage. The largest coverage gaps are in the handler system (file I/O-heavy handler discovery), event system (orchestration coordinator), FFI layer (native library loading), and batch types (complex FFI boundary types). These low-coverage files are the most architecturally significant -- they represent the core infrastructure that ties TypeScript handlers to the Rust FFI runtime. Improving coverage in these areas would increase confidence in the worker's reliability without requiring FFI integration in the test environment.
 
 **Key observations:**
+
 - Most high-coverage files are pure data types, resolvers, and utility functions -- easy to unit test.
 - Low-coverage files are dominated by I/O, FFI dependencies, or lifecycle orchestration -- harder to test without mocks.
 - The largest single gap is `handler-system.ts` at 7.46% (310 uncovered lines of 335), which is the handler discovery/loading system.
@@ -53,6 +54,7 @@ These files contain core infrastructure logic that, if buggy, could cause silent
 **Why it matters**: If handler loading fails silently, steps dispatch to missing handlers and error out. The discovery logic has multiple code paths (index file vs. directory scan, ALL_EXAMPLE_HANDLERS array vs. module exports, error handling for bad imports).
 
 **Uncovered areas**:
+
 - `loadFromPath()` -- directory existence check, index file import, fallback scanning
 - `loadFromEnv()` -- environment variable reading
 - `tryImportIndexFile()` -- iterating index file candidates
@@ -65,6 +67,7 @@ These files contain core infrastructure logic that, if buggy, could cause silent
 - `isValidHandlerClass()` -- handler class validation
 
 **Tests needed**:
+
 - Unit tests with a temporary directory containing handler files
 - Test `loadFromPath` with: non-existent path, empty directory, directory with index.ts, directory without index.ts
 - Test `isHandlerFile` with various filenames (.ts, .js, .d.ts, .test.ts, underscore-prefixed)
@@ -79,12 +82,14 @@ These files contain core infrastructure logic that, if buggy, could cause silent
 **Why it matters**: The start/stop lifecycle is critical for the worker to process steps at all. Incorrect startup ordering (subscriber before poller) or incomplete shutdown could cause missed events or resource leaks.
 
 **Uncovered areas**:
+
 - Constructor -- creates emitter, poller, subscriber with injected dependencies
 - `start()` -- registers debug listener, starts subscriber then poller
 - `stop()` -- stops poller, waits for in-flight handlers, stops subscriber
 - `isRunning()`, `getEmitter()`, `getStats()` -- state accessors
 
 **Tests needed**:
+
 - Unit tests with mock `TaskerRuntime` and mock `HandlerRegistryInterface`
 - Test construction: verify emitter, poller, subscriber are created with correct config
 - Test `start()`: verify subscriber starts before poller, idempotency (calling start twice)
@@ -98,6 +103,7 @@ These files contain core infrastructure logic that, if buggy, could cause silent
 **Why it matters**: This is the gateway between TypeScript and Rust. If loading fails, the entire worker is non-functional. The error messages guide developers during setup.
 
 **Uncovered areas**:
+
 - `load()` -- already-loaded check, path resolution, runtime creation
 - `unload()` -- cleanup logic
 - `getRuntime()` -- guard for unloaded state
@@ -106,6 +112,7 @@ These files contain core infrastructure logic that, if buggy, could cause silent
 - `createRuntime()` -- runtime type switch (bun/node/deno/unsupported)
 
 **Tests needed**:
+
 - Test `FfiLayer.findLibraryPath()` with: env var set to existing file, env var set to non-existent file, env var not set
 - Test constructor with explicit runtimeType and libraryPath config
 - Test `isLoaded()` returns false before load
@@ -124,12 +131,14 @@ These files have partial coverage but contain important logic that warrants more
 **Why it matters**: These types are serialized by Rust and deserialized by TypeScript. Incorrect parsing of cursor configs or batch metadata could cause batch workers to process wrong data ranges.
 
 **Uncovered areas**:
+
 - `createBatchWorkerContext()` -- nested vs flat cursor_config format, checkpoint extraction
 - `createBatches()` -- validation that cursorConfigs.length === workerCount
 - `noBatches()`, `isNoBatches()`, `isCreateBatches()` -- factory and type guard functions
 - `aggregateBatchResults()` -- null/undefined filtering, error collection, success rate calculation
 
 **Tests needed**:
+
 - Test `createBatchWorkerContext` with nested cursor_config format and flat format
 - Test `createBatchWorkerContext` with and without checkpoint data
 - Test checkpoint accessor properties (checkpointCursor, accumulatedResults, checkpointItemsProcessed, hasCheckpoint)
@@ -143,6 +152,7 @@ These files have partial coverage but contain important logic that warrants more
 **Why it matters**: The 3-phase startup and 3-phase shutdown sequences are the most complex lifecycle management in the worker. Partial failures during startup (e.g., FFI loads but bootstrap fails) need proper cleanup.
 
 **Uncovered areas**:
+
 - `start()` -- state machine guards, 3-phase startup, error recovery
 - `shutdown()` -- 3-phase shutdown, shutdown handler execution
 - `healthCheck()` -- FFI health delegation, worker status check
@@ -151,6 +161,7 @@ These files have partial coverage but contain important logic that warrants more
 - `cleanupOnError()` -- partial initialization cleanup
 
 **Tests needed**:
+
 - Test state machine: start from INITIALIZED succeeds, start from RUNNING throws, start from STARTING throws
 - Test shutdown: from RUNNING completes, from SHUTTING_DOWN returns early, from non-RUNNING returns early
 - Test `healthCheck()` when not running, when FFI unhealthy, when worker not running, when healthy
@@ -164,6 +175,7 @@ These files have partial coverage but contain important logic that warrants more
 **Why it matters**: Every handler receives a StepContext. Incorrect extraction of input data, dependency results, or checkpoint data would cause handlers to operate on wrong data.
 
 **Uncovered areas**:
+
 - `fromFfiEvent()` -- task context extraction, dependency results, step config, retry info
 - `getDependencyResult()` -- unwrapping nested {result: value} format
 - `getInput()`, `getConfig()` -- typed accessor methods
@@ -174,6 +186,7 @@ These files have partial coverage but contain important logic that warrants more
 - `getDependencyResultKeys()`, `getAllDependencyResults()` -- batch result collection
 
 **Tests needed**:
+
 - Test `fromFfiEvent()` with a complete FfiStepEvent mock: verify all fields extracted correctly
 - Test `getDependencyResult()` with: wrapped {result: value}, unwrapped primitive, missing key
 - Test `getDependencyField()` with: single-level path, multi-level path, non-object intermediate, missing key
@@ -189,6 +202,7 @@ These files have partial coverage but contain important logic that warrants more
 **Why it matters**: Batch processing is a cross-language standard feature (TAS-112). The cursor math, aggregation logic, and checkpoint yielding need thorough testing to ensure consistent behavior across Rust/Python/Ruby/TypeScript.
 
 **Uncovered areas**:
+
 - `createCursorConfigs()` -- Ruby-style worker-count-based division
 - `getBatchContext()` -- stepConfig/inputData/stepInputs fallback chain
 - `getBatchWorkerInputs()` -- stepInputs extraction
@@ -202,6 +216,7 @@ These files have partial coverage but contain important logic that warrants more
 - `applyBatchable()` -- method binding to target
 
 **Tests needed**:
+
 - Test `createCursorConfigs()` with: exact division, uneven division, more workers than items, zero items
 - Test `handleNoOpWorker()` with: no-op inputs, normal inputs, empty inputs
 - Test `checkpointYield()` with: numeric cursor, string cursor, object cursor, with and without accumulatedResults
@@ -220,6 +235,7 @@ These files are closer to the threshold or have limited uncovered surface area.
 **What it contains**: `HandlerRegistry` class with resolver chain support (TAS-93). Manages handler registration, lazy initialization, and flexible resolution via explicit mapping and class lookup resolvers.
 
 **Uncovered areas**:
+
 - `ensureInitialized()` -- concurrent initialization locking
 - `resolveSync()` -- backwards compatibility sync resolution
 - `getHandlerClass()` -- deprecated method
@@ -228,6 +244,7 @@ These files are closer to the threshold or have limited uncovered surface area.
 - `debugInfo()` -- debug state export
 
 **Tests needed**:
+
 - Test concurrent `ensureInitialized()` calls resolve correctly
 - Test `resolveSync()` behavior (best-effort sync resolution)
 - Test `clear()` removes all handlers
@@ -238,6 +255,7 @@ These files are closer to the threshold or have limited uncovered surface area.
 **What it contains**: `EventPoller` class that runs a polling loop retrieving step events from FFI and dispatching them via the event emitter. Includes periodic starvation checks, cleanup, and metrics emission.
 
 **Uncovered areas**:
+
 - Private `poll()` method internals -- event loop, starvation check, cleanup, metrics emission
 - `handleStepEvent()` -- emitter emission with error handling, callback invocation
 - `checkStarvation()` -- starvation detection
@@ -245,6 +263,7 @@ These files are closer to the threshold or have limited uncovered surface area.
 - `handleError()` -- error event emission
 
 **Tests needed**:
+
 - Test `start()` / `stop()` lifecycle with mock runtime
 - Test `poll()` processing multiple events per cycle
 - Test starvation detection at configured interval
@@ -255,10 +274,12 @@ These files are closer to the threshold or have limited uncovered surface area.
 **What it contains**: High-level TypeScript API for Rust worker lifecycle management. Wraps FFI calls with type-safe interfaces. All 9 functions are covered but many error branches are not exercised.
 
 **Uncovered areas**:
+
 - Error/edge branches in `bootstrapWorker()`, `stopWorker()`, `getWorkerStatus()`, `transitionToGracefulShutdown()`
 - Fallback returns when runtime is not loaded
 
 **Tests needed**:
+
 - Test each function with: runtime not loaded, runtime throws during call
 - Test `bootstrapWorker()` with undefined config
 
@@ -267,11 +288,13 @@ These files are closer to the threshold or have limited uncovered surface area.
 **What it contains**: Domain events infrastructure including publishers, subscribers, event bus, and polling. A substantial file (575 lines) with publisher/subscriber lifecycle management.
 
 **Uncovered areas**:
+
 - Various publisher and subscriber lifecycle methods
 - Event bus polling and delivery logic
 - Error handling paths
 
 **Tests needed**:
+
 - Test publisher registration and event transformation
 - Test subscriber event delivery
 - Test event bus start/stop lifecycle
@@ -281,11 +304,13 @@ These files are closer to the threshold or have limited uncovered surface area.
 **What it contains**: Structured logging API that forwards to Rust tracing via FFI, with console fallback.
 
 **Uncovered areas**:
+
 - `logWarn()`, `logTrace()` -- individual log level functions
 - Error handling in log functions (catch blocks)
 - `clearLoggingRuntime()` -- test utility
 
 **Tests needed**:
+
 - Test each log level with and without installed runtime
 - Test fallback to console when no runtime
 - Test error recovery when runtime.logX() throws
@@ -303,17 +328,17 @@ These files are closer to the threshold or have limited uncovered surface area.
 
 ### Phase 2: Mock-Based Integration Tests -- Estimated +5-7% line coverage
 
-5. **`src/events/event-system.ts`** -- Test lifecycle with mock runtime and mock registry
-6. **`src/ffi/ffi-layer.ts`** -- Test path discovery, state management, error messages
-7. **`src/server/worker-server.ts`** -- Test state machine transitions with mock dependencies
-8. **`src/handler/registry.ts`** -- Test resolver chain operations, concurrent initialization
+1. **`src/events/event-system.ts`** -- Test lifecycle with mock runtime and mock registry
+2. **`src/ffi/ffi-layer.ts`** -- Test path discovery, state management, error messages
+3. **`src/server/worker-server.ts`** -- Test state machine transitions with mock dependencies
+4. **`src/handler/registry.ts`** -- Test resolver chain operations, concurrent initialization
 
 ### Phase 3: Edge Cases and Error Paths -- Estimated +3-5% line coverage
 
-9. **`src/bootstrap/bootstrap.ts`** -- Test error branches for all lifecycle functions
-10. **`src/events/event-poller.ts`** -- Test poll cycle, starvation detection, metrics emission
-11. **`src/logging/index.ts`** -- Test all log levels, fallback, error recovery
-12. **`src/handler/domain-events.ts`** -- Test publisher/subscriber lifecycle
+1. **`src/bootstrap/bootstrap.ts`** -- Test error branches for all lifecycle functions
+2. **`src/events/event-poller.ts`** -- Test poll cycle, starvation detection, metrics emission
+3. **`src/logging/index.ts`** -- Test all log levels, fallback, error recovery
+4. **`src/handler/domain-events.ts`** -- Test publisher/subscriber lifecycle
 
 ---
 

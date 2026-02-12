@@ -20,6 +20,7 @@ Adding Deno support to the TypeScript worker is **trivial** - Deno's FFI API (`D
 ## API Comparison
 
 ### Bun FFI
+
 ```typescript
 import { dlopen, FFIType, suffix } from 'bun:ffi';
 
@@ -46,6 +47,7 @@ if (ptr) {
 ```
 
 ### Deno FFI
+
 ```typescript
 const lib = Deno.dlopen('./libtasker_worker.dylib', {
   poll_step_events: {
@@ -421,6 +423,7 @@ export function getTaskerRuntime(libraryPath?: string): TaskerRuntime {
 **File**: `tests/unit/ffi/deno-runtime.test.ts`
 
 Run with:
+
 ```bash
 deno test --allow-ffi tests/unit/ffi/deno-runtime.test.ts
 ```
@@ -428,6 +431,7 @@ deno test --allow-ffi tests/unit/ffi/deno-runtime.test.ts
 ### Integration Tests
 
 Add Deno to CI/CD pipeline:
+
 ```yaml
 test-deno:
   runs-on: ubuntu-latest
@@ -466,6 +470,7 @@ deno run --allow-ffi --allow-net --allow-read --allow-env --watch bin/tasker-wor
 ### Permission Model
 
 Deno requires explicit permissions:
+
 - `--allow-ffi`: Required for FFI calls to Rust
 - `--allow-net`: Required for health check/metrics HTTP server
 - `--allow-read`: Required for reading handler files and configuration
@@ -516,6 +521,7 @@ deno run --allow-ffi https://deno.land/x/tasker_worker/mod.ts
 - Future-proofs the worker system
 
 The only additional work is:
+
 1. Create `src/ffi/deno-runtime.ts` (copy Bun, adjust API calls)
 2. Update `runtime.ts` to detect Deno
 3. Update `runtime-factory.ts` to instantiate `DenoTaskerRuntime`

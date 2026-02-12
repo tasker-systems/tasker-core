@@ -31,24 +31,28 @@ This runbook provides guidance for monitoring, alerting, and responding to backp
 ### API Layer Metrics
 
 #### `api_requests_total`
+
 - **Type**: Counter
 - **Labels**: `endpoint`, `status_code`, `method`
 - **Description**: Total API requests received
 - **Usage**: Calculate request rate, error rate
 
 #### `api_requests_rejected_total`
+
 - **Type**: Counter
 - **Labels**: `endpoint`, `reason` (rate_limit, circuit_breaker, validation)
 - **Description**: Requests rejected due to backpressure
 - **Alert**: > 10/min sustained
 
 #### `api_circuit_breaker_state`
+
 - **Type**: Gauge
 - **Values**: 0 = closed, 1 = half-open, 2 = open
 - **Description**: Current circuit breaker state
 - **Alert**: state = 2 (open)
 
 #### `api_request_latency_ms`
+
 - **Type**: Histogram
 - **Labels**: `endpoint`
 - **Description**: Request processing time
@@ -57,12 +61,14 @@ This runbook provides guidance for monitoring, alerting, and responding to backp
 ### Messaging Metrics
 
 #### `messaging_circuit_breaker_state`
+
 - **Type**: Gauge
 - **Values**: 0 = closed, 1 = half-open, 2 = open
 - **Description**: Current messaging circuit breaker state
 - **Alert**: state = 2 (open) — both orchestration and workers lose queue access
 
 #### `messaging_circuit_breaker_rejections_total`
+
 - **Type**: Counter
 - **Labels**: `operation` (send, receive)
 - **Description**: Messaging operations rejected due to open circuit breaker
@@ -71,22 +77,26 @@ This runbook provides guidance for monitoring, alerting, and responding to backp
 ### Orchestration Metrics
 
 #### `orchestration_command_channel_size`
+
 - **Type**: Gauge
 - **Description**: Current command channel buffer usage
 - **Alert**: > 80% of `command_buffer_size`
 
 #### `orchestration_command_channel_saturation`
+
 - **Type**: Gauge (0.0 - 1.0)
 - **Description**: Channel saturation ratio
 - **Alert**: > 0.8 sustained for > 1min
 
 #### `pgmq_queue_depth`
+
 - **Type**: Gauge
 - **Labels**: `queue_name`
 - **Description**: Messages in queue
 - **Alert**: > configured max_queue_depth * 0.8
 
 #### `pgmq_enqueue_failures_total`
+
 - **Type**: Counter
 - **Labels**: `queue_name`, `reason`
 - **Description**: Failed enqueue operations
@@ -95,36 +105,42 @@ This runbook provides guidance for monitoring, alerting, and responding to backp
 ### Worker Metrics
 
 #### `worker_claim_refusals_total`
+
 - **Type**: Counter
 - **Labels**: `worker_id`, `namespace`
 - **Description**: Step claims refused due to capacity
 - **Alert**: > 10/min sustained
 
 #### `worker_handler_semaphore_permits_available`
+
 - **Type**: Gauge
 - **Labels**: `worker_id`
 - **Description**: Available handler permits
 - **Alert**: = 0 sustained for > 30s
 
 #### `worker_handler_semaphore_wait_ms`
+
 - **Type**: Histogram
 - **Labels**: `worker_id`
 - **Description**: Time waiting for semaphore permit
 - **Alert**: p99 > 1000ms
 
 #### `worker_dispatch_channel_saturation`
+
 - **Type**: Gauge
 - **Labels**: `worker_id`
 - **Description**: Dispatch channel saturation
 - **Alert**: > 0.8 sustained
 
 #### `worker_completion_channel_saturation`
+
 - **Type**: Gauge
 - **Labels**: `worker_id`
 - **Description**: Completion channel saturation
 - **Alert**: > 0.8 sustained
 
 #### `domain_events_dropped_total`
+
 - **Type**: Counter
 - **Labels**: `worker_id`, `event_type`
 - **Description**: Domain events dropped due to channel full
@@ -233,30 +249,39 @@ groups:
 **Severity**: Critical
 
 **Symptoms**:
+
 - API returning 503 responses
 - `api_circuit_breaker_state = 2`
 - Downstream operations failing
 
 **Immediate Actions**:
+
 1. Check database connectivity
+
    ```bash
    psql $DATABASE_URL -c "SELECT 1"
    ```
+
 2. Check PGMQ extension health
+
    ```bash
    psql $DATABASE_URL -c "SELECT * FROM pgmq.meta LIMIT 5"
    ```
+
 3. Check recent error logs
+
    ```bash
    kubectl logs -l app=tasker-orchestration --tail=100 | grep ERROR
    ```
 
 **Recovery**:
+
 - Circuit breaker will automatically attempt recovery after `timeout_seconds` (default: 30s)
 - If database is healthy, breaker should close after `success_threshold` (default: 2) successful requests
 - If database is unhealthy, fix database first
 
 **Escalation**:
+
 - If breaker remains open > 5 min after database recovery: Escalate to engineering
 
 ---
@@ -266,13 +291,16 @@ groups:
 **Severity**: Critical
 
 **Symptoms**:
+
 - Orchestration cannot enqueue steps or send task finalizations
 - Workers cannot receive step messages or send results
 - `messaging_circuit_breaker_state = 2`
 - `MessagingError::CircuitBreakerOpen` in logs
 
 **Immediate Actions**:
+
 1. Check messaging backend health
+
    ```bash
    # For PGMQ (default)
    psql $PGMQ_DATABASE_URL -c "SELECT * FROM pgmq.meta LIMIT 5"
@@ -280,27 +308,34 @@ groups:
    # For RabbitMQ
    rabbitmqctl status
    ```
+
 2. Check PGMQ database connectivity (may differ from main database)
+
    ```bash
    psql $PGMQ_DATABASE_URL -c "SELECT 1"
    ```
+
 3. Check recent messaging errors
+
    ```bash
    kubectl logs -l app=tasker-orchestration --tail=100 | grep -E "messaging|circuit_breaker|CircuitBreakerOpen"
    ```
 
 **Impact**:
+
 - **Orchestration**: Task initialization stalls, step results cannot be received, task finalizations blocked
 - **Workers**: Step messages not received, results cannot be sent back to orchestration
 - **Safety**: Messages remain in queues protected by visibility timeouts; no data loss occurs
 - **Health checks**: Unaffected (bypass circuit breaker to detect recovery)
 
 **Recovery**:
+
 - Circuit breaker will automatically test recovery after `timeout_seconds` (default: 30s)
 - On recovery, queued messages will be processed normally (visibility timeouts protect against loss)
 - If messaging backend is unhealthy, fix it first — the breaker protects against cascading timeouts
 
 **Escalation**:
+
 - If breaker remains open > 5 min after backend recovery: Escalate to engineering
 - If both web and messaging breakers are open simultaneously: Likely database-wide issue, escalate to DBA
 
@@ -311,18 +346,23 @@ groups:
 **Severity**: Warning
 
 **Symptoms**:
+
 - Clients receiving 429 or 503 responses
 - `api_requests_rejected_total` increasing
 
 **Diagnosis**:
+
 1. Check rejection reason distribution
+
    ```promql
    sum by (reason) (rate(api_requests_rejected_total[5m]))
    ```
+
 2. If `reason=rate_limit`: Legitimate load spike or client misbehavior
 3. If `reason=circuit_breaker`: See [Circuit Breaker Open](#circuit-breaker-open)
 
 **Actions**:
+
 - **Rate limit rejections**:
   - Identify high-volume client
   - Consider increasing rate limit or contacting client
@@ -336,31 +376,41 @@ groups:
 **Severity**: Warning → Critical if sustained
 
 **Symptoms**:
+
 - `mpsc_channel_saturation > 0.8`
 - Increased latency
 - Potential backpressure cascade
 
 **Diagnosis**:
+
 1. Identify saturated channel
+
    ```promql
    orchestration_command_channel_saturation > 0.8
    ```
+
 2. Check upstream rate
+
    ```promql
    rate(orchestration_commands_received_total[5m])
    ```
+
 3. Check downstream processing rate
+
    ```promql
    rate(orchestration_commands_processed_total[5m])
    ```
 
 **Actions**:
+
 1. **Temporary**: Scale up orchestration replicas
 2. **Short-term**: Increase channel buffer size
+
    ```toml
    [orchestration.mpsc_channels.command_processor]
    command_buffer_size = 10000  # Increase from 5000
    ```
+
 3. **Long-term**: Investigate why processing is slow
 
 ---
@@ -370,31 +420,41 @@ groups:
 **Severity**: Warning → Critical if approaching max
 
 **Symptoms**:
+
 - `pgmq_queue_depth` growing
 - Step execution delays
 - Potential OOM if queue grows unbounded
 
 **Diagnosis**:
+
 1. Identify growing queue
+
    ```promql
    pgmq_queue_depth{queue_name=~".*"}
    ```
+
 2. Check worker health
+
    ```promql
    sum(worker_handler_semaphore_permits_available)
    ```
+
 3. Check for stuck workers
+
    ```promql
    count(worker_claim_refusals_total) by (worker_id)
    ```
 
 **Actions**:
+
 1. **Scale workers**: Add more worker replicas
 2. **Increase handler concurrency** (short-term):
+
    ```toml
    [worker.mpsc_channels.handler_dispatch]
    max_concurrent_handlers = 20  # Increase from 10
    ```
+
 3. **Investigate slow handlers**: Check handler execution latency
 
 ---
@@ -404,24 +464,31 @@ groups:
 **Severity**: Warning
 
 **Symptoms**:
+
 - `worker_claim_refusals_total` increasing
 - Workers at capacity
 - Step execution delayed
 
 **Diagnosis**:
+
 1. Check handler permit usage
+
    ```promql
    worker_handler_semaphore_permits_available
    ```
+
 2. Check handler execution time
+
    ```promql
    histogram_quantile(0.99, worker_handler_execution_ms_bucket)
    ```
 
 **Actions**:
+
 1. **Scale workers**: Add replicas
 2. **Optimize handlers**: If execution time is high
 3. **Adjust threshold**: If refusals are premature
+
    ```toml
    [worker]
    claim_capacity_threshold = 0.9  # More aggressive claiming
@@ -434,26 +501,34 @@ groups:
 **Severity**: Warning
 
 **Symptoms**:
+
 - `handler_semaphore_wait_ms_p99 > 1000ms`
 - Steps waiting for execution
 - Increased end-to-end latency
 
 **Diagnosis**:
+
 1. Check permit utilization
+
    ```promql
    1 - (worker_handler_semaphore_permits_available / worker_handler_semaphore_permits_total)
    ```
+
 2. Check completion channel saturation
+
    ```promql
    worker_completion_channel_saturation
    ```
 
 **Actions**:
+
 1. **Increase permits** (if CPU/memory allow):
+
    ```toml
    [worker.mpsc_channels.handler_dispatch]
    max_concurrent_handlers = 15
    ```
+
 2. **Optimize handlers**: Reduce execution time
 3. **Scale workers**: If resources constrained
 
@@ -464,23 +539,29 @@ groups:
 **Severity**: Informational
 
 **Symptoms**:
+
 - `domain_events_dropped_total` increasing
 - Downstream event consumers missing events
 
 **Diagnosis**:
+
 1. This is expected behavior under load
 2. Check if drop rate is excessive
+
    ```promql
    rate(domain_events_dropped_total[5m]) / rate(domain_events_dispatched_total[5m])
    ```
 
 **Actions**:
+
 - **If < 1% dropped**: Normal, no action needed
 - **If > 5% dropped**: Consider increasing event channel buffer
+
   ```toml
   [shared.domain_events]
   buffer_size = 20000  # Increase from 10000
   ```
+
 - **Note**: Domain events are non-critical. Dropping does not affect step execution.
 
 ---
@@ -490,6 +571,7 @@ groups:
 ### Determining Appropriate Limits
 
 #### Command Channel Size
+
 ```
 Required buffer = (peak_requests_per_second) * (avg_processing_time_ms / 1000) * safety_factor
 
@@ -503,6 +585,7 @@ Example:
 ```
 
 #### Handler Concurrency
+
 ```
 Optimal concurrency = (worker_cpu_cores) * (1 + (io_wait_ratio))
 
@@ -515,6 +598,7 @@ Example:
 ```
 
 #### PGMQ Queue Depth
+
 ```
 Max depth = (expected_processing_rate) * (max_acceptable_delay_seconds)
 

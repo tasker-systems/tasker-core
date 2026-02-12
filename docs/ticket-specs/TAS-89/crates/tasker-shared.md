@@ -20,28 +20,33 @@
 ## What's Done Well
 
 ### Architecture & Organization
+
 - **Modular Design**: Clean separation into logical domains (config, models, database, events, messaging, registry, resilience, state_machine, scopes, validation)
 - **Consistent Naming**: Model modules mirror Rails heritage while using Rust idioms
 - **Well-Documented lib.rs**: Excellent overview with quick-start examples
 
 ### Code Quality & Safety
+
 - **Type Safety**: Compile-time SQLx verification, comprehensive error types
 - **Memory Safety**: Zero unsafe code violations
 - **Error Handling**: Structured errors (TaskerError, OrchestrationError, ConfigurationError)
 - **Minimal Technical Debt**: Only 22 TODO items (mostly future features)
 
 ### Documentation Excellence
+
 - **99 of 121 files** have module-level documentation headers
 - **Type-Level Docs**: Public types have detailed rustdoc with field descriptions
 - **Factory System README**: 322 lines explaining design, patterns, and implementation
 
 ### Test Coverage
+
 - **52 test files** covering models, state machines, configuration, events, scopes
 - **SQLx Integration**: Database isolation per test
 - **Factory Patterns**: ComplexWorkflowFactory supports Linear, Diamond, ParallelMerge, Tree patterns
 - **3,952 lines** of test code
 
 ### Production Features
+
 - **Configuration**: V2 canonical system (TAS-61) fully implemented
 - **Event System**: TAS-65 with domain events, publishers, schema validation
 - **Messaging**: PGMQ integration with tasker-pgmq
@@ -54,6 +59,7 @@
 ### TODO Items (22 total)
 
 **Critical Path** (implementation needed):
+
 | Location | Description |
 |----------|-------------|
 | `scopes/task.rs:105` | SQL AST builder refactoring |
@@ -61,6 +67,7 @@
 | `models/insights/system_health_counts.rs:182` | Separate connection pool monitoring |
 
 **Model Methods** (stub implementations):
+
 | Location | Description |
 |----------|-------------|
 | `models/core/workflow_step.rs:905-1038` | Template-based step creation |
@@ -82,7 +89,9 @@
 **Finding**: Only 1 instance uses `#[expect]`. Opportunity to migrate remaining 13 to `#[expect]` with reasons.
 
 ### Documentation Gaps (Minor)
+
 Files lacking module headers:
+
 - `types/auth.rs`, `types/error_types.rs`, `types/web.rs` (850 lines)
 - `utils/serde.rs`, `database/pools.rs`, `monitoring/channel_metrics.rs`
 
@@ -97,14 +106,17 @@ None yet - documenting findings only.
 ## Recommendations
 
 ### Priority 1 (High)
+
 1. **Migrate #[allow] to #[expect]** - 14 instances, low effort, TAS-58 compliance
 2. **Add module documentation headers** - ~20 files, 1-2 hours
 
 ### Priority 2 (Medium)
+
 1. **Resolve configuration TODOs** - PostgreSQL URL validator (TAS-61)
 2. **Complete model methods** - Association preloading, runtime graph analysis
 
 ### Priority 3 (Low)
+
 1. **Add AGENTS.md** - Document factory patterns, scope builders
 2. **Expand test negative paths** - Error conditions in factory system
 

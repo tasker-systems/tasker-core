@@ -51,6 +51,7 @@ pub extern "C" fn get_worker_status() -> *mut c_char {
 ```
 
 The `.into_raw()` method:
+
 - Converts `CString` to a raw pointer
 - **Prevents Rust from freeing the memory** when it goes out of scope
 - Transfers ownership responsibility to the caller
@@ -177,6 +178,7 @@ lib.symbols.free_rust_string(ptr);  // MUST call explicitly
 ### 1. Memory Leak (Forgetting to Free)
 
 **Problem**:
+
 ```typescript
 // BAD: Memory leak
 const ptr = this.lib.symbols.get_worker_status();
@@ -204,6 +206,7 @@ pollStepEvents(): FfiStepEvent[] {
 ### 2. Double-Free
 
 **Problem**:
+
 ```typescript
 // BAD: Double-free (undefined behavior)
 const ptr = this.lib.symbols.get_worker_status();
@@ -217,6 +220,7 @@ this.lib.symbols.free_rust_string(ptr);  // CRASH! Already freed
 ### 3. Use-After-Free
 
 **Problem**:
+
 ```typescript
 // BAD: Use-after-free
 const ptr = this.lib.symbols.get_worker_status();
@@ -447,11 +451,13 @@ test('status retrieval frees memory', () => {
 **Golden Rule**: Every `*mut c_char` pointer returned by a Rust FFI function must have a corresponding `free_rust_string()` call in the TypeScript code, executed exactly once per pointer, after all reads are complete.
 
 If you see a pattern like:
+
 ```typescript
 const ptr = this.lib.symbols.some_function();
 ```
 
 Ask yourself:
+
 1. Does this return a pointer to allocated memory? (Check Rust signature)
 2. Am I reading the data before freeing?
 3. Am I freeing exactly once?

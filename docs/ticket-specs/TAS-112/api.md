@@ -12,6 +12,7 @@
 This analysis compares HTTP/REST API integration patterns across all four languages. **Critical Finding**: Rust has **no dedicated API handler** while Ruby, Python, and TypeScript have mature, feature-complete implementations. The existing implementations are remarkably well-aligned, with only minor divergence in HTTP client libraries and method signatures.
 
 **Key Findings**:
+
 1. **Rust Gap**: No API handler pattern exists - needs implementation
 2. **HTTP Clients**: Ruby (Faraday), Python (httpx), TypeScript (native fetch) - all modern choices
 3. **Error Classification**: Highly consistent across 400/429/500 status codes
@@ -35,12 +36,14 @@ This analysis compares HTTP/REST API integration patterns across all four langua
 | **Python** | `ApiHandler` | Subclass of `StepHandler` | httpx | `python/tasker_core/step_handler/api.py` |
 | **TypeScript** | `ApiHandler` | Subclass of `StepHandler` | Native fetch | `src/handler/api.ts` |
 
-**Analysis**: 
+**Analysis**:
+
 - ❌ **All use subclass inheritance** - violates composition-over-inheritance goal
 - ✅ HTTP client choices are modern and appropriate
 - ❌ Rust has **no API support** - critical gap
 
 **Recommendation**:
+
 - ✅ **Create Rust API mixin/trait** (not subclass)
 - ✅ **Migrate Ruby/Python/TypeScript to mixin pattern**
 - 📝 **Zen Alignment**: "Flat is better than nested" - mixins over inheritance
@@ -54,12 +57,14 @@ This analysis compares HTTP/REST API integration patterns across all four langua
 **Library**: [Faraday](https://lfi.github.io/faraday/) - HTTP client abstraction layer
 
 **Key Features**:
+
 - Middleware-based architecture
 - Multiple adapter support (Net::HTTP, Typhoeus, etc.)
 - Built-in retry, logging, authentication middleware
 - Connection pooling
 
 **Example Configuration**:
+
 ```ruby
 Faraday.new(base_url) do |conn|
   conn.request :json                # Encode body as JSON
@@ -71,11 +76,13 @@ end
 ```
 
 **Pros**:
+
 - ✅ Mature, battle-tested (10+ years)
 - ✅ Excellent middleware ecosystem
 - ✅ Adapter flexibility
 
 **Cons**:
+
 - ⚠️ Verbose configuration
 - ⚠️ Middleware ordering matters (footgun potential)
 
@@ -84,12 +91,14 @@ end
 **Library**: [httpx](https://www.python-httpx.org/) - Modern async HTTP client
 
 **Key Features**:
+
 - HTTP/2 support
 - Async/sync API (we use sync)
 - Request/response hooks
 - Connection pooling
 
 **Example Configuration**:
+
 ```python
 httpx.Client(
     base_url="https://api.example.com",
@@ -99,12 +108,14 @@ httpx.Client(
 ```
 
 **Pros**:
+
 - ✅ Modern, Pythonic API
 - ✅ HTTP/2 support
 - ✅ Excellent async support (if needed later)
 - ✅ Simple, clean API
 
 **Cons**:
+
 - ⚠️ Newer library (less mature than requests)
 - ⚠️ Smaller ecosystem
 
@@ -113,12 +124,14 @@ httpx.Client(
 **Library**: Native `fetch` API (Bun, Node 18+, browsers)
 
 **Key Features**:
+
 - Standard Web API
 - Promise-based
 - Built-in to runtime (no dependencies!)
 - AbortController for timeouts
 
 **Example Usage**:
+
 ```typescript
 const response = await fetch(url, {
   method: 'POST',
@@ -129,11 +142,13 @@ const response = await fetch(url, {
 ```
 
 **Pros**:
+
 - ✅ Zero dependencies
 - ✅ Standard API (portable across runtimes)
 - ✅ Native performance
 
 **Cons**:
+
 - ⚠️ Lower-level (no built-in retry, auth middleware)
 - ⚠️ More boilerplate required
 
@@ -142,6 +157,7 @@ const response = await fetch(url, {
 **Proposed Library**: [reqwest](https://docs.rs/reqwest/) - Async HTTP client
 
 **Why reqwest**:
+
 - Most popular Rust HTTP client (9M+ downloads/month)
 - Excellent async support (Tokio-based)
 - Middleware support via `tower` layers
@@ -173,6 +189,7 @@ const response = await fetch(url, {
 ### Method Signature Comparison
 
 **Ruby (Keyword Arguments)**:
+
 ```ruby
 get(path, params: {}, headers: {})
 post(path, data: {}, headers: {})
@@ -181,6 +198,7 @@ delete(path, params: {}, headers: {})
 ```
 
 **Python (Positional with Named)**:
+
 ```python
 get(path, params=None, headers=None, **kwargs)
 post(path, json=None, data=None, headers=None, **kwargs)
@@ -190,6 +208,7 @@ delete(path, headers=None, **kwargs)
 ```
 
 **TypeScript (Options Object)**:
+
 ```typescript
 get(path, params?, headers?)
 post(path, {body?, json?, headers?}?)
@@ -199,12 +218,14 @@ delete(path, headers?)
 ```
 
 **Analysis**:
+
 - **Inconsistency**: Three different parameter patterns
 - **Ruby**: Keyword-required (verbose but explicit)
 - **Python**: Flexible positional/keyword with `**kwargs` escape hatch
 - **TypeScript**: Options object pattern (common in TypeScript/JavaScript)
 
 **Recommendation**:
+
 - ✅ **Accept differences** - idiomatic to each language
 - 📝 **Zen Alignment**: "Although practicality beats purity" - language idioms win
 
@@ -232,11 +253,13 @@ All three implementations have remarkably consistent error classification:
 | **504** | Gateway Timeout | ✅ Yes | RetryableError | gateway_timeout | gateway_timeout |
 
 **Analysis**:
+
 - ✅ **Excellent alignment** - classification is nearly identical
 - ⚠️ Ruby missing some specific 4xx codes (408, 405)
 - ✅ All treat 429/503 as retryable with special handling
 
 **Recommendation**:
+
 - ✅ **Standardize**: Use Python/TypeScript's granular error types
 - ✅ **Ruby**: Add missing 408, 405 classifications
 - 📝 **Zen Alignment**: "There should be one obvious way" - standardized classification
@@ -244,6 +267,7 @@ All three implementations have remarkably consistent error classification:
 ### Error Classification Code
 
 **Ruby**:
+
 ```ruby
 case response.status
 when 400, 401, 403, 404, 422
@@ -260,6 +284,7 @@ end
 ```
 
 **Python**:
+
 ```python
 NON_RETRYABLE_STATUS_CODES = {400, 401, 403, 404, 405, 406, 410, 422}
 RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
@@ -276,6 +301,7 @@ def _classify_error(self, response):
 ```
 
 **TypeScript**:
+
 ```typescript
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
@@ -290,6 +316,7 @@ private classifyError(response: ApiResponse): string {
 ```
 
 **Recommendation**:
+
 - ✅ **Standardize**: Use Python/TypeScript's map-based approach (clearer than case/when)
 - ✅ **Unified Constants**: Define standard lists of retryable/non-retryable codes
 - 📝 **Documentation**: Create shared error classification reference
@@ -301,6 +328,7 @@ private classifyError(response: ApiResponse): string {
 ### Implementation Comparison
 
 **Ruby**:
+
 ```ruby
 def extract_retry_after_header(headers)
   TaskerCore::ErrorClassification.extract_retry_after(headers)
@@ -316,6 +344,7 @@ raise TaskerCore::RetryableError.new(
 ```
 
 **Python**:
+
 ```python
 @property
 def retry_after(self) -> int | None:
@@ -335,6 +364,7 @@ if response.retry_after is not None:
 ```
 
 **TypeScript**:
+
 ```typescript
 get retryAfter(): number | null {
   const retryAfter = this.headers['retry-after'];
@@ -352,12 +382,14 @@ if (response.retryAfter !== null) {
 ```
 
 **Analysis**:
+
 - ✅ All three implement Retry-After parsing
 - ✅ All default to 60 seconds for date-format headers (pragmatic)
 - ✅ All expose via response wrapper or metadata
 - ⚠️ Ruby delegates to `ErrorClassification` module (less discoverable)
 
 **Recommendation**:
+
 - ✅ **Consistency**: All implementations are functionally equivalent
 - ✅ **Python/TypeScript pattern preferred**: Property on response object
 - 📝 **Zen Alignment**: "Simple is better than complex" - property > delegation
@@ -371,6 +403,7 @@ if (response.retryAfter !== null) {
 **No custom wrapper** - uses Faraday's response object directly
 
 **Properties**:
+
 ```ruby
 response.status         # HTTP status code
 response.headers        # Header hash
@@ -406,7 +439,8 @@ class ApiResponse:
     def retry_after(self) -> int | None
 ```
 
-**Analysis**: 
+**Analysis**:
+
 - ✅ Clean abstraction
 - ✅ Helper properties for classification
 - ✅ Automatic JSON parsing
@@ -431,11 +465,13 @@ class ApiResponse {
 ```
 
 **Analysis**:
+
 - ✅ Nearly identical to Python (excellent alignment!)
 - ✅ TypeScript naming conventions (camelCase)
 - ✅ Helper getters for classification
 
 **Recommendation**:
+
 - ✅ **Python/TypeScript pattern is excellent** - adopt for Rust
 - 📝 **Rust**: Create `ApiResponse<T>` struct with same helper methods
 - 📝 **Zen Alignment**: "Beautiful is better than ugly" - wrapper provides clean API
@@ -447,15 +483,18 @@ class ApiResponse {
 ### Success Helper
 
 **Ruby**:
+
 ```ruby
 def api_success(response)
   # Not present! Must manually construct success()
   success(result: parse_response_body(response))
 end
 ```
+
 ❌ **Missing** - no dedicated API success helper
 
 **Python**:
+
 ```python
 def api_success(
     self,
@@ -475,6 +514,7 @@ def api_success(
 ```
 
 **TypeScript**:
+
 ```typescript
 protected apiSuccess(
   response: ApiResponse,
@@ -495,11 +535,13 @@ protected apiSuccess(
 ```
 
 **Analysis**:
+
 - ❌ **Ruby Gap**: No `api_success()` helper
 - ✅ **Python/TypeScript**: Identical functionality
 - ✅ Auto-wraps non-dict responses in `{data: ...}`
 
 **Recommendation**:
+
 - ✅ **Add to Ruby**: Implement `api_success()` helper
 - ✅ **Add to Rust**: Follow Python/TypeScript pattern
 - 📝 **Zen Alignment**: "Simple is better than complex" - helper reduces boilerplate
@@ -507,6 +549,7 @@ protected apiSuccess(
 ### Failure Helper
 
 **Ruby**:
+
 ```ruby
 # No api_failure() helper - process_response() raises exceptions
 def process_response(response)
@@ -521,9 +564,11 @@ def process_response(response)
   end
 end
 ```
+
 ⚠️ **Different Pattern**: Raises exceptions instead of returning failure result
 
 **Python**:
+
 ```python
 def api_failure(
     self,
@@ -547,6 +592,7 @@ def api_failure(
 ```
 
 **TypeScript**:
+
 ```typescript
 protected apiFailure(response: ApiResponse, message?: string): StepHandlerResult {
   const errorType = this.classifyError(response);
@@ -569,11 +615,13 @@ protected apiFailure(response: ApiResponse, message?: string): StepHandlerResult
 ```
 
 **Analysis**:
+
 - ❌ **Ruby Different Pattern**: Raises exceptions vs returns results
 - ✅ **Python/TypeScript**: Identical implementations
 - ⚠️ **Architectural Inconsistency**: Ruby's raise-based approach differs from base handler pattern
 
 **Recommendation**:
+
 - ✅ **Standardize on result-based**: Python/TypeScript pattern
 - ⚠️ **Ruby Refactor**: Add `api_failure()` helper, deprecate exception-raising in `process_response()`
 - 📝 **Zen Alignment**: "There should be one obvious way" - return results consistently
@@ -585,6 +633,7 @@ protected apiFailure(response: ApiResponse, message?: string): StepHandlerResult
 ### Ruby Advanced Features
 
 **File Upload**:
+
 ```ruby
 def api_upload_file(path, file_path, field_name: 'file', additional_fields: {})
   payload = additional_fields.merge({
@@ -595,6 +644,7 @@ end
 ```
 
 **Pagination**:
+
 ```ruby
 def api_paginated_request(path, method: :get, pagination_key: 'cursor', 
                            limit_key: 'limit', max_pages: 100)
@@ -620,11 +670,13 @@ end
 ```
 
 **Analysis**:
+
 - ✅ **Ruby has advanced features** Python/TypeScript lack
 - ⚠️ **Inconsistent**: These features are Ruby-only
 - 📝 **Decision Needed**: Should these be universal or Ruby-specific?
 
 **Recommendation**:
+
 - 🎯 **Phase 2 Priority**: Start with core HTTP methods
 - 🔄 **Future**: Add pagination/upload as optional mixins (composition!)
 - 📝 **Zen Alignment**: "Simple is better than complex" - core features first
@@ -632,6 +684,7 @@ end
 ### Connection Configuration
 
 **Ruby (Extensive)**:
+
 ```ruby
 def apply_connection_config(conn)
   conn.options.timeout = config[:timeout] || api_timeouts[:timeout]
@@ -653,6 +706,7 @@ end
 ```
 
 **Python (Minimal)**:
+
 ```python
 httpx.Client(
     base_url=self.base_url,
@@ -662,17 +716,20 @@ httpx.Client(
 ```
 
 **TypeScript (Minimal)**:
+
 ```typescript
 // No connection object - uses fetch directly
 // Configuration via static class properties
 ```
 
 **Analysis**:
+
 - ✅ **Ruby**: Most configurable (timeout, SSL, auth, headers, params)
 - ⚠️ **Python/TypeScript**: Minimal config (class properties only)
 - 📝 **Trade-off**: Flexibility vs simplicity
 
 **Recommendation**:
+
 - ✅ **Ruby's configurability is good** - keep it
 - ✅ **Python/TypeScript**: Add constructor config support
 - 📝 **Rust**: Support rich configuration (reqwest provides this)
@@ -685,6 +742,7 @@ httpx.Client(
 ### All Use Subclass Inheritance
 
 **Ruby**:
+
 ```ruby
 class Api < Base  # ❌ Inheritance
   # ...
@@ -692,12 +750,14 @@ end
 ```
 
 **Python**:
+
 ```python
 class ApiHandler(StepHandler):  # ❌ Inheritance
   # ...
 ```
 
 **TypeScript**:
+
 ```typescript
 export abstract class ApiHandler extends StepHandler {  # ❌ Inheritance
   // ...
@@ -707,6 +767,7 @@ export abstract class ApiHandler extends StepHandler {  # ❌ Inheritance
 **Problem**: This violates the project's composition-over-inheritance goal!
 
 **Impact**:
+
 - Cannot combine API features with other handler types easily
 - Forces single inheritance hierarchy
 - Harder to test/mock
@@ -715,6 +776,7 @@ export abstract class ApiHandler extends StepHandler {  # ❌ Inheritance
 **Recommendation** (Composition Pattern):
 
 **Ruby (Mixin)**:
+
 ```ruby
 module StepHandler
   module ApiCapabilities
@@ -733,6 +795,7 @@ end
 ```
 
 **Python (Mixin)**:
+
 ```python
 class ApiMixin:
     """Provides API capabilities via composition."""
@@ -744,6 +807,7 @@ class MyApiHandler(StepHandler, ApiMixin):  # ✅ Composition
 ```
 
 **TypeScript (Interface + Helper)**:
+
 ```typescript
 interface ApiCapable {
   get(path: string, params?: Record<string, unknown>): Promise<ApiResponse>;
@@ -756,6 +820,7 @@ function withApiCapabilities(handler: StepHandler): ApiCapable {
 ```
 
 **Rust (Trait)**:
+
 ```rust
 pub trait ApiCapable {
     async fn get(&self, path: &str) -> Result<ApiResponse>;
@@ -769,6 +834,7 @@ impl ApiCapable for MyHandler {
 ```
 
 **Recommendation**:
+
 - ✅ **Adopt Now**: Migrate all languages to composition pattern
 - ✅ **Breaking Change Acceptable**: Pre-alpha status allows this
 - 📝 **Zen Alignment**: "Flat is better than nested" - composition over inheritance
@@ -778,24 +844,28 @@ impl ApiCapable for MyHandler {
 ## Functional Gaps
 
 ### Rust (Critical Gaps)
+
 1. ❌ **No API handler at all** - needs full implementation
 2. ❌ **No HTTP client integration** - need reqwest
 3. ❌ **No error classification** - need status code mapping
 4. ❌ **No Retry-After support** - need header parsing
 
 ### Ruby (Minor Gaps)
+
 1. ⚠️ **Missing PATCH method** - easy to add
 2. ⚠️ **No `api_success()` helper** - should add
 3. ⚠️ **No `api_failure()` helper** - uses exceptions instead
 4. ⚠️ **Missing 408, 405 error classifications** - should add
 
 ### Python (Complete)
+
 1. ✅ **Fully featured** - reference implementation
 2. ✅ **All HTTP methods** including PATCH
 3. ✅ **Helper methods** for success/failure
 4. ✅ **Comprehensive error classification**
 
 ### TypeScript (Complete)
+
 1. ✅ **Fully featured** - matches Python
 2. ✅ **All HTTP methods** including PATCH
 3. ✅ **Helper methods** for success/failure
@@ -808,6 +878,7 @@ impl ApiCapable for MyHandler {
 ### Critical Changes (Implement Now)
 
 #### 1. Rust API Handler Implementation
+
 - ✅ Create `ApiCapable` trait (not subclass!)
 - ✅ Use `reqwest` HTTP client
 - ✅ Implement `ApiResponse<T>` wrapper type
@@ -819,34 +890,41 @@ impl ApiCapable for MyHandler {
 **Implementation Priority**: **HIGH** - critical missing feature
 
 #### 2. Migration to Composition Pattern
+
 All languages must migrate from subclass inheritance to composition:
 
 **Ruby**:
+
 - ✅ Create `StepHandler::ApiCapabilities` module
 - ✅ Extract HTTP methods to mixin
 - ✅ Deprecate `Api` subclass pattern
 - ✅ Update documentation and examples
 
 **Python**:
+
 - ✅ Refactor `ApiHandler` to `ApiMixin`
 - ✅ Use multiple inheritance: `class MyHandler(StepHandler, ApiMixin)`
 - ✅ Update documentation
 
 **TypeScript**:
+
 - ✅ Extract API functionality to composable helper
 - ✅ Consider decorator pattern or traits (via mixins)
 - ✅ Update documentation
 
 **Rust**:
+
 - ✅ Implement as trait from the start (already composition-friendly)
 
 #### 3. Ruby Enhancements
+
 - ✅ Add `patch()` method
 - ✅ Add `api_success()` helper
 - ✅ Add `api_failure()` helper (complement exception-based approach)
 - ✅ Add missing status code classifications (408, 405)
 
 #### 4. Cross-Language Standardization
+
 - ✅ Standardize error classification codes across all languages
 - ✅ Document standard HTTP status code → error type mapping
 - ✅ Align Retry-After handling patterns
@@ -875,6 +953,7 @@ All languages must migrate from subclass inheritance to composition:
 ## Implementation Checklist
 
 ### Rust API Handler (New Implementation)
+
 - [ ] Add `reqwest` dependency to Cargo.toml
 - [ ] Create `ApiCapable` trait in separate module
 - [ ] Implement `ApiResponse<T>` struct
@@ -887,6 +966,7 @@ All languages must migrate from subclass inheritance to composition:
 - [ ] Update documentation
 
 ### Ruby Composition Migration
+
 - [ ] Create `StepHandler::ApiCapabilities` module
 - [ ] Move HTTP methods to module
 - [ ] Move error classification to module
@@ -898,6 +978,7 @@ All languages must migrate from subclass inheritance to composition:
 - [ ] Add migration guide
 
 ### Python Composition Migration
+
 - [ ] Rename `ApiHandler` → `ApiMixin`
 - [ ] Keep class functional (backward compat in pre-alpha)
 - [ ] Update examples to show composition
@@ -905,12 +986,14 @@ All languages must migrate from subclass inheritance to composition:
 - [ ] Add tests for composition pattern
 
 ### TypeScript Composition Migration
+
 - [ ] Extract API functionality to composable helper
 - [ ] Implement decorator or mixin pattern
 - [ ] Update examples
 - [ ] Document composition approach
 
 ### Documentation
+
 - [ ] Create `docs/api-handlers-reference.md`
 - [ ] Create `docs/composition-patterns.md`
 - [ ] Update `docs/worker-crates/*.md` with composition examples
@@ -921,6 +1004,7 @@ All languages must migrate from subclass inheritance to composition:
 ## Next Phase
 
 **Phase 4: Decision Handler Pattern** will analyze conditional workflow routing handlers, building on the composition patterns established here. Key questions:
+
 - Are decision handlers also using subclass inheritance?
 - Is the `DecisionPointOutcome` structure consistent?
 - Do all languages support both `create_steps` and `no_branches`?
@@ -930,6 +1014,7 @@ All languages must migrate from subclass inheritance to composition:
 ## Appendix: Rust API Handler Sketch
 
 **Trait Definition**:
+
 ```rust
 use reqwest::{Client, Response};
 use anyhow::Result;

@@ -12,6 +12,7 @@
 This analysis compares batch processing handler patterns for parallel data processing across all four languages. **Finding**: Three languages (Ruby, Python, TypeScript) have mature **mixin-based implementations** with excellent alignment, while Rust has **shared types only** with no helper trait. **Critical architectural difference**: Unlike API/Decision handlers, batch handlers already use **composition via mixins** - the architecture we want!
 
 **Key Findings**:
+
 1. **✅ Composition Pattern Already Adopted!** - Ruby/Python/TypeScript use mixins (not inheritance)
 2. **Rust Gap**: Has `BatchProcessingOutcome` type but no batchable helper trait
 3. **Excellent Alignment**: Helper methods remarkably consistent across languages
@@ -35,13 +36,15 @@ This analysis compares batch processing handler patterns for parallel data proce
 | **Python** | ✅ **Mixin** | `class Batchable` | `python/tasker_core/batch_processing/batchable.py` |
 | **TypeScript** | ✅ **Mixin/Interface** | `interface Batchable` + `BatchableMixin` | `src/handler/batchable.ts` |
 
-**Analysis**: 
+**Analysis**:
+
 - ✅ **Ruby/Python/TypeScript use mixins!** Already composition-based architecture
 - ✅ Handlers do `StepHandler, Batchable` (Python) or `include Batchable` (Ruby)
 - ✅ This is the target architecture for API/Decision handlers!
 - ❌ Rust has shared type but no helper trait
 
 **Recommendation**:
+
 - ✅ **Keep mixin pattern** - this is the right architecture
 - ✅ **Create Rust batchable trait** (following existing composition pattern)
 - ✅ **Migrate API/Decision handlers to match this pattern**
@@ -56,6 +59,7 @@ This analysis compares batch processing handler patterns for parallel data proce
 **Location**: `tasker-shared/src/messaging/execution_types.rs`
 
 **Definition**:
+
 ```rust
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -74,6 +78,7 @@ pub enum BatchProcessingOutcome {
 ```
 
 **CursorConfig Structure**:
+
 ```rust
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CursorConfig {
@@ -85,6 +90,7 @@ pub struct CursorConfig {
 ```
 
 **Factory Methods**:
+
 ```rust
 impl BatchProcessingOutcome {
     pub fn no_batches() -> Self { ... }
@@ -99,6 +105,7 @@ impl BatchProcessingOutcome {
 ```
 
 **Serialization**:
+
 ```json
 // NoBatches
 { "type": "no_batches" }
@@ -114,6 +121,7 @@ impl BatchProcessingOutcome {
 ```
 
 **Analysis**:
+
 - ✅ **Excellent type safety** - Rust enum pattern
 - ✅ **Flexible cursors** - `Value` allows int/string/timestamp/UUID
 - ✅ **Factory methods** for ergonomic construction
@@ -126,6 +134,7 @@ impl BatchProcessingOutcome {
 **Pattern**: Helper methods in `Batchable` module construct outcome hashes directly
 
 **Key Methods**:
+
 ```ruby
 def no_batches_outcome(reason:, metadata: {})
   outcome = TaskerCore::Types::BatchProcessingOutcome.no_batches
@@ -157,6 +166,7 @@ end
 ```
 
 **Analysis**:
+
 - ✅ **Helper methods return fully wrapped Success objects**
 - ✅ **Direct outcome construction** - no separate type class needed
 - ✅ **Cursor configs** created via `create_cursor_configs(total_items, worker_count)`
@@ -166,6 +176,7 @@ end
 **Location**: `python/tasker_core/types.py`
 
 **Definitions**:
+
 ```python
 class CursorConfig(BaseModel):
     start_cursor: int
@@ -195,6 +206,7 @@ class BatchWorkerOutcome(BaseModel):
 ```
 
 **Helper Methods** (in `Batchable` mixin):
+
 ```python
 def create_batch_outcome(self, total_items, batch_size, step_size=1, batch_metadata=None):
     cursor_configs = self.create_cursor_ranges(total_items, batch_size, step_size)
@@ -218,6 +230,7 @@ def batch_analyzer_success(self, outcome, metadata=None, worker_template_name="b
 ```
 
 **Analysis**:
+
 - ✅ **Pydantic validation** - type safety
 - ✅ **Separate models** for analyzer vs worker outcomes
 - ✅ **Factory methods** for common patterns
@@ -228,6 +241,7 @@ def batch_analyzer_success(self, outcome, metadata=None, worker_template_name="b
 **Location**: `src/types/batch.ts`, `src/handler/batchable.ts`
 
 **Definitions**:
+
 ```typescript
 export interface CursorConfig {
   startCursor: number;
@@ -264,6 +278,7 @@ export interface BatchWorkerConfig {
 ```
 
 **Helper Methods** (in `BatchableMixin`):
+
 ```typescript
 createBatchOutcome(
   totalItems: number,
@@ -295,6 +310,7 @@ batchAnalyzerSuccess(
 ```
 
 **Analysis**:
+
 - ✅ **TypeScript type safety** via interfaces
 - ✅ **Matches Python structure** closely (camelCase vs snake_case)
 - ✅ **Additional BatchWorkerConfig** type for Rust compatibility
@@ -312,6 +328,7 @@ batchAnalyzerSuccess(
 | **Worker Outcome Type** | ❌ Missing | Hash | BatchWorkerOutcome | BatchWorkerOutcome |
 
 **Recommendation**:
+
 - ✅ **Python/TypeScript cursors**: Should support flexible types (not just int)
 - ✅ **Rust**: Add `BatchWorkerOutcome` type (currently missing)
 - ✅ **Standardize field names**: Align cursor field names across languages
@@ -326,6 +343,7 @@ batchAnalyzerSuccess(
 #### Ruby
 
 **create_cursor_configs(total_items, worker_count)**:
+
 ```ruby
 def create_cursor_configs(total_items, worker_count)
   raise ArgumentError, 'worker_count must be > 0' if worker_count <= 0
@@ -350,6 +368,7 @@ end
 ```
 
 **Analysis**:
+
 - ✅ **Worker-count based** - divides by number of workers
 - ✅ **1-indexed cursors** - starts at 1 (not 0)
 - ✅ **Block customization** - can override cursor values for non-numeric types
@@ -358,6 +377,7 @@ end
 #### Python
 
 **create_cursor_ranges(total_items, batch_size, step_size=1, max_batches=None)**:
+
 ```python
 def create_cursor_ranges(self, total_items, batch_size, step_size=1, max_batches=None):
     if total_items == 0:
@@ -387,6 +407,7 @@ def create_cursor_ranges(self, total_items, batch_size, step_size=1, max_batches
 ```
 
 **Analysis**:
+
 - ✅ **Batch-size based** - divides by batch size (not worker count)
 - ✅ **0-indexed cursors** - starts at 0
 - ✅ **max_batches cap** - can limit number of batches
@@ -395,6 +416,7 @@ def create_cursor_ranges(self, total_items, batch_size, step_size=1, max_batches
 #### TypeScript
 
 **createCursorRanges(totalItems, batchSize, stepSize=1, maxBatches?)**:
+
 ```typescript
 createCursorRanges(
   totalItems: number,
@@ -434,6 +456,7 @@ createCursorRanges(
 ```
 
 **createCursorConfigs(totalItems, workerCount)** (Ruby-compatible):
+
 ```typescript
 createCursorConfigs(totalItems: number, workerCount: number): BatchWorkerConfig[] {
   if (workerCount <= 0) {
@@ -470,6 +493,7 @@ createCursorConfigs(totalItems: number, workerCount: number): BatchWorkerConfig[
 ```
 
 **Analysis**:
+
 - ✅ **Both patterns supported!** - batch-size AND worker-count based
 - ✅ **0-indexed cursors** - consistent with Python
 - ✅ **Ruby compatibility method** - `createCursorConfigs()` matches Ruby API
@@ -485,6 +509,7 @@ createCursorConfigs(totalItems: number, workerCount: number): BatchWorkerConfig[
 | **Customization** | Block | Subclass/modify | Subclass/modify |
 
 **Recommendation**:
+
 - ✅ **Standardize on 0-indexed** - Python/TypeScript pattern (more common in programming)
 - ✅ **Support both APIs** - worker-count AND batch-size based (TypeScript already does this)
 - ⚠️ **Ruby**: Add `create_cursor_ranges()` for batch-size approach
@@ -568,11 +593,13 @@ handleNoOpWorker(context: StepContext): StepHandlerResult | null {
 ```
 
 **Analysis**:
+
 - ✅ **Ruby/TypeScript**: Have `handle_no_op_worker()` helper
 - ❌ **Python missing**: No `handle_no_op_worker()` convenience method
 - ✅ **All extract context**: Via `from_step_data()` or `from_step_context()`
 
 **Recommendation**:
+
 - ✅ **Add to Python**: `handle_no_op_worker()` helper for consistency
 - 📝 **Zen Alignment**: "There should be one obvious way" - all should have no-op handler
 
@@ -801,12 +828,14 @@ batchWorkerSuccess(
 ```
 
 **Analysis**:
+
 - ✅ **Ruby**: Keyword-only arguments (most explicit)
 - ✅ **Python**: Supports both object AND keyword arguments (most flexible)
 - ✅ **TypeScript**: Object-only (most type-safe)
 - ✅ **All return Success** - not raw data (important for usability)
 
 **Recommendation**:
+
 - ✅ **Python pattern is excellent** - support both styles
 - ✅ **TypeScript**: Add keyword argument overload option
 - 📝 **Zen Alignment**: "Although practicality beats purity" - dual API for ergonomics
@@ -918,12 +947,14 @@ static aggregateWorkerResults(
 ```
 
 **Analysis**:
+
 - ✅ **Ruby**: Flexible - yields to custom block for aggregation logic
 - ✅ **Python/TypeScript**: Standard sum aggregation (most common case)
 - ✅ **All static/module methods** - don't need instance
 - ⚠️ **Ruby more flexible** - block allows custom aggregation (max, concat, merge, etc.)
 
 **Recommendation**:
+
 - ✅ **Ruby pattern is more powerful** - custom aggregation via block
 - ✅ **Python/TypeScript**: Add optional aggregation_fn parameter for custom logic
 - 📝 **Zen Alignment**: "Practicality beats purity" - default sum, allow custom
@@ -946,6 +977,7 @@ static aggregateWorkerResults(
 | **aggregate_worker_results** | ✅ (with block) | ✅ (static) | ✅ (static) | ❌ |
 
 **Gap Analysis**:
+
 - ❌ **Rust**: Entire batchable helper trait missing
 - ⚠️ **Ruby**: Missing batch-size based `create_cursor_ranges()`
 - ⚠️ **Python**: Missing `handle_no_op_worker()` helper
@@ -953,6 +985,7 @@ static aggregateWorkerResults(
 - ✅ **TypeScript**: Most complete - has both APIs!
 
 **Recommendation**:
+
 - ✅ **Standardize on both APIs**: worker-count AND batch-size based
 - ✅ **Add handle_no_op_worker to Python**
 - ✅ **Create Rust batchable trait** with all helpers
@@ -962,9 +995,10 @@ static aggregateWorkerResults(
 
 ## Architecture Pattern Analysis
 
-### Composition Pattern ✅ ALREADY ADOPTED!
+### Composition Pattern ✅ ALREADY ADOPTED
 
 **Ruby**:
+
 ```ruby
 class MyBatchHandler < TaskerCore::StepHandler::Base
   include TaskerCore::StepHandler::Batchable  # ✅ Mixin composition!
@@ -982,6 +1016,7 @@ end
 ```
 
 **Python**:
+
 ```python
 class MyBatchHandler(StepHandler, Batchable):  # ✅ Multiple inheritance composition!
     handler_name = "my_batch_handler"
@@ -994,6 +1029,7 @@ class MyBatchHandler(StepHandler, Batchable):  # ✅ Multiple inheritance compos
 ```
 
 **TypeScript**:
+
 ```typescript
 // Option 1: Interface + explicit binding
 class MyBatchHandler extends StepHandler implements Batchable {
@@ -1019,12 +1055,14 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 ```
 
 **Analysis**:
+
 - ✅ **Ruby/Python use mixins** - true composition!
 - ✅ **TypeScript offers both** - interface (composition) or convenience class
 - ✅ **This is the target architecture!** We want API/Decision handlers to follow this
 - 📝 **No inheritance anti-pattern here** - already solved!
 
 **Recommendation**:
+
 - ✅ **Keep this pattern** - it's the right design
 - ✅ **Migrate API/Decision handlers to match** - use mixins, not inheritance
 - ✅ **Rust should follow this** - implement as trait (composition-friendly)
@@ -1035,6 +1073,7 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 ## Functional Gaps
 
 ### Rust (Critical Gaps)
+
 1. ❌ **No batchable helper trait** - needs full implementation
 2. ❌ **No cursor configuration helpers** - manual construction required
 3. ❌ **No outcome builder helpers** - must manually embed in result
@@ -1042,18 +1081,21 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 5. ❌ **No aggregation helpers** - must manually sum results
 
 ### Ruby (Minor Gaps)
+
 1. ⚠️ **Missing batch-size API**: No `create_cursor_ranges()` method
 2. ⚠️ **1-indexed cursors**: Differs from Python/TypeScript (0-indexed)
 3. ✅ **Has aggregation** with flexible block pattern
 4. ✅ **Has no-op handling**
 
 ### Python (Minor Gaps)
+
 1. ⚠️ **Missing handle_no_op_worker()**: Should add for consistency
 2. ⚠️ **Int-only cursors**: CursorConfig only supports int, not flexible types
 3. ⚠️ **Missing worker-count API**: Only has batch-size approach
 4. ✅ **Excellent outcome types** - BatchAnalyzerOutcome + BatchWorkerOutcome
 
 ### TypeScript (Complete!)
+
 1. ✅ **Most complete** - has BOTH APIs (worker-count AND batch-size)
 2. ✅ **Has no-op handling**
 3. ✅ **Comprehensive types** - CursorConfig, BatchAnalyzerOutcome, BatchWorkerOutcome, BatchWorkerConfig
@@ -1066,6 +1108,7 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 ### Critical Changes (Implement Now)
 
 #### 1. Rust Batchable Trait Implementation
+
 - ✅ Create `Batchable` trait (composition-friendly!)
 - ✅ Add cursor configuration helpers:
   - `create_cursor_configs()` (worker-count based)
@@ -1086,17 +1129,20 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 #### 2. Cross-Language Standardization
 
 **Cursor Indexing**:
+
 - ✅ **Standardize on 0-indexed** - Python/TypeScript pattern
 - ⚠️ **Ruby**: Migrate from 1-indexed to 0-indexed (breaking change acceptable)
 - 📝 Rationale: 0-indexed is universal in programming
 
 **Cursor Flexibility**:
+
 - ✅ **All languages**: Support flexible cursor types (int, string, timestamp, UUID, etc.)
 - ✅ **Python/TypeScript**: Change `CursorConfig.start_cursor` from `int` to `Any`/`unknown`
 - ✅ **Ruby**: Already supports flexible cursors via block customization
 - 📝 Rationale: Real-world data is partitioned in many ways
 
 **Dual APIs**:
+
 - ✅ **All languages**: Support BOTH worker-count and batch-size approaches
 - ✅ **Ruby**: Add `create_cursor_ranges(total_items, batch_size, max_batches=nil)`
 - ✅ **Python**: Add `create_cursor_configs(total_items, worker_count)`
@@ -1104,17 +1150,20 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 - 📝 Rationale: Different use cases need different approaches
 
 **No-Op Handling**:
+
 - ✅ **Python**: Add `handle_no_op_worker()` method
 - ✅ **All languages**: Ensure consistent no-op result structure
 - 📝 Rationale: Simplifies batch worker implementation
 
 #### 3. Preserve Composition Pattern
+
 - ✅ **Keep mixin/trait pattern** - this is correct architecture
 - ✅ **Use as template** for API/Decision handler migration
 - ✅ **Document pattern** as best practice
 - 📝 **Zen Alignment**: "Flat is better than nested" - composition achieved
 
 #### 4. Aggregation Enhancement
+
 - ✅ **Python/TypeScript**: Add optional `aggregation_fn` parameter to `aggregate_worker_results()`
 - ✅ **Allow custom aggregation** like Ruby's block pattern
 - ✅ **Keep default sum** as most common case
@@ -1145,6 +1194,7 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 ## Implementation Checklist
 
 ### Rust Batchable Trait (New Implementation)
+
 - [ ] Add `BatchWorkerOutcome` struct to `tasker-shared`
 - [ ] Create `Batchable` trait in `workers/rust`:
   - [ ] `create_cursor_configs()` (worker-count based)
@@ -1160,6 +1210,7 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 - [ ] Update documentation
 
 ### Ruby Enhancements
+
 - [ ] Add `create_cursor_ranges(total_items, batch_size, max_batches: nil)` method
 - [ ] Migrate from 1-indexed to 0-indexed cursors:
   - [ ] Update `create_cursor_configs()` logic
@@ -1169,6 +1220,7 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 - [ ] Document flexible cursor customization via block
 
 ### Python Enhancements
+
 - [ ] Add `handle_no_op_worker()` method
 - [ ] Add `create_cursor_configs(total_items, worker_count)` method
 - [ ] Change `CursorConfig.start_cursor` and `end_cursor` types from `int` to `Any`
@@ -1176,12 +1228,14 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 - [ ] Add optional `aggregation_fn` parameter to `aggregate_worker_results()`
 
 ### TypeScript Enhancements
+
 - [ ] Change `CursorConfig.startCursor` and `endCursor` types from `number` to `unknown`
 - [ ] Add flexible cursor examples to documentation
 - [ ] Add optional `aggregationFn` parameter to `aggregateWorkerResults()`
 - [ ] Document both mixin patterns (interface binding + BatchableStepHandler)
 
 ### Documentation
+
 - [ ] Create `docs/batch-processing-reference.md`
 - [ ] Update `docs/composition-patterns.md` with batchable example
 - [ ] Create `docs/batch-processing-tutorial.md` with end-to-end example
@@ -1194,6 +1248,7 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 ## Next Phase
 
 **Phase 6: Capabilities and Configuration Patterns** will analyze handler metadata, configuration schemas, and capability declarations. Key questions:
+
 - Are capabilities consistently declared?
 - Is config schema validation present in all languages?
 - Are handler versioning patterns aligned?
@@ -1204,6 +1259,7 @@ class MyBatchHandler extends BatchableStepHandler {  // ✅ Inherits composition
 ## Appendix: Rust Batchable Trait Sketch
 
 **Trait Definition**:
+
 ```rust
 use async_trait::async_trait;
 use serde_json::{json, Value};
@@ -1419,6 +1475,7 @@ pub trait Batchable {
 ```
 
 **BatchWorkerOutcome Type** (add to `tasker-shared`):
+
 ```rust
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BatchWorkerOutcome {

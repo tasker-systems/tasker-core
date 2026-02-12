@@ -23,14 +23,18 @@ This plan builds on existing infrastructure rather than creating parallel system
 ## Implementation Phases
 
 ### Phase 6.1: Client Profile System (like nextest)
+
 **Files to modify:**
+
 - `tasker-client/src/config.rs` - Add profile support
 - `tasker-client/src/bin/tasker-cli.rs` - Add `--profile` flag
 
 **Files to create:**
+
 - `.config/tasker-client.toml` - Example profiles for the project
 
 **Profile-based config schema:**
+
 ```toml
 # .config/tasker-client.toml
 # Profile-based configuration (like nextest.toml)
@@ -90,6 +94,7 @@ max_retries = 5
 ```
 
 **Usage:**
+
 ```bash
 # Use default profile (REST)
 tasker-cli task list
@@ -105,11 +110,14 @@ TASKER_CLIENT_PROFILE=grpc tasker-cli task list
 ```
 
 ### Phase 6.2: Transport Selection in Client
+
 **Files to modify:**
+
 - `tasker-client/src/config.rs` - Add `transport` field to config
 - `tasker-client/src/lib.rs` - Add unified client enum
 
 **Transport enum in client library:**
+
 ```rust
 // tasker-client/src/lib.rs
 
@@ -162,6 +170,7 @@ impl OrchestrationClient {
 ```
 
 **Config changes:**
+
 ```rust
 // tasker-client/src/config.rs
 
@@ -180,10 +189,13 @@ pub struct ClientConfig {
 ```
 
 ### Phase 6.3: Extended IntegrationTestManager
+
 **Files to modify:**
+
 - `tests/common/integration_test_manager.rs` - Add gRPC and profile-based setup
 
 **New methods:**
+
 ```rust
 impl IntegrationTestManager {
     /// Setup with gRPC transport (validates via gRPC health)
@@ -221,6 +233,7 @@ impl IntegrationTestManager {
 ```
 
 **IntegrationConfig changes:**
+
 ```rust
 #[derive(Debug, Clone)]
 pub struct IntegrationConfig {
@@ -234,10 +247,13 @@ pub struct IntegrationConfig {
 ```
 
 ### Phase 6.4: gRPC Auth Test Helpers
+
 **Files to create:**
+
 - `tests/common/grpc_test_helpers.rs` - gRPC-specific auth utilities
 
 **Re-use existing constants from `auth_test_helpers.rs`:**
+
 - `TEST_API_KEY_FULL`
 - `TEST_API_KEY_READ_ONLY`
 - `TEST_API_KEY_TASKS_ONLY`
@@ -245,6 +261,7 @@ pub struct IntegrationConfig {
 - `generate_jwt()`, `generate_expired_jwt()`
 
 **New gRPC helpers:**
+
 ```rust
 /// gRPC client with API key auth
 pub async fn grpc_client_with_api_key(endpoint: &str, api_key: &str)
@@ -260,13 +277,16 @@ pub async fn grpc_client_unauthenticated(endpoint: &str)
 ```
 
 ### Phase 6.5: gRPC-Specific Tests
+
 **Files to create:**
+
 - `tests/grpc/mod.rs` - Module gate with `#[cfg(feature = "test-services")]`
 - `tests/grpc/health_tests.rs` - Health endpoint tests
 - `tests/grpc/auth_tests.rs` - Authentication/permission tests
 - `tests/grpc/parity_tests.rs` - REST/gRPC response comparison
 
 **Auth test scenarios (mirroring REST):**
+
 1. Unauthenticated request rejected
 2. Full access API key works
 3. Read-only key can list but not create
@@ -277,17 +297,21 @@ pub async fn grpc_client_unauthenticated(endpoint: &str)
 8. Invalid API key rejected
 
 **Parity tests:**
+
 1. Health response structure matches
 2. Task creation response matches
 3. Detailed health response matches
 4. Template list response matches
 
 ### Phase 6.6: E2E Test Transport Support
+
 **Files to modify:**
+
 - `tests/e2e/rust/linear_workflow.rs` (and other E2E tests)
 - `tests/common/test_helpers.rs` - Add transport-aware helpers
 
 **Pattern for transport-aware tests:**
+
 ```rust
 #[tokio::test]
 async fn test_linear_workflow() -> Result<()> {
@@ -301,10 +325,13 @@ async fn test_linear_workflow() -> Result<()> {
 ```
 
 ### Phase 6.7: Cluster Testing Extension
+
 **Files to modify:**
+
 - `tests/common/multi_instance_test_manager.rs` - Add gRPC cluster support
 
 **New types:**
+
 ```rust
 pub struct GrpcClusterConfig {
     pub orchestration_grpc_urls: Vec<String>,  // from env or calculated
@@ -318,10 +345,13 @@ impl MultiInstanceTestManager {
 ```
 
 ### Phase 6.8: Cargo Make Tasks
+
 **Files to modify:**
+
 - `Makefile.toml` - Add gRPC test targets
 
 **New tasks:**
+
 ```toml
 [tasks.test-grpc]         # tg  - All gRPC tests
 [tasks.test-grpc-auth]    # tga - gRPC auth tests (uses auth-test.toml)
@@ -334,6 +364,7 @@ impl MultiInstanceTestManager {
 ## File Summary
 
 ### New Files
+
 | File | Purpose |
 |------|---------|
 | `.config/tasker-client.toml` | Profile-based client config (like nextest) |
@@ -346,6 +377,7 @@ impl MultiInstanceTestManager {
 | `config/dotenv/grpc-test.env` | gRPC-specific env vars (layered with existing system) |
 
 ### Modified Files
+
 | File | Changes |
 |------|---------|
 | `tasker-client/src/config.rs` | Add profile support, transport field |
@@ -360,6 +392,7 @@ impl MultiInstanceTestManager {
 ## Environment Variables
 
 ### New gRPC Variables (add to `config/dotenv/grpc-test.env`)
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TASKER_TEST_TRANSPORT` | `rest` | Transport: "rest" or "grpc" |
@@ -368,6 +401,7 @@ impl MultiInstanceTestManager {
 | `TASKER_CLIENT_PROFILE` | (none) | Client config profile to use |
 
 ### Existing Variables (already in `config/dotenv/`)
+
 | Variable | Source File | Description |
 |----------|-------------|-------------|
 | `TASKER_TEST_ORCHESTRATION_URL` | `test.env` | REST orchestration endpoint |
@@ -376,6 +410,7 @@ impl MultiInstanceTestManager {
 | `TASKER_TEST_WORKER_URLS` | `cluster.env` | Multi-instance worker URLs |
 
 ### Integration with dotenv System
+
 The new gRPC variables will be added to `config/dotenv/grpc-test.env` and assembled using the existing `setup-env.sh` script:
 
 ```bash
@@ -389,11 +424,13 @@ Layer order: `base.env` → `test.env` → `grpc-test.env` → target-specific
 ## Verification Steps
 
 1. **Unit tests pass:**
+
    ```bash
    cargo make test-rust-unit
    ```
 
 2. **gRPC health tests pass:**
+
    ```bash
    # Start services
    docker compose -f docker/docker-compose.test.yml up -d
@@ -401,21 +438,25 @@ Layer order: `base.env` → `test.env` → `grpc-test.env` → target-specific
    ```
 
 3. **gRPC auth tests pass:**
+
    ```bash
    cargo make test-grpc-auth
    ```
 
 4. **Response parity verified:**
+
    ```bash
    cargo make test-grpc-parity
    ```
 
 5. **E2E tests pass with both transports:**
+
    ```bash
    cargo make test-both
    ```
 
 6. **Cluster tests pass:**
+
    ```bash
    cargo make cluster-start
    cargo make test-grpc-cluster
@@ -456,6 +497,7 @@ Layer order: `base.env` → `test.env` → `grpc-test.env` → target-specific
 ## CI Configuration
 
 ### Current Matrix (Backend)
+
 ```yaml
 # .github/workflows/test.yml (existing)
 strategy:
@@ -466,6 +508,7 @@ env:
 ```
 
 ### New gRPC Transport Job
+
 ```yaml
 # Add as separate job, not matrix expansion
 test-grpc-transport:
@@ -483,6 +526,7 @@ test-grpc-transport:
 ```
 
 ### Why 2+1 Works
+
 - **Transport independence**: REST/gRPC is a client→server concern
 - **Backend independence**: PGMQ/RabbitMQ is orchestration→worker concern
 - **No cross-product bugs**: A bug in "gRPC + RabbitMQ" would manifest in either "gRPC + PGMQ" or "REST + RabbitMQ"

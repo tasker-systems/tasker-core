@@ -25,12 +25,14 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 ### Phase 1: Result Factory Renames
 
 **Files to modify:**
+
 - `python/tasker_core/types.py`
 - `python/tasker_core/step_handler/base.py`
 
 **Changes:**
 
 1. In `types.py` - rename class methods:
+
    ```python
    # Before
    @classmethod
@@ -52,6 +54,7 @@ Align Python worker APIs with cross-language standards. Python is already well-a
    ```
 
 2. In `base.py` - update helper method calls:
+
    ```python
    # Update internal calls to use new method names
    def success(self, result, metadata=None):
@@ -64,11 +67,13 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 ### Phase 2: Error Fields Standardization
 
 **Files to modify:**
+
 - `python/tasker_core/types.py`
 
 **Changes:**
 
 1. Add `error_code` field to `StepHandlerResult`:
+
    ```python
    @dataclass
    class StepHandlerResult:
@@ -82,6 +87,7 @@ Align Python worker APIs with cross-language standards. Python is already well-a
    ```
 
 2. Add Enum for `error_type` (hard enum to match Ruby and Rust):
+
    ```python
    from enum import Enum
 
@@ -107,11 +113,13 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 ### Phase 3: Decision Handler Enhancement
 
 **Files to modify:**
+
 - `python/tasker_core/step_handler/decision.py`
 
 **Changes:**
 
 1. Add simplified helper method:
+
    ```python
    def decision_success(
        self,
@@ -129,6 +137,7 @@ Align Python worker APIs with cross-language standards. Python is already well-a
    ```
 
 2. Rename existing method:
+
    ```python
    # Before
    def decision_success(self, outcome: DecisionPointOutcome) -> StepHandlerResult:
@@ -140,12 +149,14 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 ### Phase 4: Domain Events Base Classes
 
 **New files:**
+
 - `python/tasker_core/domain_events/base_publisher.py`
 - `python/tasker_core/domain_events/base_subscriber.py`
 
 **Changes:**
 
 1. Create `BasePublisher`:
+
    ```python
    from abc import ABC, abstractmethod
    from dataclasses import dataclass
@@ -190,6 +201,7 @@ Align Python worker APIs with cross-language standards. Python is already well-a
    ```
 
 2. Create `BaseSubscriber`:
+
    ```python
    from abc import ABC, abstractmethod
    from typing import Any, Dict, List
@@ -212,9 +224,11 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 ### Phase 5: Update Example Handlers
 
 **Files to modify:**
+
 - All files in `tests/handlers/examples/`
 
 **Changes:**
+
 - Replace `success_handler_result` → `success`
 - Replace `failure_handler_result` → `failure`
 - Use standard `error_type` values
@@ -223,11 +237,13 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 ### Phase 6: Update Tests
 
 **Files to modify:**
+
 - `tests/test_step_handler.py`
 - `tests/test_module_exports.py`
 - Create new domain event tests
 
 **Changes:**
+
 - Update all test cases to use new method names
 - Add tests for `error_code` field
 - Add tests for `BasePublisher` and `BaseSubscriber`
@@ -236,6 +252,7 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 ## Files Summary
 
 ### Core Library Changes
+
 | File | Change Type |
 |------|-------------|
 | `python/tasker_core/types.py` | Modify |
@@ -246,6 +263,7 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 | `python/tasker_core/__init__.py` | Modify |
 
 ### Example/Test Changes
+
 | File | Change Type |
 |------|-------------|
 | `tests/handlers/examples/*.py` | Modify |
@@ -270,6 +288,7 @@ Align Python worker APIs with cross-language standards. Python is already well-a
 ## Risk Assessment
 
 **Low Risk**: Python already closely matches target state. Changes are primarily:
+
 - Method renames (non-breaking in pre-alpha)
 - Adding optional fields
 - Adding new base classes
@@ -307,6 +326,7 @@ class StepHandlerResult(BaseModel):
 ```
 
 This allows:
+
 - `StepHandlerResult.success(...)` classmethod works as expected
 - `result.is_success` attribute access works
 - JSON serialization uses `"success"` key for compatibility

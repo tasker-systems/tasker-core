@@ -11,6 +11,7 @@
 Based on research of the existing codebase, we're implementing **Option C: Consolidate** - a simplified architecture that eliminates abstraction proliferation while enabling multi-provider support.
 
 ### Current State (3+ abstractions)
+
 ```
 MessageClient (trait)         ← Domain-specific methods
 PgmqClientTrait (trait)       ← Low-level PGMQ operations
@@ -19,6 +20,7 @@ UnifiedPgmqClient (struct)    ← Thin wrapper
 ```
 
 ### Target State (2 components)
+
 ```
 MessagingService (trait)      ← Provider contract (generic)
 MessageClient (struct)        ← Domain facade (NOT a trait)
@@ -429,6 +431,7 @@ pub enum MessagingError {
 **Goal**: Implement `PgmqMessagingService` that wraps existing tasker-pgmq functionality
 **Child Ticket**: TAS-133b
 **Validation Gate**:
+
 - `PgmqMessagingService` passes conformance test suite
 - Existing orchestration/worker tests pass unchanged
 - `set_visibility_timeout` added to `pgmq-notify/src/client.rs`
@@ -591,6 +594,7 @@ impl MessagingService for PgmqMessagingService {
 **Goal**: Create the domain-level helper struct that uses MessagingService
 **Child Ticket**: TAS-133c
 **Validation Gate**:
+
 - `MessageClient` struct compiles and provides all domain operations
 - `SimpleStepMessage` renamed to `StepMessage`, old `StepMessage` deleted
 - Orchestration step enqueuer works through new `MessageClient`
@@ -684,6 +688,7 @@ impl MessageClient {
 **Goal**: Implement RabbitMQ provider using lapin
 **Child Ticket**: TAS-133d
 **Validation Gate**:
+
 - `RabbitMqMessagingService` passes same conformance test suite as PGMQ
 - RabbitMQ runs in docker-compose.test.yml
 - Provider can be selected via TOML configuration
@@ -778,6 +783,7 @@ impl MessagingService for RabbitMqMessagingService {
 **Goal**: Update SystemContext to use the new abstractions
 **Child Ticket**: TAS-133e
 **Validation Gate**:
+
 - `SystemContext` uses `Arc<MessagingProvider>` and `Arc<MessageClient>`
 - `[common.messaging]` TOML config section works
 - Full integration test suite passes with PGMQ provider
@@ -838,6 +844,7 @@ impl SystemContext {
 **Goal**: Remove legacy abstractions and finalize the refactor
 **Child Ticket**: TAS-133f
 **Validation Gate**:
+
 - All old traits/structs deleted (see 6.2)
 - No `UnifiedPgmqClient`, `UnifiedMessageClient`, old `MessageClient` trait references
 - `EventConsumer` uses `MessagingProvider` directly (no downcast pattern)
@@ -930,6 +937,7 @@ There are **three distinct concepts** that are often confused. This section docu
 **When**: Used for compliance, debugging, or audit trail requirements. The message is "done" but preserved.
 
 **Provider mapping**:
+
 - **PGMQ**: Native `archive_message()` function
 - **RabbitMQ**: Not directly supported (would need separate archive queue pattern)
 
@@ -940,6 +948,7 @@ There are **three distinct concepts** that are often confused. This section docu
 **When**: Automatic after repeated nack/timeout. Used for poison message isolation.
 
 **Provider mapping**:
+
 - **PGMQ**: Configurable via `nack_message(requeue=false)` → archive or DLQ
 - **RabbitMQ**: Native DLX (Dead Letter Exchange) with `x-dead-letter-exchange` argument
 
@@ -966,6 +975,7 @@ There are **three distinct concepts** that are often confused. This section docu
 ### Current: JSON via serde_json
 
 All message serialization currently uses JSON (`serde_json`). PGMQ stores messages in `jsonb` columns which provides:
+
 - Human readability for debugging
 - PostgreSQL JSON operators for ad-hoc queries
 - Cross-language compatibility (Ruby/Python workers)
@@ -973,12 +983,14 @@ All message serialization currently uses JSON (`serde_json`). PGMQ stores messag
 ### Future: MessagePack Option
 
 Upcoming tickets will add MessagePack support for performance-sensitive paths:
+
 - Binary format (smaller payloads, faster serialization)
 - `QueueMessage` trait abstracts this - implementations can choose format
 - PGMQ: Store as `bytea` or base64-encoded string in jsonb
 - RabbitMQ: Native binary payload support
 
 The `QueueMessage` trait design anticipates this:
+
 ```rust
 pub trait QueueMessage: Send + Sync + Clone + 'static {
     fn to_bytes(&self) -> Result<Vec<u8>, MessagingError>;
@@ -995,6 +1007,7 @@ JSON implementations serialize to UTF-8 bytes; MessagePack implementations seria
 ### Decision: No Feature Flags for RabbitMQ
 
 Based on discussion, we're **NOT** using feature flags for RabbitMQ to avoid:
+
 - Multiple binary builds for FFI workers (Ruby gem, Python package, TypeScript)
 - Complexity for end users who just want "it to work"
 

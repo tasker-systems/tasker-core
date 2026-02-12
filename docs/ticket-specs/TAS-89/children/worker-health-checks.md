@@ -38,16 +38,19 @@ Worker health checks currently return hardcoded values, causing Kubernetes to ro
 **Location**: `tasker-worker/src/worker/services/worker_status/service.rs:108`
 
 **Current**:
+
 ```rust
 database_connected: true, // TODO: Add actual DB connectivity check
 ```
 
 **Target**:
+
 ```rust
 database_connected: self.check_database_connectivity().await,
 ```
 
 **Implementation**:
+
 ```rust
 async fn check_database_connectivity(&self) -> bool {
     match sqlx::query("SELECT 1")
@@ -70,6 +73,7 @@ async fn check_database_connectivity(&self) -> bool {
 **Location**: `tasker-worker/src/worker/services/health/service.rs:389-401`
 
 **Current**:
+
 ```rust
 async fn check_event_system(&self) -> ComponentHealth {
     // TODO: Check event publisher/subscriber health
@@ -85,6 +89,7 @@ async fn check_event_system(&self) -> ComponentHealth {
 **Target**: Verify event publisher connectivity and subscriber registration.
 
 **Implementation approach**:
+
 1. Check if event publisher is connected
 2. Check if subscriber registration is valid
 3. Return degraded/unhealthy status if checks fail
@@ -94,6 +99,7 @@ async fn check_event_system(&self) -> ComponentHealth {
 ### 3. Consolidate Duplicate Health Services (Optional)
 
 **Issue**: Two health services exist with inconsistent behavior:
+
 - `HealthService` - Has real DB check
 - `WorkerStatusService` - Has hardcoded values
 
@@ -125,6 +131,7 @@ async fn check_event_system(&self) -> ComponentHealth {
 ## Testing
 
 ### Unit Tests
+
 ```rust
 #[tokio::test]
 async fn database_check_returns_false_when_unreachable() {
@@ -142,6 +149,7 @@ async fn event_system_check_returns_unhealthy_when_broken() {
 ```
 
 ### Integration Tests
+
 ```rust
 #[tokio::test]
 async fn readiness_probe_returns_503_when_database_down() {
@@ -158,11 +166,13 @@ async fn readiness_probe_returns_503_when_database_down() {
 ## Risk Assessment
 
 **Risk**: Medium
+
 - Changes health check behavior (intentionally)
 - May cause workers to report unhealthy that previously reported healthy
 - This is **correct behavior** - surfacing real problems
 
 **Mitigation**:
+
 - Add logging when health checks fail
 - Consider grace period for transient failures
 - Document expected behavior change

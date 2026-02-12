@@ -40,6 +40,7 @@ The codebase has **excellent code hygiene** with no actual dead code detected. A
 **Location**: All `workers/rust/src/step_handlers/*.rs`
 
 **Pattern**:
+
 ```rust
 pub struct LinearStep1Handler {
     #[allow(dead_code)] // api compatibility
@@ -56,11 +57,13 @@ pub struct LinearStep1Handler {
 ### Category 2: Test Helper Functions (10 instances)
 
 **Locations**:
+
 - `tests/common/lifecycle_test_manager.rs`
 - `tasker-pgmq/tests/common.rs`
 - `tasker-shared/tests/mocks/`
 
 **Examples**:
+
 - `create_task_request_with_options()` - used in integration tests
 - `test_namespace_extraction()` - test helper method
 - `configure_step_result()` - mock framework utility
@@ -72,6 +75,7 @@ pub struct LinearStep1Handler {
 ### Category 3: Factory Methods (6 instances)
 
 **Locations**:
+
 - `tasker-shared/src/models/factories/core.rs`
 - `tasker-shared/src/models/factories/states.rs`
 
@@ -84,11 +88,13 @@ pub struct LinearStep1Handler {
 ### Category 4: FFI/Runtime Fields (4 instances)
 
 **Locations**:
+
 - `workers/python/src/bridge.rs`
 - `workers/typescript/src-rust/bridge.rs`
 - `workers/ruby/ext/tasker_core/`
 
 **Pattern**:
+
 ```rust
 pub struct Bridge {
     #[allow(dead_code)]
@@ -107,6 +113,7 @@ pub struct Bridge {
 **Location**: `tasker-shared/src/state_machine/guards.rs`
 
 **Types**:
+
 - `StepCanBeEnqueuedForOrchestrationGuard`
 - `StepCanBeCompletedFromOrchestrationGuard`
 - `StepCanBeFailedFromOrchestrationGuard`
@@ -120,6 +127,7 @@ pub struct Bridge {
 ### Category 6: Future Enhancement Fields (3 instances)
 
 **Locations**:
+
 - `tasker-orchestration/src/orchestration/event_systems/orchestration_event_system.rs` - `orchestration_core` field
 - `tasker-orchestration/src/orchestration/orchestration_queues/listener.rs` - `context` field
 
@@ -146,12 +154,14 @@ pub struct Bridge {
 ### Priority 1: Step Handlers (28 instances)
 
 **Current**:
+
 ```rust
 #[allow(dead_code)] // api compatibility
 config: StepHandlerConfig,
 ```
 
 **Target**:
+
 ```rust
 #[expect(dead_code, reason = "api compatibility - config available for future handler enhancements")]
 config: StepHandlerConfig,
@@ -164,6 +174,7 @@ config: StepHandlerConfig,
 ### Priority 2: Test Helpers (10 instances)
 
 **Target Format**:
+
 ```rust
 #[expect(dead_code, reason = "test helper used by integration tests across multiple modules")]
 pub fn create_task_request_with_options(...) { }
@@ -174,6 +185,7 @@ pub fn create_task_request_with_options(...) { }
 ### Priority 3: Factories (6 instances)
 
 **Target Format**:
+
 ```rust
 #[expect(dead_code, reason = "factory builder method for test fixture creation")]
 pub fn with_namespace(...) { }
@@ -184,6 +196,7 @@ pub fn with_namespace(...) { }
 ### Priority 4: FFI Runtimes (4 instances)
 
 **Target Format**:
+
 ```rust
 #[expect(dead_code, reason = "runtime kept alive for async FFI task lifetime management")]
 pub runtime: tokio::runtime::Runtime,
@@ -201,6 +214,7 @@ pub runtime: tokio::runtime::Runtime,
 | **Total** | **96** | - | - |
 
 **Migration Risk**: LOW
+
 - All suppressions are justified and well-understood
 - Changing from `#[allow]` to `#[expect]` is non-functional
 - CI will immediately catch any regressions if dead code is actually removed
@@ -210,11 +224,13 @@ pub runtime: tokio::runtime::Runtime,
 ## Recommendations
 
 ### Immediate Action
+
 1. **Bulk migrate** 93 instances to `#[expect]` with per-category reasons
 2. **Address orphaned guards** (3 instances) per action-items.md
 3. **Review conditional imports** in `tasker-orchestration/src/web/handlers/analytics.rs`
 
 ### Documentation
+
 1. Add comment in docs about API compatibility pattern for handler configs
 2. Create guide for test utility conventions
 3. Document FFI lifetime management requirements

@@ -401,6 +401,7 @@ Extend coverage on already-partially-covered modules, targeting the 55-85% range
 | Remaining | Messaging infrastructure, orchestration core, gRPC service integration, final push | ~TBD | ~+6.66 pp | ~55.0% |
 
 **Key constraints**:
+
 - The orchestration event system (64.21%) and fallback poller require messaging infrastructure (PGMQ or RabbitMQ) for further integration tests. `OrchestrationEventSystem::statistics()` uses `block_in_place` requiring a multi-threaded runtime — incompatible with `sqlx::test`'s current-thread runtime.
 - gRPC tests can be split: pure conversion/error-mapping tests (no infrastructure) and service tests (tonic test server). The conversion module is already at 100%.
 - The bootstrap module (9.68%, 401 uncovered lines) is the single largest non-gRPC gap but is challenging to test in isolation because it wires together the entire system.
@@ -416,6 +417,7 @@ Extend coverage on already-partially-covered modules, targeting the 55-85% range
 **Integration test phase** added 41 `#[sqlx::test]` tests across 4 new test files (`task_query_service_tests.rs`, `step_query_service_tests.rs`, `template_query_service_tests.rs`, `analytics_service_tests.rs`). These validate database query services, template discovery, analytics SQL functions, and response transformation against real PostgreSQL. This provided +0.19 pp coverage.
 
 Key modules now covered that were previously at 0%:
+
 - `TaskQueryService` — get_task_with_context, list_tasks_with_context, to_task_response
 - `StepQueryService` — list_steps_for_task, get_step_with_readiness, audit history, ownership verification
 - `TemplateQueryService` — list_templates, get_template, template_exists, get_namespace
@@ -431,15 +433,18 @@ Key modules now covered that were previously at 0%:
 Decomposed four large files (4,240 lines total) into smaller, testable units. All refactoring is behavior-preserving — 506 library tests passing at each checkpoint.
 
 **Dead code removed:**
+
 - `state_manager.rs` deleted (1,297 lines, 442 coverable). 11/14 methods were dead code.
 - Unused `current_queue_sizes: HashMap` removed from stats struct.
 
 **Files restructured:**
+
 - `command_processor_actor.rs`: 1,001 → 366 lines. Business logic extracted to `commands/service.rs`.
 - `orchestration_event_system.rs`: 1,359 → ~700 lines. Helpers extracted, duplication eliminated.
 - `viable_step_discovery.rs`: 583 → ~450 lines. Pure functions extracted.
 
 **New testable modules created:**
+
 - `commands/service.rs` (~340 lines) — `CommandProcessingService` with three lifecycle flows. **Testable with `InMemoryMessagingService`** — no PGMQ/RabbitMQ required for Flow 2 (FromMessage) and Flow 3 error paths.
 - `commands/pgmq_message_resolver.rs` (~115 lines) — PGMQ-only signal resolution.
 - `event_systems/command_outcome.rs` (~50 lines) — Pure `from_*` classifiers.
@@ -452,11 +457,13 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 ### Quick-Win Unit Tests + Result Processing Pipeline (Jan 31, 2026)
 
 **Pure unit tests** added 45 inline tests across 3 files:
+
 - `orchestration_statistics.rs`: 12 tests — default, clone, counters, processing_rate, average_latency, deployment_mode_score (0% → ~65%)
 - `error_classifier.rs`: 25 tests — classify_state_error, classify_validation_error, classify_execution_error (9 variants), exponential backoff, category delays, suggestions (49% → ~75%)
 - `system_events.rs`: 8 tests — get_event_metadata, get_step_transitions, get_transitions_from_state, validate_event_payload (63% → ~80%)
 
 **Result processing pipeline integration tests** added 26 tests across 4 files:
+
 - `state_transition_handler.rs`: 10 tests — extract_error_message, process_state_transition, should_retry_step, determine_success_event (14% → ~50%)
 - `task_coordinator.rs`: 4 tests — coordinator actions for different task states (21% → ~35%)
 - `metadata_processor.rs`: 6 tests — empty metadata, server/rate-limit/custom backoff hints, error context (14% → ~50%)
@@ -465,10 +472,12 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 **Coverage impact**: 37.58% → 41.0% (+3.42 pp), 683 → 754 tests
 
 **New modules at 100% coverage** (from extractions):
+
 - `event_systems/command_outcome.rs` — Pure `from_*` classifiers
 - `health_check_evaluator.rs` — Pure function for health evaluation
 
 **Notable coverage improvements** from refactoring + command processing tests:
+
 - `commands/service.rs` — 57% (new module, testable with InMemoryMessagingService)
 - `commands/types.rs` — 82% (extracted type definitions)
 - Post-refactoring measurement: 37.58% line, 34.84% function, 683 tests
@@ -485,6 +494,7 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 **Coverage impact**: 41.0% → 41.64% (+0.64 pp), 754 → 792 tests
 
 **Measured per-file coverage improvements** (actual vs pre-phase):
+
 | File | Before | After | Delta |
 |------|--------|-------|-------|
 | `backoff_calculator.rs` | 33.8% | 93.27% | +59.5 pp |
@@ -519,6 +529,7 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 **Unit and database integration tests** added 128 tests across 12 files, targeting the remaining below-55% gap files with a breadth-first approach:
 
 **Round 1 (commit 5d4a4c8)**: 47 tests across 6 files
+
 - `step_enqueuer.rs`: 10 tests — serialization, clone, debug, multi-namespace stats, empty results, config access (54.2% → 70.9%)
 - `core.rs`: 11 tests — OrchestrationCoreStatus Display/PartialEq/Debug/Clone for all 6 variants (24.4% → 43.2%)
 - `unified_event_coordinator.rs`: 9 tests — config defaults/clone/debug, health report construction/unhealthy/statistics (35.3% → 52.7%)
@@ -527,6 +538,7 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 - `task_request_processor.rs`: 8 tests — config customization/debug/clone, stats fields, minimal message (36.1% → 59.6%)
 
 **Round 2 (commit e9c560d)**: 54 tests across 5 files
+
 - `batch_processing/service.rs`: 15 tests — all 7 error Display variants, From<StateMachineError> conversion, service creation DB test, BatchWorkerInputs, CursorConfig, BatchProcessingOutcome serde (8.9% → 42.1%)
 - `error_handling_service.rs`: 17 tests — result construction/clone/debug/serialization, action variants/clone/debug/serde, config default/custom/clone/debug, service creation DB tests (42.0% → 54.9%)
 - `db_status.rs`: 8 tests — evaluate_db_status with real DB (healthy + circuit breaker open), circuit breaker state detection/reset, DatabaseHealthStatus fields/error (26.7% → 78.6%)
@@ -534,12 +546,14 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 - `listener.rs`: 7 tests — config custom/clone/debug, stats increment/debug, notification debug/clone (33.9% → 46.0%)
 
 **Round 3 (commit e2f3dc6)**: 12 tests across 2 files
+
 - `orchestration_queues/fallback_poller.rs`: 7 tests — OrchestrationPollerConfig defaults/custom/clone/debug, OrchestrationPollerStats defaults/increment/debug (0% → 32.3%)
 - `task_readiness/fallback_poller.rs`: 5 tests — config debug/clone, poller debug/stop/config accessor DB tests (41.1% → 59.3%)
 
 **Coverage impact**: 42.67% → 44.88% (+2.21 pp), 814 → 942 tests
 
 **Notable per-file improvements (before → after)**:
+
 | File | Before | After | Delta |
 |------|--------|-------|-------|
 | `db_status.rs` | 26.7% | 78.6% | +51.9 pp |
@@ -566,12 +580,14 @@ Decomposed four large files (4,240 lines total) into smaller, testable units. Al
 Two-pronged approach testing private static methods directly:
 
 *`fire_and_forget_command` tests* (4 tests, `#[tokio::test]`, no DB needed):
+
 - `test_fire_and_forget_success` — command reaches receiver, `operations_coordinated` incremented
 - `test_fire_and_forget_closed_channel` — closed channel increments `events_failed`, no panic
 - `test_fire_and_forget_task_request` — TaskRequest command routing
 - `test_fire_and_forget_finalization` — Finalization command routing
 
 *`process_orchestration_notification` tests* (9 tests, `#[sqlx::test]` with real DB):
+
 - `test_notification_event_step_result` — Event(StepResult) → ProcessStepResultFromMessageEvent command
 - `test_notification_event_task_request` — Event(TaskRequest) → InitializeTaskFromMessageEvent command
 - `test_notification_event_task_finalization` — Event(TaskFinalization) → FinalizeTaskFromMessageEvent command
@@ -607,6 +623,7 @@ Setup: `OrchestrationEventSystem` constructed with real DB pool, `OrchestrationC
 **Coverage impact**: 44.88% → ~45.6% (est. +~0.7 pp), 942 → 970 tests
 
 **Estimated per-file improvement**:
+
 | File | Before | After | Delta |
 |------|--------|-------|-------|
 | `orchestration_event_system.rs` | 0% | ~47% | +47 pp |
@@ -616,6 +633,7 @@ Setup: `OrchestrationEventSystem` constructed with real DB pool, `OrchestrationC
 **45 tests added** (all inline `#[cfg(test)]`) targeting the gRPC service layer which was at **0% coverage** across 13 files (871 coverable lines). Focused on pure conversion helpers and error mapping functions that don't require infrastructure.
 
 **DLQ service tests** (26 tests in `grpc/services/dlq.rs`):
+
 - All 4 `DlqResolutionStatus` to-proto and 5 from-proto variants (including Unspecified → None)
 - All 5 `DlqReason` to-proto variants
 - All 3 `StalenessHealthStatus` to-proto variants
@@ -625,18 +643,22 @@ Setup: `OrchestrationEventSystem` constructed with real DB pool, `OrchestrationC
 - `staleness_monitoring_entry_to_proto` — full struct with health_status conversion
 
 **Analytics service tests** (11 tests in `grpc/services/analytics.rs`):
+
 - `tasker_error_to_status` — 9 error variant mappings: ValidationError → InvalidArgument, CircuitBreakerOpen → Unavailable, Timeout → DeadlineExceeded, DatabaseError/Internal/Messaging/StateTransition → Internal
 - `convert_system_health_counts` — all-zeros default and populated with all 24 fields (13 task + 11 step counts)
 
 **Auth interceptor tests** (6 tests in `grpc/interceptors/auth.rs`):
+
 - `new(None)`, `is_enabled()` with no service, `clone()`, `debug()` formatting
 - `authenticate()` with disabled auth returns permissive SecurityContext
 - `SecurityContextExt` trait returns None when not set, `SECURITY_CONTEXT_KEY` constant
 
 **Template service tests** (4 tests in `grpc/services/templates.rs`):
+
 - `template_error_to_status` — NamespaceNotFound → NotFound, TemplateNotFound → NotFound, DatabaseError → Internal, Internal → Internal
 
 **Remaining uncovered gRPC files** (require service infrastructure):
+
 - `grpc/server.rs` (121 lines) — server bootstrap, requires full tonic server setup
 - `grpc/services/tasks.rs` (82 lines) — task CRUD, requires TaskService + database
 - `grpc/services/config.rs` (39 lines) — config endpoint, requires full orchestration context
@@ -649,6 +671,7 @@ These remaining gRPC service methods are thin delegation layers to the same shar
 **Coverage impact**: 47.45% → 48.34% (+0.89 pp), 999 → 1,044 tests
 
 **Per-file improvements**:
+
 | File | Before | After | Delta |
 |------|--------|-------|-------|
 | `grpc/services/dlq.rs` | 0% | 83.73% | +83.7 pp |

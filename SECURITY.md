@@ -19,7 +19,7 @@ You should receive a response within 48 hours acknowledging receipt. We will wor
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x (alpha) | Yes |
+| 0.1.x | Yes |
 
 ## Security Practices
 

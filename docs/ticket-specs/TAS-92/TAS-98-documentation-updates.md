@@ -35,6 +35,7 @@ Update all documentation to reflect the aligned APIs across Ruby, Python, and Ru
 **New file:** `docs/worker-crates/api-convergence-matrix.md`
 
 **Structure:**
+
 ```markdown
 # API Convergence Matrix
 
@@ -169,6 +170,7 @@ Standard batch result fields:
 **New file:** `docs/worker-crates/example-handlers.md`
 
 **Structure:**
+
 ```markdown
 # Example Handlers - Cross-Language Reference
 
@@ -229,6 +231,7 @@ impl StepHandler for MyHandler {
 **File:** `docs/worker-crates/patterns-and-practices.md`
 
 **Changes:**
+
 1. Replace "Current Inconsistencies" section with "API Alignment Status"
 2. Update all handler signature examples
 3. Update result factory examples to use `success()` / `failure()`
@@ -239,6 +242,7 @@ impl StepHandler for MyHandler {
 ### Phase 4: Update Language-Specific Docs
 
 #### ruby.md
+
 - Update handler signature to `call(context)`
 - Update registry API examples
 - Update API handler with `get/post/put/delete`
@@ -246,12 +250,14 @@ impl StepHandler for MyHandler {
 - Add domain events `publish(ctx)` example
 
 #### python.md
+
 - Update result factories to `success()` / `failure()`
 - Add `error_code` field examples
 - Update decision handler with simple helper
 - Add `BasePublisher` and `BaseSubscriber` examples
 
 #### rust.md
+
 - Add `with_error_code()` helper example
 - Add `is_registered()` and `list_handlers()` examples
 - Reference pattern documentation
@@ -260,6 +266,7 @@ impl StepHandler for MyHandler {
 ### Phase 5: Update domain-events.md
 
 **Changes:**
+
 - Add Python `BasePublisher` examples
 - Add Python `BaseSubscriber` examples
 - Update Ruby `publish(ctx)` method documentation
@@ -271,6 +278,7 @@ impl StepHandler for MyHandler {
 **File:** `docs/worker-crates/README.md`
 
 **Changes:**
+
 - Update handler registration examples
 - Update signature table (all show `call(context)`)
 - Update result factory examples
@@ -280,12 +288,14 @@ impl StepHandler for MyHandler {
 ## Files Summary
 
 ### New Files
+
 | File | Purpose |
 |------|---------|
 | `docs/worker-crates/api-convergence-matrix.md` | Quick reference for aligned APIs |
 | `docs/worker-crates/example-handlers.md` | Side-by-side handler examples |
 
 ### Updated Files
+
 | File | Effort |
 |------|--------|
 | `docs/worker-crates/README.md` | Low |
@@ -298,6 +308,7 @@ impl StepHandler for MyHandler {
 ## Verification Checklist
 
 ### Code Accuracy
+
 - [ ] All Ruby examples use `call(context)` signature
 - [ ] All Python examples use `success()` / `failure()`
 - [ ] All registry examples use aligned method names
@@ -305,16 +316,19 @@ impl StepHandler for MyHandler {
 - [ ] All specialized handler examples aligned
 
 ### Cross-References
+
 - [ ] All links between docs work
 - [ ] No broken internal references
 - [ ] Convergence matrix linked from relevant docs
 
 ### Completeness
+
 - [ ] No references to old API names
 - [ ] All three languages covered in each section
 - [ ] Example handlers cover all patterns
 
 ### Build Verification
+
 - [ ] Documentation builds without warnings
 - [ ] All code examples are syntactically correct
 - [ ] Examples can be copy-pasted and work

@@ -9,6 +9,11 @@ license = "MIT"
 keywords = ["async", "orchestration", "shared", "task", "workflow"]
 categories = ["asynchronous", "database", "web-programming"]
 
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 # TAS-145: Ignore false positives from cargo-machete
 [package.metadata.cargo-machete]
 ignored = [

@@ -40,6 +40,7 @@ Tasker achieves remarkable throughput through a **hybrid event-driven architectu
 ### Performance Characteristics
 
 With `pg_notify` push notifications:
+
 - **Complex 7-step DAG completion**: < 133ms end-to-end
 - **Concurrency**: Hundreds of tasks simultaneously
 - **Hardware**: Even on resource-constrained laptops
@@ -68,11 +69,13 @@ pub struct PgmqNotifyListener {
 ```
 
 **Pros**:
+
 - Sub-millisecond notification latency
 - Atomic with message insertion (same transaction)
 - No additional infrastructure
 
 **Cons**:
+
 - PostgreSQL connection per listener
 - NOTIFY payload size limited (8KB)
 - Notification is "message exists", not message content
@@ -109,6 +112,7 @@ while let Some(delivery) = consumer.next().await {
 **Key Insight**: RabbitMQ doesn't need a "pg_notify equivalent" - it's push by default!
 
 **lapin Push Features**:
+
 | Feature | Support | Notes |
 |---------|---------|-------|
 | Async Stream consumer | ✅ | `futures::Stream` impl |
@@ -118,11 +122,13 @@ while let Some(delivery) = consumer.next().await {
 | Heartbeats | ✅ | Connection health |
 
 **Pros**:
+
 - Native push - no enhancement needed
 - Message content delivered immediately (not just notification)
 - Mature, battle-tested
 
 **Cons**:
+
 - Requires RabbitMQ infrastructure
 - Connection management complexity
 - No transactional coupling with PostgreSQL
@@ -152,6 +158,7 @@ loop {
 **Push Workaround**: SNS → SQS → Lambda, but adds latency and complexity.
 
 **Characteristics**:
+
 | Aspect | Value |
 |--------|-------|
 | Best-case latency | ~20-100ms (long poll return) |
@@ -178,6 +185,7 @@ let result = redis_client
 ```
 
 **Characteristics**:
+
 - `BLOCK 0` provides immediate notification on new messages
 - Consumer groups for competing consumers
 - Not true push (still a blocking call), but low latency

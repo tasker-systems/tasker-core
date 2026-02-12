@@ -70,12 +70,14 @@ Batch processing builds on and extends three foundational Tasker patterns:
 ### 1. DAG (Directed Acyclic Graph) Workflow Orchestration
 
 **What Batch Processing Inherits:**
+
 - Worker steps are full DAG nodes with standard state machines
 - Parent-child dependencies enforced via `tasker_workflow_step_edges`
 - Cycle detection prevents circular dependencies
 - Topological ordering ensures correct execution sequence
 
 **What Batch Processing Extends:**
+
 - **Dynamic node creation**: Template steps instantiated N times at runtime
 - **Edge generation**: Batchable step → worker instances → convergence step
 - **Transactional atomicity**: All workers created in single database transaction
@@ -111,17 +113,20 @@ tx.commit().await?; // Atomic - all workers or none
 ### 2. Retryability and Lifecycle Management
 
 **What Batch Processing Inherits:**
+
 - Standard `lifecycle.max_retries` configuration per template
 - Exponential backoff via `lifecycle.backoff_multiplier`
 - Staleness detection using `lifecycle.max_steps_in_process_minutes`
 - Standard state transitions (Pending → Enqueued → InProgress → Complete/Error)
 
 **What Batch Processing Extends:**
+
 - **Checkpoint-based resumability**: Workers checkpoint progress and resume from last cursor position
 - **Cursor preservation during retry**: `workflow_steps.results` field preserved by `ResetForRetry` action
 - **Additional staleness detection**: Checkpoint timestamp tracking alongside duration-based detection
 
 **Key Simplification:**
+
 - ❌ **No BatchRecoveryService** - Uses standard retry + DLQ
 - ❌ **No duplicate timeout settings** - Uses `lifecycle` config only
 - ✅ **Cursor data preserved** during `ResetForRetry`
@@ -140,11 +145,13 @@ tx.commit().await?; // Atomic - all workers or none
 ### 3. Deferred Convergence
 
 **What Batch Processing Inherits:**
+
 - **Intersection semantics**: Wait for declared dependencies ∩ actually created steps
 - **Template-level dependencies**: Convergence step depends on worker template, not instances
 - **Runtime resolution**: System computes effective dependencies when workers are created
 
 **What Batch Processing Extends:**
+
 - **Batch aggregation pattern**: Convergence steps aggregate results from N workers
 - **NoBatches scenario handling**: Placeholder worker created when dataset too small
 - **Scenario detection helpers**: `BatchAggregationScenario::detect()` for both cases
@@ -152,6 +159,7 @@ tx.commit().await?; // Atomic - all workers or none
 **Flow Comparison:**
 
 **Conditional Workflows** (Decision Points):
+
 ```
 decision_step → creates → option_a, option_b (conditional)
                             ↓
@@ -160,6 +168,7 @@ convergence_step (depends on option_a AND option_b templates)
 ```
 
 **Batch Processing** (Batchable Steps):
+
 ```
 batchable_step → creates → worker_001, worker_002, ..., worker_N
                             ↓
@@ -210,12 +219,14 @@ pub async fn determine_and_create_convergence_step(
 **Purpose**: Analyze a workload and decide whether to create batch workers.
 
 **Responsibilities**:
+
 1. Examine dataset (size, complexity, business logic)
 2. Calculate optimal worker count based on batch size
 3. Generate cursor configurations defining batch boundaries
 4. Return `BatchProcessingOutcome` instructing orchestration
 
 **Returns**: `BatchProcessingOutcome` enum with two variants:
+
 - `NoBatches`: Dataset too small or empty - create placeholder worker
 - `CreateBatches`: Create N workers with cursor configurations
 
@@ -276,6 +287,7 @@ async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult
 **Purpose**: Process a specific subset of data defined by cursor configuration.
 
 **Responsibilities**:
+
 1. Extract cursor config from `workflow_step.inputs`
 2. Check for `is_no_op` flag (NoBatches placeholder scenario)
 3. Process items within cursor range (start_cursor to end_cursor)
@@ -389,6 +401,7 @@ async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult
 **Purpose**: Aggregate results from all batch workers using deferred intersection semantics.
 
 **Responsibilities**:
+
 1. Detect scenario using `BatchAggregationScenario::detect()`
 2. Handle both NoBatches and WithBatches scenarios
 3. Aggregate metrics from all worker results
@@ -528,12 +541,14 @@ Checkpoint yielding enables **handler-driven progress persistence** during long-
 ### When to Use Checkpoint Yielding
 
 **Use checkpoint yielding when**:
+
 - Processing takes longer than your visibility timeout (prevents DLQ escalation)
 - You want resumable processing after transient failures
 - You need to periodically release resources (memory, connections)
 - Long-running operations need progress visibility
 
 **Don't use checkpoint yielding when**:
+
 - Batch processing completes quickly (<30 seconds)
 - The overhead of checkpointing exceeds the benefit
 - Operations are inherently non-resumable
@@ -579,6 +594,7 @@ end
 ```
 
 **BatchWorkerContext Accessors** (Ruby):
+
 - `checkpoint_cursor` - Current cursor position (or nil if no checkpoint)
 - `accumulated_results` - Previously accumulated results (or nil)
 - `has_checkpoint?` - Returns true if checkpoint data exists
@@ -615,6 +631,7 @@ class MyBatchWorkerHandler(BatchableHandler):
 ```
 
 **BatchWorkerContext Accessors** (Python):
+
 - `checkpoint_cursor: int | str | dict | None` - Current cursor position
 - `accumulated_results: dict | None` - Previously accumulated results
 - `has_checkpoint() -> bool` - Returns true if checkpoint data exists
@@ -655,6 +672,7 @@ class MyBatchWorkerHandler extends BatchableHandler {
 ```
 
 **BatchWorkerContext Properties** (TypeScript):
+
 - `checkpointCursor: number | string | Record<string, unknown> | undefined`
 - `accumulatedResults: Record<string, unknown> | undefined`
 - `hasCheckpoint(): boolean`
@@ -680,6 +698,7 @@ Checkpoints are persisted in the `checkpoint` JSONB column on `workflow_steps`:
 ```
 
 **Fields**:
+
 - `cursor` - Flexible JSON value representing position (integer, string, or object)
 - `items_processed` - Total items processed at this checkpoint
 - `timestamp` - ISO 8601 timestamp when checkpoint was created
@@ -724,6 +743,7 @@ Checkpoints are persisted in the `checkpoint` JSONB column on `workflow_steps`:
 ### Failure and Recovery
 
 **Transient Failure After Checkpoint**:
+
 1. Handler checkpoints at position 500
 2. Handler fails at position 750 (transient error)
 3. Step is retried (standard retry semantics)
@@ -732,6 +752,7 @@ Checkpoints are persisted in the `checkpoint` JSONB column on `workflow_steps`:
 6. Processing continues to completion
 
 **Permanent Failure**:
+
 1. Handler checkpoints at position 500
 2. Handler encounters non-retryable error
 3. Step transitions to Error state
@@ -741,21 +762,25 @@ Checkpoints are persisted in the `checkpoint` JSONB column on `workflow_steps`:
 ### Best Practices
 
 **Checkpoint Frequency**:
+
 - Too frequent: Overhead dominates (database writes, re-dispatch latency)
 - Too infrequent: Lost progress on failure, long recovery time
 - Rule of thumb: Checkpoint every 1-5 minutes of work, or every 1000-10000 items
 
 **Accumulated Results**:
+
 - Keep accumulated results small (summaries, counts, IDs)
 - For large result sets, write to external storage and store reference
 - Unbounded accumulated results can cause performance degradation
 
 **Cursor Design**:
+
 - Use monotonic cursors (integers, timestamps) when possible
 - Complex cursors (objects) are supported but harder to debug
 - Cursor must uniquely identify resume position
 
 **Idempotency**:
+
 - Items between last checkpoint and failure will be reprocessed
 - Ensure item processing is idempotent or use deduplication
 - Consider storing processed item IDs in accumulated_results
@@ -763,12 +788,14 @@ Checkpoints are persisted in the `checkpoint` JSONB column on `workflow_steps`:
 ### Monitoring
 
 **Checkpoint Events** (logged automatically):
+
 ```
 INFO checkpoint_yield_step_event step_uuid=abc cursor=1000 items_processed=1000
 INFO checkpoint_saved step_uuid=abc history_length=2
 ```
 
 **Metrics to Monitor**:
+
 - Checkpoint frequency per step
 - Average items processed between checkpoints
 - Checkpoint history size (detect unbounded growth)
@@ -777,11 +804,13 @@ INFO checkpoint_saved step_uuid=abc history_length=2
 ### Known Limitations
 
 **History Array Growth**: The `history` array grows with each checkpoint. For very long-running processes with frequent checkpoints, this can lead to large JSONB values. Consider:
+
 - Setting a maximum history length (future enhancement)
 - Clearing history on step completion
 - Using external storage for detailed history
 
 **Accumulated Results Size**: No built-in size limit on `accumulated_results`. Handlers must self-regulate to prevent database bloat. Consider:
+
 - Storing summaries instead of raw data
 - Using external storage for large intermediate results
 - Implementing size checks before checkpoint
@@ -839,6 +868,7 @@ steps:
 ### Runtime Execution Flow
 
 **1. Task Initialization**
+
 ```
 User creates task with context: { "csv_file_path": "/path/to/data.csv" }
 ↓
@@ -848,6 +878,7 @@ Orchestration discovers ready steps: [analyze_csv]
 ```
 
 **2. Batchable Step Execution**
+
 ```
 analyze_csv step enqueued to worker queue
 ↓
@@ -862,6 +893,7 @@ Step completes with batch_processing_outcome in results
 ```
 
 **3. Batch Worker Creation** (Orchestration)
+
 ```
 ResultProcessorActor processes analyze_csv completion
 ↓
@@ -886,6 +918,7 @@ Workers enqueued to worker queue with PGMQ notifications
 ```
 
 **4. Parallel Worker Execution**
+
 ```
 5 workers execute in parallel:
 
@@ -905,6 +938,7 @@ All workers complete
 ```
 
 **5. Convergence Step Execution**
+
 ```
 Orchestration discovers aggregate_csv_results is ready
 (all parent workers completed - intersection semantics)
@@ -924,6 +958,7 @@ Step completes
 ```
 
 **6. Task Completion**
+
 ```
 Orchestration detects all steps complete
 ↓
@@ -957,6 +992,7 @@ Convergence step detects NoBatches scenario:
 ```
 
 **Why placeholder workers?**
+
 - Maintains consistent DAG structure
 - Convergence step logic handles both scenarios uniformly
 - No special-case orchestration logic needed
@@ -1103,6 +1139,7 @@ pub struct CursorConfig {
 ```
 
 **Design Notes**:
+
 - Cursor values use `serde_json::Value` for flexibility
 - Supports integers, strings, timestamps, UUIDs, etc.
 - Batch IDs are zero-padded strings for consistent ordering
@@ -1176,6 +1213,7 @@ impl BatchWorkerInputs {
 ```
 
 **Storage Location**:
+
 - ✅ `workflow_steps.inputs` (instance-specific runtime data)
 - ❌ NOT in `step_definition.handler.initialization` (that's the template)
 
@@ -1573,11 +1611,13 @@ end
 **Scenario**: Process millions of records from a database, file, or API.
 
 **Why Batch Processing?**
+
 - Single worker would timeout
 - Memory constraints prevent loading entire dataset
 - Want parallelism for speed
 
 **Example**: Product catalog synchronization
+
 ```
 Batchable: Analyze product table (5 million products)
 Workers: 100 workers × 50,000 products each
@@ -1590,11 +1630,13 @@ Result: 5M products synced in 10 minutes vs 2 hours sequential
 **Scenario**: Process events from a time-series database or log aggregation system.
 
 **Why Batch Processing?**
+
 - Events span long time ranges
 - Want to process hourly/daily chunks in parallel
 - Need resumability for long-running processing
 
 **Example**: Analytics event processing
+
 ```
 Batchable: Analyze events (30 days × 24 hours)
 Workers: 720 workers (1 per hour)
@@ -1607,11 +1649,13 @@ Convergence: Aggregate daily/monthly metrics
 **Scenario**: Fetch data from multiple external APIs or services.
 
 **Why Batch Processing?**
+
 - Each source is independent
 - Want parallel fetching for speed
 - Some sources may fail (need retry per source)
 
 **Example**: Third-party data enrichment
+
 ```
 Batchable: Analyze customer list (partition by data provider)
 Workers: 5 workers (1 per provider: Stripe, Salesforce, HubSpot, etc.)
@@ -1624,11 +1668,13 @@ Convergence: Merge enriched customer profiles
 **Scenario**: Process multiple files (CSVs, images, documents).
 
 **Why Batch Processing?**
+
 - Each file is independent processing unit
 - Want parallelism across files
 - File sizes vary (dynamic batch sizing)
 
 **Example**: Image transformation pipeline
+
 ```
 Batchable: List S3 bucket objects (1000 images)
 Workers: 20 workers × 50 images each
@@ -1641,11 +1687,13 @@ Convergence: Verify all images transformed
 **Scenario**: Process data partitioned by geography (regions, countries, cities).
 
 **Why Batch Processing?**
+
 - Geographic boundaries provide natural partitions
 - Want parallel processing per region
 - Different regions may have different data volumes
 
 **Example**: Regional sales report generation
+
 ```
 Batchable: Analyze sales data (50 US states)
 Workers: 50 workers (1 per state)
@@ -1677,6 +1725,7 @@ Batch processing integrates seamlessly with the DLQ (Dead Letter Queue) system f
 Batch workers have **two staleness detection mechanisms**:
 
 **1. Duration-Based (Standard)**:
+
 ```yaml
 lifecycle:
   max_steps_in_process_minutes: 120  # DLQ threshold
@@ -1685,6 +1734,7 @@ lifecycle:
 If worker stays in `InProgress` state for > 120 minutes, flagged as stale.
 
 **2. Checkpoint-Based (Batch-Specific)**:
+
 ```rust
 // Workers checkpoint progress periodically
 if processed_count % checkpoint_interval == 0 {
@@ -1701,12 +1751,14 @@ If last checkpoint timestamp is too old, flagged as stale even if within duratio
 **Problem**: 3 out of 5 batch workers failed due to database connection timeout.
 
 **Step 1: Find the stuck task in DLQ**:
+
 ```bash
 # Get investigation queue (prioritized by age and reason)
 curl http://localhost:8080/v1/dlq/investigation-queue | jq
 ```
 
 **Step 2: Get task details and identify failed workers**:
+
 ```sql
 -- Get DLQ entry for the task
 SELECT
@@ -1733,6 +1785,7 @@ WHERE ws.task_uuid = 'task-uuid-here'
 ```
 
 **Result**:
+
 ```
 workflow_step_uuid | name                   | current_state | attempts | last_error
 -------------------|------------------------|---------------|----------|------------------
@@ -1776,6 +1829,7 @@ curl -X PATCH http://localhost:8080/v1/dlq/entry/${DLQ_ENTRY_UUID} \
 ```
 
 **Result**:
+
 - Workers 2, 4, 5 return to `Pending` state
 - Cursor configs preserved in `workflow_steps.inputs`
 - Retry attempt counter reset to 0
@@ -1787,6 +1841,7 @@ curl -X PATCH http://localhost:8080/v1/dlq/entry/${DLQ_ENTRY_UUID} \
 **Problem**: Worker 3 repeatedly fails due to malformed CSV row in its range (rows 401-600).
 
 **Investigation**:
+
 ```sql
 -- Get worker details
 SELECT
@@ -1799,6 +1854,7 @@ WHERE ws.workflow_step_uuid = 'uuid-worker-3';
 ```
 
 **Result**:
+
 ```
 name: process_csv_batch_003
 current_state: Error
@@ -1850,11 +1906,13 @@ curl -X PATCH http://localhost:8080/v1/tasks/${TASK_UUID}/workflow_steps/${STEP_
 ```
 
 **Result (Option 1)**:
+
 - Worker 3 marked `Complete` with manual results
 - Convergence step receives manual results in aggregation
 - Task completes successfully with note about manual intervention
 
 **Result (Option 2)**:
+
 - Worker 3 marked `ResolvedManually` (no results provided)
 - Convergence step detects missing results, adjusts aggregation
 - Task completes with reduced total (800 rows instead of 1000)
@@ -1864,6 +1922,7 @@ curl -X PATCH http://localhost:8080/v1/tasks/${TASK_UUID}/workflow_steps/${STEP_
 **Problem**: Worker 1 processing 10,000 rows, operator notices it's been running 90 minutes (threshold: 120 minutes).
 
 **Investigation**:
+
 ```sql
 -- Check last checkpoint
 SELECT
@@ -1877,6 +1936,7 @@ WHERE ws.workflow_step_uuid = 'uuid-worker-1';
 ```
 
 **Result**:
+
 ```
 name: process_large_batch_001
 current_state: InProgress
@@ -1909,6 +1969,7 @@ curl -X PATCH http://localhost:8080/v1/dlq/entry/${DLQ_ENTRY_UUID} \
 **Problem**: All 10 workers fail with "memory exhausted" error - batch size too large.
 
 **Investigation via API**:
+
 ```bash
 TASK_UUID="task-uuid-here"
 
@@ -1957,6 +2018,7 @@ curl -X POST http://localhost:8080/v1/tasks \
 ### DLQ Query Patterns for Batch Processing
 
 **1. Find DLQ entry for a batch processing task**:
+
 ```sql
 -- Get DLQ entry with task snapshot
 SELECT
@@ -1978,6 +2040,7 @@ LIMIT 1;
 ```
 
 **2. Check batch completion progress**:
+
 ```sql
 SELECT
     COUNT(*) FILTER (WHERE ws.current_state = 'Complete') as completed_workers,
@@ -1992,6 +2055,7 @@ WHERE ws.task_uuid = :task_uuid
 ```
 
 **3. Find workers with stale checkpoints**:
+
 ```sql
 SELECT
     ws.workflow_step_uuid,
@@ -2012,6 +2076,7 @@ ORDER BY time_since_checkpoint DESC;
 ```
 
 **4. Get aggregated batch task health**:
+
 ```sql
 SELECT
     t.task_uuid,
@@ -2036,6 +2101,7 @@ GROUP BY t.task_uuid, t.namespace_name, t.template_name, t.current_state, t.exec
 ```
 
 **5. Find all batch tasks in DLQ**:
+
 ```sql
 -- Find tasks with batch workers that are stuck
 SELECT
@@ -2824,11 +2890,13 @@ steps:
 **Guideline**: Balance parallelism with overhead.
 
 **Too Small**:
+
 - Excessive orchestration overhead
 - Too many database transactions
 - Diminishing returns on parallelism
 
 **Too Large**:
+
 - Workers timeout or OOM
 - Long retry times on failure
 - Reduced parallelism
@@ -2860,6 +2928,7 @@ handler:
 ```
 
 **Considerations**:
+
 - Database connection pool size
 - Memory per worker
 - External API rate limits
@@ -2870,12 +2939,14 @@ handler:
 **Guideline**: Use cursors that support resumability.
 
 **Good Cursor Types**:
+
 - ✅ Integer offsets: `start_cursor: 1000, end_cursor: 2000`
 - ✅ Timestamps: `start_cursor: "2025-01-01T00:00:00Z"`
 - ✅ Database IDs: `start_cursor: uuid_a, end_cursor: uuid_b`
 - ✅ Composite keys: `{ date: "2025-01-01", partition: "US-WEST" }`
 
 **Bad Cursor Types**:
+
 - ❌ Page numbers (data can shift between pages)
 - ❌ Non-deterministic ordering (random, relevance scores)
 - ❌ Mutable values (last_modified_at can change)
@@ -2892,11 +2963,13 @@ if processed_count % 100 == 0 {
 ```
 
 **Factors**:
+
 - Item processing time (faster = higher frequency)
 - Worker failure rate (higher = more frequent checkpoints)
 - Database write overhead (less frequent = better performance)
 
 **Recommended**:
+
 - Fast items (< 10ms each): Checkpoint every 1000 items
 - Medium items (10-100ms each): Checkpoint every 100 items
 - Slow items (> 100ms each): Checkpoint every 10 items
@@ -2904,25 +2977,31 @@ if processed_count % 100 == 0 {
 ### 5. Error Handling Strategies
 
 **FailFast** (default):
+
 ```rust
 FailureStrategy::FailFast
 ```
+
 - Worker fails immediately on first error
 - Suitable for: Data validation, schema violations
 - Retry preserves cursor for retry
 
 **ContinueOnFailure**:
+
 ```rust
 FailureStrategy::ContinueOnFailure
 ```
+
 - Worker processes all items, collects errors
 - Suitable for: Best-effort processing, partial results acceptable
 - Returns both results and error list
 
 **IsolateFailed**:
+
 ```rust
 FailureStrategy::IsolateFailed
 ```
+
 - Failed items moved to separate queue
 - Suitable for: Large batches with few expected failures
 - Allows manual review of failed items
@@ -2930,6 +3009,7 @@ FailureStrategy::IsolateFailed
 ### 6. Aggregation Patterns
 
 **Sum/Count**:
+
 ```rust
 let total = batch_results.iter()
     .map(|(_, r)| r.result.get("count").unwrap().as_u64().unwrap())
@@ -2937,6 +3017,7 @@ let total = batch_results.iter()
 ```
 
 **Max/Min**:
+
 ```rust
 let max_value = batch_results.iter()
     .filter_map(|(_, r)| r.result.get("max").and_then(|v| v.as_f64()))
@@ -2945,6 +3026,7 @@ let max_value = batch_results.iter()
 ```
 
 **Weighted Average**:
+
 ```rust
 let total_weight: u64 = weighted_values.iter().map(|(w, _)| w).sum();
 let weighted_avg = weighted_values.iter()
@@ -2953,6 +3035,7 @@ let weighted_avg = weighted_values.iter()
 ```
 
 **Merge HashMaps**:
+
 ```rust
 let mut merged = HashMap::new();
 for (_, result) in batch_results {
@@ -2967,6 +3050,7 @@ for (_, result) in batch_results {
 ### 7. Testing Strategies
 
 **Unit Tests**: Test handler logic independently
+
 ```rust
 #[test]
 fn test_cursor_generation() {
@@ -2978,6 +3062,7 @@ fn test_cursor_generation() {
 ```
 
 **Integration Tests**: Test with small datasets
+
 ```rust
 #[tokio::test]
 async fn test_batch_processing_integration() {
@@ -2991,6 +3076,7 @@ async fn test_batch_processing_integration() {
 ```
 
 **E2E Tests**: Test complete workflow with realistic data
+
 ```rust
 #[tokio::test]
 async fn test_csv_batch_processing_e2e() {
@@ -3006,6 +3092,7 @@ async fn test_csv_batch_processing_e2e() {
 ### 8. Monitoring and Observability
 
 **Metrics to Track**:
+
 - Worker creation time
 - Individual worker duration
 - Batch size distribution
@@ -3013,6 +3100,7 @@ async fn test_csv_batch_processing_e2e() {
 - Aggregation duration
 
 **Recommended Dashboards**:
+
 ```sql
 -- Batch processing health
 SELECT
@@ -3030,6 +3118,7 @@ WHERE task_uuid = :task_uuid
 Batch processing in Tasker provides a robust, production-ready pattern for parallel dataset processing:
 
 **Key Strengths**:
+
 - ✅ Builds on proven DAG, retry, and deferred convergence foundations
 - ✅ No special recovery system needed (uses standard DLQ + retry)
 - ✅ Transaction-based worker creation prevents corruption
@@ -3037,18 +3126,21 @@ Batch processing in Tasker provides a robust, production-ready pattern for paral
 - ✅ Language-agnostic design works across Rust and Ruby workers
 
 **Integration Points**:
+
 - **DAG**: Workers are full nodes with standard lifecycle
 - **Retryability**: Uses `lifecycle.max_retries` and exponential backoff
 - **Deferred Convergence**: Intersection semantics aggregate dynamic worker counts
 - **DLQ**: Standard operator workflows with cursor preservation
 
 **Production Readiness**:
+
 - 908 tests passing (Ruby workers)
 - Real-world CSV processing (1000 rows)
 - Docker integration working
 - Code review complete with recommended fixes
 
 **For More Information**:
+
 - **Conditional Workflows**: See `docs/conditional-workflows.md`
 - **DLQ System**: See `docs/dlq-system.md`
 - **Code Examples**: See `workers/rust/src/step_handlers/batch_processing_*.rs`

@@ -61,6 +61,7 @@ async fn test_example() {
 ```
 
 `AuthWebTestClient::new()` does:
+
 1. Loads `config/tasker/generated/auth-test.toml` (auth enabled, test keys)
 2. Resolves `jwt-public-key-test.pem` via `CARGO_MANIFEST_DIR`
 3. Creates `SystemContext` + `OrchestrationCore` + `AppState`

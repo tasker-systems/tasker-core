@@ -13,11 +13,13 @@ A comprehensive search identified **10 HashMap/collection-based concurrent data 
 **File**: `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs:255`
 
 **Current**:
+
 ```rust
 pending_events: Arc<RwLock<HashMap<Uuid, PendingEvent>>>  // std::sync::RwLock
 ```
 
 **Access Points**:
+
 - `poll()` (sync) - `write()` to insert pending event (line 410-421)
 - `poll_async()` - `write()` to insert pending event (line 455-467)
 - `complete()` (sync) - `write()` to remove pending event (line 503-509)
@@ -41,6 +43,7 @@ pending_events: Arc<RwLock<HashMap<Uuid, PendingEvent>>>  // std::sync::RwLock
 **Critical Observation**: The `poll()` and `complete()` methods are called from FFI (Ruby/Python) threads which are not tokio tasks. Using `std::sync::RwLock` is actually correct for the sync path. However, `poll_async()` and `complete_async()` also use the same lock - these DO run in async context.
 
 **Recommendation**: **DashMap** - eliminates the RwLock entirely. Insert/remove/read all become lock-free at the shard level. Key advantages:
+
 - No lock poisoning concern (current code handles it with `unwrap_or_else`)
 - Sharded concurrent access for FFI threads calling poll/complete simultaneously
 - `iter()` for metrics is infrequent and DashMap handles it safely
@@ -53,12 +56,14 @@ pending_events: Arc<RwLock<HashMap<Uuid, PendingEvent>>>  // std::sync::RwLock
 **File**: `tasker-orchestration/src/orchestration/state_manager.rs:97-98`
 
 **Current**:
+
 ```rust
 task_state_machines: Arc<Mutex<HashMap<Uuid, TaskStateMachine>>>  // tokio::sync::Mutex
 step_state_machines: Arc<Mutex<HashMap<Uuid, StepStateMachine>>>  // tokio::sync::Mutex
 ```
 
 **Access Points**:
+
 - `get_or_create_task_state_machine()` - lock → get or insert → clone → unlock (line 529)
 - `get_or_create_step_state_machine()` - lock → get or insert → clone → unlock (line 564)
 - Each acquisition holds the mutex across a potential database query for cache misses
@@ -79,6 +84,7 @@ step_state_machines: Arc<Mutex<HashMap<Uuid, StepStateMachine>>>  // tokio::sync
 **Critical Observation**: The mutex is held across a potential `.await` (database fetch on cache miss at lines 536-549, 571-584). This means during a cache miss, ALL other state machine lookups are blocked waiting. This is a significant contention point under load.
 
 **Recommendation**: **DashMap** - resolves the "lock held across await" problem:
+
 - Cache hits become shard-level reads with no contention
 - Cache misses only contend at the shard level during insert
 - The database fetch happens OUTSIDE any lock
@@ -92,11 +98,13 @@ step_state_machines: Arc<Mutex<HashMap<Uuid, StepStateMachine>>>  // tokio::sync
 **File**: `tasker-orchestration/src/orchestration/event_systems/orchestration_event_system.rs:97`
 
 **Current**:
+
 ```rust
 processing_latencies: std::sync::Mutex<Vec<Duration>>
 ```
 
 **Access Points**:
+
 - `record_latency()` - lock → push → conditional drain (line 312-324)
 - `processing_rate()` - lock → iterate last 100 (line 133-153)
 - `average_latency_ms()` - lock → iterate all (line 156-167)
@@ -117,11 +125,13 @@ processing_latencies: std::sync::Mutex<Vec<Duration>>
 **Critical Observation**: This is NOT a HashMap pattern - it's a bounded ring buffer for metrics aggregation. The `Vec` with `drain(0..500)` is an inefficient ring buffer. Also uses `std::sync::Mutex` in what appears to be an async context (within `OrchestrationEventSystem` methods).
 
 **Recommendation**: **`VecDeque<Duration>` with `tokio::sync::Mutex`** (simple improvement):
+
 - `VecDeque` is O(1) for both push_back and drain from front
 - `tokio::sync::Mutex` avoids blocking the runtime
 - Keeps the same semantics, minimal code change
 
 **Alternative**: If we want lock-free, `crossbeam::queue::ArrayQueue<Duration>` with capacity 1000:
+
 - True lock-free push (overwrites oldest on full)
 - For stats: snapshot into local vec, compute, discard
 - More complex but zero contention
@@ -133,11 +143,13 @@ processing_latencies: std::sync::Mutex<Vec<Duration>>
 **File**: `tasker-worker/src/worker/event_subscriber.rs:383`
 
 **Current**:
+
 ```rust
 correlation_tracker: Arc<std::sync::Mutex<HashMap<Uuid, PendingExecution>>>
 ```
 
 **Access Points**:
+
 - `track_pending_execution()` - lock → insert (line 422-426)
 - Async listener task - lock → remove (line 467-470)
 
@@ -157,6 +169,7 @@ correlation_tracker: Arc<std::sync::Mutex<HashMap<Uuid, PendingExecution>>>
 **Critical Observation**: `std::sync::Mutex` is locked inside an async task (line 467-470 inside `spawn_named!`). This can block the tokio runtime thread. The lock hold time is short (just remove), but it's still a concern under high throughput.
 
 **Recommendation**: **DashMap** - same pattern as FFI dispatch pending events:
+
 - Insert from sync context, remove from async context - DashMap handles both
 - No lock poisoning concern
 - Shard-level concurrency for parallel step executions
@@ -170,6 +183,7 @@ correlation_tracker: Arc<std::sync::Mutex<HashMap<Uuid, PendingExecution>>>
 **File**: `tasker-worker/src/worker/task_template_manager.rs:78`
 
 **Current**:
+
 ```rust
 cache: Arc<RwLock<HashMap<HandlerKey, CachedTemplate>>>
 ```
@@ -185,6 +199,7 @@ cache: Arc<RwLock<HashMap<HandlerKey, CachedTemplate>>>
 **File**: `tasker-shared/src/events/worker_events.rs:64`
 
 **Current**:
+
 ```rust
 event_correlations: Arc<RwLock<HashMap<Uuid, EventCorrelation>>>
 ```
@@ -310,6 +325,7 @@ The latency buffer is a special case - it's not a key-value store. Options:
 | `hdrhistogram` | Full percentile support | Loses individual values |
 
 **Chosen approach**: `tokio::sync::Mutex<VecDeque<Duration>>` because:
+
 - Minimal code change
 - Eliminates `std::sync::Mutex` in async context (the real problem)
 - `VecDeque::drain(..500)` is O(1) amortized (vs Vec's O(n) shift)

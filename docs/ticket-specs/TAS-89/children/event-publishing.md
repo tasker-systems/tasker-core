@@ -45,6 +45,7 @@ This is NOT a bug - it's a vestigial placeholder that should be removed.
 ### 1. Extensive Logging Already Exists
 
 The same file (`service.rs`) already logs:
+
 - `TASK_TEMPLATE_LOADED` / `TASK_TEMPLATE_FAILED` (lines 152-170)
 - `WORKFLOW_STEPS_CREATION_START` (lines 184-194)
 - `WORKFLOW_STEPS_CREATED` (lines 202-211)
@@ -65,6 +66,7 @@ Task initialization is a **system event**, not a business event.
 ### 4. System Events Use PGMQ Commands
 
 Per `docs/architecture/events-and-commands.md`, task initialization flows through:
+
 ```
 PGMQ TaskRequestMessage → InitializeTask Command → TaskRequestActor
 ```
@@ -133,6 +135,7 @@ cargo clippy --all-targets --all-features
 ## Risk Assessment
 
 **Risk**: None
+
 - Removing a no-op function that does nothing
 - Existing logging and metrics provide full observability
 - No runtime behavior change
@@ -144,6 +147,7 @@ cargo clippy --all-targets --all-features
 **Alternative**: Implement the event publishing as originally planned.
 
 **Why Rejected**:
+
 - Would duplicate existing logging coverage
 - Domain events are for step handlers, not orchestration internals
 - System event architecture (PGMQ commands) already handles task initialization

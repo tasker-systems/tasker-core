@@ -21,18 +21,21 @@ The command processor was 1,164 lines, mixing routing, hydration, validation, an
 Adopt a lightweight actor pattern with message-based interfaces:
 
 **Core Abstractions**:
+
 1. `OrchestrationActor` trait with lifecycle hooks (`started()`, `stopped()`)
 2. `Message` trait for type-safe messages with associated `Response` type
 3. `Handler<M>` trait for async message processing
 4. `ActorRegistry` for centralized actor management
 
 **Four Orchestration Actors**:
+
 1. **TaskRequestActor**: Task initialization and request processing
 2. **ResultProcessorActor**: Step result processing
 3. **StepEnqueuerActor**: Step enqueueing coordination
 4. **TaskFinalizerActor**: Task finalization with atomic claiming
 
 **Implementation Approach**:
+
 - Greenfield migration (no dual support)
 - Actors wrap existing services, not replace them
 - Arc-wrapped actors for efficient cloning across threads

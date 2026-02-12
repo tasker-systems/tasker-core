@@ -55,12 +55,14 @@ Create the complete TypeScript worker server including bootstrap process, lifecy
 ## Reference Implementations
 
 ### Python (Most Complete)
+
 - `workers/python/bin/server.py` - Complete server lifecycle (lines 1-356)
 - `workers/python/python/tasker_core/bootstrap.py` - Bootstrap API (lines 1-168)
 - `workers/python/python/tasker_core/event_poller.py` - FFI polling
 - `workers/python/python/tasker_core/step_execution_subscriber.py` - Handler dispatch
 
 ### Ruby
+
 - `workers/ruby/bin/server.rb` - Server entry point
 - `workers/ruby/lib/tasker_core/bootstrap.rb` - Bootstrap orchestration
 
@@ -201,6 +203,7 @@ export function logTrace(message: string, fields?: LogFields): void {
 **Structured Field Conventions** (matching TAS-29 Phase 6.2):
 
 **Required fields** (when applicable):
+
 - `correlation_id`: Always include for distributed tracing
 - `task_uuid`: Include for task-level operations
 - `step_uuid`: Include for step-level operations
@@ -209,12 +212,14 @@ export function logTrace(message: string, fields?: LogFields): void {
 - `component`: Component/subsystem identifier (e.g., "handler", "registry", "event_poller")
 
 **Optional fields**:
+
 - `duration_ms`: For timed operations
 - `error_message`: For error context
 - `error_class`: For error type information
 - `retry_count`: For retryable operations
 
 **Log Level Guidelines** (matching TAS-29 Phase 6.1):
+
 - **ERROR**: Unrecoverable failures requiring intervention
 - **WARN**: Degraded operation, retryable failures
 - **INFO**: Lifecycle events, state transitions
@@ -1431,15 +1436,18 @@ await poller.stop();
 ## Dependencies
 
 **Requires**:
+
 - TAS-101: FFI Bridge and strongly-typed `TaskerRuntime` interface
 - TAS-102: Handler API and Registry
 - TAS-103: Specialized Handlers (optional, for examples)
 
 **Blocks**:
+
 - TAS-105: Testing and Examples
 - TAS-107: Documentation
 
 **Key Dependency Notes**:
+
 - All FFI calls use the strongly-typed `TaskerRuntime` interface from TAS-101
 - This provides full type safety: `runtime.bootstrapWorker(config)` returns `BootstrapResult`
 - No generic `callFfiFunction()` calls - every method has explicit types
@@ -1479,6 +1487,7 @@ Use Node.js built-in `EventEmitter` (works in both Bun and Node.js) for the even
 ### Shutdown Order
 
 Critical to follow this exact order to prevent data loss:
+
 1. Stop EventPoller (no new events)
 2. Stop StepExecutionSubscriber (no new handler invocations)
 3. Clear EventBridge (cleanup subscriptions)

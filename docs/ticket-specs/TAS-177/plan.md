@@ -114,6 +114,7 @@ Add Tonic gRPC support to orchestration, worker, and client crates. This builds 
 ### Previous Sessions
 
 **Phase 4 - Worker gRPC**:
+
 - Created `SharedWorkerServices` pattern mirroring orchestration
 - Worker bootstrap refactoring with helper functions
 - FFI bridge fixes for async `stop()` method (Python, Ruby, TypeScript)
@@ -122,6 +123,7 @@ Add Tonic gRPC support to orchestration, worker, and client crates. This builds 
 - Dead code cleanup (protected_routes removal)
 
 **Phases 1-3 - Orchestration gRPC**:
+
 - Proto definitions audited and rewritten to match REST API exactly
 - SharedApiServices architecture for REST/gRPC service sharing
 - Bootstrap refactoring with 11 focused helper functions
@@ -152,6 +154,7 @@ proto/
 ### 1.2 Workspace Dependencies ✅
 
 **Cargo.toml** (workspace):
+
 ```toml
 [workspace.dependencies]
 tonic = "0.13"
@@ -167,12 +170,14 @@ prost-types = "0.13"
 ### 1.4 Proto Module Exports ✅
 
 **tasker-shared/src/proto/mod.rs**:
+
 - Exports generated types via `tonic::include_proto!`
 - Re-exports common types at module level
 - Provides `server` and `client` submodules for ergonomic imports
 - `FILE_DESCRIPTOR_SET` for gRPC reflection
 
 **tasker-shared/src/proto/conversions.rs** (NEW):
+
 - `From<TaskState> for proto::TaskState` and reverse
 - `From<WorkflowStepState> for proto::StepState` and reverse
 - `From<&TaskResponse> for proto::Task`
@@ -207,17 +212,20 @@ tasker-orchestration/src/grpc/
 ### 2.2 Completed Implementation Details
 
 **GrpcState** (`state.rs`):
+
 - Mirrors `web/state.rs` pattern
 - Shares `TaskService`, `SecurityService`, `OrchestrationCore`
 - Provides `check_backpressure()` for service protection
 
 **Auth Interceptor** (`interceptors/auth.rs`):
+
 - Async-only authentication via `AuthInterceptor::authenticate()`
 - Extracts Bearer token or API key from gRPC metadata
 - Returns `SecurityContext` for permission checking
 - **Note**: Removed sync interceptor (security theater - can't do real validation)
 
 **Task Service** (`services/tasks.rs`):
+
 - `CreateTask` - Returns full `TaskResponse` (same as REST GET)
 - `GetTask` - With optional context inclusion
 - `ListTasks` - Paginated with filters
@@ -226,6 +234,7 @@ tasker-orchestration/src/grpc/
 - Uses `From<&TaskResponse> for proto::Task` trait from tasker-shared
 
 **Conversions** (`conversions.rs`):
+
 - Re-exports `datetime_to_timestamp` from tasker-shared
 - Provides string-based state conversions for database fields
 - Uses `From` traits from tasker-shared for enum conversions
@@ -233,6 +242,7 @@ tasker-orchestration/src/grpc/
 ### 2.3 Key Design Decision: Unified Response Shape
 
 **TaskService.create_task()** now returns `TaskResponse` (same as `get_task`):
+
 - Follows REST best practice: POST returns same representation as GET
 - Updated REST handler, gRPC handler, client, CLI, and tests
 
@@ -249,6 +259,7 @@ tasker-orchestration/src/grpc/
 ### 2.5 Dual-Server Startup ✅
 
 **Implementation** (`bootstrap.rs`):
+
 - Added `grpc_server_handle` field to `OrchestrationSystemHandle` (feature-gated)
 - gRPC server starts via `GrpcServer::spawn()` alongside REST when enabled
 - `GrpcState::from_app_state()` creates gRPC state from existing `AppState`
@@ -264,6 +275,7 @@ tasker-orchestration/src/grpc/
 ### 3.1 GrpcConfig Added
 
 **tasker-shared/src/config/tasker.rs**:
+
 ```rust
 pub struct GrpcConfig {
     pub enabled: bool,              // default: true
@@ -281,6 +293,7 @@ pub struct GrpcConfig {
 ```
 
 **OrchestrationConfig** now includes:
+
 ```rust
 pub grpc: Option<GrpcConfig>,
 ```
@@ -288,6 +301,7 @@ pub grpc: Option<GrpcConfig>,
 ### 3.2 Config Files ✅
 
 **Base Configuration** (`config/tasker/base/orchestration.toml`):
+
 ```toml
 [orchestration.grpc]
 enabled = true
@@ -302,6 +316,7 @@ enable_health_service = true
 ```
 
 **Environment Overrides**:
+
 - `development/orchestration.toml` - Reflection enabled for grpcurl debugging
 - `production/orchestration.toml` - Reflection disabled, higher concurrency (500 streams)
 - `test/orchestration.toml` - Localhost binding (127.0.0.1:9090)
@@ -309,16 +324,19 @@ enable_health_service = true
 ### 3.3 Environment & Cluster Configuration ✅
 
 **Single-Instance** (`config/dotenv/orchestration.env`):
+
 ```bash
 TASKER_ORCHESTRATION_GRPC_BIND_ADDRESS=0.0.0.0:9090
 ```
 
 **Single-Instance Worker** (`config/dotenv/rust-worker.env`):
+
 ```bash
 TASKER_WORKER_GRPC_BIND_ADDRESS=0.0.0.0:9100
 ```
 
 **Multi-Instance Cluster** (`config/dotenv/cluster.env`):
+
 ```bash
 # Port allocation (mirrors REST pattern)
 TASKER_ORCHESTRATION_GRPC_BASE_PORT=9090    # 9090-9099 for up to 10 instances
@@ -332,6 +350,7 @@ TASKER_TEST_WORKER_GRPC_URL=http://localhost:9100          # Single-instance com
 ```
 
 **Cluster Script** (`cargo-make/scripts/multi-deploy/start-cluster.sh`):
+
 - Calculates dynamic gRPC port: `GRPC_PORT = GRPC_BASE_PORT + (instance - 1)`
 - Exports `TASKER_ORCHESTRATION_GRPC_BIND_ADDRESS` for orchestration instances
 - Exports `TASKER_WORKER_GRPC_BIND_ADDRESS` for worker-rust instances
@@ -348,6 +367,7 @@ Mirror orchestration gRPC pattern for worker services. Worker has a smaller API 
 ### 4.2 Proto Files (Reuse Common + Worker-Specific)
 
 Worker reuses existing proto files:
+
 - Reuse: `common.proto`, `health.proto`, `templates.proto`, `config.proto`
 
 ### 4.3 REST Endpoints Mirrored
@@ -384,6 +404,7 @@ tasker-worker/src/grpc/
 ### 4.5 Configuration (worker.toml) ✅
 
 `[worker.grpc]` section added to base and environment configs:
+
 ```toml
 [worker.grpc]
 enabled = true
@@ -461,6 +482,7 @@ pub struct OrchestrationGrpcClient {
 ```
 
 **Implemented Methods**:
+
 - Task operations: `create_task()`, `get_task()`, `list_tasks()`, `cancel_task()`, `get_task_context()`
 - Step operations: `get_step()`, `list_steps()`, `resolve_step()`, `get_step_audit()`
 - Template operations: `list_templates()`, `get_template()`
@@ -481,6 +503,7 @@ pub struct WorkerGrpcClient {
 ```
 
 **Implemented Methods**:
+
 - Health: `health_check()`, `liveness_probe()`, `readiness_probe()`, `get_detailed_health()`
 - Templates: `list_templates()`, `get_template()`
 - Config: `get_config()`
@@ -578,6 +601,7 @@ let checks = response.checks.ok_or_else(|| {
 ## Files Modified
 
 ### Proto Files (Audited & Rewritten)
+
 | File | Status | Change |
 |------|--------|--------|
 | `proto/tasker/v1/common.proto` | ✅ | Fixed TaskState (12 states) and StepState (10 states) enums |
@@ -590,6 +614,7 @@ let checks = response.checks.ok_or_else(|| {
 | `proto/tasker/v1/config.proto` | ✅ | Rewritten: typed safe config response |
 
 ### Shared Library
+
 | File | Status | Change |
 |------|--------|--------|
 | `tasker-shared/Cargo.toml` | ✅ | Added prost, tonic-build, grpc-api feature |
@@ -600,6 +625,7 @@ let checks = response.checks.ok_or_else(|| {
 | `tasker-shared/src/config/tasker.rs` | ✅ | GrpcConfig struct |
 
 ### Orchestration gRPC Services
+
 | File | Status | Change |
 |------|--------|--------|
 | `tasker-orchestration/Cargo.toml` | ✅ | Added tonic, prost |
@@ -618,6 +644,7 @@ let checks = response.checks.ok_or_else(|| {
 | `tasker-orchestration/src/grpc/services/config.rs` | ✅ | ConfigService (1 RPC) |
 
 ### SharedApiServices Architecture (TAS-177 Refactor)
+
 | File | Status | Change |
 |------|--------|--------|
 | `tasker-orchestration/src/services/mod.rs` | ✅ | Export `SharedApiServices` |
@@ -630,6 +657,7 @@ let checks = response.checks.ok_or_else(|| {
 | `tasker-orchestration/tests/web/auth_test_helpers.rs` | ✅ | Uses SharedApiServices pattern |
 
 ### Other Changes
+
 | File | Status | Change |
 |------|--------|--------|
 | `Cargo.toml` | ✅ | Added tonic/prost workspace dependencies |
@@ -648,6 +676,7 @@ let checks = response.checks.ok_or_else(|| {
 | `cargo-make/scripts/multi-deploy/start-cluster.sh` | ✅ | Dynamic gRPC port calculation |
 
 ### Test Updates
+
 | File | Status | Change |
 |------|--------|--------|
 | `tests/e2e/rust/*.rs` (8 files) | ✅ | Updated `.step_count` → `.total_steps` for TaskResponse |
@@ -655,6 +684,7 @@ let checks = response.checks.ok_or_else(|| {
 | `tests/common/lifecycle_test_manager.rs` | ✅ | Kept `.step_count` for TaskInitializationResult |
 
 ### Worker gRPC & Bootstrap (Latest Session)
+
 | File | Status | Change |
 |------|--------|--------|
 | `tasker-worker/src/services/shared.rs` | ✅ | **NEW** - SharedWorkerServices pattern |
@@ -666,6 +696,7 @@ let checks = response.checks.ok_or_else(|| {
 | `tasker-worker/Cargo.toml` | ✅ | Updated cargo-machete ignores |
 
 ### FFI Bridge Fixes (Async stop())
+
 | File | Status | Change |
 |------|--------|--------|
 | `workers/python/src/bridge.rs` | ✅ | `runtime.block_on(worker.stop())` |
@@ -674,6 +705,7 @@ let checks = response.checks.ok_or_else(|| {
 | `workers/rust/src/main.rs` | ✅ | Added `.await` to `worker.stop()` |
 
 ### Config Files Updated
+
 | File | Status | Change |
 |------|--------|--------|
 | `config/tasker/generated/orchestration-test.toml` | ✅ | Regenerated with gRPC section |
@@ -687,6 +719,7 @@ let checks = response.checks.ok_or_else(|| {
 | `tasker-shared/src/config/config_loader.rs` | ✅ | Added gRPC bind address env vars to allowlist |
 
 ### Dead Code Cleanup (protected_routes)
+
 | File | Status | Change |
 |------|--------|--------|
 | `tasker-shared/src/config/tasker.rs` | ✅ | Removed ProtectedRouteConfig, RouteAuthConfig, routes_map() |
@@ -696,6 +729,7 @@ let checks = response.checks.ok_or_else(|| {
 | `config/tasker/base/orchestration.toml` | ✅ | Removed [[orchestration.web.auth.protected_routes]] |
 
 ### Phase 5: gRPC Client Files
+
 | File | Status | Change |
 |------|--------|--------|
 | `tasker-client/src/grpc_clients/mod.rs` | ✅ | Module exports for gRPC clients |
@@ -708,6 +742,7 @@ let checks = response.checks.ok_or_else(|| {
 | `tasker-client/Cargo.toml` | ✅ | Added tonic dependency, grpc feature |
 
 ### Phase 5: Proto Schema Alignment
+
 | File | Status | Change |
 |------|--------|--------|
 | `proto/tasker/v1/health.proto` | ✅ | PoolDetail: 5→9 fields, PoolUtilizationInfo: named pools |
@@ -719,6 +754,7 @@ let checks = response.checks.ok_or_else(|| {
 | `tasker-shared/build.rs` | ✅ | Fixed clippy cloned_ref_to_slice_refs lint |
 
 ### Phase 5: Documentation ("Fail Loudly" Principle)
+
 | File | Status | Change |
 |------|--------|--------|
 | `docs/principles/tasker-core-tenets.md` | ✅ | Added Tenet #11: Fail Loudly |
@@ -727,6 +763,7 @@ let checks = response.checks.ok_or_else(|| {
 | `docs/principles/README.md` | ✅ | Added Fail Loudly to index |
 
 ### Phase 8: CI Integration & Code Quality
+
 | File | Status | Change |
 |------|--------|--------|
 | `.github/actions/setup-rust-cache/action.yml` | ✅ | **NEW** - Reusable Rust cache configuration |
@@ -763,6 +800,7 @@ let checks = response.checks.ok_or_else(|| {
 ### 6.2 Client Profile System ✅
 
 Added nextest-style profiles to `tasker-client`:
+
 - [x] Add `Transport` enum (REST/gRPC) to `tasker-client/src/config.rs`
 - [x] Add profile support to `ClientConfig` (`load_profile()`, `list_profiles()`, `find_profile_config_file()`)
 - [x] Add `--profile` flag to CLI (`tasker-client/src/bin/tasker-cli.rs`)
@@ -772,6 +810,7 @@ Added nextest-style profiles to `tasker-client`:
 ### 6.3 Transport Abstraction Layer ✅
 
 Created unified transport abstraction:
+
 - [x] `OrchestrationClient` trait in `tasker-client/src/transport.rs`
 - [x] `RestOrchestrationClient` implementing the trait
 - [x] `GrpcOrchestrationClient` implementing the trait (feature-gated)
@@ -781,6 +820,7 @@ Created unified transport abstraction:
 ### 6.4 IntegrationTestManager gRPC Support ✅
 
 Extended `tests/common/integration_test_manager.rs`:
+
 - [x] Added `transport` field to `IntegrationConfig`
 - [x] Added gRPC URL fields (`orchestration_grpc_url`, `worker_grpc_url`)
 - [x] Added `TASKER_TEST_TRANSPORT` env var support (rest/grpc)
@@ -793,6 +833,7 @@ Extended `tests/common/integration_test_manager.rs`:
 ### 6.5 gRPC Test Infrastructure ✅
 
 Created gRPC test files:
+
 - [x] `tests/grpc_tests.rs` - Entry point with feature gate
 - [x] `tests/grpc/mod.rs` - Module definitions
 - [x] `tests/grpc/health_tests.rs` - Health endpoint tests
@@ -801,6 +842,7 @@ Created gRPC test files:
 ### 6.6 Cargo Make Tasks ✅
 
 Added to `Makefile.toml`:
+
 - [x] `test-grpc` (alias: `tg`) - All gRPC tests
 - [x] `test-grpc-health` - gRPC health endpoint tests
 - [x] `test-grpc-parity` (alias: `tgp`) - REST/gRPC parity tests
@@ -899,7 +941,9 @@ During implementation, a comprehensive audit revealed significant issues with th
 ### Issues Found and Fixed
 
 #### 1. State Enum Mismatches (common.proto)
+
 **Problem**: Proto enums had invented states and lossy mappings.
+
 - Original had `TIMED_OUT`, `RETRYING` which don't exist in domain
 - Missing states like `WaitingForDependencies`, `BlockedByFailures`, `ResolvedManually`
 - Conversion code was mapping distinct states to same proto value (lossy)
@@ -907,45 +951,57 @@ During implementation, a comprehensive audit revealed significant issues with th
 **Fix**: 1:1 exact mapping for all 12 TaskState and 10 WorkflowStepState variants.
 
 #### 2. DLQ Semantic Mismatch (dlq.proto)
+
 **Problem**: Proto modeled traditional message queue DLQ with retry/discard operations.
+
 - Had `RetryEntry`, `DiscardEntry`, `BulkRetry`, `BulkDiscard` RPCs
 - Actual system is an **investigation tracking system**, not message queue
 
 **Fix**: Complete rewrite with correct RPCs:
+
 - `ListEntries`, `GetEntryByTask`, `UpdateInvestigation`
 - `GetStats`, `GetInvestigationQueue`, `GetStalenessMonitoring`
 - Added `DlqResolutionStatus`, `DlqReason`, `StalenessHealthStatus` enums
 
 #### 3. Templates Invented Types (templates.proto)
+
 **Problem**: Had `ListHandlers` RPC and `Handler` type that don't exist.
 
 **Fix**: Rewritten to match actual API:
+
 - `ListTemplates` → `NamespaceSummary`, `TemplateSummary`
 - `GetTemplate` → `TemplateDetail`, `StepDefinition`
 
 #### 4. Analytics Over-Designed (analytics.proto)
+
 **Problem**: Had 5 detailed RPCs with percentile stats, queue metrics, throughput buckets.
 
 **Fix**: Simplified to match actual 2 endpoints:
+
 - `GetPerformanceMetrics` → `PerformanceMetrics`
 - `GetBottleneckAnalysis` → `SlowStepInfo`, `SlowTaskInfo`, `ResourceUtilization`
 
 #### 5. Health Complexity (health.proto)
+
 **Problem**: Used enums for status, had `WatchHealth` streaming, `SystemMetrics` with CPU/memory.
 
 **Fix**: Simplified to match Kubernetes probes:
+
 - String-based status values ("healthy", "degraded", "unhealthy")
 - 4 RPCs: `CheckHealth`, `CheckLiveness`, `CheckReadiness`, `CheckDetailedHealth`
 - Removed unused `WatchHealth` streaming
 
 #### 6. Config Invented RPCs (config.proto)
+
 **Problem**: Had `GetConfigSection`, `ValidateConfig` that don't exist in REST.
 
 **Fix**: Single `GetConfig` with typed `OrchestrationConfigResponse`:
+
 - `ConfigMetadata`, `SafeAuthConfig`, `SafeCircuitBreakerConfig`
 - `SafeDatabasePoolConfig`, `SafeMessagingConfig`
 
 #### 7. Naming Convention (all protos)
+
 **Problem**: Used `task_id`, `step_id` but codebase uses `task_uuid`, `step_uuid`.
 
 **Fix**: All identifiers updated to `*_uuid` suffix for consistency.
@@ -967,10 +1023,12 @@ Since proto files are manually maintained and must match Rust types exactly, we 
 
 1. **Compile-time tests** - Tests that enumerate expected fields on proto messages and verify they match Rust struct fields
 2. **Source references** - Each proto message includes a comment referencing the Rust type it must match:
+
    ```protobuf
    // Task entity - matches TaskResponse from REST API
    // See: tasker-shared/src/types/api/orchestration.rs
    ```
+
 3. **Roundtrip tests** - For state enums, verify lossless conversion (already implemented)
 
 ### Future Consideration
@@ -1004,6 +1062,7 @@ pub grpc_server_handle: Option<crate::grpc::GrpcServerHandle>,
 ```
 
 This required:
+
 - Two versions of `OrchestrationSystemHandle::new()` with conditional compilation
 - Conditional gRPC startup logic in `bootstrap()`
 - Graceful degradation when feature is disabled
@@ -1034,6 +1093,7 @@ pub struct SharedApiServices {
 ```
 
 **Benefits**:
+
 - Services are created once via `SharedApiServices::from_orchestration_core()`
 - Both `AppState` (REST) and `GrpcState` (gRPC) hold `Arc<SharedApiServices>`
 - No duplication of service construction logic
@@ -1041,6 +1101,7 @@ pub struct SharedApiServices {
 - Bootstrap creates `SharedApiServices` once, passes to both APIs
 
 **State Wrappers**:
+
 - `AppState` holds `services: Arc<SharedApiServices>` + web-specific config
 - `GrpcState` holds `services: Arc<SharedApiServices>` + gRPC-specific config
 - Both use accessor methods: `state.task_service()`, `state.step_service()`, etc.
@@ -1050,6 +1111,7 @@ pub struct SharedApiServices {
 The `bootstrap()` method was refactored from a monolithic function into focused helper functions:
 
 **Extracted Helper Functions**:
+
 1. `initialize_orchestration_core()` - Creates SystemContext and OrchestrationCore, starts the core
 2. `initialize_queues()` - Sets up orchestration-owned and namespace queues
 3. `is_any_api_enabled()` - Checks feature flags + configuration
@@ -1065,6 +1127,7 @@ The `bootstrap()` method was refactored from a monolithic function into focused 
 **Feature Dependency**: `grpc-api` now requires `web-api` in Cargo.toml because `SharedApiServices` depends on types from the web module (`WebDatabaseCircuitBreaker`, `OrchestrationStatus`). This constraint is documented with a note that these types could be refactored to a common module to enable gRPC-only deployments in the future.
 
 **Feature Combinations** (mutually exclusive in bootstrap):
+
 1. `#[cfg(feature = "grpc-api")]` - gRPC enabled (web-api automatically enabled)
 2. `#[cfg(all(feature = "web-api", not(feature = "grpc-api")))]` - Web-only
 3. `#[cfg(not(feature = "web-api"))]` - Neither API (orchestration-only)
@@ -1072,18 +1135,21 @@ The `bootstrap()` method was refactored from a monolithic function into focused 
 ### Environment Variable Layering Pattern
 
 The dotenv system uses layered files assembled in order:
+
 1. `base.env` - Common settings (RUST_LOG, paths)
 2. `test.env` - Test environment (DATABASE_URL, JWT keys)
 3. `cluster.env` - Multi-instance settings (port allocation, test URLs)
 4. `orchestration.env` / `worker-*.env` - Service-specific settings
 
 For gRPC, this means:
+
 - `orchestration.env` sets default `TASKER_ORCHESTRATION_GRPC_BIND_ADDRESS=0.0.0.0:9190`
 - `rust-worker.env` sets default `TASKER_WORKER_GRPC_BIND_ADDRESS=0.0.0.0:9191`
 - `cluster.env` provides `TASKER_ORCHESTRATION_GRPC_BASE_PORT=9190` and `TASKER_WORKER_RUST_GRPC_BASE_PORT=9191` for dynamic allocation
 - `start-cluster.sh` calculates per-instance ports: `BASE_PORT + (instance - 1)`
 
 **Port Allocation Pattern:**
+
 | Protocol | Orchestration | Rust Worker | Ruby Worker | Python Worker | TS Worker |
 |----------|--------------|-------------|-------------|---------------|-----------|
 | REST     | 8080-8089    | 8100-8109   | 8200-8209   | 8300-8309     | 8400-8409 |
@@ -1113,11 +1179,13 @@ message CancelTaskResponse {
 ```
 
 This design choice means:
+
 - **gRPC clients** check `response.success` without exception handling for expected business outcomes
 - **REST clients** catch 400 errors and parse error body for the same information
 - The gRPC approach avoids exception-based control flow for non-exceptional cases
 
 **Client code pattern (gRPC)**:
+
 ```rust
 let response = client.cancel_task(request).await?; // Only fails on transport/auth errors
 if !response.success {
@@ -1154,6 +1222,7 @@ pub struct SharedWorkerServices {
 ```
 
 **Bootstrap Helpers Extracted**:
+
 1. `create_shared_services()` - Creates SharedWorkerServices once
 2. `create_web_state_if_enabled()` - Creates WorkerAppState wrapping shared services
 3. `start_grpc_server_if_enabled()` - Creates and spawns gRPC server
@@ -1178,6 +1247,7 @@ This blocks the FFI thread while waiting for async shutdown to complete, which i
 **Problem**: The `protected_routes` configuration was still being loaded and parsed but was never used - TAS-176 replaced it with SecurityContext-based permission checks in handlers.
 
 **Solution**: Complete removal across all layers:
+
 1. Removed `ProtectedRouteConfig` and `RouteAuthConfig` structs
 2. Removed `routes_map()` method and route matching functions
 3. Removed dead tests that tested the unused configuration
@@ -1195,6 +1265,7 @@ This blocks the FFI thread while waiting for async shutdown to complete, which i
 **Problem**: Initial gRPC client conversions used `unwrap_or_default()` pervasively, creating "phantom data" - values that look valid but represent nothing real.
 
 **Example of the problem**:
+
 ```rust
 // Server returns empty response (protocol violation)
 // Client fabricates a response with zeros/empty strings
@@ -1207,6 +1278,7 @@ let health = BasicHealthResponse {
 Consumers cannot distinguish "data was missing" from "data was legitimately zero/empty". This breaks the trust contract.
 
 **Solution**: Return explicit errors for missing required fields:
+
 ```rust
 let checks = response.checks.ok_or_else(|| {
     ClientError::invalid_response(
@@ -1232,11 +1304,13 @@ When updating proto schemas to match Rust domain types, changes cascade through 
 ### Centralized Conversions Pattern
 
 **Problem**: Conversion functions were scattered across orchestration_grpc_client.rs and worker_grpc_client.rs, making it hard to:
+
 - Audit for phantom data patterns
 - Ensure consistency between clients
 - Apply the "fail loudly" principle uniformly
 
 **Solution**: Created `tasker-client/src/grpc_clients/conversions.rs` as the single location for all proto-to-domain conversions:
+
 - 40+ conversion functions
 - Each validates required fields
 - Clear naming: `proto_xxx_to_domain()`
@@ -1269,6 +1343,7 @@ The distinction is semantic, not syntactic. The domain model defines what "requi
 1. **Servers run both transports**: Orchestration and worker services expose both REST and gRPC APIs simultaneously when configured. There's no need for a server-side transport flag.
 
 2. **Clients use profiles**: The `tasker-client` CLI uses a profile-based configuration system (inspired by nextest):
+
    ```toml
    # .config/tasker-client.toml
    [profile.default]
@@ -1285,11 +1360,13 @@ The distinction is semantic, not syntactic. The domain model defines what "requi
    ```
 
 3. **Environment variable override**: `TASKER_CLIENT_TRANSPORT` or `TASKER_TEST_TRANSPORT` can override the transport for testing:
+
    ```bash
    TASKER_TEST_TRANSPORT=grpc cargo test --features test-services
    ```
 
 4. **Profile switching is more ergonomic**: Rather than specifying `--transport grpc --url http://... --auth-key ...` every time, users define profiles once and reference them:
+
    ```bash
    tasker --profile grpc tasks list
    ```
@@ -1307,6 +1384,7 @@ The distinction is semantic, not syntactic. The domain model defines what "requi
 3. **Domain types**: Use `chrono::DateTime<Utc>`
 
 **Conversion Flow**:
+
 ```
 REST: String → DateTime<Utc> (in API response parsing)
 gRPC: google.protobuf.Timestamp → DateTime<Utc> (in proto_xxx_to_domain())
@@ -1318,6 +1396,7 @@ Domain: DateTime<Utc> is the canonical representation
 1. **Protocol-appropriate formats**: REST/JSON naturally uses strings, gRPC/protobuf uses the Timestamp well-known type. Forcing uniformity at the wire level adds complexity without benefit.
 
 2. **Conversion layer handles differences**: The `conversions.rs` module provides:
+
    ```rust
    fn proto_timestamp_to_datetime(ts: prost_types::Timestamp) -> Result<DateTime<Utc>, ClientError>;
    fn datetime_to_proto_timestamp(dt: DateTime<Utc>) -> prost_types::Timestamp;

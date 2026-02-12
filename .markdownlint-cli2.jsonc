@@ -1,0 +1,98 @@
+{
+  // Tasker Core Markdown Linting Configuration
+  // See: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+  
+  "config": {
+    // Default state for all rules
+    "default": true,
+    
+    // MD001: Heading levels should only increment by one level at a time
+    "MD001": true,
+    
+    // MD003: Heading style - use ATX style (#)
+    "MD003": { "style": "atx" },
+    
+    // MD004: Unordered list style - use dashes
+    "MD004": { "style": "dash" },
+    
+    // MD007: Unordered list indentation
+    "MD007": { "indent": 2 },
+    
+    // MD009: Trailing spaces
+    "MD009": { "br_spaces": 2 },
+    
+    // MD010: Hard tabs
+    "MD010": true,
+    
+    // MD012: Multiple consecutive blank lines
+    "MD012": { "maximum": 2 },
+    
+    // MD013: Line length - disabled for docs with long URLs and code
+    "MD013": false,
+    
+    // MD024: Multiple headings with same content - allow siblings
+    "MD024": { "siblings_only": true },
+    
+    // MD025: Multiple top-level headings - disabled for some doc structures
+    "MD025": false,
+    
+    // MD026: Trailing punctuation in heading
+    "MD026": { "punctuation": ".,;:!" },
+    
+    // MD029: Ordered list item prefix
+    "MD029": { "style": "ordered" },
+    
+    // MD033: Inline HTML - allow for special formatting
+    "MD033": false,
+    
+    // MD034: Bare URL - disabled, we use bare URLs sometimes
+    "MD034": false,
+    
+    // MD036: Emphasis used instead of a heading
+    "MD036": false,
+    
+    // MD040: Fenced code blocks should have a language specified
+    // Disabled: Many code blocks are ASCII diagrams or generic examples
+    "MD040": false,
+    
+    // MD041: First line should be a top-level heading - disabled
+    "MD041": false,
+    
+    // MD046: Code block style - fenced
+    "MD046": { "style": "fenced" },
+    
+    // MD047: Files should end with a single newline character
+    "MD047": true,
+    
+    // MD048: Code fence style - backtick
+    "MD048": { "style": "backtick" },
+    
+    // MD049: Emphasis style - asterisks
+    "MD049": { "style": "asterisk" },
+    
+    // MD050: Strong style - asterisks
+    "MD050": { "style": "asterisk" },
+    
+    // MD060: Table column style - disabled for flexibility
+    // Tables in docs use various styles for readability
+    "MD060": false
+  },
+  
+  // Files to lint
+  "globs": [
+    "docs/**/*.md",
+    "*.md",
+    "!**/node_modules/**",
+    "!**/target/**",
+    "!**/.venv/**",
+    "!workers/ruby/doc/**"
+  ],
+  
+  // Files to ignore
+  "ignores": [
+    "**/CHANGELOG.md",
+    "docs/ticket-specs/**",
+    "docs/generated/**",
+    "docs/principles/zen-of-python-PEP-20.md"
+  ]
+}

@@ -421,6 +421,7 @@ return self.decision_no_branches(outcome)
 For processing large datasets in chunks. Both analyzer and worker handlers implement the standard `call()` method:
 
 **Analyzer Handler** (creates batch configurations):
+
 ```python
 from tasker_core import StepHandler, StepHandlerResult
 from tasker_core.batch_processing import Batchable
@@ -457,6 +458,7 @@ class CsvAnalyzerHandler(StepHandler, Batchable):
 ```
 
 **Worker Handler** (processes a batch):
+
 ```python
 class CsvBatchProcessorHandler(StepHandler, Batchable):
     handler_name = "csv_batch_processor"
@@ -548,6 +550,7 @@ print(f"Discovered {count} handlers")
 ```
 
 Handlers are discovered by:
+
 1. Scanning the package for classes inheriting from `StepHandler`
 2. Using the `handler_name` class attribute for registration
 

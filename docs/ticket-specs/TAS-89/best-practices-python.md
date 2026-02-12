@@ -7,11 +7,13 @@
 ## Code Style
 
 ### Formatting & Linting
+
 - Use `ruff` for linting and formatting (enforced via `cargo make check-python`)
 - Use `mypy` for type checking
 - Follow PEP 8 with project-specific settings in `pyproject.toml`
 
 ### Naming Conventions
+
 ```python
 # Classes: PascalCase
 class StepHandler:
@@ -37,6 +39,7 @@ order_handler = OrderHandler()
 ```
 
 ### Module Organization
+
 ```python
 # handlers/order_handler.py
 """Order processing step handler.
@@ -79,6 +82,7 @@ def create_handler() -> OrderHandler:
 ## Type Hints
 
 ### Always Use Type Hints
+
 ```python
 from typing import Any, Optional
 
@@ -101,6 +105,7 @@ class OrderHandler(StepHandler):
 ```
 
 ### Type Aliases for Complex Types
+
 ```python
 from typing import TypeAlias
 
@@ -116,6 +121,7 @@ def process_orders(orders: list[OrderData]) -> BatchResult:
 ## Handler Patterns
 
 ### Base Handler Structure
+
 ```python
 from tasker_core.step_handler import StepHandler
 from tasker_core.step_handler.mixins import APIMixin
@@ -169,6 +175,7 @@ class OrderHandler(StepHandler, APIMixin):
 ```
 
 ### Result Factory Methods
+
 ```python
 # Success result
 self.success(
@@ -203,6 +210,7 @@ self.skip_branches(
 ## Mixin Pattern (TAS-112)
 
 ### Using Mixins
+
 ```python
 from tasker_core.step_handler import StepHandler
 from tasker_core.step_handler.mixins import APIMixin, DecisionMixin, BatchableMixin
@@ -226,6 +234,7 @@ class MultiCapabilityHandler(StepHandler, APIMixin, DecisionMixin):
 ```
 
 ### Available Mixins
+
 | Mixin | Purpose | Methods Provided |
 |-------|---------|------------------|
 | `APIMixin` | HTTP requests | `get`, `post`, `put`, `delete` |
@@ -237,6 +246,7 @@ class MultiCapabilityHandler(StepHandler, APIMixin, DecisionMixin):
 ## Error Handling
 
 ### Use Specific Exceptions
+
 ```python
 # Define handler-specific exceptions
 class HandlerError(Exception):
@@ -268,6 +278,7 @@ def call(self, context: StepContext) -> StepHandlerResult:
 ## Documentation
 
 ### Docstrings (Google Style)
+
 ```python
 class OrderHandler(StepHandler):
     """Handles order processing operations.
@@ -314,6 +325,7 @@ class OrderHandler(StepHandler):
 ## Testing
 
 ### pytest Patterns
+
 ```python
 # tests/handlers/test_order_handler.py
 import pytest
@@ -408,6 +420,7 @@ class TestOrderHandler:
 ## FFI Considerations
 
 ### Working with Rust Extensions
+
 ```python
 # The native extension is loaded automatically
 from tasker_core._native import some_ffi_function
@@ -433,6 +446,7 @@ def process(context: StepContext) -> StepHandlerResult:
 ## Project-Specific Patterns
 
 ### Registry Usage
+
 ```python
 from tasker_core.registry import Registry
 
@@ -447,6 +461,7 @@ handler = Registry.instance().resolve("order_handler")
 ```
 
 ### Domain Events
+
 ```python
 from tasker_core.domain_events import BasePublisher, StepEventContext
 

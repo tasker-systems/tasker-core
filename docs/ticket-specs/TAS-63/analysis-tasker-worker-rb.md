@@ -71,11 +71,13 @@ These files have functional runtime importance and very low coverage. Failures h
 **Why it matters**: This is the central dispatch loop for Ruby step execution. Bugs here break all Ruby handler execution. The subscriber handles three result paths (success, handler-returned failure, exception) and checkpoint yields -- all of which need verification.
 
 **What is uncovered**:
+
 - The `call(event)` method -- the main execution path including handler resolution, context creation, result standardization, and checkpoint handling
 - The `publish_step_completion` and `publish_checkpoint_yield` private methods
 - Error handling branches (handler exceptions, missing handlers, retryable vs permanent failures)
 
 **Recommended tests**:
+
 - Unit tests with mocked `HandlerRegistry`, `EventBridge`, and `StepContext`
 - Test successful handler execution and completion publication
 - Test handler returning an error `StepHandlerCallResult` (preserving retryable flag)
@@ -91,6 +93,7 @@ These files have functional runtime importance and very low coverage. Failures h
 **Why it matters**: This is the top-level task handler that routes to embedded or distributed orchestration. Untested mode switching or validation could lead to silent failures.
 
 **What is uncovered**:
+
 - `handle(task_uuid)` method with mode switching (embedded/distributed)
 - `initialize_task(task_request)` -- pgmq message construction and sending
 - `orchestration_ready?` and `status` methods
@@ -98,6 +101,7 @@ These files have functional runtime importance and very low coverage. Failures h
 - Private helpers: `handle_embedded_mode`, `handle_distributed_mode`, `orchestration_mode`, `load_task_config_from_path`
 
 **Recommended tests**:
+
 - Unit tests with mocked `TaskerCore.embedded_orchestrator` and `TaskerCore::Messaging::PgmqClient`
 - Test handle in embedded mode (running and not-running orchestrator)
 - Test handle in distributed mode
@@ -117,6 +121,7 @@ Important framework components with moderate complexity.
 **Why it matters**: Any handler making HTTP calls depends on this mixin for correct error classification. Misclassification of a 429 as permanent would break retry behavior.
 
 **What is uncovered**:
+
 - HTTP methods (`get`, `post`, `put`, `delete`) and `process_response`
 - Error classification by HTTP status (400-499 permanent, 429/503 retryable with backoff, 500+ retryable)
 - `api_upload_file` multipart upload
@@ -127,6 +132,7 @@ Important framework components with moderate complexity.
 - Retry-after header extraction and link header pagination parsing
 
 **Recommended tests**:
+
 - Create a test handler class including the mixin
 - Use WebMock or Faraday test adapter to stub HTTP responses
 - Test each HTTP method (GET, POST, PUT, DELETE) with success and error responses
@@ -142,6 +148,7 @@ Important framework components with moderate complexity.
 **Why it matters**: Handler discovery at startup depends on this module. If templates are not found, no handlers get registered.
 
 **What is uncovered**:
+
 - `TemplatePath.find_template_config_directory` -- environment variable and workspace detection logic
 - `TemplatePath.discover_template_files` -- YAML glob discovery
 - `TemplatePath.find_workspace_root` -- upward directory traversal for Cargo.toml/.git
@@ -149,6 +156,7 @@ Important framework components with moderate complexity.
 - `HandlerDiscovery.discover_all_handlers`, `discover_template_metadata`, `discover_handlers_by_namespace`
 
 **Recommended tests**:
+
 - Unit tests with temp directories containing fixture YAML files
 - Test `TemplatePath` with TASKER_TEMPLATE_PATH env var set
 - Test `TemplatePath` with WORKSPACE_PATH env var set
@@ -164,6 +172,7 @@ Important framework components with moderate complexity.
 **Why it matters**: This is the primary mechanism for Ruby to receive work from Rust. If the polling loop fails silently, Ruby handlers stop executing.
 
 **What is uncovered**:
+
 - `start!` and `stop!` lifecycle methods
 - `poll_events_loop` -- the main polling loop
 - `check_starvation_periodically` -- TAS-67 starvation detection
@@ -171,6 +180,7 @@ Important framework components with moderate complexity.
 - `ffi_dispatch_metrics` -- metrics retrieval
 
 **Recommended tests**:
+
 - Unit tests with mocked `TaskerCore::FFI` module
 - Test start/stop lifecycle (active? state transitions)
 - Test poll loop behavior: event received -> forwarded to EventBridge
@@ -186,6 +196,7 @@ Important framework components with moderate complexity.
 **Why it matters**: Domain event integration (Sentry, DataDog, Slack notifications) depends on this poller. Pattern matching bugs would cause missed events.
 
 **What is uncovered**:
+
 - `subscribe(pattern, &handler)` with validation
 - `unsubscribe(pattern)` and `clear_subscriptions!`
 - Pattern matching logic: exact match, wildcard `payment.*`, global `*`
@@ -195,6 +206,7 @@ Important framework components with moderate complexity.
 - `stats` method
 
 **Recommended tests**:
+
 - Unit tests with mocked `TaskerCore::FFI`
 - Test subscription management (subscribe, unsubscribe, clear, count)
 - Test pattern matching: exact `payment.processed`, wildcard `payment.*`, global `*`
@@ -212,12 +224,14 @@ These files contribute to the gap but are either partially covered or lower risk
 **What it does**: Defines `NoBatches` and `CreateBatches` outcome types for batch processing using dry-struct. Includes factory methods, validation (worker_count/cursor_config consistency, batch_size math), and `from_hash` deserialization.
 
 **What is uncovered**:
+
 - `CreateBatches` struct attributes and `to_h` method
 - Factory `create_batches` with validations (empty name, empty configs, count mismatch, batch_size consistency)
 - `from_hash` deserialization with deep key symbolization
 - `deep_symbolize_keys` private method
 
 **Recommended tests**:
+
 - Test `no_batches` factory and `requires_batch_creation?` => false
 - Test `create_batches` factory with valid parameters
 - Test validation errors: empty name, empty configs, count mismatch, bad batch_size
@@ -229,6 +243,7 @@ These files contribute to the gap but are either partially covered or lower risk
 **What it does**: Batchable mixin providing cursor config creation, batch context extraction, no-op worker handling, outcome builders, and aggregation helpers.
 
 **What is uncovered**:
+
 - `create_cursor_configs` with boundary math (0-indexed)
 - `no_batches_outcome` and `create_batches_outcome` outcome builders
 - `batch_worker_success` result helper
@@ -236,6 +251,7 @@ These files contribute to the gap but are either partially covered or lower risk
 - `aggregate_batch_worker_results` with scenario routing
 
 **Recommended tests**:
+
 - Test `create_cursor_configs(1000, 3)` returns correct 0-indexed ranges
 - Test `create_cursor_configs` with block customization
 - Test `create_cursor_configs` with worker_count <= 0 raises ArgumentError
@@ -248,6 +264,7 @@ These files contribute to the gap but are either partially covered or lower risk
 **What it does**: Singleton registry with ResolverChain for handler discovery, registration, and method dispatch. Bootstraps handlers from YAML templates or test environment preloads.
 
 **What is uncovered**:
+
 - Bootstrap logic: `bootstrap_handlers!`, `discover_handlers_from_templates`, template path determination
 - Handler file loading: `find_and_load_handler_class`, `load_handler_file`, `handler_search_paths`
 - Test environment integration: `test_environment_active?`, `test_handlers_preloaded?`, `register_preloaded_handlers`
@@ -256,6 +273,7 @@ These files contribute to the gap but are either partially covered or lower risk
 - `template_discovery_info` and `add_resolver`
 
 **Recommended tests**:
+
 - Test handler registration and resolution by string
 - Test resolution with HandlerDefinition (with handler_method)
 - Test `handler_available?` and `registered_handlers`
@@ -268,6 +286,7 @@ These files contribute to the gap but are either partially covered or lower risk
 **What it does**: Singleton event bridge using dry-events for bidirectional Rust-Ruby communication. Publishes step execution events, sends completions back to Rust via FFI, and handles checkpoint yields.
 
 **What is uncovered**:
+
 - `publish_step_execution` with event wrapping
 - `publish_step_completion` with validation and FFI call
 - `publish_step_checkpoint_yield` for TAS-125
@@ -276,6 +295,7 @@ These files contribute to the gap but are either partially covered or lower risk
 - Event schema setup
 
 **Recommended tests**:
+
 - Test `publish_step_execution` with valid event data (wrapped correctly)
 - Test `publish_step_completion` with valid and invalid completion data
 - Test `validate_completion!` missing required fields raises ArgumentError
@@ -288,11 +308,13 @@ These files contribute to the gap but are either partially covered or lower risk
 **What it does**: Static class wrapping Rust FFI tracing calls for each log level (error, warn, info, debug, trace). Includes field normalization converting Ruby types to strings.
 
 **What is uncovered**:
+
 - `warn`, `debug`, `trace` methods
 - `normalize_fields` and `normalize_value` for various Ruby types (nil, String, Symbol, Numeric, Boolean, Exception)
 - FFI fallback behavior when logging fails
 
 **Recommended tests**:
+
 - Test each log level method with mocked FFI calls
 - Test `normalize_value` for nil, String, Symbol, Integer, Float, Boolean, Exception
 - Test `normalize_fields` with mixed key types
@@ -362,22 +384,22 @@ These tests can be written without FFI or database dependencies, using pure Ruby
 
 ### Phase 2: Core Framework Coverage (estimated +150-200 lines)
 
-6. **`subscriber.rb`** -- Mock-based tests for the step execution dispatch loop
-7. **`event_bridge.rb`** -- Test event wrapping, validation, and publication
-8. **`template_discovery.rb`** -- Temp directory fixtures for template discovery
-9. **`step_handler/mixins/batchable.rb`** -- Cursor config math and outcome builders
+1. **`subscriber.rb`** -- Mock-based tests for the step execution dispatch loop
+2. **`event_bridge.rb`** -- Test event wrapping, validation, and publication
+3. **`template_discovery.rb`** -- Temp directory fixtures for template discovery
+4. **`step_handler/mixins/batchable.rb`** -- Cursor config math and outcome builders
 
 ### Phase 3: HTTP and Registry Coverage (estimated +150 lines)
 
-10. **`step_handler/mixins/api.rb`** -- WebMock/Faraday test adapter for HTTP tests
-11. **`registry/handler_registry.rb`** -- Mock-based bootstrap and resolution tests
-12. **`task_handler/base.rb`** -- Mock orchestrator and pgmq client
+1. **`step_handler/mixins/api.rb`** -- WebMock/Faraday test adapter for HTTP tests
+2. **`registry/handler_registry.rb`** -- Mock-based bootstrap and resolution tests
+3. **`task_handler/base.rb`** -- Mock orchestrator and pgmq client
 
 ### Phase 4: Runtime Infrastructure (estimated +100 lines)
 
-13. **`worker/event_poller.rb`** -- Mock FFI, test lifecycle and polling behavior
-14. **`worker/in_process_domain_event_poller.rb`** -- Pattern matching and subscription management
-15. **`types/batch_processing_outcome.rb`** -- Validation and deserialization
+1. **`worker/event_poller.rb`** -- Mock FFI, test lifecycle and polling behavior
+2. **`worker/in_process_domain_event_poller.rb`** -- Pattern matching and subscription management
+3. **`types/batch_processing_outcome.rb`** -- Validation and deserialization
 
 ---
 

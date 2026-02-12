@@ -17,6 +17,7 @@ This guide will get you from zero to running your first workflow in under 5 minu
 ### Prerequisites
 
 Before starting, ensure you have:
+
 - **Docker** and **Docker Compose** installed
 - **Git** to clone the repository
 - **curl** for testing (or any HTTP client)
@@ -51,6 +52,7 @@ docker-compose ps
 ```
 
 You should see:
+
 ```
 NAME                     STATUS              PORTS
 tasker-postgres          Up (healthy)        5432
@@ -103,6 +105,7 @@ curl -X POST http://localhost:8080/v1/tasks \
 ```
 
 **Response**:
+
 ```json
 {
   "task_uuid": "01234567-89ab-cdef-0123-456789abcdef",
@@ -129,6 +132,7 @@ curl http://localhost:8080/v1/tasks/${TASK_UUID}
 ```
 
 **Initial Response** (task just created):
+
 ```json
 {
   "task_uuid": "01234567-89ab-cdef-0123-456789abcdef",
@@ -147,6 +151,7 @@ curl http://localhost:8080/v1/tasks/${TASK_UUID}
 ```
 
 **Final Response** (task completed):
+
 ```json
 {
   "task_uuid": "01234567-89ab-cdef-0123-456789abcdef",
@@ -194,6 +199,7 @@ Let's break down what happened in those ~100-150ms:
 ```
 
 **Key Observations**:
+
 - Each step executed by autonomous workers
 - Steps executed in dependency order automatically
 - Complete workflow: ~130-150ms (including all coordination)
@@ -211,6 +217,7 @@ curl http://localhost:8080/v1/tasks/${TASK_UUID}/details
 ```
 
 **Response includes**:
+
 ```json
 {
   "task": {
@@ -268,6 +275,7 @@ curl -X POST http://localhost:8080/v1/tasks \
 ```
 
 **Diamond pattern**:
+
 ```
         step_1 (root)
        /            \
@@ -296,6 +304,7 @@ docker-compose logs -f
 ```
 
 **Key log patterns to look for**:
+
 - `Task initialized: task_uuid=...` - Task created
 - `Step enqueued: step_uuid=...` - Step sent to worker
 - `Step claimed: step_uuid=...` - Worker picked up step
@@ -337,6 +346,7 @@ curl http://localhost:8080/health/detailed
 ### 1. **Understand What You Just Built**
 
 Read about the architecture:
+
 - **[Crate Architecture](crate-architecture.md)** - How the workspace is organized
 - **[Events and Commands](events-and-commands.md)** - How orchestration and workers coordinate
 - **[States and Lifecycles](states-and-lifecycles.md)** - Task and step state machines
@@ -344,6 +354,7 @@ Read about the architecture:
 ### 2. **See Real-World Examples**
 
 Explore practical use cases:
+
 - **[Use Cases and Patterns](use-cases-and-patterns.md)** - E-commerce, payments, ETL, microservices
 - See example templates in: `tests/fixtures/task_templates/`
 
@@ -407,6 +418,7 @@ steps:
 ### 4. **Deploy to Production**
 
 Learn about deployment:
+
 - **[Deployment Patterns](deployment-patterns.md)** - Hybrid, EventDriven, PollingOnly modes
 - **[Observability](observability/README.md)** - Metrics, logging, monitoring
 - **[Benchmarks](benchmarks/README.md)** - Performance validation
@@ -450,11 +462,13 @@ docker-compose up -d
 ### Task Stays in "pending" or "initializing"
 
 **Possible causes**:
+
 1. **Template not found** - Check available templates: `curl http://localhost:8080/v1/templates`
 2. **Worker not running** - Check worker status: `curl http://localhost:8081/health`
 3. **Database connection issue** - Check logs: `docker-compose logs postgres`
 
 **Solution**:
+
 ```bash
 # Verify template exists
 curl http://localhost:8080/v1/templates | jq '.[] | select(.name == "linear_workflow")'
@@ -471,6 +485,7 @@ docker-compose logs orchestration | grep ERROR
 **Cause**: Services not fully started yet
 
 **Solution**: Wait 10-15 seconds after `docker-compose up`, then check health:
+
 ```bash
 curl http://localhost:8080/health
 ```
@@ -511,6 +526,7 @@ docker system prune -f
 ## Summary
 
 You've successfully:
+
 - ✅ Started Tasker Core services with Docker Compose
 - ✅ Created and executed a linear workflow
 - ✅ Monitored task execution in real-time

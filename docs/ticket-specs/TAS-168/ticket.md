@@ -8,15 +8,15 @@ Analytics endpoints (`/v1/analytics/performance`, `/v1/analytics/bottlenecks`) e
 
 ### Analytics Response Caching
 
-* Add time-based response caching for analytics endpoints (30-60s TTL suggested)
-* Cache key should incorporate query parameters (time range, namespace filters)
-* Cache invalidation on relevant task/step state transitions (or rely purely on TTL)
+- Add time-based response caching for analytics endpoints (30-60s TTL suggested)
+- Cache key should incorporate query parameters (time range, namespace filters)
+- Cache invalidation on relevant task/step state transitions (or rely purely on TTL)
 
 ### Architecture: Redis-Aware Caching Layer
 
-* If Redis is available, use it as the cache backend so multiple orchestration instances share cached results
-* If Redis is not available, fall back to in-process caching (e.g., `moka` or `dashmap` with TTL)
-* This same caching layer should be reusable for future task template caching needs
+- If Redis is available, use it as the cache backend so multiple orchestration instances share cached results
+- If Redis is not available, fall back to in-process caching (e.g., `moka` or `dashmap` with TTL)
+- This same caching layer should be reusable for future task template caching needs
 
 ### Configuration
 
@@ -32,14 +32,14 @@ ttl_seconds = 30  # override per-resource
 
 ### Future Alignment
 
-* Task template caching will follow the same pattern (Redis for multi-instance, in-process fallback)
-* Design the cache trait/interface to be generic: `CacheBackend::get<T>()`, `CacheBackend::set<T>(ttl)`
-* Consider cache warming strategies for analytics on startup
+- Task template caching will follow the same pattern (Redis for multi-instance, in-process fallback)
+- Design the cache trait/interface to be generic: `CacheBackend::get<T>()`, `CacheBackend::set<T>(ttl)`
+- Consider cache warming strategies for analytics on startup
 
 ## Files
 
-* `tasker-orchestration/src/web/handlers/analytics.rs` — current TODO location
-* New: caching service/trait in `tasker-shared` (shared between orchestration and worker)
+- `tasker-orchestration/src/web/handlers/analytics.rs` — current TODO location
+- New: caching service/trait in `tasker-shared` (shared between orchestration and worker)
 
 ## Acceptance Criteria
 
@@ -51,6 +51,7 @@ ttl_seconds = 30  # override per-resource
 - [ ] Existing tests pass (analytics flakiness reduced)
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-168/response-caching-for-analytics-and-template-endpoints-redis-aware](https://linear.app/tasker-systems/issue/TAS-168/response-caching-for-analytics-and-template-endpoints-redis-aware)
 - Identifier: TAS-168
 - Status: In Progress

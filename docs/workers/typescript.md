@@ -290,6 +290,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 ### Mixin Pattern
 
 TypeScript uses composition via mixins rather than inheritance. You can use either:
+
 1. **Wrapper classes** (ApiHandler, DecisionHandler) - simpler, backward compatible
 2. **Mixin functions** (applyAPI, applyDecision) - explicit composition
 

@@ -24,6 +24,7 @@
 **Metric**: `tasker.tasks.requests.total`
 
 **Query 1**: Basic counter
+
 ```promql
 tasker_tasks_requests_total
 ```
@@ -35,6 +36,7 @@ tasker_tasks_requests_total
 ---
 
 **Query 2**: Filtered by correlation_id
+
 ```promql
 tasker_tasks_requests_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"}
 ```
@@ -47,6 +49,7 @@ tasker_tasks_requests_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5
 ---
 
 **Query 3**: Sum by namespace
+
 ```promql
 sum by (namespace) (tasker_tasks_requests_total)
 ```
@@ -62,6 +65,7 @@ sum by (namespace) (tasker_tasks_requests_total)
 **Metric**: `tasker.tasks.completions.total`
 
 **Query 1**: Basic counter
+
 ```promql
 tasker_tasks_completions_total
 ```
@@ -73,6 +77,7 @@ tasker_tasks_completions_total
 ---
 
 **Query 2**: Filtered by correlation_id
+
 ```promql
 tasker_tasks_completions_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"}
 ```
@@ -84,6 +89,7 @@ tasker_tasks_completions_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa
 ---
 
 **Query 3**: Completion rate over 5 minutes
+
 ```promql
 rate(tasker_tasks_completions_total[5m])
 ```
@@ -99,6 +105,7 @@ rate(tasker_tasks_completions_total[5m])
 **Metric**: `tasker.steps.enqueued.total`
 
 **Query 1**: Total steps enqueued for our task
+
 ```promql
 tasker_steps_enqueued_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"}
 ```
@@ -111,6 +118,7 @@ tasker_steps_enqueued_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5
 ---
 
 **Query 2**: Sum by step name
+
 ```promql
 sum by (step_name) (tasker_steps_enqueued_total)
 ```
@@ -126,6 +134,7 @@ sum by (step_name) (tasker_steps_enqueued_total)
 **Metric**: `tasker.step_results.processed.total`
 
 **Query 1**: Results processed for our task
+
 ```promql
 tasker_step_results_processed_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"}
 ```
@@ -137,6 +146,7 @@ tasker_step_results_processed_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67
 ---
 
 **Query 2**: Sum by result type
+
 ```promql
 sum by (result_type) (tasker_step_results_processed_total)
 ```
@@ -153,6 +163,7 @@ sum by (result_type) (tasker_step_results_processed_total)
 **Metric**: `tasker.task.initialization.duration`
 
 **Query 1**: Check if histogram has data
+
 ```promql
 tasker_task_initialization_duration_count
 ```
@@ -164,6 +175,7 @@ tasker_task_initialization_duration_count
 ---
 
 **Query 2**: Average initialization time
+
 ```promql
 rate(tasker_task_initialization_duration_sum[5m]) /
 rate(tasker_task_initialization_duration_count[5m])
@@ -176,6 +188,7 @@ rate(tasker_task_initialization_duration_count[5m])
 ---
 
 **Query 3**: P95 latency
+
 ```promql
 histogram_quantile(0.95, rate(tasker_task_initialization_duration_bucket[5m]))
 ```
@@ -187,6 +200,7 @@ histogram_quantile(0.95, rate(tasker_task_initialization_duration_bucket[5m]))
 ---
 
 **Query 4**: P99 latency
+
 ```promql
 histogram_quantile(0.99, rate(tasker_task_initialization_duration_bucket[5m]))
 ```
@@ -202,6 +216,7 @@ histogram_quantile(0.99, rate(tasker_task_initialization_duration_bucket[5m]))
 **Metric**: `tasker.task.finalization.duration`
 
 **Query 1**: Check count
+
 ```promql
 tasker_task_finalization_duration_count
 ```
@@ -213,6 +228,7 @@ tasker_task_finalization_duration_count
 ---
 
 **Query 2**: Average finalization time
+
 ```promql
 rate(tasker_task_finalization_duration_sum[5m]) /
 rate(tasker_task_finalization_duration_count[5m])
@@ -225,6 +241,7 @@ rate(tasker_task_finalization_duration_count[5m])
 ---
 
 **Query 3**: P95 by final_state
+
 ```promql
 histogram_quantile(0.95,
   sum by (final_state, le) (
@@ -244,6 +261,7 @@ histogram_quantile(0.95,
 **Metric**: `tasker.step_result.processing.duration`
 
 **Query 1**: Check count
+
 ```promql
 tasker_step_result_processing_duration_count
 ```
@@ -255,6 +273,7 @@ tasker_step_result_processing_duration_count
 ---
 
 **Query 2**: Average processing time
+
 ```promql
 rate(tasker_step_result_processing_duration_sum[5m]) /
 rate(tasker_step_result_processing_duration_count[5m])
@@ -273,6 +292,7 @@ rate(tasker_step_result_processing_duration_count[5m])
 **Metric**: `tasker.steps.executions.total`
 
 **Query 1**: Total executions
+
 ```promql
 tasker_steps_executions_total
 ```
@@ -284,6 +304,7 @@ tasker_steps_executions_total
 ---
 
 **Query 2**: For specific task
+
 ```promql
 tasker_steps_executions_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"}
 ```
@@ -295,6 +316,7 @@ tasker_steps_executions_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4
 ---
 
 **Query 3**: Execution rate
+
 ```promql
 rate(tasker_steps_executions_total[5m])
 ```
@@ -310,6 +332,7 @@ rate(tasker_steps_executions_total[5m])
 **Metric**: `tasker.steps.successes.total`
 
 **Query 1**: Total successes
+
 ```promql
 tasker_steps_successes_total
 ```
@@ -321,6 +344,7 @@ tasker_steps_successes_total
 ---
 
 **Query 2**: By namespace
+
 ```promql
 sum by (namespace) (tasker_steps_successes_total)
 ```
@@ -332,6 +356,7 @@ sum by (namespace) (tasker_steps_successes_total)
 ---
 
 **Query 3**: Success rate
+
 ```promql
 rate(tasker_steps_successes_total[5m]) / rate(tasker_steps_executions_total[5m])
 ```
@@ -347,6 +372,7 @@ rate(tasker_steps_successes_total[5m]) / rate(tasker_steps_executions_total[5m])
 **Metric**: `tasker.steps.failures.total`
 
 **Query 1**: Total failures
+
 ```promql
 tasker_steps_failures_total
 ```
@@ -358,6 +384,7 @@ tasker_steps_failures_total
 ---
 
 **Query 2**: By error type
+
 ```promql
 sum by (error_type) (tasker_steps_failures_total)
 ```
@@ -373,6 +400,7 @@ sum by (error_type) (tasker_steps_failures_total)
 **Metric**: `tasker.steps.claimed.total`
 
 **Query 1**: Total claims
+
 ```promql
 tasker_steps_claimed_total
 ```
@@ -384,6 +412,7 @@ tasker_steps_claimed_total
 ---
 
 **Query 2**: By claim method
+
 ```promql
 sum by (claim_method) (tasker_steps_claimed_total)
 ```
@@ -400,6 +429,7 @@ sum by (claim_method) (tasker_steps_claimed_total)
 **Metric**: `tasker.steps.results_submitted.total`
 
 **Query 1**: Total submissions
+
 ```promql
 tasker_steps_results_submitted_total
 ```
@@ -411,6 +441,7 @@ tasker_steps_results_submitted_total
 ---
 
 **Query 2**: For specific task
+
 ```promql
 tasker_steps_results_submitted_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"}
 ```
@@ -426,6 +457,7 @@ tasker_steps_results_submitted_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f6
 **Metric**: `tasker.step.execution.duration`
 
 **Query 1**: Check count
+
 ```promql
 tasker_step_execution_duration_count
 ```
@@ -437,6 +469,7 @@ tasker_step_execution_duration_count
 ---
 
 **Query 2**: Average execution time
+
 ```promql
 rate(tasker_step_execution_duration_sum[5m]) /
 rate(tasker_step_execution_duration_count[5m])
@@ -449,6 +482,7 @@ rate(tasker_step_execution_duration_count[5m])
 ---
 
 **Query 3**: P95 latency by namespace
+
 ```promql
 histogram_quantile(0.95,
   sum by (namespace, le) (
@@ -464,6 +498,7 @@ histogram_quantile(0.95,
 ---
 
 **Query 4**: P99 latency
+
 ```promql
 histogram_quantile(0.99, rate(tasker_step_execution_duration_bucket[5m]))
 ```
@@ -479,6 +514,7 @@ histogram_quantile(0.99, rate(tasker_step_execution_duration_bucket[5m]))
 **Metric**: `tasker.step.claim.duration`
 
 **Query 1**: Check count
+
 ```promql
 tasker_step_claim_duration_count
 ```
@@ -490,6 +526,7 @@ tasker_step_claim_duration_count
 ---
 
 **Query 2**: Average claim time
+
 ```promql
 rate(tasker_step_claim_duration_sum[5m]) /
 rate(tasker_step_claim_duration_count[5m])
@@ -502,6 +539,7 @@ rate(tasker_step_claim_duration_count[5m])
 ---
 
 **Query 3**: P95 by claim method
+
 ```promql
 histogram_quantile(0.95,
   sum by (claim_method, le) (
@@ -521,6 +559,7 @@ histogram_quantile(0.95,
 **Metric**: `tasker.step_result.submission.duration`
 
 **Query 1**: Check count
+
 ```promql
 tasker_step_result_submission_duration_count
 ```
@@ -532,6 +571,7 @@ tasker_step_result_submission_duration_count
 ---
 
 **Query 2**: Average submission time
+
 ```promql
 rate(tasker_step_result_submission_duration_sum[5m]) /
 rate(tasker_step_result_submission_duration_count[5m])
@@ -544,6 +584,7 @@ rate(tasker_step_result_submission_duration_count[5m])
 ---
 
 **Query 3**: P95 submission latency
+
 ```promql
 histogram_quantile(0.95, rate(tasker_step_result_submission_duration_bucket[5m]))
 ```
@@ -559,6 +600,7 @@ histogram_quantile(0.95, rate(tasker_step_result_submission_duration_bucket[5m])
 **Purpose**: Verify the full task lifecycle is visible in metrics
 
 **Query**: Complete flow for correlation_id
+
 ```promql
 # Run each query and record the value
 
@@ -599,6 +641,7 @@ Result: _____________
 **Actual Pattern**: _____________ → _____ → _____ → _____ → _____ → _____ → _____ → _____
 
 **Analysis**:
+
 - Do the numbers make sense for your workflow? [ ] Yes [ ] No
 - Are any steps missing? _____________
 - Do counts match expectations? [ ] Yes [ ] No
@@ -610,6 +653,7 @@ Result: _____________
 Document any issues discovered during verification:
 
 ### Issue 1
+
 **Query**: _____________
 **Expected**: _____________
 **Actual**: _____________
@@ -617,6 +661,7 @@ Document any issues discovered during verification:
 **Fix Required**: [ ] Yes [ ] No
 
 ### Issue 2
+
 **Query**: _____________
 **Expected**: _____________
 **Actual**: _____________

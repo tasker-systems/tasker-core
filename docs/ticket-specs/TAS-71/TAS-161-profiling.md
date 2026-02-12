@@ -52,6 +52,7 @@ cargo make bench-e2e
 ```
 
 **Alternative: Profile the worker instead:**
+
 ```bash
 # Terminal 1: Start orchestration in release mode
 cargo make run-orchestration-release
@@ -91,17 +92,20 @@ These are quick wins that can be addressed with minimal risk.
 **Goal:** Reduce logging overhead in frequently-executed code paths.
 
 **Targets:**
+
 - `handle_step_execution_result` - called on every step completion
 - `process_single_task_from_ready_info` - task processing loop
 - `enqueue_ready_steps` - step enqueueing
 - Actor message handlers
 
 **Analysis:**
+
 - Profile with samply under benchmark load
 - Look for `tracing::` spans in top functions
 - Evaluate: Should DEBUG logs be gated behind `tracing::enabled!`?
 
 **Indicators:**
+
 - `tracing` frames in flamegraph hot paths
 - High frequency of span creation/drop
 
@@ -110,11 +114,13 @@ These are quick wins that can be addressed with minimal risk.
 **Goal:** Replace `.clone()` with references where ownership isn't needed.
 
 **Targets:**
+
 - `TaskRequest` passing through actors
 - `StepExecutionResult` in result processing
 - `serde_json::Value` context propagation
 
 **Analysis:**
+
 ```bash
 # Find clone calls in hot path modules
 rg "\.clone\(\)" tasker-orchestration/src/orchestration/lifecycle/
@@ -122,6 +128,7 @@ rg "\.clone\(\)" tasker-worker/src/
 ```
 
 **Indicators:**
+
 - `clone` or `Clone::clone` in flamegraph
 - Multiple clones of same struct in call chain
 
@@ -130,11 +137,13 @@ rg "\.clone\(\)" tasker-worker/src/
 **Goal:** Reduce unnecessary string allocations.
 
 **Targets:**
+
 - `format!` in logging (use structured logging instead)
 - `to_string()` for error messages in hot paths
 - `String::from` for static strings (use `&'static str`)
 
 **Analysis:**
+
 - Look for `alloc::string::String` in flamegraph
 - Check for `format!` in actor handlers
 
@@ -147,12 +156,14 @@ rg "\.clone\(\)" tasker-worker/src/
 **Goal:** Optimize high-frequency DTO structs for cache efficiency and stack allocation.
 
 **Priority Structs:**
+
 - `StepExecutionResult` - every step completion
 - `TaskRequest` - task creation
 - `StepExecutionMetadata` - result metadata
 - `SimpleMessage` / `RabbitmqMessage` - message queue payloads
 
 **Analysis:**
+
 ```rust
 // Add to a test or debug build
 println!("StepExecutionResult size: {}", std::mem::size_of::<StepExecutionResult>());
@@ -160,6 +171,7 @@ println!("TaskRequest size: {}", std::mem::size_of::<TaskRequest>());
 ```
 
 **Considerations:**
+
 - Field ordering for minimal padding
 - `Box<T>` for large optional fields
 - `SmallVec` for small, bounded collections
@@ -170,11 +182,13 @@ println!("TaskRequest size: {}", std::mem::size_of::<TaskRequest>());
 **Goal:** Identify heap allocations that could be stack-allocated.
 
 **Targets:**
+
 - `Vec` in tight loops (consider `ArrayVec` or `SmallVec`)
 - `Box::new` in frequently-called functions
 - Temporary `String` allocations
 
 **Analysis:**
+
 - DHAT profiler for allocation hotspots
 - samply for `__rust_alloc` in flamegraph
 
@@ -183,12 +197,14 @@ println!("TaskRequest size: {}", std::mem::size_of::<TaskRequest>());
 **Goal:** Identify actor channels under pressure or causing backpressure.
 
 **Targets:**
+
 - `task_request_tx/rx` - task creation channel
 - `result_processor_tx/rx` - step result channel
 - `step_enqueuer_tx/rx` - step enqueueing channel
 - `task_finalizer_tx/rx` - task completion channel
 
 **Analysis (tokio-console):**
+
 - Check for channels with high poll counts
 - Look for tasks blocked on channel sends
 - Identify self-waking tasks (potential spin)
@@ -202,16 +218,19 @@ println!("TaskRequest size: {}", std::mem::size_of::<TaskRequest>());
 **Goal:** Evaluate MessagePack for message payloads to reduce serialization overhead.
 
 **Current State:**
+
 - All message payloads use `serde_json`
 - PGMQ stores in `jsonb` columns (requires JSON)
 - RabbitMQ payloads could use any format
 
 **Proposed Approach:**
+
 - Keep JSON wrapper for PGMQ compatibility (jsonb column)
 - Use MessagePack for the `payload` field within the JSON wrapper
 - Benchmark: `serde_json` vs `rmp-serde` for `StepExecutionResult`
 
 **Analysis:**
+
 ```rust
 // Benchmark serialization
 let json_size = serde_json::to_vec(&result)?.len();
@@ -220,6 +239,7 @@ let msgpack_size = rmp_serde::to_vec(&result)?.len();
 ```
 
 **Considerations:**
+
 - Backwards compatibility during rollout
 - Debugging ergonomics (JSON is human-readable)
 - Size reduction vs CPU overhead tradeoff
@@ -229,11 +249,13 @@ let msgpack_size = rmp_serde::to_vec(&result)?.len();
 **Goal:** Reduce database load for frequently-queried, rarely-changed data.
 
 **Cache Candidates:**
+
 - `named_tasks` lookups by namespace + name
 - `task_templates` configuration
 - `TaskHandlerRegistry` (worker-side)
 
 **Architecture:**
+
 ```
 ┌─────────────────┐     ┌───────────────┐     ┌──────────────┐
 │  Orchestration  │────▶│  Redis Cache  │────▶│  PostgreSQL  │
@@ -250,11 +272,13 @@ let msgpack_size = rmp_serde::to_vec(&result)?.len();
 ```
 
 **Invalidation Strategy:**
+
 - Workers invalidate on template file changes
 - TTL-based expiry as fallback
 - Pub/sub for cross-instance invalidation
 
 **Analysis:**
+
 - Profile `get_named_task_by_namespace_and_name` query frequency
 - Measure query latency in production-like conditions
 
@@ -263,11 +287,13 @@ let msgpack_size = rmp_serde::to_vec(&result)?.len();
 **Goal:** Optimize database connection pool for workload patterns.
 
 **Analysis:**
+
 - Profile connection acquisition latency
 - Monitor pool exhaustion under load
 - Evaluate pool size vs connection overhead
 
 **Metrics to Capture:**
+
 - Connection wait time
 - Active vs idle connections
 - Pool exhaustion events
@@ -281,10 +307,12 @@ let msgpack_size = rmp_serde::to_vec(&result)?.len();
 **Workload:** `cargo make bench-e2e` (Tier 1 + Tier 2)
 
 **Focus:**
+
 - Task creation → step enqueueing → result processing → task completion
 - Identify top 5 functions by CPU time
 
 **Output:**
+
 - Flamegraph: `docs/ticket-specs/TAS-71/flamegraphs/orchestration-e2e.svg`
 - Top functions table
 
@@ -293,10 +321,12 @@ let msgpack_size = rmp_serde::to_vec(&result)?.len();
 **Workload:** Sustained linear workflow processing
 
 **Focus:**
+
 - Message consumption → handler dispatch → result submission
 - FFI overhead comparison (Rust vs Ruby/Python/TypeScript)
 
 **Output:**
+
 - Flamegraph: `docs/ticket-specs/TAS-71/flamegraphs/worker-dispatch.svg`
 - FFI overhead breakdown
 
@@ -305,11 +335,13 @@ let msgpack_size = rmp_serde::to_vec(&result)?.len();
 **Tool:** tokio-console
 
 **Focus:**
+
 - Actor channel utilization
 - Task wake patterns
 - Potential blocking operations
 
 **Output:**
+
 - Channel utilization report
 - Recommendations for channel sizing
 
@@ -359,6 +391,7 @@ The following targets were identified through analysis of `docs/architecture/*.m
 | Task finalization (atomic claim) | 1/task | `TaskFinalizerActor` (CAS loop) |
 
 **Key SQL Functions to Profile:**
+
 - `get_step_readiness_status()` - Dependency evaluation, called repeatedly
 - `transition_task_state_atomic()` - CAS operation with retry
 - `get_task_execution_context()` - Step enumeration
@@ -375,6 +408,7 @@ The following targets were identified through analysis of `docs/architecture/*.m
 | Task template hydration | MEDIUM | `step_executor_actor.rs` (DB query per step) |
 
 **Critical Design Pattern:**
+
 ```
 Permit released BEFORE completion channel send
 → Prevents backpressure cascade from blocking handler execution
@@ -391,6 +425,7 @@ Permit released BEFORE completion channel send
 | `WorkflowStep` | Every step load | 16+ fields, frequent DB round-trips |
 
 **Memory Layout Candidates:**
+
 ```rust
 // Check sizes:
 std::mem::size_of::<StepExecutionResult>()
@@ -401,6 +436,7 @@ std::mem::size_of::<WorkflowStep>()
 ### Database Interaction Patterns
 
 **Load Scenario: 1000 Tasks × 100 Steps Each:**
+
 - 5,000-12,000 task state transitions
 - 100,000 step state transitions
 - 100,000 audit inserts (TAS-62 trigger)
@@ -408,6 +444,7 @@ std::mem::size_of::<WorkflowStep>()
 - Peak: 300+ concurrent connections (if batched)
 
 **Connection Pool Config (production defaults):**
+
 ```toml
 max_connections = 50
 min_connections = 10
@@ -428,11 +465,13 @@ connection_timeout_ms = 5000
 ### Circuit Breaker Integration (TAS-75)
 
 **FFI Completion Circuit Breaker:**
+
 - Slow send threshold: 100ms
 - Consecutive slow sends trigger open state
 - Profile: State transition overhead, rejection rate
 
 **Capacity Checker (Load Shedding):**
+
 - Semaphore utilization check
 - Warning thresholds: 70%, 80%
 - Profile: Decision overhead under load
@@ -457,29 +496,29 @@ connection_timeout_ms = 5000
 
 ### P1 - High Frequency Operations
 
-4. **Handler Registry Resolution Chain** (TAS-93)
+1. **Handler Registry Resolution Chain** (TAS-93)
    - Profile: Chain traversal cost
    - Chain: `ExplicitMappingResolver` → `ClassConstantResolver` → `ClassLookupResolver`
 
-5. **FFI Serialization Boundary**
+2. **FFI Serialization Boundary**
    - Profile: Context marshalling, result unmarshalling
    - Location: `handler.call(&msg.task_sequence_step)`
 
-6. **Audit Trigger Overhead** (TAS-62)
+3. **Audit Trigger Overhead** (TAS-62)
    - Profile: INSERT trigger performance
    - Risk: Lock contention under high step volume
 
 ### P2 - Secondary Optimization Candidates
 
-7. **Domain Event Drop Rate**
+1. **Domain Event Drop Rate**
    - Profile: `try_send()` failures when channel full
    - Location: `domain_event_system.rs:148`
 
-8. **Task Template Hydration**
+2. **Task Template Hydration**
    - Profile: DB query per step claim
    - Location: `TaskTemplateManager.get_template()`
 
-9. **PGMQ Notification Overhead**
+3. **PGMQ Notification Overhead**
    - Profile: `pg_notify()` call frequency (2x per step: claim + result)
    - Location: `pgmq_send_with_notify()`
 

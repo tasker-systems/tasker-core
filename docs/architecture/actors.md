@@ -73,12 +73,14 @@ impl OrchestrationActor for TaskRequestActor {
 ### Actor vs Service
 
 **Services** (underlying business logic):
+
 - Encapsulate business logic
 - Stateless operations on domain models
 - Direct method invocation
 - Examples: TaskFinalizer, StepEnqueuerService, OrchestrationResultProcessor
 
 **Actors** (message-based coordination):
+
 - Wrap services with message-based interface
 - Manage service lifecycle
 - Asynchronous message handling
@@ -380,6 +382,7 @@ Handles task initialization requests from external clients.
 **Location**: `tasker-orchestration/src/actors/task_request_actor.rs`
 
 **Message**: `ProcessTaskRequestMessage`
+
 - Input: `TaskRequestMessage` with task details
 - Response: `Uuid` of created task
 
@@ -394,6 +397,7 @@ Processes step execution results from workers.
 **Location**: `tasker-orchestration/src/actors/result_processor_actor.rs`
 
 **Message**: `ProcessStepResultMessage`
+
 - Input: `StepExecutionResult` with execution outcome
 - Response: `()` (unit type)
 
@@ -408,6 +412,7 @@ Manages batch processing of ready tasks.
 **Location**: `tasker-orchestration/src/actors/step_enqueuer_actor.rs`
 
 **Message**: `ProcessBatchMessage`
+
 - Input: Empty (uses system state)
 - Response: `StepEnqueuerServiceResult` with batch stats
 
@@ -422,6 +427,7 @@ Handles task finalization with atomic claiming.
 **Location**: `tasker-orchestration/src/actors/task_finalizer_actor.rs`
 
 **Message**: `FinalizeTaskMessage`
+
 - Input: `task_uuid` to finalize
 - Response: `FinalizationResult` with action taken
 
@@ -620,6 +626,7 @@ impl Handler<FinalizeTaskMessage> for TaskFinalizerActor {
 ### 1. Consistency
 
 All lifecycle components follow the same pattern:
+
 - Uniform initialization via `started()`
 - Uniform cleanup via `stopped()`
 - Uniform message handling via `Handler<M>`
@@ -627,6 +634,7 @@ All lifecycle components follow the same pattern:
 ### 2. Type Safety
 
 Messages and responses are type-checked at compile time:
+
 ```rust
 // Compile error if message/response types don't match
 impl Handler<WrongMessage> for TaskFinalizerActor {

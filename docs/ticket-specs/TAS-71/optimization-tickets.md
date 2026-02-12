@@ -8,6 +8,7 @@
 ## Summary of Findings
 
 ### Profiling Results (TAS-161)
+
 - **System is I/O bound** (93%+ time waiting), not CPU bound
 - **Logging overhead**: 5.15% combined (tracing 2.7% + stdout 2.45%)
 - **DB operations**: 4.6% of worker time
@@ -15,6 +16,7 @@
 - **Clone/allocation**: <0.3% - no hot spots
 
 ### Mutex-based Metrics Analysis
+
 Found several locations using `std::sync::Mutex` or `std::sync::RwLock` in async contexts:
 
 | Location | Type | Issue |
@@ -26,6 +28,7 @@ Found several locations using `std::sync::Mutex` or `std::sync::RwLock` in async
 | `state_manager.rs` | `Arc<Mutex<HashMap>>` | Task/step state machines |
 
 ### Connection Pool Configuration
+
 - Main DB: max=25, min=5, acquire_timeout=10s
 - PGMQ DB: max=15, min=3, acquire_timeout=5s
 - No pool utilization metrics currently exposed
@@ -46,18 +49,21 @@ Found several locations using `std::sync::Mutex` or `std::sync::RwLock` in async
 Reduce logging overhead in high-frequency code paths by implementing conditional logging guards and considering async/buffered logging for production.
 
 **Targets:**
+
 - `command_processor_actor` (4.31% total time)
 - `result_processor` (4.03% total time)
 - `step_enqueuer` (2.49% total time)
 - `task_finalizer` (2.27% total time)
 
 **Implementation:**
+
 1. Add `tracing::enabled!` guards for DEBUG-level spans in hot paths
 2. Evaluate moving to buffered stdout logging in production
 3. Review necessity of all spans in actor message handlers
 4. Consider `#[instrument(skip_all)]` for frequently-called helpers
 
 **Acceptance Criteria:**
+
 - [ ] Audit hot path logging in identified modules
 - [ ] Implement `tracing::enabled!` guards where beneficial
 - [ ] Benchmark before/after with profiling profile
@@ -75,6 +81,7 @@ Reduce logging overhead in high-frequency code paths by implementing conditional
 Convert `Arc<Mutex<Stats>>` patterns in hot paths to atomic counters, following the established `AtomicStepExecutionStats` pattern from TAS-69.
 
 **Targets (simple counters):**
+
 1. `InProcessEventBus` stats - `Arc<std::sync::Mutex<InProcessEventBusStats>>`
 2. `WorkerEventSubscriber` stats - `Arc<std::sync::Mutex<WorkerEventSubscriberStats>>`
 3. `CircuitBreakerMetrics` - `Arc<Mutex<CircuitBreakerMetrics>>` (**NEW** - added based on profiling)
@@ -111,6 +118,7 @@ Replace `std::sync::RwLock<HashMap<K, V>>` patterns with async-friendly concurre
 **Spec:** `docs/ticket-specs/TAS-163.md`
 
 **Note:** TAS-134 and TAS-163 are complementary:
+
 - **TAS-134**: Simple counters → atomic operations
 - **TAS-163**: HashMap/complex state → DashMap/tokio::sync
 
@@ -128,6 +136,7 @@ Replace `std::sync::RwLock<HashMap<K, V>>` patterns with async-friendly concurre
 Add connection pool utilization metrics and evaluate tuning based on observed patterns. Current profiling shows 4.6% of worker time in database operations, with 0.85% in pool acquire and 1.32% in connection waiting.
 
 **Current Configuration:**
+
 ```toml
 [common.database.pool]
 max_connections = 25
@@ -143,6 +152,7 @@ acquire_timeout_seconds = 5
 ```
 
 **Implementation:**
+
 1. **Add Pool Metrics Endpoint**
    - Expose pool utilization via `/health` or `/metrics`
    - Track: active connections, idle connections, acquire latency P50/P95/P99
@@ -161,6 +171,7 @@ acquire_timeout_seconds = 5
    - Consider separate pool sizes for orchestration vs worker
 
 **Acceptance Criteria:**
+
 - [ ] Pool utilization metrics exposed in health/metrics endpoint
 - [ ] Slow acquisition logging (>100ms threshold)
 - [ ] Document tuning guidelines based on observed metrics
@@ -184,22 +195,26 @@ The following optimizations were evaluated but are **not recommended** based on 
 ## Appendix: Files to Modify
 
 ### TAS-162 (Logging)
+
 - `tasker-orchestration/src/orchestration/actors/command_processor_actor.rs`
 - `tasker-orchestration/src/orchestration/lifecycle/result_processor.rs`
 - `tasker-orchestration/src/orchestration/lifecycle/step_enqueuer.rs`
 - `tasker-orchestration/src/orchestration/lifecycle/task_finalizer.rs`
 
 ### TAS-134 (Atomic Counters)
+
 - `tasker-worker/src/worker/in_process_event_bus.rs`
 - `tasker-worker/src/worker/event_subscriber.rs`
 - `tasker-shared/src/resilience/circuit_breaker.rs`
 
 ### TAS-163 (Concurrent Data Structures)
+
 - `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs`
 - `tasker-orchestration/src/orchestration/state_manager.rs`
 - `tasker-orchestration/src/orchestration/event_systems/orchestration_event_system.rs`
 
 ### TAS-164 (Connection Pools)
+
 - `tasker-shared/src/database/pools.rs`
 - `config/tasker/base/common.toml`
 - `config/tasker/environments/*/common.toml`

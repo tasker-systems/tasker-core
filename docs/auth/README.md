@@ -61,10 +61,12 @@ Request ──►  Middleware  │  SecurityService              │
 Routes are split into **public** (never require auth) and **protected** (auth middleware applied):
 
 **Orchestration (port 8080):**
+
 - Public: `/health/*`, `/metrics`, `/api-docs/*`
 - Protected: `/v1/*`, `/config` (opt-in)
 
 **Worker (port 8081):**
+
 - Public: `/health/*`, `/metrics`, `/api-docs/*`
 - Protected: `/v1/templates/*`, `/config` (opt-in)
 
@@ -130,6 +132,7 @@ Permission checks happen at the route level via `authorize()` wrappers BEFORE bo
 ```
 
 This approach:
+
 - Rejects unauthorized requests before parsing request bodies
 - Provides a declarative, visible permission model at the route level
 - Is protocol-agnostic (same `Resource`/`Action` types work for REST and gRPC)
@@ -140,6 +143,7 @@ The legacy `require_permission()` function is still available for cases where pe
 ### Credential Priority (Client)
 
 The `tasker-client` library resolves credentials in this order:
+
 1. Endpoint-specific token (`TASKER_ORCHESTRATION_AUTH_TOKEN` / `TASKER_WORKER_AUTH_TOKEN`)
 2. Global token (`TASKER_AUTH_TOKEN`)
 3. API key (`TASKER_API_KEY`)

@@ -57,6 +57,7 @@ All workers implement a dual-channel architecture for non-blocking step executio
 ```
 
 **Benefits**:
+
 - Fire-and-forget dispatch (non-blocking)
 - Bounded concurrency via semaphores
 - Results processed independently from dispatch
@@ -87,6 +88,7 @@ All implementations follow the same registration pattern:
 ```
 
 **Ruby Example**:
+
 ```ruby
 class ProcessOrderHandler < TaskerCore::StepHandler::Base
   def call(context)
@@ -106,6 +108,7 @@ registry.register_handler('ProcessOrderHandler', ProcessOrderHandler)
 ```
 
 **Python Example**:
+
 ```python
 from tasker_core import StepHandler, StepHandlerResult, HandlerRegistry
 
@@ -153,6 +156,7 @@ All handlers receive a context object containing:
 All handlers return a structured result indicating success or failure. However, **the APIs differ between Ruby and Python** - this is a known design inconsistency that may be addressed in a future ticket.
 
 **Ruby** - Uses keyword arguments and separate Success/Error types:
+
 ```ruby
 # Via base handler shortcuts
 success(result: { key: "value" }, metadata: { duration_ms: 150 })
@@ -175,6 +179,7 @@ TaskerCore::Types::StepHandlerCallResult.error(
 ```
 
 **Python** - Uses positional/keyword arguments and a single result type:
+
 ```python
 # Via base handler shortcuts
 self.success(result={"key": "value"}, metadata={"duration_ms": 150})
@@ -200,6 +205,7 @@ StepHandlerResult.failure_handler_result(
 ```
 
 **Key Differences**:
+
 | Aspect | Ruby | Python |
 |--------|------|--------|
 | Factory method names | `.success()`, `.error()` | `.success_handler_result()`, `.failure_handler_result()` |
@@ -231,6 +237,7 @@ All workers classify errors into two categories:
 ### Exception Hierarchy
 
 **Ruby**:
+
 ```ruby
 TaskerCore::Error                  # Base class
 ├── TaskerCore::RetryableError     # Transient failures
@@ -240,6 +247,7 @@ TaskerCore::Error                  # Base class
 ```
 
 **Python**:
+
 ```python
 TaskerError                        # Base class
 ├── WorkerNotInitializedError      # Worker not bootstrapped
@@ -481,6 +489,7 @@ log_info("Processing order", context)
 ### Handler Type Hierarchy
 
 **Ruby** (all are subclasses):
+
 ```
 TaskerCore::StepHandler::Base
 ├── TaskerCore::StepHandler::Api        # HTTP/REST API integration
@@ -489,6 +498,7 @@ TaskerCore::StepHandler::Base
 ```
 
 **Python** (Batchable is a mixin):
+
 ```
 StepHandler (ABC)
 ├── ApiHandler         # HTTP/REST API integration (subclass)
@@ -532,6 +542,7 @@ end
 For processing large datasets in chunks. **Note**: Ruby uses subclass inheritance, Python uses mixin.
 
 **Ruby** (subclass):
+
 ```ruby
 class CsvBatchProcessorHandler < TaskerCore::StepHandler::Batchable
   def call(context)
@@ -546,6 +557,7 @@ end
 ```
 
 **Python** (mixin):
+
 ```python
 class CsvProcessorHandler(StepHandler, Batchable):
     handler_name = "csv_processor"
@@ -573,6 +585,7 @@ Checkpoint yielding enables batch workers to persist progress and yield control 
 All Batchable handlers provide `checkpoint_yield()` (or `checkpointYield()` in TypeScript):
 
 **Ruby**:
+
 ```ruby
 class MyBatchWorker < TaskerCore::StepHandler::Batchable
   def call(context)
@@ -600,6 +613,7 @@ end
 ```
 
 **Python**:
+
 ```python
 class MyBatchWorker(StepHandler, Batchable):
     def call(self, context):
@@ -623,6 +637,7 @@ class MyBatchWorker(StepHandler, Batchable):
 ```
 
 **TypeScript**:
+
 ```typescript
 class MyBatchWorker extends BatchableHandler {
   async call(context: StepContext): Promise<StepHandlerResult> {
@@ -681,6 +696,7 @@ See [Batch Processing Guide - Checkpoint Yielding](../guides/batch-processing.md
 ### 1. Keep Handlers Focused
 
 Each handler should do one thing well:
+
 - Validate input
 - Perform single operation
 - Return clear result
@@ -688,6 +704,7 @@ Each handler should do one thing well:
 ### 2. Use Error Classification
 
 Always specify whether errors are retryable:
+
 ```python
 # Good - clear error classification
 return self.failure("API rate limit", retryable=True)
@@ -724,6 +741,7 @@ log_info("Order processed", {
 ### 5. Test Handler Isolation
 
 Reset singletons between tests:
+
 ```python
 def setup_method(self):
     HandlerRegistry.reset_instance()

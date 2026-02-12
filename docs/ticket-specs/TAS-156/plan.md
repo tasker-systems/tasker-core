@@ -11,6 +11,7 @@ Add a distributed Redis cache layer **internal to `TaskHandlerRegistry`**. The r
 ### 1A. Configuration Structs
 
 **Modify: `tasker-shared/src/config/tasker.rs`**
+
 - Add `pub cache: Option<CacheConfig>` to `CommonConfig` (with serde default + skip_serializing_if)
 - New structs:
   - `CacheConfig`: `enabled`, `backend`, `default_ttl_seconds`, `template_ttl_seconds`, `analytics_ttl_seconds`, `key_prefix`, `redis: Option<RedisConfig>`
@@ -21,6 +22,7 @@ Add a distributed Redis cache layer **internal to `TaskHandlerRegistry`**. The r
 ### 1B. Cache Module
 
 **Create: `tasker-shared/src/cache/`**
+
 ```
 cache/
   mod.rs              - Module exports
@@ -34,6 +36,7 @@ cache/
 ```
 
 Key design:
+
 - `CacheProvider` enum with `Redis(RedisCacheService)` and `NoOp(NoOpCacheService)` variants
 - `from_config_graceful()` constructor: if Redis fails to connect, log warning and use NoOp
 - `is_enabled()` returns false for NoOp variant
@@ -44,9 +47,11 @@ Key design:
 ### 1C. Dependencies
 
 **Modify: `Cargo.toml` (workspace root)**
+
 - Add: `redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }`
 
 **Modify: `tasker-shared/Cargo.toml`**
+
 - Add: `redis = { workspace = true, optional = true }`
 - Add feature: `cache-redis = ["redis"]`
 - Add `cache-redis` to `test-services` feature list
@@ -55,6 +60,7 @@ Key design:
 ### 1D. Config Loader Allowlist
 
 **Modify: `tasker-shared/src/config/config_loader.rs`**
+
 - Add `EnvVarRule` for `REDIS_URL`: pattern `^redis://...`
 
 ---
@@ -77,7 +83,9 @@ pub struct TaskHandlerRegistry {
 ```
 
 #### resolve_handler (cache-aside read path)
+
 When cache is available:
+
 1. Build key: `{prefix}:task_template:{namespace}:{name}:{version}`
 2. Try `cache_provider.get(key)` → deserialize `HandlerMetadata`
 3. On hit: return immediately
@@ -86,15 +94,19 @@ When cache is available:
 6. On any cache error: log warning, never fail the request
 
 #### register_task_template (invalidation on write path)
+
 After successful DB write (existing logic unchanged):
+
 1. Call `self.invalidate_cache(namespace, name, version)`
 2. This deletes the specific key from cache
 3. Best-effort - cache errors logged but don't fail registration
 
 #### discover_and_register_templates (bulk invalidation on worker boot)
+
 After processing each template file, `register_task_template` is called which invalidates individually. Additionally, after the full discovery loop completes, call `invalidate_all_templates()` to ensure no stale entries remain from templates that may have been removed from disk.
 
-#### New helper methods:
+#### New helper methods
+
 ```rust
 /// Invalidate a single template cache entry
 async fn invalidate_cache(&self, namespace: &str, name: &str, version: &str) { ... }
@@ -109,7 +121,8 @@ pub async fn invalidate_namespace_templates(&self, namespace: &str) { ... }
 pub fn cache_enabled(&self) -> bool { ... }
 ```
 
-#### Constructor updates:
+#### Constructor updates
+
 - `with_system_context()`: reads cache config from `context.tasker_config.common.cache`, creates or receives `CacheProvider`
 - New: `with_cache(db_pool, cache_provider, cache_config)` constructor for explicit injection
 
@@ -118,6 +131,7 @@ pub fn cache_enabled(&self) -> bool { ... }
 ## Phase 3: SystemContext Integration
 
 **Modify: `tasker-shared/src/system_context.rs`**
+
 - Add field: `pub cache_provider: Arc<CacheProvider>`
 - Add `create_cache_provider()` method (reads `config.common.cache`, calls `from_config_graceful`)
 - Wire into `from_pools_and_config()`: create cache provider, pass to `TaskHandlerRegistry`
@@ -141,6 +155,7 @@ The `task_handler_registry` field type stays `Arc<TaskHandlerRegistry>` - no new
 **Modify: `tasker-worker/src/worker/task_template_manager.rs`**
 
 The worker's `ensure_templates_in_database()` flow:
+
 1. Calls `discover_and_register_templates(config_directory)`
 2. Which delegates to `self.registry.discover_and_register_templates()`
 3. Which calls `self.register_task_template(&template)` per file
@@ -154,14 +169,17 @@ The worker's local in-memory cache (`self.cache: HashMap`) remains for process-l
 ### 5B. Worker Template API Updates
 
 **Modify: `tasker-worker/src/web/handlers/templates.rs`**
+
 - Update `clear_cache` handler: after clearing local cache, also call `registry.invalidate_all_templates()`
 - Update `refresh_template` handler: after refreshing local entry, also call `registry.invalidate_cache(ns, name, ver)`
 - New handler: `get_distributed_cache_status` - returns whether cache is enabled, provider name, health check result
 
 **Modify: `tasker-worker/src/web/routes.rs`**
+
 - Add route: `GET /templates/cache/distributed` for distributed cache status
 
 **Modify: `tasker-worker/src/worker/services/template_query/service.rs`**
+
 - Add `distributed_cache_status()` method that queries `registry.cache_enabled()` and `cache_provider.health_check()`
 - Update `clear_cache()` to also clear distributed cache
 - Update `refresh_template()` to also invalidate distributed cache entry
@@ -173,6 +191,7 @@ The worker's local in-memory cache (`self.cache: HashMap`) remains for process-l
 ### 6A. Docker Compose
 
 **Modify: `docker/docker-compose.test.yml`**
+
 ```yaml
   # ==========================================================================
   # Redis Cache (TAS-156: Distributed Template Cache)
@@ -190,11 +209,13 @@ The worker's local in-memory cache (`self.cache: HashMap`) remains for process-l
     networks:
       - tasker-test
 ```
+
 - Add `redis_data:` to volumes section
 
 ### 6B. Dotenv Files
 
 **Modify: `config/dotenv/test.env`**
+
 ```bash
 # Redis Cache (TAS-156)
 REDIS_URL=redis://localhost:6379
@@ -203,6 +224,7 @@ REDIS_URL=redis://localhost:6379
 ### 6C. TOML Configuration
 
 **Modify: `config/tasker/base/common.toml`**
+
 ```toml
 # Distributed Cache Configuration (TAS-156)
 # When enabled=false or section missing, system uses direct DB queries only
@@ -222,6 +244,7 @@ database = 0
 ```
 
 **Modify: `config/tasker/environments/test/common.toml`**
+
 ```toml
 # Redis cache enabled for integration/E2E tests
 [common.cache]
@@ -234,12 +257,14 @@ url = "${REDIS_URL:-redis://localhost:6379}"
 ```
 
 **Modify: `config/tasker/environments/development/common.toml`**
+
 ```toml
 [common.cache]
 enabled = true
 ```
 
 **Modify: `config/tasker/environments/production/common.toml`**
+
 ```toml
 [common.cache]
 enabled = true
@@ -252,12 +277,14 @@ analytics_ttl_seconds = 120
 ## Phase 7: Tests
 
 ### Unit Tests (no Redis required)
+
 - `tasker-shared/src/cache/providers/noop.rs` - NoOp always returns None/success
 - `tasker-shared/src/cache/provider.rs` - `from_config_graceful` fallback logic
 - Config deserialization for `CacheConfig`/`RedisConfig`
 - `TaskHandlerRegistry` with no cache provider: existing behavior unchanged
 
 ### Integration Tests (behind `test-services` feature)
+
 - Redis provider: CRUD, TTL expiry, pattern delete via SCAN
 - `TaskHandlerRegistry` with Redis: cache-aside flow (hit/miss/populate)
 - `register_task_template` invalidates cache entry
@@ -265,6 +292,7 @@ analytics_ttl_seconds = 120
 - Graceful degradation: simulate Redis down, verify DB fallback (warn log, no error)
 
 ### E2E Tests
+
 - Worker boot loads templates → cache entries invalidated
 - Orchestration resolves templates → cache populated on first call, hit on second
 - Worker `clear_cache` endpoint → both local and distributed caches cleared

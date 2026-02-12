@@ -127,6 +127,7 @@ cargo-make/scripts/
 ```
 
 **Configuration considerations:**
+
 - Each service needs unique port (orchestration: 3000, 3001, 3002...)
 - Each service needs unique processor_uuid
 - Shared DATABASE_URL and PGMQ_DATABASE_URL
@@ -135,6 +136,7 @@ cargo-make/scripts/
 ### 3.2 Test Harness Modifications
 
 **API Endpoint Abstraction:**
+
 ```rust
 // Round-robin or random selection of orchestration endpoints
 struct OrchestrationCluster {
@@ -150,6 +152,7 @@ impl OrchestrationCluster {
 ```
 
 **Test Categorization:**
+
 ```rust
 #[cfg(test)]
 mod tests {
@@ -193,23 +196,27 @@ To debug issues in multi-instance tests, we need:
 Once research is complete, the implementation plan should address:
 
 ### Phase 1: Audit & Hardening
+
 - Systematically review each code path from Part 1
 - Add missing idempotency patterns where identified
 - Add missing constraints where identified
 - Document the "contract" for each operation
 
 ### Phase 2: Infrastructure
+
 - Create multi-service deployment scripts
 - Modify test harness for cluster awareness
 - Set up aggregated observability
 
 ### Phase 3: Test Development
+
 - Create stress test suite
 - Create chaos test suite
 - Establish baseline metrics (single instance)
 - Run multi-instance comparison
 
 ### Phase 4: Documentation
+
 - Document scaling guidelines
 - Document recovery procedures
 - Document operational runbook
@@ -218,14 +225,14 @@ Once research is complete, the implementation plan should address:
 
 ## Part 5: Test Isolation Strategy
 
-### Tests to EXCLUDE from multi-instance testing:
+### Tests to EXCLUDE from multi-instance testing
 
 1. **Worker-specific metrics tests**: Can't predict which worker processes what
 2. **Processor UUID assertions**: Non-deterministic in multi-instance
 3. **Exact timing assertions**: More variability with multiple processors
 4. **Single-step-handler tests**: May need specific worker
 
-### Tests to PRIORITIZE for multi-instance testing:
+### Tests to PRIORITIZE for multi-instance testing
 
 1. **End-to-end workflow completion**: Task submitted → all steps complete
 2. **Decision point workflows**: Dynamic step creation

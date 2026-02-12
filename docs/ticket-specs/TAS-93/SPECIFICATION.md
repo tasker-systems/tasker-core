@@ -25,6 +25,7 @@ handler:
 ```
 
 The framework assumes:
+
 1. The callable is a fully-qualified class name
 2. The class can be instantiated with no/optional arguments
 3. The class has a `call(context)` method
@@ -39,6 +40,7 @@ The framework assumes:
 ### Existing Patterns Already Diverge
 
 **Rust** (explicit mapping - already the target pattern):
+
 ```rust
 match name {
     "linear_step_1" => Some(Arc::new(LinearStep1Handler::new(config))),
@@ -48,6 +50,7 @@ match name {
 ```
 
 **Ruby/Python/TypeScript** (implicit class resolution):
+
 ```ruby
 Object.const_get(callable).new
 ```
@@ -94,11 +97,13 @@ handler:
 ```
 
 **Problems with splitting:**
+
 - Is the lookup key `"payments::PaymentHandler"`? `"payments.PaymentHandler"`? Just `"PaymentHandler"` within namespace `"payments"`?
 - Resolver must know how to assemble the parts
 - Different languages have different separator conventions
 
 **Single `callable` is unambiguous:**
+
 ```yaml
 # ACCEPTED - resolver receives exact string
 handler:
@@ -160,7 +165,8 @@ The resolver receives exactly this string. No assembly required, no format guess
 
 **Decision**: Keep `callable` as a single string field. Do not split into `namespace`/`class`/`method` components.
 
-**Rationale**: 
+**Rationale**:
+
 - Preserves the FQDN/DNS-like model where the string IS the address
 - Avoids ambiguity about how components should be assembled
 - Each resolver defines its own format expectations
@@ -171,6 +177,7 @@ The resolver receives exactly this string. No assembly required, no format guess
 **Decision**: Resolvers return handler instances. The framework wraps for method dispatch.
 
 **Rationale**:
+
 - Resolvers have a single responsibility: address → instance
 - Method dispatch is orthogonal to resolution strategy
 - Simplifies custom resolver implementation
@@ -551,6 +558,7 @@ TaskerCore::Registry::ResolverChain.register_resolver(
 ```
 
 Usage in template:
+
 ```yaml
 handler:
   callable: "payments:stripe:refund"
@@ -607,6 +615,7 @@ impl HandlerDefinition {
 ### Phase 1: Foundation (Resolver Interface & Chain)
 
 **Deliverables**:
+
 1. Define `StepHandlerResolver` trait/interface in all languages
 2. Implement `ResolverChain` with priority-ordered resolution
 3. Implement `MethodDispatchWrapper` in framework layer
@@ -615,6 +624,7 @@ impl HandlerDefinition {
 6. Add resolution logging with correlation IDs
 
 **Files to create/modify**:
+
 - `tasker-shared/src/registry/step_handler_resolver.rs` (new)
 - `tasker-shared/src/registry/resolver_chain.rs` (new)
 - `tasker-shared/src/registry/method_dispatch_wrapper.rs` (new)
@@ -629,6 +639,7 @@ impl HandlerDefinition {
 ### Phase 2: Explicit Mapping Resolver
 
 **Deliverables**:
+
 1. Implement `ExplicitMappingResolver` in Ruby/Python/TypeScript
 2. Align with existing Rust pattern
 3. Add registration API across all languages
@@ -641,6 +652,7 @@ impl HandlerDefinition {
 ### Phase 3: Custom Resolver Extension Point
 
 **Deliverables**:
+
 1. Enable custom resolver registration in chain
 2. Add priority-based ordering with custom resolvers
 3. Document extension patterns with examples
@@ -653,6 +665,7 @@ impl HandlerDefinition {
 ### Phase 4: Documentation & Examples
 
 **Deliverables**:
+
 1. Create `docs/guides/handler-resolution.md` with mental model
 2. Update `docs/workers/patterns-and-practices.md`
 3. Add resolver examples for each language
@@ -742,6 +755,7 @@ end
 **Risk**: Developers unsure what format to use for `callable`.
 
 **Mitigation**:
+
 - Clear documentation of built-in resolver expectations
 - Error messages include "tried resolvers" list
 - Examples showing format → resolver mapping
@@ -751,6 +765,7 @@ end
 **Risk**: Method dispatch enables handlers with many methods.
 
 **Mitigation**:
+
 - Documentation emphasizing appropriate use (related operations)
 - Linting warnings for handlers with >5 step methods
 - Examples showing good vs. bad patterns
@@ -760,6 +775,7 @@ end
 **Risk**: Complex resolution chains hard to debug.
 
 **Mitigation**:
+
 - Comprehensive logging with correlation IDs
 - Each resolver logs can_resolve? result
 - Error includes full resolution attempt trace
@@ -768,7 +784,8 @@ end
 
 ## Acceptance Criteria
 
-### Phase 1 Complete When:
+### Phase 1 Complete When
+
 - [ ] `StepHandlerResolver` trait/interface exists in all 4 languages
 - [ ] `ResolverChain` implements priority-ordered resolution
 - [ ] `MethodDispatchWrapper` handles method field in framework layer
@@ -776,16 +793,19 @@ end
 - [ ] Resolution logging includes resolver name and correlation ID
 - [ ] `HandlerDefinition` supports `method` and `resolver` fields
 
-### Phase 2 Complete When:
+### Phase 2 Complete When
+
 - [ ] `ExplicitMappingResolver` works in Ruby/Python/TypeScript
 - [ ] Registration API is consistent across languages
 
-### Phase 3 Complete When:
+### Phase 3 Complete When
+
 - [ ] Custom resolvers can be registered
 - [ ] Priority ordering works with custom resolvers
 - [ ] Example custom resolver documented
 
-### Phase 4 Complete When:
+### Phase 4 Complete When
+
 - [ ] `docs/guides/handler-resolution.md` created with mental model
 - [ ] Address format documentation clear
 - [ ] API convergence matrix updated

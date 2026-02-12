@@ -9,11 +9,13 @@ Extract business logic from orchestration REST handlers into services following 
 ### Orchestration (tasker-orchestration) - 25 endpoints
 
 **Heavy Logic (needs extraction):**
+
 - `tasks.rs` (716 lines, 4 endpoints) - Input validation, backpressure checking, response assembly, error classification
 - `steps.rs` (691 lines, 4 endpoints) - State machine routing, manual resolution, audit history
 - `health.rs` (583 lines, 5 endpoints) - Multiple health check implementations
 
 **Already Well-Delegated (reference patterns):**
+
 - `analytics.rs` - Uses `AnalyticsService -> AnalyticsQueryService` pattern
 - `dlq.rs` - Delegated to model layer
 - `registry.rs`, `config.rs` - Minimal logic
@@ -37,6 +39,7 @@ Already follows TAS-77 service-layer pattern - handlers are thin wrappers to `He
 Extract framework-agnostic auth/permission services to `tasker-shared`.
 
 **Create:**
+
 ```
 tasker-shared/src/auth/
     mod.rs
@@ -46,12 +49,14 @@ tasker-shared/src/auth/
 ```
 
 **Modify:**
+
 - `tasker-shared/src/types/security.rs` - Feature-gate Axum's `FromRequestParts` impl
 - `tasker-orchestration/src/web/middleware/auth.rs` - Delegate to AuthenticationService
 - `tasker-orchestration/src/web/middleware/permission.rs` - Delegate to PermissionService
 - `tasker-worker/src/web/middleware/auth.rs` - Use shared PermissionService
 
 **Key Design:**
+
 ```rust
 // tasker-shared/src/auth/authentication_service.rs
 impl AuthenticationService {
@@ -70,6 +75,7 @@ impl PermissionService {
 Extract task business logic from `tasks.rs` (716 lines -> ~50 lines).
 
 **Create:**
+
 ```
 tasker-orchestration/src/services/
     task_query_service.rs   # Database queries, execution context assembly
@@ -77,11 +83,13 @@ tasker-orchestration/src/services/
 ```
 
 **TaskQueryService responsibilities:**
+
 - `get_task_with_context(uuid: Uuid) -> Result<TaskWithContext, TaskQueryError>`
 - `list_tasks_with_context(query: TaskListQuery) -> Result<PaginatedTasksWithContext, TaskQueryError>`
 - Pure database queries using `SqlFunctionExecutor`
 
 **TaskService responsibilities:**
+
 - `create_task(request: TaskRequest) -> Result<TaskCreationResponse, TaskError>`
 - `get_task(uuid: Uuid) -> Result<TaskResponse, TaskError>`
 - `list_tasks(query: TaskListQuery) -> Result<TaskListResponse, TaskError>`
@@ -89,6 +97,7 @@ tasker-orchestration/src/services/
 - Input validation, backpressure checking, error classification
 
 **Handler after refactoring:**
+
 ```rust
 pub async fn create_task(
     State(state): State<AppState>,
@@ -105,6 +114,7 @@ pub async fn create_task(
 Extract step business logic from `steps.rs`.
 
 **Create:**
+
 ```
 tasker-orchestration/src/services/
     step_query_service.rs   # Database queries for steps
@@ -112,6 +122,7 @@ tasker-orchestration/src/services/
 ```
 
 **StepService responsibilities:**
+
 - `list_task_steps(task_uuid: Uuid) -> Result<Vec<StepResponse>, StepError>`
 - `get_step(task_uuid: Uuid, step_uuid: Uuid) -> Result<StepResponse, StepError>`
 - `resolve_step_manually(task_uuid: Uuid, step_uuid: Uuid, action: StepManualAction) -> Result<StepResponse, StepError>`
@@ -122,6 +133,7 @@ tasker-orchestration/src/services/
 Extract health check logic from `health.rs` following worker's `HealthService` pattern.
 
 **Create:**
+
 ```
 tasker-orchestration/src/services/health/
     mod.rs
@@ -130,6 +142,7 @@ tasker-orchestration/src/services/health/
 ```
 
 **OrchestrationHealthService responsibilities:**
+
 - `basic_health() -> BasicHealthResponse`
 - `readiness() -> Result<DetailedHealthResponse, DetailedHealthResponse>`
 - `liveness() -> BasicHealthResponse`
@@ -138,6 +151,7 @@ tasker-orchestration/src/services/health/
 ### Phase 5: Update AppState and mod.rs
 
 **Modify `tasker-orchestration/src/services/mod.rs`:**
+
 ```rust
 mod analytics_query_service;
 mod analytics_service;
@@ -157,6 +171,7 @@ pub use health::OrchestrationHealthService;
 ```
 
 **Modify `tasker-orchestration/src/web/state.rs`:**
+
 ```rust
 pub struct AppState {
     // Existing fields...
@@ -193,6 +208,7 @@ pub struct AppState {
 | 5. AppState Updates | High | **DONE** | Phases 2-4 |
 
 **Progress Summary:**
+
 - Phase 1: `require_permission` consolidated in `tasker-shared/src/services/permission_service.rs`
 - Phase 2: `TaskService` and `TaskQueryService` created in `tasker-orchestration/src/services/`
 - Phase 3: `StepService` and `StepQueryService` created in `tasker-orchestration/src/services/`
@@ -200,6 +216,7 @@ pub struct AppState {
 - Phase 5: All services wired into `AppState`; handlers refactored to use services
 
 **Handler Line Count Reductions:**
+
 - `tasks.rs`: 716 → 219 lines (69% reduction)
 - `steps.rs`: 691 → 259 lines (63% reduction)
 - `health.rs`: 583 → 92 lines (84% reduction)
@@ -211,24 +228,29 @@ pub struct AppState {
 ## Testing Strategy
 
 ### Service-Level Tests (sqlx::test)
+
 - All service tests use `#[sqlx::test]` with real database connections
 - Follow existing patterns in `tests/integration/` and `tests/e2e/`
 - Real database pools, not mocks - the compiler already validates type correctness
 
 ### Route/Handler Tests
+
 - Follow auth service test patterns: create Axum test instances
 - Test route correctness, permission checking, request/response shaping
 - Located in service-specific test modules or `tests/web/`
 
 ### Integration Tests
+
 - Rely on existing `tests/integration/` infrastructure
 - No changes to existing test patterns
 
 ### E2E Tests
+
 - Rely on existing `tests/e2e/` infrastructure
 - Existing tests validate API behavior end-to-end
 
 ### Verification Commands
+
 ```bash
 # Build with all features
 cargo build --all-features
@@ -259,6 +281,7 @@ cargo make test-rust-e2e
 ## Future: gRPC Foundation (Not in this PR)
 
 Once services are extracted, adding gRPC becomes straightforward:
+
 ```
 Axum Handler ─────┐
                   ├──> TaskService ──> TaskQueryService ──> Database

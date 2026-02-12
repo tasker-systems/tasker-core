@@ -8,6 +8,7 @@
 ## Context
 
 Original Phase 5.4 plan included 7 benchmark categories:
+
 1. ✅ API Task Creation
 2. 🚧 Worker Processing Cycle
 3. ✅ Event Propagation
@@ -21,12 +22,14 @@ Original Phase 5.4 plan included 7 benchmark categories:
 **Problem**: Direct worker benchmarking doesn't match production reality
 
 In a distributed system with multiple workers:
+
 - ❌ **Can't predict** which worker will claim which step
 - ❌ **Can't control** step distribution across workers
 - ❌ **Artificial scenarios** required to direct specific steps to specific workers
 - ❌ **API queries** would need to know which worker to query (unknowable in advance)
 
 **Example**:
+
 ```
 Task with 10 steps across 3 workers:
 - Worker A might claim steps 1, 3, 7
@@ -47,6 +50,7 @@ Which worker do you benchmark? How do you ensure consistent measurement?
 **Measures**: PostgreSQL LISTEN/NOTIFY round-trip latency
 
 **Approach**:
+
 ```rust
 // Setup listener on test channel
 listener.listen("pgmq_message_ready.benchmark_event_test").await;
@@ -61,6 +65,7 @@ let latency = received_at.duration_since(send_time);
 ```
 
 **Why it works**:
+
 - Observable from outside the system
 - Deterministic measurement (single listener, single sender)
 - Matches production behavior (real LISTEN/NOTIFY path)
@@ -77,6 +82,7 @@ let latency = received_at.duration_since(send_time);
 **Measures**: Complete workflow execution (API → Task Complete)
 
 **Approach**:
+
 ```rust
 // Create task
 let response = client.create_task(request).await;
@@ -93,6 +99,7 @@ loop {
 ```
 
 **Why it works**:
+
 - Measures **user experience** (submit → result)
 - Naturally includes ALL system overhead:
   - API processing
@@ -105,6 +112,7 @@ loop {
 - Reflects real production behavior
 
 **Expected Performance**:
+
 - Linear (3 steps): < 500ms p99
 - Diamond (4 steps): < 800ms p99
 
@@ -131,6 +139,7 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 ```
 
 **Advantages**:
+
 - ✅ Works across **distributed workers** (correlation ID links everything)
 - ✅ Captures **real production behavior** (actual task execution)
 - ✅ Breaks down by **step type** (different handlers have different timing)
@@ -138,6 +147,7 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 - ✅ Already instrumented (Phase 3.3 work)
 
 **Metrics Available**:
+
 - `step_claim_duration` - Time to claim step from queue
 - `handler_execution_duration` - Time to execute handler logic
 - `result_submission_duration` - Time to submit result back
@@ -152,6 +162,7 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 **Status**: 🚧 Skeleton only (placeholder)
 
 **Why not implemented**:
+
 - Requires artificial pre-arrangement of which worker claims which step
 - Doesn't match production (multiple workers competing for steps)
 - Metrics available via OpenTelemetry traces instead
@@ -165,6 +176,7 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 **Status**: 🚧 Skeleton only (placeholder)
 
 **Why not implemented**:
+
 - Difficult to trigger orchestration step discovery without full execution
 - Result naturally embedded in E2E latency measurement
 - Coordination overhead visible in E2E timing
@@ -178,6 +190,7 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 **Status**: 🚧 Skeleton only (placeholder)
 
 **Why not implemented**:
+
 - FFI overhead varies by handler type (can't benchmark in isolation)
 - Real overhead visible in E2E benchmark + traces
 - Rust vs Ruby comparison available via trace analysis
@@ -210,21 +223,25 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 ## Advantages of This Approach
 
 ### 1. **Matches Production Reality**
+
 - E2E benchmark reflects actual user experience
 - No artificial worker pre-arrangement required
 - Measures real distributed system behavior
 
 ### 2. **Complete Coverage**
+
 - E2E latency includes ALL components naturally
 - OpenTelemetry provides worker-level breakdown
 - Event propagation measures critical notification path
 
 ### 3. **Lower Maintenance**
+
 - Fewer benchmarks to maintain
 - No complex setup for worker isolation
 - Traces provide flexible analysis
 
 ### 4. **Better Insights**
+
 - Correlation IDs link entire workflow across services
 - Can analyze timing for ANY task in production
 - Breakdown available on-demand via trace queries
@@ -236,22 +253,26 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 ### Running Performance Analysis
 
 **Step 1**: Run E2E benchmark
+
 ```bash
 cargo bench --test e2e_latency
 ```
 
 **Step 2**: Extract correlation_id from benchmark output
+
 ```
 Created task: abc-123-def-456 (correlation_id: xyz-789)
 ```
 
 **Step 3**: Query traces for breakdown
+
 ```bash
 # Jaeger UI or API
 curl "http://localhost:16686/api/traces?tags=correlation_id:xyz-789"
 ```
 
 **Step 4**: Analyze span timing
+
 ```json
 {
   "spans": [
@@ -275,6 +296,7 @@ curl "http://localhost:16686/api/traces?tags=correlation_id:xyz-789"
 ### Completion Criteria
 
 ✅ **Complete** with 4 working benchmarks:
+
 1. SQL Functions
 2. Task Initialization
 3. Event Propagation
@@ -285,6 +307,7 @@ curl "http://localhost:16686/api/traces?tags=correlation_id:xyz-789"
 ### For Future Enhancement
 
 If direct worker benchmarking becomes necessary:
+
 1. Use **single-worker mode** Docker Compose configuration
 2. Pre-create tasks with **known step assignments**
 3. Query specific worker API for **deterministic steps**
@@ -293,6 +316,7 @@ If direct worker benchmarking becomes necessary:
 ### For Production Monitoring
 
 Use OpenTelemetry for ongoing performance analysis:
+
 - Set up **trace retention** (7-30 days)
 - Create **Grafana dashboards** for span timing
 - Alert on **p95 latency increases**

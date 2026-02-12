@@ -83,6 +83,7 @@ INFO checkpoint_saved step_uuid=abc-123 history_length=5
 ```
 
 **Log fields to monitor:**
+
 - `step_uuid` - Step being checkpointed
 - `cursor` - Current position
 - `items_processed` - Total items at checkpoint
@@ -97,10 +98,13 @@ INFO checkpoint_saved step_uuid=abc-123 history_length=5
 **Symptoms**: Step restarts from beginning instead of checkpoint position.
 
 **Checks**:
+
 1. Verify checkpoint exists:
+
    ```sql
    SELECT checkpoint FROM tasker.workflow_steps WHERE workflow_step_uuid = 'uuid';
    ```
+
 2. Check handler uses `BatchWorkerContext` accessors:
    - `has_checkpoint?` / `has_checkpoint()` / `hasCheckpoint()`
    - `checkpoint_cursor` / `checkpointCursor`
@@ -111,6 +115,7 @@ INFO checkpoint_saved step_uuid=abc-123 history_length=5
 **Symptoms**: `checkpoint_yield()` returns but data not in database.
 
 **Checks**:
+
 1. Check for errors in worker logs
 2. Verify FFI bridge is healthy
 3. Check database connectivity
@@ -120,10 +125,12 @@ INFO checkpoint_saved step_uuid=abc-123 history_length=5
 **Symptoms**: Steps have hundreds or thousands of checkpoint history entries.
 
 **Causes**:
+
 - Very long-running processes with frequent checkpoints
 - Small checkpoint intervals relative to work
 
 **Remediation**:
+
 1. Increase checkpoint interval (process more items between checkpoints)
 2. Clear history for completed steps (see Maintenance section)
 3. Monitor with history size query above
@@ -133,10 +140,12 @@ INFO checkpoint_saved step_uuid=abc-123 history_length=5
 **Symptoms**: Database bloat, slow step queries.
 
 **Causes**:
+
 - Storing full result sets instead of summaries
 - Unbounded accumulation without size checks
 
 **Remediation**:
+
 1. Modify handler to store summaries, not full data
 2. Use external storage for large intermediate results
 3. Add size checks before checkpoint
@@ -199,16 +208,19 @@ WHERE workflow_step_uuid = 'step-uuid-here';
 ### Database Sizing
 
 **Checkpoint column considerations:**
+
 - Each checkpoint: ~1-10KB typical (cursor, timestamp, metadata)
 - History array: ~100 bytes per entry
 - Accumulated results: Variable (handler-dependent)
 
 **Formula for checkpoint storage:**
+
 ```
 Storage = Active Steps × (Base Checkpoint Size + History Entries × 100 bytes + Accumulated Size)
 ```
 
 **Example**: 10,000 active steps with 50-entry history and 5KB accumulated results:
+
 ```
 10,000 × (5KB + 50 × 100B + 5KB) = 10,000 × 15KB = 150MB
 ```
@@ -220,6 +232,7 @@ Storage = Active Steps × (Base Checkpoint Size + History Entries × 100 bytes +
 **Checkpoint read**: Included in step data fetch (no additional query)
 
 **Recommendations**:
+
 - Checkpoint every 1000-10000 items or every 1-5 minutes
 - Too frequent: Excessive database writes
 - Too infrequent: Lost progress on failure

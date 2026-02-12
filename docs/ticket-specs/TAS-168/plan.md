@@ -37,6 +37,7 @@ Handler responsibilities (current):
 ```
 
 The bottleneck handler alone contains:
+
 - 3 parallel DB queries
 - Step aggregation by name with duration/error statistics
 - Task aggregation with step count averaging
@@ -48,6 +49,7 @@ This logic should be in a service layer.
 ### Problem: No In-Memory Cache Option
 
 Current cache backends:
+
 - **Redis** - Distributed, requires external infrastructure
 - **NoOp** - Always miss, no caching benefit
 
@@ -267,6 +269,7 @@ pub struct MokaConfig {
 **New file**: `tasker-shared/src/cache/constraints.rs`
 
 Contains:
+
 - `CacheUsageContext` enum
 - `ConstrainedCacheProvider` wrapper
 - Validation logic
@@ -303,6 +306,7 @@ impl TaskHandlerRegistry {
 **New file**: `tasker-orchestration/src/services/analytics_query_service.rs`
 
 Responsibilities:
+
 - Execute DB queries via `SqlFunctionExecutor`
 - Aggregate step/task data
 - Calculate resource utilization
@@ -621,6 +625,7 @@ max_capacity = 10000        # Maximum entries in cache
 **Decision**: Do not implement cache-busting for analytics.
 
 **Rationale**:
+
 - Analytics data is informational, not transactional
 - Real-time analytics needs would use CDC → streaming pipelines
 - 60-second TTL provides sufficient freshness for dashboards
@@ -632,6 +637,7 @@ max_capacity = 10000        # Maximum entries in cache
 **Decision**: Moka cache is valid for analytics but NOT for templates.
 
 **Rationale**:
+
 - Templates: Workers invalidate cache on bootstrap. In-memory cache on orchestration would never see these invalidations → stale templates → operational errors.
 - Analytics: Data is aggregated, historical, and TTL-bounded. Brief staleness is acceptable. In-memory provides DoS protection even without Redis.
 
@@ -640,6 +646,7 @@ max_capacity = 10000        # Maximum entries in cache
 **Decision**: Use `CacheUsageContext` enum + runtime validation rather than phantom types.
 
 **Rationale**:
+
 - Matches existing codebase patterns (graceful degradation)
 - Allows configuration-driven backend selection
 - Provides clear error messages via logging
@@ -650,6 +657,7 @@ max_capacity = 10000        # Maximum entries in cache
 **Decision**: Split into `AnalyticsQueryService` (pure logic) and `AnalyticsService` (cache wrapper).
 
 **Rationale**:
+
 - Query service is testable without cache
 - Cache wrapper follows established `TaskHandlerRegistry` pattern
 - Clear separation of concerns
@@ -786,6 +794,7 @@ records, requiring Rust-side HashMap aggregation. This had two problems:
    within a task template context `(namespace, task_name, version)`
 
 New pre-aggregated functions:
+
 - `get_slowest_steps_aggregated` - Groups by `(namespace, task_name, version, step_name)`
 - `get_slowest_tasks_aggregated` - Groups by `(namespace, task_name, version)`
 

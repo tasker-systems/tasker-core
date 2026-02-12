@@ -19,6 +19,7 @@ This created **effectively sequential execution** even for independent steps, pr
 Adopt a **dual-channel command pattern** where handler invocation is fire-and-forget, and completions flow back through a separate channel.
 
 **Architecture**:
+
 ```
 [1] WorkerEventSystem receives StepExecutionEvent
         ↓

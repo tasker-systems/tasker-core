@@ -156,6 +156,7 @@ jwt_audience = "tasker-api"
 ```
 
 Generate keys with:
+
 ```bash
 tasker-ctl auth generate-keys --output-dir /etc/tasker/keys
 ```
@@ -171,6 +172,7 @@ permissions_claim = "custom_permissions"  # Default: "permissions"
 ```
 
 The claim must be a JSON array of strings:
+
 ```json
 {
   "custom_permissions": ["tasks:create", "tasks:read"]

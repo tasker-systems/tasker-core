@@ -18,6 +18,7 @@ let tracer_provider = SdkTracerProvider::builder()
 ```
 
 **FFI Initialization Timeline:**
+
 ```
 1. Language Runtime Loads Extension (Ruby, Python, WASM)
    ↓ No Tokio runtime exists yet
@@ -43,6 +44,7 @@ pub fn init_console_only() {
 ```
 
 **When to use:**
+
 - During Magnus initialization (Ruby)
 - During PyO3 initialization (Python)
 - During WASM module initialization
@@ -63,6 +65,7 @@ runtime.block_on(async {
 ```
 
 **When to use:**
+
 - After creating Tokio runtime in bootstrap
 - Inside `runtime.block_on()` context
 - When async I/O is available
@@ -72,10 +75,12 @@ runtime.block_on(async {
 ### Ruby FFI (Magnus)
 
 **File Structure:**
+
 - `workers/ruby/ext/tasker_core/src/ffi_logging.rs` - Phase 1
 - `workers/ruby/ext/tasker_core/src/bootstrap.rs` - Phase 2
 
 **Phase 1: Magnus Initialization**
+
 ```rust
 // workers/ruby/ext/tasker_core/src/ffi_logging.rs
 
@@ -103,6 +108,7 @@ pub fn init_ffi_logger() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 **Phase 2: After Runtime Creation**
+
 ```rust
 // workers/ruby/ext/tasker_core/src/bootstrap.rs
 
@@ -127,6 +133,7 @@ pub fn bootstrap_worker() -> Result<Value, Error> {
 ### Python FFI (PyO3)
 
 **Phase 1: PyO3 Module Initialization**
+
 ```rust
 // workers/python/src/lib.rs
 
@@ -150,6 +157,7 @@ fn tasker_core(py: Python, m: &PyModule) -> PyResult<()> {
 ```
 
 **Phase 2: After Runtime Creation**
+
 ```rust
 // workers/python/src/bootstrap.rs
 
@@ -178,6 +186,7 @@ pub fn bootstrap_worker() -> PyResult<String> {
 ### WASM FFI
 
 **Phase 1: WASM Module Initialization**
+
 ```rust
 // workers/wasm/src/lib.rs
 
@@ -200,6 +209,7 @@ pub fn init_wasm() {
 ```
 
 **Phase 2: After Runtime Creation**
+
 ```rust
 // workers/wasm/src/bootstrap.rs
 
@@ -240,6 +250,7 @@ ruby-worker:
 ### Expected Log Sequence
 
 **Ruby Worker with Telemetry Enabled:**
+
 ```
 1. Magnus init:
 Telemetry enabled - deferring logging init to runtime context
@@ -257,6 +268,7 @@ OpenTelemetry Prometheus text exporter initialized
 ```
 
 **Ruby Worker with Telemetry Disabled:**
+
 ```
 1. Magnus init:
 Console-only logging initialized (FFI-safe mode)
@@ -271,6 +283,7 @@ Console-only logging initialized (FFI-safe mode)
 ### Health Check
 
 All workers should be healthy with telemetry enabled:
+
 ```bash
 $ curl http://localhost:8082/health
 {"status":"healthy","timestamp":"...","worker_id":"worker-..."}
@@ -279,6 +292,7 @@ $ curl http://localhost:8082/health
 ### Grafana Verification
 
 With all services running with telemetry:
+
 1. Access Grafana: http://localhost:3000 (admin/admin)
 2. Navigate to Explore → Tempo
 3. Query by service: `tasker-ruby-worker`
@@ -315,6 +329,7 @@ With all services running with telemetry:
 ### "no reactor running" Panic
 
 **Symptom:**
+
 ```
 thread 'main' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime'
 ```
@@ -324,6 +339,7 @@ Calling `init_tracing()` when `TELEMETRY_ENABLED=true` outside a Tokio runtime c
 
 **Solution:**
 Use two-phase pattern:
+
 ```rust
 // Phase 1: Skip telemetry init
 if telemetry_enabled {
@@ -344,12 +360,14 @@ runtime.block_on(async {
 No traces in Grafana/Tempo despite `TELEMETRY_ENABLED=true`.
 
 **Check:**
+
 1. Verify environment variable is set: `TELEMETRY_ENABLED=true`
 2. Check logs for initialization message
 3. Verify OTLP endpoint is reachable
 4. Check observability stack is healthy
 
 **Debug:**
+
 ```bash
 # Check worker logs
 docker logs docker-ruby-worker-1 | grep -E "telemetry|OpenTelemetry"
@@ -411,11 +429,13 @@ pub fn init_with_config(config: TelemetryConfig) -> TaskerResult<()> {
 After implementing two-phase telemetry initialization (Phase 1), we discovered a gap: while OpenTelemetry infrastructure was working, **worker step execution spans lacked correlation attributes** needed for distributed tracing.
 
 **The Problem:**
+
 - ✅ Orchestration spans had correlation_id, task_uuid, step_uuid
 - ✅ Worker infrastructure spans existed (read_messages, reserve_capacity)
 - ❌ Worker **step execution spans** were missing these attributes
 
 **Root Cause:** Ruby workers use an async dual-event-system architecture where:
+
 1. Rust worker fires FFI event to Ruby (via EventPoller polling every 10ms)
 2. Ruby processes event asynchronously
 3. Ruby returns completion via FFI
@@ -485,6 +505,7 @@ pub async fn handle_execute_step(&self, step_message: SimpleStepMessage) -> Task
 ```
 
 **Key Points:**
+
 - All 5 attributes present: `correlation_id`, `task_uuid`, `step_uuid`, `step_name`, `namespace`
 - Event markers: `step.execution_started`, `step.execution_completed`
 - `.instrument(span)` pattern for async code
@@ -531,6 +552,7 @@ pub struct StepExecutionCompletionEvent {
 ```
 
 **Design Notes:**
+
 - Fields are optional for backward compatibility
 - `skip_serializing_if` prevents empty fields in JSON
 - Treated as opaque strings (no OpenTelemetry types)
@@ -587,6 +609,7 @@ end
 ```
 
 **Key Points:**
+
 - Ruby treats trace_id and span_id as opaque strings
 - No OpenTelemetry dependency in Ruby
 - Simple pass-through pattern like correlation_id
@@ -638,6 +661,7 @@ pub fn handle_completion(&self, completion: StepExecutionCompletionEvent) -> Tas
 ```
 
 **Key Points:**
+
 - Uses returned trace_id/span_id to create linked span
 - Graceful fallback if trace context not available
 - Event: `step.ruby_execution_completed`
@@ -645,6 +669,7 @@ pub fn handle_completion(&self, completion: StepExecutionCompletionEvent) -> Tas
 ### Validation Results (2025-11-24)
 
 **Test Task:**
+
 - Correlation ID: `88f21229-4085-4d53-8f52-2fde0b7228e2`
 - Task UUID: `019ab6f9-7a27-7d16-b298-1ea41b327373`
 - 4 steps executed successfully
@@ -668,6 +693,7 @@ worker.step_completion_received{...}: step.ruby_execution_completed
 ```
 
 **Tempo Query Results:**
+
 - By `correlation_id`: 9 traces (5 orchestration + 4 worker)
 - By `task_uuid`: 13 traces (complete task lifecycle)
 - ✅ All attributes indexed and queryable
@@ -725,6 +751,7 @@ For each step execution:
 The exact same pattern applies to Python workers:
 
 **Python Side (PyO3):**
+
 ```python
 # workers/python/tasker_core/event_bridge.py
 
@@ -760,12 +787,14 @@ def wrap_step_execution_event(event_data):
 **Symptom:** Spans missing trace_id/span_id in Tempo
 
 **Check:**
+
 1. Verify Rust logs show "Step execution event with trace context fired successfully"
 2. Check Ruby logs don't have errors in EventBridge
 3. Verify completion events include trace_id/span_id
 4. Query Tempo by task_uuid to see if spans exist
 
 **Debug:**
+
 ```bash
 # Check Rust worker logs for trace context
 docker logs docker-ruby-worker-1 | grep -E "(trace_id|span_id)"

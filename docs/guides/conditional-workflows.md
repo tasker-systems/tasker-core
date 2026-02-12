@@ -14,6 +14,7 @@
 Conditional workflows enable **runtime decision-making** that dynamically determines which workflow steps to execute based on business logic. Unlike static DAG workflows where all steps are predefined, conditional workflows use **decision point steps** to create steps on-demand based on runtime conditions.
 
 **Dynamic Workflow Decision Points** provide this capability through:
+
 - **Decision Point Steps**: Special step type that evaluates business logic and returns step names to create
 - **Deferred Steps**: Step type with dynamic dependency resolution using intersection semantics
 - **Type-Safe Integration**: Ruby and Rust helpers ensuring clean serialization between languages
@@ -37,38 +38,44 @@ Conditional workflows enable **runtime decision-making** that dynamically determ
 
 ## When to Use Conditional Workflows
 
-### ✅ Use Conditional Workflows When:
+### ✅ Use Conditional Workflows When
 
 **1. Business Logic Determines Execution Path**
+
 - Approval workflows with amount-based routing (small/medium/large)
 - Risk-based processing (low/medium/high risk paths)
 - Tiered customer service (bronze/silver/gold/platinum)
 - Regulatory compliance with jurisdictional variations
 
 **2. Step Requirements Are Unknown Until Runtime**
+
 - Dynamic validation checks based on request type
 - Multi-stage approvals where approval count depends on amount
 - Conditional enrichment steps based on data completeness
 - Parallel processing with variable worker count
 
 **3. Workflow Complexity Varies By Input**
+
 - Simple cases skip expensive steps
 - Complex cases trigger additional validation
 - Emergency processing bypasses normal checks
 - VIP customers get expedited handling
 
-### ❌ Don't Use Conditional Workflows When:
+### ❌ Don't Use Conditional Workflows When
 
 **1. Static DAG is Sufficient**
+
 - All possible execution paths known at design time
 - Complexity overhead not justified
 - Simple if/else can be handled in handler code
 
 **2. Purely Sequential Logic**
+
 - No parallelism or branching needed
 - Handler code can make decisions directly
 
 **3. Real-Time Sub-Second Decisions**
+
 - Decision overhead (~10-20ms) not acceptable
 - In-memory processing required
 
@@ -109,6 +116,7 @@ Task Complete
 ### Intersection Semantics for Deferred Steps
 
 **Declared Dependencies** (in template):
+
 ```yaml
 - step_a
 - step_b
@@ -116,11 +124,13 @@ Task Complete
 ```
 
 **Actually Created Steps** (by decision point):
+
 ```
 Only step_a and step_c were created
 ```
 
 **Effective Dependencies** (intersection):
+
 ```
 step_a AND step_c  (step_b ignored since not created)
 ```
@@ -145,6 +155,7 @@ pub enum DecisionPointOutcome {
 ```
 
 **Key Characteristics**:
+
 - Executes like a normal step
 - Result includes `decision_point_outcome` field
 - Orchestration detects outcome and creates steps
@@ -165,6 +176,7 @@ dependencies:
 ```
 
 **Resolution Logic**:
+
 1. Wait for decision point to complete
 2. Check which declared dependencies actually exist
 3. Wait only for intersection of declared + created
@@ -279,6 +291,7 @@ steps:
 ```
 
 **Key Points**:
+
 - `type: decision` marks the decision point step
 - `type: deferred` enables intersection semantics for convergence
 - ALL possible dependencies listed in deferred step
@@ -291,6 +304,7 @@ steps:
 ### Business Requirement
 
 Route approval requests based on amount:
+
 - **< $1,000**: Auto-approve (no human intervention)
 - **$1,000 - $4,999**: Manager approval required
 - **≥ $5,000**: Manager + Finance approval required
@@ -409,6 +423,7 @@ end
 ```
 
 **Key Ruby Patterns**:
+
 - **Inherit from** `TaskerCore::StepHandler::Decision` - Specialized base class for decision points
 - **Use helper method** `decision_success(steps:, result_data:, metadata:)` - Clean API for decision outcomes
 - Helper automatically creates `DecisionPointOutcome` and embeds it correctly
@@ -418,6 +433,7 @@ end
 ### Execution Flow Examples
 
 **Example 1: Small Amount ($500)**
+
 ```
 1. validate_request → Complete
 2. routing_decision → Complete (creates: auto_approve)
@@ -430,6 +446,7 @@ Execution Time: ~500ms
 ```
 
 **Example 2: Medium Amount ($2,500)**
+
 ```
 1. validate_request  → Complete
 2. routing_decision  → Complete (creates: manager_approval)
@@ -442,6 +459,7 @@ Execution Time: ~2s (human approval delay)
 ```
 
 **Example 3: Large Amount ($10,000)**
+
 ```
 1. validate_request  → Complete
 2. routing_decision  → Complete (creates: manager_approval, finance_review)
@@ -461,6 +479,7 @@ Execution Time: ~3s (parallel approvals)
 ### Business Requirement
 
 Implement sophisticated approval routing with:
+
 - Risk assessment step
 - Tiered approval requirements
 - Emergency override path
@@ -625,6 +644,7 @@ end
 ### Execution Scenarios
 
 **Scenario 1: Emergency Low-Risk Request ($5,000)**
+
 ```
 Path: validate → assess_risk → primary_routing → emergency_approval → finalize
 Steps Created: 5
@@ -633,6 +653,7 @@ Complexity: Low
 ```
 
 **Scenario 2: Standard Medium-Risk Request ($3,000, Risk 25)**
+
 ```
 Path: validate → assess_risk → primary_routing → standard_manager_approval → finalize
 Steps Created: 5
@@ -641,6 +662,7 @@ Complexity: Low
 ```
 
 **Scenario 3: High-Risk Large Amount ($75,000, Risk 80, EU)**
+
 ```
 Path: validate → assess_risk → primary_routing → senior_manager_approval + compliance_routing
       → legal_review + fraud_investigation + jurisdictional_check → finalize
@@ -688,20 +710,24 @@ end
 ### Helper Methods
 
 **`decision_success(steps:, result_data: {}, metadata: {})`**
+
 - Creates steps dynamically
 - `steps`: String or Array of step names
 - `result_data`: Additional data to store in step results
 - `metadata`: Observability metadata
 
 **`decision_no_branches(result_data: {}, metadata: {})`**
+
 - No additional steps created
 - Workflow proceeds to next static step
 
 **`decision_with_custom_outcome(outcome:, result_data: {}, metadata: {})`**
+
 - Advanced: Full control over outcome structure
 - Most handlers should use `decision_success` or `decision_no_branches`
 
 **`validate_decision_outcome!(outcome)`**
+
 - Validates custom outcome structure
 - Raises error if invalid
 
@@ -872,6 +898,7 @@ impl DecisionPointOutcome {
 ```
 
 **Key Rust Patterns**:
+
 - `DecisionPointOutcome::create_steps(vec![...])` - Type-safe factory
 - `outcome.to_value()` - Serializes to JSON matching Ruby format
 - Embedded in result JSON as `decision_point_outcome` field
@@ -1021,21 +1048,25 @@ decision_success(
 ### Technical Limits
 
 **1. Maximum Decision Depth**
+
 - Default: 3 levels of nested decision points
 - Configurable via `orchestration.decision_points.max_depth`
 - Prevents infinite recursion
 
 **2. Step Names Must Exist in Template**
+
 - All step names in `CreateSteps` must be defined in template
 - Orchestration validates before creating steps
 - Invalid names cause permanent failure
 
 **3. Decision Logic is Non-Retryable by Default**
+
 - Decision steps should be deterministic
 - Retry disabled by default (`max_attempts: 1`)
 - External API calls should be in separate steps
 
 **4. Created Steps Cannot Modify Template**
+
 - Decision points create instances of template steps
 - Cannot dynamically define new step types
 - All possible steps must be in template
@@ -1043,16 +1074,19 @@ decision_success(
 ### Performance Considerations
 
 **1. Decision Overhead**
+
 - Each decision point adds ~10-20ms overhead
 - Includes: handler execution + step creation + dependency resolution
 - Factor into SLA planning
 
 **2. Database Impact**
+
 - Each created step = 1 WorkflowStep record + edges
 - Large branch counts increase database operations
 - Monitor `workflow_steps` table growth
 
 **3. Observability**
+
 - Decision outcomes logged with telemetry
 - Metrics track: `decision_points.steps_created`, `decision_points.depth`
 - Use structured logging for audit trails
@@ -1060,6 +1094,7 @@ decision_success(
 ### Semantic Constraints
 
 **1. Deferred Dependencies Must Include Decision Point**
+
 ```yaml
 # ✅ Correct
 - name: finalize
@@ -1078,6 +1113,7 @@ decision_success(
 ```
 
 **2. Decision Points Cannot Be Circular**
+
 ```
 # ❌ Not allowed - circular dependency
 routing_a creates routing_b
@@ -1085,6 +1121,7 @@ routing_b creates routing_a
 ```
 
 **3. No Dynamic Template Modification**
+
 - Cannot add new handler types at runtime
 - Cannot modify step configurations
 - All possibilities must be predefined
@@ -1098,30 +1135,35 @@ routing_b creates routing_a
 Both Ruby and Rust implementations include comprehensive E2E tests covering all routing scenarios:
 
 **Test Locations**:
+
 - Ruby: `tests/e2e/ruby/conditional_approval_test.rs`
 - Rust: `tests/e2e/rust/conditional_approval_rust.rs`
 
 **Test Scenarios**:
 
 1. **Small Amount ($500)** - Auto-approval only
+
    ```
    validate_request → routing_decision → auto_approve → finalize_approval
    Expected: 4 steps created, only auto_approve path taken
    ```
 
 2. **Medium Amount ($3,000)** - Manager approval only
+
    ```
    validate_request → routing_decision → manager_approval → finalize_approval
    Expected: 4 steps created, only manager path taken
    ```
 
 3. **Large Amount ($10,000)** - Dual approval
+
    ```
    validate_request → routing_decision → manager_approval + finance_review → finalize_approval
    Expected: 5 steps created, both approval paths taken (parallel)
    ```
 
 4. **API Validation** - Initial step count verification
+
    ```
    Expected: 2 steps at initialization (validate_request, routing_decision)
    Reason: finalize_approval is transitive descendant of decision point
@@ -1149,6 +1191,7 @@ cargo test --test e2e_tests -- --nocapture
 **Rust Template**: `tests/fixtures/task_templates/rust/conditional_approval_rust.yaml`
 
 Both templates demonstrate:
+
 - Decision point step configuration (`type: decision`)
 - Deferred convergence step (`type: deferred`)
 - Dynamic step dependencies
@@ -1177,6 +1220,7 @@ When implementing decision point workflows, ensure:
 - **[Quick Start](quick-start.md)** - Getting started guide
 - **[Crate Architecture](crate-architecture.md)** - System architecture overview
 - **[Decision Point E2E Tests](testing/decision-point-e2e-tests.md)** - Detailed test documentation
+
 ---
 
 ← Back to [Documentation Hub](README.md)

@@ -30,6 +30,7 @@ assert!(stats_after.router.total_routed > stats_before.router.total_routed);
 Add a `test-cluster` feature check to skip domain event metric verification tests in cluster mode.
 
 **Implementation**:
+
 ```rust
 #[tokio::test]
 #[cfg_attr(feature = "test-cluster", ignore)]
@@ -39,12 +40,14 @@ async fn test_rust_domain_event_publishing_success() -> Result<()> {
 ```
 
 **Pros**:
+
 - Simple, low effort
 - Clear intent - these tests are known to be non-deterministic in cluster mode
 - Domain events are already well-tested at unit and message-queue levels
 - Matches existing pattern (`test-services`, `test-messaging`, `test-cluster`)
 
 **Cons**:
+
 - Reduced test coverage in cluster mode
 - Doesn't validate domain events work correctly across multiple instances
 
@@ -55,6 +58,7 @@ async fn test_rust_domain_event_publishing_success() -> Result<()> {
 Extend test helpers to detect cluster mode and check ALL configured worker endpoints. If ANY worker shows an increase in event counts, treat it as success.
 
 **Implementation**:
+
 ```rust
 async fn verify_domain_events_published(
     worker_urls: &[String],
@@ -74,10 +78,12 @@ async fn verify_domain_events_published(
 ```
 
 **Pros**:
+
 - Maintains test coverage in cluster mode
 - Validates events work across instances
 
 **Cons**:
+
 - More complex test infrastructure
 - **Signal degradation**: With parallel test execution, multiple tasks may be running simultaneously, causing metric increases from OTHER tests. This makes the "did MY task's events get published?" question harder to answer.
 - Requires environment variable coordination (`TASKER_TEST_WORKER_RUST_URLS`, etc.)
@@ -89,6 +95,7 @@ async fn verify_domain_events_published(
 Force domain event tests to use "publish external" pathway, then read from the configured domain event queue (PGMQ or RabbitMQ) to verify events appear.
 
 **Implementation**:
+
 ```rust
 // Configure test handlers to publish externally
 // Read from pgmq.domain_events or rabbitmq domain event exchange
@@ -96,10 +103,12 @@ Force domain event tests to use "publish external" pathway, then read from the c
 ```
 
 **Pros**:
+
 - Precise verification - actually reads the published events
 - Works reliably in both single and cluster mode
 
 **Cons**:
+
 - **High complexity**: Must handle both PGMQ and RabbitMQ backends
 - Different queue schemas and read patterns per backend
 - Need correlation ID tracking through events
@@ -163,6 +172,7 @@ tests/e2e/python/domain_event_publishing_test.rs
 ## Future Considerations
 
 If domain event verification becomes critical in cluster mode, Option B could be revisited with these mitigations:
+
 - Run domain event tests in isolation (not parallel with other tests)
 - Use test-specific correlation IDs and filter metric checks
 - Accept some non-determinism as acceptable for integration testing

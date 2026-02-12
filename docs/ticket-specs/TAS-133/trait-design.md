@@ -141,7 +141,8 @@ async fn nack_message(
 ) -> Result<(), MessagingError>;
 ```
 
-**Semantics**: 
+**Semantics**:
+
 - `requeue = true`: Return message to queue for retry
 - `requeue = false`: Discard (or send to DLQ if configured)
 
@@ -351,6 +352,7 @@ This is "implicit nack" - the absence of an ack causes eventual requeue.
 ### RabbitMQ Requirement: Explicit Nack
 
 RabbitMQ requires explicit acknowledgment. Unacked messages stay "in flight" until:
+
 1. Explicit `basic_ack` (success)
 2. Explicit `basic_nack` (failure, with requeue option)
 3. Consumer disconnection (requeues all unacked)
@@ -406,12 +408,14 @@ impl Drop for MessageGuard<'_> {
 **Option A: Transparent Auto-Nack (Recommended)**
 
 Existing Tasker code continues to work unchanged:
+
 - PGMQ: Current behavior preserved
 - RabbitMQ: Auto-nack on Drop
 
 **Option B: Require Explicit Nack**
 
 Force callers to handle all outcomes:
+
 - More explicit error handling
 - Breaking change to existing code
 - Better for dead letter routing
@@ -467,6 +471,7 @@ Tasker's `tasker-pgmq` integration demonstrates that push-based notifications dr
 ### Provider Push Models
 
 **PGMQ + pg_notify** (Signal-based):
+
 ```rust
 // Notification contains queue name only
 LISTEN pgmq_message_ready.fulfillment_queue;
@@ -478,6 +483,7 @@ LISTEN pgmq_message_ready.fulfillment_queue;
 ```
 
 **RabbitMQ via lapin** (Message-based):
+
 ```rust
 // Consumer receives full messages
 let consumer = channel.basic_consume("queue", "tag", opts, args).await?;
@@ -544,17 +550,20 @@ where
 ### Provider-Specific Considerations
 
 **PGMQ**:
+
 - pg_notify fires in same transaction as message insert (atomic)
 - Notification payload limited to 8KB (just signals, doesn't include message)
 - Requires PostgreSQL connection per listener
 
 **RabbitMQ**:
+
 - Native push, no enhancement needed
 - Prefetch controls backpressure
 - Connection multiplexing via channels
 - Consumer cancellation for graceful shutdown
 
 **SQS**:
+
 - No native push
 - Long polling (20s max) is best option
 - Could use SNS → SQS → Lambda for pseudo-push (adds latency)

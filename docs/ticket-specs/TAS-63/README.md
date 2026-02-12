@@ -10,9 +10,11 @@ coverage reports across Rust, Python, Ruby, and TypeScript with normalized
 JSON output, threshold enforcement, and actionable file-level detail.
 
 **Formal documentation:**
+
 - [`docs/development/coverage-tooling.md`](../../development/coverage-tooling.md) - Commands, architecture, JSON schema, and script reference
 
 **Related ticket documents:**
+
 - `ticket.md` - Coverage gap analysis and prioritized closure plan
 - `coverage-tooling.md` - Architecture deep-dive and design decisions
 - `analysis-tasker-client.md` - tasker-client coverage analysis and test plan

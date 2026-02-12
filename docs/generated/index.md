@@ -1,12 +1,12 @@
 # Tasker Configuration Documentation Index
 
 
-
 > **Coverage:** 246/246 parameters documented (100%)
 
 ---
 
 ## Common Configuration
+
 - **backoff** (`common.backoff`) — 5 params (5 documented)
 - **cache** (`common.cache`) — 10 params (10 documented)
 - moka (`common.cache.moka`) — 1 params
@@ -32,6 +32,7 @@
 - **task_templates** (`common.task_templates`) — 1 params (1 documented)
 
 ## Orchestration Configuration
+
 - **orchestration** (`orchestration`) — 2 params (2 documented)
 - **batch_processing** (`orchestration.batch_processing`) — 4 params (4 documented)
 - **decision_points** (`orchestration.decision_points`) — 7 params (7 documented)
@@ -50,6 +51,7 @@
 - database_pools (`orchestration.web.database_pools`) — 5 params
 
 ## Worker Configuration
+
 - **worker** (`worker`) — 2 params (2 documented)
 - **circuit_breakers** (`worker.circuit_breakers`) — 4 params (4 documented)
 - ffi_completion_send (`worker.circuit_breakers.ffi_completion_send`) — 4 params

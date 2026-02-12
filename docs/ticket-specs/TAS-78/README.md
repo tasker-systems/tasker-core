@@ -43,6 +43,7 @@ min_connections = 5
 ```
 
 **Environment Variables**:
+
 - `DATABASE_URL` - Single URL for all database operations
 
 ### Migration File Analysis
@@ -66,6 +67,7 @@ min_connections = 5
 ### Pool Initialization Analysis
 
 **tasker-pgmq crate** (`tasker-pgmq/src/client.rs`):
+
 ```rust
 impl PgmqClient {
     pub async fn new(database_url: &str) -> Result<Self> {
@@ -83,6 +85,7 @@ impl PgmqClient {
 ### SQL Function Dependencies
 
 **Functions on PGMQ database** (required for messaging):
+
 - `pgmq_send_with_notify()` - Atomic message send + notification
 - `pgmq_send_batch_with_notify()` - Batch version
 - `pgmq_read_specific_message()` - Event-driven message retrieval
@@ -93,6 +96,7 @@ impl PgmqClient {
 - `pgmq_ensure_headers_column()` - Headers column helper
 
 **Functions that reference BOTH databases** (problematic):
+
 - None currently - clean separation is possible
 
 ## Solution Design
@@ -324,6 +328,7 @@ health_check_interval_seconds = 10
 5. Update configuration documentation
 
 **Files Modified**:
+
 - `tasker-shared/src/config/database.rs`
 - `config/tasker/base/common.toml`
 - `.env.template`
@@ -336,6 +341,7 @@ health_check_interval_seconds = 10
 4. Update `PgmqClient::new_with_pool()` calls throughout codebase
 
 **Files Modified**:
+
 - `tasker-shared/src/database/mod.rs` (new: `pools.rs`)
 - `tasker-shared/src/system_context.rs`
 - `tasker-orchestration/src/services/` (various)
@@ -350,6 +356,7 @@ health_check_interval_seconds = 10
 5. Add migration path selection based on configuration
 
 **Files Modified**:
+
 - `migrations/` (directory restructure)
 - `tasker-shared/src/database/migrator.rs`
 
@@ -361,6 +368,7 @@ health_check_interval_seconds = 10
 4. Update health check endpoints to report both pool statuses
 
 **Files Modified**:
+
 - `tasker-orchestration/src/bootstrap.rs`
 - `tasker-worker/src/bootstrap.rs`
 - `tasker-orchestration/src/web/handlers/health.rs`
@@ -375,6 +383,7 @@ health_check_interval_seconds = 10
 5. Update CI to test both configurations
 
 **Files Modified**:
+
 - `tests/integration/database_pools_test.rs` (new)
 - `.github/workflows/test.yml`
 
@@ -386,6 +395,7 @@ health_check_interval_seconds = 10
 4. Add operational runbook for split-database deployments
 
 **Files Modified**:
+
 - `docs/architecture/deployment-patterns.md`
 - `docs/operations/database-configuration.md` (new)
 - `README.md`

@@ -23,6 +23,7 @@
 ## Philosophy
 
 **Principles**:
+
 - **Production-First**: Logs must be parseable, searchable, and professional
 - **Correlation-Driven**: All operations include correlation_id for distributed tracing
 - **Structured**: Fields over string interpolation for aggregation and querying
@@ -30,6 +31,7 @@
 - **Consistent**: Predictable patterns across all code
 
 **Anti-Patterns to Avoid**:
+
 - ❌ Emojis (🚀✅❌) - Breaks log parsers, unprofessional
 - ❌ All-caps prefixes ("BOOTSTRAP:", "CORE:") - Redundant with module paths
 - ❌ Ticket references ("JIRA-123", "PROJ-40") - Internal, meaningless externally
@@ -43,6 +45,7 @@
 ### ERROR - Unrecoverable Failures
 
 **When to Use**:
+
 - Database connection permanently lost
 - Critical system component failure
 - Unrecoverable state machine violation
@@ -50,12 +53,14 @@
 - Message queue unavailable
 
 **Characteristics**:
+
 - Requires immediate human intervention
 - Service degradation or outage
 - Cannot automatically recover
 - Should trigger alerts/pages
 
 **Example**:
+
 ```rust
 error!(
     correlation_id = %correlation_id,
@@ -68,6 +73,7 @@ error!(
 ### WARN - Degraded Operation
 
 **When to Use**:
+
 - Retryable failures after exhausting retries
 - Circuit breaker opened (degraded mode)
 - Fallback behavior activated
@@ -76,12 +82,14 @@ error!(
 - Unexpected but handled conditions
 
 **Characteristics**:
+
 - Service continues but degraded
 - Automatic recovery possible
 - Should be monitored for patterns
 - May indicate upstream problems
 
 **Example**:
+
 ```rust
 warn!(
     correlation_id = %correlation_id,
@@ -96,6 +104,7 @@ warn!(
 ### INFO - Lifecycle Events
 
 **When to Use**:
+
 - System startup/shutdown
 - Task created/completed/failed
 - Step enqueued/completed
@@ -104,12 +113,14 @@ warn!(
 - Significant business events
 
 **Characteristics**:
+
 - Normal operation milestones
 - Useful for understanding flow
 - Production-ready verbosity
 - Default log level in production
 
 **Example**:
+
 ```rust
 info!(
     correlation_id = %correlation_id,
@@ -123,6 +134,7 @@ info!(
 ### DEBUG - Detailed Diagnostics
 
 **When to Use**:
+
 - Discovery query results
 - Queue depth checks
 - Dependency analysis details
@@ -131,12 +143,14 @@ info!(
 - Detailed operation flow
 
 **Characteristics**:
+
 - Troubleshooting information
 - Not shown in production (usually)
 - Safe to be verbose
 - Helps understand "why"
 
 **Example**:
+
 ```rust
 debug!(
     correlation_id = %correlation_id,
@@ -151,18 +165,21 @@ debug!(
 ### TRACE - Very Verbose
 
 **When to Use**:
+
 - Function entry/exit in hot paths
 - Loop iteration details
 - Deep parameter inspection
 - Performance profiling hooks
 
 **Characteristics**:
+
 - Extremely verbose
 - Usually disabled even in dev
 - Performance impact acceptable
 - Use sparingly
 
 **Example**:
+
 ```rust
 trace!(
     correlation_id = %correlation_id,
@@ -178,11 +195,13 @@ trace!(
 ### Required Fields (Context-Dependent)
 
 **Always Include**:
+
 ```rust
 correlation_id = %correlation_id,  // ALWAYS when available
 ```
 
 **When Task Context Available**:
+
 ```rust
 correlation_id = %correlation_id,
 task_uuid = %task_uuid,
@@ -190,6 +209,7 @@ namespace = %namespace,
 ```
 
 **When Step Context Available**:
+
 ```rust
 correlation_id = %correlation_id,
 task_uuid = %task_uuid,
@@ -198,6 +218,7 @@ namespace = %namespace,
 ```
 
 **For Operations**:
+
 ```rust
 correlation_id = %correlation_id,
 // ... entity IDs ...
@@ -206,6 +227,7 @@ duration_ms = elapsed.as_millis(), // Timing for operations
 ```
 
 **For Errors**:
+
 ```rust
 correlation_id = %correlation_id,
 // ... entity IDs ...
@@ -216,6 +238,7 @@ error_type = %type_name::<E>(),   // Optional: Error type
 ### Field Ordering (MANDATORY)
 
 **Standard Order**:
+
 1. **correlation_id** (always first)
 2. **Entity IDs** (task_uuid, step_uuid, namespace)
 3. **Operation/Action** (operation, state, status)
@@ -224,6 +247,7 @@ error_type = %type_name::<E>(),   // Optional: Error type
 6. **Other Context** (additional fields)
 
 **Example**:
+
 ```rust
 info!(
     // 1. Correlation ID (ALWAYS FIRST)
@@ -254,6 +278,7 @@ info!(
 ### Field Formatting
 
 **Use Display Formatting (`%`)**:
+
 ```rust
 // ✅ CORRECT: Let tracing handle formatting
 correlation_id = %correlation_id,
@@ -262,6 +287,7 @@ error = %e,
 ```
 
 **Avoid Manual Conversion**:
+
 ```rust
 // ❌ WRONG: Manual to_string()
 task_uuid = task_uuid.to_string(),
@@ -271,6 +297,7 @@ task_uuid = ?task_uuid,  // Use ? only for Debug types
 ```
 
 **Field Naming**:
+
 ```rust
 // ✅ Standard names
 duration_ms          // Not elapsed_ms, time_ms
@@ -287,6 +314,7 @@ max_retries          // Not max_attempts
 ### Guidelines
 
 **DO**:
+
 - ✅ Be concise and actionable
 - ✅ Use present tense for states: "Step enqueued"
 - ✅ Use past tense for events: "Task completed"
@@ -294,6 +322,7 @@ max_retries          // Not max_attempts
 - ✅ Focus on WHAT happened (fields show HOW)
 
 **DON'T**:
+
 - ❌ Use emojis: "🚀 Starting..." → "Starting orchestration system"
 - ❌ Use all-caps prefixes: "BOOTSTRAP: Starting..." → "Starting orchestration bootstrap"
 - ❌ Include ticket numbers: "PROJ-40: Processing..." → "Processing command"
@@ -304,6 +333,7 @@ max_retries          // Not max_attempts
 ### Before/After Examples
 
 **Lifecycle Events**:
+
 ```rust
 // ❌ BEFORE
 info!("🚀 BOOTSTRAP: Starting unified orchestration system bootstrap");
@@ -313,6 +343,7 @@ info!("Starting orchestration system bootstrap");
 ```
 
 **Operation Completion**:
+
 ```rust
 // ❌ BEFORE
 info!("✅ STEP_ENQUEUER: Successfully marked step {} as enqueued", step_uuid);
@@ -326,6 +357,7 @@ info!(
 ```
 
 **Error Handling**:
+
 ```rust
 // ❌ BEFORE
 error!("❌ ORCHESTRATION_LOOP: Failed to process task {}: {}", task_uuid, e);
@@ -340,6 +372,7 @@ error!(
 ```
 
 **Shutdown**:
+
 ```rust
 // ❌ BEFORE
 info!("🛑 Shutdown signal received, initiating graceful shutdown...");
@@ -355,12 +388,14 @@ info!("Shutdown signal received, initiating graceful shutdown");
 ### When to Use
 
 Use `#[instrument]` for:
+
 - Function-level spans in hot paths
 - Automatic correlation ID tracking
 - Operations that should appear in traces
 - Functions with significant duration
 
 **Benefits**:
+
 - Automatic span creation
 - Automatic timing
 - Better OpenTelemetry integration (Phase 2)
@@ -399,6 +434,7 @@ pub async fn process_task(
 ### Skip Parameters
 
 **Always skip**:
+
 - `self` (redundant)
 - Large structures (use specific fields instead)
 - Sensitive data (passwords, tokens, PII)
@@ -420,6 +456,7 @@ pub async fn process_task(
 ### Error Context
 
 **Always include**:
+
 ```rust
 error!(
     correlation_id = %correlation_id,
@@ -647,6 +684,7 @@ pub async fn shutdown(&mut self) -> Result<()> {
 ### Code Review Checklist
 
 Before merging, verify:
+
 - [ ] No emojis in log messages
 - [ ] No all-caps component prefixes
 - [ ] No ticket references in runtime logs
@@ -659,6 +697,7 @@ Before merging, verify:
 ### CI Checks
 
 **Recommended lints** (future):
+
 ```bash
 # Check for emojis
 ! grep -r '[🔧✅🚀❌⚠️📊🔍🎉🛡️⏱️📝🏗️🎯🔄💡📦🧪🌉🔌⏳🛑]' src/
@@ -673,6 +712,7 @@ Before merging, verify:
 ### Pre-commit Hook
 
 Add to `.git/hooks/pre-commit`:
+
 ```bash
 #!/bin/bash
 ./scripts/audit-logging.sh --check || {
@@ -712,6 +752,7 @@ A: `info!` - It's a significant lifecycle event even if frequent.
 
 **Q: When should I add `duration_ms`?**
 A: For any operation that:
+
 - Calls external systems (DB, queue)
 - Is in the hot path
 - Takes >10ms typically

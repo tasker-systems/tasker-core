@@ -55,6 +55,7 @@ pub async fn ensure_namespace_queues(
 ```
 
 **Key Properties**:
+
 | Property | PGMQ Behavior |
 |----------|---------------|
 | Idempotency | ✅ `CREATE IF NOT EXISTS` |
@@ -178,6 +179,7 @@ pub struct QueueHealthReport {
 ### Provider-Specific Optimizations
 
 **PGMQ**: Could use a single transaction for all queue creations:
+
 ```rust
 impl MessagingService for PgmqMessagingService {
     async fn ensure_queues(&self, queue_names: &[String]) -> Result<(), MessagingError> {
@@ -195,6 +197,7 @@ impl MessagingService for PgmqMessagingService {
 ```
 
 **RabbitMQ**: Reuse single channel for all declarations:
+
 ```rust
 impl MessagingService for RabbitMqMessagingService {
     async fn ensure_queues(&self, queue_names: &[String]) -> Result<(), MessagingError> {

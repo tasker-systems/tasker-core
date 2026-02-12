@@ -161,6 +161,7 @@ class MyHandler extends StepHandler implements APICapable, DecisionCapable {
 ### What Orchestration Owns
 
 The orchestration layer handles:
+
 - Domain event publishing (after results committed)
 - Decision point step creation (from DecisionPointOutcome)
 - Batch worker creation (from BatchProcessingOutcome)
@@ -169,6 +170,7 @@ The orchestration layer handles:
 ### What Workers Own
 
 Workers handle:
+
 - Decision logic (returns `DecisionPointOutcome`)
 - Batch analysis (returns `BatchProcessingOutcome`)
 - Handler execution (returns `StepHandlerResult`)
@@ -249,6 +251,7 @@ pub enum BatchProcessingOutcome {
 #### Ruby
 
 Before (inheritance):
+
 ```ruby
 class MyAPIHandler < TaskerCore::APIHandler
   def call(context)
@@ -258,6 +261,7 @@ end
 ```
 
 After (composition):
+
 ```ruby
 class MyAPIHandler < TaskerCore::StepHandler::Base
   include TaskerCore::StepHandler::Mixins::API
@@ -271,6 +275,7 @@ end
 #### Python
 
 Before (inheritance):
+
 ```python
 class MyAPIHandler(APIHandler):
     def call(self, context):
@@ -278,6 +283,7 @@ class MyAPIHandler(APIHandler):
 ```
 
 After (composition):
+
 ```python
 from tasker_core.step_handler import StepHandler
 from tasker_core.step_handler.mixins import APIMixin
@@ -290,6 +296,7 @@ class MyAPIHandler(StepHandler, APIMixin):
 #### TypeScript
 
 Before (inheritance):
+
 ```typescript
 class MyAPIHandler extends APIHandler {
   async call(context: StepContext): Promise<StepHandlerResult> {
@@ -299,6 +306,7 @@ class MyAPIHandler extends APIHandler {
 ```
 
 After (composition):
+
 ```typescript
 import { StepHandler } from '@tasker-systems/tasker';
 import { applyAPI, APICapable } from '@tasker-systems/tasker';
@@ -318,6 +326,7 @@ class MyAPIHandler extends StepHandler implements APICapable {
 #### Rust
 
 Rust already used the composition pattern via traits:
+
 ```rust
 // Rust has always used traits (composition)
 impl StepHandler for MyHandler { ... }
@@ -328,6 +337,7 @@ impl DecisionCapable for MyHandler { ... }
 ### Breaking Changes Implemented
 
 The migration to composition involved breaking changes:
+
 1. Base class changes across all languages
 2. Module/mixin includes required
 3. Ruby cursor indexing changed from 1-indexed to 0-indexed

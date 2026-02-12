@@ -41,6 +41,7 @@ Before selecting data structures, analyze each location:
 ### Analysis Checklist
 
 For each data structure, document:
+
 1. **Key type**: UUID, integer, string?
 2. **Value lifetime**: Short (request-scoped) or long (process lifetime)?
 3. **Access pattern**: Read-heavy, write-heavy, or balanced?
@@ -58,11 +59,13 @@ For each data structure, document:
 **File**: `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs:255`
 
 **Current**:
+
 ```rust
 pending_events: Arc<RwLock<HashMap<Uuid, PendingEvent>>>  // std::sync::RwLock
 ```
 
 **Hot path**:
+
 - `poll()` - inserts pending event on every dispatch
 - `complete()` - removes pending event on every completion
 - `metrics()` - reads all pending events for age calculations
@@ -91,6 +94,7 @@ pending_events: Arc<RwLock<HashMap<Uuid, PendingEvent>>>  // std::sync::RwLock
 #### Preliminary Recommendation
 
 **DashMap** is likely appropriate here because:
+
 - Keys are random UUIDs (not sequential integers)
 - Need fast lookup by UUID for `complete()`
 - Bounded size (semaphore-limited), so sharding overhead acceptable
@@ -102,6 +106,7 @@ pending_events: Arc<RwLock<HashMap<Uuid, PendingEvent>>>  // std::sync::RwLock
 **File**: `tasker-orchestration/src/orchestration/state_manager.rs:97-98`
 
 **Current**:
+
 ```rust
 task_state_machines: Arc<Mutex<HashMap<Uuid, TaskStateMachine>>>
 step_state_machines: Arc<Mutex<HashMap<Uuid, StepStateMachine>>>
@@ -134,6 +139,7 @@ step_state_machines: Arc<Mutex<HashMap<Uuid, StepStateMachine>>>
 #### Preliminary Recommendation
 
 **DashMap** is a good fit because:
+
 - Read-heavy workload benefits from sharded reads
 - UUID keys (random distribution) spread across shards naturally
 - No ordering requirements
@@ -145,6 +151,7 @@ step_state_machines: Arc<Mutex<HashMap<Uuid, StepStateMachine>>>
 **File**: `tasker-orchestration/src/orchestration/event_systems/orchestration_event_system.rs:97`
 
 **Current**:
+
 ```rust
 processing_latencies: std::sync::Mutex<Vec<Duration>>
 ```
@@ -178,6 +185,7 @@ processing_latencies: std::sync::Mutex<Vec<Duration>>
 #### Key Insight
 
 This is a **metrics aggregation** pattern, not a data lookup pattern. We're collecting latencies to compute:
+
 - `processing_rate()` - events per second
 - `average_latency_ms()` - mean latency
 
@@ -186,14 +194,17 @@ This is a **metrics aggregation** pattern, not a data lookup pattern. We're coll
 #### Preliminary Recommendations
 
 **Option A (Simple)**: `tokio::sync::Mutex<VecDeque<Duration>>`
+
 - `VecDeque` is better than `Vec` for FIFO with `pop_front()`
 - Async-friendly mutex avoids blocking runtime
 
 **Option B (Lock-free)**: `crossbeam::ArrayQueue<Duration>` with size 1000
+
 - True lock-free append
 - For stats: drain into local Vec, compute, discard
 
 **Option C (Best for metrics)**: `hdrhistogram::Histogram`
+
 - Directly compute percentiles without storing all values
 - Much lower memory footprint
 - Trade-off: can't recompute over "last N" values
@@ -329,6 +340,7 @@ let event = pending_events.lock().await.get(key);
 ## Out of Scope
 
 Simple counter metrics are handled by TAS-134:
+
 - `InProcessEventBus` stats
 - `WorkerEventSubscriber` stats
 - `CircuitBreakerMetrics`
@@ -347,6 +359,7 @@ Simple counter metrics are handled by TAS-134:
 - Optimization Tickets: `docs/ticket-specs/TAS-71/optimization-tickets.md`
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-163/migrate-metrics-to-swmr-pattern-single-writer-many-reader](https://linear.app/tasker-systems/issue/TAS-163/migrate-metrics-to-swmr-pattern-single-writer-many-reader)
 - Identifier: TAS-163
 - Status: Backlog

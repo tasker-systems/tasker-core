@@ -12,6 +12,7 @@ Align Ruby worker APIs with cross-language standards. Ruby requires the most sig
 ## Key Discovery: TaskSequenceStepWrapper Already Exists
 
 **We already have a unified context type!** The `TaskSequenceStepWrapper` in `workers/ruby/lib/tasker_core/models.rb` wraps:
+
 - `task` → `TaskWrapper` (task_uuid, context, namespace_name, etc.)
 - `workflow_step` → `WorkflowStepWrapper` (step execution state)
 - `dependency_results` → `DependencyResultsWrapper`
@@ -36,6 +37,7 @@ Align Ruby worker APIs with cross-language standards. Ruby requires the most sig
 ### Ruby Code Files (16 files)
 
 **Core Library:**
+
 ```
 workers/ruby/lib/tasker_core/step_handler/base.rb           # Base class - primary change
 workers/ruby/lib/tasker_core/step_handler/decision.rb       # Decision handler docs
@@ -47,6 +49,7 @@ workers/ruby/lib/tasker_core/types/decision_point_outcome.rb
 ```
 
 **Example Handlers (all use `def call(task, sequence, step)` or `def call(task, _sequence, _step)`):**
+
 ```
 workers/ruby/spec/handlers/examples/order_fulfillment/step_handlers/validate_order_handler.rb
 workers/ruby/spec/handlers/examples/order_fulfillment/step_handlers/process_payment_handler.rb
@@ -62,6 +65,7 @@ workers/ruby/spec/handlers/examples/mixed_dag_workflow/step_handlers/*.rb (7 fil
 ### Documentation Files (60+ references)
 
 **Primary docs to update:**
+
 - `docs/worker-crates/ruby.md` (12 references)
 - `docs/worker-crates/README.md` (2 references)
 - `docs/worker-crates/patterns-and-practices.md` (3 references)
@@ -70,6 +74,7 @@ workers/ruby/spec/handlers/examples/mixed_dag_workflow/step_handlers/*.rb (7 fil
 - `docs/use-cases-and-patterns.md` (1 reference)
 
 **Ticket-specs (historical, may not need updating):**
+
 - Various TAS-* specs contain historical examples
 
 ## Implementation Plan
@@ -213,6 +218,7 @@ The dispatch layer (FFI bridge) will construct the `StepContext` from the `TaskS
 **File:** `workers/ruby/lib/tasker_core/step_handler/api.rb`
 
 Add HTTP convenience methods:
+
 ```ruby
 def get(path, params: {}, headers: {})
   connection.get(path, params, headers)
@@ -275,6 +281,7 @@ end
 ### Phase 8: Update All Example Handlers
 
 All handlers change from:
+
 ```ruby
 def call(task, sequence, step)
   # Old style
@@ -282,6 +289,7 @@ end
 ```
 
 To:
+
 ```ruby
 def call(context)
   # New style - use context.task_uuid, context.input_data, etc.
@@ -296,6 +304,7 @@ Update all specs to use new APIs.
 ## Handler Migration Examples
 
 **Simple handler:**
+
 ```ruby
 # Before
 def call(task, _sequence, step)
@@ -311,6 +320,7 @@ end
 ```
 
 **Handler with dependencies:**
+
 ```ruby
 # Before
 def call(_task, sequence, step)
@@ -344,6 +354,7 @@ end
 ## Risk Assessment
 
 **Medium Risk** (reduced from High):
+
 - Discovery of existing `TaskSequenceStepWrapper` simplifies implementation
 - Pre-alpha status means no backward compatibility needed
 - Cross-language standard fields are additive, not breaking
@@ -370,6 +381,7 @@ Align Ruby worker APIs with cross-language standards (Python/Rust). Primary chan
 ## Key Discovery
 
 **`TaskSequenceStepWrapper` already exists** in `workers/ruby/lib/tasker_core/models.rb` as the unified context containing all step data. The current subscriber (`subscriber.rb:53-57`) passes components separately:
+
 ```ruby
 result = handler.call(
   step_data.task,              # TaskWrapper
@@ -389,6 +401,7 @@ We'll create `StepContext` wrapping `step_data` and pass it as a single argument
 **New File**: `workers/ruby/lib/tasker_core/types/step_context.rb`
 
 Cross-language standard fields (matching Python):
+
 | Field | Source | Description |
 |-------|--------|-------------|
 | `task_uuid` | `task.task_uuid` | Task UUID |
@@ -401,6 +414,7 @@ Cross-language standard fields (matching Python):
 | `dependency_results` | Delegated | Parent step results |
 
 Ruby-specific accessors (backward compat):
+
 - `task`, `workflow_step`, `step_definition` - Direct wrapper access
 - `get_task_field(name)`, `get_dependency_result(step_name)` - Convenience methods
 
@@ -422,6 +436,7 @@ Constants: `PERMANENT_ERROR`, `RETRYABLE_ERROR`, `VALIDATION_ERROR`, `TIMEOUT`, 
 **File**: `workers/ruby/lib/tasker_core/subscriber.rb`
 
 Lines 53-57, change from:
+
 ```ruby
 result = handler.call(
   step_data.task,
@@ -429,7 +444,9 @@ result = handler.call(
   step_data.workflow_step
 )
 ```
+
 To:
+
 ```ruby
 context = TaskerCore::Types::StepContext.new(step_data)
 result = handler.call(context)
@@ -440,6 +457,7 @@ result = handler.call(context)
 **File**: `workers/ruby/lib/tasker_core/registry/handler_registry.rb`
 
 Add aliases after existing methods:
+
 ```ruby
 alias register register_handler
 alias is_registered handler_available?
@@ -460,6 +478,7 @@ alias resolve resolve_handler
 **File**: `workers/ruby/lib/tasker_core/domain_events/base_publisher.rb`
 
 Add new method:
+
 ```ruby
 def publish(ctx)
   # Wrapper coordinating: should_publish?, transform_payload, additional_metadata
@@ -472,17 +491,21 @@ end
 **Location**: `workers/ruby/spec/handlers/examples/**/*_handler.rb`
 
 Mechanical signature change from:
+
 ```ruby
 def call(task, sequence, step)       # or
 def call(task, _sequence, _step)     # or
 def call(_task, sequence, _step)
 ```
+
 To:
+
 ```ruby
 def call(context)
 ```
 
 Migration patterns:
+
 - `task.context['field']` → `context.get_task_field('field')`
 - `sequence.get_results('step')` → `context.get_dependency_result('step')`
 - `step.name` → `context.workflow_step.name`
@@ -490,6 +513,7 @@ Migration patterns:
 ### Phase 9: Update Tests
 
 Update test fixtures to use context-based API:
+
 - `spec/step_handler/*.rb`
 - `spec/types/*.rb`
 - `spec/batch_processing/*.rb`
@@ -516,12 +540,14 @@ Update test fixtures to use context-based API:
 ## Verification
 
 After each phase, run:
+
 ```bash
 cd workers/ruby
 bundle exec rspec
 ```
 
 After Phase 4 (FFI changes), run integration tests:
+
 ```bash
 DATABASE_URL=postgresql://tasker:tasker@localhost/tasker_rust_test \
 TASKER_ENV=test bundle exec rspec spec/integration/

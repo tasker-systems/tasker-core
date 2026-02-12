@@ -7,6 +7,7 @@ This document describes the library deployment patterns feature that enables app
 Previously, applications needed to run the worker's HTTP server to access observability data. This created deployment overhead for applications that only needed programmatic access to health checks, metrics, or template information.
 
 The library deployment patterns feature:
+
 1. **Extracts observability logic into reusable services** - Business logic moved from HTTP handlers to service classes
 2. **Exposes services via FFI** - Same functionality available without HTTP overhead
 3. **Provides Ruby wrapper layer** - Type-safe Ruby interface with dry-struct types
@@ -27,6 +28,7 @@ tasker-worker/src/worker/services/
 ```
 
 Each service:
+
 - Contains all business logic previously in HTTP handlers
 - Is independent of HTTP transport
 - Can be accessed via web handlers OR FFI
@@ -154,6 +156,7 @@ request_timeout_ms = 30000
 ```
 
 When `enabled = false`:
+
 - WorkerWebState is still created (services available)
 - HTTP server does NOT start
 - All services accessible via FFI only
@@ -312,12 +315,14 @@ TaskerCore::Observability.alive?  # => true/false
 ### From HTTP to FFI
 
 Before (HTTP):
+
 ```ruby
 response = Faraday.get("http://localhost:8081/health")
 health = JSON.parse(response.body)
 ```
 
 After (FFI):
+
 ```ruby
 health = TaskerCore::Observability.health_basic
 ```
@@ -325,12 +330,14 @@ health = TaskerCore::Observability.health_basic
 ### Disabling HTTP Server
 
 1. Update configuration:
+
    ```toml
    [worker.web]
    enabled = false
    ```
 
 2. Update health check scripts to use FFI:
+
    ```ruby
    # health_check.rb
    require 'tasker_core'
@@ -339,6 +346,7 @@ health = TaskerCore::Observability.health_basic
    ```
 
 3. Update monitoring to scrape via FFI:
+
    ```ruby
    metrics = TaskerCore::Observability.prometheus_metrics
    # Send to Prometheus pushgateway or custom aggregator

@@ -63,6 +63,7 @@ Duration:    30s  30s  30s   30s   30s   30s
 ```
 
 **Measurements per level:**
+
 - Actual throughput achieved (tasks/sec)
 - P95 latency
 - Error rate
@@ -80,6 +81,7 @@ Duration:    5 minutes
 ```
 
 **Measurements:**
+
 - Throughput stability (variance over time)
 - Memory growth (leak detection)
 - Connection pool stability
@@ -96,6 +98,7 @@ Recovery:    Measure time to return to baseline
 ```
 
 **Measurements:**
+
 - Tasks queued during burst
 - Queue drain time
 - Error rate during burst
@@ -163,11 +166,13 @@ impl LoadGenerator {
 ```
 
 **Pros:**
+
 - Full control over timing and patterns
 - Native integration with our types
 - No external dependencies
 
 **Cons:**
+
 - Must build and maintain
 - May have its own bottlenecks
 
@@ -176,6 +181,7 @@ impl LoadGenerator {
 Use established tools like `k6`, `goose`, or `drill`.
 
 **k6 example:**
+
 ```javascript
 import http from 'k6/http';
 import { check } from 'k6';
@@ -204,11 +210,13 @@ export default function() {
 ```
 
 **Pros:**
+
 - Battle-tested load generation
 - Rich reporting
 - Standard tooling
 
 **Cons:**
+
 - External dependency
 - Less control over task completion tracking
 - Only measures creation, not completion
@@ -271,12 +279,14 @@ SELECT xact_commit + xact_rollback as total_txn FROM pg_stat_database;
 ### Queue Metrics
 
 For PGMQ:
+
 ```sql
 SELECT queue_name, queue_length, oldest_msg_age_sec
 FROM pgmq.metrics_all();
 ```
 
 For RabbitMQ:
+
 ```bash
 rabbitmqctl list_queues name messages
 ```

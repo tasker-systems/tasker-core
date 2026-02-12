@@ -23,10 +23,12 @@ Implement permission-based API security for orchestration (8080) and worker (808
 **Goal**: Define the compile-time permission vocabulary and `SecurityContext`.
 
 ### New Files
+
 - `tasker-shared/src/types/permissions.rs`
 - `tasker-shared/src/types/security.rs`
 
 ### `permissions.rs` - Core Content
+
 ```rust
 pub enum Permission {
     TasksCreate, TasksRead, TasksList, TasksCancel, TasksContextRead,
@@ -37,6 +39,7 @@ pub enum Permission {
     WorkerConfigRead, WorkerTemplatesRead,
 }
 ```
+
 - `Permission::as_str()` → `"tasks:create"` etc.
 - `Permission::resource()` → `"tasks"` etc.
 - `Permission::from_str_opt(s)` → `Option<Permission>`
@@ -45,6 +48,7 @@ pub enum Permission {
 - `validate_permissions(claimed: &[String]) -> Vec<String>` (returns unknown ones)
 
 ### `security.rs` - Core Content
+
 ```rust
 pub struct SecurityContext {
     pub subject: String,
@@ -56,14 +60,17 @@ pub struct SecurityContext {
 
 pub enum AuthMethod { Jwt, ApiKey { description: String }, Disabled }
 ```
+
 - `SecurityContext::has_permission(&self, required: &Permission) -> bool`
 - `SecurityContext::disabled_context()` - for when auth is off
 - Implement `FromRequestParts` for `SecurityContext` (axum extractor)
 
 ### Modify
+
 - `tasker-shared/src/types/mod.rs` - add module declarations
 
 ### Unit Tests
+
 - Permission exact matching, wildcard matching, unknown detection
 - `SecurityContext::has_permission` with various scenarios
 
@@ -74,7 +81,9 @@ pub enum AuthMethod { Jwt, ApiKey { description: String }, Disabled }
 **Goal**: Expand configuration to support JWKS, multiple API keys, and public key path. Rename `WorkerClaims` to `TokenClaims`.
 
 ### Modify `tasker-shared/src/config/tasker.rs`
+
 Add fields to `AuthConfig`:
+
 ```rust
 pub jwt_verification_method: String,    // "public_key" or "jwks" (default: "public_key")
 pub jwt_public_key_path: String,        // Alternative to inline key
@@ -88,6 +97,7 @@ pub api_keys: Vec<ApiKeyConfig>,        // Multiple keys with per-key permission
 ```
 
 New struct:
+
 ```rust
 pub struct ApiKeyConfig {
     pub key: String,
@@ -97,6 +107,7 @@ pub struct ApiKeyConfig {
 ```
 
 ### Modify `tasker-shared/src/types/auth.rs`
+
 - Rename `WorkerClaims` → `TokenClaims`
 - Make `worker_namespaces` optional (for backward compat with existing tokens)
 - Add `pub type WorkerClaims = TokenClaims;` alias for gradual migration
@@ -105,10 +116,12 @@ pub struct ApiKeyConfig {
 - Keep `validate_worker_token` as deprecated alias
 
 ### Modify `tasker-shared/src/config/web.rs`
+
 - Update `From<AuthConfig> for WebAuthConfig` to handle new fields
 - Add new fields to `WebAuthConfig` for the expanded config
 
 ### Modify TOML configs
+
 - `config/tasker/base/orchestration.toml` - add new auth fields
 - `config/tasker/base/worker.toml` - add auth section
 - `config/tasker/environments/test/orchestration.toml` - test auth config
@@ -120,9 +133,11 @@ pub struct ApiKeyConfig {
 **Goal**: Runtime API key validation with per-key permissions.
 
 ### New File
+
 - `tasker-shared/src/types/api_key_auth.rs`
 
 ### Content
+
 ```rust
 pub struct ApiKeyRegistry {
     keys: HashMap<String, ApiKeyEntry>,  // key_value → entry
@@ -134,6 +149,7 @@ impl ApiKeyRegistry {
 ```
 
 ### Unit Tests
+
 - Valid key → SecurityContext with correct permissions
 - Invalid key → error
 - Multiple keys with different permissions
@@ -145,9 +161,11 @@ impl ApiKeyRegistry {
 **Goal**: Async JWKS key fetching with caching and refresh.
 
 ### New File
+
 - `tasker-shared/src/types/jwks.rs`
 
 ### Content
+
 ```rust
 pub struct JwksKeyStore {
     keys: Arc<RwLock<JwksCacheEntry>>,
@@ -160,11 +178,13 @@ impl JwksKeyStore {
     pub async fn get_key(&self, kid: &str) -> Result<DecodingKey, AuthError>;
 }
 ```
+
 - Parse RSA JWKs (n, e components) into `DecodingKey`
 - Cache with time-based expiry
 - Refresh on cache miss or stale
 
 ### Unit Tests
+
 - Mock HTTP responses for JWKS endpoint
 - Key rotation (new kid after refresh)
 - Error handling (network failure, malformed response)
@@ -176,9 +196,11 @@ impl JwksKeyStore {
 **Goal**: Single service combining JWT + JWKS + API key authentication.
 
 ### New File
+
 - `tasker-shared/src/types/security_service.rs`
 
 ### Content
+
 ```rust
 pub struct SecurityService {
     jwt_authenticator: Option<JwtAuthenticator>,
@@ -198,6 +220,7 @@ impl SecurityService {
 ```
 
 ### Modify `tasker-shared/src/types/mod.rs`
+
 - Add `security_service`, `jwks`, `api_key_auth` modules
 - Re-export `SecurityService`, `SecurityContext`, `Permission`
 
@@ -208,11 +231,14 @@ impl SecurityService {
 **Goal**: Wire auth middleware + per-handler permission checks for all orchestration endpoints.
 
 ### Modify `tasker-orchestration/src/web/state.rs`
+
 - Add `pub security_service: Option<Arc<SecurityService>>` to `AppState`
 - Build `SecurityService` from config in `from_orchestration_core()`
 
 ### Rewrite `tasker-orchestration/src/web/middleware/auth.rs`
+
 New middleware function:
+
 ```rust
 pub async fn authenticate_request(
     State(state): State<AppState>,
@@ -229,6 +255,7 @@ pub async fn authenticate_request(
 ```
 
 ### New `tasker-orchestration/src/web/middleware/permission.rs`
+
 ```rust
 pub fn require_permission(ctx: &SecurityContext, perm: Permission) -> Result<(), ApiError> {
     if ctx.auth_method == AuthMethod::Disabled { return Ok(()); }
@@ -238,14 +265,17 @@ pub fn require_permission(ctx: &SecurityContext, perm: Permission) -> Result<(),
 ```
 
 ### Modify `tasker-orchestration/src/web/extractors.rs`
+
 - Add `impl FromRequestParts for SecurityContext` extractor
 - Keep existing `AuthenticatedWorker` as a thin wrapper over `SecurityContext`
 
 ### Modify `tasker-orchestration/src/web/mod.rs`
+
 - Replace `conditional_auth` layer with `authenticate_request`
 - Remove old `conditional_auth` from middleware stack
 
 ### Modify All Protected Handlers
+
 Each handler gains `security: SecurityContext` param and one-liner check:
 
 | Handler File | Permission |
@@ -269,6 +299,7 @@ Each handler gains `security: SecurityContext` param and one-liner check:
 Health and metrics handlers: **no permission check** (always public).
 
 ### Integration Tests
+
 - 401 without credentials on protected endpoints
 - 403 with wrong permissions
 - 200 with correct permissions
@@ -285,16 +316,20 @@ Health and metrics handlers: **no permission check** (always public).
 **Goal**: Same auth pattern for worker API.
 
 ### New Files
+
 - `tasker-worker/src/web/middleware/mod.rs`
 - `tasker-worker/src/web/middleware/auth.rs`
 
 ### Modify `tasker-worker/src/web/state.rs`
+
 - Add `SecurityService` to worker web state
 
 ### Modify `tasker-worker/src/web/mod.rs`
+
 - Add auth middleware layer
 
 ### Modify Worker Handlers
+
 | Handler | Permission |
 |---|---|
 | `config.rs` | `Permission::WorkerConfigRead` |
@@ -309,7 +344,9 @@ Health and metrics: always public.
 **Goal**: Client sends auth credentials to server. Primary method: Bearer token from env var.
 
 ### Modify `tasker-client/src/config.rs`
+
 Add `AuthConfig` to `ApiEndpointConfig`:
+
 ```rust
 pub struct ApiEndpointConfig {
     pub base_url: String,
@@ -329,6 +366,7 @@ pub enum ClientAuthMethod {
 ```
 
 ### Environment Variables (priority over config file)
+
 - `TASKER_AUTH_TOKEN` → Bearer token (used for both orchestration and worker)
 - `TASKER_ORCHESTRATION_AUTH_TOKEN` → Override for orchestration only
 - `TASKER_WORKER_AUTH_TOKEN` → Override for worker only
@@ -336,11 +374,13 @@ pub enum ClientAuthMethod {
 - `TASKER_API_KEY_HEADER` → Custom header name (default: X-API-Key)
 
 ### Modify `tasker-client/src/api_clients/orchestration_client.rs`
+
 - Update `new()` to resolve auth from `ClientAuthConfig`
 - Set default headers based on auth method
 - Remove the broken TODO pattern
 
 ### Modify CLI command handlers
+
 - Pass resolved auth config from `ClientConfig` to API client constructors
 
 ---
@@ -350,9 +390,11 @@ pub enum ClientAuthMethod {
 **Goal**: `tasker-cli auth` subcommands for key generation and token creation.
 
 ### New File
+
 - `tasker-client/src/bin/cli/commands/auth.rs`
 
 ### Commands
+
 ```
 tasker-cli auth generate-keys [--output-dir ./keys] [--key-size 2048]
 tasker-cli auth generate-token --permissions tasks:create,tasks:read [--subject my-service] [--private-key ./keys/private.pem] [--expiry-hours 24]
@@ -361,6 +403,7 @@ tasker-cli auth validate-token --token <JWT> --public-key ./keys/public.pem
 ```
 
 ### Implementation
+
 - Key generation: Use `rsa` crate to generate RSA keypair, write PEM files
 - Token generation: Use `JwtAuthenticator::generate_worker_token()` (will become `generate_token()`)
 - Show permissions: Print the `Permission` enum values with descriptions
@@ -373,7 +416,9 @@ tasker-cli auth validate-token --token <JWT> --public-key ./keys/public.pem
 **Goal**: Audit logging and security metrics.
 
 ### Modify auth middleware
+
 - Add structured tracing events for auth success/failure:
+
   ```rust
   info!(subject = %ctx.subject, method = ?ctx.auth_method, permissions = ?ctx.permissions, "authenticated");
   warn!(reason = %reason, path = %path, "authentication_failed");
@@ -381,12 +426,14 @@ tasker-cli auth validate-token --token <JWT> --public-key ./keys/public.pem
   ```
 
 ### Security Metrics (prometheus)
+
 - `tasker_auth_requests_total{method="jwt|api_key", result="success|failure"}`
 - `tasker_auth_failures_total{reason="expired|invalid|missing|forbidden"}`
 - `tasker_permission_denials_total{permission="tasks:create", endpoint="/v1/tasks"}`
 - `tasker_jwt_verification_duration_seconds` (histogram)
 
 ### Modify existing metrics infrastructure
+
 - Add counters/histograms to the existing prometheus registry pattern
 
 ---
@@ -396,6 +443,7 @@ tasker-cli auth validate-token --token <JWT> --public-key ./keys/public.pem
 **Goal**: Permission vocabulary reference, configuration examples, integration guides.
 
 ### New/Updated Files
+
 - `docs/guides/api-security.md` - Main security guide
   - Permission vocabulary table
   - Configuration examples (orchestration and worker)
@@ -478,12 +526,14 @@ Phase 1 (permissions, security types) ──┐
 ## Verification Plan
 
 ### Build Check
+
 ```bash
 cargo build --all-features
 cargo clippy --all-targets --all-features
 ```
 
 ### Unit Tests
+
 ```bash
 cargo test --features test-messaging --lib -p tasker-shared -- permissions
 cargo test --features test-messaging --lib -p tasker-shared -- security
@@ -493,12 +543,14 @@ cargo test --features test-messaging --lib -p tasker-orchestration -- middleware
 ```
 
 ### Integration Tests (require services)
+
 ```bash
 cargo test --features test-services -p tasker-orchestration -- web::auth
 cargo test --features test-services -p tasker-worker -- web::auth
 ```
 
 ### Manual Verification
+
 ```bash
 # Generate dev keys
 cargo run --bin tasker-cli -- auth generate-keys --output-dir ./dev-keys
@@ -526,6 +578,7 @@ curl -s -H "X-API-Key: configured-key" http://localhost:8080/v1/tasks | jq .
 ```
 
 ### Client Verification
+
 ```bash
 # Set token via env var
 export TASKER_AUTH_TOKEN=<generated-token>

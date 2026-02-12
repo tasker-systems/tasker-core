@@ -13,6 +13,7 @@ This document maps each factor to where it shows up in the codebase, where we fa
 Tasker Core is a single Git monorepo containing all deployable services: orchestration server, workers (Rust, Ruby, Python, TypeScript), CLI, and shared libraries.
 
 **Where this lives:**
+
 - Root `Cargo.toml` defines the workspace with all crate members
 - Environment-specific Docker Compose files produce different deploys from the same source: `docker/docker-compose.prod.yml`, `docker/docker-compose.dev.yml`, `docker/docker-compose.test.yml`, `docker/docker-compose.ci.yml`
 - Feature flags (`web-api`, `grpc-api`, `test-services`, `test-cluster`) control build variations without code branches
@@ -28,6 +29,7 @@ Tasker Core is a single Git monorepo containing all deployable services: orchest
 Rust's Cargo ecosystem makes this natural. All dependencies are declared in `Cargo.toml` with workspace-level management and pinned in `Cargo.lock`.
 
 **Where this lives:**
+
 - Root `Cargo.toml` `[workspace.dependencies]` section — single source of truth for shared dependency versions
 - `Cargo.lock` committed to the repository for reproducible builds
 - Multi-stage Docker builds (`docker/build/orchestration.prod.Dockerfile`) use `cargo-chef` for cached, reproducible dependency resolution
@@ -44,6 +46,7 @@ Rust's Cargo ecosystem makes this natural. All dependencies are declared in `Car
 This is one of the strongest alignments. All runtime configuration flows through environment variables, with TOML files providing structured defaults that reference those variables.
 
 **Where this lives:**
+
 - `config/dotenv/` — environment-specific `.env` files (`base.env`, `test.env`, `orchestration.env`)
 - `config/tasker/base/*.toml` — role-based defaults with `${ENV_VAR:-default}` interpolation
 - `config/tasker/environments/{test,development,production}/` — environment overrides
@@ -62,6 +65,7 @@ This is one of the strongest alignments. All runtime configuration flows through
 Backing services are abstracted behind trait interfaces and swappable via configuration alone.
 
 **Where this lives:**
+
 - **Database**: PostgreSQL connection via `DATABASE_URL`, pool settings in `config/tasker/base/common.toml` under `[common.database.pool]`
 - **Messaging**: PGMQ or RabbitMQ selected via `TASKER_MESSAGING_BACKEND` environment variable — same code paths, different drivers
 - **Cache**: Redis, Moka (in-process), or disabled entirely via `[common.cache]` configuration
@@ -79,6 +83,7 @@ Backing services are abstracted behind trait interfaces and swappable via config
 The Docker build pipeline enforces this cleanly with multi-stage builds.
 
 **Where this lives:**
+
 - **Build**: `docker/build/orchestration.prod.Dockerfile` — `cargo-chef` dependency caching, `cargo build --release --all-features --locked`, binary stripping
 - **Release**: Tagged Docker images with only runtime dependencies (no build tools), non-root user (`tasker:999`), read-only config mounts
 - **Run**: `docker/scripts/orchestration-entrypoint.sh` — environment validation, database availability check, migrations, then `exec` into the application binary
@@ -95,6 +100,7 @@ The Docker build pipeline enforces this cleanly with multi-stage builds.
 All persistent state lives in PostgreSQL. Processes can be killed and restarted at any time without data loss.
 
 **Where this lives:**
+
 - Orchestration server: stateless HTTP/gRPC service backed by `tasker.tasks` and `tasker.steps` tables
 - Workers: claim steps from message queues, execute handlers, write results back — no in-memory state across requests
 - Message queue visibility timeouts (`visibility_timeout_seconds` in worker config) ensure unacknowledged messages are reclaimed by other workers
@@ -111,6 +117,7 @@ All persistent state lives in PostgreSQL. Processes can be killed and restarted 
 Each service is self-contained and binds its own ports.
 
 **Where this lives:**
+
 - REST: `config/tasker/base/orchestration.toml` — `[orchestration.web] bind_address = "${TASKER_WEB_BIND_ADDRESS:-0.0.0.0:8080}"`
 - gRPC: `[orchestration.grpc] bind_address = "${TASKER_ORCHESTRATION_GRPC_BIND_ADDRESS:-0.0.0.0:9190}"`
 - Worker REST/gRPC on separate ports (8081/9191)
@@ -126,6 +133,7 @@ Each service is self-contained and binds its own ports.
 The system scales horizontally by adding worker processes and vertically by tuning concurrency settings.
 
 **Where this lives:**
+
 - Horizontal: `docker/docker-compose.prod.yml` — `replicas: ${WORKER_REPLICAS:-2}`, each worker is independent
 - Vertical: `config/tasker/base/orchestration.toml` — `max_concurrent_operations`, `batch_size` per event system
 - Worker handler parallelism: `[worker.mpsc_channels.handler_dispatch] max_concurrent_handlers = 10`
@@ -142,6 +150,7 @@ The system scales horizontally by adding worker processes and vertically by tuni
 This factor gets significant attention due to the distributed nature of task orchestration.
 
 **Where this lives:**
+
 - **Graceful shutdown**: Signal handlers (SIGTERM, SIGINT) in `tasker-orchestration/src/bin/server.rs` and `tasker-worker/src/bin/` — actors drain in-flight work, OpenTelemetry flushes spans, connections close cleanly
 - **Fast startup**: Compiled binary, pooled database connections, environment-driven config (no service discovery delays)
 - **Crash recovery**: PGMQ visibility timeouts requeue unacknowledged messages; steps claimed by a crashed worker reappear for others after `visibility_timeout_seconds`
@@ -159,6 +168,7 @@ This factor gets significant attention due to the distributed nature of task orc
 The same code, same migrations, and same config structure run everywhere — only values change.
 
 **Where this lives:**
+
 - `config/tasker/base/` provides defaults; `config/tasker/environments/` overrides per-environment — structure is identical
 - `migrations/` directory contains SQL migrations shared across all environments
 - Docker images use the same base (`debian:bullseye-slim`) and runtime user (`tasker:999`)
@@ -176,6 +186,7 @@ The same code, same migrations, and same config structure run everywhere — onl
 All logging goes to stdout/stderr. No file-based logging is built into the application.
 
 **Where this lives:**
+
 - `tasker-shared/src/logging.rs` — tracing subscriber writes to stdout, JSON format in production, ANSI colors in development (TTY-detected)
 - OpenTelemetry integration exports structured traces via `OTEL_EXPORTER_OTLP_ENDPOINT`
 - Correlation IDs (`correlation_id`) propagate through tasks, steps, actors, and message queues for distributed tracing
@@ -193,6 +204,7 @@ All logging goes to stdout/stderr. No file-based logging is built into the appli
 The CLI and deployment scripts serve this role.
 
 **Where this lives:**
+
 - `tasker-ctl/` — task management (`create`, `list`, `cancel`), DLQ investigation (`dlq list`, `dlq recover`), system health, auth token management
 - `docker/scripts/orchestration-entrypoint.sh` — `DEPLOYMENT_MODE=migrate-only` runs migrations and exits without starting the server
 - `config-validator` binary validates TOML configuration as a one-off check

@@ -7,6 +7,7 @@ This document outlines the plan to align GitHub Actions workflows with the cargo
 ## Overview
 
 The goal is to have CI workflows use the same `cargo make` commands that developers use locally, ensuring:
+
 - Consistent behavior between local and CI environments
 - Single source of truth for build/test commands
 - Easier debugging when CI fails (developers can reproduce locally)
@@ -22,12 +23,14 @@ These workflows have been updated to use cargo-make:
 #### `test-ruby-framework.yml` ✅
 
 **Implemented**:
+
 ```yaml
 - name: Run Ruby framework tests
   run: cargo make test-ci
 ```
 
 **Changes Made**:
+
 - [x] Added `test-ci` task to `workers/ruby/Makefile.toml` with JUnit XML output
 - [x] Updated workflow to call `cargo make test-ci`
 - [x] Output: `../../target/ruby-framework-results.xml`
@@ -37,12 +40,14 @@ These workflows have been updated to use cargo-make:
 #### `test-python-framework.yml` ✅
 
 **Implemented**:
+
 ```yaml
 - name: Run Python framework tests
   run: cargo make test-ci
 ```
 
 **Changes Made**:
+
 - [x] Added `test-ci` task to `workers/python/Makefile.toml` with `--junitxml` flag
 - [x] Updated workflow to call `cargo make test-ci`
 - [x] Output: `../../target/python-framework-results.xml`
@@ -52,6 +57,7 @@ These workflows have been updated to use cargo-make:
 #### `test-typescript-framework.yml` ✅
 
 **Implemented**:
+
 ```yaml
 - name: Run quality checks (lint + typecheck)
   run: |
@@ -63,6 +69,7 @@ These workflows have been updated to use cargo-make:
 ```
 
 **Changes Made**:
+
 - [x] Added `test-ci` task to `workers/typescript/Makefile.toml` for unit tests
 - [x] Consolidated lint and typecheck into single step using `cargo make lint` + `cargo make typecheck`
 - [x] Updated unit test step to use `cargo make test-ci`
@@ -78,6 +85,7 @@ These workflows have been updated to use cargo-make:
 **Current State**: Already partially uses cargo-make for TypeScript. Individual language builds use native commands.
 
 **Recommendation**: Keep as-is for now. The workflow handles:
+
 - Artifact caching and upload (CI-specific)
 - Build order dependencies
 - Cross-language coordination
@@ -100,6 +108,7 @@ These workflows have been updated to use cargo-make:
 | `cargo doc --no-deps --document-private-items` | `cargo make rust-docs` |
 
 **Recommendation**: Keep as-is. The workflow:
+
 - Has specific caching strategies for each tool
 - Uploads artifacts (coverage, docs)
 - Uses matrix strategy for parallelization
@@ -113,6 +122,7 @@ These CI-specific concerns are better handled in the workflow than abstracted in
 #### `test-integration.yml`
 
 **Recommendation**: Keep as-is. This workflow:
+
 - Manages service lifecycle (start/stop native services)
 - Handles complex test environment setup
 - Requires CI-specific health checks and timeouts
@@ -136,6 +146,7 @@ These CI-specific concerns are better handled in the workflow than abstracted in
 ### For CI Integration
 
 Added to `workers/python/Makefile.toml`:
+
 ```toml
 [tasks.test-ci]
 description = "Run tests with CI output format (JUnit XML)"
@@ -147,6 +158,7 @@ uv run pytest tests/ -v --tb=short --junitxml=../../target/python-framework-resu
 ```
 
 Added to `workers/ruby/Makefile.toml`:
+
 ```toml
 [tasks.test-ci]
 description = "Run tests with CI output format (JUnit XML)"
@@ -161,6 +173,7 @@ bundle exec rspec spec/ \
 ```
 
 Added to `workers/typescript/Makefile.toml`:
+
 ```toml
 [tasks.test-ci]
 description = "Run tests with CI output format (text logs for artifact upload)"
@@ -187,6 +200,7 @@ bun test tests/unit/ 2>&1 | tee ../../target/typescript-unit-results.txt
 ## Rollback Plan
 
 If any workflow migration causes issues:
+
 1. Revert the workflow file to previous version
 2. Keep the cargo-make task (useful for local development)
 3. Document the incompatibility for future reference

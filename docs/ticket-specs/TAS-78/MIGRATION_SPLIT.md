@@ -77,6 +77,7 @@ This migration is Tasker-specific but has one indirect PGMQ reference:
 ```
 
 **Recommended Change**:
+
 ```sql
 -- Before
 SELECT queue_length FROM pgmq.metrics($1);

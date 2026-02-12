@@ -22,10 +22,10 @@ The `docs/ticket-specs/` directory contains \~40 directories with 150+ files of 
 
 Key examples of buried knowledge:
 
-* [TAS-54](https://linear.app/tasker-systems/issue/TAS-54/processor-uuid-ownership-analysis-and-stale-task-recovery): "Processor UUID ownership was redundant protection with harmful side effects" → Auto-recovery principle
-* [TAS-100](https://linear.app/tasker-systems/issue/TAS-100/bun-and-nodejs-typescript-worker): FFI vs WASM analysis proving FFI pragmatically superior → Architecture decision
-* [TAS-112](https://linear.app/tasker-systems/issue/TAS-112/cross-language-step-handler-ergonomics-analysis-and-harmonization): "Batchable already uses mixin pattern - this is the TARGET architecture" → Composition principle
-* **TAS-67/69**: Actor pattern enables testability and clear boundaries → Actor decomposition principle
+- [TAS-54](https://linear.app/tasker-systems/issue/TAS-54/processor-uuid-ownership-analysis-and-stale-task-recovery): "Processor UUID ownership was redundant protection with harmful side effects" → Auto-recovery principle
+- [TAS-100](https://linear.app/tasker-systems/issue/TAS-100/bun-and-nodejs-typescript-worker): FFI vs WASM analysis proving FFI pragmatically superior → Architecture decision
+- [TAS-112](https://linear.app/tasker-systems/issue/TAS-112/cross-language-step-handler-ergonomics-analysis-and-harmonization): "Batchable already uses mixin pattern - this is the TARGET architecture" → Composition principle
+- **TAS-67/69**: Actor pattern enables testability and clear boundaries → Actor decomposition principle
 
 ### 3\. Implicit Principles Not Documented
 
@@ -284,7 +284,7 @@ When using `project_knowledge_search`:
 
 ### Integration Points
 
-1. **Root **[**CLAUDE.md**](http://CLAUDE.md): Add brief reference to `docs/CLAUDE-GUIDE.md` for documentation navigation
+1. **Root**[**CLAUDE.md**](http://CLAUDE.md): Add brief reference to `docs/CLAUDE-GUIDE.md` for documentation navigation
 2. **docs/README.md**: Add note that `CLAUDE-GUIDE.md` exists for AI-assisted sessions
 3. **Project Instructions** (if using [Claude.ai](http://Claude.ai) Projects): Consider adding "Consult `docs/CLAUDE-GUIDE.md` for navigation patterns"
 
@@ -379,9 +379,9 @@ For each ticket-spec directory:
 
 Create a `docs/ticket-specs/README.md` with:
 
-* Status of each ticket (Done, In Progress, Cancelled)
-* Links to key documents only
-* Brief description of what was accomplished
+- Status of each ticket (Done, In Progress, Cancelled)
+- Links to key documents only
+- Brief description of what was accomplished
 
 ---
 
@@ -448,7 +448,7 @@ Create a `docs/ticket-specs/README.md` with:
 
 1. `docs/` has clear hierarchical structure matching cognitive categories
 2. Core principles explicitly documented in 4-5 dedicated files
-3. [**CLAUDE-GUIDE.md**](http://CLAUDE-GUIDE.md)** provides effective navigation for synthetic minds**
+3. [**CLAUDE-GUIDE.md**](http://CLAUDE-GUIDE.md)**provides effective navigation for synthetic minds**
 4. Historical chronology captures 20+ key development moments and lessons
 5. ticket-specs reduced from \~150 files to essential summaries per ticket
 6. ADRs extracted for 6+ major architectural decisions
@@ -459,10 +459,10 @@ Create a `docs/ticket-specs/README.md` with:
 
 ## Non-Goals
 
-* Rewriting content (only reorganizing and extracting)
-* Adding new technical documentation beyond principles/chronology/navigation
-* Changing [CLAUDE.md](http://CLAUDE.md) significantly (minor updates only)
-* Documenting features still in development
+- Rewriting content (only reorganizing and extracting)
+- Adding new technical documentation beyond principles/chronology/navigation
+- Changing [CLAUDE.md](http://CLAUDE.md) significantly (minor updates only)
+- Documenting features still in development
 
 ---
 
@@ -483,10 +483,10 @@ Create a `docs/ticket-specs/README.md` with:
 
 ## Related Tickets
 
-* [TAS-111](https://linear.app/tasker-systems/issue/TAS-111/makefiletoml-enhancements): Makefile.toml enhancements (cargo-make documentation patterns)
-* [TAS-112](https://linear.app/tasker-systems/issue/TAS-112/cross-language-step-handler-ergonomics-analysis-and-harmonization): Cross-language ergonomics (documents needed for principles)
-* **TAS-108/109/112**: Upcoming handler API changes (will need doc updates)
-* [TAS-66](https://linear.app/tasker-systems/issue/TAS-66/tasker-blog-rebuild-plan-tasker-core-centric-documentation): Tasker Blog rebuild (separate docs site, related but distinct)
+- [TAS-111](https://linear.app/tasker-systems/issue/TAS-111/makefiletoml-enhancements): Makefile.toml enhancements (cargo-make documentation patterns)
+- [TAS-112](https://linear.app/tasker-systems/issue/TAS-112/cross-language-step-handler-ergonomics-analysis-and-harmonization): Cross-language ergonomics (documents needed for principles)
+- **TAS-108/109/112**: Upcoming handler API changes (will need doc updates)
+- [TAS-66](https://linear.app/tasker-systems/issue/TAS-66/tasker-blog-rebuild-plan-tasker-core-centric-documentation): Tasker Blog rebuild (separate docs site, related but distinct)
 
 ---
 
@@ -494,25 +494,26 @@ Create a `docs/ticket-specs/README.md` with:
 
 ### Key ticket-specs to Extract From
 
-* `docs/ticket-specs/TAS-54/COMPREHENSIVE-FINDINGS-SUMMARY.md` - Defense in depth, ownership removal
-* `docs/ticket-specs/TAS-100/analysis.md` - FFI vs WASM decision
-* `docs/ticket-specs/TAS-112/recommendations.md` - Composition pattern
-* `docs/ticket-specs/TAS-67/summary.md` - Dual event system
-* `docs/ticket-specs/TAS-69/09-summary.md` - Worker decomposition
+- `docs/ticket-specs/TAS-54/COMPREHENSIVE-FINDINGS-SUMMARY.md` - Defense in depth, ownership removal
+- `docs/ticket-specs/TAS-100/analysis.md` - FFI vs WASM decision
+- `docs/ticket-specs/TAS-112/recommendations.md` - Composition pattern
+- `docs/ticket-specs/TAS-67/summary.md` - Dual event system
+- `docs/ticket-specs/TAS-69/09-summary.md` - Worker decomposition
 
 ### Documentation Inspiration
 
-* Claude Skills pattern (`/mnt/skills/` with [SKILL.md](http://SKILL.md) files)
-* Rust API Guidelines ([https://rust-lang.github.io/api-guidelines/](https://rust-lang.github.io/api-guidelines/))
-* ADR format ([https://adr.github.io/](https://adr.github.io/))
+- Claude Skills pattern (`/mnt/skills/` with [SKILL.md](http://SKILL.md) files)
+- Rust API Guidelines ([https://rust-lang.github.io/api-guidelines/](https://rust-lang.github.io/api-guidelines/))
+- ADR format ([https://adr.github.io/](https://adr.github.io/))
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-99/documentation-audit-and-restructuring](https://linear.app/tasker-systems/issue/TAS-99/documentation-audit-and-restructuring)
 - Identifier: TAS-99
 - Status: In Progress
 - Priority: Medium
 - Assignee: Pete Taylor
 - Labels: Improvement
-- Project: [Tasker Core Docs](https://linear.app/tasker-systems/project/tasker-core-docs-e61593b81ed1). 
+- Project: [Tasker Core Docs](https://linear.app/tasker-systems/project/tasker-core-docs-e61593b81ed1).
 - Created: 2025-12-19T02:29:58.961Z
 - Updated: 2025-12-29T12:59:17.804Z

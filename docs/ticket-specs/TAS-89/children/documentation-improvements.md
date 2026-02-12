@@ -31,6 +31,7 @@ TAS-89 documentation review identified gaps in module-level documentation and do
 **Issue**: Configuration system is complex but undocumented at module level.
 
 **Files needing `//!` module docs**:
+
 | File | Priority |
 |------|----------|
 | `tasker-shared/src/config/mod.rs` | HIGH |
@@ -42,6 +43,7 @@ TAS-89 documentation review identified gaps in module-level documentation and do
 | `tasker-shared/src/config/mpsc_channels.rs` | MEDIUM |
 
 **Template**:
+
 ```rust
 //! # Configuration Module
 //!
@@ -70,6 +72,7 @@ TAS-89 documentation review identified gaps in module-level documentation and do
 **Issue**: External-facing API lacks doc examples.
 
 **Files needing examples**:
+
 | File | Examples Needed |
 |------|-----------------|
 | `tasker-client/src/api_clients/orchestration.rs` | Task creation, health check |
@@ -77,6 +80,7 @@ TAS-89 documentation review identified gaps in module-level documentation and do
 | `tasker-client/src/config.rs` | Configuration loading |
 
 **Example format**:
+
 ```rust
 /// Creates a new task in the orchestration system.
 ///
@@ -104,6 +108,7 @@ pub async fn create_task(&self, request: CreateTaskRequest) -> Result<Task> {
 **Target**: Add 10+ doc examples to high-traffic modules.
 
 **Candidates**:
+
 | Module | Example Topic |
 |--------|---------------|
 | `tasker-shared/src/models/core/task.rs` | Task creation, state queries |
@@ -117,6 +122,7 @@ pub async fn create_task(&self, request: CreateTaskRequest) -> Result<Task> {
 **Issue**: Complex state transition logic is hard to discover.
 
 **Files needing docs**:
+
 | File | Needs |
 |------|-------|
 | `tasker-shared/src/state_machine/actions.rs` | Module docs explaining actions |
@@ -128,19 +134,23 @@ pub async fn create_task(&self, request: CreateTaskRequest) -> Result<Task> {
 ## Files to Modify
 
 ### Priority 1: Configuration (7 files)
+
 - `tasker-shared/src/config/mod.rs`
 - `tasker-shared/src/config/orchestration/mod.rs`
 - `tasker-shared/src/config/orchestration/*.rs` (5 files)
 
 ### Priority 2: Client API (3 files)
+
 - `tasker-client/src/api_clients/orchestration.rs`
 - `tasker-client/src/api_clients/worker.rs`
 - `tasker-client/src/config.rs`
 
 ### Priority 3: Core Examples (varies)
+
 - High-traffic modules identified above
 
 ### Priority 4: State Machine (3 files)
+
 - `tasker-shared/src/state_machine/*.rs`
 
 ---
@@ -187,6 +197,7 @@ After completion:
 ## Risk Assessment
 
 **Risk**: None
+
 - Documentation changes only
 - No runtime impact
 - Improves developer experience

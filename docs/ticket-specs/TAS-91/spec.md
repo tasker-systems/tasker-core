@@ -28,69 +28,69 @@
 
 **Infrastructure** ✅:
 
-* `StepHandler` base class with `call(context)` signature
-* `ApiHandler` with HTTP methods and error classification
-* `DecisionHandler` with `decision_success()`, `skip_branches()`
-* `Batchable` mixin with `get_batch_context()`
-* `StepContext` with `get_dependency_result()`
+- `StepHandler` base class with `call(context)` signature
+- `ApiHandler` with HTTP methods and error classification
+- `DecisionHandler` with `decision_success()`, `skip_branches()`
+- `Batchable` mixin with `get_batch_context()`
+- `StepContext` with `get_dependency_result()`
 
 **Existing Pattern Examples**:
 
-* `linear_handlers.py` - FetchData → TransformData → StoreData
-* `diamond_handlers.py` - Diamond pattern
-* `conditional_approval_handlers.py` - Decision routing
-* `batch_processing_handlers.py` - Batch processing
-* `domain_event_handlers.py` - Event publishing
+- `linear_handlers.py` - FetchData → TransformData → StoreData
+- `diamond_handlers.py` - Diamond pattern
+- `conditional_approval_handlers.py` - Decision routing
+- `batch_processing_handlers.py` - Batch processing
+- `domain_event_handlers.py` - Event publishing
 
 **Gaps**:
 
-* No blog-specific examples (ecommerce, data pipeline, etc.)
-* Some examples are test scaffolding, not full business logic
+- No blog-specific examples (ecommerce, data pipeline, etc.)
+- Some examples are test scaffolding, not full business logic
 
 ### TypeScript Worker Readiness
 
 **Infrastructure** ✅:
 
-* `StepHandler` base class with `async call(context)` signature
-* `ApiHandler` with HTTP methods
-* `DecisionHandler` with `decisionSuccess()`, `skipBranches()`
-* `Batchable` mixin
-* `StepContext` with `getDependencyResult()`
-* **Domain Events** (complete!) - `BasePublisher`, `BaseSubscriber`, `InProcessDomainEventPoller`
+- `StepHandler` base class with `async call(context)` signature
+- `ApiHandler` with HTTP methods
+- `DecisionHandler` with `decisionSuccess()`, `skipBranches()`
+- `Batchable` mixin
+- `StepContext` with `getDependencyResult()`
+- **Domain Events** (complete!) - `BasePublisher`, `BaseSubscriber`, `InProcessDomainEventPoller`
 
 **Existing Pattern Examples**:
 
-* `linear_workflow/` - Linear pattern
-* `diamond_workflow/` - Diamond pattern
-* `conditional_approval/` - Decision routing
-* `batch_processing/` - Batch processing
-* `domain_events/` - Publisher/subscriber examples
+- `linear_workflow/` - Linear pattern
+- `diamond_workflow/` - Diamond pattern
+- `conditional_approval/` - Decision routing
+- `batch_processing/` - Batch processing
+- `domain_events/` - Publisher/subscriber examples
 
 **Gaps**:
 
-* No blog-specific examples
-* Examples are minimal test scaffolding
+- No blog-specific examples
+- Examples are minimal test scaffolding
 
 ### Rust Worker Readiness
 
 **Infrastructure** ✅:
 
-* `RustStepHandler` trait with `async call(&self, step_data)` signature
-* No ApiHandler trait (not urgent - can use reqwest directly)
-* No DecisionHandler trait (manual outcome construction)
-* Batch processing via `BatchableStepHandler` trait
-* Complete E2E test infrastructure
+- `RustStepHandler` trait with `async call(&self, step_data)` signature
+- No ApiHandler trait (not urgent - can use reqwest directly)
+- No DecisionHandler trait (manual outcome construction)
+- Batch processing via `BatchableStepHandler` trait
+- Complete E2E test infrastructure
 
 **Existing Examples**:
 
-* `payment_example.rs` - Payment processing with [TAS-65](https://linear.app/tasker-systems/issue/TAS-65/distributed-event-system-architecture) patterns
-* `batch_processing_example.rs` - Batch patterns
-* `capability_examples.rs` - Various capabilities
+- `payment_example.rs` - Payment processing with [TAS-65](https://linear.app/tasker-systems/issue/TAS-65/distributed-event-system-architecture) patterns
+- `batch_processing_example.rs` - Batch patterns
+- `capability_examples.rs` - Various capabilities
 
 **Gaps**:
 
-* No blog-specific examples
-* No DecisionHandler trait helpers (manual outcome construction)
+- No blog-specific examples
+- No DecisionHandler trait helpers (manual outcome construction)
 
 ---
 
@@ -139,18 +139,18 @@
 
 **Customer Success Namespace** (5 handlers):
 
-* `ValidateRefundRequestHandler`
-* `CheckRefundPolicyHandler`
-* `GetManagerApprovalHandler`
-* `ExecuteRefundWorkflowHandler`
-* `UpdateTicketStatusHandler`
+- `ValidateRefundRequestHandler`
+- `CheckRefundPolicyHandler`
+- `GetManagerApprovalHandler`
+- `ExecuteRefundWorkflowHandler`
+- `UpdateTicketStatusHandler`
 
 **Payments Namespace** (4 handlers):
 
-* `ValidatePaymentEligibilityHandler`
-* `ProcessGatewayRefundHandler`
-* `UpdatePaymentRecordsHandler`
-* `NotifyCustomerHandler`
+- `ValidatePaymentEligibilityHandler`
+- `ProcessGatewayRefundHandler`
+- `UpdatePaymentRecordsHandler`
+- `NotifyCustomerHandler`
 
 **Total**: 9 handlers across 2 namespaces, \~500 lines Ruby, demonstrates isolation
 
@@ -162,22 +162,22 @@
 
 **Python**:
 
-* Use type hints throughout (`StepContext`, `StepHandlerResult`)
-* Dataclasses for mock models
-* `dict` access patterns match Ruby's `Hash` access
+- Use type hints throughout (`StepContext`, `StepHandlerResult`)
+- Dataclasses for mock models
+- `dict` access patterns match Ruby's `Hash` access
 
 **TypeScript**:
 
-* Full async/await patterns
-* Interfaces for mock models
-* Strong typing with generics
+- Full async/await patterns
+- Interfaces for mock models
+- Strong typing with generics
 
 **Rust**:
 
-* `TaskSequenceStep` for step data access
-* `serde_json::json!` for result construction
-* Pattern matching for error handling
-* `HashMap<String, Value>` for metadata
+- `TaskSequenceStep` for step data access
+- `serde_json::json!` for result construction
+- Pattern matching for error handling
+- `HashMap<String, Value>` for metadata
 
 ### File Structure (per language)
 
@@ -234,9 +234,9 @@ workers/{language}/tests/handlers/examples/blog_examples/
 
 **Key Implementation Notes**:
 
-* Mock product database as module-level constant
-* Error handling: `PermanentError` for validation, `RetryableError` for transient
-* Dependency result access patterns established
+- Mock product database as module-level constant
+- Error handling: `PermanentError` for validation, `RetryableError` for transient
+- Dependency result access patterns established
 
 ### Phase 2: Post 02 Data Pipeline (All Languages) - 3-4 days
 
@@ -252,9 +252,9 @@ workers/{language}/tests/handlers/examples/blog_examples/
 
 **Key Implementation Notes**:
 
-* Extract handlers can run in parallel (no dependencies)
-* Transform handlers depend on their extract counterpart
-* Aggregate handler demonstrates multi-dependency convergence
+- Extract handlers can run in parallel (no dependencies)
+- Transform handlers depend on their extract counterpart
+- Aggregate handler demonstrates multi-dependency convergence
 
 ### Phase 3: Post 03 Microservices (All Languages) - 2-3 days
 
@@ -269,9 +269,9 @@ workers/{language}/tests/handlers/examples/blog_examples/
 
 **Key Implementation Notes**:
 
-* CreateUserAccount is the root
-* SetupBilling and InitializePreferences depend only on create
-* Tree structure naturally converges
+- CreateUserAccount is the root
+- SetupBilling and InitializePreferences depend only on create
+- Tree structure naturally converges
 
 ### Phase 4: Post 04 Team Scaling (All Languages) - 3-4 days
 
@@ -287,9 +287,9 @@ workers/{language}/tests/handlers/examples/blog_examples/
 
 **Key Implementation Notes**:
 
-* Handler names prefixed with namespace (e.g., `customer_success::validate_refund_request`)
-* Demonstrates team ownership patterns
-* Cross-namespace calls (ExecuteRefundWorkflow calls payments handlers)
+- Handler names prefixed with namespace (e.g., `customer_success::validate_refund_request`)
+- Demonstrates team ownership patterns
+- Cross-namespace calls (ExecuteRefundWorkflow calls payments handlers)
 
 ### Phase 5: Documentation & Integration - 2 days
 
@@ -306,21 +306,21 @@ workers/{language}/tests/handlers/examples/blog_examples/
 
 **Existing Ruby E2E Tests** (reference):
 
-* `tests/e2e/ruby/ecommerce_order_test.rs`
-* `tests/e2e/ruby/data_pipeline_test.rs`
-* `tests/e2e/ruby/microservices_coordination_test.rs`
-* `tests/e2e/ruby/namespace_isolation_test.rs`
+- `tests/e2e/ruby/ecommerce_order_test.rs`
+- `tests/e2e/ruby/data_pipeline_test.rs`
+- `tests/e2e/ruby/microservices_coordination_test.rs`
+- `tests/e2e/ruby/namespace_isolation_test.rs`
 
 **New E2E Tests Needed**:
 
-* `tests/e2e/python/ecommerce_order_test.rs`
-* `tests/e2e/python/data_pipeline_test.rs`
-* `tests/e2e/python/microservices_coordination_test.rs`
-* `tests/e2e/python/namespace_isolation_test.rs`
-* `tests/e2e/typescript/ecommerce_order_test.rs`
-* `tests/e2e/typescript/data_pipeline_test.rs`
-* `tests/e2e/typescript/microservices_coordination_test.rs`
-* `tests/e2e/typescript/namespace_isolation_test.rs`
+- `tests/e2e/python/ecommerce_order_test.rs`
+- `tests/e2e/python/data_pipeline_test.rs`
+- `tests/e2e/python/microservices_coordination_test.rs`
+- `tests/e2e/python/namespace_isolation_test.rs`
+- `tests/e2e/typescript/ecommerce_order_test.rs`
+- `tests/e2e/typescript/data_pipeline_test.rs`
+- `tests/e2e/typescript/microservices_coordination_test.rs`
+- `tests/e2e/typescript/namespace_isolation_test.rs`
 
 **Note**: Rust handlers would be tested via the existing Rust E2E infrastructure.
 
@@ -342,9 +342,9 @@ workers/{language}/tests/handlers/examples/blog_examples/
 
 ## Dependencies
 
-* [TAS-66](https://linear.app/tasker-systems/issue/TAS-66/tasker-blog-rebuild-plan-tasker-core-centric-documentation): GitBook rebuild (parallel work, codetabs integration)
-* [TAS-112](https://linear.app/tasker-systems/issue/TAS-112/cross-language-step-handler-ergonomics-analysis-and-harmonization): Domain events (complete, provides observability patterns for Post 05 later)
-* [TAS-122](https://linear.app/tasker-systems/issue/TAS-122/impl-stream-a-typescript-domain-events-module): TypeScript domain events (already complete!)
+- [TAS-66](https://linear.app/tasker-systems/issue/TAS-66/tasker-blog-rebuild-plan-tasker-core-centric-documentation): GitBook rebuild (parallel work, codetabs integration)
+- [TAS-112](https://linear.app/tasker-systems/issue/TAS-112/cross-language-step-handler-ergonomics-analysis-and-harmonization): Domain events (complete, provides observability patterns for Post 05 later)
+- [TAS-122](https://linear.app/tasker-systems/issue/TAS-122/impl-stream-a-typescript-domain-events-module): TypeScript domain events (already complete!)
 
 ---
 
@@ -354,10 +354,10 @@ workers/{language}/tests/handlers/examples/blog_examples/
 2. **YAML fixtures**: Do we need separate YAML task templates for each language, or can we share them?
 3. **Mock data consistency**: Should mock product/order data be identical across languages for comparison, or language-idiomatic?
 4. **Handler naming conventions**:
-   * Ruby: `Ecommerce::StepHandlers::ValidateCartHandler`
-   * Python: `validate_cart` (handler_name attribute)
-   * TypeScript: `ValidateCartHandler` (static handlerName)
-   * Rust: `validate_cart` (fn name())
+   - Ruby: `Ecommerce::StepHandlers::ValidateCartHandler`
+   - Python: `validate_cart` (handler_name attribute)
+   - TypeScript: `ValidateCartHandler` (static handlerName)
+   - Rust: `validate_cart` (fn name())
 
    Should these be standardized?
 
@@ -378,27 +378,28 @@ workers/{language}/tests/handlers/examples/blog_examples/
 
 **Ruby Reference Implementation**:
 
-* `workers/ruby/spec/handlers/examples/blog_examples/`
+- `workers/ruby/spec/handlers/examples/blog_examples/`
 
 **Target Locations**:
 
-* Python: `workers/python/tests/handlers/examples/blog_examples/`
-* TypeScript: `workers/typescript/tests/handlers/examples/blog_examples/`
-* Rust: `workers/rust/src/step_handlers/blog_examples/`
+- Python: `workers/python/tests/handlers/examples/blog_examples/`
+- TypeScript: `workers/typescript/tests/handlers/examples/blog_examples/`
+- Rust: `workers/rust/src/step_handlers/blog_examples/`
 
 **E2E Tests**:
 
-* `tests/e2e/python/`
-* `tests/e2e/typescript/`
-* `tests/e2e/rust/`
+- `tests/e2e/python/`
+- `tests/e2e/typescript/`
+- `tests/e2e/rust/`
 
 **Related Documentation**:
 
-* `docs/workers/api-convergence-matrix.md`
-* `docs/workers/patterns-and-practices.md`
-* `docs/ticket-specs/TAS-112/recommendations.md`
+- `docs/workers/api-convergence-matrix.md`
+- `docs/workers/patterns-and-practices.md`
+- `docs/ticket-specs/TAS-112/recommendations.md`
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-91/python-rust-typescript-versions-of-our-blog-example-handlers](https://linear.app/tasker-systems/issue/TAS-91/python-rust-typescript-versions-of-our-blog-example-handlers)
 - Identifier: TAS-91
 - Status: In Progress

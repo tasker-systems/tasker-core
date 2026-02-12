@@ -45,6 +45,7 @@ This document synthesizes findings from six research areas completed for TAS-71.
 | Instrumentation | tracing-flame | tracing-flame |
 
 **Critical Action:** Add profiling profile to `Cargo.toml`:
+
 ```toml
 [profile.profiling]
 inherits = "release"
@@ -66,12 +67,14 @@ panic = "unwind"
 | Empty Stub | 2 | orchestration_benchmarks, worker_benchmarks |
 
 **Coverage Gaps:**
+
 - No memory benchmarks
 - No throughput benchmarks
 - No connection pool benchmarks
 - No large dataset (10K+) scaling tests
 
 **Cleanup Needed:**
+
 - Remove `orchestration_benchmarks.rs` (empty)
 - Remove `worker_benchmarks.rs` (empty)
 
@@ -89,6 +92,7 @@ panic = "unwind"
 | Batch Processing | 2+N | Scale-dependent | Design complete |
 
 **Benchmark Tiers:**
+
 - Tier 1: Core performance (every PR)
 - Tier 2: Complexity scaling (weekly)
 - Tier 3: Horizontal scaling (local only)
@@ -98,11 +102,13 @@ panic = "unwind"
 ### Area E: Load Testing Framework
 
 **Recommended Approach:** Hybrid
+
 - Custom Rust load generator for throughput-to-completion
 - External tools (k6) for API stress testing
 - Completion tracker for both
 
 **Key Scenarios:**
+
 1. Ramp-up test (find saturation point)
 2. Sustained load test (stability/leaks)
 3. Burst load test (spike handling)
@@ -111,18 +117,21 @@ panic = "unwind"
 ### Area F: Tokio Runtime Analysis
 
 **Spawn Analysis:**
+
 - 42 total spawns, 0 named
 - 15 long-running spawns (priority for naming)
 - Zero spawn_blocking calls (good!)
 - All MPSC channels bounded (TAS-51 compliant)
 
 **Tracing Status:**
+
 - Comprehensive OpenTelemetry integration
 - 100+ `#[instrument]` macros
 - Correlation ID propagation
 - OTLP export configured
 
 **tokio-console Integration:**
+
 - Estimated effort: 6.5 hours
 - Requires: console-subscriber, tokio_unstable cfg
 - High value for async bottleneck identification
@@ -151,6 +160,7 @@ panic = "unwind"
 | Create cargo-make profiling tasks | 1 hr | DONE |
 
 **Usage via cargo-make (recommended):**
+
 ```bash
 # Build with tokio-console support
 cargo make build-console      # or: cargo make bc
@@ -166,6 +176,7 @@ cargo make console
 ```
 
 **Manual usage:**
+
 ```bash
 # Build with tokio-console support
 RUSTFLAGS="--cfg tokio_unstable" cargo build --features tokio-console
@@ -198,6 +209,7 @@ tokio-console
 ### Phase 5: Analysis & Optimization (Subsequent Tickets)
 
 Based on profiling and benchmark results, create targeted optimization tickets:
+
 - Database query optimization
 - Channel tuning
 - Connection pool sizing

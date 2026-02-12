@@ -12,6 +12,7 @@
 This guide covers multi-instance cluster testing for validating horizontal scaling, race condition detection, and concurrent processing scenarios.
 
 **Key Capabilities**:
+
 - Run N orchestration instances with M worker instances
 - Test concurrent task creation across instances
 - Validate state consistency across cluster
@@ -218,6 +219,7 @@ Validates that tasks can be created concurrently across orchestration instances 
 **Test**: `test_concurrent_task_creation_across_instances`
 
 **Validates**:
+
 1. Tasks created through different orchestration instances
 2. All tasks complete successfully
 3. State is consistent across all instances
@@ -230,6 +232,7 @@ Stress tests the system by creating many tasks in quick succession.
 **Test**: `test_rapid_task_creation_burst`
 
 **Validates**:
+
 1. System handles high task creation rate
 2. No duplicate task UUIDs
 3. All tasks created successfully
@@ -241,6 +244,7 @@ Verifies tasks are distributed across instances using round-robin.
 **Test**: `test_task_creation_round_robin_distribution`
 
 **Validates**:
+
 1. Tasks distributed across instances
 2. Distribution is approximately even
 3. No single-instance bottleneck
@@ -397,10 +401,12 @@ cargo make test-rust-cluster
 ### Connection Pool Exhaustion
 
 If tests fail with "pool timed out" errors, ensure you have the latest code with:
+
 - Template loading before transaction in `task_initialization/service.rs`
 - Pool sizes: `max_connections=30`, `min_connections=2` in test config
 
 If issues persist, verify pool configuration:
+
 ```bash
 # Check test config
 cat config/tasker/generated/orchestration-test.toml | grep -A5 "pool"
@@ -429,6 +435,7 @@ cargo make setup-env-cluster
 - This is a conscious tradeoff for an open-source, pre-alpha project
 
 **Future Options** (when project matures):
+
 - Self-hosted runners with more resources
 - Paid GHA larger runners
 - Separate manual workflow trigger for cluster tests

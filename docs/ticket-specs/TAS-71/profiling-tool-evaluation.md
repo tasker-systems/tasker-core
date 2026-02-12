@@ -259,11 +259,13 @@ tokio-console = ["console-subscriber"]
 **3. Enable tokio_unstable cfg flag:**
 
 Option A: Environment variable (for testing)
+
 ```bash
 RUSTFLAGS="--cfg tokio_unstable" cargo build
 ```
 
 Option B: `.cargo/config.toml` (persistent)
+
 ```toml
 [build]
 rustflags = ["--cfg", "tokio_unstable"]
@@ -310,6 +312,7 @@ fn init_with_console() {
 #### Integration with Existing Tracing Infrastructure
 
 Our current `tasker-shared/src/logging.rs` uses:
+
 - `tracing_subscriber::registry()` with layers
 - OpenTelemetry integration
 - Environment-based configuration
@@ -427,6 +430,7 @@ flame-profiling = ["tracing-flame"]
 #### Output Formats
 
 **Primary:** Folded stack traces (text format)
+
 ```
 main;runtime::block_on;orchestration::process_task;db::query 1234
 main;runtime::block_on;orchestration::process_task;step::execute 5678
@@ -481,6 +485,7 @@ cat tracing.folded | inferno-flamechart > flamechart.svg
 **Platform:** Cross-platform (100% Rust)
 
 **Features:**
+
 - Heap allocation profiling
 - Test assertions on heap behavior
 - Peak memory tracking
@@ -521,6 +526,7 @@ fn main() {
 ```
 
 **View results:**
+
 ```bash
 # Open in browser
 open https://nnethercote.github.io/dh_view/dh_view.html
@@ -534,12 +540,14 @@ open https://nnethercote.github.io/dh_view/dh_view.html
 **Platform:** Linux only for data collection; GUI works on macOS
 
 **Features:**
+
 - Detailed heap allocation tracking
 - Memory leak detection
 - Flame graph of allocations
 - Rust symbol demangling support
 
 **Usage:**
+
 ```bash
 # Linux: Collect data
 heaptrack ./target/profiling/tasker-orchestration
@@ -549,11 +557,13 @@ heaptrack_gui heaptrack.tasker-orchestration.12345.gz
 ```
 
 **macOS Compatibility:** Data collection requires Linux; GUI analysis works on macOS via Homebrew:
+
 ```bash
 brew install heaptrack
 ```
 
 **Rust Integration:** Add debug symbols to release builds:
+
 ```toml
 [profile.release]
 debug = true
@@ -566,11 +576,13 @@ debug = true
 **Platform:** Linux, macOS (BSD-based systems)
 
 **Features:**
+
 - Heap profiling via jemalloc's built-in capabilities
 - Memory fragmentation analysis
 - Allocation size distribution
 
 **Usage:**
+
 ```toml
 [dependencies]
 tikv-jemallocator = { version = "0.6", features = ["profiling"] }
@@ -582,6 +594,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 ```
 
 **Profiling:**
+
 ```bash
 MALLOC_CONF="prof:true,prof_prefix:jeprof" ./target/release/app
 jeprof --svg ./target/release/app jeprof.*.heap > heap.svg
@@ -786,6 +799,7 @@ open https://www.speedscope.app/
 **Decision:** Profiling and benchmarking are **LOCAL DEVELOPMENT ONLY** for this project.
 
 **Rationale:**
+
 - This is a labor-of-love open source project with limited CI resources
 - GitHub Actions free-tier runners have constrained performance
 - Profiling requires release builds with debug symbols, which are slow to compile
@@ -793,6 +807,7 @@ open https://www.speedscope.app/
 - Local profiling on consistent hardware produces more reliable data
 
 **What this means:**
+
 - No profiling cargo-make tasks will run in CI
 - No benchmark regression detection in CI pipelines
 - Developers run profiling locally on their own machines

@@ -24,6 +24,7 @@ The tasker-shared crate is **remarkably clean** with respect to hardcoded stubs.
 | `state_machine/guards.rs:352` | `StepCanBeFailedFromOrchestrationGuard` | MEDIUM |
 
 **Analysis**:
+
 - All three implement `StateGuard<WorkflowStep>` with real logic
 - Marked with `#[allow(dead_code)]`
 - **Zero call sites found** across entire workspace
@@ -42,6 +43,7 @@ The tasker-shared crate is **remarkably clean** with respect to hardcoded stubs.
 | `metrics/mod.rs:102` | `init_opentelemetry_meter()` | ✅ Documented |
 
 **Analysis**:
+
 - Comment explains: "Currently unused - Prometheus text exporter used instead"
 - Kept for potential future OTLP metrics export
 - Correctly marked `#[allow(dead_code)]`
@@ -90,10 +92,12 @@ The tasker-shared crate is **remarkably clean** with respect to hardcoded stubs.
 ## Action Items
 
 ### Priority 1 (Medium)
+
 - [ ] Investigate `StepCanBeEnqueuedForOrchestrationGuard` and related guards
 - [ ] Git blame to understand when/why added
 - [ ] Remove if truly orphaned, or add deprecation notice
 
 ### No Action Needed
+
 - Metrics backup implementation (documented)
 - Test factories (expected pattern)

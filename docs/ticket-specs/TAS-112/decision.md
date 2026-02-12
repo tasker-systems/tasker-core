@@ -12,6 +12,7 @@
 This analysis compares decision point handler patterns for conditional workflow routing across all four languages. **Finding**: Three languages have mature, well-aligned implementations with excellent consistency. Rust has the **shared type definition** (DecisionPointOutcome enum) but **no decision handler helper class** - handlers must manually construct outcomes.
 
 **Key Findings**:
+
 1. **Rust Gap**: Type exists, but no decision handler helper class to simplify usage
 2. **Excellent Alignment**: Ruby, Python, TypeScript have nearly identical APIs
 3. **Outcome Structure**: Highly consistent serialization format across all languages
@@ -35,12 +36,14 @@ This analysis compares decision point handler patterns for conditional workflow 
 | **Python** | `DecisionHandler` | Subclass of `StepHandler` | `python/tasker_core/step_handler/decision.py` |
 | **TypeScript** | `DecisionHandler` | Subclass of `StepHandler` | `src/handler/decision.ts` |
 
-**Analysis**: 
+**Analysis**:
+
 - ❌ **All use subclass inheritance** - violates composition-over-inheritance goal
 - ✅ Three implementations are remarkably consistent
 - ❌ Rust has type but no helper class - gap in developer ergonomics
 
 **Recommendation**:
+
 - ✅ **Create Rust decision handler trait** (not subclass!)
 - ✅ **Migrate Ruby/Python/TypeScript to mixin/trait pattern**
 - 📝 **Zen Alignment**: "Flat is better than nested" - composition over inheritance
@@ -54,6 +57,7 @@ This analysis compares decision point handler patterns for conditional workflow 
 **Location**: `tasker-shared/src/messaging/execution_types.rs`
 
 **Definition**:
+
 ```rust
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -69,6 +73,7 @@ pub enum DecisionPointOutcome {
 ```
 
 **Factory Methods**:
+
 ```rust
 impl DecisionPointOutcome {
     pub fn no_branches() -> Self { ... }
@@ -80,6 +85,7 @@ impl DecisionPointOutcome {
 ```
 
 **Serialization**:
+
 ```json
 // NoBranches
 { "type": "no_branches" }
@@ -89,6 +95,7 @@ impl DecisionPointOutcome {
 ```
 
 **Analysis**:
+
 - ✅ **Excellent type safety** - Rust enum pattern
 - ✅ **Factory methods** for ergonomic construction
 - ✅ **Serde integration** for automatic serialization
@@ -99,6 +106,7 @@ impl DecisionPointOutcome {
 **Location**: `lib/tasker_core/types/decision_point_outcome.rb`
 
 **Definition**:
+
 ```ruby
 module DecisionPointOutcome
   class NoBranches < Dry::Struct
@@ -133,6 +141,7 @@ end
 ```
 
 **Factory Methods**:
+
 ```ruby
 DecisionPointOutcome.no_branches
 DecisionPointOutcome.create_steps(['step1', 'step2'])
@@ -140,6 +149,7 @@ DecisionPointOutcome.from_hash({ type: 'create_steps', step_names: [...] })
 ```
 
 **Analysis**:
+
 - ✅ **Dry-Struct validation** - type safety
 - ✅ **Factory methods** match Rust pattern
 - ✅ **Serialization** via `to_h` method
@@ -150,6 +160,7 @@ DecisionPointOutcome.from_hash({ type: 'create_steps', step_names: [...] })
 **Location**: `python/tasker_core/types.py`
 
 **Definition**:
+
 ```python
 class DecisionType(str, Enum):
     CREATE_STEPS = "create_steps"
@@ -164,6 +175,7 @@ class DecisionPointOutcome(BaseModel):
 ```
 
 **Factory Methods**:
+
 ```python
 @classmethod
 def create_steps(cls, step_names: list[str], 
@@ -187,6 +199,7 @@ def no_branches(cls, reason: str,
 ```
 
 **Analysis**:
+
 - ✅ **Pydantic validation** - type safety
 - ✅ **Factory methods** for ergonomic construction
 - ✅ **Extra fields**: `routing_context`, `dynamic_steps`, `reason`
@@ -197,6 +210,7 @@ def no_branches(cls, reason: str,
 **Location**: `src/handler/decision.ts`
 
 **Definition**:
+
 ```typescript
 export enum DecisionType {
   CREATE_STEPS = 'create_steps',
@@ -213,6 +227,7 @@ export interface DecisionPointOutcome {
 ```
 
 **Usage**:
+
 ```typescript
 const outcome: DecisionPointOutcome = {
   decisionType: DecisionType.CREATE_STEPS,
@@ -222,6 +237,7 @@ const outcome: DecisionPointOutcome = {
 ```
 
 **Analysis**:
+
 - ✅ **TypeScript type safety** via interface
 - ✅ **Enum for decision type**
 - ✅ **Matches Python structure** closely (camelCase vs snake_case)
@@ -241,6 +257,7 @@ const outcome: DecisionPointOutcome = {
 | **reason field** | ❌ | ❌ | ✅ | ✅ |
 
 **Recommendation**:
+
 - ✅ **Add fields to Rust/Ruby**: `routing_context`, `reason`, `dynamic_steps`
 - ✅ **Add factory methods to TypeScript**: Align with other languages
 - ✅ **Standardize field names**: Use `step_names` everywhere (not `next_step_names`)
@@ -255,6 +272,7 @@ const outcome: DecisionPointOutcome = {
 **Location**: `lib/tasker_core/step_handler/decision.rb`
 
 **Primary Methods**:
+
 ```ruby
 # Main API - simplified success helper
 def decision_success(steps:, result_data: {}, metadata: {})
@@ -303,6 +321,7 @@ end
 ```
 
 **Validation**:
+
 ```ruby
 def validate_step_names!(step_names)
   unless step_names.is_a?(Array) && !step_names.empty?
@@ -321,6 +340,7 @@ end
 ```
 
 **Capabilities**:
+
 ```ruby
 def capabilities
   super + %w[decision_point dynamic_workflow step_creation]
@@ -328,6 +348,7 @@ end
 ```
 
 **Analysis**:
+
 - ✅ **Keyword arguments** (`steps:`, `result_data:`)
 - ✅ **Validation** built-in
 - ✅ **Metadata builder** adds decision context
@@ -339,6 +360,7 @@ end
 **Location**: `python/tasker_core/step_handler/decision.py`
 
 **Primary Methods**:
+
 ```python
 def decision_success(
     self,
@@ -439,6 +461,7 @@ def route_to_steps(self, step_names, routing_context=None, metadata=None):
 ```
 
 **Capabilities**:
+
 ```python
 @property
 def capabilities(self) -> list[str]:
@@ -446,6 +469,7 @@ def capabilities(self) -> list[str]:
 ```
 
 **Analysis**:
+
 - ✅ **Positional + named arguments**
 - ✅ **Two-tier API**: Simple (`decision_success`) + advanced (`decision_success_with_outcome`)
 - ✅ **Convenience methods**: `skip_branches()` is cleaner than manual outcome
@@ -458,6 +482,7 @@ def capabilities(self) -> list[str]:
 **Location**: `src/handler/decision.ts`
 
 **Primary Methods**:
+
 ```typescript
 protected decisionSuccess(
   steps: string[],
@@ -558,6 +583,7 @@ protected decisionFailure(
 ```
 
 **Capabilities**:
+
 ```typescript
 get capabilities(): string[] {
   return ['process', 'decision', 'routing'];
@@ -565,10 +591,11 @@ get capabilities(): string[] {
 ```
 
 **Analysis**:
+
 - ✅ **Optional parameters** pattern
 - ✅ **Two-tier API** matches Python exactly
-- ✅ **Convenience methods**: `skipBranches()` 
-- ✅ **Failure helper**: `decisionFailure()` 
+- ✅ **Convenience methods**: `skipBranches()`
+- ✅ **Failure helper**: `decisionFailure()`
 - ✅ **Routing context** explicitly supported
 - ✅ **Nearly identical to Python** (naming convention differences only)
 
@@ -577,6 +604,7 @@ get capabilities(): string[] {
 **Gap**: Rust has `DecisionPointOutcome` type but no handler helper class
 
 **Current Pattern** (manual):
+
 ```rust
 // Handler must manually construct outcome and embed in result
 let outcome = DecisionPointOutcome::create_steps(vec!["step1".to_string()]);
@@ -593,7 +621,8 @@ success_result(
 )
 ```
 
-**Problem**: 
+**Problem**:
+
 - ❌ **Boilerplate** - developers must remember structure
 - ❌ **No validation** - easy to construct invalid results
 - ❌ **Inconsistent** - every handler does it differently
@@ -615,11 +644,13 @@ success_result(
 | **validate_outcome** | ✅ `validate_decision_outcome!` | ❌ (implicit via Pydantic) | ❌ (implicit via TypeScript) | ❌ Missing |
 
 **Gap Analysis**:
+
 - ❌ **Ruby missing**: `skip_branches()`, `decision_failure()`
 - ❌ **Rust missing**: Entire handler helper class
 - ✅ **Python/TypeScript**: Feature complete and aligned
 
 **Recommendation**:
+
 - ✅ **Add to Ruby**: `skip_branches()` and `decision_failure()` helpers
 - ✅ **Add to Rust**: Full decision handler trait with all helpers
 - 📝 **Zen Alignment**: "If the implementation is easy to explain, it may be a good idea"
@@ -631,6 +662,7 @@ success_result(
 ### Expected Structure (All Languages)
 
 **CreateSteps Outcome**:
+
 ```json
 {
   "result": {
@@ -657,6 +689,7 @@ success_result(
 ```
 
 **NoBranches Outcome**:
+
 ```json
 {
   "result": {
@@ -688,6 +721,7 @@ success_result(
 | **metadata.decision_version** | ✅ (via helper) | ✅ | ✅ | ❌ Manual |
 
 **Recommendation**:
+
 - ✅ **Extend Ruby DecisionPointOutcome**: Add `routing_context`, `reason`, `dynamic_steps`
 - ✅ **Extend Rust DecisionPointOutcome**: Add same fields
 - ✅ **Standardize metadata**: All handlers should add `decision_handler` and `decision_version`
@@ -852,6 +886,7 @@ impl DecisionCapable for OrderRoutingDecision {
 ```
 
 **Analysis**:
+
 - ✅ **Consistent logic** across all languages
 - ✅ **Similar API surface** - minor naming differences only
 - ⚠️ **Rust more verbose** without trait helpers
@@ -864,6 +899,7 @@ impl DecisionCapable for OrderRoutingDecision {
 ### All Use Subclass Inheritance
 
 **Ruby**:
+
 ```ruby
 class Decision < Base  # ❌ Inheritance
   # ...
@@ -871,12 +907,14 @@ end
 ```
 
 **Python**:
+
 ```python
 class DecisionHandler(StepHandler):  # ❌ Inheritance
   # ...
 ```
 
 **TypeScript**:
+
 ```typescript
 export abstract class DecisionHandler extends StepHandler {  # ❌ Inheritance
   // ...
@@ -886,6 +924,7 @@ export abstract class DecisionHandler extends StepHandler {  # ❌ Inheritance
 **Problem**: Same as API handlers - violates composition-over-inheritance goal!
 
 **Impact**:
+
 - Cannot combine decision + API features easily
 - Forces single inheritance hierarchy
 - Handlers must choose: Decision OR API, not both
@@ -894,6 +933,7 @@ export abstract class DecisionHandler extends StepHandler {  # ❌ Inheritance
 **Recommendation** (Composition Pattern):
 
 **Ruby (Mixin)**:
+
 ```ruby
 module StepHandler
   module DecisionCapabilities
@@ -917,6 +957,7 @@ end
 ```
 
 **Python (Mixin)**:
+
 ```python
 class DecisionMixin:
     """Provides decision routing capabilities via composition."""
@@ -932,6 +973,7 @@ class MyDecisionHandler(StepHandler, DecisionMixin):  # ✅ Composition
 ```
 
 **TypeScript (Mixin/Composition)**:
+
 ```typescript
 // Helper function approach
 function withDecisionCapabilities<T extends StepHandler>(handler: T) {
@@ -948,6 +990,7 @@ function withDecisionCapabilities<T extends StepHandler>(handler: T) {
 ```
 
 **Rust (Trait)**:
+
 ```rust
 #[async_trait]
 pub trait DecisionCapable {
@@ -971,6 +1014,7 @@ impl DecisionCapable for MyHandler {
 ```
 
 **Recommendation**:
+
 - ✅ **Adopt Now**: Migrate all languages to composition pattern
 - ✅ **Breaking Change Acceptable**: Pre-alpha status
 - ✅ **Enables Combining**: Handler can be both API + Decision capable
@@ -981,6 +1025,7 @@ impl DecisionCapable for MyHandler {
 ## Functional Gaps
 
 ### Rust (Critical Gaps)
+
 1. ❌ **No decision handler helper trait** - needs full implementation
 2. ❌ **No helper methods** - manual outcome construction
 3. ❌ **Missing fields in DecisionPointOutcome**: `routing_context`, `reason`, `dynamic_steps`
@@ -988,18 +1033,21 @@ impl DecisionCapable for MyHandler {
 5. ❌ **No metadata helpers** - must manually add decision context
 
 ### Ruby (Minor Gaps)
+
 1. ⚠️ **Missing `skip_branches()` convenience method** - less ergonomic than Python/TypeScript
 2. ⚠️ **Missing `decision_failure()` helper** - no standardized error handling
 3. ⚠️ **DecisionPointOutcome lacks fields**: `routing_context`, `reason`, `dynamic_steps`
 4. ✅ **Has validation** - `validate_decision_outcome!` is unique
 
 ### Python (Complete)
+
 1. ✅ **Fully featured** - reference implementation
 2. ✅ **All helper methods** including convenience methods
 3. ✅ **Complete outcome type** with all fields
 4. ✅ **Failure helper** for error cases
 
 ### TypeScript (Complete)
+
 1. ✅ **Fully featured** - matches Python
 2. ✅ **All helper methods** including convenience methods
 3. ✅ **Complete outcome type** with all fields
@@ -1012,6 +1060,7 @@ impl DecisionCapable for MyHandler {
 ### Critical Changes (Implement Now)
 
 #### 1. Rust Decision Handler Trait Implementation
+
 - ✅ Create `DecisionCapable` trait (not subclass!)
 - ✅ Add helper methods: `decision_success()`, `skip_branches()`, `decision_failure()`
 - ✅ Extend `DecisionPointOutcome` enum with fields:
@@ -1024,28 +1073,34 @@ impl DecisionCapable for MyHandler {
 **Implementation Priority**: **HIGH** - critical ergonomics gap
 
 #### 2. Migration to Composition Pattern
+
 All languages must migrate from subclass inheritance to composition:
 
 **Ruby**:
+
 - ✅ Create `StepHandler::DecisionCapabilities` module
 - ✅ Extract decision methods to mixin
 - ✅ Deprecate `Decision` subclass pattern
 - ✅ Update documentation
 
 **Python**:
+
 - ✅ Refactor `DecisionHandler` to `DecisionMixin`
 - ✅ Use multiple inheritance: `class MyHandler(StepHandler, DecisionMixin)`
 - ✅ Update documentation
 
 **TypeScript**:
+
 - ✅ Extract decision functionality to composable helper
 - ✅ Consider decorator pattern or mixin utilities
 - ✅ Update documentation
 
 **Rust**:
+
 - ✅ Implement as trait from the start (already composition-friendly)
 
 #### 3. Ruby Enhancements
+
 - ✅ Add `skip_branches(reason:, result_data:, metadata:)` helper
 - ✅ Add `decision_failure(message:, error_type:, retryable:, metadata:)` helper
 - ✅ Extend `DecisionPointOutcome` classes with `routing_context`, `reason`, `dynamic_steps`
@@ -1053,18 +1108,21 @@ All languages must migrate from subclass inheritance to composition:
 #### 4. Cross-Language Standardization
 
 **DecisionPointOutcome Structure**:
+
 - ✅ Add `routing_context` field to Ruby and Rust
 - ✅ Add `reason` field to Ruby and Rust (for NoBranches)
 - ✅ Add `dynamic_steps` field to Ruby and Rust (for CreateSteps)
 - ✅ Standardize field names: use `step_names` everywhere (not `next_step_names`)
 
 **Helper Method Names**:
+
 - ✅ Primary: `decision_success(steps, routing_context, metadata)`
 - ✅ Advanced: `decision_success_with_outcome(outcome, metadata)`
 - ✅ Convenience: `skip_branches(reason, routing_context, metadata)`
 - ✅ Error: `decision_failure(message, error_type, retryable, metadata)`
 
 **Metadata Standards**:
+
 - ✅ All decision results should include:
   - `decision_handler`: handler name
   - `decision_version`: handler version
@@ -1094,6 +1152,7 @@ All languages must migrate from subclass inheritance to composition:
 ## Implementation Checklist
 
 ### Rust Decision Handler (New Implementation)
+
 - [ ] Extend `DecisionPointOutcome` enum in `tasker-shared`:
   - [ ] Add `routing_context: Option<Value>` field
   - [ ] Add `reason: Option<String>` to NoBranches
@@ -1110,6 +1169,7 @@ All languages must migrate from subclass inheritance to composition:
 - [ ] Update documentation
 
 ### Ruby Composition Migration
+
 - [ ] Extend `DecisionPointOutcome` types:
   - [ ] Add `routing_context` attribute
   - [ ] Add `reason` attribute (NoBranches)
@@ -1123,6 +1183,7 @@ All languages must migrate from subclass inheritance to composition:
 - [ ] Add migration guide
 
 ### Python Composition Migration
+
 - [ ] Rename `DecisionHandler` → `DecisionMixin`
 - [ ] Keep class functional (backward compat in pre-alpha)
 - [ ] Update examples to show composition
@@ -1130,12 +1191,14 @@ All languages must migrate from subclass inheritance to composition:
 - [ ] Add tests for composition pattern
 
 ### TypeScript Composition Migration
+
 - [ ] Extract decision functionality to composable helper
 - [ ] Implement decorator or mixin pattern
 - [ ] Update examples
 - [ ] Document composition approach
 
 ### Documentation
+
 - [ ] Create `docs/decision-handlers-reference.md`
 - [ ] Create `docs/composition-patterns.md` (combine with API handler guidance)
 - [ ] Update `docs/conditional-workflows.md` with new API patterns
@@ -1147,6 +1210,7 @@ All languages must migrate from subclass inheritance to composition:
 ## Next Phase
 
 **Phase 5: Batchable Handler Pattern** will analyze batch processing handlers for parallel step creation. Key questions:
+
 - Do all languages have batch analyzer + batch worker patterns?
 - Is the `CursorConfig` structure consistent?
 - Are there helpers for batch outcome construction?
@@ -1157,6 +1221,7 @@ All languages must migrate from subclass inheritance to composition:
 ## Appendix: Rust Decision Handler Trait Sketch
 
 **Trait Definition**:
+
 ```rust
 use async_trait::async_trait;
 use serde_json::{json, Value};
@@ -1288,6 +1353,7 @@ pub trait DecisionCapable {
 ```
 
 **Extended DecisionPointOutcome** (in `tasker-shared`):
+
 ```rust
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]

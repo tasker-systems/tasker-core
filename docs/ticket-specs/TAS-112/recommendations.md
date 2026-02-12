@@ -14,11 +14,13 @@ This document synthesizes findings from all 8 research phases and provides a **c
 **Project Context**: Pre-alpha greenfield open source project. Breaking changes are **encouraged** to achieve the right architecture. No backward compatibility concerns.
 
 **Key Architectural Discoveries**:
+
 1. **Composition Over Inheritance**: Batchable handlers already use composition via mixins - this is the **target pattern**
 2. **Orchestration vs Worker Features**: Domain events and conditional workflows are orchestration features with worker-side APIs
 3. **FFI Boundaries Matter**: Batch processing and decision outcomes must maintain exact serialization across languages
 
 **Overall Assessment**:
+
 - ✅ **Ruby**: Most mature, feature-complete across all patterns (reference implementation)
 - ⚠️ **Python**: Good core APIs but missing lifecycle hooks and some advanced features
 - ⚠️ **TypeScript**: Good core APIs but missing domain events entirely and some examples
@@ -53,7 +55,8 @@ This document synthesizes findings from all 8 research phases and provides a **c
 | **Metadata Helpers** | ❌ Missing | ✅ | ✅ | ✅ | **HIGH** - Add to Rust |
 | **Pattern** | Functional | Subclass | Subclass | Subclass | **CRITICAL** - Migrate to composition |
 
-**Recommendation**: 
+**Recommendation**:
+
 - ✅ **Ruby**: Unify Success/Error into single result class (breaking change)
 - ✅ **Rust**: Add version, capabilities, metadata methods to trait
 - ✅ **All**: Migrate from subclass inheritance to mixin/trait composition
@@ -71,6 +74,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 | **Pattern** | N/A | Subclass | Subclass | Subclass | **CRITICAL** - Migrate to mixin |
 
 **Recommendation**:
+
 - ✅ **Rust**: Create API handler trait (not urgent - can use base handler)
 - ✅ **Ruby**: Add `api_success()`, `api_failure()` helpers, add PATCH support
 - ✅ **All**: Migrate from subclass to mixin pattern
@@ -89,6 +93,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 | **Pattern** | N/A | Subclass | Subclass | Subclass | **CRITICAL** - Migrate to mixin |
 
 **Recommendation**:
+
 - ✅ **Rust**: Create decision handler trait with helpers
 - ✅ **Ruby**: Add missing fields to DecisionPointOutcome
 - ✅ **All**: Migrate from subclass to mixin pattern
@@ -105,6 +110,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 | **Cursor Index** | 0-indexed | **1-indexed** | 0-indexed | 0-indexed | **HIGH** - Ruby should use 0-indexed |
 
 **Recommendation**:
+
 - ✅ **Ruby**: Change cursor indexing from 1-indexed to 0-indexed (breaking change)
 - ✅ **Python/TypeScript**: Add flexible aggregation with custom function support
 - ✅ **Python**: Add `handle_no_op_worker()` helper
@@ -123,6 +129,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 | **Checkpoint Write** | ✅ | ✅ | ❌ Read-only | ❌ Read-only | **HIGH** - Add write APIs |
 
 **Recommendation**:
+
 - ✅ **Python**: Create `BatchProcessingOutcome` Pydantic model, add `batch_id` to `CursorConfig`, change cursor types to `Any`
 - ✅ **TypeScript**: Create `BatchProcessingOutcome` interface, add `batch_id` to `CursorConfig`, change cursor types to `unknown`
 - ✅ **Python/TypeScript**: Add `BatchAggregationScenario` helper class
@@ -142,6 +149,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 | **Registry Pattern** | ✅ | ✅ | ⚠️ Implied | N/A | **MEDIUM** - Add to Python |
 
 **Recommendation**:
+
 - ✅ **TypeScript**: Create complete domain events module (BasePublisher, BaseSubscriber, InProcessDomainEventPoller)
 - ✅ **Python**: Add lifecycle hooks to both BasePublisher and BaseSubscriber
 - ✅ **Python**: Add `additional_metadata()` method to BasePublisher
@@ -159,6 +167,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 | **Intersection Semantics Docs** | ✅ Implemented | ✅ Explained | ⚠️ Needs detail | ⚠️ Needs detail | **MEDIUM** - Deep dive doc |
 
 **Recommendation**:
+
 - ✅ **Rust**: Add decision handler trait with helper methods
 - ✅ **Python/TypeScript**: Create complete conditional approval examples (routing decision + convergence handlers)
 - ✅ **Python/TypeScript**: Add E2E tests for all routing scenarios
@@ -176,6 +185,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 **Discovery**: Batchable handlers already use **composition via mixins** in Ruby/Python/TypeScript, not inheritance!
 
 **Current State**:
+
 ```
 ✅ Batchable: Composition (mixin pattern)
    - Ruby: include Batchable
@@ -194,6 +204,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 ```
 
 **Target Architecture**:
+
 ```
 ✅ All patterns should use composition:
    - Ruby: include Base, include API, include Decision, include Batchable
@@ -203,6 +214,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 ```
 
 **Benefits**:
+
 - Single responsibility - each mixin handles one concern
 - Flexible composition - handlers can mix capabilities as needed
 - Easier testing - can test each capability independently
@@ -213,12 +225,14 @@ This document synthesizes findings from all 8 research phases and provides a **c
 **Discovery**: Several features are **orchestration-owned** with worker-side APIs:
 
 **Orchestration Features** (Rust only):
+
 - Domain event publishing (post-execution, fire-and-forget)
 - Decision point step creation (atomic transaction)
 - Batch worker creation (atomic transaction)
 - Deferred step intersection semantics
 
 **Worker Features** (all languages):
+
 - Decision logic (returns DecisionPointOutcome)
 - Batchable analysis (returns BatchProcessingOutcome)
 - Custom publishers (transform payloads)
@@ -231,6 +245,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 **Discovery**: Data structures crossing FFI boundaries must have **identical serialization**:
 
 **Critical FFI Structures**:
+
 - `DecisionPointOutcome`: Rust enum ↔️ Worker types
 - `BatchProcessingOutcome`: Rust enum ↔️ Worker types
 - `BatchWorkerInputs`: Rust struct → Worker context (Rust-owned)
@@ -238,6 +253,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 - `DomainEvent`: Rust struct → Worker subscribers
 
 **Current Gaps**:
+
 - Python/TypeScript: No `BatchProcessingOutcome` type classes (inline dicts/objects)
 - Python/TypeScript: `CursorConfig` limited to int/number (should support any JSON)
 - Python: `BatchWorkerContext` doesn't match Rust `BatchWorkerInputs` exactly
@@ -257,6 +273,7 @@ This document synthesizes findings from all 8 research phases and provides a **c
 **Approach**:
 
 **Phase 1: Create Mixins (Non-Breaking)**
+
 ```ruby
 # Ruby: Create new mixin modules alongside existing classes
 module TaskerCore
@@ -289,6 +306,7 @@ end
 ```
 
 **Phase 2: Add Deprecation Warnings**
+
 ```ruby
 # Add deprecation to existing subclasses
 class API < Base
@@ -301,6 +319,7 @@ end
 ```
 
 **Phase 3: Migrate Examples**
+
 ```ruby
 # Old pattern (deprecated)
 class MyHandler < TaskerCore::StepHandler::API
@@ -320,11 +339,13 @@ end
 ```
 
 **Phase 4: Remove Subclasses (Breaking)**
+
 - Remove `API`, `Decision` subclasses
 - Keep only `Base` + mixins
 - Update all documentation
 
-**Timeline**: 
+**Timeline**:
+
 - Phase 1-2: Now (non-breaking)
 - Phase 3: 2-4 weeks (migration period)
 - Phase 4: After all examples migrated
@@ -336,6 +357,7 @@ end
 **Impact**: BREAKING
 
 **Current State**:
+
 ```ruby
 # Ruby uses separate classes
 StepHandlerResult::Success.new(result: data)
@@ -343,6 +365,7 @@ StepHandlerResult::Error.new(message: "error")
 ```
 
 **Target State** (matching Python/TypeScript):
+
 ```ruby
 # Unified class with success flag
 StepHandlerResult.success(result: data)
@@ -353,6 +376,7 @@ StepHandlerResult.new(success: true, result: data)
 ```
 
 **Migration Path**:
+
 1. Add `StepHandlerResult` unified class alongside existing
 2. Add factory methods: `success()`, `failure()`
 3. Make Success/Error subclasses of unified class (backward compatible)
@@ -361,6 +385,7 @@ StepHandlerResult.new(success: true, result: data)
 6. Remove Success/Error subclasses
 
 **Benefits**:
+
 - Matches Python/TypeScript patterns
 - Simpler type checking (`result.success?` vs `result.is_a?(Success)`)
 - Easier serialization (single structure)
@@ -374,6 +399,7 @@ StepHandlerResult.new(success: true, result: data)
 **Traits to Create**:
 
 **1. Base Handler Trait** (already exists, enhance):
+
 ```rust
 pub trait StepHandler {
     fn name(&self) -> &str;
@@ -386,6 +412,7 @@ pub trait StepHandler {
 ```
 
 **2. API Handler Trait**:
+
 ```rust
 pub trait APICapable {
     fn api_success(&self, data: Value, status: u16, headers: Option<Value>) -> StepExecutionResult;
@@ -395,6 +422,7 @@ pub trait APICapable {
 ```
 
 **3. Decision Handler Trait**:
+
 ```rust
 pub trait DecisionCapable {
     fn decision_success(&self, step_names: Vec<String>, routing_context: Option<Value>) -> StepExecutionResult;
@@ -404,6 +432,7 @@ pub trait DecisionCapable {
 ```
 
 **4. Batchable Handler Trait**:
+
 ```rust
 pub trait BatchableCapable {
     fn batch_analyzer_success(&self, outcome: BatchProcessingOutcome) -> StepExecutionResult;
@@ -413,6 +442,7 @@ pub trait BatchableCapable {
 ```
 
 **Benefits**:
+
 - Ergonomic helpers match Ruby/Python/TypeScript
 - Type-safe construction of outcomes
 - Automatic serialization via trait methods
@@ -427,6 +457,7 @@ pub trait BatchableCapable {
 **Actions**:
 
 **Python**:
+
 ```python
 # Create explicit FFI boundary types
 class BatchProcessingOutcome(BaseModel):
@@ -460,6 +491,7 @@ class CursorConfig(BaseModel):
 ```
 
 **TypeScript**:
+
 ```typescript
 // Create explicit FFI boundary types
 export type BatchProcessingOutcome =
@@ -481,6 +513,7 @@ export interface CursorConfig {
 ```
 
 **Documentation**:
+
 - Create `docs/ffi-boundary-types.md`
 - Document exact serialization format
 - Show examples of cursor type flexibility
@@ -493,11 +526,13 @@ export interface CursorConfig {
 ### Immediate Actions (Week 1-2)
 
 #### 1. TypeScript Domain Events (CRITICAL)
+
 **Status**: Completely missing  
 **Effort**: 2-3 days  
 **Blocking**: TypeScript workers cannot publish/subscribe to domain events
 
 **Tasks**:
+
 - [ ] Create `workers/typescript/src/handler/domain-events.ts`
 - [ ] Implement `BasePublisher` with full lifecycle hooks
 - [ ] Implement `BaseSubscriber` with pattern matching
@@ -508,25 +543,30 @@ export interface CursorConfig {
 - [ ] Document in TypeScript worker docs
 
 #### 2. Python/TypeScript Lifecycle Hooks (HIGH)
+
 **Status**: Missing hooks in both publishers and subscribers  
 **Effort**: 1 day  
 **Blocking**: Can't add custom behavior around publishing/subscribing
 
 **Python Tasks**:
+
 - [ ] Add `before_publish()`, `after_publish()`, `on_publish_error()` to BasePublisher
 - [ ] Add `additional_metadata()` to BasePublisher
 - [ ] Add `before_handle()`, `after_handle()`, `on_handle_error()` to BaseSubscriber
 - [ ] Update examples to show hook usage
 
 **TypeScript Tasks**:
+
 - [ ] Same as Python (once domain events module exists)
 
 #### 3. FFI Boundary Types (HIGH)
+
 **Status**: Python/TypeScript using inline dicts/objects  
 **Effort**: 1-2 days  
 **Blocking**: Type safety issues, harder to debug serialization
 
 **Tasks**:
+
 - [ ] Python: Create `BatchProcessingOutcome` Pydantic model
 - [ ] Python: Update `CursorConfig` cursor types to `Any`
 - [ ] Python: Add `batch_id` field to `CursorConfig`
@@ -539,11 +579,13 @@ export interface CursorConfig {
 ### Short-Term Actions (Week 3-4)
 
 #### 4. Conditional Workflow Examples (HIGH)
+
 **Status**: Python/TypeScript missing convergence patterns  
 **Effort**: 2-3 days  
 **Blocking**: No examples for developers to follow
 
 **Tasks**:
+
 - [ ] Python: Create `examples/conditional_approval/` with all handlers
 - [ ] Python: Create YAML template
 - [ ] Python: Write E2E tests (small, medium, large amounts)
@@ -552,22 +594,26 @@ export interface CursorConfig {
 - [ ] Add intersection semantics deep dive
 
 #### 5. Checkpoint Write APIs (HIGH)
+
 **Status**: Python/TypeScript can only read checkpoints  
 **Effort**: 1-2 days  
 **Blocking**: Can't implement resumable batch workers
 
 **Tasks**:
+
 - [ ] Python: Add `update_checkpoint(cursor, metadata)` or `update_step_results(data)` helper
 - [ ] TypeScript: Same as Python
 - [ ] Document checkpoint preservation during retry
 - [ ] Add examples showing checkpoint usage
 
 #### 6. Batch Aggregation Helpers (MEDIUM)
+
 **Status**: Ruby has flexible aggregation, Python/TypeScript have static sum  
 **Effort**: 1 day  
 **Blocking**: Can't customize aggregation logic
 
 **Tasks**:
+
 - [ ] Python: Add optional `aggregation_fn` parameter to aggregation helper
 - [ ] Python: Add `BatchAggregationScenario` helper class
 - [ ] TypeScript: Same as Python
@@ -576,11 +622,13 @@ export interface CursorConfig {
 ### Medium-Term Actions (Month 1-2)
 
 #### 7. Composition Pattern Migration (CRITICAL - BREAKING)
+
 **Status**: All use inheritance except batchable  
 **Effort**: 2-3 weeks  
 **Blocking**: Architectural inconsistency
 
 **Tasks**:
+
 - [ ] Create mixin modules in all languages
 - [ ] Add deprecation warnings to subclasses
 - [ ] Migrate all examples to mixin pattern
@@ -588,11 +636,13 @@ export interface CursorConfig {
 - [ ] After migration period: Remove subclasses
 
 #### 8. Ruby Result Unification (HIGH - BREAKING)
+
 **Status**: Ruby uses separate Success/Error classes  
 **Effort**: 1-2 weeks  
 **Blocking**: Inconsistency with Python/TypeScript
 
 **Tasks**:
+
 - [ ] Create unified `StepHandlerResult` class
 - [ ] Add factory methods: `success()`, `failure()`
 - [ ] Add deprecation warnings
@@ -600,11 +650,13 @@ export interface CursorConfig {
 - [ ] Remove Success/Error subclasses
 
 #### 9. Rust Handler Traits (HIGH)
+
 **Status**: Rust lacks ergonomic helpers  
 **Effort**: 1-2 weeks  
 **Blocking**: Poor developer experience for Rust handlers
 
 **Tasks**:
+
 - [ ] Enhance `StepHandler` trait with version, capabilities, metadata methods
 - [ ] Create `APICapable` trait
 - [ ] Create `DecisionCapable` trait
@@ -613,11 +665,13 @@ export interface CursorConfig {
 - [ ] Document trait composition pattern
 
 #### 10. Ruby API Handler Enhancements (MEDIUM)
+
 **Status**: Missing some helpers  
 **Effort**: 1 day  
 **Blocking**: Minor - workarounds exist
 
 **Tasks**:
+
 - [ ] Add `api_success()` helper
 - [ ] Add `api_failure()` helper
 - [ ] Add PATCH method support
@@ -626,21 +680,25 @@ export interface CursorConfig {
 ### Long-Term Actions (Month 3+)
 
 #### 11. Ruby Cursor Indexing (LOW - BREAKING)
+
 **Status**: Ruby uses 1-indexed, others use 0-indexed  
 **Effort**: 1-2 days  
 **Blocking**: Inconsistency but not critical
 
 **Tasks**:
+
 - [ ] Change Ruby cursor creation to 0-indexed
 - [ ] Update tests
 - [ ] Document breaking change
 
 #### 12. Documentation Overhaul (HIGH)
+
 **Status**: Gaps in cross-language patterns  
 **Effort**: 1-2 weeks  
 **Blocking**: Developer confusion
 
 **Tasks**:
+
 - [ ] Create `docs/ffi-boundary-types.md`
 - [ ] Create `docs/domain-events-publishing-flow.md`
 - [ ] Create `docs/conditional-workflows-convergence.md`
@@ -655,12 +713,14 @@ export interface CursorConfig {
 ### Critical Breaking Changes (Do Now)
 
 #### 1. Composition Pattern Migration
+
 **What Breaks**: Handler class declarations  
 **Migration**: Change `class Handler < API` to `class Handler < Base; include API`  
 **Justification**: Architectural improvement, matches batchable pattern  
 **Estimated Impact**: ALL handlers (but simple search-replace)
 
 #### 2. Ruby Result Unification
+
 **What Breaks**: Type checks `is_a?(Success)`  
 **Migration**: Change to `result.success?`  
 **Justification**: Consistency with Python/TypeScript  
@@ -669,6 +729,7 @@ export interface CursorConfig {
 ### Medium Breaking Changes (Plan Carefully)
 
 #### 3. Ruby Cursor Indexing
+
 **What Breaks**: Batch cursor calculations  
 **Migration**: Subtract 1 from all cursor indices  
 **Justification**: Consistency with Python/TypeScript/Rust  
@@ -677,6 +738,7 @@ export interface CursorConfig {
 ### Non-Breaking Changes (Safe to Add)
 
 All other recommendations are **additive**:
+
 - FFI boundary types (new classes/interfaces)
 - Lifecycle hooks (new methods with defaults)
 - Rust traits (new capabilities)
@@ -692,16 +754,20 @@ All other recommendations are **additive**:
 ### New Documentation (Create)
 
 #### 1. FFI Boundary Types Reference
+
 **File**: `docs/ffi-boundary-types.md`  
 **Content**:
+
 - List all FFI structures (DecisionPointOutcome, BatchProcessingOutcome, etc.)
 - Show exact JSON serialization format
 - Explain Rust ownership (Rust creates, workers read)
 - Document flexible cursor types with examples
 
 #### 2. Domain Events Publishing Flow
+
 **File**: `docs/domain-events-publishing-flow.md`  
 **Content**:
+
 - Explain YAML declaration model
 - Show orchestration publishing flow (Phase 1→2→3)
 - Clarify custom publisher role (transformation only, not publishing)
@@ -709,8 +775,10 @@ All other recommendations are **additive**:
 - Show FFI integration for subscribers
 
 #### 3. Conditional Workflows Convergence
+
 **File**: `docs/conditional-workflows-convergence.md`  
 **Content**:
+
 - Deep dive on convergence patterns
 - Show route-aware aggregation examples
 - Explain how to access routing context
@@ -718,8 +786,10 @@ All other recommendations are **additive**:
 - Show intersection semantics algorithm with examples
 
 #### 4. Batch Processing Checkpoints
+
 **File**: `docs/batch-processing-checkpoints.md`  
 **Content**:
+
 - Explain checkpoint storage (workflow_steps.results)
 - Document retry preservation mechanism
 - Show read/write patterns per language
@@ -727,8 +797,10 @@ All other recommendations are **additive**:
 - Explain checkpoint intervals and failure recovery
 
 #### 5. Composition Over Inheritance Guide
+
 **File**: `docs/composition-pattern-guide.md`  
 **Content**:
+
 - Explain why composition preferred
 - Show before/after examples
 - Migration guide for existing handlers
@@ -738,8 +810,10 @@ All other recommendations are **additive**:
 ### Updated Documentation (Enhance)
 
 #### 6. Worker Crate Documentation
+
 **Files**: `docs/worker-crates/{rust,ruby,python,typescript}.md`  
 **Updates**:
+
 - Add complete examples for ALL patterns
 - Add cross-language comparison tables
 - Document FFI integration points
@@ -747,8 +821,10 @@ All other recommendations are **additive**:
 - Add troubleshooting sections
 
 #### 7. Core Documentation
+
 **Files**: `docs/{batch-processing,domain-events,conditional-workflows}.md`  
 **Updates**:
+
 - Add "How It Works" sections explaining orchestration
 - Show cross-language examples side-by-side
 - Document configuration and limits
@@ -758,6 +834,7 @@ All other recommendations are **additive**:
 ### Documentation Quality Standards
 
 **All new/updated docs must include**:
+
 - ✅ Cross-language examples where applicable
 - ✅ Complete code examples (no pseudo-code)
 - ✅ Explanation of "why" not just "how"
@@ -773,6 +850,7 @@ All other recommendations are **additive**:
 ### Immediate (Week 1-2)
 
 **TAS-113: TypeScript Domain Events Implementation**
+
 - Priority: CRITICAL
 - Effort: HIGH (2-3 days)
 - Description: Create complete domain events module for TypeScript workers
@@ -781,6 +859,7 @@ All other recommendations are **additive**:
 - Assignee: TBD
 
 **TAS-114: Python/TypeScript Lifecycle Hooks**
+
 - Priority: HIGH
 - Effort: MEDIUM (1 day)
 - Description: Add lifecycle hooks to BasePublisher and BaseSubscriber
@@ -789,6 +868,7 @@ All other recommendations are **additive**:
 - Assignee: TBD
 
 **TAS-115: FFI Boundary Type Standardization**
+
 - Priority: HIGH
 - Effort: MEDIUM (1-2 days)
 - Description: Create explicit type classes for FFI boundary types
@@ -799,6 +879,7 @@ All other recommendations are **additive**:
 ### Short-Term (Week 3-4)
 
 **TAS-116: Conditional Workflow Examples (Python/TypeScript)**
+
 - Priority: HIGH
 - Effort: HIGH (2-3 days)
 - Description: Create complete conditional approval workflow examples
@@ -807,6 +888,7 @@ All other recommendations are **additive**:
 - Assignee: TBD
 
 **TAS-117: Checkpoint Write APIs**
+
 - Priority: HIGH
 - Effort: MEDIUM (1-2 days)
 - Description: Add checkpoint write helpers to Python/TypeScript
@@ -815,6 +897,7 @@ All other recommendations are **additive**:
 - Assignee: TBD
 
 **TAS-118: Batch Aggregation Flexibility**
+
 - Priority: MEDIUM
 - Effort: LOW (1 day)
 - Description: Add flexible aggregation support to Python/TypeScript
@@ -825,6 +908,7 @@ All other recommendations are **additive**:
 ### Medium-Term (Month 1-2)
 
 **TAS-119: Composition Pattern Migration**
+
 - Priority: CRITICAL
 - Effort: HIGH (2-3 weeks)
 - Description: Migrate all handlers from inheritance to composition
@@ -834,6 +918,7 @@ All other recommendations are **additive**:
 - **Breaking Change**: YES
 
 **TAS-120: Ruby Result Unification**
+
 - Priority: HIGH
 - Effort: MEDIUM (1-2 weeks)
 - Description: Unify Success/Error into single result class
@@ -843,6 +928,7 @@ All other recommendations are **additive**:
 - **Breaking Change**: YES
 
 **TAS-121: Rust Handler Traits**
+
 - Priority: HIGH
 - Effort: MEDIUM (1-2 weeks)
 - Description: Create ergonomic handler traits for Rust
@@ -851,6 +937,7 @@ All other recommendations are **additive**:
 - Assignee: TBD
 
 **TAS-122: Ruby API Handler Enhancements**
+
 - Priority: MEDIUM
 - Effort: LOW (1 day)
 - Description: Add missing API helper methods to Ruby
@@ -861,6 +948,7 @@ All other recommendations are **additive**:
 ### Long-Term (Month 3+)
 
 **TAS-123: Documentation Overhaul**
+
 - Priority: HIGH
 - Effort: HIGH (1-2 weeks)
 - Description: Create new docs and update existing cross-language documentation
@@ -869,6 +957,7 @@ All other recommendations are **additive**:
 - Assignee: TBD
 
 **TAS-124: Ruby Cursor Indexing Fix**
+
 - Priority: LOW
 - Effort: LOW (1-2 days)
 - Description: Change Ruby cursor indexing from 1-indexed to 0-indexed
@@ -884,6 +973,7 @@ All other recommendations are **additive**:
 This research and migration effort will be considered successful when:
 
 ### Technical Criteria
+
 - ✅ All four languages have equivalent handler APIs for each pattern
 - ✅ FFI boundary types are explicitly defined and documented
 - ✅ All handlers use composition pattern (mixins/traits)
@@ -893,6 +983,7 @@ This research and migration effort will be considered successful when:
 - ✅ Rust has ergonomic handler traits
 
 ### Documentation Criteria
+
 - ✅ 5 new documentation files created
 - ✅ All worker crate docs updated with complete examples
 - ✅ Cross-language comparison tables in all pattern docs
@@ -900,12 +991,14 @@ This research and migration effort will be considered successful when:
 - ✅ Migration guides for breaking changes
 
 ### Quality Criteria
+
 - ✅ All examples passing E2E tests
 - ✅ No "TODO" or placeholder implementations
 - ✅ Consistent naming across languages (allowing for language idioms)
 - ✅ Zero serialization bugs at FFI boundaries
 
 ### Developer Experience Criteria
+
 - ✅ Developers can implement any handler pattern in any language
 - ✅ Examples exist for all patterns in all languages
 - ✅ "One obvious way" to implement each pattern
@@ -918,6 +1011,7 @@ This research and migration effort will be considered successful when:
 This research uncovered significant architectural insights and identified clear paths to consistency. The **batchable pattern** (already using composition) is our target architecture. TypeScript domain events and Python/TypeScript lifecycle hooks are the most critical gaps.
 
 **Recommended Next Steps**:
+
 1. ✅ Review this synthesis with stakeholders
 2. ✅ Prioritize and assign tickets (TAS-113 through TAS-124)
 3. ✅ Start with critical tickets (TAS-113, TAS-114, TAS-115)
@@ -940,6 +1034,7 @@ This research uncovered significant architectural insights and identified clear 
 **Approval Status**: Draft - Pending Stakeholder Review
 
 **Phase Documents**:
+
 - Phase 1: [Documentation Analysis](./research-plan.md)
 - Phase 2: [Base Handler Pattern](./base.md)
 - Phase 3: [API Handler Pattern](./api.md)

@@ -238,6 +238,7 @@ mod method_dispatch_wrapper_tests {
 | No clippy warnings | `cargo clippy --package tasker-shared --all-targets` |
 
 **Gate Command**:
+
 ```bash
 cargo test --package tasker-shared --all-features && \
 cargo clippy --package tasker-shared --all-targets --all-features -- -D warnings
@@ -355,6 +356,7 @@ mod class_constant_resolver_tests {
 | All existing tests pass | `cargo test --all-features` |
 
 **Gate Command**:
+
 ```bash
 cargo test --package tasker-shared --all-features && \
 cargo test --package tasker-worker --all-features
@@ -373,12 +375,14 @@ infrastructure with the existing `HandlerDispatchService`. The original plan sug
 modifying `HandlerDispatchService` directly to use `ResolverChain`.
 
 **Challenge**: There's a trait mismatch between the systems:
+
 - `HandlerDispatchService` uses `StepHandlerRegistry` → returns `Arc<dyn StepHandler>`
 - `ResolverChain.resolve()` → returns `Arc<dyn ResolvedHandler>`
 
 **Decision**: Use the **Adapter Pattern** instead of direct modification.
 
 **Rationale**:
+
 1. `HandlerDispatchService` is well-tested, production-ready code (TAS-67, TAS-75)
 2. Follows composition-over-inheritance principle from core tenets
 3. Provides cohesion without tight coupling
@@ -386,12 +390,14 @@ modifying `HandlerDispatchService` directly to use `ResolverChain`.
 5. Enables gradual migration via `HybridStepHandlerRegistry`
 
 **Implementation**:
+
 - Create `ResolverChainRegistry` implementing `StepHandlerRegistry`
 - Create trait bridge adapters: `StepHandlerAsResolved`, `ExecutableHandler`
 - Leave `HandlerDispatchService` unchanged
 - Update `RustStepHandlerRegistryAdapter` to use `ExplicitMappingResolver` internally
 
 **New Files**:
+
 - `tasker-worker/src/worker/handlers/resolver_integration.rs`
 
 ---
@@ -430,6 +436,7 @@ resolved handler), while the **execution mechanism** is inherently language-spec
 **Why NOT Add `call()` to `ResolvedHandler`**:
 
 If we added `async fn call()` to `ResolvedHandler`:
+
 - We'd be baking Rust's limitation into a cross-language abstraction
 - Ruby/Python handlers exposing `refund()`, `validate()`, `process()` directly wouldn't fit
 - We'd force a "single entry point" pattern that only Rust needs
@@ -441,6 +448,7 @@ runtime reflection/dynamic dispatch.
 
 **Documentation Impact**: This clarification should be highlighted in the final handler
 resolution guide (Phase 6) to help developers understand:
+
 1. Why the architecture looks different in Rust vs other languages
 2. That this is intentional, not a limitation
 3. How to leverage method dispatch in each language idiomatically
@@ -596,6 +604,7 @@ mod registry_resolver_tests {
 | All rust worker tests pass | `cargo test --package tasker-worker-rust --all-features` |
 
 **Gate Command**:
+
 ```bash
 cargo test --package tasker-worker --all-features && \
 cargo test --package tasker-worker-rust --all-features
@@ -756,6 +765,7 @@ describe('ExplicitMappingResolver', () => {
 | FFI integration works | Run integration tests for each language |
 
 **Gate Command**:
+
 ```bash
 cd workers/ruby && bundle exec rspec spec/registry/ && \
 cd ../python && pytest tests/test_resolver*.py && \
@@ -819,6 +829,7 @@ steps:
 ```
 
 **Similar fixtures for**:
+
 - `tests/fixtures/task_templates/ruby/resolver_*.yaml`
 - `tests/fixtures/task_templates/python/resolver_*.yaml`
 - `tests/fixtures/task_templates/typescript/resolver_*.yaml`
@@ -895,6 +906,7 @@ async fn test_backward_compatible_templates() {
 ```
 
 **Similar E2E tests for**:
+
 - `tests/e2e/ruby/resolver_tests.rs`
 - `tests/e2e/python/resolver_tests.rs`
 - `tests/e2e/typescript/resolver_tests.rs`
@@ -954,6 +966,7 @@ impl RustStepHandler for MultiMethodHandler {
 | Backward compatibility verified | Existing E2E tests still pass |
 
 **Gate Command**:
+
 ```bash
 # Run all E2E tests including new resolver tests
 DATABASE_URL="postgresql://tasker:tasker@localhost/tasker_rust_test" \
@@ -1009,22 +1022,26 @@ cargo nextest run --profile default -E 'test(/resolver/) | test(/e2e/)'
 ### 6.3 Code Review Checklist
 
 **Architecture Review**:
+
 - [ ] Clean separation of concerns (resolver vs framework)
 - [ ] No circular dependencies introduced
 - [ ] Proper error handling with context
 - [ ] Logging with correlation IDs
 
 **API Review**:
+
 - [ ] Consistent naming across languages
 - [ ] Backward compatible schema changes
 - [ ] Clear extension points for custom resolvers
 
 **Testing Review**:
+
 - [ ] Unit test coverage for all new code
 - [ ] E2E tests cover key scenarios
 - [ ] Edge cases handled (empty chain, no match, etc.)
 
 **Documentation Review**:
+
 - [ ] Mental model clearly explained
 - [ ] Examples for each language
 - [ ] Migration guide if needed
@@ -1039,6 +1056,7 @@ cargo nextest run --profile default -E 'test(/resolver/) | test(/e2e/)'
 | Code review approved | PR review passed |
 
 **Final Gate Command**:
+
 ```bash
 # Full validation suite
 cargo make check && \
@@ -1066,19 +1084,25 @@ cargo doc --all-features --no-deps
 ## Risk Mitigation
 
 ### Risk: Breaking Existing Templates
+
 **Mitigation**:
+
 - All new fields are optional with sensible defaults
 - Run full E2E suite before each phase completion
 - Explicit backward compatibility test in Phase 5
 
 ### Risk: Cross-Language Drift
+
 **Mitigation**:
+
 - Define interface in Rust first (source of truth)
 - API convergence matrix updated in Phase 6
 - Cross-language E2E tests validate behavior parity
 
 ### Risk: Performance Regression
+
 **Mitigation**:
+
 - ResolverChain is O(n) where n is small (2-5 resolvers)
 - ExplicitMappingResolver is O(1) hash lookup
 - Benchmark before/after if concerns arise

@@ -11,6 +11,7 @@
 Both orchestration server and Rust worker are **I/O bound, not CPU bound**. Over 93% of CPU time is spent waiting for I/O (network, disk, IPC). The actual application code accounts for less than 10% of CPU time.
 
 **Key Finding:** No significant CPU bottlenecks were identified. The system's latency is dominated by:
+
 1. Database round-trips (SQLx/PostgreSQL)
 2. Message queue operations (RabbitMQ)
 3. Async runtime scheduling overhead
@@ -129,6 +130,7 @@ Based on profiling data, prioritized by impact:
 | **Tracing spans** | 2.7% (orch) | ~1% | Medium |
 
 **Recommendations:**
+
 1. Consider buffered/async logging for production
 2. Evaluate `tracing::enabled!` guards for debug-level spans
 3. Review if all spans are necessary in hot paths
@@ -141,6 +143,7 @@ Based on profiling data, prioritized by impact:
 | **JSON serialization** | 0.54% | Negligible | N/A |
 
 **Recommendations:**
+
 1. Profile database query patterns (which queries are slow?)
 2. Consider connection pool tuning
 3. JSON overhead is minimal - MessagePack unlikely to help significantly
@@ -183,6 +186,7 @@ Based on this profiling analysis, the following optimization tickets were create
 | [TAS-164](https://linear.app/tasker-systems/issue/TAS-164) | Connection Pool Observability | Medium | Observability |
 
 **Note:** TAS-134 and TAS-163 are complementary:
+
 - TAS-134 handles simple counter metrics → atomic operations
 - TAS-163 handles HashMap-based state → DashMap/tokio::sync
 
@@ -212,6 +216,7 @@ cargo make pat   # Tasker-specific code only
 ## Raw Data
 
 Profile JSON files saved to: `docs/ticket-specs/TAS-71/profile-data/`
+
 - `tasker-server 2026-01-22 08.02 profile.json` (3.1MB)
 - `rust-worker 2026-01-22 08.03 profile.json` (1.5MB)
 

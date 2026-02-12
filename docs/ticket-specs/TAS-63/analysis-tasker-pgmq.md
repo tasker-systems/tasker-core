@@ -67,6 +67,7 @@ The `build_payload()` logic in `DbEmitter` (size validation, metadata stripping)
 ### Recommendation
 
 **Remove `emitter.rs` entirely** (or extract `build_payload` if the config-driven metadata stripping is needed elsewhere). This would:
+
 - Remove 131 lines from the coverage denominator, immediately improving coverage ratio
 - Eliminate a misleading public API surface that suggests functionality the system doesn't use
 - Remove the `PgmqNotifyEmitter` trait that no code implements outside this module
@@ -75,6 +76,7 @@ The `build_payload()` logic in `DbEmitter` (size validation, metadata stripping)
 The `max_payload_size` and `include_metadata` config fields in `PgmqNotifyConfig` are only used by `DbEmitter.build_payload()` and the CLI migration generator (`bin/cli.rs`). The CLI uses them for generating SQL that includes the database-side size checks, so those config fields should remain -- but the Rust-side emitter code that consumes them is redundant.
 
 **Impact on coverage**: Removing 131 lines from the denominator (currently 54 covered / 131 total) changes the math:
+
 - Before removal: 735 / 1484 = 49.53%
 - After removal: 681 / 1353 = 50.33%
 - New lines needed for 65%: `0.65 * 1353 = 880` → need 199 more lines (vs 230 before)
@@ -82,6 +84,7 @@ The `max_payload_size` and `include_metadata` config fields in `PgmqNotifyConfig
 ### Action Item
 
 Before removing, verify:
+
 1. No downstream consumers outside this repo import `DbEmitter` / `PgmqNotifyEmitter`
 2. The CLI migration generator (`bin/cli.rs`) doesn't depend on emitter types (it uses `PgmqNotifyConfig` directly -- confirmed)
 3. No planned features depend on the Rust-side emitter pattern

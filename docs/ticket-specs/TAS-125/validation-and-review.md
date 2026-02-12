@@ -63,14 +63,17 @@ TAS-125 implements **handler-driven checkpoint yielding** for batch processing w
 **Status**: EXCELLENT
 
 **Strengths**:
+
 - Clean service pattern with single responsibility - checkpoint persistence
 - Atomic history management using SQL to append history in-database (avoiding race conditions):
+
   ```sql
   jsonb_set($2::jsonb, '{history}',
     COALESCE(checkpoint->'history', '[]'::jsonb) ||
     jsonb_build_array(jsonb_build_object('cursor', $3::jsonb, 'timestamp', to_jsonb(now())))
   )
   ```
+
 - Comprehensive test coverage: **26 test cases** covering CRUD, history accumulation, edge cases
 - Type safety with `sqlx::query!` compile-time verification
 - Good instrumentation with tracing on all operations
@@ -90,6 +93,7 @@ All three language bridges follow identical patterns:
 | TypeScript | `checkpoint_yield_step_event_internal()` | JSON string → CheckpointYieldData |
 
 **Key observations**:
+
 - Uniform API surface across all languages
 - Consistent error handling (lock errors, parse errors, conversion errors)
 - Logging parity - all languages emit same structured log entries
@@ -99,6 +103,7 @@ All three language bridges follow identical patterns:
 **Status**: EXCELLENT
 
 `CheckpointRecord` and `CheckpointYieldData` types (`batch_worker.rs:758-1003`):
+
 - Rich documentation with usage examples
 - Proper DateTime<Utc> usage for timestamps
 - `to_checkpoint_record()` conversion methods
@@ -124,6 +129,7 @@ All three language bridges follow identical patterns:
 **Status**: EXCELLENT (5/5 Documentation)
 
 **Strengths**:
+
 - Excellent documentation (lines 333-383)
 - Clean API with keyword arguments
 - BatchWorkerContext provides checkpoint accessors:
@@ -137,11 +143,13 @@ All three language bridges follow identical patterns:
 **Status**: GOOD (5/5 Documentation)
 
 **Strengths**:
+
 - Excellent type hints (`cursor: int | str | dict[str, Any]`)
 - Comprehensive docstrings
 - Proper metadata tagging
 
 **~~Critical Gap~~** ✅ **RESOLVED**: Python's `BatchWorkerContext` now has checkpoint accessors matching Ruby:
+
 ```python
 # Handlers can now use ergonomic accessors:
 cursor = context.checkpoint_cursor
@@ -155,11 +163,13 @@ if context.has_checkpoint():
 **Status**: GOOD (5/5 Documentation)
 
 **Strengths**:
+
 - Excellent type definitions
 - Full interface definition for mixin
 - Comprehensive JSDoc comments
 
 **~~Critical Gap~~** ✅ **RESOLVED**: TypeScript's `BatchWorkerContext` now has checkpoint properties matching Ruby:
+
 ```typescript
 // Handlers can now use ergonomic accessors:
 const cursor = context.checkpointCursor;
@@ -197,6 +207,7 @@ if (context.hasCheckpoint()) {
 ### Test Quality Assessment
 
 **Strengths**:
+
 - Consistent test structure across languages
 - Detailed assertions for task/step state
 - Good timeout management (60s/90s/30s by scenario)
@@ -205,19 +216,23 @@ if (context.hasCheckpoint()) {
 **Issues Identified** (Post-Review Status):
 
 1. **~~Optional Assertions (Critical)~~** ✅ **RESOLVED**:
+
    ```rust
    // BEFORE:
    if let Some(checkpoints_used) = result.get("checkpoints_used") { ... }
    // AFTER:
    let checkpoints_used = result.get("checkpoints_used").expect("...");
    ```
+
    All optional assertions converted to required assertions with `.expect()`.
 
 2. **~~Imprecise Retry Assertions~~** ✅ **RESOLVED**:
+
    ```rust
    // BEFORE: assert!(batch_worker.attempts >= 2, ...);
    // AFTER: assert_eq!(batch_worker.attempts, 2, ...);
    ```
+
    All retry assertions now use exact counts.
 
 3. **~~Missing Edge Cases~~** ✅ **PARTIALLY RESOLVED**:
@@ -263,6 +278,7 @@ All 5 key invariants validated:
 **Batch Processing**: Clean integration - checkpoints complement, don't modify `BatchWorkerInputs`
 
 **Retry Semantics**: Proper integration:
+
 - Transient failure → checkpoint preserved → resume from checkpoint
 - Permanent failure → step fails, checkpoint irrelevant
 - Manual reset → operator can choose to clear checkpoint
@@ -286,6 +302,7 @@ Critical observation: Step **never leaves the worker** during checkpoint. Re-dis
 **Status**: Good with production recommendations
 
 **JSONB Structure**:
+
 ```json
 {
   "cursor": <flexible_json_value>,
@@ -299,6 +316,7 @@ Critical observation: Step **never leaves the worker** during checkpoint. Re-dis
 **Indexes**: Proper partial indexes for efficiency
 
 **Production Concerns**:
+
 - History array grows unbounded
 - Accumulated results size unlimited
 
@@ -326,6 +344,7 @@ Critical observation: Step **never leaves the worker** during checkpoint. Re-dis
 **Status**: ✅ CONSISTENT
 
 All implementations share identical field structure:
+
 - `step_uuid: Uuid/string`
 - `cursor: serde_json::Value/any/unknown`
 - `items_processed: u64/int/number`
@@ -448,15 +467,18 @@ f00de60 in-progress(TAS-125): data layer changes for batch worker checkpointing 
 **Overall Assessment**: The TAS-125 checkpoint yield implementation is **production-ready** with excellent design quality across all layers.
 
 **Key Strengths**:
+
 1. Handler-driven design future-proofs the system
 2. Clean invariants maintained (atomic persist, no state transitions)
 3. E2E tests demonstrate cross-language correctness
 4. Strong architectural consistency
 
 **Action Items Before Phase 6**:
+
 1. ~~None blocking - proceed with documentation~~ All critical items resolved in this branch
 
 **Resolved Issues (Post-Review)**:
+
 1. ✅ Added checkpoint accessors to Python BatchWorkerContext
 2. ✅ Added checkpoint accessors to TypeScript BatchWorkerContext
 3. ✅ Improved test assertions (optional → required with `.expect()`)
@@ -464,12 +486,13 @@ f00de60 in-progress(TAS-125): data layer changes for batch worker checkpointing 
 5. ✅ Added edge case tests (zero items, single batch boundary)
 
 **Remaining for Future Work**:
+
 1. Add history/accumulated_results size limits (document in Phase 6)
 
 **Verdict**: ✅ **APPROVE FOR MERGE** - All critical issues resolved, proceed with Phase 6 (Documentation)
 
 ---
 
-_Validation completed: 2026-01-06_
-_Post-review fixes completed: 2026-01-06_
-_Reviewed by: 5 automated code review agents_
+*Validation completed: 2026-01-06*
+*Post-review fixes completed: 2026-01-06*
+*Reviewed by: 5 automated code review agents*

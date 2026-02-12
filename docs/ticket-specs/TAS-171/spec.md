@@ -38,6 +38,7 @@ CacheProvider::get()
 ```
 
 **Configuration:**
+
 ```toml
 [common.circuit_breakers.component_configs.cache]
 failure_threshold = 5      # Trip after 5 consecutive failures
@@ -46,6 +47,7 @@ success_threshold = 2      # Close after 2 successes in half-open
 ```
 
 **Behavior when open:**
+
 - `get()` → returns `None` (cache miss)
 - `set()` → no-op, returns `Ok(())`
 - `delete()` → no-op, returns `Ok(())`
@@ -149,15 +151,18 @@ services:
 ## Testing
 
 ### Unit Tests
+
 - Circuit breaker state machine logic (existing tests in circuit_breaker.rs)
 - CacheProvider respects circuit state
 
 ### Integration Tests
+
 - Simulate cache failure, verify circuit trips
 - Verify circuit recovery after timeout
 - Verify Dragonfly compatibility with existing cache tests
 
 ### Manual Testing
+
 - Start system with Redis/Dragonfly
 - Kill cache service, observe circuit trip
 - Restart cache service, observe circuit recovery

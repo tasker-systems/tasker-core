@@ -11,6 +11,7 @@
 The DLQ (Dead Letter Queue) system is an **investigation tracking system**, NOT a task manipulation layer.
 
 **Key Principles**:
+
 - DLQ tracks "why task is stuck" and "who investigated"
 - Resolution happens at **step level** via step APIs
 - No task-level "requeue" - fix the problem steps instead
@@ -18,6 +19,7 @@ The DLQ (Dead Letter Queue) system is an **investigation tracking system**, NOT 
 - DLQ is for audit, visibility, and investigation only
 
 **Architecture**: PostgreSQL-based system with:
+
 - `tasks_dlq` table for investigation tracking
 - 3 database views for monitoring and analysis
 - 6 REST endpoints for operator interaction
@@ -30,12 +32,14 @@ The DLQ (Dead Letter Queue) system is an **investigation tracking system**, NOT 
 ### What DLQ Does
 
 ✅ **Investigation Tracking**:
+
 - Record when and why task became stuck
 - Capture complete task snapshot for debugging
 - Track operator investigation workflow
 - Provide visibility into systemic issues
 
 ✅ **Visibility and Monitoring**:
+
 - Dashboard statistics by DLQ reason
 - Prioritized investigation queue for triage
 - Proactive staleness monitoring (before DLQ)
@@ -44,6 +48,7 @@ The DLQ (Dead Letter Queue) system is an **investigation tracking system**, NOT 
 ### What DLQ Does NOT Do
 
 ❌ **Task Manipulation**:
+
 - Does NOT retry failed steps
 - Does NOT requeue tasks
 - Does NOT modify step state
@@ -52,12 +57,14 @@ The DLQ (Dead Letter Queue) system is an **investigation tracking system**, NOT 
 ### Why This Separation Matters
 
 **Steps are mutable** - Operators can:
+
 - Manually resolve failed steps: `PATCH /v1/tasks/{uuid}/workflow_steps/{step_uuid}`
 - View step readiness status: `GET /v1/tasks/{uuid}/workflow_steps/{step_uuid}`
 - Check retry eligibility and dependency satisfaction
 - Trigger next steps by completing blocked steps
 
 **DLQ is immutable audit trail** - Operators should:
+
 - Review task snapshot to understand what went wrong
 - Use step endpoints to fix the underlying problem
 - Update DLQ investigation status to track resolution
@@ -72,11 +79,13 @@ The DLQ (Dead Letter Queue) system is an **investigation tracking system**, NOT 
 **Definition**: Task exceeded state-specific staleness threshold
 
 **States**:
+
 - `waiting_for_dependencies` - Default 60 minutes
 - `waiting_for_retry` - Default 30 minutes
 - `steps_in_process` - Default 30 minutes
 
 **Template Override**: Configure per-template thresholds:
+
 ```yaml
 lifecycle:
   max_waiting_for_dependencies_minutes: 120
@@ -86,6 +95,7 @@ lifecycle:
 ```
 
 **Resolution Pattern**:
+
 1. Operator: `GET /v1/dlq/task/{task_uuid}` - Review task snapshot
 2. Identify stuck steps: Check `current_state` in snapshot
 3. Fix steps: `PATCH /v1/tasks/{uuid}/workflow_steps/{step_uuid}`
@@ -99,6 +109,7 @@ lifecycle:
 **Definition**: Step exhausted all retry attempts and remains in Error state
 
 **Resolution Pattern**:
+
 1. Review step results: `GET /v1/tasks/{uuid}/workflow_steps/{step_uuid}`
 2. Analyze `last_failure_at` and error details
 3. Fix underlying issue (infrastructure, data, etc.)
@@ -110,6 +121,7 @@ lifecycle:
 **Definition**: Circular dependency detected in workflow step graph
 
 **Resolution Pattern**:
+
 1. Review task template configuration
 2. Identify cycle in step dependencies
 3. Update template to break cycle
@@ -121,6 +133,7 @@ lifecycle:
 **Definition**: No worker available for task's namespace
 
 **Resolution Pattern**:
+
 1. Check worker service health
 2. Verify namespace configuration
 3. Scale worker capacity if needed
@@ -162,6 +175,7 @@ CREATE UNIQUE INDEX idx_dlq_unique_pending_task
 ```
 
 **Key Fields**:
+
 - `dlq_entry_uuid` - UUID v7 (time-ordered) for investigation tracking
 - `task_uuid` - Foreign key to task (unique for pending entries)
 - `original_state` - Task state when sent to DLQ
@@ -175,6 +189,7 @@ CREATE UNIQUE INDEX idx_dlq_unique_pending_task
 **Purpose**: Aggregated statistics for monitoring dashboard
 
 **Columns**:
+
 - `dlq_reason` - Why tasks are in DLQ
 - `total_entries` - Count of entries
 - `pending`, `manually_resolved`, `permanent_failures`, `cancelled` - Breakdown by status
@@ -188,6 +203,7 @@ CREATE UNIQUE INDEX idx_dlq_unique_pending_task
 **Purpose**: Prioritized queue for operator triage
 
 **Columns**:
+
 - Task and DLQ entry UUIDs
 - `priority_score` - Composite score (base reason priority + age factor)
 - `minutes_in_dlq` - How long entry has been pending
@@ -202,6 +218,7 @@ CREATE UNIQUE INDEX idx_dlq_unique_pending_task
 **Purpose**: Proactive staleness monitoring BEFORE tasks hit DLQ
 
 **Columns**:
+
 - `task_uuid`, `namespace_name`, `task_name`
 - `current_state`, `time_in_state_minutes`
 - `staleness_threshold_minutes` - Threshold for this state
@@ -209,6 +226,7 @@ CREATE UNIQUE INDEX idx_dlq_unique_pending_task
 - `priority` - Task priority for ordering
 
 **Health Status Classification**:
+
 - `healthy` - < 80% of threshold
 - `warning` - 80-99% of threshold
 - `stale` - ≥ 100% of threshold
@@ -228,6 +246,7 @@ GET /v1/dlq?resolution_status=pending&limit=50
 **Purpose**: Browse DLQ entries with filtering
 
 **Query Parameters**:
+
 - `resolution_status` - Filter by status (optional)
 - `limit` - Max entries (default: 50)
 - `offset` - Pagination offset (default: 0)
@@ -249,6 +268,7 @@ GET /v1/dlq/task/{task_uuid}
 **Response**: `DlqEntry` with full `task_snapshot` JSONB
 
 **Task Snapshot Contains**:
+
 - Task UUID, namespace, name
 - Current state and time in state
 - Staleness threshold
@@ -269,6 +289,7 @@ PATCH /v1/dlq/entry/{dlq_entry_uuid}
 **Purpose**: Track investigation workflow
 
 **Request Body**:
+
 ```json
 {
   "resolution_status": "manually_resolved",
@@ -310,6 +331,7 @@ GET /v1/dlq/investigation-queue?limit=100
 **Response**: Array of `DlqInvestigationQueueEntry` ordered by priority
 
 **Priority Factors**:
+
 - Base reason priority (staleness_timeout: 10, max_retries: 20, etc.)
 - Age multiplier (older entries = higher priority)
 
@@ -332,6 +354,7 @@ GET /v1/dlq/staleness?limit=100
 **Use Case**: Alerting and prevention
 
 **Alert Integration**:
+
 ```bash
 # Alert when warning count exceeds threshold
 curl /v1/dlq/staleness | jq '[.[] | select(.health_status == "warning")] | length'
@@ -352,6 +375,7 @@ GET /v1/tasks/{uuid}/workflow_steps
 **Returns**: Array of steps with readiness status
 
 **Key Fields**:
+
 - `current_state` - Step state (pending, enqueued, in_progress, complete, error)
 - `dependencies_satisfied` - Can step execute?
 - `retry_eligible` - Can step retry?
@@ -387,6 +411,7 @@ PATCH /v1/tasks/{uuid}/workflow_steps/{step_uuid}
 **Action Types**:
 
 1. **ResetForRetry** - Reset attempt counter and return to pending for automatic retry:
+
 ```json
 {
   "action_type": "reset_for_retry",
@@ -395,7 +420,8 @@ PATCH /v1/tasks/{uuid}/workflow_steps/{step_uuid}
 }
 ```
 
-2. **ResolveManually** - Mark step as manually resolved without results:
+1. **ResolveManually** - Mark step as manually resolved without results:
+
 ```json
 {
   "action_type": "resolve_manually",
@@ -404,7 +430,8 @@ PATCH /v1/tasks/{uuid}/workflow_steps/{step_uuid}
 }
 ```
 
-3. **CompleteManually** - Complete step with execution results for dependent steps:
+1. **CompleteManually** - Complete step with execution results for dependent steps:
+
 ```json
 {
   "action_type": "complete_manually",
@@ -424,11 +451,13 @@ PATCH /v1/tasks/{uuid}/workflow_steps/{step_uuid}
 ```
 
 **Behavior by Action Type**:
+
 - `reset_for_retry`: Clears attempt counter, transitions to `pending`, enables automatic retry
 - `resolve_manually`: Transitions to `resolved_manually` (terminal state)
 - `complete_manually`: Transitions to `complete` with results available for dependent steps
 
 **Common Effects**:
+
 - Triggers task state machine re-evaluation
 - Task automatically discovers next ready steps
 - Task progresses when all dependencies satisfied
@@ -497,6 +526,7 @@ GET /v1/tasks/abc-123/workflow_steps/{step_2_uuid}
 **6. Operator chooses resolution strategy**
 
 Option A: **Reset for retry** (infrastructure fixed, retry should work):
+
 ```bash
 PATCH /v1/tasks/abc-123/workflow_steps/{step_2_uuid}
 {
@@ -507,6 +537,7 @@ PATCH /v1/tasks/abc-123/workflow_steps/{step_2_uuid}
 ```
 
 Option B: **Resolve manually** (bypass step entirely):
+
 ```bash
 PATCH /v1/tasks/abc-123/workflow_steps/{step_2_uuid}
 {
@@ -517,6 +548,7 @@ PATCH /v1/tasks/abc-123/workflow_steps/{step_2_uuid}
 ```
 
 Option C: **Complete manually** (provide results for dependent steps):
+
 ```bash
 PATCH /v1/tasks/abc-123/workflow_steps/{step_2_uuid}
 {
@@ -540,12 +572,14 @@ PATCH /v1/tasks/abc-123/workflow_steps/{step_2_uuid}
 Outcome depends on action type chosen:
 
 **If Option A (reset_for_retry)**:
+
 - Step 2 → `pending` (attempts reset to 0)
 - Automatic retry begins when dependencies satisfied
 - Step 2 re-enqueued to worker
 - If successful, workflow continues normally
 
 **If Option B (resolve_manually)**:
+
 - Step 2 → `resolved_manually` (terminal state)
 - Step 3 dependencies satisfied (manual resolution counts as success)
 - Task transitions: `error` → `enqueuing_steps`
@@ -553,6 +587,7 @@ Outcome depends on action type chosen:
 - Task resumes normal execution
 
 **If Option C (complete_manually)**:
+
 - Step 2 → `complete` (with operator-provided results)
 - Step 3 can consume results from completion_data
 - Task transitions: `error` → `enqueuing_steps`
@@ -582,6 +617,7 @@ PATCH /v1/dlq/entry/xyz-789
 ### Step State Machine
 
 **States**:
+
 - `pending` - Initial state, awaiting dependencies
 - `enqueued` - Sent to worker queue
 - `in_progress` - Worker actively processing
@@ -594,6 +630,7 @@ PATCH /v1/dlq/entry/xyz-789
 ### Retry Logic
 
 **Configured per step in template**:
+
 ```yaml
 retry:
   retryable: true
@@ -604,17 +641,20 @@ retry:
 ```
 
 **Retry Eligibility Criteria**:
+
 1. `retryable: true` in configuration
 2. `attempts < max_attempts`
 3. Current state is `error`
 4. `next_retry_at` timestamp has passed (backoff elapsed)
 
 **Backoff Calculation**:
+
 ```
 backoff_ms = min(backoff_base_ms * (2 ^ (attempts - 1)), max_backoff_ms)
 ```
 
 Example (base=1000ms, max=30000ms):
+
 - Attempt 1 fails → wait 1s
 - Attempt 2 fails → wait 2s
 - Attempt 3 fails → wait 4s
@@ -624,12 +664,14 @@ Example (base=1000ms, max=30000ms):
 ### Attempt Tracking
 
 **Fields** (on `workflow_steps` table):
+
 - `attempts` - Current attempt count
 - `max_attempts` - Configuration limit
 - `last_attempted_at` - Timestamp of last execution
 - `last_failure_at` - Timestamp of last failure
 
 **Workflow**:
+
 1. Step enqueued → `attempts++`
 2. Step fails → Record `last_failure_at`, calculate `next_retry_at`
 3. Backoff elapses → Step becomes `retry_eligible: true`
@@ -637,6 +679,7 @@ Example (base=1000ms, max=30000ms):
 5. Repeat until success or `attempts >= max_attempts`
 
 **Max Attempts Exceeded**:
+
 - Step remains in `error` state
 - `retry_eligible: false`
 - Task transitions to `error` state
@@ -652,6 +695,7 @@ Example (base=1000ms, max=30000ms):
 - DLQ is pure observation and investigation
 
 **Why This Matters**:
+
 - Retry logic is predictable and configuration-driven
 - DLQ doesn't interfere with normal workflow execution
 - Operators can manually resolve to bypass retry limits
@@ -666,6 +710,7 @@ Example (base=1000ms, max=30000ms):
 **Component**: `tasker-orchestration/src/orchestration/staleness_detector.rs`
 
 **Configuration**:
+
 ```toml
 [staleness_detection]
 enabled = true
@@ -674,6 +719,7 @@ detection_interval_seconds = 300  # 5 minutes
 ```
 
 **Operation**:
+
 1. Timer triggers every 5 minutes
 2. Calls `detect_and_transition_stale_tasks()` SQL function
 3. Function identifies tasks exceeding thresholds
@@ -684,11 +730,13 @@ detection_interval_seconds = 300  # 5 minutes
 ### Staleness Thresholds
 
 **Per-State Defaults** (configurable):
+
 - `waiting_for_dependencies`: 60 minutes
 - `waiting_for_retry`: 30 minutes
 - `steps_in_process`: 30 minutes
 
 **Per-Template Override**:
+
 ```yaml
 lifecycle:
   max_waiting_for_dependencies_minutes: 120
@@ -703,6 +751,7 @@ lifecycle:
 **Function**: `detect_and_transition_stale_tasks()`
 
 **Architecture**:
+
 ```
 v_task_state_analysis (base view)
     │
@@ -714,12 +763,14 @@ v_task_state_analysis (base view)
 ```
 
 **Performance Optimization**:
+
 - Expensive joins happen ONCE in base view
 - Discovery function filters stale tasks
 - Main function processes results in loop
 - LEFT JOIN anti-join pattern for excluding tasks with pending DLQ entries
 
 **Output**: Returns `StalenessResult` records with:
+
 - Task identification (UUID, namespace, name)
 - State and timing information
 - `action_taken` - What happened (enum: TransitionedToDlqAndError, MovedToDlqOnly, etc.)
@@ -733,16 +784,19 @@ v_task_state_analysis (base view)
 ### Metrics Exported
 
 **Counters**:
+
 - `tasker.dlq.entries_created.total` - DLQ entries created
 - `tasker.staleness.tasks_detected.total` - Stale tasks detected
 - `tasker.staleness.tasks_transitioned_to_error.total` - Tasks moved to Error
 - `tasker.staleness.detection_runs.total` - Detection cycles
 
 **Histograms**:
+
 - `tasker.staleness.detection.duration` - Detection execution time (ms)
 - `tasker.dlq.time_in_queue` - Time in DLQ before resolution (hours)
 
 **Gauges**:
+
 - `tasker.dlq.pending_investigations` - Current pending DLQ count
 
 ### Alert Examples
@@ -907,11 +961,13 @@ EOF
 **Steps**:
 
 1. **Check DLQ dashboard**:
+
 ```bash
 curl /v1/dlq/stats | jq
 ```
 
-2. **Identify dominant reason**:
+1. **Identify dominant reason**:
+
 ```json
 {
   "dlq_reason": "staleness_timeout",
@@ -920,22 +976,26 @@ curl /v1/dlq/stats | jq
 }
 ```
 
-3. **Get investigation queue**:
+1. **Get investigation queue**:
+
 ```bash
 curl /v1/dlq/investigation-queue?limit=10 | jq
 ```
 
-4. **Check staleness monitoring**:
+1. **Check staleness monitoring**:
+
 ```bash
 curl /v1/dlq/staleness | jq '.[] | select(.health_status == "stale")'
 ```
 
-5. **Identify patterns**:
+1. **Identify patterns**:
+
 - Common namespace?
 - Common task template?
 - Common time period?
 
-6. **Take action**:
+1. **Take action**:
+
 - Infrastructure issue? → Fix and manually resolve affected tasks
 - Template misconfiguration? → Update template thresholds
 - Worker unavailable? → Scale worker capacity
@@ -948,18 +1008,21 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "stale")'
 **Steps**:
 
 1. **Monitor warning threshold**:
+
 ```bash
 curl /v1/dlq/staleness | jq '[.[] | select(.health_status == "warning")] | length'
 ```
 
-2. **Alert when warning count exceeds baseline**:
+1. **Alert when warning count exceeds baseline**:
+
 ```bash
 if [ $warning_count -gt 10 ]; then
   alert "High staleness warning count: $warning_count tasks at 80%+ threshold"
 fi
 ```
 
-3. **Investigate early**:
+1. **Investigate early**:
+
 ```bash
 curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
   task_uuid,
@@ -970,7 +1033,8 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
 }'
 ```
 
-4. **Intervene before DLQ**:
+1. **Intervene before DLQ**:
+
 - Check task steps for blockages
 - Review dependencies
 - Manually resolve if appropriate
@@ -982,6 +1046,7 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
 ### For Operators
 
 ✅ **DO**:
+
 - Use staleness monitoring for proactive prevention
 - Document investigation findings in DLQ resolution notes
 - Fix root causes, not just symptoms
@@ -990,6 +1055,7 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
 - Monitor DLQ statistics for systemic patterns
 
 ❌ **DON'T**:
+
 - Don't try to "requeue" from DLQ - fix the steps instead
 - Don't ignore warning health status - investigate early
 - Don't manually resolve steps without fixing root cause
@@ -998,6 +1064,7 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
 ### For Developers
 
 ✅ **DO**:
+
 - Configure appropriate staleness thresholds per template
 - Make steps retryable with sensible backoff
 - Implement idempotent step handlers
@@ -1005,6 +1072,7 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
 - Test workflows under failure scenarios
 
 ❌ **DON'T**:
+
 - Don't set thresholds too low (causes false positives)
 - Don't set thresholds too high (delays detection)
 - Don't make all steps non-retryable
@@ -1018,23 +1086,27 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
 ### Test Coverage
 
 **Unit Tests**: SQL function testing (17 tests)
+
 - Staleness detection logic
 - DLQ entry creation
 - Threshold calculation with template overrides
 - View query correctness
 
 **Integration Tests**: Lifecycle testing (4 tests)
+
 - Waiting for dependencies staleness (test_dlq_lifecycle_waiting_for_dependencies_staleness)
 - Steps in process staleness (test_dlq_lifecycle_steps_in_process_staleness)
 - Proactive monitoring with health status progression (test_dlq_lifecycle_proactive_monitoring)
 - Complete investigation workflow (test_dlq_investigation_workflow)
 
 **Metrics Tests**: OpenTelemetry integration (1 test)
+
 - Staleness detection metrics recording
 - DLQ investigation metrics recording
 - Pending investigations gauge query
 
 **Test Template**: `tests/fixtures/task_templates/rust/dlq_staleness_test.yaml`
+
 - 2-step linear workflow
 - 2-minute staleness thresholds for fast test execution
 - Test-only template for lifecycle validation
@@ -1046,12 +1118,14 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
 ## Implementation Notes
 
 **File Locations**:
+
 - Staleness detector: `tasker-orchestration/src/orchestration/staleness_detector.rs`
 - DLQ models: `tasker-shared/src/models/orchestration/dlq.rs`
 - SQL functions: `migrations/20251122000004_add_dlq_discovery_function.sql`
 - Database views: `migrations/20251122000003_add_dlq_views.sql`
 
 **Key Design Decisions**:
+
 - Investigation tracking only - no task manipulation
 - Step-level resolution via existing step endpoints
 - Proactive monitoring at 80% threshold

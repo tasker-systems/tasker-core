@@ -7,11 +7,13 @@
 ## Code Style
 
 ### Formatting & Linting
+
 - Use `biome` for linting and formatting (enforced via `cargo make check-typescript`)
 - Use `tsc` for type checking
 - Configuration in `biome.json` and `tsconfig.json`
 
 ### Naming Conventions
+
 ```typescript
 // Classes/Types/Interfaces: PascalCase
 class StepHandler {}
@@ -38,6 +40,7 @@ function map<Key, Value>(entries: Map<Key, Value>): void {}
 ```
 
 ### Module Organization
+
 ```typescript
 // handlers/order-handler.ts
 
@@ -79,6 +82,7 @@ function validateOrder(data: unknown): OrderData {
 ## Type Safety
 
 ### Prefer Strict Types
+
 ```typescript
 // BAD: Using any
 function process(data: any): any {
@@ -97,6 +101,7 @@ function parseResponse(data: unknown): OrderData {
 ```
 
 ### Discriminated Unions
+
 ```typescript
 // Use discriminated unions for result types
 type StepHandlerResult =
@@ -114,6 +119,7 @@ function handleResult(result: StepHandlerResult): void {
 ```
 
 ### Zod for Runtime Validation
+
 ```typescript
 import { z } from 'zod';
 
@@ -147,6 +153,7 @@ function call(context: StepContext): StepHandlerResult {
 ## Handler Patterns
 
 ### Base Handler Structure
+
 ```typescript
 import { StepHandler } from '@/handler/step-handler';
 import { applyAPI, applyDecision } from '@/handler/mixins';
@@ -203,6 +210,7 @@ export class OrderHandler extends StepHandler {
 ```
 
 ### Result Factory Methods
+
 ```typescript
 // Success result
 this.success(
@@ -236,6 +244,7 @@ this.skipBranches(
 ## Mixin Pattern (TAS-112)
 
 ### Using Mixins
+
 ```typescript
 import { StepHandler } from '@/handler/step-handler';
 import { applyAPI, applyDecision, applyBatchable } from '@/handler/mixins';
@@ -267,6 +276,7 @@ class MultiCapabilityHandler extends StepHandler {
 ```
 
 ### Available Mixins
+
 | Mixin | Purpose | Methods Provided |
 |-------|---------|------------------|
 | `applyAPI` | HTTP requests | `get`, `post`, `put`, `delete` |
@@ -278,6 +288,7 @@ class MultiCapabilityHandler extends StepHandler {
 ## Error Handling
 
 ### Use Custom Error Classes
+
 ```typescript
 // errors/handler-errors.ts
 export class HandlerError extends Error {
@@ -310,6 +321,7 @@ export class APIError extends HandlerError {
 ```
 
 ### Handle Errors Appropriately
+
 ```typescript
 async call(context: StepContext): Promise<StepHandlerResult> {
   try {
@@ -338,6 +350,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 ## Documentation
 
 ### JSDoc Comments
+
 ```typescript
 /**
  * Handles order processing operations.
@@ -392,6 +405,7 @@ export class OrderHandler extends StepHandler {
 ## Testing
 
 ### Vitest Patterns
+
 ```typescript
 // tests/handlers/order-handler.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -455,6 +469,7 @@ describe('OrderHandler', () => {
 ```
 
 ### Test Helpers
+
 ```typescript
 // testing/helpers.ts
 import type { StepContext } from '@/types';
@@ -480,6 +495,7 @@ export function createTestContext(
 ## FFI Considerations
 
 ### Working with Rust Extensions
+
 ```typescript
 // FFI bindings use koffi for native library loading
 import { loadFfiLibrary } from '@/ffi/loader';
@@ -498,6 +514,7 @@ async function processWithFfi(data: unknown): Promise<Result> {
 ```
 
 ### Multi-Runtime Support
+
 ```typescript
 // The worker supports Bun, Node.js, and Deno
 // Use runtime-agnostic APIs where possible
@@ -522,6 +539,7 @@ if (runtime === 'bun') {
 ## Project-Specific Patterns
 
 ### Registry Usage
+
 ```typescript
 import { Registry } from '@/registry';
 
@@ -536,6 +554,7 @@ const handler = Registry.getInstance().resolve('orderHandler');
 ```
 
 ### Domain Events (TAS-112)
+
 ```typescript
 import { BasePublisher, StepEventContext } from '@/events';
 

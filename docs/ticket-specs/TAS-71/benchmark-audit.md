@@ -47,6 +47,7 @@ This document provides a comprehensive audit of all benchmark files in the taske
 **Purpose**: Measures critical PostgreSQL function performance for orchestration operations.
 
 **What It Measures**:
+
 - `get_next_ready_tasks()` - Task discovery (4 batch sizes: 1, 10, 50, 100)
 - `get_step_readiness_status()` - Step readiness calculation (5 task samples)
 - `get_task_execution_context()` - Task orchestration status (5 task samples)
@@ -54,6 +55,7 @@ This document provides a comprehensive audit of all benchmark files in the taske
 - EXPLAIN ANALYZE query plan capture and analysis
 
 **Methodology**:
+
 - Criterion benchmark framework
 - Sample size: 50 iterations
 - Measurement time: 10 seconds per benchmark
@@ -62,17 +64,20 @@ This document provides a comprehensive audit of all benchmark files in the taske
 - Graceful degradation when no test data exists
 
 **Prerequisites**:
+
 - `DATABASE_URL` environment variable set
 - PostgreSQL running with test data populated
 - Feature flag: `--features benchmarks`
 
 **Status**: **Fully Implemented and Maintained**
+
 - Well-documented with comprehensive module-level docs
 - Includes query plan analysis with buffer hit ratios
 - Supports `SAVE_QUERY_PLANS=1` for detailed JSON export
 - Current results documented in `docs/benchmarks/README.md`
 
 **Issues/Observations**:
+
 - Removed benchmarks for `transition_task_state_atomic()` (TAS-54) and `claim_task_for_finalization()` (no longer in schema) - appropriately deprecated with comments
 - No benchmark for `execute_pending_step_atomic()` which is called frequently
 
@@ -85,11 +90,13 @@ This document provides a comprehensive audit of all benchmark files in the taske
 **Purpose**: Measures PostgreSQL LISTEN/NOTIFY event propagation latency for real-time coordination.
 
 **What It Measures**:
+
 - PGMQ `pgmq_send_with_notify` round-trip latency
 - PostgreSQL LISTEN/NOTIFY notification mechanism overhead
 - Real event system latency for worker/orchestration coordination
 
 **Methodology**:
+
 - Criterion benchmark framework
 - Sample size: 20 iterations (moderate for network operations)
 - Measurement time: 15 seconds
@@ -98,16 +105,19 @@ This document provides a comprehensive audit of all benchmark files in the taske
 - Uses tokio mpsc channels for cross-task timing
 
 **Prerequisites**:
+
 - `DATABASE_URL` environment variable set
 - PostgreSQL running with PGMQ extension
 - Feature flag: `--features benchmarks`
 
 **Status**: **Fully Implemented and Maintained**
+
 - Well-documented with target performance expectations
 - Creates its own test queue (idempotent)
 - Good timeout handling (1 second per iteration)
 
 **Issues/Observations**:
+
 - 10ms sleep before sending to allow listener setup - could add variance
 - Listener task is aborted (not cleanly shutdown) after each iteration
 - No cleanup of benchmark messages from queue after test
@@ -121,12 +131,14 @@ This document provides a comprehensive audit of all benchmark files in the taske
 **Purpose**: Measures end-to-end API latency for task creation operations.
 
 **What It Measures**:
+
 - HTTP request/response overhead
 - Task record creation in PostgreSQL
 - Initial step discovery from template
 - Response generation and serialization
 
 **Methodology**:
+
 - Criterion benchmark framework
 - Sample size: 20 iterations (fewer due to network overhead)
 - Measurement time: 15 seconds
@@ -136,16 +148,19 @@ This document provides a comprehensive audit of all benchmark files in the taske
 - Pre-verifies service health before benchmarking
 
 **Prerequisites**:
+
 - Docker Compose services running (`docker-compose.test.yml`)
 - Orchestration service healthy at `http://localhost:8080`
 - Feature flag: `--features benchmarks`
 
 **Status**: **Fully Implemented and Maintained**
+
 - Comprehensive documentation with troubleshooting guide
 - Health check verification before running
 - Results: Linear ~17.7ms, Diamond ~20.8ms (documented)
 
 **Issues/Observations**:
+
 - Creates new tokio runtime per benchmark iteration (minor inefficiency)
 - No cleanup of created tasks after benchmark
 - Minimal retries (1) which is appropriate for benchmarks
@@ -170,6 +185,7 @@ fn main() {
 ```
 
 **Issues/Observations**:
+
 - File exists but has no implementation
 - Not registered in Cargo.toml `[[bench]]` section (confirmed - no bench entries for orchestration)
 - Comment in Cargo.toml: "Benchmark placeholders removed - use E2E benchmarks and OpenTelemetry traces"
@@ -184,17 +200,20 @@ fn main() {
 **Purpose**: Measure orchestration coordination latency for step discovery and enqueueing.
 
 **What It Would Measure** (if implemented):
+
 - Ready step discovery time
 - Queue publishing time
 - LISTEN/NOTIFY notification overhead
 - Total orchestration coordination cycle
 
 **Status**: **Documented Placeholder**
+
 - Extensive documentation explaining why not implemented
 - References existing coverage from E2E benchmarks, SQL benchmarks, and OpenTelemetry traces
 - Includes implementation guidance for future use
 
 **Current Code**:
+
 ```rust
 fn main() {
     eprintln!("STEP ENQUEUEING BENCHMARK - PLACEHOLDER");
@@ -203,10 +222,12 @@ fn main() {
 ```
 
 **Prerequisites** (if implemented):
+
 - Docker Compose services
 - Pre-created tasks with dependency chains
 
 **Issues/Observations**:
+
 - Justified decision to defer - coverage exists elsewhere
 - Well-documented rationale
 - Not registered in Cargo.toml (no `[[bench]]` entry)
@@ -220,15 +241,18 @@ fn main() {
 **Purpose**: Measure framework overhead vs pure handler execution time.
 
 **What It Would Measure** (if implemented):
+
 - Pure Rust handler (baseline - direct function call)
 - Rust handler via framework (dispatch overhead)
 - Ruby handler via FFI (FFI boundary cost)
 
 **Status**: **Documented Placeholder**
+
 - Extensive documentation explaining existing coverage
 - References E2E benchmarks (Ruby FFI vs Rust native) and profiling tools
 
 **Current Code**:
+
 ```rust
 fn main() {
     eprintln!("HANDLER OVERHEAD BENCHMARK - PLACEHOLDER");
@@ -237,6 +261,7 @@ fn main() {
 ```
 
 **Issues/Observations**:
+
 - Coverage claimed via E2E benchmarks and profiling
 - Would be valuable for micro-level overhead analysis if implemented
 - Not registered in Cargo.toml
@@ -261,6 +286,7 @@ fn main() {
 ```
 
 **Issues/Observations**:
+
 - File exists but has no implementation or documentation
 - Not registered in Cargo.toml
 - Should either be implemented or removed
@@ -274,16 +300,19 @@ fn main() {
 **Purpose**: Measure complete worker execution cycle latency.
 
 **What It Would Measure** (if implemented):
+
 - Step claim (PGMQ read + atomic claim)
 - Handler execution (framework overhead)
 - Result submission (serialization + HTTP)
 - Total overhead target: < 60ms
 
 **Status**: **Documented Placeholder**
+
 - Extensive documentation explaining existing coverage
 - References E2E benchmarks, OpenTelemetry traces, and PGMQ metrics
 
 **Current Code**:
+
 ```rust
 fn main() {
     eprintln!("WORKER EXECUTION BENCHMARK - PLACEHOLDER");
@@ -292,6 +321,7 @@ fn main() {
 ```
 
 **Issues/Observations**:
+
 - Coverage claimed via E2E benchmarks and observability tools
 - Would be valuable for isolated worker performance analysis
 - Not registered in Cargo.toml
@@ -305,12 +335,14 @@ fn main() {
 **Purpose**: Measures complete workflow execution latency across the entire distributed system.
 
 **What It Measures**:
+
 - Complete workflow execution (API call to task completion)
 - All system components: API, Database, Message Queue, Worker, Events
 - Real network overhead
 - Comparison of Ruby FFI vs Rust native handlers
 
 **Methodology**:
+
 - Criterion benchmark framework
 - Sample size: 10 iterations (very few - workflows are slow)
 - Measurement time: 30 seconds
@@ -323,18 +355,21 @@ fn main() {
 - 10 second timeout per workflow
 
 **Prerequisites**:
+
 - All Docker Compose services running
 - Orchestration service at `http://localhost:8080`
 - Rust worker at `http://localhost:8081`
 - Ruby worker at `http://localhost:8082` (for Ruby scenarios)
 
 **Status**: **Fully Implemented and Maintained**
+
 - Well-documented with expected performance targets
 - TAS-154 integration: Injects unique `_test_run_id` for identity hash uniqueness
 - Includes debug output during first 1.1 seconds of each iteration
 - Documented race condition fixes (TAS-29 Phase 5.4)
 
 **Issues/Observations**:
+
 - Creates new task per iteration (appropriate for E2E)
 - No cleanup of test tasks after benchmark
 - Debug output may add slight overhead
@@ -400,11 +435,13 @@ fn main() {
 ### Feature Flag Pattern
 
 All benchmarks consistently use:
+
 - Feature flag: `benchmarks`
 - Dependency: `criterion = { workspace = true, optional = true }`
 - Cargo.toml entry: `required-features = ["benchmarks"]`
 
 **Configuration in Cargo.toml**:
+
 ```toml
 [[bench]]
 harness = false
@@ -430,6 +467,7 @@ group.measurement_time(Duration::from_secs(X));
 ### Runtime Setup Pattern
 
 All implemented benchmarks follow a similar pattern:
+
 ```rust
 fn setup_runtime() -> (tokio::runtime::Runtime, Pool) {
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -455,6 +493,7 @@ This is consistent but creates a new runtime per benchmark group (not per iterat
 | tasker-core (root) | `benchmarks` | Empty (commented out) |
 
 **Root Cargo.toml**:
+
 ```toml
 [features]
 benchmarks = [
@@ -469,6 +508,7 @@ benchmarks = [
 ### Test Infrastructure Feature Flags (TAS-73)
 
 Benchmarks do not currently use the TAS-73 test infrastructure levels:
+
 - `test-db` - Database available
 - `test-messaging` - + Messaging backend
 - `test-services` - + Services running

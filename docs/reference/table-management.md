@@ -25,6 +25,7 @@ The tasker-core system employs several strategies to maintain query performance 
 The most critical indexes use PostgreSQL's `INCLUDE` clause to create covering indexes that satisfy queries without table lookups:
 
 **Active Task Processing** (`migrations/tasker/20250810140000_uuid_v7_initial_schema.sql`):
+
 ```sql
 -- Covering index for active task queries with priority sorting
 CREATE INDEX IF NOT EXISTS idx_tasks_active_with_priority_covering
@@ -32,9 +33,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_active_with_priority_covering
     INCLUDE (named_task_uuid, requested_at)
     WHERE complete = false;
 ```
+
 *Impact*: Task discovery queries can be satisfied entirely from the index without accessing the main table.
 
 **Step Readiness Processing** (`migrations/tasker/20250810140000_uuid_v7_initial_schema.sql`):
+
 ```sql
 -- Covering index for step readiness queries
 CREATE INDEX IF NOT EXISTS idx_workflow_steps_ready_covering
@@ -47,20 +50,24 @@ CREATE INDEX IF NOT EXISTS idx_workflow_steps_task_covering
     ON workflow_steps (task_uuid)
     INCLUDE (workflow_step_uuid, processed, in_process, attempts, max_attempts);
 ```
+
 *Impact*: Step dependency resolution and retry logic queries avoid heap lookups.
 
 **Transitive Dependency Optimization** (`migrations/tasker/20250810140000_uuid_v7_initial_schema.sql`):
+
 ```sql
 -- Covering index for transitive dependency traversal
 CREATE INDEX IF NOT EXISTS idx_workflow_steps_transitive_deps
     ON workflow_steps (workflow_step_uuid, named_step_uuid)
     INCLUDE (task_uuid, results, processed);
 ```
+
 *Impact*: DAG traversal operations can read all needed columns from the index.
 
 #### State Transition Lookups (Partial Indexes)
 
 **Current State Resolution** (`migrations/tasker/20250810140000_uuid_v7_initial_schema.sql`):
+
 ```sql
 -- Fast current state resolution (only indexes most_recent = true)
 CREATE INDEX IF NOT EXISTS idx_task_transitions_state_lookup
@@ -71,11 +78,13 @@ CREATE INDEX IF NOT EXISTS idx_workflow_step_transitions_state_lookup
     ON workflow_step_transitions (workflow_step_uuid, to_state, most_recent)
     WHERE most_recent = true;
 ```
+
 *Impact*: State lookups index only current state, not full audit history. Reduces index size by >90%.
 
 #### Correlation and Tracing Indexes
 
 **Distributed Tracing Support** (`migrations/tasker/20251007000000_add_correlation_ids.sql`):
+
 ```sql
 -- Primary correlation ID lookups
 CREATE INDEX IF NOT EXISTS idx_tasks_correlation_id
@@ -86,11 +95,13 @@ CREATE INDEX IF NOT EXISTS idx_tasks_correlation_hierarchy
     ON tasks(parent_correlation_id, correlation_id)
     WHERE parent_correlation_id IS NOT NULL;
 ```
+
 *Impact*: Enables efficient distributed tracing and workflow hierarchy queries.
 
 #### Processor Ownership and Monitoring
 
 **Processor Tracking** (`migrations/tasker/20250912000000_tas41_richer_task_states.sql`):
+
 ```sql
 -- Index for processor ownership queries (audit trail only, enforcement removed)
 CREATE INDEX IF NOT EXISTS idx_task_transitions_processor
@@ -102,11 +113,13 @@ CREATE INDEX IF NOT EXISTS idx_task_transitions_timeout
     ON task_transitions((transition_metadata->>'timeout_at'))
     WHERE most_recent = true;
 ```
+
 *Impact*: Enables processor-level debugging and timeout monitoring. Processor ownership enforcement was removed but the audit trail is preserved.
 
 #### Dependency Graph Navigation
 
 **Step Edges for DAG Operations** (`migrations/tasker/20250810140000_uuid_v7_initial_schema.sql`):
+
 ```sql
 -- Parent-to-child navigation for dependency resolution
 CREATE INDEX IF NOT EXISTS idx_workflow_step_edges_from_step
@@ -116,6 +129,7 @@ CREATE INDEX IF NOT EXISTS idx_workflow_step_edges_from_step
 CREATE INDEX IF NOT EXISTS idx_workflow_step_edges_to_step
     ON workflow_step_edges (to_step_uuid);
 ```
+
 *Impact*: Bidirectional DAG traversal for readiness checks and completion propagation.
 
 ### 2. Partial Indexes
@@ -141,6 +155,7 @@ Complex orchestration queries are implemented as PostgreSQL functions that lever
 - **Targeted Filtering**: Early elimination of irrelevant rows using index scans
 
 Example from `get_next_ready_tasks()`:
+
 ```sql
 -- First filter to active tasks with priority sorting (uses index)
 WITH prioritized_tasks AS (
@@ -171,6 +186,7 @@ This prevents the active query set from growing indefinitely, even if old tasks 
 We initially designed an archive-and-delete strategy:
 
 **Architecture**:
+
 - Mirror tables: `tasker.archived_tasks`, `tasker.archived_workflow_steps`, `tasker.archived_task_transitions`, `tasker.archived_workflow_step_transitions`
 - Background service running every 24 hours
 - Batch processing: 1000 tasks per run
@@ -178,6 +194,7 @@ We initially designed an archive-and-delete strategy:
 - Retention policies: Configurable per task state (completed, error, cancelled)
 
 **Implementation Details**:
+
 ```rust
 // Archive tasks in terminal states older than retention period
 pub async fn archive_completed_tasks(
@@ -202,11 +219,13 @@ After implementation and analysis, we identified critical performance issues:
 #### 1. Write Amplification
 
 Every archived task results in:
+
 - **2× writes per row**: INSERT into archive table + original row still exists until DELETE
 - **1× delete per row**: DELETE from main table triggers index updates
 - **Cascade costs**: Foreign key relationships require multiple DELETE operations in sequence
 
 For a system processing 100,000 tasks/day with 30-day retention:
+
 - Daily archival: ~100,000 tasks × 2 write operations = 200,000 write I/Os
 - Plus associated workflow_steps (typically 5-10 per task): 500,000-1,000,000 additional writes
 
@@ -215,10 +234,12 @@ For a system processing 100,000 tasks/day with 30-day retention:
 PostgreSQL must maintain indexes during both INSERT and DELETE operations:
 
 **During INSERT to archive tables**:
+
 - Build index entries for all archive table indexes
 - Update statistics for query planner
 
 **During DELETE from main tables**:
+
 - Mark deleted tuples in main table indexes
 - Update free space maps
 - Trigger VACUUM requirements
@@ -228,6 +249,7 @@ PostgreSQL must maintain indexes during both INSERT and DELETE operations:
 #### 3. Lock Contention
 
 Large DELETE operations require:
+
 - **Row-level locks** on deleted rows
 - **Table-level locks** during index updates
 - **Lock escalation risk** with large batch sizes
@@ -237,6 +259,7 @@ This creates a "stop-the-world" effect where active task processing is blocked d
 #### 4. VACUUM Pressure
 
 Frequent large DELETEs create dead tuples that require aggressive VACUUMing:
+
 - Increases I/O load during off-hours
 - Can't be fully eliminated even with proper tuning
 - Competes with active workload for resources
@@ -244,6 +267,7 @@ Frequent large DELETEs create dead tuples that require aggressive VACUUMing:
 #### 5. The "Garbage Collector" Anti-Pattern
 
 The archive-and-delete strategy essentially implements a manual garbage collector:
+
 - Periodic runs with performance impact
 - Tuning trade-offs (frequency vs. batch size vs. impact)
 - Operational complexity (monitoring, alerting, recovery)
@@ -255,6 +279,7 @@ The archive-and-delete strategy essentially implements a manual garbage collecto
 PostgreSQL's native table partitioning with `pg_partman` provides zero-runtime-cost table management:
 
 **Key Advantages**:
+
 - **No write amplification**: Data stays in place, partitions are logical divisions
 - **No DELETE operations**: Old partitions are DETACHed and dropped as units
 - **Instant partition drops**: Dropping a partition is O(1), not O(rows)
@@ -343,6 +368,7 @@ SELECT cron.schedule('partman-maintenance', '0 * * * *',
 ```
 
 This automatically:
+
 - Creates new partitions before they're needed
 - Detaches and drops partitions older than retention period
 - Updates partition constraints for query optimization
@@ -357,6 +383,7 @@ The pgmq message queue system (which tasker-core uses for orchestration) impleme
 > "For very high-throughput queues, you may want to partition the queue table by time. This allows you to drop old partitions instead of deleting rows, which is much faster and doesn't cause table bloat."
 
 **pgmq's Approach**:
+
 ```sql
 -- pgmq uses pg_partman for message queues
 SELECT pgmq.create_partitioned(
@@ -367,12 +394,14 @@ SELECT pgmq.create_partitioned(
 ```
 
 **Benefits They Report**:
+
 - **10× faster** old message cleanup vs. DELETE
 - **Zero bloat** from message deletion
 - **Consistent performance** even at millions of messages per day
 
 **Applying to Tasker**:
 Our use case is nearly identical to pgmq:
+
 - High-throughput append-heavy workload
 - Time-series data (created_at is natural partition key)
 - Need to retain recent data, drop old data
@@ -387,6 +416,7 @@ If pgmq chose partitioning over archive-and-delete for these reasons, we should 
 Before implementing partitioning:
 
 1. **Analyze Current Growth Rate**:
+
 ```sql
 SELECT
     pg_size_pretty(pg_total_relation_size('tasker.tasks')) as total_size,
@@ -397,12 +427,12 @@ SELECT
 FROM tasks;
 ```
 
-2. **Determine Partition Strategy**:
+1. **Determine Partition Strategy**:
    - Daily partitions: For > 1M tasks/day
    - Weekly partitions: For 100K-1M tasks/day
    - Monthly partitions: For < 100K tasks/day
 
-3. **Plan Retention Period**:
+2. **Plan Retention Period**:
    - Legal/compliance requirements
    - Analytics/reporting needs
    - Typical task investigation window
@@ -438,6 +468,7 @@ WHERE created_at > NOW() - INTERVAL '7 days';
 **Decision**: Use PostgreSQL native partitioning with pg_partman for table growth management.
 
 **Rationale**:
+
 - Zero runtime performance impact vs. periodic degradation with archive-and-delete
 - Operationally simpler (set-and-forget vs. monitoring archive jobs)
 - Battle-tested solution used by pgmq and thousands of production systems

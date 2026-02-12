@@ -25,6 +25,7 @@ These are trivial fixes that can be done immediately with minimal risk:
 **Risk**: Low (field is never meaningfully used)
 
 **Files to modify**:
+
 ```
 tasker-worker/src/health.rs                              - Remove from WorkerHealthStatus
 tasker-worker/src/worker/core.rs:659                     - Remove field setting
@@ -42,6 +43,7 @@ tasker-worker/src/worker/services/health/service.rs      - Remove from is_health
 **Risk**: None (code has zero call sites)
 
 **Files to modify**:
+
 ```
 tasker-shared/src/state_machine/guards.rs:282-352
   - StepCanBeEnqueuedForOrchestrationGuard
@@ -59,12 +61,14 @@ tasker-shared/src/state_machine/guards.rs:282-352
 **Risk**: None (lint annotation only)
 
 **Approach**: Start with highest-visibility files:
+
 ```
 workers/rust/src/step_handlers/*.rs     - 28 instances (api compatibility pattern)
 tasker-shared/src/models/factories/*.rs - 6 instances (test factories)
 ```
 
 **Pattern**:
+
 ```rust
 // Before
 #[allow(dead_code)] // api compatibility
@@ -95,12 +99,14 @@ Cross-reference action-items.md with this fix plan to avoid duplication.
 **Title**: `[TAS-XXX] Implement real health checks in tasker-worker`
 
 **Scope**:
+
 | Component | Current | Target |
 |-----------|---------|--------|
 | `database_connected` | Hardcoded `true` | Actual SQL ping |
 | `check_event_system()` | Returns "healthy" | Check publisher/subscriber |
 
 **Files**:
+
 - `tasker-worker/src/worker/services/worker_status/service.rs`
 - `tasker-worker/src/worker/services/health/service.rs`
 
@@ -108,6 +114,7 @@ Cross-reference action-items.md with this fix plan to avoid duplication.
 **Priority**: HIGH (affects K8s probe accuracy)
 
 **Acceptance Criteria**:
+
 - [ ] Database health check performs actual connectivity test
 - [ ] Event system health check verifies publisher connectivity
 - [ ] Health endpoints return 503 when components are down
@@ -120,6 +127,7 @@ Cross-reference action-items.md with this fix plan to avoid duplication.
 **Title**: `[TAS-XXX] Implement real metrics in worker event system`
 
 **Scope**:
+
 | Metric | Current | Target |
 |--------|---------|--------|
 | `processing_rate` | 0.0 | Events/second calculation |
@@ -128,6 +136,7 @@ Cross-reference action-items.md with this fix plan to avoid duplication.
 | `handler_count` | 0 | Actual registered handler count |
 
 **Files**:
+
 - `tasker-worker/src/worker/event_systems/worker_event_system.rs:366-368`
 - `workers/python/src/observability.rs:177`
 
@@ -135,6 +144,7 @@ Cross-reference action-items.md with this fix plan to avoid duplication.
 **Priority**: MEDIUM (affects observability, not correctness)
 
 **Acceptance Criteria**:
+
 - [ ] Metrics reflect actual system behavior
 - [ ] Tests verify metrics change under load
 
@@ -148,12 +158,14 @@ Cross-reference action-items.md with this fix plan to avoid duplication.
 Currently `publish_task_initialized_event()` returns `Ok(())` without publishing.
 
 **Files**:
+
 - `tasker-orchestration/src/orchestration/lifecycle/task_initialization/service.rs:340-347`
 
 **Effort**: 2-3 hours (depends on EventPublisher interface)
 **Priority**: HIGH (events silently lost)
 
 **Acceptance Criteria**:
+
 - [ ] Events actually published to event system
 - [ ] Event contains task_uuid, step_count, task_name
 - [ ] Integration test verifies event delivery
@@ -165,6 +177,7 @@ Currently `publish_task_initialized_event()` returns `Ok(())` without publishing
 **Title**: `[TAS-XXX] Implement real metrics in tasker-orchestration`
 
 **Scope**:
+
 | Metric | Current | Target |
 |--------|---------|--------|
 | `active_processors` | 1 | Actual processor count |
@@ -172,6 +185,7 @@ Currently `publish_task_initialized_event()` returns `Ok(())` without publishing
 | `request_queue_size` | -1 | Actual PGMQ queue depth |
 
 **Files**:
+
 - `tasker-orchestration/src/orchestration/command_processor.rs:1135`
 - `tasker-orchestration/src/web/handlers/analytics.rs:198`
 - `tasker-orchestration/src/orchestration/lifecycle/task_request_processor.rs:297`
@@ -180,6 +194,7 @@ Currently `publish_task_initialized_event()` returns `Ok(())` without publishing
 **Priority**: MEDIUM (affects capacity planning)
 
 **Acceptance Criteria**:
+
 - [ ] `active_processors` reflects actual count
 - [ ] `pool_utilization` queries SQLx pool metrics
 - [ ] `request_queue_size` queries PGMQ queue depth
@@ -194,12 +209,14 @@ Currently `publish_task_initialized_event()` returns `Ok(())` without publishing
 Cache refresh commands are currently no-ops.
 
 **Files**:
+
 - `tasker-worker/src/worker/actors/template_cache_actor.rs:94-99`
 
 **Effort**: 1-2 hours
 **Priority**: MEDIUM (requires restart for config changes)
 
 **Acceptance Criteria**:
+
 - [ ] Namespace-specific cache refresh clears entries for namespace
 - [ ] Full cache refresh clears all entries
 - [ ] Test verifies cache is cleared after command
@@ -216,6 +233,7 @@ Cache refresh commands are currently no-ops.
 **Priority**: LOW (code hygiene)
 
 **Acceptance Criteria**:
+
 - [ ] All `#[allow(dead_code)]` converted to `#[expect]` with reasons
 - [ ] All `#[allow(unused)]` converted to `#[expect]` with reasons
 - [ ] CI passes
@@ -227,6 +245,7 @@ Cache refresh commands are currently no-ops.
 **Title**: `[TAS-XXX] Add missing module documentation per TAS-89 review`
 
 **Scope**:
+
 - Configuration system module docs (20 files)
 - tasker-client public item docs
 - Doc examples in core modules
@@ -235,6 +254,7 @@ Cache refresh commands are currently no-ops.
 **Priority**: LOW (developer experience)
 
 **Acceptance Criteria**:
+
 - [ ] Configuration modules have `//!` headers
 - [ ] tasker-client public APIs documented
 - [ ] At least 10 new doc examples added

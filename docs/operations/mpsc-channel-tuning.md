@@ -43,39 +43,48 @@ This runbook provides operational guidance for monitoring, diagnosing, and tunin
 ### Recommended Alerts
 
 **Critical: Channel Saturation**
+
 ```promql
 # Alert when any channel is >90% full for 5 minutes
 mpsc_channel_usage_percent > 90
 ```
+
 **Action**: Immediate capacity increase or identify bottleneck
 
 **Warning: Channel High Usage**
+
 ```promql
 # Alert when any channel is >80% full for 15 minutes
 mpsc_channel_usage_percent > 80
 ```
+
 **Action**: Plan capacity increase, investigate throughput
 
 **Info: Channel Overflow Events**
+
 ```promql
 # Alert on any overflow events
 rate(mpsc_channel_full_events_total[5m]) > 0
 ```
+
 **Action**: Review backpressure handling, consider capacity increase
 
 ### Grafana Queries
 
 **Channel Usage by Component**
+
 ```promql
 max by (channel, component) (mpsc_channel_usage_percent)
 ```
 
 **Channel Capacity Configuration**
+
 ```promql
 max by (channel, component) (mpsc_channel_capacity)
 ```
 
 **Overflow Event Rate**
+
 ```promql
 rate(mpsc_channel_full_events_total[5m])
 ```
@@ -83,16 +92,19 @@ rate(mpsc_channel_full_events_total[5m])
 ### Log Patterns
 
 **Saturation Warning (80% full)**
+
 ```
 WARN mpsc_channel_saturation channel=orchestration_command usage_percent=82.5
 ```
 
 **Overflow Event (channel full)**
+
 ```
 ERROR mpsc_channel_full channel=event_publisher action=dropped
 ```
 
 **Backpressure Applied**
+
 ```
 ERROR Ruby FFI event channel full - backpressure applied
 ```
@@ -102,18 +114,22 @@ ERROR Ruby FFI event channel full - backpressure applied
 ### Issue 1: High Channel Saturation
 
 **Symptoms:**
+
 - `mpsc_channel_usage_percent` consistently > 80%
 - Slow message processing
 - Increased latency
 
 **Diagnosis:**
+
 1. Check which channel is saturated:
+
    ```bash
    # Grep logs for saturation warnings
    grep "mpsc_channel_saturation" logs/tasker.log | tail -20
    ```
 
 2. Check metrics for specific channel:
+
    ```promql
    mpsc_channel_usage_percent{channel="orchestration_command"}
    ```
@@ -121,6 +137,7 @@ ERROR Ruby FFI event channel full - backpressure applied
 **Solutions:**
 
 **Short-term (Immediate Relief):**
+
 ```toml
 # Edit appropriate environment file
 # Example: config/tasker/environments/production/mpsc_channels.toml
@@ -130,6 +147,7 @@ command_buffer_size = 10000  # Increase from 5000
 ```
 
 **Long-term:**
+
 - Investigate message producer rate
 - Optimize message consumer processing
 - Consider horizontal scaling
@@ -137,18 +155,22 @@ command_buffer_size = 10000  # Increase from 5000
 ### Issue 2: PGMQ Notification Bursts
 
 **Symptoms:**
+
 - Spike in `mpsc_channel_usage_percent{channel="pgmq_notifications"}`
 - During bulk task creation (1000+ tasks)
 - Temporary saturation followed by recovery
 
 **Diagnosis:**
+
 1. Correlate with bulk task operations:
+
    ```bash
    # Check for bulk task creation in logs
    grep "Bulk task creation" logs/tasker.log
    ```
 
 2. Verify buffer size configuration:
+
    ```bash
    # Check current production configuration
    cat config/tasker/environments/production/mpsc_channels.toml | \
@@ -158,6 +180,7 @@ command_buffer_size = 10000  # Increase from 5000
 **Solutions:**
 
 **If production buffer < 50000:**
+
 ```toml
 # config/tasker/environments/production/mpsc_channels.toml
 [mpsc_channels.orchestration.event_listeners]
@@ -165,6 +188,7 @@ pgmq_event_buffer_size = 50000  # Recommended for production
 ```
 
 **If already at 50000 and still saturating:**
+
 - Consider notification coalescing (future feature)
 - Implement batch notification processing
 - Scale orchestration services horizontally
@@ -172,12 +196,15 @@ pgmq_event_buffer_size = 50000  # Recommended for production
 ### Issue 3: Ruby FFI Backpressure
 
 **Symptoms:**
+
 - Errors: "Ruby FFI event channel full - backpressure applied"
 - Ruby handler slowness
 - Increased Rust-side latency
 
 **Diagnosis:**
+
 1. Check Ruby handler processing time:
+
    ```ruby
    # Add timing to Ruby handlers
    time_start = Time.now
@@ -187,6 +214,7 @@ pgmq_event_buffer_size = 50000  # Recommended for production
    ```
 
 2. Check FFI channel saturation:
+
    ```promql
    mpsc_channel_usage_percent{channel="ruby_ffi"}
    ```
@@ -194,11 +222,13 @@ pgmq_event_buffer_size = 50000  # Recommended for production
 **Solutions:**
 
 **If Ruby handlers are slow:**
+
 - Optimize Ruby handler code
 - Consider async Ruby processing
 - Profile Ruby handler performance
 
 **If FFI buffer too small:**
+
 ```toml
 # config/tasker/environments/production/mpsc_channels.toml
 [mpsc_channels.shared.ffi]
@@ -206,22 +236,27 @@ ruby_event_buffer_size = 2000  # Increase from 1000
 ```
 
 **If Rust-side producing too fast:**
+
 - Add rate limiting to Rust event production
 - Batch events before FFI crossing
 
 ### Issue 4: Event Publisher Drops
 
 **Symptoms:**
+
 - Counter increasing: `mpsc_channel_full_events_total{channel="event_publisher"}`
 - Log warnings: "Event channel full, dropping event"
 
 **Diagnosis:**
+
 1. Check drop rate:
+
    ```promql
    rate(mpsc_channel_full_events_total{channel="event_publisher"}[5m])
    ```
 
 2. Identify event types being dropped:
+
    ```bash
    grep "dropping event" logs/tasker.log | awk '{print $NF}' | sort | uniq -c
    ```
@@ -229,10 +264,12 @@ ruby_event_buffer_size = 2000  # Increase from 1000
 **Solutions:**
 
 **If drops are rare (< 1/min):**
+
 - Acceptable for non-critical events
 - Monitor but no action needed
 
 **If drops are frequent (> 10/min):**
+
 ```toml
 # config/tasker/environments/production/mpsc_channels.toml
 [mpsc_channels.shared.event_publisher]
@@ -240,6 +277,7 @@ event_queue_buffer_size = 20000  # Increase from 10000
 ```
 
 **If drops are continuous:**
+
 - Investigate event storm cause
 - Consider event sampling/filtering
 - Review event subscriber performance
@@ -249,16 +287,19 @@ event_queue_buffer_size = 20000  # Increase from 10000
 ### Sizing Formula
 
 **General guideline:**
+
 ```
 buffer_size = (peak_message_rate_per_sec * avg_processing_time_sec) * safety_factor
 ```
 
 Where:
+
 - `peak_message_rate_per_sec`: Expected peak throughput
 - `avg_processing_time_sec`: Average consumer processing time
 - `safety_factor`: 2-5x for bursts
 
 **Example calculation:**
+
 ```
 # Orchestration command channel
 peak_rate = 500 messages/sec
@@ -272,16 +313,19 @@ buffer_size = (500 * 0.01) * 2 = 10 messages minimum
 ### Environment-Specific Guidelines
 
 **Test Environment:**
+
 - Use **small buffers** (100-500)
 - Exposes backpressure issues early
 - Forces proper error handling
 
 **Development Environment:**
+
 - Use **moderate buffers** (500-1000)
 - Balances local resource usage
 - Mimics test environment behavior
 
 **Production Environment:**
+
 - Use **large buffers** (2000-50000)
 - Handles real-world burst traffic
 - Prioritizes availability over memory
@@ -289,12 +333,14 @@ buffer_size = (500 * 0.01) * 2 = 10 messages minimum
 ### When to Increase Buffer Sizes
 
 **Increase if:**
+
 - ✅ Saturation > 80% for extended periods
 - ✅ Overflow events occur regularly
 - ✅ Latency increases during peak load
 - ✅ Known traffic increase incoming
 
 **Don't increase if:**
+
 - ❌ Consumer is bottleneck (fix consumer instead)
 - ❌ Saturation is brief and recovers quickly
 - ❌ Would mask underlying performance issue
@@ -308,6 +354,7 @@ Review metrics and logs to determine which channel needs adjustment.
 ### 2. Calculate New Size
 
 Use sizing formula or apply percentage increase:
+
 ```
 new_size = current_size * (100 / (100 - target_usage_percent))
 
@@ -333,12 +380,14 @@ command_buffer_size = 20000
 ### 4. Deploy
 
 **Local/Development:**
+
 ```bash
 # Restart service - picks up new config automatically
 cargo run --package tasker-orchestration --bin tasker-server --features web-api
 ```
 
 **Production:**
+
 ```bash
 # Standard deployment process
 # Configuration is loaded at service startup
@@ -348,6 +397,7 @@ kubectl rollout restart deployment/tasker-orchestration
 ### 5. Monitor
 
 Watch metrics for 1-2 hours post-change:
+
 - Channel usage percentage should decrease
 - Overflow events should stop
 - Latency should improve
@@ -355,6 +405,7 @@ Watch metrics for 1-2 hours post-change:
 ### 6. Document
 
 Update this runbook with:
+
 - Why change was made
 - New values
 - Observed impact
@@ -378,11 +429,13 @@ Update this runbook with:
 ### Critical Saturation (>95%)
 
 **Immediate Actions:**
+
 1. Increase buffer size by 2-5x in production config
 2. Deploy immediately via rolling restart
 3. Page on-call if service degradation visible
 
 **Example:**
+
 ```bash
 # Edit config
 vim config/tasker/environments/production/mpsc_channels.toml
@@ -397,11 +450,13 @@ watch -n 5 'curl -s localhost:9090/api/v1/query?query=mpsc_channel_usage_percent
 ### Service Unresponsive Due to Backpressure
 
 **Symptoms:**
+
 - All channels showing 100% usage
 - No message processing
 - Health checks failing
 
 **Actions:**
+
 1. Check for downstream bottleneck (database, queue service)
 2. Scale out consumer services
 3. Temporarily increase all buffer sizes
@@ -421,14 +476,17 @@ watch -n 5 'curl -s localhost:9090/api/v1/query?query=mpsc_channel_usage_percent
 ## Related Documentation
 
 **Architecture**:
+
 - [Backpressure Architecture](../architecture/backpressure-architecture.md) - How MPSC channels fit into the broader resilience strategy
 - [Circuit Breakers](../architecture/circuit-breakers.md) - Fault isolation working alongside bounded channels
 - [ADR: Bounded MPSC Channels](../decisions/adr-002-bounded-mpsc-channels.md) - Design decisions
 
 **Development**:
+
 - [Developer Guidelines](../development/mpsc-channel-guidelines.md) - Creating and using MPSC channels
 
 **Operations**:
+
 - [Backpressure Monitoring](backpressure-monitoring.md) - Unified alerting and incident response
 
 ## Support

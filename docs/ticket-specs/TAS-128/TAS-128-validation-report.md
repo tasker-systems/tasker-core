@@ -8,6 +8,7 @@
 **✓ ALL SQL FUNCTIONS CORRECTLY TRANSLATED**
 
 After stripping comments, all 26 core Tasker functions have **identical executable code** after applying the expected namespace transformations:
+
 - `public.tasker_*` → `tasker.*` (table references)
 - `public.function_name` → `tasker.function_name` (function references)
 
@@ -100,6 +101,7 @@ All PGMQ helper functions exist in both schemas:
 Index name transformation applied: `_tasker_` → `_`
 
 Examples:
+
 - `idx_tasker_tasks_state` → `idx_tasks_state`
 - `idx_tasker_workflow_steps_task_id` → `idx_workflow_steps_task_id`
 

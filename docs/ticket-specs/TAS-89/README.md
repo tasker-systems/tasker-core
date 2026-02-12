@@ -11,6 +11,7 @@
 Comprehensive codebase review initiative to evaluate code quality, codify best practices, identify technical debt, and ensure alignment with established standards across all crates and language workers.
 
 **Scope**:
+
 - **Approach**: Hybrid - document major findings, fix trivial issues inline
 - **Depth**: Pattern-based sampling
 - **Priority Areas**: Worker implementations (Ruby, Python, TypeScript) and core orchestration
@@ -20,11 +21,13 @@ Comprehensive codebase review initiative to evaluate code quality, codify best p
 ## Document Index
 
 ### Framework
+
 | Document | Description |
 |----------|-------------|
 | [evaluation-framework.md](./evaluation-framework.md) | Assessment criteria and scoring rubric |
 
 ### Best Practices (By Language)
+
 | Document | Description |
 |----------|-------------|
 | [best-practices-rust.md](./best-practices-rust.md) | Rust coding standards and patterns |
@@ -33,6 +36,7 @@ Comprehensive codebase review initiative to evaluate code quality, codify best p
 | [best-practices-typescript.md](./best-practices-typescript.md) | TypeScript coding standards and patterns |
 
 ### Crate Evaluations
+
 | Document | Crate | Status | Rating |
 |----------|-------|--------|--------|
 | [crates/tasker-shared.md](./crates/tasker-shared.md) | tasker-shared | Complete | EXCELLENT |
@@ -42,6 +46,7 @@ Comprehensive codebase review initiative to evaluate code quality, codify best p
 | crates/tasker-pgmq.md | tasker-pgmq | Pending | - |
 
 ### Hardcoded Stubs Analysis (Deep Dive)
+
 | Document | Crate | Risk Level |
 |----------|-------|------------|
 | [crates/tasker-shared-hardcoded-stubs.md](./crates/tasker-shared-hardcoded-stubs.md) | tasker-shared | LOW |
@@ -49,6 +54,7 @@ Comprehensive codebase review initiative to evaluate code quality, codify best p
 | [crates/tasker-worker-hardcoded-stubs.md](./crates/tasker-worker-hardcoded-stubs.md) | tasker-worker | CRITICAL |
 
 ### Worker Evaluations
+
 | Document | Worker | Status | Rating |
 |----------|--------|--------|--------|
 | [workers/ruby.md](./workers/ruby.md) | workers/ruby | Complete | A+ |
@@ -57,6 +63,7 @@ Comprehensive codebase review initiative to evaluate code quality, codify best p
 | workers/rust.md | workers/rust | Pending | - |
 
 ### Cross-Cutting Analysis
+
 | Document | Description | Status |
 |----------|-------------|--------|
 | [todo-audit.md](./todo-audit.md) | TODO/FIXME categorization and triage | Complete |
@@ -65,6 +72,7 @@ Comprehensive codebase review initiative to evaluate code quality, codify best p
 | [documentation-review.md](./documentation-review.md) | Inline documentation quality assessment | Complete |
 
 ### Synthesis
+
 | Document | Description | Status |
 |----------|-------------|--------|
 | [summary.md](./summary.md) | Executive summary of all findings | Complete |
@@ -72,6 +80,7 @@ Comprehensive codebase review initiative to evaluate code quality, codify best p
 | [fix-plan.md](./fix-plan.md) | **Fix Now vs Linear Tickets** - execution plan | Complete |
 
 ### Child Ticket Specs (6 Tickets - After Consolidation)
+
 | Document | Title | Priority | Status |
 |----------|-------|----------|--------|
 | [children/README.md](./children/README.md) | **Index of all child tickets** | - | - |
@@ -105,12 +114,14 @@ See [evaluation-framework.md](./evaluation-framework.md) for detailed criteria.
 ## Related Documentation
 
 ### Standards Being Evaluated Against
+
 - [Tasker Core Tenets](../../principles/tasker-core-tenets.md) - 10 design principles
 - [API Convergence Matrix](../../workers/api-convergence-matrix.md) - Cross-language consistency
 - [Development Patterns](../../development/development-patterns.md) - Build and workflow patterns
 - [MPSC Channel Guidelines](../../development/mpsc-channel-guidelines.md) - Bounded channel rules
 
 ### Existing Architecture Docs
+
 - [Actors](../../architecture/actors.md) - Actor pattern
 - [States and Lifecycles](../../architecture/states-and-lifecycles.md) - State machines
 - [Crate Architecture](../../architecture/crate-architecture.md) - Workspace structure

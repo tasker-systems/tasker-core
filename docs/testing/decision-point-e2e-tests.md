@@ -15,6 +15,7 @@ A critical design refinement was introduced to handle convergence patterns in de
 ### The Convergence Problem
 
 In conditional_approval, all three possible outcomes (auto_approve, manager_approval, finance_review) converge to the same finalize_approval step. However, we cannot create finalize_approval at task initialization because:
+
 1. We don't know which approval steps will be created
 2. finalize_approval needs different dependencies depending on the decision point's choice
 
@@ -29,6 +30,7 @@ A new step type was added to handle this pattern:
 ```
 
 **How it works:**
+
 1. Deferred steps list ALL possible dependencies in the template
 2. At initialization, deferred steps are excluded (they're descendants of decision points)
 3. When a decision point creates outcome steps, the system:
@@ -37,6 +39,7 @@ A new step type was added to handle this pattern:
    - Creates deferred steps with resolved dependencies
 
 **Example:**
+
 - When routing_decision chooses `auto_approve`:
   - Creates: `auto_approve`
   - Detects: `finalize_approval` is deferred with deps `[auto_approve, manager_approval, finance_review]`
@@ -186,6 +189,7 @@ The workflow implements amount-based routing:
 ## Task Template Location
 
 The test uses the task template at:
+
 ```
 tests/fixtures/task_templates/ruby/conditional_approval_handler.yaml
 ```
@@ -193,6 +197,7 @@ tests/fixtures/task_templates/ruby/conditional_approval_handler.yaml
 ## Ruby Handler Implementation
 
 The Ruby handlers are located at:
+
 ```
 workers/ruby/spec/handlers/examples/conditional_approval/
 ├── handlers/
@@ -232,6 +237,7 @@ TaskerCore::Types::StepHandlerCallResult.success(
 ### Tests Fail with "Template Not Found"
 
 Ensure the Ruby worker container has the correct template path:
+
 ```bash
 docker-compose -f docker/docker-compose.test.yml logs ruby-worker
 # Should show: TASK_TEMPLATE_PATH=/app/tests/fixtures/task_templates/ruby
@@ -240,6 +246,7 @@ docker-compose -f docker/docker-compose.test.yml logs ruby-worker
 ### Tests Timeout
 
 Increase wait time in docker-compose startup:
+
 ```bash
 sleep 30  # Instead of sleep 15
 ```
@@ -247,6 +254,7 @@ sleep 30  # Instead of sleep 15
 ### Database Connection Errors
 
 Verify PostgreSQL is running and healthy:
+
 ```bash
 docker-compose -f docker/docker-compose.test.yml ps
 docker-compose -f docker/docker-compose.test.yml logs postgres
@@ -255,6 +263,7 @@ docker-compose -f docker/docker-compose.test.yml logs postgres
 ### Step Creation Doesn't Happen
 
 Check orchestration logs for decision point processing:
+
 ```bash
 docker-compose -f docker/docker-compose.test.yml logs orchestration | grep -i decision
 ```
@@ -262,6 +271,7 @@ docker-compose -f docker/docker-compose.test.yml logs orchestration | grep -i de
 ## Success Criteria
 
 All tests should pass with output similar to:
+
 ```
 test e2e::ruby::conditional_approval_test::test_small_amount_auto_approval ... ok
 test e2e::ruby::conditional_approval_test::test_medium_amount_manager_approval ... ok
@@ -277,5 +287,6 @@ test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ## Next Steps
 
 After validating Ruby workers:
+
 - **Phase 8a**: Implement Rust worker support for decision points
 - **Phase 9a**: Create E2E tests for Rust worker decision points

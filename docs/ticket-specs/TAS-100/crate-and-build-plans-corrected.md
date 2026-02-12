@@ -11,11 +11,13 @@
 **CORRECTION**: After reviewing `workers/python/src/*.rs` and `workers/ruby/ext/tasker_core/src/*.rs`, it's clear that **TypeScript DOES need a Rust FFI bridge crate**, just like the others!
 
 All worker types follow the same pattern:
+
 - **Ruby**: `workers/ruby/ext/tasker_core/Cargo.toml` (Magnus FFI) → cdylib `.bundle`
 - **Python**: `workers/python/Cargo.toml` (PyO3 FFI) → cdylib `_tasker_core.so`
 - **TypeScript**: `workers/typescript/Cargo.toml` (extern "C" FFI) → cdylib `libtasker_worker_ts.{so,dylib,dll}`
 
 The TypeScript worker has **TWO components**:
+
 1. **Rust FFI bridge** (`workers/typescript/Cargo.toml`) - Exposes `#[no_mangle]` extern "C" functions
 2. **TypeScript code** (`workers/typescript/package.json`) - Calls the C FFI via bun:ffi/ffi-napi/Deno.dlopen
 

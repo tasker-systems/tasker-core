@@ -8,14 +8,18 @@
 ## Category Definitions
 
 ### Category A: "Real Gaps" (Broken/Missing Now)
+
 Functions that are **actually called** in production code paths but:
+
 - Return hardcoded/fake values instead of real data
 - Claim to do something but don't
 - Cause silent failures or data loss
 - Report incorrect information to monitoring/health systems
 
 ### Category B: "Aspirational" (Future Enhancement)
+
 Features that:
+
 - Would be nice to have but aren't needed for correctness
 - Are optimization opportunities
 - Represent alternative implementations not yet required
@@ -324,10 +328,10 @@ These return hardcoded values and are **exposed to Kubernetes probes**:
 
 ### Medium-Term (Category A - Medium)
 
-7. **Calculate real `execution_duration`** in error context
-8. **Implement `queue_size` method** in PgmqClient
-9. **Implement event processing** in worker event system
-10. **Complete transition analytics** (retry_attempts, execution_time)
+1. **Calculate real `execution_duration`** in error context
+2. **Implement `queue_size` method** in PgmqClient
+3. **Implement event processing** in worker event system
+4. **Complete transition analytics** (retry_attempts, execution_time)
 
 ### Low Priority (Category B)
 
@@ -341,12 +345,14 @@ These return hardcoded values and are **exposed to Kubernetes probes**:
 ## Key Insight
 
 **The pattern**: Many TODOs represent **"the plumbing exists but nothing flows through it"**:
+
 - Health endpoints exist but return hardcoded values
 - Event publishing methods exist but do nothing
 - Cache refresh commands exist but are ignored
 - Metrics endpoints exist but return zeros
 
 This is more insidious than missing features because:
+
 1. Tests pass (the methods return successfully)
 2. Monitoring looks green (endpoints respond)
 3. Architecture reviews see the right structure

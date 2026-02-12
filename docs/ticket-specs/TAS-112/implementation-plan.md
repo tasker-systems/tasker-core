@@ -57,6 +57,7 @@ The 9-phase research effort identified clear gaps and a path to cross-language c
 **Project Context**: Pre-alpha greenfield open source project. Breaking changes are encouraged to achieve correct architecture. No backward compatibility concerns.
 
 **Guiding Principles**:
+
 1. **Ruby is reference implementation** — When in doubt, follow Ruby's patterns
 2. **Composition over inheritance** — Batchable already uses mixins; all patterns should follow
 3. **FFI boundaries require exact alignment** — Structures crossing languages need explicit types
@@ -144,6 +145,7 @@ All four streams can start immediately and run in parallel. No dependencies betw
 | Integration tests | Full publish/subscribe cycle | Events flow through system | :white_check_mark: Complete (36 tests) |
 
 #### Deliverables
+
 - `workers/typescript/src/handler/domain-events.ts` :white_check_mark:
 - `workers/typescript/src-rust/dto.rs` (FfiDomainEventDto, FfiDomainEventMetadataDto) :white_check_mark:
 - `workers/typescript/src/ffi/generated/` (ts-rs auto-generated types) :white_check_mark:
@@ -189,6 +191,7 @@ All four streams can start immediately and run in parallel. No dependencies betw
 | **Add aggregation helper methods** | detect_aggregation_scenario(), aggregate_batch_worker_results() | Cross-language parity | **MEDIUM** | :white_check_mark: Complete |
 
 #### Deliverables
+
 - `workers/python/python/tasker_core/domain_events.py` (lifecycle hooks, types) :white_check_mark:
 - `workers/python/python/tasker_core/types.py` (InProcessDomainEvent, ExecutionResult) :white_check_mark:
 - `workers/python/python/tasker_core/__init__.py` (exports) :white_check_mark:
@@ -222,6 +225,7 @@ All four streams can start immediately and run in parallel. No dependencies betw
 | Document FFI boundary types | Create reference documentation | Clear serialization guidance | :white_check_mark: Complete |
 
 #### Deliverables
+
 - `workers/python/python/tasker_core/types.py` :white_check_mark:
   - `RustCursorConfig`, `BatchMetadata`, `RustBatchWorkerInputs`
   - `NoBatchesOutcome`, `CreateBatchesOutcome`, `BatchProcessingOutcome`
@@ -256,6 +260,7 @@ All four streams can start immediately and run in parallel. No dependencies betw
 | Document convergence patterns | How intersection semantics work | Clear explanation | :white_check_mark: Complete (in YAML templates) |
 
 #### Deliverables
+
 - `workers/python/tests/handlers/examples/conditional_approval_handlers.py` (314 lines, 6 handlers) :white_check_mark:
 - `workers/typescript/tests/handlers/examples/conditional_approval/` (290 lines, 6 handlers) :white_check_mark:
 - `tests/fixtures/task_templates/python/conditional_approval_handler_py.yaml` :white_check_mark:
@@ -345,6 +350,7 @@ On New Year's Eve 2025, a comprehensive validation was performed against all cla
 ### 🎉 VALIDATION GATE 1 PASSED (2025-12-31)
 
 All Phase 1 streams are complete:
+
 - **Stream A**: TypeScript Domain Events - 1,521 lines, full lifecycle hooks, FFI integration
 - **Stream B**: Python Enhancements - ~1,350 lines, lifecycle hooks, type definitions
 - **Stream C**: FFI Boundary Types - Flexible cursors, discriminated unions, factory functions
@@ -353,6 +359,7 @@ All Phase 1 streams are complete:
 ### Validation Methodology
 
 The validation was performed using 5 parallel exploration agents:
+
 1. TypeScript Domain Events agent - verified all components in domain-events.ts
 2. Python Domain Events agent - verified all components in domain_events.py
 3. TypeScript Batchable agent - verified BatchAggregationScenario and FFI types
@@ -390,16 +397,19 @@ All agents reported comprehensive implementation matching the claimed status in 
 All capability traits are implemented in `tasker-worker/src/handler_capabilities.rs` (958 lines):
 
 **APICapable** (lines 125-218):
+
 - `api_success(step_uuid, data, status, headers, execution_time_ms)`
 - `api_failure(step_uuid, message, status, error_type, execution_time_ms)`
 - `classify_status_code(status)` → `ErrorClassification` enum
 
 **DecisionCapable** (lines 256-344):
+
 - `decision_success(step_uuid, step_names, routing_context, execution_time_ms)`
 - `skip_branches(step_uuid, reason, routing_context, execution_time_ms)`
 - `decision_failure(step_uuid, message, error_type, execution_time_ms)`
 
 **BatchableCapable** (lines 391-614):
+
 - `create_cursor_configs(total_items, worker_count)` → `Vec<CursorConfig>`
 - `create_cursor_ranges(total_items, batch_size, max_batches)` → `Vec<CursorConfig>`
 - `batch_analyzer_success(step_uuid, worker_template, configs, total_items, execution_time_ms)`
@@ -408,6 +418,7 @@ All capability traits are implemented in `tasker-worker/src/handler_capabilities
 - `batch_failure(step_uuid, message, error_type, retryable, execution_time_ms)`
 
 ### Deliverables
+
 - `tasker-worker/src/handler_capabilities.rs` (958 lines) :white_check_mark:
   - `APICapable`, `DecisionCapable`, `BatchableCapable` traits
   - `ErrorClassification` enum for HTTP status classification
@@ -435,6 +446,7 @@ Before proceeding to Phase 3, all of the following must be true:
 ### Technical Validation
 
 #### TypeScript Domain Events
+
 - [x] TypeScript domain events module created (`domain-events.ts`)
 - [x] TypeScript BasePublisher with lifecycle hooks (before/after/error)
 - [x] TypeScript BaseSubscriber with lifecycle hooks (before/after/error)
@@ -449,6 +461,7 @@ Before proceeding to Phase 3, all of the following must be true:
 - [x] TypeScript domain event integration tests - domain-events-flow.test.ts (36 tests)
 
 #### Python Enhancements
+
 - [x] Python BasePublisher lifecycle hooks (`before_publish`, `after_publish`, `on_publish_error`)
 - [x] Python BasePublisher `additional_metadata()` method
 - [x] Python BaseSubscriber lifecycle hooks (`before_handle`, `after_handle`, `on_handle_error`)
@@ -458,23 +471,27 @@ Before proceeding to Phase 3, all of the following must be true:
 - [x] Python `ExecutionResult` type added
 
 #### FFI Boundary Types
+
 - [x] Python BatchProcessingOutcome is explicit Pydantic model (`NoBatchesOutcome`, `CreateBatchesOutcome`)
 - [x] TypeScript BatchProcessingOutcome is explicit interface (discriminated union)
 - [x] Python/TypeScript CursorConfig supports flexible cursor types (`RustCursorConfig` with `Any`/`unknown`)
 
 #### Unit Tests (Complete)
+
 - [x] Python domain events unit tests (test_domain_events.py - 1147 lines)
 - [x] TypeScript domain events unit tests (domain-events.test.ts - 1005 lines)
 - [x] Python decision handler unit tests (test_decision_handler.py - 163 lines)
 - [x] TypeScript decision handler unit tests (decision.test.ts - 427 lines)
 
 #### Examples & Integration Tests
+
 - [x] Python/TypeScript domain event example workflows - TypeScript examples complete
 - [x] Python/TypeScript conditional workflow examples - 11 E2E tests passing
 - [x] All examples pass E2E tests - verified via `tests/e2e/{python,typescript}/`
 - [x] Rust handler traits complete with examples (Phase 2) - 755 lines in capability_examples.rs
 
 ### Quality Validation
+
 - [x] All new code has test coverage (351 Python tests, 578 TypeScript tests passing)
 - [x] No serialization mismatches at FFI boundaries (domain events use DTO serialization)
 - [ ] Documentation updated for new features
@@ -501,29 +518,35 @@ Before proceeding to Phase 3, all of the following must be true:
 **Status**: ✅ COMPLETE
 
 #### Current State (Inheritance)
+
 ```ruby
 # Ruby
 class MyHandler < TaskerCore::StepHandler::API
 ```
+
 ```python
 # Python
 class MyHandler(APIHandler):
 ```
+
 ```typescript
 // TypeScript
 class MyHandler extends APIHandler
 ```
 
 #### Target State (Composition)
+
 ```ruby
 # Ruby
 class MyHandler < TaskerCore::StepHandler::Base
   include TaskerCore::StepHandler::Mixins::API
 ```
+
 ```python
 # Python
 class MyHandler(StepHandler, APIMixin):
 ```
+
 ```typescript
 // TypeScript
 class MyHandler extends StepHandler implements APICapable {
@@ -532,6 +555,7 @@ class MyHandler extends StepHandler implements APICapable {
 ```
 
 #### Migration Approach
+
 1. **Create mixin modules** alongside existing subclasses (non-breaking)
 2. **Add deprecation warnings** to subclasses (non-breaking)
 3. **Migrate all examples** to mixin pattern
@@ -557,17 +581,20 @@ class MyHandler extends StepHandler implements APICapable {
 #### Deliverables
 
 **Ruby** (4 new files):
+
 - `workers/ruby/lib/tasker_core/step_handler/mixins.rb` (index file)
 - `workers/ruby/lib/tasker_core/step_handler/mixins/api.rb` (API mixin with Faraday HTTP client)
 - `workers/ruby/lib/tasker_core/step_handler/mixins/decision.rb` (Decision mixin)
 - `workers/ruby/lib/tasker_core/step_handler/mixins/batchable.rb` (Batchable mixin with 0-indexed cursors)
 
 **Python** (3 new files):
+
 - `workers/python/python/tasker_core/step_handler/mixins/__init__.py`
 - `workers/python/python/tasker_core/step_handler/mixins/api.py` (APIMixin with httpx)
 - `workers/python/python/tasker_core/step_handler/mixins/decision.py` (DecisionMixin)
 
 **TypeScript** (3 new files):
+
 - `workers/typescript/src/handler/mixins/index.ts`
 - `workers/typescript/src/handler/mixins/api.ts` (APIMixin, APICapable, applyAPI)
 - `workers/typescript/src/handler/mixins/decision.ts` (DecisionMixin, DecisionCapable, applyDecision)
@@ -605,6 +632,7 @@ The Ruby implementation was already aligned with Python and TypeScript patterns.
 **Status**: ✅ COMPLETE
 
 #### Current State (1-indexed)
+
 ```ruby
 # Ruby cursors start at 1
 configs = create_cursor_configs(1000, 5)
@@ -612,6 +640,7 @@ configs = create_cursor_configs(1000, 5)
 ```
 
 #### Target State (0-indexed)
+
 ```ruby
 # Ruby cursors start at 0 (matching Python/TypeScript/Rust)
 configs = create_cursor_configs(1000, 5)
@@ -633,6 +662,7 @@ configs = create_cursor_configs(1000, 5)
 The cursor indexing fix required changes in two places:
 
 1. **Batchable mixin** (`mixins/batchable.rb` line 211):
+
    ```ruby
    # TAS-112: 0-indexed cursors (BREAKING CHANGE from 1-indexed)
    start_position = i * items_per_worker
@@ -640,6 +670,7 @@ The cursor indexing fix required changes in two places:
    ```
 
 2. **CSV batch processor** (`csv_batch_processor_handler.rb` line 97):
+
    ```ruby
    # Process CSV rows in range (0-indexed to match cross-language standard)
    CSV.foreach(csv_file_path, headers: true).with_index do |row, data_row_num|
@@ -654,11 +685,13 @@ The E2E test `test_csv_batch_processing_with_ruby_handlers` validates that all 1
 ### 🎉 VALIDATION GATE 2 PASSED (2026-01-01)
 
 All Phase 3 breaking changes are complete:
+
 - **Step 3.1**: Composition pattern implemented across Ruby, Python, TypeScript
 - **Step 3.2**: Ruby result unification - already complete (no changes needed)
 - **Step 3.3**: Ruby cursor indexing fixed to 0-based
 
 ### Technical Validation
+
 - [x] All Ruby handlers use `include Mixins::X` pattern (or wrapper classes delegate to mixins)
 - [x] All Python handlers use multiple inheritance with mixins (or wrapper classes delegate to mixins)
 - [x] All TypeScript handlers use mixin pattern (or wrapper classes delegate to mixins)
@@ -669,6 +702,7 @@ All Phase 3 breaking changes are complete:
 - [x] All tests updated and passing (Ruby: 346, Python: 351, TypeScript: 559)
 
 ### Test Results (2026-01-01)
+
 | Language | Tests | Status |
 |----------|-------|--------|
 | Ruby | 346 | ✅ All passing |
@@ -677,6 +711,7 @@ All Phase 3 breaking changes are complete:
 | E2E (Ruby CSV) | 1 | ✅ Passing (1000/1000 rows) |
 
 ### Documentation Validation
+
 - [ ] Migration guide written for composition pattern
 - [x] Ruby result unification - not needed (already aligned)
 - [ ] Migration guide written for Ruby cursor indexing
@@ -737,6 +772,7 @@ Add trigger mappings for new patterns:
 ### Documentation Quality Standards
 
 All new/updated docs must include:
+
 - Cross-language examples where applicable
 - Complete code examples (no pseudo-code)
 - Explanation of "why" not just "how"
@@ -748,6 +784,7 @@ All new/updated docs must include:
 ## Validation Gate 3: Final Validation
 
 ### Technical Criteria ✅ COMPLETE
+
 - [x] All four languages have equivalent handler APIs
 - [x] FFI boundary types explicitly defined and documented
 - [x] All handlers use composition pattern (mixins/traits)
@@ -757,11 +794,13 @@ All new/updated docs must include:
 - [x] Rust has ergonomic handler traits
 
 ### Quality Criteria ✅ COMPLETE
+
 - [x] All examples passing E2E tests (12 E2E tests total)
 - [x] Zero serialization bugs at FFI boundaries
 - [x] "One obvious way" to implement each pattern
 
 ### Documentation Criteria ✅ COMPLETE (Phase 4)
+
 - [x] `docs/reference/ffi-boundary-types.md` created
 - [x] `docs/principles/composition-over-inheritance.md` updated with migration examples
 - [➡️] `docs/architecture/domain-events.md` clarifies publishing flow (optional enhancement)
@@ -856,6 +895,7 @@ All research documents are in `docs/ticket-specs/TAS-112/`:
 | [`domain-events-research-analysis.md`](./domain-events-research-analysis.md) | Deep-dive cross-language domain event analysis with type safety findings, FFI bridge comparison, and prioritized action items | 2025-12-30 |
 
 This document provides:
+
 - Cross-language implementation matrix (Ruby/TypeScript/Python/Rust)
 - Type safety analysis (manual JSON construction risks)
 - FFI bridge architecture comparison
@@ -882,6 +922,7 @@ This document provides:
 ### Navigation Guide
 
 See `docs/CLAUDE-GUIDE.md` for efficient documentation navigation, including:
+
 - Trigger → Document mapping
 - Investigation patterns
 - Anti-patterns (what not to search for)

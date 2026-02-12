@@ -20,7 +20,7 @@ Minor adjustments to Rust worker APIs for cross-language alignment. Rust is alre
 | Specialized Handlers | Examples only | Add patterns/docs | Low |
 | Domain Events | `StepEventPublisher` exists | Verify alignment | Low |
 
-## Key Discovery: error_code Already Exists!
+## Key Discovery: error_code Already Exists
 
 **The `error_code` field is already present in the Rust codebase:**
 
@@ -41,6 +41,7 @@ Since `StepExecutionResult` contains `metadata: StepExecutionMetadata`, the erro
 **File to modify:** `tasker-shared/src/messaging/execution_types.rs`
 
 **Add helper methods to `StepExecutionResult`:**
+
 ```rust
 impl StepExecutionResult {
     /// Set error_code via builder pattern for ergonomic failure construction
@@ -57,6 +58,7 @@ impl StepExecutionResult {
 ```
 
 **Usage example:**
+
 ```rust
 StepExecutionResult::failure(
     step_uuid,
@@ -74,6 +76,7 @@ StepExecutionResult::failure(
 **File to modify:** `workers/rust/src/step_handlers/registry.rs`
 
 **Add methods:**
+
 ```rust
 impl RustStepHandlerRegistry {
     /// Check if a handler is registered (cross-language standard)
@@ -128,12 +131,14 @@ pub mod error_types {
 **Files to review:** `workers/rust/src/step_handlers/batch_processing_*.rs`
 
 **Ensure field names match:**
+
 - `items_processed` (not `processed_count`)
 - `items_succeeded`
 - `items_failed`
 - `start_cursor`, `end_cursor`, `batch_size`, `last_cursor`
 
 **Example update:**
+
 ```rust
 // In batch handler result construction
 let result = HashMap::from([
@@ -149,6 +154,7 @@ let result = HashMap::from([
 **File to create:** `workers/rust/src/step_handlers/README.md`
 
 **Content structure:**
+
 ```markdown
 # Rust Step Handler Patterns
 
@@ -224,6 +230,7 @@ impl StepHandler for DecisionHandler {
 **File to review:** `tasker-worker/src/worker/step_event_publisher.rs`
 
 **Verify `StepEventContext` has all fields:**
+
 ```rust
 pub struct StepEventContext {
     pub task_uuid: String,
@@ -241,10 +248,12 @@ pub struct StepEventContext {
 ### Phase 7: Update Examples
 
 **Files to update:**
+
 - `workers/rust/src/step_handlers/batch_processing_*.rs`
 - Create new example files if needed
 
 **Ensure all examples:**
+
 - Use standard error_type values
 - Use standardized field names
 - Demonstrate `with_error_code()` helper
@@ -252,12 +261,14 @@ pub struct StepEventContext {
 ## Files Summary
 
 ### New Files
+
 | File | Purpose |
 |------|---------|
 | `tasker-shared/src/types/error_types.rs` | Error type constants |
 | `workers/rust/src/step_handlers/README.md` | Pattern documentation |
 
 ### Modified Files
+
 | File | Change Type |
 |------|-------------|
 | `tasker-shared/src/messaging/step_execution_result.rs` | Add helper method |
@@ -290,6 +301,7 @@ pub struct StepEventContext {
 ## Risk Assessment
 
 **Low Risk**: Rust implementation is already well-aligned. Changes are:
+
 - Adding convenience methods (non-breaking)
 - Adding constants/documentation
 - Verifying existing implementations

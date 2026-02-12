@@ -1,7 +1,6 @@
 # Configuration Reference: common
 
 
-
 > 65/65 parameters documented
 
 ---
@@ -971,7 +970,6 @@ Glob patterns for discovering task template YAML files
 - **Default:** `["config/tasks/**/*.{yml,yaml}"]`
 - **Valid Range:** valid glob patterns
 - **System Impact:** Templates matching these patterns are loaded at startup for task definition discovery
-
 
 
 ---

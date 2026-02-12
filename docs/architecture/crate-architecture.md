@@ -105,12 +105,14 @@ tasker-core/
 **Location**: `tasker-pgmq/`
 
 **Key Responsibilities**:
+
 - Wrap `pgmq` crate with notification capabilities
 - Provide atomic `pgmq_send_with_notify()` operations
 - Handle notification channel management
 - Support namespace-aware queue naming
 
 **Public API**:
+
 ```rust
 pub struct PgmqClient {
     // Send message with atomic notification
@@ -125,11 +127,13 @@ pub struct PgmqClient {
 ```
 
 **When to Use**:
+
 - When you need reliable message queuing with PostgreSQL
 - When you need atomic send + notify operations
 - When building event-driven systems on PostgreSQL
 
 **Dependencies**:
+
 - `pgmq` - Core PostgreSQL message queue functionality
 - `sqlx` - Database connectivity
 - `tokio` - Async runtime
@@ -143,6 +147,7 @@ pub struct PgmqClient {
 **Location**: `tasker-shared/`
 
 **Key Responsibilities**:
+
 - Core domain models (`Task`, `WorkflowStep`, `TaskTransition`, etc.)
 - State machine implementations (Task + Step)
 - SQL function executor and registry
@@ -153,6 +158,7 @@ pub struct PgmqClient {
 - Metrics and observability primitives
 
 **Public API**:
+
 ```rust
 // Core Models
 pub mod models {
@@ -202,6 +208,7 @@ pub mod messaging {
 ```
 
 **When to Use**:
+
 - **Always** - This is the foundation for all other crates
 - When you need core domain models
 - When you need state machine logic
@@ -209,12 +216,14 @@ pub mod messaging {
 - When you need testing factories
 
 **Dependencies**:
+
 - `tasker-pgmq` - Message queue operations
 - `sqlx` - Database operations
 - `serde` - Serialization
 - Many workspace-shared dependencies
 
 **Why It's Separate**:
+
 - Eliminates circular dependencies between orchestration and worker
 - Provides single source of truth for domain models
 - Enables independent testing of core logic
@@ -229,6 +238,7 @@ pub mod messaging {
 **Location**: `tasker-orchestration/`
 
 **Key Responsibilities**:
+
 - Actor-based lifecycle coordination
 - Task initialization and finalization
 - Step discovery and enqueueing
@@ -240,6 +250,7 @@ pub mod messaging {
 - Metrics collection
 
 **Public API**:
+
 ```rust
 // Core orchestration
 pub struct OrchestrationCore {
@@ -327,12 +338,14 @@ The orchestration crate implements a lightweight actor pattern for lifecycle com
 See [Actor-Based Architecture](actors.md) for comprehensive documentation.
 
 **When to Use**:
+
 - When you need to run the orchestration server
 - When you need task coordination logic
 - When building custom orchestration components
 - When integrating with the REST API
 
 **Dependencies**:
+
 - `tasker-shared` - Core types and SQL functions
 - `tasker-pgmq` - Message queuing
 - `axum` - REST API framework
@@ -359,6 +372,7 @@ GrpcState { services: Arc<SharedApiServices>, ... }  // gRPC
 ```
 
 **Port Allocation**:
+
 - REST: 8080 (configurable)
 - gRPC: 9190 (configurable)
 
@@ -371,6 +385,7 @@ GrpcState { services: Arc<SharedApiServices>, ... }  // gRPC
 **Location**: `tasker-worker/`
 
 **Key Responsibilities**:
+
 - Claim steps from namespace queues
 - Execute step handlers (Rust or FFI)
 - Submit results to orchestration
@@ -380,6 +395,7 @@ GrpcState { services: Arc<SharedApiServices>, ... }  // gRPC
 - FFI integration layer
 
 **Public API**:
+
 ```rust
 // Worker core
 pub struct WorkerCore {
@@ -409,12 +425,14 @@ pub mod event_systems {
 ```
 
 **When to Use**:
+
 - When you need to run a worker process
 - When implementing custom step handlers
 - When integrating with Ruby/Python handlers via FFI
 - When building worker-specific tools
 
 **Dependencies**:
+
 - `tasker-shared` - Core types and messaging
 - `tasker-pgmq` - Message queuing
 - `magnus` (optional) - Ruby FFI bindings
@@ -430,6 +448,7 @@ pub mod event_systems {
 **Location**: `tasker-client/`
 
 **Key Responsibilities**:
+
 - HTTP client for orchestration REST API
 - gRPC client for orchestration gRPC API (feature-gated)
 - Transport abstraction via unified client traits
@@ -437,6 +456,7 @@ pub mod event_systems {
 - Client-side request building
 
 **Public API**:
+
 ```rust
 // REST client
 pub struct RestOrchestrationClient {
@@ -469,6 +489,7 @@ pub trait OrchestrationClient: Send + Sync {
 ```
 
 **When to Use**:
+
 - When you need to interact with orchestration API from Rust
 - When building integration tests
 - When implementing client applications or FFI bindings
@@ -481,12 +502,14 @@ pub trait OrchestrationClient: Send + Sync {
 **Location**: `tasker-ctl/`
 
 **Key Responsibilities**:
+
 - CLI argument parsing and command dispatch (via clap)
 - Task, worker, system, config, auth, and DLQ commands
 - Configuration documentation generation (via askama, feature-gated)
 - API key generation and management
 
 **CLI Tools**:
+
 ```bash
 # Task management
 tasker-ctl task create --template linear_workflow
@@ -501,11 +524,13 @@ tasker-ctl docs generate
 ```
 
 **When to Use**:
+
 - When managing tasks from the command line
 - When generating configuration documentation
 - When performing administrative operations (auth, DLQ management)
 
 **Dependencies**:
+
 - `reqwest` - HTTP client
 - `clap` - CLI argument parsing
 - `serde_json` - JSON serialization
@@ -521,6 +546,7 @@ tasker-ctl docs generate
 **Location**: `workers/ruby/ext/tasker_core/`
 
 **Key Responsibilities**:
+
 - Expose Rust worker functionality to Ruby via Magnus (FFI)
 - Handle Ruby handler execution
 - Manage Ruby <-> Rust type conversions
@@ -528,6 +554,7 @@ tasker-ctl docs generate
 - FFI performance optimization
 
 **Ruby API**:
+
 ```ruby
 # Worker bootstrap
 result = TaskerCore::Worker::Bootstrap.start!
@@ -545,17 +572,20 @@ end
 ```
 
 **When to Use**:
+
 - When you have existing Ruby handlers
 - When you need Ruby-specific libraries or gems
 - When migrating from Ruby-based orchestration
 - When team expertise is primarily Ruby
 
 **Dependencies**:
+
 - `magnus` - Ruby FFI bindings
 - `tasker-worker` - Core worker logic
 - Ruby runtime
 
 **Performance Considerations**:
+
 - FFI overhead: ~5-10ms per step (measured)
 - Ruby GC can impact latency
 - Thread-safe FFI calls via Ruby global lock
@@ -570,12 +600,14 @@ end
 **Location**: `workers/rust/`
 
 **Key Responsibilities**:
+
 - Native Rust step handler execution
 - Template definitions in Rust
 - Direct integration with tasker-worker
 - Maximum performance for CPU-intensive operations
 
 **Handler API**:
+
 ```rust
 // Define handler in Rust
 pub struct MyHandler;
@@ -604,12 +636,14 @@ pub fn register_template() -> TaskTemplate {
 ```
 
 **When to Use**:
+
 - When you need maximum performance
 - For CPU-intensive operations
 - When building new workflows in Rust
 - When minimizing latency is critical
 
 **Dependencies**:
+
 - `tasker-worker` - Core worker logic
 - `tokio` - Async runtime
 
@@ -622,6 +656,7 @@ pub fn register_template() -> TaskTemplate {
 ### How Crates Work Together
 
 #### Task Creation Flow
+
 ```
 Client Application
   ↓ [HTTP POST]
@@ -638,6 +673,7 @@ Database + PGMQ
 ```
 
 #### Step Execution Flow
+
 ```
 tasker-orchestration::lifecycle::StepEnqueuer
   ↓ [pgmq_send_with_notify]
@@ -661,18 +697,21 @@ tasker-shared::models::WorkflowStepTransition
 ### Dependency Rationale
 
 **Why tasker-shared exists**:
+
 - Prevents circular dependencies (orchestration ↔ worker)
 - Single source of truth for domain models
 - Enables independent testing
 - Allows SQL function reuse
 
 **Why workers are separate from tasker-worker**:
+
 - Language-specific implementations
 - Independent deployment
 - FFI boundary separation
 - Multiple worker types supported
 
 **Why tasker-pgmq is separate**:
+
 - Reusable in other projects
 - Focused responsibility
 - Easy to test independently
@@ -683,6 +722,7 @@ tasker-shared::models::WorkflowStepTransition
 ## Building and Testing
 
 ### Build All Crates
+
 ```bash
 # Build everything with all features
 cargo build --all-features
@@ -695,6 +735,7 @@ cargo build
 ```
 
 ### Test All Crates
+
 ```bash
 # Test everything
 cargo test --all-features
@@ -755,6 +796,7 @@ When adding a new crate to the workspace:
 ### When to Create a New Crate
 
 Create a new crate when:
+
 - ✅ You have a distinct, reusable component
 - ✅ You need independent versioning
 - ✅ You want to reduce compile times
@@ -762,6 +804,7 @@ Create a new crate when:
 - ✅ You have language-specific implementations
 
 Don't create a new crate when:
+
 - ❌ It's tightly coupled to existing crates
 - ❌ It's only used in one place
 - ❌ It would create circular dependencies

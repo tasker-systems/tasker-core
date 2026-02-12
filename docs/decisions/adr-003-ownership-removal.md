@@ -11,6 +11,7 @@ When orchestrators crash with tasks in active processing states (`Initializing`,
 **Root Cause**: Three states required ownership enforcement (the original state machine pattern), but when orchestrator A crashed and orchestrator B tried to recover, the ownership check failed: `B != A`.
 
 **Production Impact**:
+
 - Stuck tasks requiring manual intervention
 - Orchestrator restarts caused task processing to halt
 - 15-second gap between crash and retry, but tasks permanently blocked
@@ -25,6 +26,7 @@ When orchestrators crash with tasks in active processing states (`Initializing`,
 4. **Add** configuration flag for gradual rollout
 
 **Key Insight**: The original problem (race conditions) had been solved by multiple other mechanisms:
+
 - Atomic finalization claiming via SQL functions
 - Command pattern with stateless async processors
 - Actor pattern with 4 production-ready actors
