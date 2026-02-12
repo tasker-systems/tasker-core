@@ -3,45 +3,46 @@
 [![CI](https://github.com/tasker-systems/tasker-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tasker-systems/tasker-core/actions/workflows/ci.yml)
 ![GitHub](https://img.shields.io/github/license/tasker-systems/tasker-core)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/tasker-systems/tasker-core?color=blue&sort=semver)
-![Tests](https://img.shields.io/badge/tests-4000%2B%20passing-brightgreen)
 
-High-performance Rust workflow orchestration with PostgreSQL-native messaging. Tasker Core provides DAG-based task execution, event-driven coordination, and comprehensive state management for complex workflows. Supports PGMQ (default, single-dependency) or RabbitMQ (high-throughput) backends.
+Workflow orchestration in Rust with PostgreSQL-native messaging. Tasker Core provides DAG-based task execution, event-driven coordination, and multi-language worker support for complex workflows.
 
-**Status**: Alpha Ready | **Version**: 0.1.0
+**Status**: Early Development — the core engine is functional, published, and under active development. APIs may evolve between minor versions.
 
 ---
 
-## Why Tasker Core?
+## What Is Tasker?
 
-- **DAG-Based Workflows** - Define complex workflows as directed acyclic graphs with dependencies
-- **Flexible Messaging** - PGMQ (PostgreSQL-native, zero extra dependencies) or RabbitMQ (high-throughput)
-- **Event-Driven** - Real-time step discovery with push notifications and polling fallback
-- **Multi-Language Workers** - Rust native, Ruby via FFI, Python via PyO3, TypeScript FFI
-- **Production-Ready (Alpha)** - Circuit breakers, health monitoring, zero race conditions, 50+ metrics
+Tasker is an orchestration framework for workflows that need more than a job queue but less than a full BPM platform. You define tasks as directed acyclic graphs of steps, and Tasker handles dependency resolution, state management, retry logic, and worker coordination.
 
-### Ideal For
+- **DAG-Based Workflows** — Define steps with dependencies; Tasker resolves execution order and parallelism automatically
+- **PostgreSQL as Source of Truth** — All state lives in PostgreSQL. Messaging via PGMQ (zero extra dependencies) or RabbitMQ (high-throughput)
+- **Event-Driven Coordination** — Real-time step discovery with LISTEN/NOTIFY push and polling fallback, and RabbitMQ for high-throughput messaging
+- **Multi-Language Workers** — Write step handlers in Rust, Ruby, Python, or TypeScript. All languages share the same orchestration engine
+- **Operational Tooling** — CLI (`tasker-ctl`) for task management, health monitoring, DLQ investigation, configuration validation, and project scaffolding
+
+### Good Fit
 
 - Order fulfillment workflows with inventory, payment, and shipping coordination
-- Payment processing pipelines with retry logic and idempotency
-- ETL pipelines with complex dependencies and parallel execution
-- Microservices orchestration across distributed systems
+- Data processing pipelines with complex step dependencies and parallel execution
+- Payment processing with retry logic and idempotency guarantees
+- Microservices orchestration where steps span multiple services
 
-### Not Ideal For
+### Not The Right Tool
 
-- Simple cron jobs (use native cron)
-- Single-step operations (overhead not justified)
-- Sub-millisecond requirements (~10-20ms architectural overhead)
+- Simple cron jobs — use native cron or a job scheduler
+- Single-step operations — the orchestration overhead isn't justified
+- Sub-millisecond latency requirements — Tasker adds ~10-20ms architectural overhead per step
 
 ---
 
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
 - **Rust** 1.75+ | **PostgreSQL** 17+ (uuidv7 support) | **Docker** (recommended)
 - Optional: RabbitMQ (for high-throughput messaging)
 
-### Get Running
+### Quick Start
 
 ```bash
 # Start PostgreSQL (includes PGMQ extension)
@@ -72,7 +73,7 @@ curl http://localhost:8080/health
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Client Applications                     │
-│                   (REST API / CLI / SDK)                    │
+│               (REST API / gRPC / tasker-ctl)                │
 └──────────────────────────┬──────────────────────────────────┘
                            │
                            ▼
@@ -88,7 +89,7 @@ curl http://localhost:8080/health
 └──────────────────────┘          └──────────────────────────┘
 ```
 
-**Key Patterns**: Dual state machines (12 task + 9 step states), event-driven with polling fallback, autonomous workers, PostgreSQL as source of truth. Messaging via PGMQ (default) or RabbitMQ.
+**Key Patterns**: Dual state machines (12 task + 9 step states), event-driven with polling fallback, autonomous workers, PostgreSQL as source of truth.
 
 **Deep Dive**: [Architecture Documentation](docs/architecture/)
 
@@ -98,35 +99,16 @@ curl http://localhost:8080/health
 
 | Crate | Purpose |
 |-------|---------|
-| `tasker-pgmq` | PGMQ wrapper with atomic notify (PostgreSQL backend) |
+| `tasker-pgmq` | PGMQ wrapper with atomic notify (PostgreSQL messaging backend) |
 | `tasker-shared` | Core types, state machines, messaging abstraction |
-| `tasker-orchestration` | Task coordination, REST API |
+| `tasker-orchestration` | Task coordination, REST/gRPC API |
 | `tasker-worker` | Step execution, FFI layer |
-| `tasker-client` | REST client library |
-| `tasker-ctl` | CLI binary |
-| `workers/rust` | Native Rust workers |
-| `workers/ruby` | Ruby FFI bindings |
-| `workers/python` | Python FFI bindings |
-| `workers/typescript` | TypeScript FFI bindings |
-
----
-
-## Performance
-
-Benchmarked in 10-instance cluster (2 orchestration, 2 each worker type). Each step involves ~19 DB operations, 2 message queue round-trips, and full state machine lifecycle.
-
-| Metric | Target | Actual |
-|--------|--------|--------|
-| Task initialization API (p99) | < 100ms | 17.7ms |
-| SQL orchestration functions | < 3ms | 1.75-2.93ms |
-| 4-step linear workflow (P50) | < 500ms | 257ms |
-| 7-step complex DAG (P50) | < 800ms | 382ms |
-| FFI workers (Ruby/Python/TS) | < 800ms | 315ms (+23% vs Rust) |
-| 1000-row batch processing (P50) | < 1000ms | 363ms (2,700 rows/sec) |
-
-Horizontal scaling for orchestration and workers. SQL performance at sub-3ms with 5K+ tasks. All FFI languages within 3ms of each other (framework-dominated overhead).
-
-**Full Benchmarks**: [docs/benchmarks/README.md](docs/benchmarks/README.md)
+| `tasker-client` | REST/gRPC client library |
+| `tasker-ctl` | CLI binary — operations, config management, plugin system |
+| `workers/rust` | Native Rust worker implementation |
+| `workers/ruby` | Ruby FFI bindings (`tasker-rb` gem) |
+| `workers/python` | Python FFI bindings (`tasker-py` package) |
+| `workers/typescript` | TypeScript FFI bindings (`@tasker-systems/tasker`) |
 
 ---
 
@@ -137,22 +119,24 @@ All documentation is organized in the **[Documentation Hub](docs/README.md)**:
 | Section | Description |
 |---------|-------------|
 | **[Quick Start](docs/guides/quick-start.md)** | Get running in 5 minutes |
-| **[Architecture](docs/architecture/)** | System design, state machines, event systems |
+| **[Architecture](docs/architecture/)** | System design, state machines, event systems, CLI architecture |
 | **[Guides](docs/guides/)** | Workflows, batch processing, configuration |
 | **[Workers](docs/workers/)** | Ruby, Python, TypeScript, Rust handler development |
 | **[Operations](docs/operations/)** | Deployment, monitoring, tuning |
 | **[Principles](docs/principles/)** | Design philosophy and tenets |
 | **[Decisions](docs/decisions/)** | Architecture Decision Records (ADRs) |
 
-**AI Assistant Context**: [CLAUDE.md](CLAUDE.md) | **Development Guide**: [docs/development/](docs/development/)
+**Development Guide**: [docs/development/](docs/development/) | **AI Assistant Context**: [CLAUDE.md](CLAUDE.md)
 
 ---
 
 ## Development
 
 ```bash
-# Build and test (always use --all-features)
+# Build (always use --all-features)
 cargo build --all-features
+
+# Test (requires PostgreSQL running)
 cargo test --all-features
 
 # Lint
@@ -162,25 +146,38 @@ cargo fmt && cargo clippy --all-targets --all-features
 cargo run --bin tasker-server
 ```
 
-See **[CLAUDE.md](CLAUDE.md)** for complete development context.
+The project uses **cargo-make** as its task runner. See [CLAUDE.md](CLAUDE.md) for complete development context including test levels, database operations, and container setup.
+
+---
+
+## Published Packages
+
+Tasker is published across multiple registries:
+
+| Package | Registry | Language |
+|---------|----------|----------|
+| `tasker-shared`, `tasker-pgmq`, `tasker-client`, `tasker-ctl`, `tasker-orchestration`, `tasker-worker` | [crates.io](https://crates.io/crates/tasker-shared) | Rust |
+| `tasker-rb` | [RubyGems](https://rubygems.org/gems/tasker-rb) | Ruby |
+| `tasker-py` | [PyPI](https://pypi.org/project/tasker-py/) | Python |
+| `@tasker-systems/tasker` | [npm](https://www.npmjs.com/package/@tasker-systems/tasker) | TypeScript |
 
 ---
 
 ## Contributing
 
-1. Review [CLAUDE.md](CLAUDE.md) for project context
+1. Review [CLAUDE.md](CLAUDE.md) for project context and conventions
 2. Run tests: `cargo test --all-features`
-3. Format and lint before PR
-4. See [Documentation Hub](docs/README.md) for documentation structure
+3. Format and lint before PR: `cargo fmt && cargo clippy --all-targets --all-features`
+4. See the [Documentation Hub](docs/README.md) for documentation structure
 
 ---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-**Production-ready workflow orchestration at scale.**
+**Workflow orchestration for teams that need reliability without ceremony.**
 
-[Quick Start](docs/guides/quick-start.md) | [Documentation](docs/README.md) | [Examples](docs/guides/use-cases-and-patterns.md)
+[Quick Start](docs/guides/quick-start.md) | [Documentation](docs/README.md) | [Architecture](docs/architecture/)

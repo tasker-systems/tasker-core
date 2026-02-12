@@ -53,13 +53,13 @@ module DataPipeline
         # Transform: Calculate tier summaries and value segmentation
         tier_analysis = raw_records.group_by { |r| r[:tier] || r['tier'] }
                                    .transform_values do |tier_records|
-          {
-            customer_count: tier_records.count,
-            total_lifetime_value: tier_records.sum { |r| r[:lifetime_value] || r['lifetime_value'] || 0 },
-            avg_lifetime_value: tier_records.sum do |r|
-              r[:lifetime_value] || r['lifetime_value'] || 0
-            end / tier_records.count.to_f
-          }
+                                     {
+                                       customer_count: tier_records.count,
+                                       total_lifetime_value: tier_records.sum { |r| r[:lifetime_value] || r['lifetime_value'] || 0 },
+                                       avg_lifetime_value: tier_records.sum do |r|
+                                         r[:lifetime_value] || r['lifetime_value'] || 0
+                                       end / tier_records.count.to_f
+                                     }
         end
 
         # Segment customers by value

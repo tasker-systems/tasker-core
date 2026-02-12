@@ -5,6 +5,7 @@ use tasker_client::{
     WorkerApiConfig,
 };
 
+use crate::output;
 use crate::SystemCommands;
 
 pub(crate) async fn handle_system_command(
@@ -17,7 +18,7 @@ pub(crate) async fn handle_system_command(
             workers,
         } => {
             if orchestration || !workers {
-                println!("Checking orchestration health...");
+                output::dim("Checking orchestration health...");
 
                 let orchestration_config = OrchestrationApiConfig {
                     base_url: config.orchestration.base_url.clone(),
@@ -31,33 +32,39 @@ pub(crate) async fn handle_system_command(
                 // Check basic health
                 match orch_client.get_basic_health().await {
                     Ok(health) => {
-                        println!("  ✓ Orchestration service is healthy: {}", health.status);
+                        output::status_icon(
+                            true,
+                            format!("Orchestration service is healthy: {}", health.status),
+                        );
                     }
                     Err(e) => {
-                        println!("  ✗ Orchestration service health check failed: {}", e);
+                        output::status_icon(
+                            false,
+                            format!("Orchestration service health check failed: {}", e),
+                        );
                     }
                 }
 
                 // Get detailed health if available
                 match orch_client.get_detailed_health().await {
                     Ok(detailed) => {
-                        println!("  ✓ Detailed orchestration health:");
-                        println!(
+                        output::status_icon(true, "Detailed orchestration health:");
+                        output::plain(format!(
                             "    Status: {} | Environment: {} | Version: {}",
                             detailed.status, detailed.info.environment, detailed.info.version
-                        );
-                        println!(
+                        ));
+                        output::plain(format!(
                             "    Operational state: {} | Circuit breaker: {}",
                             detailed.info.operational_state, detailed.info.circuit_breaker_state
-                        );
-                        println!(
+                        ));
+                        output::plain(format!(
                             "    DB pools - Web: {}, Orchestration: {}",
                             detailed.info.web_database_pool_size,
                             detailed.info.orchestration_database_pool_size
-                        );
+                        ));
 
                         // Print all health checks from typed struct
-                        println!("    Health checks:");
+                        output::plain("    Health checks:");
                         let checks = [
                             ("web_database", &detailed.checks.web_database),
                             (
@@ -75,31 +82,28 @@ pub(crate) async fn handle_system_command(
                             ("channel_saturation", &detailed.checks.channel_saturation),
                         ];
                         for (check_name, check_result) in checks {
-                            let status_icon = if check_result.status == "healthy" {
-                                "✓"
-                            } else {
-                                "✗"
-                            };
-                            println!(
-                                "      {} {}: {} ({}ms)",
-                                status_icon,
-                                check_name,
-                                check_result.status,
-                                check_result.duration_ms
+                            let is_healthy = check_result.status == "healthy";
+                            output::status_icon(
+                                is_healthy,
+                                format!(
+                                    "    {}: {} ({}ms)",
+                                    check_name, check_result.status, check_result.duration_ms
+                                ),
                             );
                             if let Some(message) = &check_result.message {
-                                println!("        {}", message);
+                                output::dim(format!("        {}", message));
                             }
                         }
                     }
                     Err(e) => {
-                        println!("  Could not get detailed health info: {}", e);
+                        output::dim(format!("  Could not get detailed health info: {}", e));
                     }
                 }
             }
 
             if workers || !orchestration {
-                println!("\nChecking worker health...");
+                output::blank();
+                output::dim("Checking worker health...");
 
                 let worker_config = WorkerApiConfig {
                     base_url: config.worker.base_url.clone(),
@@ -113,35 +117,41 @@ pub(crate) async fn handle_system_command(
                 // Check basic worker service health
                 match worker_client.health_check().await {
                     Ok(health) => {
-                        println!("  ✓ Worker service is healthy: {}", health.status);
-                        println!("    Worker ID: {}", health.worker_id);
+                        output::status_icon(
+                            true,
+                            format!("Worker service is healthy: {}", health.status),
+                        );
+                        output::label("    Worker ID", &health.worker_id);
                     }
                     Err(e) => {
-                        println!("  ✗ Worker service health check failed: {}", e);
+                        output::status_icon(
+                            false,
+                            format!("Worker service health check failed: {}", e),
+                        );
                     }
                 }
 
                 // Get detailed worker health
                 match worker_client.get_detailed_health().await {
                     Ok(health) => {
-                        println!("  ✓ Worker detailed health:");
-                        println!(
+                        output::status_icon(true, "Worker detailed health:");
+                        output::plain(format!(
                             "    Status: {} | Version: {} | Uptime: {}s",
                             health.status,
                             health.system_info.version,
                             health.system_info.uptime_seconds
-                        );
-                        println!(
+                        ));
+                        output::plain(format!(
                             "    Worker type: {} | Environment: {}",
                             health.system_info.worker_type, health.system_info.environment
-                        );
-                        println!(
+                        ));
+                        output::plain(format!(
                             "    Namespaces: {}",
                             health.system_info.supported_namespaces.join(", ")
-                        );
+                        ));
 
                         // TAS-76: Typed worker health checks
-                        println!("    Health checks:");
+                        output::plain("    Health checks:");
                         let checks = [
                             ("database", &health.checks.database),
                             ("command_processor", &health.checks.command_processor),
@@ -151,48 +161,51 @@ pub(crate) async fn handle_system_command(
                             ("circuit_breakers", &health.checks.circuit_breakers),
                         ];
                         for (check_name, check_result) in checks {
-                            let status_icon = if check_result.status == "healthy" {
-                                "✓"
-                            } else {
-                                "✗"
-                            };
-                            println!(
-                                "      {} {}: {} ({}ms)",
-                                status_icon,
-                                check_name,
-                                check_result.status,
-                                check_result.duration_ms
+                            let is_healthy = check_result.status == "healthy";
+                            output::status_icon(
+                                is_healthy,
+                                format!(
+                                    "    {}: {} ({}ms)",
+                                    check_name, check_result.status, check_result.duration_ms
+                                ),
                             );
                         }
                     }
                     Err(e) => {
-                        println!("  ✗ Could not get detailed worker health: {}", e);
+                        output::status_icon(
+                            false,
+                            format!("Could not get detailed worker health: {}", e),
+                        );
                     }
                 }
             }
 
             if !orchestration && !workers {
-                println!(
-                    "\nOverall system health: Both orchestration and worker services checked above"
+                output::blank();
+                output::plain(
+                    "Overall system health: Both orchestration and worker services checked above",
                 );
             }
         }
         SystemCommands::Info => {
-            println!("Tasker System Information");
-            println!("================================");
-            println!("CLI Version: {}", env!("CARGO_PKG_VERSION"));
-            println!("Build Target: {}", std::env::consts::ARCH);
-            println!();
+            output::header("Tasker System Information");
+            output::plain("================================");
+            output::label("CLI Version", env!("CARGO_PKG_VERSION"));
+            output::label("Build Target", std::env::consts::ARCH);
+            output::blank();
 
-            println!("Configuration:");
-            println!("  Orchestration API: {}", config.orchestration.base_url);
-            println!("  Worker API: {}", config.worker.base_url);
-            println!("  Request timeout: {}ms", config.orchestration.timeout_ms);
-            println!("  Max retries: {}", config.orchestration.max_retries);
-            println!();
+            output::header("Configuration:");
+            output::label("  Orchestration API", &config.orchestration.base_url);
+            output::label("  Worker API", &config.worker.base_url);
+            output::label(
+                "  Request timeout",
+                format!("{}ms", config.orchestration.timeout_ms),
+            );
+            output::label("  Max retries", config.orchestration.max_retries);
+            output::blank();
 
             // Try to get version info from services
-            println!("🔗 Service Information:");
+            output::header("Service Information:");
 
             // Orchestration service info
             let orchestration_config = OrchestrationApiConfig {
@@ -205,23 +218,29 @@ pub(crate) async fn handle_system_command(
             if let Ok(orch_client) = OrchestrationApiClient::new(orchestration_config) {
                 match orch_client.get_detailed_health().await {
                     Ok(health) => {
-                        println!(
-                            "  Orchestration: {} v{} ({})",
-                            health.status, health.info.version, health.info.environment
+                        output::label(
+                            "  Orchestration",
+                            format!(
+                                "{} v{} ({})",
+                                health.status, health.info.version, health.info.environment
+                            ),
                         );
-                        println!("    Operational state: {}", health.info.operational_state);
-                        println!(
-                            "    Database pools: Web={}, Orch={}",
-                            health.info.web_database_pool_size,
-                            health.info.orchestration_database_pool_size
+                        output::label("    Operational state", &health.info.operational_state);
+                        output::label(
+                            "    Database pools",
+                            format!(
+                                "Web={}, Orch={}",
+                                health.info.web_database_pool_size,
+                                health.info.orchestration_database_pool_size
+                            ),
                         );
                     }
                     Err(_) => {
-                        println!("  Orchestration: Unable to retrieve service info");
+                        output::dim("  Orchestration: Unable to retrieve service info");
                     }
                 }
             } else {
-                println!("  Orchestration: Configuration error");
+                output::dim("  Orchestration: Configuration error");
             }
 
             // Worker service info
@@ -235,27 +254,33 @@ pub(crate) async fn handle_system_command(
             if let Ok(worker_client) = WorkerApiClient::new(worker_config) {
                 match worker_client.get_detailed_health().await {
                     Ok(health) => {
-                        println!(
-                            "  Worker: {} v{} ({})",
-                            health.status,
-                            health.system_info.version,
-                            health.system_info.environment
+                        output::label(
+                            "  Worker",
+                            format!(
+                                "{} v{} ({})",
+                                health.status,
+                                health.system_info.version,
+                                health.system_info.environment
+                            ),
                         );
-                        println!(
-                            "    Worker type: {} | Uptime: {}s",
-                            health.system_info.worker_type, health.system_info.uptime_seconds
+                        output::label(
+                            "    Worker type",
+                            format!(
+                                "{} | Uptime: {}s",
+                                health.system_info.worker_type, health.system_info.uptime_seconds
+                            ),
                         );
-                        println!(
-                            "    Supported namespaces: {}",
-                            health.system_info.supported_namespaces.join(", ")
+                        output::label(
+                            "    Supported namespaces",
+                            health.system_info.supported_namespaces.join(", "),
                         );
                     }
                     Err(_) => {
-                        println!("  Worker: Unable to retrieve worker info");
+                        output::dim("  Worker: Unable to retrieve worker info");
                     }
                 }
             } else {
-                println!("  Worker: Configuration error");
+                output::dim("  Worker: Configuration error");
             }
         }
     }

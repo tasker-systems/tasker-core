@@ -51,6 +51,15 @@ tracing-subscriber = { workspace = true }
 # Template rendering (optional, for docs generation)
 askama = { workspace = true, optional = true }
 
+# Styled terminal output (auto-detects TTY, degrades gracefully when piped)
+anstream = { workspace = true }
+anstyle = { workspace = true }
+
+# Plugin template engine (TAS-126: runtime templates for contrib plugins)
+tera = { workspace = true }
+heck = { workspace = true }
+thiserror = { workspace = true }
+
 [features]
 default = ["docs-gen"]
 docs-gen = ["askama"]

@@ -5,6 +5,7 @@ use regex::Regex;
 use tasker_client::{ClientConfig, ClientResult};
 use tasker_shared::config::{tasker::TaskerConfig, ConfigMerger};
 
+use crate::output;
 use crate::ConfigCommands;
 
 /// Extract line and column from TOML error message
@@ -31,11 +32,11 @@ pub(crate) async fn handle_config_command(
             output,
             validate,
         } => {
-            println!("Generating configuration:");
-            println!("  Context: {}", context);
-            println!("  Environment: {}", environment);
-            println!("  Source: {}", source_dir);
-            println!("  Output: {}", output);
+            output::header("Generating configuration:");
+            output::label("  Context", &context);
+            output::label("  Environment", &environment);
+            output::label("  Source", &source_dir);
+            output::label("  Output", &output);
 
             // Create ConfigMerger
             let mut merger = ConfigMerger::new(std::path::PathBuf::from(&source_dir), &environment)
@@ -47,7 +48,8 @@ pub(crate) async fn handle_config_command(
                 })?;
 
             // Merge configuration
-            println!("\nMerging configuration...");
+            output::blank();
+            output::dim("Merging configuration...");
             let merged_config = merger.merge_context(&context).map_err(|e| {
                 tasker_client::ClientError::ConfigError(format!(
                     "Failed to merge configuration: {}",
@@ -78,7 +80,7 @@ pub(crate) async fn handle_config_command(
 
             // Write header + merged config to output file
             let full_config = format!("{}{}", header, merged_config);
-            println!("Writing to: {}", output);
+            output::dim(format!("Writing to: {}", output));
             std::fs::write(&output, &full_config).map_err(|e| {
                 tasker_client::ClientError::ConfigError(format!(
                     "Failed to write output file: {}",
@@ -86,13 +88,14 @@ pub(crate) async fn handle_config_command(
                 ))
             })?;
 
-            println!("✓ Successfully generated configuration!");
-            println!("  Output file: {}", output);
-            println!("  Size: {} bytes", full_config.len());
+            output::success("Successfully generated configuration!");
+            output::label("  Output file", &output);
+            output::label("  Size", format!("{} bytes", full_config.len()));
 
             // Optionally validate if requested
             if validate {
-                println!("\nValidating generated configuration...");
+                output::blank();
+                output::dim("Validating generated configuration...");
 
                 // Re-read the file we just wrote
                 let written_content = std::fs::read_to_string(&output).map_err(|e| {
@@ -168,7 +171,7 @@ pub(crate) async fn handle_config_command(
                     }
                 }
 
-                println!("✓ Validation passed!");
+                output::success("Validation passed!");
             }
         }
         ConfigCommands::Validate {
@@ -177,10 +180,10 @@ pub(crate) async fn handle_config_command(
             strict,
             explain_errors,
         } => {
-            println!("Validating configuration:");
-            println!("  File: {}", config_path);
-            println!("  Context: {}", context);
-            println!("  Strict mode: {}", strict);
+            output::header("Validating configuration:");
+            output::label("  File", &config_path);
+            output::label("  Context", &context);
+            output::label("  Strict mode", strict);
 
             // Load the configuration file
             let config_content = std::fs::read_to_string(&config_path).map_err(|e| {
@@ -193,7 +196,7 @@ pub(crate) async fn handle_config_command(
             // Parse as TOML
             let toml_value: toml::Value = toml::from_str(&config_content).map_err(|e| {
                 if explain_errors {
-                    eprintln!("\n❌ TOML parsing error:");
+                    output::error("TOML parsing error:");
                     eprintln!("  {}", e);
                     if let Some((line, col)) = extract_error_position(&e.to_string()) {
                         eprintln!("  Location: line {}, column {}", line, col);
@@ -203,11 +206,12 @@ pub(crate) async fn handle_config_command(
             })?;
 
             // TAS-61 Phase 6D: V2 config validation
-            println!("\nValidating {} configuration...", context);
+            output::blank();
+            output::dim(format!("Validating {} configuration...", context));
 
             let config: TaskerConfig = toml_value.clone().try_into().map_err(|e| {
                 if explain_errors {
-                    eprintln!("\n❌ Configuration structure error:");
+                    output::error("Configuration structure error:");
                     eprintln!("  {}", e);
                     eprintln!("\nExpected TaskerConfig structure:");
                     eprintln!("  [common] - Always required");
@@ -224,7 +228,7 @@ pub(crate) async fn handle_config_command(
             use validator::Validate;
             config.validate().map_err(|errors| {
                 if explain_errors {
-                    eprintln!("\n❌ Validation errors:");
+                    output::error("Validation errors:");
                     eprintln!("  {}", errors);
                 }
                 tasker_client::ClientError::ConfigError(format!(
@@ -238,7 +242,7 @@ pub(crate) async fn handle_config_command(
                 "common" => {
                     if config.orchestration.is_some() || config.worker.is_some() {
                         if explain_errors {
-                            eprintln!("\n❌ Context validation error:");
+                            output::error("Context validation error:");
                             eprintln!("  Common context should not contain orchestration or worker sections");
                         }
                         return Err(tasker_client::ClientError::ConfigError(
@@ -246,36 +250,36 @@ pub(crate) async fn handle_config_command(
                                 .to_string(),
                         ));
                     }
-                    println!("✓ CommonConfig validation passed");
+                    output::success("CommonConfig validation passed");
                 }
                 "orchestration" => {
                     if config.orchestration.is_none() {
                         if explain_errors {
-                            eprintln!("\n❌ Context validation error:");
+                            output::error("Context validation error:");
                             eprintln!("  Orchestration context missing [orchestration] section");
                         }
                         return Err(tasker_client::ClientError::ConfigError(
                             "Orchestration context missing [orchestration] section".to_string(),
                         ));
                     }
-                    println!("✓ OrchestrationConfig validation passed");
+                    output::success("OrchestrationConfig validation passed");
                 }
                 "worker" => {
                     if config.worker.is_none() {
                         if explain_errors {
-                            eprintln!("\n❌ Context validation error:");
+                            output::error("Context validation error:");
                             eprintln!("  Worker context missing [worker] section");
                         }
                         return Err(tasker_client::ClientError::ConfigError(
                             "Worker context missing [worker] section".to_string(),
                         ));
                     }
-                    println!("✓ WorkerConfig validation passed");
+                    output::success("WorkerConfig validation passed");
                 }
                 "complete" => {
                     if !config.is_complete() {
                         if explain_errors {
-                            eprintln!("\n❌ Context validation error:");
+                            output::error("Context validation error:");
                             eprintln!(
                                 "  Complete context missing orchestration or worker sections"
                             );
@@ -284,8 +288,8 @@ pub(crate) async fn handle_config_command(
                             "Complete context missing orchestration or worker sections".to_string(),
                         ));
                     }
-                    println!("✓ TaskerConfig (complete) validation passed");
-                    println!("  Note: Complete context contains all sections");
+                    output::success("TaskerConfig (complete) validation passed");
+                    output::dim("  Note: Complete context contains all sections");
                 }
                 _ => {
                     return Err(tasker_client::ClientError::InvalidInput(format!(
@@ -295,10 +299,11 @@ pub(crate) async fn handle_config_command(
                 }
             }
 
-            println!("\n✓ Configuration is valid!");
+            output::blank();
+            output::success("Configuration is valid!");
 
             if strict {
-                println!("  (strict mode: no warnings detected)");
+                output::dim("  (strict mode: no warnings detected)");
             }
         }
         ConfigCommands::ValidateSources {
@@ -307,16 +312,16 @@ pub(crate) async fn handle_config_command(
             source_dir,
             explain_errors,
         } => {
-            println!("Validating source configuration:");
-            println!("  Context: {}", context);
-            println!("  Environment: {}", environment);
-            println!("  Source directory: {}", source_dir);
+            output::header("Validating source configuration:");
+            output::label("  Context", &context);
+            output::label("  Environment", &environment);
+            output::label("  Source directory", &source_dir);
 
             // Create ConfigMerger
             let mut merger = ConfigMerger::new(std::path::PathBuf::from(&source_dir), &environment)
                 .map_err(|e| {
                     if explain_errors {
-                        eprintln!("\n❌ Failed to initialize config merger:");
+                        output::error("Failed to initialize config merger:");
                         eprintln!("  {}", e);
                         eprintln!("\nPossible causes:");
                         eprintln!("  - Source directory doesn't exist");
@@ -330,10 +335,11 @@ pub(crate) async fn handle_config_command(
                 })?;
 
             // Attempt to merge configuration (validates source files, env var substitution)
-            println!("\nValidating source files and merging...");
+            output::blank();
+            output::dim("Validating source files and merging...");
             merger.merge_context(&context).map_err(|e| {
                 if explain_errors {
-                    eprintln!("\n❌ Source configuration validation failed:");
+                    output::error("Source configuration validation failed:");
                     eprintln!("  {}", e);
                     eprintln!("\nPossible causes:");
                     eprintln!("  - Missing required TOML files (base/{}.toml)", context);
@@ -344,14 +350,17 @@ pub(crate) async fn handle_config_command(
                 tasker_client::ClientError::ConfigError(format!("Source validation failed: {}", e))
             })?;
 
-            println!("✓ Source configuration is valid!");
-            println!("  Base files: config/tasker/base/{}.toml", context);
+            output::success("Source configuration is valid!");
+            output::label(
+                "  Base files",
+                format!("config/tasker/base/{}.toml", context),
+            );
             if context == "orchestration" || context == "worker" {
-                println!("  Also includes: config/tasker/base/common.toml");
+                output::dim("  Also includes: config/tasker/base/common.toml");
             }
-            println!(
-                "  Environment overrides: config/tasker/environments/{}/",
-                environment
+            output::label(
+                "  Environment overrides",
+                format!("config/tasker/environments/{}/", environment),
             );
         }
         ConfigCommands::Explain {
@@ -384,12 +393,12 @@ pub(crate) async fn handle_config_command(
                         print!("{}", rendered);
                     }
                     None => {
-                        eprintln!("Parameter not found: {}", param_path);
-                        eprintln!();
-                        eprintln!("Hint: Use dotted path with or without context prefix, e.g.:");
-                        eprintln!("  common.database.pool.max_connections");
-                        eprintln!("  database.pool.max_connections");
-                        eprintln!("  orchestration.dlq.enabled");
+                        output::error(format!("Parameter not found: {}", param_path));
+                        output::blank();
+                        output::hint("Use dotted path with or without context prefix, e.g.:");
+                        output::plain("  common.database.pool.max_connections");
+                        output::plain("  database.pool.max_connections");
+                        output::plain("  orchestration.dlq.enabled");
                         return Err(tasker_client::ClientError::InvalidInput(format!(
                             "Parameter '{}' not found",
                             param_path
@@ -410,23 +419,24 @@ pub(crate) async fn handle_config_command(
                 let total: usize = sections.iter().map(|s| s.total_parameters()).sum();
                 let documented: usize = sections.iter().map(|s| s.documented_parameters()).sum();
 
-                println!(
-                    "Configuration Parameters for {} ({}/{} documented)\n",
+                output::header(format!(
+                    "Configuration Parameters for {} ({}/{} documented)",
                     ctx_name, documented, total
-                );
+                ));
+                output::blank();
 
                 for section in &sections {
                     print_section_listing(section, 0);
                 }
 
-                println!();
-                println!(
-                    "Use `tasker-ctl docs explain -p <path>` for detailed parameter information."
+                output::blank();
+                output::hint(
+                    "Use `tasker-ctl docs explain -p <path>` for detailed parameter information.",
                 );
-                println!(
+                output::hint(format!(
                     "Use `tasker-ctl docs reference --context {}` for full documentation.",
                     ctx_name
-                );
+                ));
             }
             // List all parameters — show coverage summary
             else {
@@ -437,12 +447,14 @@ pub(crate) async fn handle_config_command(
                     0
                 };
 
-                println!("Configuration Documentation Overview");
-                println!("====================================\n");
-                println!(
-                    "  Total: {}/{} parameters documented ({}%)\n",
+                output::header("Configuration Documentation Overview");
+                output::plain("====================================");
+                output::blank();
+                output::plain(format!(
+                    "  Total: {}/{} parameters documented ({}%)",
                     documented, total, percent
-                );
+                ));
+                output::blank();
 
                 for (ctx, ctx_total, ctx_documented) in &per_context {
                     let ctx_percent = if *ctx_total > 0 {
@@ -450,28 +462,28 @@ pub(crate) async fn handle_config_command(
                     } else {
                         0
                     };
-                    println!(
+                    output::plain(format!(
                         "  {:15} {}/{} ({}%)",
                         format!("{}:", ctx),
                         ctx_documented,
                         ctx_total,
                         ctx_percent
-                    );
+                    ));
                 }
 
-                println!();
-                println!("Commands:");
-                println!(
-                    "  tasker-ctl config explain --parameter <path>   Explain a specific parameter"
+                output::blank();
+                output::header("Commands:");
+                output::plain(
+                    "  tasker-ctl config explain --parameter <path>   Explain a specific parameter",
                 );
-                println!(
-                    "  tasker-ctl config explain --context <name>     List parameters in a context"
+                output::plain(
+                    "  tasker-ctl config explain --context <name>     List parameters in a context",
                 );
-                println!(
-                    "  tasker-ctl docs reference                      Full documentation reference"
+                output::plain(
+                    "  tasker-ctl docs reference                      Full documentation reference",
                 );
-                println!(
-                    "  tasker-ctl docs coverage                       Detailed coverage statistics"
+                output::plain(
+                    "  tasker-ctl docs coverage                       Detailed coverage statistics",
                 );
             }
         }
@@ -480,19 +492,20 @@ pub(crate) async fn handle_config_command(
             context,
             format,
             show_unused,
-            output,
+            output: output_file,
             show_locations,
         } => {
             use std::collections::HashMap;
             use std::process::Command;
 
-            println!("Analyzing configuration usage patterns...");
-            println!("  Source directory: {}", source_dir);
-            println!("  Context filter: {}", context);
-            println!("  Report format: {}", format);
+            output::dim("Analyzing configuration usage patterns...");
+            output::label("  Source directory", &source_dir);
+            output::label("  Context filter", &context);
+            output::label("  Report format", &format);
 
             // Step 1: Find all *Config struct definitions
-            println!("\n[1/4] Finding Config struct definitions...");
+            output::blank();
+            output::dim("[1/4] Finding Config struct definitions...");
             let struct_output = Command::new("rg")
                 .args([
                     "pub struct \\w*Config",
@@ -537,10 +550,10 @@ pub(crate) async fn handle_config_command(
                 }
             }
 
-            println!("   Found {} Config structs", config_structs.len());
+            output::dim(format!("   Found {} Config structs", config_structs.len()));
 
             // Step 2: Find all config field accesses (config.*)
-            println!("[2/4] Finding config field accesses in code...");
+            output::dim("[2/4] Finding config field accesses in code...");
             let usage_output = Command::new("rg")
                 .args([r"config\.\w+", "--type", "rust", "-o", "-n", "--no-heading"])
                 .current_dir(&source_dir)
@@ -574,13 +587,13 @@ pub(crate) async fn handle_config_command(
                 }
             }
 
-            println!(
+            output::dim(format!(
                 "   Found {} unique config field accesses",
                 field_usage.len()
-            );
+            ));
 
             // Step 3: Find struct type references (direct usage like TaskerConfig, etc.)
-            println!("[3/4] Finding struct instantiations and type references...");
+            output::dim("[3/4] Finding struct instantiations and type references...");
             let mut struct_usage: HashMap<String, Vec<(String, usize)>> = HashMap::new();
 
             for struct_name in config_structs.keys() {
@@ -621,13 +634,13 @@ pub(crate) async fn handle_config_command(
                 }
             }
 
-            println!(
+            output::dim(format!(
                 "   Found {} structs with usage references",
                 struct_usage.len()
-            );
+            ));
 
             // Step 4: Analyze and categorize
-            println!("[4/4] Analyzing usage patterns...");
+            output::dim("[4/4] Analyzing usage patterns...");
 
             let mut used_structs: Vec<String> = Vec::new();
             let mut unused_structs: Vec<String> = Vec::new();
@@ -750,17 +763,15 @@ pub(crate) async fn handle_config_command(
                     // Default text format
                     let mut text = String::new();
                     text.push_str(
-                        "\n╔═══════════════════════════════════════════════════════════════╗\n",
+                        "\n================================================================\n",
                     );
+                    text.push_str("        Configuration Usage Analysis Report\n");
                     text.push_str(
-                        "║        Configuration Usage Analysis Report                   ║\n",
-                    );
-                    text.push_str(
-                        "╚═══════════════════════════════════════════════════════════════╝\n\n",
+                        "================================================================\n\n",
                     );
 
                     text.push_str("SUMMARY\n");
-                    text.push_str("═══════\n");
+                    text.push_str("=======\n");
                     text.push_str(&format!("Total Config Structs: {}\n", total_structs));
                     text.push_str(&format!(
                         "  Used:   {} ({:.1}%)\n",
@@ -774,7 +785,7 @@ pub(crate) async fn handle_config_command(
 
                     if !show_unused || unused_structs.is_empty() {
                         text.push_str("TOP FIELD USAGE\n");
-                        text.push_str("═══════════════\n");
+                        text.push_str("===============\n");
                         for (i, (field, count)) in field_usage_vec.iter().take(20).enumerate() {
                             text.push_str(&format!(
                                 "{:2}. config.{:<30} {:>5} accesses\n",
@@ -788,28 +799,26 @@ pub(crate) async fn handle_config_command(
 
                     if !unused_structs.is_empty() {
                         text.push_str("UNUSED CONFIG STRUCTS\n");
-                        text.push_str("═══════════════════════\n");
+                        text.push_str("=====================\n");
                         text.push_str("These structs are defined but have no runtime usage:\n\n");
                         for struct_name in &unused_structs {
                             let (file, line) = config_structs.get(struct_name).unwrap();
-                            text.push_str(&format!("  ✗ {:<40} {}:{}\n", struct_name, file, line));
+                            text.push_str(&format!("  x {:<40} {}:{}\n", struct_name, file, line));
                         }
                         text.push('\n');
-                        text.push_str("💡 Consider removing or documenting why these exist.\n\n");
+                        text.push_str("Consider removing or documenting why these exist.\n\n");
                     } else {
-                        text.push_str(
-                            "✓ All config structs have at least one usage reference!\n\n",
-                        );
+                        text.push_str("All config structs have at least one usage reference!\n\n");
                     }
 
                     if show_locations && !field_usage.is_empty() {
                         text.push_str("FIELD USAGE LOCATIONS (Top 10 Most Used)\n");
-                        text.push_str("═════════════════════════════════════════\n");
+                        text.push_str("========================================\n");
                         for (field, count) in field_usage_vec.iter().take(10) {
                             text.push_str(&format!("\nconfig.{} ({} accesses):\n", field, count));
                             if let Some(locations) = field_usage.get(field) {
                                 for (file, line) in locations.iter().take(5) {
-                                    text.push_str(&format!("  • {}:{}\n", file, line));
+                                    text.push_str(&format!("  - {}:{}\n", file, line));
                                 }
                                 if locations.len() > 5 {
                                     text.push_str(&format!(
@@ -827,16 +836,18 @@ pub(crate) async fn handle_config_command(
             };
 
             // Output report
-            if let Some(output_file) = output {
-                std::fs::write(&output_file, &report).map_err(|e| {
+            if let Some(report_file) = output_file {
+                std::fs::write(&report_file, &report).map_err(|e| {
                     tasker_client::ClientError::ConfigError(format!(
                         "Failed to write report to file: {}",
                         e
                     ))
                 })?;
-                println!("\n✓ Report written to: {}", output_file);
+                output::blank();
+                output::success(format!("Report written to: {}", report_file));
             } else {
-                println!("\n{}", report);
+                output::blank();
+                output::plain(&report);
             }
         }
         ConfigCommands::Dump {
@@ -905,8 +916,8 @@ pub(crate) async fn handle_config_command(
                 })?
             };
 
-            // Convert to the requested format
-            let output = match format.as_str() {
+            // Convert to the requested format (raw output for piping)
+            let dump_output = match format.as_str() {
                 "json" => serde_json::to_string_pretty(&tasker_config).map_err(|e| {
                     tasker_client::ClientError::ConfigError(format!(
                         "Failed to serialize TaskerConfig to JSON: {}",
@@ -934,78 +945,82 @@ pub(crate) async fn handle_config_command(
             };
 
             // Print raw output to stdout (no preamble for easy piping)
-            println!("{}", output);
+            println!("{}", dump_output);
         }
         ConfigCommands::Show => {
-            println!("Current CLI Configuration:");
-            println!("══════════════════════════\n");
+            output::header("Current CLI Configuration:");
+            output::plain("==========================");
+            output::blank();
 
             // Show transport
-            println!("Transport: {:?}", _config.transport);
-            println!();
+            output::label("Transport", format!("{:?}", _config.transport));
+            output::blank();
 
             // Show endpoints
-            println!("Orchestration Endpoint:");
-            println!("  URL: {}", _config.orchestration.base_url);
-            println!("  Timeout: {}ms", _config.orchestration.timeout_ms);
-            println!("  Max Retries: {}", _config.orchestration.max_retries);
+            output::header("Orchestration Endpoint:");
+            output::label("  URL", &_config.orchestration.base_url);
+            output::label(
+                "  Timeout",
+                format!("{}ms", _config.orchestration.timeout_ms),
+            );
+            output::label("  Max Retries", _config.orchestration.max_retries);
             if let Some(ref auth) = _config.orchestration.auth {
-                println!("  Auth: {:?}", auth.method);
+                output::label("  Auth", format!("{:?}", auth.method));
             }
-            println!();
+            output::blank();
 
-            println!("Worker Endpoint:");
-            println!("  URL: {}", _config.worker.base_url);
-            println!("  Timeout: {}ms", _config.worker.timeout_ms);
-            println!("  Max Retries: {}", _config.worker.max_retries);
+            output::header("Worker Endpoint:");
+            output::label("  URL", &_config.worker.base_url);
+            output::label("  Timeout", format!("{}ms", _config.worker.timeout_ms));
+            output::label("  Max Retries", _config.worker.max_retries);
             if let Some(ref auth) = _config.worker.auth {
-                println!("  Auth: {:?}", auth.method);
+                output::label("  Auth", format!("{:?}", auth.method));
             }
-            println!();
+            output::blank();
 
             // Show available profiles
-            println!("Available Profiles:");
+            output::header("Available Profiles:");
             match tasker_client::ClientConfig::list_profiles() {
                 Ok(profiles) => {
                     if profiles.is_empty() {
-                        println!("  (no profiles found)");
+                        output::dim("  (no profiles found)");
                     } else {
                         for profile in profiles {
-                            println!("  - {}", profile);
+                            output::plain(format!("  - {}", profile));
                         }
                     }
                 }
                 Err(e) => {
-                    println!("  (error loading profiles: {})", e);
+                    output::dim(format!("  (error loading profiles: {})", e));
                 }
             }
-            println!();
+            output::blank();
 
             // Show profile config file location
             if let Some(path) = tasker_client::ClientConfig::find_profile_config_file() {
-                println!("Profile Config File: {}", path.display());
+                output::label("Profile Config File", path.display());
             } else {
-                println!("Profile Config File: (not found)");
-                println!("  Expected locations:");
-                println!("    - .config/tasker-client.toml (project)");
-                println!("    - ~/.config/tasker-client.toml (user)");
+                output::dim("Profile Config File: (not found)");
+                output::hint("  Expected locations:");
+                output::plain("    - .config/tasker-client.toml (project)");
+                output::plain("    - ~/.config/tasker-client.toml (user)");
             }
-            println!();
+            output::blank();
 
             // Show environment variables that can override
-            println!("Environment Variable Overrides:");
-            println!("  TASKER_CLIENT_PROFILE - Select profile");
-            println!("  TASKER_TRANSPORT - Override transport (rest/grpc)");
-            println!("  TASKER_ORCHESTRATION_URL - Override orchestration URL");
-            println!("  TASKER_WORKER_URL - Override worker URL");
-            println!("  TASKER_ORCHESTRATION_GRPC_URL - Override orchestration gRPC URL");
-            println!("  TASKER_WORKER_GRPC_URL - Override worker gRPC URL");
-            println!();
+            output::header("Environment Variable Overrides:");
+            output::plain("  TASKER_CLIENT_PROFILE - Select profile");
+            output::plain("  TASKER_TRANSPORT - Override transport (rest/grpc)");
+            output::plain("  TASKER_ORCHESTRATION_URL - Override orchestration URL");
+            output::plain("  TASKER_WORKER_URL - Override worker URL");
+            output::plain("  TASKER_ORCHESTRATION_GRPC_URL - Override orchestration gRPC URL");
+            output::plain("  TASKER_WORKER_GRPC_URL - Override worker gRPC URL");
+            output::blank();
 
             // Show full TOML representation
-            println!("Full Configuration (TOML):");
-            println!("──────────────────────────");
-            println!("{}", toml::to_string_pretty(_config).unwrap());
+            output::header("Full Configuration (TOML):");
+            output::dim("──────────────────────────");
+            output::plain(toml::to_string_pretty(_config).unwrap());
         }
     }
     Ok(())
@@ -1021,20 +1036,23 @@ fn print_section_listing(
     let documented = section.documented_parameters();
 
     if documented > 0 {
-        println!(
-            "{}  {} ({}) — {} params ({} documented)",
+        output::plain(format!(
+            "{}  {} ({}) - {} params ({} documented)",
             indent, section.name, section.path, total, documented
-        );
+        ));
     } else {
-        println!(
-            "{}  {} ({}) — {} params",
+        output::dim(format!(
+            "{}  {} ({}) - {} params",
             indent, section.name, section.path, total
-        );
+        ));
     }
 
     for param in &section.parameters {
         if param.is_documented {
-            println!("{}    • {} — {}", indent, param.name, param.description);
+            output::plain(format!(
+                "{}    - {} - {}",
+                indent, param.name, param.description
+            ));
         }
     }
 

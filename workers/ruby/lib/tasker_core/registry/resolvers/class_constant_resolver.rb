@@ -125,7 +125,7 @@ module TaskerCore
         # @return [Boolean] true if responds to method
         def responds_to_method?(klass, method_name)
           # Check instance methods (most common case)
-          klass.instance_methods.include?(method_name) ||
+          klass.method_defined?(method_name) ||
             # Check if the class itself responds (for class methods)
             klass.respond_to?(method_name)
         end

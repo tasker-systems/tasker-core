@@ -39,6 +39,9 @@ members = [
 
 [workspace.dependencies]
 anyhow = "1.0"
+# ANSI styling for CLI output (already in tree via clap, zero-cost to add directly)
+anstream = "0.6"
+anstyle = "1.0"
 # TAS-225: Pin minimum version to fix RUSTSEC-2026-0007 (integer overflow in BytesMut::reserve)
 bytes = "1.11.1"
 # Compile-time template engine (TAS-175: config documentation generation)
@@ -71,6 +74,8 @@ dotenvy = "0.15"  # For loading .env files
 # Random number generation
 fastrand = "2.0"
 futures = "0.3"
+# Case conversion utilities for template filters (TAS-126)
+heck = "0.5"
 # TTY detection for ANSI colors
 is-terminal = "0.4"
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
@@ -131,6 +136,8 @@ sqlx = { version = "0.8", features = [
 # System information
 sysinfo = "0.37"
 tempfile = "3.24"
+# Runtime template engine for CLI plugins (TAS-126)
+tera = "1.20"
 # Error handling
 thiserror = "2.0"
 # Async runtime and utilities
