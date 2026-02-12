@@ -154,7 +154,7 @@ tracing-opentelemetry = "0.32"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 # TypeScript binding generation from Rust types
 ts-rs = { version = "11.1", features = ["chrono-impl", "serde-json-impl"] }
-url = "2.0"
+url = "2.5"
 # OpenAPI documentation
 utoipa = { version = "5.4", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
