@@ -144,6 +144,7 @@ BatchProcessingOutcome = NoBatchesOutcome | CreateBatchesOutcome
 ### JSON Wire Formats
 
 **NoBatches**:
+
 ```json
 {
   "type": "no_batches"
@@ -151,6 +152,7 @@ BatchProcessingOutcome = NoBatchesOutcome | CreateBatchesOutcome
 ```
 
 **CreateBatches**:
+
 ```json
 {
   "type": "create_batches",
@@ -270,6 +272,7 @@ All three languages produce identical aggregation results:
 ### Usage Examples
 
 **TypeScript**:
+
 ```typescript
 import { aggregateBatchResults } from 'tasker-core';
 
@@ -280,6 +283,7 @@ return this.success(summary);
 ```
 
 **Python**:
+
 ```python
 from tasker_core.types import aggregate_batch_results
 
@@ -296,6 +300,7 @@ return self.success(summary.model_dump())
 ### Creating BatchProcessingOutcome
 
 **TypeScript**:
+
 ```typescript
 import { noBatches, createBatches, RustCursorConfig } from 'tasker-core';
 
@@ -311,6 +316,7 @@ const outcome2 = createBatches('process_batch', 2, configs, 2000);
 ```
 
 **Python**:
+
 ```python
 from tasker_core.types import no_batches, create_batches, RustCursorConfig
 

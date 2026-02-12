@@ -27,20 +27,24 @@ Both state machines work in coordination to provide atomic, auditable, and resil
 The task state machine implements 12 comprehensive states as defined in `tasker-shared/src/state_machine/states.rs`:
 
 #### Initial States
+
 - **`Pending`**: Created but not started (default initial state)
 - **`Initializing`**: Discovering initial ready steps and setting up task context
 
 #### Active Processing States  
+
 - **`EnqueuingSteps`**: Actively enqueuing ready steps to worker queues
 - **`StepsInProcess`**: Steps are being processed by workers (orchestration monitoring)
 - **`EvaluatingResults`**: Processing results from completed steps and determining next actions
 
 #### Waiting States
+
 - **`WaitingForDependencies`**: No ready steps, waiting for dependencies to be satisfied
 - **`WaitingForRetry`**: Waiting for retry timeout before attempting failed steps again
 - **`BlockedByFailures`**: Has failures that prevent progress (manual intervention may be needed)
 
 #### Terminal States
+
 - **`Complete`**: All steps completed successfully (terminal)
 - **`Error`**: Task failed permanently (terminal)
 - **`Cancelled`**: Task was cancelled (terminal)
@@ -124,18 +128,21 @@ stateDiagram-v2
 Task state transitions are driven by events defined in `tasker-shared/src/state_machine/events.rs`:
 
 #### Lifecycle Events
+
 - `Start`: Begin task processing
 - `Cancel`: Cancel task execution
 - `GiveUp`: Abandon task (BlockedByFailures -> Error)
 - `ManualResolution`: Manually resolve task
 
 #### Discovery Events  
+
 - `ReadyStepsFound(count)`: Ready steps discovered during initialization/evaluation
 - `NoStepsFound`: No steps defined - task can complete immediately
 - `NoDependenciesReady`: Dependencies not satisfied - wait required
 - `DependenciesReady`: Dependencies now ready - can proceed
 
 #### Processing Events
+
 - `StepsEnqueued(vec<Uuid>)`: Steps successfully queued for workers  
 - `EnqueueFailed(error)`: Failed to enqueue steps
 - `StepCompleted(uuid)`: Individual step completed
@@ -144,6 +151,7 @@ Task state transitions are driven by events defined in `tasker-shared/src/state_
 - `AllStepsSuccessful`: All steps completed successfully
 
 #### System Events
+
 - `PermanentFailure(error)`: Unrecoverable failure
 - `RetryReady`: Retry timeout expired
 - `Timeout`: Operation timeout occurred
@@ -162,6 +170,7 @@ if target_state.requires_ownership() {
 ```
 
 **Ownership Rules**:
+
 - States requiring ownership: `Initializing`, `EnqueuingSteps`, `StepsInProcess`, `EvaluatingResults`
 - Processor UUID stored in `tasker.task_transitions.processor_uuid` column
 - Atomic ownership claiming prevents concurrent processing
@@ -174,6 +183,7 @@ if target_state.requires_ownership() {
 The workflow step state machine implements 9 states for individual step execution:
 
 #### Processing Pipeline States
+
 - **`Pending`**: Initial state when step is created
 - **`Enqueued`**: Queued for processing but not yet claimed by worker
 - **`InProgress`**: Currently being executed by a worker
@@ -181,9 +191,11 @@ The workflow step state machine implements 9 states for individual step executio
 - **`EnqueuedAsErrorForOrchestration`**: Worker failed, queued for orchestration error processing
 
 #### Waiting States
+
 - **`WaitingForRetry`**: Step failed with retryable error, waiting for backoff period before retry
 
 #### Terminal States
+
 - **`Complete`**: Step completed successfully (after orchestration processing)
 - **`Error`**: Step failed permanently (non-retryable or max retries exceeded)
 - **`Cancelled`**: Step was cancelled
@@ -197,6 +209,7 @@ Previously, the `Error` state was used for both retryable and permanent failures
 - **After**: `Error` = permanent failure only, `WaitingForRetry` = retryable failure awaiting backoff
 
 This change required updates to:
+
 1. `get_step_readiness_status()` to recognize `WaitingForRetry` as a ready-eligible state
 2. `get_task_execution_context()` to properly detect blocked vs recovering tasks
 3. Error classification logic to distinguish permanent from retryable errors
@@ -275,6 +288,7 @@ stateDiagram-v2
 Step transitions are driven by `StepEvent` types:
 
 #### Processing Events
+
 - `Enqueue`: Queue step for worker processing
 - `Start`: Begin step execution (worker claims step)
 - `EnqueueForOrchestration(results)`: Worker completes, queues for orchestration
@@ -283,6 +297,7 @@ Step transitions are driven by `StepEvent` types:
 - `WaitForRetry(error)`: Mark step for retry after backoff
 
 #### Control Events
+
 - `Cancel`: Cancel step execution
 - `ResolveManually`: Manual operator resolution
 - `Retry`: Retry step from WaitingForRetry or Error state
@@ -306,12 +321,14 @@ Both state machines implement comprehensive guard conditions in `tasker-shared/s
 ### Task Guards
 
 #### TransitionGuard
+
 - Validates all task state transitions
 - Prevents invalid state combinations
 - Enforces terminal state immutability
 - Supports legacy transition compatibility
 
 #### Ownership Validation
+
 - Checks processor ownership for ownership-required states
 - Prevents concurrent task processing
 - Allows ownership claiming for unowned tasks
@@ -319,21 +336,25 @@ Both state machines implement comprehensive guard conditions in `tasker-shared/s
 ### Step Guards
 
 #### StepDependenciesMetGuard
+
 - Validates all step dependencies are satisfied
 - Delegates to `WorkflowStep::dependencies_met()`
 - Prevents premature step execution
 
 #### StepNotInProgressGuard  
+
 - Ensures step is not already being processed
 - Prevents duplicate worker claims
 - Validates step availability
 
 #### Retry Guards
+
 - `StepCanBeRetriedGuard`: Validates step is in Error state
 - Checks retry limits and conditions
 - Prevents infinite retry loops
 
 #### Orchestration Guards
+
 - `StepCanBeEnqueuedForOrchestrationGuard`: Step must be InProgress
 - `StepCanBeCompletedFromOrchestrationGuard`: Step must be EnqueuedForOrchestration
 - `StepCanBeFailedFromOrchestrationGuard`: Step must be EnqueuedForOrchestration
@@ -350,6 +371,7 @@ The persistence layer in `tasker-shared/src/state_machine/persistence.rs` implem
 ```
 
 **Benefits**:
+
 - No SQL duplication between state machine and models
 - Atomic transaction handling in models
 - Single source of truth for database operations
@@ -358,6 +380,7 @@ The persistence layer in `tasker-shared/src/state_machine/persistence.rs` implem
 ### Transition Storage
 
 #### Task Transitions (`tasker.task_transitions`)
+
 ```sql
 CREATE TABLE tasker.task_transitions (
   task_transition_uuid UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
@@ -374,6 +397,7 @@ CREATE TABLE tasker.task_transitions (
 ```
 
 #### Step Transitions (`tasker.workflow_step_transitions`)
+
 ```sql
 CREATE TABLE tasker.workflow_step_transitions (
   workflow_step_transition_uuid UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
@@ -399,6 +423,7 @@ WorkflowStepTransition::get_current(pool, step_uuid) -> Option<WorkflowStepTrans
 ```
 
 **Performance Optimization**:
+
 - `most_recent = true` flag on latest transition only
 - Indexed queries: `(task_uuid, most_recent) WHERE most_recent = true`
 - Atomic flag updates during transition creation
@@ -422,6 +447,7 @@ impl TaskTransitionPersistence {
 ```
 
 **Atomicity Guarantees**:
+
 - Single database transaction for state change
 - Processor UUID stored in dedicated column
 - `most_recent` flag updated atomically
@@ -432,11 +458,13 @@ impl TaskTransitionPersistence {
 Both state machines execute actions after successful transitions:
 
 ### Task Actions
+
 1. **PublishTransitionEventAction**: Publishes task state change events
 2. **UpdateTaskCompletionAction**: Updates task completion status
 3. **ErrorStateCleanupAction**: Performs error state cleanup
 
 ### Step Actions  
+
 1. **PublishTransitionEventAction**: Publishes step state change events
 2. **UpdateStepResultsAction**: Updates step results and execution data
 3. **TriggerStepDiscoveryAction**: Triggers task-level step discovery
@@ -464,7 +492,7 @@ Actions execute sequentially after transition persistence, ensuring consistency.
 ### Worker Integration
 
 - **Step Claiming**: Workers claim `Enqueued` steps from queues
-- **Progress Updates**: Workers transition steps to `InProgress` 
+- **Progress Updates**: Workers transition steps to `InProgress`
 - **Result Submission**: Workers submit results via `EnqueueForOrchestration`
 - **Orchestration Processing**: Orchestration processes results and completes steps
 
@@ -535,6 +563,7 @@ state_machine.transition_with_context(event, Some(context)).await?;
 ### Trigger Behavior
 
 The `create_step_result_audit` trigger fires on transitions to:
+
 - `enqueued_for_orchestration`: Successful step completion
 - `enqueued_as_error_for_orchestration`: Failed step completion
 

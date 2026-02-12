@@ -1,7 +1,6 @@
 # Configuration Reference: orchestration
 
 
-
 > 91/91 parameters documented
 
 ---
@@ -1133,7 +1132,6 @@ Target number of connections in the web API database pool
 - **Default:** `20`
 - **Valid Range:** 1-200
 - **System Impact:** Determines how many concurrent database queries the REST API can execute
-
 
 
 ---

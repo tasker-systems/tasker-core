@@ -47,12 +47,14 @@ All three have identical patterns: `Arc<std::sync::Mutex<Stats>>` with u64 field
 **Metrics struct**: `tasker-shared/src/resilience/metrics.rs`
 
 This is more complex due to:
+
 - `total_duration: Duration` → store as `total_duration_nanos: AtomicU64`
 - `consecutive_failures` needs atomic reset on success (Relaxed store is fine)
 - Threshold checks (`consecutive_failures >= failure_threshold`) use `load()` then conditional transition
 - `half_open_calls` counter with threshold check for recovery
 
 **Approach**:
+
 - Create `AtomicCircuitBreakerMetrics` with 6 AtomicU64 fields: `total_calls`, `success_count`, `failure_count`, `consecutive_failures`, `half_open_calls`, `total_duration_nanos`
 - `record_success(duration)`: fetch_add counters + store(0) on consecutive_failures + add duration nanos
 - `record_failure(duration)`: fetch_add counters + fetch_add consecutive_failures + add duration nanos
@@ -60,12 +62,14 @@ This is more complex due to:
 - `snapshot() -> CircuitBreakerMetrics`: load all atomics, compute rates and average_duration, read state from existing AtomicU8
 
 **State transition handling**: The current code does `if metrics.consecutive_failures >= threshold { transition_to_open() }`. With atomics, this becomes:
+
 ```rust
 let failures = self.metrics.consecutive_failures.fetch_add(1, Ordering::Relaxed) + 1;
 if failures >= self.config.failure_threshold as u64 {
     self.transition_to_open().await;
 }
 ```
+
 This is safe because state transitions are idempotent (store to AtomicU8) and duplicate transitions are harmless.
 
 **opened_at handling**: Convert `Arc<Mutex<Option<Instant>>>` to `AtomicI64` storing nanos-since-epoch (using `Instant::now().elapsed()` relative to a base instant, or simply use `AtomicU64` with 0 = not set). Simpler: use `AtomicU64` storing `SystemTime` epoch nanos, with 0 meaning "not opened".

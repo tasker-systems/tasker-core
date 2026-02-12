@@ -6,15 +6,15 @@ Use this skill when working with version management, release tooling, understand
 
 ## Current State
 
-- All Rust crates at **v0.1.0** (pre-alpha)
+- All Rust crates at **v0.1.0** (early release)
 - `VERSION` file at repo root is the source of truth for core version
-- Weekly release cadence during alpha
+- Regular release cadence during 0.1.x series
 
 ## Versioning Strategy
 
 ### Core Rust Crates (0.1.N)
 
-All six publishable Rust crates version together during alpha:
+All six publishable Rust crates version together during the 0.1.x series:
 
 | Phase | Crates | Reason |
 |-------|--------|--------|

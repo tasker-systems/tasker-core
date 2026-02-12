@@ -150,6 +150,7 @@ members = [
 ### No Cargo.toml in workers/typescript
 
 The TypeScript worker **does not have a Cargo.toml** because it's not a Rust project. It only needs:
+
 - `package.json` (npm/bun/pnpm)
 - `deno.json` (Deno)
 - `tsconfig.json` (TypeScript compiler)
@@ -744,6 +745,7 @@ npm publish @tasker-systems/worker
 ```
 
 Users install:
+
 ```bash
 npm install @tasker-systems/worker
 

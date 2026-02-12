@@ -7,12 +7,14 @@
 ## Code Style
 
 ### Formatting
+
 - Use RuboCop (enforced via `cargo make check-ruby`)
 - 2-space indentation
 - Maximum line length: 120 characters
 - Use double quotes for strings with interpolation, single quotes otherwise
 
 ### Naming Conventions
+
 ```ruby
 # Classes/Modules: PascalCase
 class StepHandler
@@ -43,6 +45,7 @@ end
 ```
 
 ### Module Organization
+
 ```ruby
 # lib/tasker_core/step_handler/base.rb
 module TaskerCore
@@ -87,6 +90,7 @@ end
 ## Handler Patterns
 
 ### Base Handler Structure
+
 ```ruby
 module TaskerCore
   module StepHandler
@@ -124,6 +128,7 @@ end
 ```
 
 ### Result Factory Methods
+
 ```ruby
 # Success result
 success(result: { id: 123 }, metadata: { duration_ms: 50 })
@@ -155,6 +160,7 @@ skip_branches(
 ## Mixin Pattern (TAS-112)
 
 ### Using Mixins
+
 ```ruby
 class OrderHandler < TaskerCore::StepHandler::Base
   # Composition over inheritance
@@ -176,6 +182,7 @@ end
 ```
 
 ### Available Mixins
+
 | Mixin | Purpose | Methods Provided |
 |-------|---------|------------------|
 | `Mixins::API` | HTTP requests | `get`, `post`, `put`, `delete` |
@@ -187,6 +194,7 @@ end
 ## Error Handling
 
 ### Use Specific Exception Classes
+
 ```ruby
 module TaskerCore
   module Errors
@@ -204,6 +212,7 @@ end
 ```
 
 ### Rescue Specific Exceptions
+
 ```ruby
 # BAD: Catching all exceptions
 def call(context)
@@ -229,6 +238,7 @@ end
 ## Documentation
 
 ### YARD Documentation
+
 ```ruby
 # Handler class documentation
 #
@@ -267,6 +277,7 @@ end
 ## Testing
 
 ### RSpec Patterns
+
 ```ruby
 # spec/step_handlers/order_handler_spec.rb
 RSpec.describe TaskerCore::StepHandler::OrderHandler do
@@ -309,6 +320,7 @@ end
 ```
 
 ### Test Helpers
+
 ```ruby
 # spec/support/step_context_helper.rb
 module StepContextHelper
@@ -333,6 +345,7 @@ end
 ## FFI Considerations
 
 ### Working with Rust Extensions
+
 ```ruby
 # The native extension is loaded automatically
 require 'tasker_core/native'
@@ -347,6 +360,7 @@ context.input_data  # Already converted from Rust
 ```
 
 ### Memory Safety
+
 ```ruby
 # Don't hold references to FFI objects longer than needed
 def process(context)
@@ -365,6 +379,7 @@ end
 ## Project-Specific Patterns
 
 ### Registry Usage
+
 ```ruby
 # Register handlers
 TaskerCore::Registry.instance.register('order_handler', OrderHandler)
@@ -377,6 +392,7 @@ handler = TaskerCore::Registry.instance.resolve('order_handler')
 ```
 
 ### Domain Events
+
 ```ruby
 class OrderCompletedPublisher < TaskerCore::DomainEvents::BasePublisher
   def subscribes_to

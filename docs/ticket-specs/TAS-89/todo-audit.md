@@ -120,6 +120,7 @@ Tests verify API surface exists and can be enhanced when factory system is avail
 **Location**: `workers/ruby/spec/handlers/examples/batch_processing/`
 
 **Pattern**: Security TODOs in example code (NOT production code):
+
 - CSV file size limits
 - Path traversal validation
 - CSV injection mitigation
@@ -177,17 +178,21 @@ Configuration/Auth           10 (15%)
 ## Recommendations
 
 ### 1. Ticket Creation (If Not Exists)
+
 - TAS-35: Multi-backend messaging (RabbitMQ)
 - TAS-61: Domain validators (PostgreSQL URLs, etc.)
 - TAS-67: Parallel completion processing
 
 ### 2. Immediate Actions
+
 - [ ] Fix `process_step_message` implementation
 - [ ] Update WorkerCore integration test
 - [ ] Document if telemetry config is intentional or to-be-removed
 
 ### 3. Observability Enhancement
+
 Rather than individual TODO items:
+
 - Create a metrics implementation plan for stubbed values
 - Add a metrics roadmap document
 - Systematize health check implementations
@@ -199,6 +204,7 @@ Rather than individual TODO items:
 The tasker-core codebase maintains **good TODO discipline**:
 
 **Strengths**:
+
 - Clear, actionable comments
 - Most TODOs reference specific code locations
 - Only 5 referenced tickets (good naming practice)
@@ -206,6 +212,7 @@ The tasker-core codebase maintains **good TODO discipline**:
 - Security TODOs appropriately placed in examples
 
 **Considerations**:
+
 - 20 TODOs represent incomplete feature implementations
 - 12 TODOs for observability metrics (legitimate but should be systematized)
 - Some architectural stubs need specification documents

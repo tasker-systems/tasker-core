@@ -30,9 +30,11 @@ Based on analysis of `tests/fixtures/task_templates/`, we have the following pat
 ### Pattern Details
 
 #### 1. Linear (Baseline)
+
 ```
 A → B → C → D
 ```
+
 - **Template:** `rust/mathematical_sequence.yaml`
 - **Namespace:** `rust_e2e_linear`
 - **Steps:** 4 sequential
@@ -40,11 +42,13 @@ A → B → C → D
 - **Key metric:** Per-step overhead in isolation
 
 #### 2. Diamond (Fan-out/Fan-in)
+
 ```
     ┌→ B ─┐
 A ──┤     ├→ D
     └→ C ─┘
 ```
+
 - **Template:** `rust/diamond_pattern.yaml`
 - **Namespace:** `rust_e2e_diamond`
 - **Steps:** 4 (1 start + 2 parallel + 1 convergence)
@@ -52,12 +56,14 @@ A ──┤     ├→ D
 - **Key metric:** Parallel speedup vs linear, convergence coordination cost
 
 #### 3. Complex DAG (Multi-path)
+
 ```
         ┌→ Left ──→ Validate ─┐
 Init ──┤                      ├→ Finalize
         └→ Right ─┬→ Transform┘
                   └→ Analyze ─┘
 ```
+
 - **Template:** `rust/complex_dag.yaml`
 - **Namespace:** `rust_e2e_mixed_dag`
 - **Steps:** 7
@@ -65,6 +71,7 @@ Init ──┤                      ├→ Finalize
 - **Key metric:** Multi-way convergence overhead, path selection efficiency
 
 #### 4. Hierarchical Tree
+
 ```
                     Root
                    /    \
@@ -74,6 +81,7 @@ Init ──┤                      ├→ Finalize
                    \      /
               FinalConvergence
 ```
+
 - **Template:** `rust/hierarchical_tree.yaml`
 - **Namespace:** `rust_e2e_tree`
 - **Steps:** 8
@@ -81,11 +89,13 @@ Init ──┤                      ├→ Finalize
 - **Key metric:** Maximum parallel utilization, deep dependency traversal
 
 #### 5. Decision Conditional (Dynamic)
+
 ```
 Validate → Decision ─┬→ AutoApprove ───────┐
                      ├→ ManagerApproval ──┼→ Finalize
                      └→ FinanceReview ────┘
 ```
+
 - **Template:** `rust/conditional_approval_rust.yaml`
 - **Namespace:** `conditional_approval_rust`
 - **Steps:** 3-6 (depends on path taken)
@@ -93,9 +103,11 @@ Validate → Decision ─┬→ AutoApprove ───────┐
 - **Key metric:** Decision evaluation time, deferred convergence cost
 
 #### 6. Batch Processing (N-way)
+
 ```
 Analyze → [Worker_001, Worker_002, ..., Worker_N] → Aggregate
 ```
+
 - **Template:** `rust/batch_processing_example.yaml`
 - **Namespace:** `data_processing`
 - **Steps:** 2 + N (dynamic worker count)
@@ -226,6 +238,7 @@ fn create_benchmark_task(
 ### 2. Completion Polling
 
 Current implementation polls every 50ms with 10s timeout. Consider:
+
 - Configurable poll interval (50ms default, 10ms for fast tests)
 - Configurable timeout per pattern (5s for linear, 30s for batch)
 - Failure detection (blocked_by_failures status)

@@ -126,6 +126,7 @@ The domain event system supports three delivery modes, configured per event in Y
 Durable events define the **integration boundary** between Tasker and external systems. Events are published to namespace-specific PGMQ queues where **external consumers** can poll and process them.
 
 **Key Design Decision**: Tasker does NOT consume durable events internally. PGMQ serves as a lightweight, PostgreSQL-native alternative to external message brokers (Kafka, AWS SNS/SQS, RabbitMQ). External systems or middleware proxies can:
+
 - Poll PGMQ queues directly
 - Forward events to Kafka, SNS/SQS, or other messaging systems
 - Implement custom event processing pipelines
@@ -136,6 +137,7 @@ order.fulfilled   → fulfillment_domain_events (PGMQ queue) → External System
 ```
 
 **Characteristics**:
+
 - Persisted in PostgreSQL (survives restarts)
 - For external consumer integration only
 - No internal Tasker polling or subscription
@@ -143,6 +145,7 @@ order.fulfilled   → fulfillment_domain_events (PGMQ queue) → External System
 - Ordered within namespace
 
 **Implementation**:
+
 ```rust
 // DomainEventPublisher routes durable events to PGMQ
 pub async fn publish_event(
@@ -177,6 +180,7 @@ pub struct InProcessEventBus {
 ```
 
 **Characteristics**:
+
 - Zero persistence overhead
 - Sub-millisecond latency
 - Lost on service restart
@@ -185,6 +189,7 @@ pub struct InProcessEventBus {
 - Non-blocking broadcast semantics
 
 **Dual-Path Architecture**:
+
 ```
 InProcessEventBus
        │
@@ -194,6 +199,7 @@ InProcessEventBus
 ```
 
 **Use Cases**:
+
 - Real-time metrics collection
 - Internal logging and telemetry
 - Secondary actions that are not business-critical parts of the Task -> WorkflowStep DAG hierarchy
@@ -226,6 +232,7 @@ async fn route_event(&self, event: DomainEvent, mode: EventDeliveryMode) {
 ```
 
 **When to Use Broadcast**:
+
 - Internal subscribers need the same event that external systems receive
 - Real-time internal metrics tracking for events also exported externally
 - Audit logging both internally and to external compliance systems
@@ -347,6 +354,7 @@ end
 ```
 
 **YAML Configuration for Custom Publisher**:
+
 ```yaml
 steps:
   - name: process_payment
@@ -417,6 +425,7 @@ steps:
 ```
 
 **Publication Conditions**:
+
 - `success`: Publish only when step completes successfully
 - `failure`: Publish on any step failure (backward compatible)
 - `retryable_failure`: Publish only on retryable failures (step can be retried)
@@ -424,6 +433,7 @@ steps:
 - `always`: Publish regardless of step outcome
 
 **Event Declaration Fields**:
+
 - `name`: Event name in dotted notation (e.g., `payment.processed`)
 - `description`: Human-readable description of when this event is published
 - `condition`: When to publish (defaults to `success`)
@@ -525,6 +535,7 @@ impl EventMetricsCollector {
 ```
 
 **Registration with InProcessEventBus**:
+
 ```rust
 use tasker_worker::worker::in_process_event_bus::InProcessEventBus;
 
@@ -619,6 +630,7 @@ end
 ```
 
 **Registration in Bootstrap**:
+
 ```ruby
 # Register subscribers with the registry
 registry = TaskerCore::DomainEvents::SubscriberRegistry.instance
@@ -640,6 +652,7 @@ Durable events are published to PGMQ queues for **external consumption**. Tasker
 3. **Middleware Proxies**: Build adapters that forward events to Kafka, SNS/SQS, etc.
 
 **Example: External Python Consumer**:
+
 ```python
 import pgmq
 
@@ -684,6 +697,7 @@ deduplication_cache_size = 10000    # Event deduplication cache size
 ### Environment Overrides
 
 **Test Environment** (`config/tasker/environments/test/worker.toml`):
+
 ```toml
 # In-process event bus - smaller buffers for testing
 [worker.mpsc_channels.in_process_events]
@@ -702,6 +716,7 @@ deduplication_cache_size = 1000
 ```
 
 **Production Environment** (`config/tasker/environments/production/worker.toml`):
+
 ```toml
 # In-process event bus - large buffers for production throughput
 [worker.mpsc_channels.in_process_events]
@@ -826,6 +841,7 @@ fn dispatch_domain_events(&mut self, step_result: &StepExecutionResult, correlat
 ```
 
 **Key Design Decisions**:
+
 - **Events only after orchestration success**: Domain events are declarative of what HAS happened. If orchestration notification fails, the step isn't truly complete from the system's perspective.
 - **Fire-and-forget via `try_send`**: Never blocks the worker command loop. If the channel is full, events are dropped and logged.
 - **Context caching**: Step execution context is cached when the step is claimed, then retrieved for event building after completion.
@@ -835,6 +851,7 @@ fn dispatch_domain_events(&mut self, step_result: &StepExecutionResult, correlat
 Domain events maintain correlation IDs for end-to-end distributed tracing. The correlation ID originates from the task and flows through all step executions and domain events.
 
 **EventMetadata Structure** (`tasker-shared/src/events/domain_events.rs`):
+
 ```rust
 pub struct EventMetadata {
     pub task_uuid: Uuid,
@@ -865,6 +882,7 @@ curl http://localhost:8080/v1/tasks/{task_uuid} | jq '.correlation_id'
 ```
 
 **Tracing Events in PGMQ**:
+
 ```bash
 # Find all durable events for a correlation ID
 psql $DATABASE_URL -c "
@@ -932,26 +950,31 @@ pub async fn publish_event(
 ### Grafana Query Examples
 
 **Loki Query - Domain Events by Correlation ID**:
+
 ```logql
 {service_name="tasker-worker"} |= "Domain event published" | json | correlation_id = "0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"
 ```
 
 **Loki Query - All Domain Event Publications**:
+
 ```logql
 {service_name=~"tasker.*"} |= "Domain event" | json | line_format "{{.event_name}} - {{.namespace}} - {{.correlation_id}}"
 ```
 
 **Tempo Query - Trace by Correlation ID**:
+
 ```
 {resource.service.name="tasker-worker"} && {span.correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5"}
 ```
 
 **Prometheus Query - Event Publication Rate by Namespace**:
+
 ```promql
 sum by (namespace) (rate(tasker_domain_events_published_total[5m]))
 ```
 
 **Prometheus Query - Event Publication Rate by Event Name**:
+
 ```promql
 topk(10, sum by (event_name) (rate(tasker_domain_events_published_total[5m])))
 ```
@@ -983,6 +1006,7 @@ Domain event logs include structured fields for querying:
 | Real-time internal dashboards | Fast | In-process subscribers handle immediately |
 
 **Key Decision Criteria**:
+
 - **Need internal Tasker subscribers?** → Use `fast` or `broadcast`
 - **Need external system integration?** → Use `durable` or `broadcast`
 - **Internal-only, sensitive data?** → Use `fast` (never reaches PGMQ boundary)
@@ -990,6 +1014,7 @@ Domain event logs include structured fields for querying:
 ### 2. Design Event Payloads
 
 **Do**:
+
 ```rust
 json!({
     "transaction_id": "TXN-123",
@@ -1001,6 +1026,7 @@ json!({
 ```
 
 **Don't**:
+
 ```rust
 json!({
     "data": "payment processed",  // No structure

@@ -62,6 +62,7 @@ The `tasker-shared` crate is the largest and most foundational crate in the work
 **Location**: `tasker-shared/src/messaging/service/router.rs:96-97`
 
 Queue names are constructed via `format!` with unvalidated namespace input:
+
 ```rust
 fn step_queue(&self, namespace: &str) -> String {
     format!("{}_{}_queue", self.worker_queue_prefix, namespace)
@@ -93,6 +94,7 @@ impl From<sqlx::Error> for TaskerError {
 ### Finding S-3 (HIGH): `#[allow]` Used Instead of `#[expect]` (Lint Policy Violation)
 
 **Locations**:
+
 - `src/messaging/execution_types.rs:383` — `#[allow(clippy::too_many_arguments)]`
 - `src/web/authorize.rs:194` — `#[allow(dead_code)]`
 - `src/utils/serde.rs:46-47` — `#[allow(dead_code)]`
@@ -104,6 +106,7 @@ Project lint policy mandates `#[expect(lint_name, reason = "...")]` instead of `
 ### Finding S-4 (MEDIUM): `unwrap_or_default()` Violations of Tenet #11 (Fail Loudly)
 
 **Locations** (20+ instances across crate):
+
 - `src/messaging/execution_types.rs:120,186,213` — Step execution status defaults to empty string
 - `src/database/sql_functions.rs:377,558` — Query results default to empty vectors
 - `src/registry/task_handler_registry.rs:214,268,656,700,942` — Config schema fields default silently
@@ -116,6 +119,7 @@ Project lint policy mandates `#[expect(lint_name, reason = "...")]` instead of `
 ### Finding S-5 (MEDIUM): Error Context Loss in `.map_err(|_| ...)`
 
 14 instances where original error context is discarded:
+
 - `src/messaging/service/providers/rabbitmq.rs:544` — Discards parse error
 - `src/messaging/service/providers/in_memory.rs:305,331,368` — 3 instances
 - `src/state_machine/task_state_machine.rs:114` — Discards parse error
@@ -297,6 +301,7 @@ Actors spawn via `spawn_named!` but have no supervisor/restart logic. If `Orches
 ### Finding O-2 (HIGH): Graceful Shutdown Lacks Timeout
 
 **Locations**:
+
 - `tasker-orchestration/src/orchestration/bootstrap.rs:177-213`
 - `tasker-orchestration/src/bin/server.rs:68-82`
 
@@ -307,6 +312,7 @@ Shutdown calls `coordinator.lock().await.stop().await` and `orchestration_handle
 ### Finding O-3 (HIGH): `#[allow]` Instead of `#[expect]` (Lint Policy)
 
 21 instances of `#[allow]` found across the crate (most without `reason =` clause):
+
 - `src/actors/traits.rs:67,81`
 - `src/web/extractors.rs:6`
 - `src/health/channel_status.rs:87`
@@ -332,6 +338,7 @@ Shutdown uses `Arc::get_mut()` which only works if no other references exist. If
 ### Finding O-6 (MEDIUM): Database Query Timeouts Missing
 
 Same pattern as tasker-shared (Finding S-8). Individual `sqlx::query!` calls lack explicit timeout wrappers:
+
 - `src/services/health/service.rs:284` — health check query
 - `src/orchestration/backoff_calculator.rs:232,245,290,345,368` — multiple queries
 
@@ -346,6 +353,7 @@ Pool-level acquire timeout (30s) provides partial mitigation.
 ### Finding O-8 (MEDIUM): Error Context Loss
 
 ~12 instances of `.map_err(|_| ...)` discarding error context:
+
 - `src/orchestration/bootstrap.rs:203` — oneshot send error
 - `src/web/handlers/health.rs:53` — timeout error
 - `src/web/handlers/tasks.rs:113` — UUID parse error
@@ -539,6 +547,7 @@ Transitive from `lapin` (RabbitMQ) → `amq-protocol` → `tcp-stream` → `rust
 ### Systemic: `#[allow]` vs `#[expect]` (Lint Policy)
 
 **27 instances** of `#[allow]` found across all crates. Distribution:
+
 - tasker-shared: ~5 instances
 - tasker-pgmq: 3 instances
 - tasker-orchestration: 21 instances (highest)
@@ -565,6 +574,7 @@ Found across tasker-shared (20+ instances), tasker-orchestration (3 instances), 
 ## Appendix: Methodology
 
 Each crate was evaluated across these dimensions:
+
 1. **Security** — Input validation, SQL safety, auth checks, unsafe blocks, crypto, secrets
 2. **Error Handling** — Fail Loudly (Tenet #11), context preservation, structured errors
 3. **Resilience** — Bounded channels, timeouts, circuit breakers, backpressure

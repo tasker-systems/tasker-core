@@ -15,6 +15,7 @@ The two concepts serve different architectural purposes and complement rather th
 PGMQ recently (December 2025) stabilized a "message groups" feature that provides FIFO ordering guarantees within logical groups of messages in a single queue. This is analogous to AWS SQS FIFO queues with `MessageGroupId`.
 
 **Key characteristics:**
+
 - Messages are tagged with a group identifier via the `x-pgmq-group` header
 - Two read patterns available:
   - `read_grouped` (SQS-style): Fills batch from earliest group first, maximizes throughput for related messages
@@ -35,6 +36,7 @@ worker_user_notifications_queue
 Queue names follow the pattern `worker_{namespace}_queue`, with namespace extraction via regex `(?P<namespace>\w+)_queue`.
 
 **Rationale behind this design:**
+
 - Namespaces are declarative of intent (domain boundaries)
 - Independent scaling/monitoring per domain
 - Natural isolation for different workload characteristics
@@ -79,6 +81,7 @@ Queue names follow the pattern `worker_{namespace}_queue`, with namespace extrac
 **Problem**: Currently, DAG step ordering is enforced at the orchestration layer, not the queue layer. If multiple steps for the same task become ready simultaneously, there's no queue-level guarantee they'll be processed in order.
 
 **Solution with Message Groups**:
+
 ```rust
 // When enqueueing a step, set group = task_uuid
 let headers = json!({ "x-pgmq-group": task.task_uuid.to_string() });
@@ -86,6 +89,7 @@ pgmq.send_with_headers(queue_name, message, headers).await?;
 ```
 
 This ensures:
+
 - All steps for `task_abc123` are processed in FIFO order
 - Parallel tasks (`task_def456`) can execute concurrently
 - No orchestration-layer coordination needed for ordering
@@ -93,10 +97,12 @@ This ensures:
 ### Use Case 2: Entity-Specific Processing Order (Medium Value)
 
 **Problem**: Batchable handlers process entities (customers, orders, etc.). Sometimes entity-level ordering matters:
+
 - Customer A's records must process in order
 - But Customer B's records can process in parallel with A's
 
 **Solution**:
+
 ```rust
 // Group by entity identifier
 let headers = json!({ "x-pgmq-group": format!("customer:{}", customer_id) });
@@ -124,6 +130,7 @@ worker_etl_workflows_queue
 ```
 
 **Benefits preserved:**
+
 - Domain-level isolation and monitoring
 - Independent scaling characteristics  
 - Namespace-specific queue configuration (partitioning, retention)
@@ -223,6 +230,7 @@ pub enum GroupReadPattern {
 ```
 
 **Important**: RabbitMQ doesn't have exact equivalent semantics. The abstraction should:
+
 - Make grouping optional (default to standard read)
 - Allow PGMQ-specific optimizations when available
 - Provide RabbitMQ approximation via routing keys (different semantics, document limitations)
@@ -251,6 +259,7 @@ Message groups use `pg_try_advisory_xact_lock` for concurrency control. This is 
 ### Index Considerations
 
 Groups add query complexity. For high-throughput queues, consider:
+
 - The index on `(x-pgmq-group header, msg_id)` is created automatically
 - Monitor query plans for grouped reads
 - May need additional indexes for large queues with many groups

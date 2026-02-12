@@ -51,16 +51,19 @@ After critical review and consolidation, **6 tickets** will be created (down fro
 ## Priority Summary (Final)
 
 ### High Priority (Do First)
+
 1. **Fix Now - Code Cleanup** - Vestigial code removal, stub cleanup, initial `#[expect]` migration
 2. **Worker Health Checks** - Critical for K8s probe accuracy
 
 ### Medium Priority (Next Sprint)
+
 3. **Worker Metrics** - Observability improvements
-4. **Orchestration Metrics** - Capacity planning
+2. **Orchestration Metrics** - Capacity planning
 
 ### Low Priority (Backlog)
+
 5. **#[expect] Migration** - Code hygiene (remainder after fix-now)
-6. **Documentation** - Developer experience
+2. **Documentation** - Developer experience
 
 ---
 

@@ -27,7 +27,7 @@
 | tasker-worker-rust * | rust | 64.37% | 55% | PASS |
 | tasker-ts | typescript | 75.88% | 60% | PASS |
 
-_\* Merged from multiple reports (unit/integration + E2E test coverage)._
+*\* Merged from multiple reports (unit/integration + E2E test coverage).*
 
 ## Uncovered Files (30 files at 0%)
 
@@ -53,8 +53,8 @@ _\* Merged from multiple reports (unit/integration + E2E test coverage)._
 | tasker-worker | `tasker-worker/src/web/middleware/request_id.rs` | 17 |
 | tasker-worker | `tasker-worker/src/worker/actors/messages.rs` | 16 |
 | tasker-orchestration | `tasker-orchestration/src/orchestration/orchestration_queues/events.rs` | 14 |
-| | _...and 10 more_ | |
+| | *...and 10 more* | |
 
 ---
 
-_See `docs/development/coverage-tooling.md` for tooling details. Full data in `coverage-reports/aggregate-coverage.json`._
+*See `docs/development/coverage-tooling.md` for tooling details. Full data in `coverage-reports/aggregate-coverage.json`.*

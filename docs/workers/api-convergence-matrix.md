@@ -226,6 +226,7 @@ See [Handler Resolution Guide](../guides/handler-resolution.md) for complete doc
 | Rust | `decision_success(step_uuid, step_names, ...)` | Pattern-based |
 
 **Decision Helper Methods (Cross-Language):**
+
 - `decision_success(steps, routing_context)` - Create dynamic steps
 - `skip_branches(reason, routing_context)` - Skip all conditional branches
 - `decision_failure(message, error_type)` - Decision could not be made
@@ -239,11 +240,13 @@ See [Handler Resolution Guide](../guides/handler-resolution.md) for complete doc
 | Handle No-Op | `handle_no_op_worker(batch_ctx)` | `handle_no_op_worker(batch_ctx)` | `handleNoOpWorker(batchCtx)` |
 
 **Standard Batch Result Fields:**
+
 - `processed_count` / `items_processed`
 - `items_succeeded` / `items_failed`
 - `start_cursor`, `end_cursor`, `batch_size`, `last_cursor`
 
 **Cursor Indexing:**
+
 - All languages use **0-indexed cursors** (start at 0, not 1)
 - Ruby was updated from 1-indexed to 0-indexed for consistency
 
@@ -271,6 +274,7 @@ Checkpoint yielding enables batch workers to persist progress and yield control 
 | `checkpoint_yield_step_event(event_id, data)` | Persist checkpoint and re-dispatch step |
 
 **Key Invariants:**
+
 - Progress is atomically saved before re-dispatch
 - Step remains `InProgress` during checkpoint yield cycle
 - Only `Success`/`Failure` trigger state transitions

@@ -39,11 +39,13 @@ The tasker-core codebase demonstrates **strong foundational documentation** with
 ### Well-Documented Crates (100% module docs)
 
 **tasker-pgmq**:
+
 - Comprehensive usage example in lib.rs
 - Clear architecture description with components enumerated
 - Event types, database triggers, listeners all explained
 
 **tasker-client**:
+
 - Detailed architecture breakdown
 - Quick start examples for task creation and health monitoring
 - Configuration methods clearly explained
@@ -51,11 +53,13 @@ The tasker-core codebase demonstrates **strong foundational documentation** with
 ### Gap Areas
 
 **tasker-shared** (23% module doc gap):
+
 - Configuration system largely undocumented at module level
 - Missing in: `mod.rs`, `queues.rs`, `web.rs`, `queue_classification.rs`
 - State machine modules also lack module docs
 
 **tasker-client** (43% public item docs):
+
 - External-facing API lacks public item documentation
 - Zero doc examples
 - Critical for external users
@@ -70,6 +74,7 @@ The tasker-core codebase demonstrates **strong foundational documentation** with
 **Location**: `tasker-shared/src/config/`
 
 **Missing module-level docs**:
+
 - `config/mod.rs` (main entry point)
 - `config/tasker.rs` (canonical V2 configuration)
 - `config/orchestration/*.rs` (complex nested configs)
@@ -84,11 +89,13 @@ The tasker-core codebase demonstrates **strong foundational documentation** with
 **Location**: `tasker-client/src/`
 
 **Current State**:
+
 - Module-level docs: 100%
 - Public items: 43% documented
 - Zero doc examples
 
 **Should have**:
+
 ```rust
 /// # Examples
 /// ```rust,no_run
@@ -121,6 +128,7 @@ The tasker-core codebase demonstrates **strong foundational documentation** with
 **Location**: `tasker-shared/src/state_machine/`
 
 **Missing**:
+
 - `actions.rs` - Transition actions not documented
 - `events.rs` - Event handling not explained
 - `guards.rs` - Guard logic for transitions not described
@@ -139,12 +147,14 @@ The tasker-core codebase demonstrates **strong foundational documentation** with
 | Type Hints | 100% | 70% | 100% | 100% |
 
 ### Well Applied Standards
+
 - Architecture documentation (all languages)
 - Module/package level context (all languages)
 - Type documentation (Rust, Python, TypeScript)
 - Error handling and retry logic (all languages)
 
 ### Inconsistent Standards
+
 - Doc examples (5% in Rust, better in others)
 - Implementation patterns in complex modules
 - Configuration guidance (sparse in tasker-shared)
@@ -190,6 +200,7 @@ Target:  (0.98 × 0.4) + (0.90 × 0.4) + (0.25 × 0.2) = 87%
 ```
 
 **Path to 87% Target**:
+
 1. Add module docs to configuration system (+4% module docs)
 2. Add public item docs to tasker-client (+11% public items)
 3. Add 20+ doc examples to core modules (+20% examples)
@@ -204,16 +215,19 @@ Target:  (0.98 × 0.4) + (0.90 × 0.4) + (0.25 × 0.2) = 87%
 **Overall Assessment**: 74% - GOOD, WITH CLEAR IMPROVEMENT PATH
 
 ### Strengths
+
 - Excellent architecture documentation across all languages
 - Module-level docs nearly complete (94-100%)
 - Strong type hints and type documentation
 - Good public item documentation (79-95%)
 
 ### Weaknesses
+
 - Rare doc examples (5% in Rust)
 - Configuration system underdocumented
 - External API (tasker-client) lacks examples
 - State machine logic underdocumented
 
 ### Recommended Investment
+
 23 person-hours → 13% improvement in quality score (74% → 87%)

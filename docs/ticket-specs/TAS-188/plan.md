@@ -94,6 +94,7 @@ members = [
 **Dependencies removed**: `clap`, `rsa`, `rand`, `askama`, `tracing-subscriber`, `serde_yaml`
 
 **Features after split**:
+
 ```toml
 [features]
 default = ["grpc"]
@@ -129,6 +130,7 @@ pub struct ClientConfig {
 ### After: Clean separation
 
 **In `tasker-client`** — library config only:
+
 ```rust
 pub struct ClientConfig {
     pub transport: Transport,
@@ -138,6 +140,7 @@ pub struct ClientConfig {
 ```
 
 **In `tasker-cli`** — composed config:
+
 ```rust
 pub struct CliAppConfig {
     pub client: ClientConfig,  // from tasker-client
@@ -185,18 +188,22 @@ unknown fields (no `deny_unknown_fields`).
 ### Phase 4: Update build infrastructure
 
 **Makefile.toml** (3 locations):
+
 - Lines 1951, 1998: `CLI="cargo run --all-features --package tasker-cli --bin tasker-cli --"`
 - Lines 1989-1990: `args = ["run", "--all-features", "--package", "tasker-cli", "--bin", "tasker-cli", ...]`
 
 **GitHub Actions** (2 files):
+
 - `.github/actions/generate-test-config/action.yml` lines 22, 29
 - `.github/workflows/build-workers.yml` lines 90, 99-102
 
 **Docker** (9 files):
+
 - `docker/scripts/create-workspace-stubs.sh` — add `["tasker-cli"]="tasker-cli"` entry
 - 8 Dockerfiles — add `COPY tasker-cli/ ./tasker-cli/` where tasker-client is already copied
 
 **Scripts** (2 files):
+
 - `scripts/code_check.sh` — add `tasker-cli` to `RUST_CORE_PROJECTS` array
 - `cargo-make/scripts/sqlx-prepare.sh` — add `tasker-cli` to CRATES if it uses sqlx queries
 
@@ -212,6 +219,7 @@ unknown fields (no `deny_unknown_fields`).
 ## Files Changed
 
 ### New Files
+
 - `tasker-cli/Cargo.toml`
 - `tasker-cli/Makefile.toml`
 - `tasker-cli/src/main.rs`
@@ -224,6 +232,7 @@ unknown fields (no `deny_unknown_fields`).
 - `tasker-cli/tests/config_commands_test.rs`
 
 ### Modified Files
+
 - `Cargo.toml` (workspace members)
 - `tasker-client/Cargo.toml` (remove bin, deps, features)
 - `tasker-client/src/lib.rs` (remove docs module)
@@ -237,6 +246,7 @@ unknown fields (no `deny_unknown_fields`).
 - 8 Dockerfiles (add COPY line)
 
 ### Deleted Files
+
 - `tasker-client/src/bin/tasker-cli.rs`
 - `tasker-client/src/bin/cli/mod.rs`
 - `tasker-client/src/bin/cli/commands/*.rs`
@@ -276,6 +286,7 @@ unknown fields (no `deny_unknown_fields`).
 ---
 
 ## Metadata
+
 - Identifier: TAS-188
 - Status: Complete
 - Priority: P1

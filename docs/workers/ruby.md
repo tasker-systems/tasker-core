@@ -197,6 +197,7 @@ end
 ## Composition Pattern
 
 Ruby handlers use composition via mixins rather than inheritance. You can use either:
+
 1. **Wrapper classes** (Api, Decision, Batchable) - simpler, backward compatible
 2. **Mixin modules** (Mixins::API, Mixins::Decision, Mixins::Batchable) - explicit composition
 
@@ -275,6 +276,7 @@ end
 ```
 
 **HTTP Methods Available**:
+
 - `get(path, params: {}, headers: {})`
 - `post(path, data: {}, headers: {})`
 - `put(path, data: {}, headers: {})`
@@ -323,6 +325,7 @@ end
 ```
 
 **Decision Methods**:
+
 - `decision_success(steps:, result_data: {})` - Create steps dynamically
 - `decision_no_branches(result_data: {})` - Skip conditional steps
 
@@ -360,6 +363,7 @@ end
 ```
 
 **Batch Helper Methods**:
+
 - `get_batch_context(context)` - Get batch boundaries from StepContext
 - `handle_no_op_worker(batch_ctx)` - Handle placeholder batches
 - `batch_worker_complete(processed_count:, result_data:)` - Complete batch
@@ -573,6 +577,7 @@ logger.info('Processing order', {
 ### Log Levels
 
 Controlled via `RUST_LOG` environment variable:
+
 - `trace` - Very detailed debugging
 - `debug` - Debugging information
 - `info` - Normal operation

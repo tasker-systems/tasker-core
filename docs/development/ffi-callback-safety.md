@@ -255,11 +255,13 @@ end
 ### Symptom: Ruby handler completions slow
 
 **Check**:
+
 1. Completion channel saturation via metrics
 2. `FfiDispatchMetrics.pending_count` growing
 3. Warnings about "FFI completion delayed"
 
 **Solutions**:
+
 1. Increase `completion_buffer_size`
 2. Optimize completion processor throughput
 3. Check for completion processor backlog
@@ -267,11 +269,13 @@ end
 ### Symptom: Domain events not firing
 
 **Check**:
+
 1. Callback timeout warnings in logs
 2. Domain event channel metrics
 3. Domain event system health
 
 **Solutions**:
+
 1. Increase `callback_timeout_ms`
 2. Check domain event processor health
 3. Verify no deadlocks in event handlers
@@ -279,11 +283,13 @@ end
 ### Symptom: "channel closed" warnings
 
 **Check**:
+
 1. Worker shutdown sequence
 2. Completion processor health
 3. System shutdown ordering
 
 **Solutions**:
+
 1. Ensure graceful shutdown via `transition_to_graceful_shutdown()`
 2. Wait for in-flight handlers before stopping
 3. Check for panic in completion processor

@@ -1,7 +1,6 @@
 # Configuration Reference: worker
 
 
-
 > 90/90 parameters documented
 
 ---
@@ -1037,7 +1036,6 @@ Target number of connections in the worker web API database pool
 - **Default:** `10`
 - **Valid Range:** 1-200
 - **System Impact:** Determines how many concurrent database queries the worker REST API can execute; smaller than orchestration
-
 
 
 ---

@@ -22,6 +22,7 @@ Baseline performance for simple workflow patterns using native Rust handlers.
 | diamond_rust | 50 | 127.71ms | 127.26ms | 129.42ms | 1.02 |
 
 **Observations:**
+
 - Linear and diamond patterns show consistent ~127ms latency
 - P95/P50 ratio near 1.0 indicates stable, predictable performance
 - ~30% improvement vs previous single-service baseline (~182ms)
@@ -39,6 +40,7 @@ Performance under increased workflow complexity (more steps, parallel paths, con
 | hierarchical_tree_rust | 50 | 190.82ms | 190.27ms | 193.34ms | 1.02 |
 
 **Observations:**
+
 - Conditional workflow fastest (~123ms) due to dynamic path selection
 - Complex DAG and tree patterns ~181-191ms (7-8 steps)
 - P95/P50 ratios improved to ~1.01-1.08 (previously up to 1.18)
@@ -56,6 +58,7 @@ Multi-instance deployment performance with 2 orchestration + 2 Rust worker insta
 | concurrent_tasks_2x | 50 | 185.65ms | 185.43ms | 187.56ms | 1.01 |
 
 **Observations:**
+
 - Single task in cluster: ~127-129ms (comparable to single-service)
 - Concurrent 2x tasks: ~185ms total (effective parallelism)
 - Cluster overhead minimal for single tasks
@@ -96,6 +99,7 @@ Comparing FFI workers to native Rust baseline (linear pattern, P50):
 | **TypeScript** | 183.31ms | +56.65ms | **+45%** |
 
 **Observations:**
+
 - All FFI workers show ~45-46% overhead vs native Rust (cluster mode)
 - Ruby diamond pattern notably faster (144ms) - parallel FFI efficiency
 - Linear patterns ~183-186ms across all FFI workers (consistent)
@@ -112,6 +116,7 @@ Large-scale batch processing (1000 CSV rows, parallel batch workers).
 | csv_products_1000_rows | 50 | 175.34ms | 173.41ms | 182.26ms | 1.05 |
 
 **Observations:**
+
 - 1000-row batch completes in ~173-175ms
 - P95/P50 ratio of ~1.05 indicates stable batch processing
 - Throughput: ~5,770 rows/second (improved from ~3,472)
@@ -235,6 +240,7 @@ This was caused by `start-cluster.sh` setting `TASKER_TEMPLATE_PATH` to the pare
 instead of the language-specific subdirectory.
 
 **Fix applied:** `cargo-make/scripts/multi-deploy/start-cluster.sh` line 209
+
 ```bash
 # Before (broken - Rust discovers all templates)
 TEMPLATE_PATH="${PROJECT_ROOT}/tests/fixtures/task_templates"

@@ -17,6 +17,7 @@ The `tasker-worker-rust` crate at `workers/rust/src/` is the native Rust worker 
 - **Event publishers**: `payment_event_publisher.rs`, `notification_event_publisher.rs`
 
 The coverage gap is driven by two factors:
+
 1. **Core infrastructure files at 0% coverage** (bootstrap, event_handler, main, global_event_system) -- these require running services to test
 2. **Handler `call()` methods at low coverage** -- many handler execution bodies are only exercised through E2E tests, not unit tests
 
@@ -72,12 +73,14 @@ The registry (`71.19%`), event subscribers (`91-98%`), domain event publishers (
 **Risk**: These are the core integration points for the Rust worker. Any bug in bootstrap or event handling affects all workflow processing.
 
 **`bootstrap.rs` -- Worker Bootstrap Logic**
+
 - Creates and wires together `RustStepHandlerRegistry`, `RustStepHandlerRegistryAdapter`, `StepEventPublisherRegistry`, `DomainEventCallback`, and `HandlerDispatchService`
 - Three config functions (`default_config`, `no_web_api_config`, `no_event_driven_config`) are never called in tests
 - The `bootstrap()` async function performs multi-step initialization with error handling
 - **Test approach**: Integration tests that bootstrap a worker with a test database, or targeted unit tests that mock the `WorkerBootstrap` and verify registry wiring. The config functions can be trivially unit tested.
 
 **`event_handler.rs` -- Step Execution Event Handling**
+
 - `RustEventHandler::new()` constructs the handler with all required dependencies
 - `start()` spawns a tokio task that loops on a broadcast receiver
 - `handle_step_execution()` performs handler lookup, execution, result construction, and completion publishing
@@ -91,23 +94,27 @@ The registry (`71.19%`), event subscribers (`91-98%`), domain event publishers (
 **Risk**: Business logic handlers with validation, error handling, and dependency resolution that should be verified.
 
 **`notification_event_publisher.rs` (10.61% covered)**
+
 - Only the `test_should_handle` basic string test runs
 - The `NotificationEventPublisher` struct, `build_notification_payload()` (channel-specific enrichment for email/SMS/push), `is_notification_step()`, and the `StepEventPublisher` trait implementation (`publish()`) are all uncovered
 - **Test approach**: Create `StepEventContext` fixtures for notification steps. Test `should_handle()` with notification/alert/message step names. Test `build_notification_payload()` with email, SMS, push, and unknown channel contexts. Test `publish()` for success and failure scenarios. Requires mocking `DomainEventPublisher`.
 
 **`order_fulfillment.rs` (15.19% covered)**
+
 - Only struct construction and `name()` methods are covered (via registry tests)
 - All four handler `call()` methods are uncovered: `ValidateOrderHandler`, `ReserveInventoryHandler`, `ProcessPaymentHandler`, `ShipOrderHandler`
 - Complex validation logic (customer info, order items, quantities, prices, product lookup), dependency resolution between steps, and simulation functions are untested
 - **Test approach**: Create `TaskSequenceStep` fixtures with appropriate context fields. Test each handler independently with valid and invalid inputs. Test validation error paths (missing customer, missing items, invalid quantities, price validation, product not found, order total too high). Test inter-step dependency resolution. The simulation functions (`simulate_product_lookup`, `simulate_inventory_reservation`, `simulate_payment_gateway_call`, `simulate_shipping_carrier_call`) can be tested directly.
 
 **`microservices.rs` (20.55% covered)**
+
 - Only struct creation and `name()` covered via registry
 - Five handlers uncovered: `CreateUserAccountHandler`, `SetupBillingProfileHandler`, `InitializePreferencesHandler`, `SendWelcomeSequenceHandler`, `UpdateUserStatusHandler`
 - Business logic includes email validation, idempotency handling, plan-based billing tiers, preference merging, multi-channel welcome sequences, and workflow aggregation
 - **Test approach**: Create fixtures for each handler. Test user creation with valid/invalid emails, name validation, idempotent existing user, and new user creation. Test billing for free/pro/enterprise plans. Test preferences with and without custom overrides. Test welcome sequence channel selection by plan. Test status update aggregation.
 
 **`data_pipeline.rs` (23.88% covered)**
+
 - Only struct creation and `name()` covered via registry
 - Eight handlers for full ETL pipeline uncovered
 - **Test approach**: Create fixtures for each step. Test extract handlers produce correct simulated data. Test transform handlers process input correctly. Test aggregate handler merges data from multiple dependencies. Test insights generation.
@@ -119,23 +126,28 @@ The registry (`71.19%`), event subscribers (`91-98%`), domain event publishers (
 **Risk**: Complex workflow patterns that may have subtle bugs in decision routing and batch processing.
 
 **`diamond_decision_batch.rs` (41.67% covered)**
+
 - 10 handlers for a complex diamond+decision+batch combined workflow
 - Some struct creation covered, but `call()` bodies for decision routing, batch analysis, and result aggregation are partially covered
 - **Test approach**: Test the routing decision handler with different input values. Test batch analyzer handlers produce correct batch specifications. Test aggregate handlers merge results correctly.
 
 **`batch_processing_products_csv.rs` (41.86% covered)**
+
 - CSV-specific batch processing with analyzer, processor, and aggregator
 - **Test approach**: Test CSV analysis output, batch processor logic, and result aggregation.
 
 **`ecommerce.rs` (42.86% covered)**
+
 - 5-handler e-commerce workflow (TAS-91 Blog Post 01)
 - **Test approach**: Test each handler with fixtures simulating e-commerce operations.
 
 **`batch_processing_example.rs` (45.00% covered)**
+
 - Generic batch processing with dataset analysis, batch worker, and results aggregation
 - **Test approach**: Test batch computation logic, dataset analysis, and aggregation.
 
 **`team_scaling.rs` (49.54% covered)**
+
 - Customer success refund workflow and payments namespace handlers
 - **Test approach**: Test refund validation, policy checking, manager approval, execution, and status updates. Test payment eligibility, gateway processing, records update, and notifications.
 
@@ -181,7 +193,7 @@ The registry (`71.19%`), event subscribers (`91-98%`), domain event publishers (
 
 ### Phase 2: Event Handler Unit Tests (estimated +3-5% coverage)
 
-4. **Test `event_handler.rs`**:
+1. **Test `event_handler.rs`**:
    - Test `RustEventHandler::new()` creates a valid handler
    - Test `handle_step_execution()` with a registered handler (success path)
    - Test `handle_step_execution()` with an unregistered handler (not-found path)
@@ -194,12 +206,12 @@ The registry (`71.19%`), event subscribers (`91-98%`), domain event publishers (
 
 ### Phase 3: Handler Business Logic Tests (estimated +15-25% coverage)
 
-5. **Test `notification_event_publisher.rs`**:
+1. **Test `notification_event_publisher.rs`**:
    - Test `should_handle()` with various step names
    - Test `build_notification_payload()` for email, SMS, push, and unknown channels
    - Test `publish()` for success and failure cases
 
-6. **Test `order_fulfillment.rs` handlers**:
+2. **Test `order_fulfillment.rs` handlers**:
    - Create `TaskSequenceStep` fixtures with appropriate context
    - Test `ValidateOrderHandler` with valid order, missing customer, missing items, invalid quantities, product not found, excessive total
    - Test `ReserveInventoryHandler` with valid reservations and insufficient stock
@@ -207,7 +219,7 @@ The registry (`71.19%`), event subscribers (`91-98%`), domain event publishers (
    - Test `ShipOrderHandler` with various shipping methods
    - Test helper functions: `simulate_product_lookup`, `simulate_inventory_reservation`, `simulate_payment_gateway_call`, `simulate_shipping_carrier_call`, `calculate_delivery_estimate`
 
-7. **Test `microservices.rs` handlers**:
+3. **Test `microservices.rs` handlers**:
    - Test `CreateUserAccountHandler` -- valid user, invalid email, empty name, existing user (idempotency)
    - Test `SetupBillingProfileHandler` -- free plan (skipped), pro plan, enterprise plan
    - Test `InitializePreferencesHandler` -- default preferences, custom overrides
@@ -215,28 +227,28 @@ The registry (`71.19%`), event subscribers (`91-98%`), domain event publishers (
    - Test `UpdateUserStatusHandler` -- aggregation from all prior steps
    - Test helper functions: `is_valid_email`, `get_billing_tier`, `get_default_preferences`, `get_welcome_template`, `generate_id`
 
-8. **Test `data_pipeline.rs` handlers**:
+4. **Test `data_pipeline.rs` handlers**:
    - Test each of the 8 extract/transform/aggregate/insight handlers with fixtures
    - Verify data transformation logic and aggregation
 
 ### Phase 4: Remaining Handler Coverage (estimated +5-10% coverage)
 
-9. **Test remaining handlers below 55%**:
+1. **Test remaining handlers below 55%**:
    - `diamond_decision_batch.rs` -- routing decisions and batch processing
    - `batch_processing_products_csv.rs` -- CSV-specific logic
    - `ecommerce.rs` -- order processing flow
    - `batch_processing_example.rs` -- generic batch patterns
    - `team_scaling.rs` -- refund workflows and payment processing
 
-10. **Improve files near 55% threshold**:
+2. **Improve files near 55% threshold**:
     - `mixed_dag_workflow.rs` (57.53%) -- test additional DAG paths
     - `conditional_approval_rust.rs` (58.06%) -- test untested approval paths
 
 ### Phase 5: Integration Tests (estimated +2-5% coverage)
 
-11. **Bootstrap integration test**: With test database running, test the full `bootstrap()` function and verify service handles are created correctly.
+1. **Bootstrap integration test**: With test database running, test the full `bootstrap()` function and verify service handles are created correctly.
 
-12. **Event handler integration test**: Test the full event handler loop with real broadcast channels and mock handlers.
+2. **Event handler integration test**: Test the full event handler loop with real broadcast channels and mock handlers.
 
 ---
 
@@ -252,6 +264,7 @@ The registry (`71.19%`), event subscribers (`91-98%`), domain event publishers (
 | **Total** | **15 files** | **~980 test lines** | **~27-48% increase (to ~36-57%)** |
 
 To reliably reach the 55% target:
+
 - Phases 1-3 are essential (addresses all 0% files and largest uncovered handlers)
 - Phase 4 provides the margin to clear the threshold
 - Phase 5 is optional but recommended for confidence in the bootstrap/event handler integration

@@ -31,6 +31,7 @@ Several locations still use `Arc<Mutex<Stats>>` in hot paths and should be conve
 **Hot path**: `publish()` - called for every domain event, locks mutex 1-3 times per event
 
 **Fields to make atomic**:
+
 - `total_events_dispatched: AtomicU64`
 - `rust_handler_dispatches: AtomicU64`
 - `ffi_channel_dispatches: AtomicU64`
@@ -38,6 +39,7 @@ Several locations still use `Arc<Mutex<Stats>>` in hot paths and should be conve
 - `ffi_channel_drops: AtomicU64`
 
 **Fields to query live** (not stored):
+
 - `rust_subscriber_patterns` → `registry.pattern_count()`
 - `rust_handler_count` → `registry.handler_count()`
 - `ffi_subscriber_count` → `ffi_sender.receiver_count()`
@@ -51,6 +53,7 @@ Several locations still use `Arc<Mutex<Stats>>` in hot paths and should be conve
 **Hot path**: Completion listener loop - locks mutex for every completion event
 
 **Fields to make atomic**:
+
 - `completions_received: AtomicU64`
 - `successful_completions: AtomicU64`
 - `failed_completions: AtomicU64`
@@ -68,6 +71,7 @@ Several locations still use `Arc<Mutex<Stats>>` in hot paths and should be conve
 **Hot path**: `record_success()` and `record_failure()` - called on every circuit breaker operation
 
 **Fields to make atomic**:
+
 - `total_calls: AtomicU64`
 - `success_count: AtomicU64`
 - `failure_count: AtomicU64`
@@ -166,6 +170,7 @@ impl AtomicInProcessEventBusStats {
 ## Out of Scope
 
 The following use cases are NOT simple counters and are handled by TAS-163:
+
 - `HashMap<Uuid, PendingEvent>` (FFI dispatch pending events)
 - `HashMap<Uuid, StateMachine>` (state manager)
 - `Vec<Duration>` (orchestration latency ring buffer)
@@ -180,6 +185,7 @@ For these, consider `DashMap`, `tokio::sync::RwLock`, or concurrent ring buffers
 - TAS-163: Concurrent data structures for non-counter cases
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-134/convert-hot-path-stats-to-atomic-counters](https://linear.app/tasker-systems/issue/TAS-134/convert-hot-path-stats-to-atomic-counters)
 - Identifier: TAS-134
 - Status: Backlog

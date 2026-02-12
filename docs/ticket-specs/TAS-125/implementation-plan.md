@@ -24,12 +24,14 @@
 ### Completed Files (Phases 1-4)
 
 **Created:**
+
 - `migrations/20260102000000_add_checkpoint_column.sql` - Database migration
 - `tasker-worker/src/worker/services/checkpoint/mod.rs` - Module exports
 - `tasker-worker/src/worker/services/checkpoint/service.rs` - CheckpointService
 - `tasker-worker/src/worker/services/checkpoint/error.rs` - CheckpointError type
 
 **Modified (Rust Core):**
+
 - `tasker-shared/src/models/core/batch_worker.rs` - Added CheckpointRecord, CheckpointYieldData, BatchWorkerResult
 - `tasker-shared/src/models/core/workflow_step.rs` - Added checkpoint field, updated 14+ SQL queries
 - `tasker-shared/src/models/core/task.rs` - Updated get_step_by_name query
@@ -38,16 +40,19 @@
 - `tasker-worker/src/worker/services/mod.rs` - Added checkpoint module
 
 **Modified (Ruby FFI):**
+
 - `workers/ruby/ext/tasker_core/src/bridge.rs` - checkpoint_yield_step_event FFI function
 - `workers/ruby/ext/tasker_core/src/conversions.rs` - convert_ruby_checkpoint_to_yield_data()
 
 **Modified (Python FFI):**
+
 - `workers/python/src/lib.rs` - Registered checkpoint_yield_step_event
 - `workers/python/src/bridge.rs` - Added checkpoint_yield_step_event to PythonBridgeHandle
 - `workers/python/src/event_dispatch.rs` - checkpoint_yield_step_event function
 - `workers/python/src/conversions.rs` - convert_python_checkpoint_to_yield_data()
 
 **Modified (TypeScript FFI):**
+
 - `workers/typescript/src/ffi/types.ts` - Added CheckpointYieldData interface
 - `workers/typescript/src/ffi/runtime-interface.ts` - Added checkpointYieldStepEvent to interface
 - `workers/typescript/src/ffi/bun-runtime.ts` - FFI symbol and implementation
@@ -55,36 +60,43 @@
 - `workers/typescript/src/ffi/deno-runtime.ts` - FFI symbol and implementation
 
 **Modified (Ruby Language-Side - Phase 4):**
+
 - `workers/ruby/lib/tasker_core/event_bridge.rb` - Added publish_step_checkpoint_yield() method
 - `workers/ruby/lib/tasker_core/types/step_handler_call_result.rb` - Added CheckpointYield result type
 - `workers/ruby/lib/tasker_core/step_handler/mixins/batchable.rb` - Added checkpoint_yield() helper
 - `workers/ruby/lib/tasker_core/batch_processing/batch_worker_context.rb` - Added checkpoint accessors
 
 **Modified (Python Language-Side - Phase 4):**
+
 - `workers/python/python/tasker_core/batch_processing/batchable.py` - Added checkpoint_yield() method
 
 **Modified (TypeScript Language-Side - Phase 4):**
+
 - `workers/typescript/src/handler/batchable.ts` - Added checkpointYield() method to interface, mixin, and class
 
 ### Completed Files (Phase 5)
 
 **E2E Test Files Created:**
+
 - `tests/e2e/ruby/checkpoint_yield_test.rs` - Ruby checkpoint yield E2E tests (3 scenarios)
 - `tests/e2e/python/checkpoint_yield_test.rs` - Python checkpoint yield E2E tests (4 scenarios)
 - `tests/e2e/typescript/checkpoint_yield_test.rs` - TypeScript checkpoint yield E2E tests (3 scenarios)
 
 **Task Template Fixtures Created:**
+
 - `tests/fixtures/task_templates/ruby/checkpoint_yield_test.yaml` - Ruby E2E task template
 - `tests/fixtures/task_templates/python/checkpoint_yield_test.yaml` - Python E2E task template
 - `tests/fixtures/task_templates/typescript/checkpoint_yield_test_ts.yaml` - TypeScript E2E task template
 
 **TypeScript Handler & Test Files:**
+
 - `workers/typescript/tests/handlers/step_handlers/checkpoint-handlers.ts` - Checkpoint yield example handlers
 - `workers/typescript/tests/handlers/examples/checkpoint_yield/index.ts` - Checkpoint yield exports
 - `workers/typescript/tests/handlers/examples/index.ts` - Updated exports
 - `workers/typescript/tests/unit/handler/batchable.test.ts` - Comprehensive unit tests including checkpointYield
 
 **E2E Test Scenarios Implemented:**
+
 | Language | Happy Path | Transient Failure Resume | Permanent Failure | Frequent Checkpoints |
 |----------|------------|--------------------------|-------------------|---------------------|
 | Ruby | ✅ | ✅ | ✅ | - |
@@ -92,6 +104,7 @@
 | TypeScript | ✅ | ✅ | ✅ | - |
 
 **Test Fixtures Updated:**
+
 - `tests/common/fast_event_test_helper.rs`
 - `tasker-shared/src/events/registry.rs`
 - `tasker-shared/src/events/worker_events.rs`
@@ -1369,18 +1382,21 @@ async fn test_checkpoint_performance() {
 **Phases 1-3**: Minimal test updates - only what's needed for compilation. No validation gate until core infrastructure is complete.
 
 **Phase 3.5 (Validation Gate)**: After FFI bridges are in place:
+
 - Update unit tests for `CheckpointRecord`, `CheckpointYieldData`, `BatchWorkerResult`
 - Update struct tests to account for new `checkpoint` field
 - Verify all Rust crates compile with `--all-features`
 - SQLx query cache updated and verified
 
 **Phase 4**: Language-specific tests updated as each language is completed:
+
 - **Ruby**: `spec/integration/checkpoint_yield_spec.rb` - full integration coverage
 - **Python**: `tests/integration/test_checkpoint_yield.py` - pytest-based integration tests
 - **TypeScript**: `tests/integration/checkpoint-yield.test.ts` - Bun test runner
 - **Rust**: `src/step_handlers/batch_processing_example.rs` updated with checkpoint usage
 
 **Phase 6**: Integration & E2E:
+
 - Cross-language checkpoint round-trip tests
 - Crash recovery scenarios
 - Error injection tests (persist failure, re-dispatch failure)

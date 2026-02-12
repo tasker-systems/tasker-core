@@ -75,24 +75,28 @@ All workers share the same Rust core (`tasker-worker` crate) for orchestration, 
 ### When to Use Each
 
 **Rust Worker** - Best for:
+
 - Maximum throughput requirements
 - Resource-constrained environments
 - Standalone microservices
 - Performance-critical handlers
 
 **Ruby Worker** - Best for:
+
 - Rails/Ruby applications
 - ActiveRecord/ORM integration
 - Existing Ruby codebases
 - Quick prototyping with Ruby ecosystem
 
 **Python Worker** - Best for:
+
 - Data processing pipelines
 - ML/AI integration
 - Scientific computing workflows
 - Python-native team preferences
 
 **TypeScript Worker** - Best for:
+
 - Modern JavaScript/TypeScript applications
 - Full-stack Node.js teams
 - Edge computing with Bun or Deno
@@ -108,29 +112,34 @@ All workers share the same Rust core (`tasker-worker` crate) for orchestration, 
 All workers can run as standalone servers:
 
 **Rust**:
+
 ```bash
 cargo run -p workers-rust
 ```
 
 **Ruby**:
+
 ```bash
 cd workers/ruby
 ./bin/server.rb
 ```
 
 **Python**:
+
 ```bash
 cd workers/python
 python bin/server.py
 ```
 
 **TypeScript** (Bun):
+
 ```bash
 cd workers/typescript
 bun run bin/server.ts
 ```
 
 **TypeScript** (Node.js):
+
 ```bash
 cd workers/typescript
 npx tsx bin/server.ts
@@ -141,12 +150,14 @@ npx tsx bin/server.ts
 Ruby, Python, and TypeScript workers can be embedded into existing applications without running the HTTP server. Headless mode is controlled via TOML configuration, not bootstrap parameters.
 
 **TOML Configuration** (e.g., `config/tasker/base/worker.toml`):
+
 ```toml
 [web]
 enabled = false  # Disables HTTP server for headless/embedded mode
 ```
 
 **Ruby (in Rails)**:
+
 ```ruby
 # config/initializers/tasker.rb
 require 'tasker_core'
@@ -162,6 +173,7 @@ TaskerCore::Registry::HandlerRegistry.instance.register_handler(
 ```
 
 **Python (in application)**:
+
 ```python
 from tasker_core import bootstrap_worker, HandlerRegistry
 from tasker_core.types import BootstrapConfig
@@ -176,6 +188,7 @@ registry.register("my_handler", MyHandler)
 ```
 
 **TypeScript (in application)**:
+
 ```typescript
 import { createRuntime, HandlerRegistry, EventEmitter, EventPoller, StepExecutionSubscriber } from '@tasker-systems/tasker';
 
@@ -235,6 +248,7 @@ Step events flow through a consistent pipeline:
 ### 3. Error Classification
 
 All workers distinguish between:
+
 - **Retryable Errors**: Transient failures → Re-enqueue step
 - **Permanent Errors**: Unrecoverable → Mark step failed
 
@@ -271,11 +285,13 @@ Common across all workers:
 ### Language-Specific
 
 **Ruby**:
+
 | Variable | Description |
 |----------|-------------|
 | `RUBY_GC_HEAP_GROWTH_FACTOR` | GC tuning for production |
 
 **Python**:
+
 | Variable | Description |
 |----------|-------------|
 | `PYTHON_HANDLER_PATH` | Path for handler auto-discovery |
@@ -289,6 +305,7 @@ All workers support specialized handler types:
 ### StepHandler (Base)
 
 Basic step execution:
+
 ```python
 class MyHandler(StepHandler):
     handler_name = "my_handler"
@@ -300,6 +317,7 @@ class MyHandler(StepHandler):
 ### ApiHandler
 
 HTTP/REST API integration with automatic error classification:
+
 ```ruby
 class FetchDataHandler < TaskerCore::StepHandler::Api
   def call(context)
@@ -314,6 +332,7 @@ end
 ### DecisionHandler
 
 Dynamic workflow routing:
+
 ```python
 class RouteHandler(DecisionHandler):
     handler_name = "route_handler"
@@ -329,6 +348,7 @@ class RouteHandler(DecisionHandler):
 Large dataset processing. Note: Ruby uses subclass inheritance, Python uses mixin:
 
 **Ruby** (subclass of Base):
+
 ```ruby
 class CsvBatchProcessorHandler < TaskerCore::StepHandler::Batchable
   def call(context)
@@ -343,6 +363,7 @@ end
 ```
 
 **Python** (mixin):
+
 ```python
 class CsvBatchProcessor(StepHandler, Batchable):
     handler_name = "csv_batch_processor"

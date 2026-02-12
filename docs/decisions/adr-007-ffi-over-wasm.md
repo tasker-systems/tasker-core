@@ -7,6 +7,7 @@
 ## Context
 
 For the TypeScript worker implementation, we needed to decide between two integration approaches:
+
 1. **FFI (Foreign Function Interface)**: Direct C ABI calls to compiled Rust library
 2. **WASM (WebAssembly)**: Compile Rust to wasm32-wasi target
 
@@ -31,6 +32,7 @@ Ruby (Magnus) and Python (PyO3) workers already used FFI successfully.
 **Score**: FFI 8/10, WASM 3/10 for current requirements.
 
 **WASM Deal-Breakers**:
+
 1. No mature PostgreSQL client for `wasm32-wasi`
 2. Single-threaded execution (our `HandlerDispatchService` relies on Tokio multi-threading)
 3. Tokio doesn't compile to `wasm32-wasi` target
@@ -62,12 +64,14 @@ Ruby (Magnus) and Python (PyO3) workers already used FFI successfully.
 **WASM Research**: Revisit when WASI 0.3+ stabilizes with networking.
 
 **Serverless WASM Handlers**:
+
 - Compile individual handlers to WASM (not orchestration)
 - Deploy to serverless platforms (AWS Lambda, Cloudflare Workers)
 - Cold start optimization (1ms vs 100ms)
 - Extreme scalability for compute-heavy workflows
 
 **Separation of Concerns**:
+
 - **Orchestration**: Stays Rust (PostgreSQL, PGMQ, state machines)
 - **Handlers**: Optionally WASM (stateless compute units)
 

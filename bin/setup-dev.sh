@@ -496,9 +496,10 @@ verify_installation() {
         "docker:Docker"
         "psql:PostgreSQL client"
         "jq:jq"
-        # CI infrastructure linters
-        "shellcheck:shellcheck (shell linter)"
-        "actionlint:actionlint (workflow linter)"
+    # CI infrastructure linters
+    "shellcheck:shellcheck (shell linter)"
+    "actionlint:actionlint (workflow linter)"
+    "markdownlint-cli2:markdownlint-cli2 (markdown linter)"
     )
 
     ALL_OK=true

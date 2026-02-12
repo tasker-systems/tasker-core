@@ -11,6 +11,7 @@
 The `tasker-worker` crate is a large crate (70 source files, ~36,900 lines) with significant coverage gaps. Out of 70 files, **26 files have 0% coverage** and only **7 files meet or exceed the 55% target**. The crate contains critical infrastructure: the FFI dispatch channel bridging Rust to Ruby/Python/TypeScript (531 lines at 28.25%), the WorkerCore lifecycle manager (530 lines at 0%), and the entire web + gRPC API surface (both at 0%).
 
 The coverage gap breaks into three categories:
+
 1. **Zero-coverage runtime/infrastructure** (core.rs, bootstrap.rs, event_driven_processor.rs, step_claim.rs) -- these are integration-heavy but contain testable logic
 2. **Zero-coverage API surface** (all web handlers, middleware, routes, gRPC services/server) -- these need API integration tests
 3. **Low-coverage services** (health, metrics, template_query, step_execution, dispatch_service) -- these have some tests but need deeper coverage
@@ -91,6 +92,7 @@ These files contain core worker logic where bugs directly affect step execution 
 #### 1. `worker/core.rs` (0% -- 530 lines, 61 functions)
 
 **What it contains**: WorkerCore is the central lifecycle manager for the entire worker. It manages:
+
 - Worker initialization (`new()`, `new_with_event_system()`) -- creates all subsystems including ActorCommandProcessor, EventDrivenMessageProcessor, TaskTemplateManager, orchestration client, event router, domain event system, and in-process event bus
 - Lifecycle management (`start()`, `stop()`) -- spawns background tasks for command processing, domain events, and completion processing, with graceful shutdown and JoinHandle awaiting
 - Health reporting (`get_health()`) -- aggregates health from event-driven processor and template manager
@@ -100,6 +102,7 @@ These files contain core worker logic where bugs directly affect step execution 
 **Why critical**: Every worker depends on WorkerCore. If initialization or shutdown has bugs, all step processing fails. The `start()` method spawns three concurrent background tasks; the `stop()` method must drain them all within timeouts or risk resource leaks.
 
 **Recommended tests**:
+
 - Unit test `WorkerCoreStatus` Display impl and state transitions
 - Unit test `DispatchHandles` Debug impl
 - Unit test `WorkerCore` Debug impl (requires mocking subsystems)
@@ -111,6 +114,7 @@ These files contain core worker logic where bugs directly affect step execution 
 #### 2. `worker/step_claim.rs` (0% -- 251 lines, 18 functions)
 
 **What it contains**: Step claiming logic that bridges message processing to step execution. Contains:
+
 - `StepClaim::new()` constructor
 - `get_task_sequence_step_by_uuid()` -- hydrates step context from database (fetches Task, WorkflowStep, step definition, transitive dependencies)
 - `get_task_sequence_step_from_step_message()` -- same hydration but from a StepMessage
@@ -119,6 +123,7 @@ These files contain core worker logic where bugs directly affect step execution 
 **Why critical**: Step claiming is the foundation of work distribution. Race conditions in claiming would cause duplicate execution or missed steps. The state machine transition and attempt counter update must be atomic.
 
 **Recommended tests**:
+
 - Integration test: `get_task_sequence_step_by_uuid()` with seeded database
 - Integration test: `get_task_sequence_step_from_step_message()` with seeded database
 - Integration test: `try_claim_step()` with step in Pending, Enqueued, and already-InProgress states
@@ -128,6 +133,7 @@ These files contain core worker logic where bugs directly affect step execution 
 #### 3. `worker/handlers/ffi_dispatch_channel.rs` (28.25% -- 150/531 lines)
 
 **What it contains**: The FFI dispatch bridge (1,027 lines total with tests) that allows Ruby/Python/TypeScript to poll for work and submit completions. Contains:
+
 - `FfiDispatchChannel::new()`, `with_circuit_breaker()`, `with_checkpoint_support()` -- construction
 - `poll()` / `poll_async()` -- non-blocking event retrieval for FFI callers
 - `complete()` / `complete_async()` -- completion submission with circuit breaker, post-handler callbacks, and backpressure handling
@@ -141,6 +147,7 @@ These files contain core worker logic where bugs directly affect step execution 
 **Current test coverage**: Config builder tests, channel creation, empty poll, checkpoint-not-configured. Missing: actual poll/complete flow, circuit breaker integration, timeout cleanup, starvation detection, metrics, checkpoint yield success path.
 
 **Recommended tests**:
+
 - Unit test: `poll()` with messages in dispatch channel -- verify FfiStepEvent fields
 - Unit test: `complete()` happy path -- verify completion_sender receives result and callback fires
 - Unit test: `complete()` with circuit breaker open -- verify fast failure
@@ -158,6 +165,7 @@ These files contain core worker logic where bugs directly affect step execution 
 **Why critical**: Contains the core step execution pipeline. Steps that fail to claim or execute correctly break the entire workflow.
 
 **Recommended tests**:
+
 - Integration test: Execute step from message -- verify claim, execution, result
 - Integration test: State verification with backoff (mock database to return stale states)
 - Unit test: Error paths -- handler error, handler panic, handler timeout
@@ -170,6 +178,7 @@ These files affect reliability, health monitoring, and API functionality.
 #### 5. `bootstrap.rs` (11.95% -- 49/410 lines)
 
 **What it contains**: Unified worker bootstrap system. Handles:
+
 - `WorkerBootstrap::bootstrap()` -- auto-detect configuration, initialize context, create worker core
 - `WorkerSystemHandle` -- lifecycle management (is_running, stop, status, take_dispatch_handles)
 - `WorkerBootstrapConfig` -- configuration with From<&TaskerConfig> conversion
@@ -178,6 +187,7 @@ These files affect reliability, health monitoring, and API functionality.
 **Why high priority**: Bootstrap failures prevent the worker from starting at all. The multi-step initialization with conditional feature gates is complex.
 
 **Recommended tests**:
+
 - Unit test: `WorkerBootstrapConfig::default()` values (already exists)
 - Unit test: `From<&TaskerConfig>` conversion with various configurations
 - Unit test: `WorkerSystemHandle::is_running()`, `has_dispatch_handles()`, `take_dispatch_handles()`
@@ -188,6 +198,7 @@ These files affect reliability, health monitoring, and API functionality.
 #### 6. `worker/handlers/dispatch_service.rs` (22.0% -- 88/400 lines)
 
 **What it contains**: Non-blocking handler dispatch with bounded parallelism. Contains:
+
 - `HandlerDispatchService` -- receives dispatch messages, invokes handlers with semaphore-bounded concurrency
 - `CapacityChecker` -- load shedding based on semaphore utilization
 - `PostHandlerCallback` trait -- extensible post-execution hooks
@@ -195,6 +206,7 @@ These files affect reliability, health monitoring, and API functionality.
 - Error handling: catches handler errors, panics, and timeouts
 
 **Recommended tests**:
+
 - Unit test: `CapacityChecker` -- test capacity checking, warning thresholds, load shedding
 - Unit test: `NoOpCallback` implementation
 - Integration test: Dispatch with mock handler registry -- verify concurrent execution bounded by semaphore
@@ -206,6 +218,7 @@ These files affect reliability, health monitoring, and API functionality.
 **What it contains**: Health check service with detailed, basic, readiness, and liveness checks. Includes database connectivity, PGMQ health, circuit breaker status, distributed cache info, worker core status, template manager stats, and pool utilization.
 
 **Recommended tests**:
+
 - Unit test: Basic health check with mocked dependencies
 - Unit test: Readiness check -- database connected, templates loaded
 - Unit test: Liveness check -- lightweight probe
@@ -218,6 +231,7 @@ Files: `web/handlers/templates.rs` (122), `web/middleware/auth.rs` (96), `web/ro
 **What they contain**: The entire REST API surface: route definitions, health/metrics/template/config handlers, authentication middleware, request ID middleware.
 
 **Recommended tests**:
+
 - Integration test: Mount axum app with test state, hit health endpoints
 - Integration test: Template list/get/validate endpoints with mock services
 - Integration test: Auth middleware with valid/invalid/missing tokens
@@ -232,6 +246,7 @@ These files affect operational observability, event processing, and template man
 **What it contains**: Metrics collection including queue depths, handler counts, event stats, template cache stats, and Prometheus formatting.
 
 **Recommended tests**:
+
 - Unit test: Metrics construction with mock dependencies
 - Unit test: Prometheus format output
 - Integration test: Worker metrics with database and queue state
@@ -241,6 +256,7 @@ These files affect operational observability, event processing, and template man
 **What it contains**: Template cache management including discovery from handler registry, database synchronization, cache invalidation, namespace management, and handler metadata lookup.
 
 **Recommended tests**:
+
 - Unit test: Template discovery and namespace extraction
 - Unit test: Cache stats reporting
 - Integration test: Template synchronization with database
@@ -251,6 +267,7 @@ These files affect operational observability, event processing, and template man
 **What it contains**: Pure routing command processor that delegates WorkerCommand variants to appropriate actors. Creates ActorRegistry, DispatchChannels, and event subscriber integration.
 
 **Recommended tests**:
+
 - Unit test: Command routing for each WorkerCommand variant
 - Integration test: Full command processing pipeline with mock actors
 - Unit test: Event subscriber enablement
@@ -260,6 +277,7 @@ These files affect operational observability, event processing, and template man
 **What it contains**: Worker event system managing listener, fallback poller, and deployment mode switching (PollingOnly, EventDrivenOnly, Hybrid).
 
 **Recommended tests**:
+
 - Unit test: Configuration mapping for each deployment mode
 - Integration test: Start/stop lifecycle
 - Unit test: Statistics reporting
@@ -269,6 +287,7 @@ These files affect operational observability, event processing, and template man
 **What it contains**: Registry for custom step event publishers with name-based lookup and default fallback.
 
 **Recommended tests**:
+
 - Unit test: Register, get, get_or_default, list names
 - Unit test: Default publisher behavior
 - Integration test: Publisher invocation with mock context
@@ -280,6 +299,7 @@ Files: `grpc/server.rs` (101), `grpc/interceptors/auth.rs` (57), `grpc/services/
 **What they contain**: Worker gRPC server, auth interceptor, health/config/template services.
 
 **Recommended tests**:
+
 - Integration test: gRPC health service
 - Integration test: gRPC template list/get
 - Unit test: Auth interceptor with valid/invalid credentials
@@ -294,6 +314,7 @@ These files are less critical or have limited testable logic.
 Legacy bridge that delegates entirely to WorkerEventSystem. Contains config mapping and API compatibility.
 
 **Recommended tests**:
+
 - Unit test: `EventDrivenConfig::default()` values
 - Unit test: `map_config_to_new_architecture()` output verification
 - Integration test: Start/stop delegation to WorkerEventSystem
@@ -303,6 +324,7 @@ Legacy bridge that delegates entirely to WorkerEventSystem. Contains config mapp
 Safety net polling for missed messages. Contains polling loop, namespace queue iteration, and statistics.
 
 **Recommended tests**:
+
 - Unit test: `WorkerPollerConfig::default()` values
 - Unit test: `WorkerPollerStats` atomics
 - Integration test: Poll namespace queue with mock messaging provider
@@ -312,6 +334,7 @@ Safety net polling for missed messages. Contains polling loop, namespace queue i
 SharedWorkerServices construction from WorkerCore. Requires full integration context.
 
 **Recommended tests**:
+
 - Integration test: `from_worker_core()` with test WorkerCore
 - Unit test: `is_auth_enabled()`, `uptime_seconds()`, `supported_namespaces()`
 
@@ -320,6 +343,7 @@ SharedWorkerServices construction from WorkerCore. Requires full integration con
 Web state wrapping SharedWorkerServices with accessor delegation.
 
 **Recommended tests**:
+
 - Unit test: All accessor methods delegate correctly
 - Unit test: `domain_event_stats()` aggregation
 - Unit test: `circuit_breakers_health()` with/without provider
@@ -329,6 +353,7 @@ Web state wrapping SharedWorkerServices with accessor delegation.
 Test environment validation utilities. These are test helpers themselves.
 
 **Recommended tests**:
+
 - Unit test: Environment validation logic
 - Unit test: Safety check enforcement
 
@@ -420,6 +445,7 @@ Achieving the recommended test plan across all phases:
 ### Realistic Estimate with Integration Test Coverage Multiplier
 
 Integration tests for WorkerCore lifecycle, bootstrap, and dispatch service will transitively exercise:
+
 - Channel management (`channels.rs` -- 112 lines)
 - Actor registry (`registry.rs` -- 142 lines)
 - Event subscriber (`event_subscriber.rs` -- 342 lines)

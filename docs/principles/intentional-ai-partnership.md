@@ -51,6 +51,7 @@ When you ask an AI to "build a feature," you get code. When you work with an AI 
 This is not an AI-specific insight. It's foundational engineering practice. But AI makes the cost of skipping specification deceptively low: you can generate code instantly, so why spend time on design? The answer is the same as it's always been: because code without design is not software, it's typing.
 
 **In practice:**
+
 - Begin with exploration: What problem are we solving? What does the current system look like? What will be different when this work is complete?
 - Research with tools: Use AI capabilities to understand the codebase, explore patterns in the ecosystem, review prior art. Ground the work in reality, not assumptions.
 - Develop evaluation criteria before evaluating solutions. Know what "good" looks like before you start judging options.
@@ -65,6 +66,7 @@ This principle exists because humans have limited working memory. It's true for 
 Phased delivery is how we manage this limitation. Each phase is small enough to understand completely, validate thoroughly, and commit to confidently. The boundaries between phases are synchronization points where understanding is verified.
 
 **In practice:**
+
 - Identify what can be parallelized versus what must be sequential. Not all work is equally dependent.
 - Determine which aspects require careful attention versus which can be resolved at implementation time. Not all decisions are equally consequential.
 - Each phase should be independently validatable: tests pass, acceptance criteria met, code reviewed.
@@ -79,6 +81,7 @@ AI can generate tests as easily as it generates code. This makes it tempting to 
 Tests are specifications. They encode expectations about behavior. When tests are written first—or at least designed first—they constrain the implementation toward correctness. When tests are generated after the fact, they merely document whatever the implementation happens to do, bugs included.
 
 **In practice:**
+
 - Define acceptance criteria before implementation begins.
 - Include edge cases, boundary conditions, and non-happy-path scenarios in specifications.
 - End-to-end testing validates that the system works, not just that individual units work.
@@ -97,6 +100,7 @@ If you cannot explain why a particular approach was chosen, you should not appro
 This standard applies to all code, regardless of its origin. Human-written code that the approving engineer doesn't understand is no better than AI-written code they don't understand. The source is irrelevant; the accountability is what matters.
 
 **In practice:**
+
 - Review is not approval. Approval requires understanding.
 - The bikeshedding threshold is a valid concept: knowing *why* something isn't worth debating is also knowledge. But you must actually know this, not assume it.
 - Code review agents and architectural validators are useful, but they augment human judgment rather than replacing it.
@@ -111,6 +115,7 @@ Every engineer who joins a project faces the same challenge: building sufficient
 This is the insight that makes documentation investment worthwhile: it extends cognition across time and across minds. The context you build today, documented well, becomes instantly available to future collaborators—human or AI.
 
 **In practice:**
+
 - Structure documentation for efficient context loading. Navigation guides, trigger patterns, clear hierarchies.
 - Capture the "why" alongside the "what." Decisions without rationale are trivia.
 - Principles, architecture, guides, reference—different documents serve different needs at different times.
@@ -125,6 +130,7 @@ The ideal toolchain provides fast feedback loops, enforces correctness constrain
 Languages and tools that defer decisions to runtime, that allow implicit behavior, that prioritize flexibility over explicitness, make intentional partnership harder. Not impossible—but harder. The burden of verification shifts more heavily to the human.
 
 **In practice:**
+
 - Strong type systems document intent in ways that survive across sessions and collaborators.
 - Compilers that enforce correctness (memory safety, exhaustive matching) catch the classes of errors most likely to slip through in high-velocity development.
 - Explicit architectural patterns—actor models, channel semantics, clear ownership boundaries—force intentional design rather than emergent mess.

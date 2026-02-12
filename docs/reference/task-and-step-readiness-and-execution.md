@@ -35,30 +35,35 @@ The SQL functions are organized into logical categories as defined in
 `tasker-shared/src/database/sql_functions.rs`:
 
 #### 1. Step Readiness Analysis
+
 - **`get_step_readiness_status(task_uuid, step_uuids[])`**: Comprehensive dependency analysis
 - **`calculate_backoff_delay(attempts, base_delay)`**: Exponential backoff calculation
 - **`check_step_dependencies(step_uuid)`**: Parent completion validation
 - **`get_ready_steps(task_uuid)`**: Parallel execution candidate discovery
 
 #### 2. DAG Operations
+
 - **`detect_cycle(from_step_uuid, to_step_uuid)`**: Cycle detection using recursive CTEs
 - **`calculate_dependency_levels(task_uuid)`**: Topological depth calculation
 - **`calculate_step_depth(step_uuid)`**: Individual step depth analysis
 - **`get_step_transitive_dependencies(step_uuid)`**: Full dependency tree traversal
 
 #### 3. State Management
+
 - **`transition_task_state_atomic(task_uuid, from_state, to_state, processor_uuid)`**:
   Atomic state transitions with ownership
 - **`get_current_task_state(task_uuid)`**: Current task state resolution
 - **`finalize_task_completion(task_uuid)`**: Task completion orchestration
 
 #### 4. Analytics and Monitoring
+
 - **`get_analytics_metrics(since_timestamp)`**: Comprehensive system analytics
 - **`get_system_health_counts()`**: System-wide health and performance metrics
 - **`get_slowest_steps(limit)`**: Performance optimization analysis
 - **`get_slowest_tasks(limit)`**: Task performance analysis
 
 #### 5. Task Discovery and Execution
+
 - **`get_next_ready_task()`**: Single task discovery for orchestration
 - **`get_next_ready_tasks(limit)`**: Batch task discovery for scaling
 - **`get_task_ready_info(task_uuid)`**: Detailed task readiness information
@@ -74,12 +79,14 @@ with simplified names. With `search_path = tasker, public`, queries use unqualif
 table names.
 
 #### Primary Tables
+
 - **`tasks`**: Main workflow instances with UUID v7 primary keys
 - **`workflow_steps`**: Individual workflow steps with dependency relationships
 - **`task_transitions`**: Task state change audit trail with processor tracking
 - **`workflow_step_transitions`**: Step state change audit trail
 
 #### Registry Tables
+
 - **`task_namespaces`**: Workflow namespace definitions
 - **`named_tasks`**: Task type templates and metadata
 - **`named_steps`**: Step type definitions and handlers
@@ -91,6 +98,7 @@ The richer task states migration (`migrations/tasker/20251209000000_tas41_richer
 schema with:
 
 **Task State Management**:
+
 ```sql
 -- 12 comprehensive task states
 ALTER TABLE task_transitions
@@ -103,6 +111,7 @@ CHECK (to_state IN (
 ```
 
 **Processor Ownership Tracking**:
+
 ```sql
 ALTER TABLE task_transitions
 ADD COLUMN processor_uuid UUID,
@@ -110,6 +119,7 @@ ADD COLUMN transition_metadata JSONB DEFAULT '{}';
 ```
 
 **Atomic State Transitions**:
+
 ```sql
 CREATE OR REPLACE FUNCTION transition_task_state_atomic(
     p_task_uuid UUID,
@@ -129,12 +139,14 @@ CREATE OR REPLACE FUNCTION transition_task_state_atomic(
 The step readiness system was enhanced to support the new `WaitingForRetry` state, which distinguishes retryable failures from permanent errors:
 
 **Key Changes**:
+
 1. **Helper Functions**: Added `calculate_step_next_retry_time()` and `evaluate_step_state_readiness()` for consistent backoff logic
 2. **State Recognition**: Updated readiness evaluation to treat `waiting_for_retry` as a ready-eligible state alongside `pending`
 3. **Backoff Calculation**: Centralized exponential backoff logic with configurable backoff periods
 4. **Performance Optimization**: Introduced task-scoped CTEs to eliminate table scans for batch operations
 
 **Semantic Impact**:
+
 - **Before**: `error` state included both retryable and permanent failures
 - **After**: `error` = permanent only, `waiting_for_retry` = awaiting backoff for retry
 
@@ -143,12 +155,14 @@ The step readiness system was enhanced to support the new `WaitingForRetry` stat
 The backoff calculation system was consolidated to eliminate configuration conflicts and race conditions:
 
 **Key Changes**:
+
 1. **Configuration Alignment**: Single source of truth (TOML config) with max_backoff_seconds = 60
 2. **Parameterized SQL Functions**: `calculate_step_next_retry_time()` accepts configurable max delay and multiplier
 3. **Atomic Updates**: Row-level locking prevents concurrent backoff update conflicts
 4. **Timing Consistency**: `last_attempted_at` updated atomically with `backoff_request_seconds`
 
 **Issues Resolved**:
+
 - **Configuration Conflicts**: Eliminated three conflicting max values (30s SQL, 60s code, 300s TOML)
 - **Race Conditions**: Added SELECT FOR UPDATE locking in BackoffCalculator
 - **Hardcoded Values**: Removed hardcoded 30-second cap and power(2, attempts) in SQL
@@ -156,6 +170,7 @@ The backoff calculation system was consolidated to eliminate configuration confl
 **Helper Functions Enhanced**:
 
 1. **`calculate_step_next_retry_time()`**: Now parameterized with configuration values
+
    ```sql
    CREATE OR REPLACE FUNCTION calculate_step_next_retry_time(
        backoff_request_seconds INTEGER,
@@ -166,23 +181,27 @@ The backoff calculation system was consolidated to eliminate configuration confl
        p_backoff_multiplier NUMERIC DEFAULT 2.0
    ) RETURNS TIMESTAMP
    ```
+
    - Respects custom backoff periods from step configuration (primary path)
    - Falls back to exponential backoff with configurable parameters
    - Defaults aligned with TOML config (60s max, 2.0 multiplier)
    - Used consistently across all readiness evaluation
 
 2. **`set_step_backoff_atomic()`**: New atomic update function
+
    ```sql
    CREATE OR REPLACE FUNCTION set_step_backoff_atomic(
        p_step_uuid UUID,
        p_backoff_seconds INTEGER
    ) RETURNS BOOLEAN
    ```
+
    - Provides transactional guarantee for concurrent updates
    - Updates both `backoff_request_seconds` and `last_attempted_at`
    - Ensures timing consistency with SQL calculations
 
 3. **`evaluate_step_state_readiness()`**: Determines if a step is ready for execution
+
    ```sql
    CREATE OR REPLACE FUNCTION evaluate_step_state_readiness(
        current_state TEXT,
@@ -194,6 +213,7 @@ The backoff calculation system was consolidated to eliminate configuration confl
        next_retry_time TIMESTAMP
    ) RETURNS BOOLEAN
    ```
+
    - Recognizes both `pending` and `waiting_for_retry` as ready-eligible states
    - Validates backoff period has expired before allowing retry
    - Ensures dependencies are satisfied and retry limits not exceeded
@@ -230,17 +250,20 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
 #### Key Analysis Features
 
 **Dependency Satisfaction**:
+
 - Validates all parent steps are in `complete` or `resolved_manually` states
 - Handles complex DAG structures with multiple dependency paths
 - Supports conditional dependencies based on parent results
 
 **Retry Logic**:
+
 - Exponential backoff calculation: `2^attempts` seconds (max 30)
 - Custom backoff periods from step configuration
 - Retry limit enforcement to prevent infinite loops
 - Failure tracking with temporal analysis
 
 **Execution Readiness**:
+
 - State validation (must be `pending` or `error`)
 - Dependency satisfaction confirmation
 - Retry eligibility assessment
@@ -347,16 +370,19 @@ END;
 #### Dependency Level Benefits
 
 **Parallel Execution Planning**:
+
 - Steps at the same dependency level can execute in parallel
 - Enables optimal resource utilization across workers
 - Supports batch enqueueing for scalability
 
 **Execution Ordering**:
+
 - Level 0: Root steps (no dependencies) - can start immediately
 - Level N: Steps requiring completion of level N-1 steps
 - Topological ordering ensures dependency satisfaction
 
 **Performance Optimization**:
+
 - Single query provides complete dependency analysis
 - Avoids N+1 query problems in dependency resolution
 - Enables batch processing optimizations
@@ -412,12 +438,14 @@ The `get_task_execution_context` function was enhanced to correctly identify tas
 **Problem**: The function only checked `attempts >= retry_limit` to detect permanently blocked steps, missing cases where workers marked errors as non-retryable (e.g., missing handlers, configuration errors).
 
 **Solution**: Updated `permanently_blocked_steps` calculation to check both conditions:
+
 ```sql
 COUNT(CASE WHEN sd.current_state = 'error'
             AND (sd.attempts >= retry_limit OR sd.retry_eligible = false) THEN 1 END)
 ```
 
 **Impact**:
+
 - **execution_status**: Now correctly returns `blocked_by_failures` instead of `waiting_for_dependencies` for tasks with non-retryable errors
 - **recommended_action**: Returns `handle_failures` instead of `wait_for_dependencies`
 - **health_status**: Returns `blocked` instead of `recovering` when appropriate
@@ -479,12 +507,14 @@ pub struct ReadyTaskInfo {
 ```
 
 **Priority Calculation**:
+
 - Base priority from task configuration
 - Dynamic priority adjustment based on age, retry attempts
 - Namespace-based priority modifiers
 - SLA-based priority escalation
 
 **Ready Steps Count**:
+
 - Real-time count of steps eligible for execution
 - Used for batch size optimization
 - Influences orchestration scheduling decisions
@@ -561,16 +591,19 @@ $$ LANGUAGE plpgsql;
 #### Key Features
 
 **Atomic Operation**:
+
 - Single transaction with row-level locking
 - Compare-and-swap semantics prevent race conditions
 - Returns boolean indicating success/failure
 
 **Ownership Validation**:
+
 - Processor ownership required for active states
 - Prevents concurrent processing by multiple orchestrators
 - Supports ownership claiming for unowned tasks
 
 **State Consistency**:
+
 - Validates current state matches expected `from_state`
 - Maintains audit trail with complete transition history
 - Updates `most_recent` flags atomically
@@ -804,6 +837,7 @@ CREATE OR REPLACE FUNCTION transition_task_state_atomic(
    - Returns false if state has changed, allowing caller to retry with fresh state
 
 2. **Processor Ownership Enforcement**:
+
    ```sql
    CASE
        WHEN cs.to_state IN ('initializing', 'enqueuing_steps',
@@ -812,6 +846,7 @@ CREATE OR REPLACE FUNCTION transition_task_state_atomic(
        ELSE true
    END
    ```
+
    - Active processing states require ownership match
    - Allows claiming unowned tasks (NULL processor_uuid)
    - Terminal states (complete, error) don't require ownership
@@ -852,6 +887,7 @@ RETURNS TABLE(
 **Key Problem-Solving Logic**:
 
 1. **Ready Step Discovery**:
+
    ```sql
    WITH ready_steps AS (
        SELECT task_uuid, COUNT(*) as ready_count
@@ -861,6 +897,7 @@ RETURNS TABLE(
        GROUP BY task_uuid
    )
    ```
+
    - Pre-aggregates ready steps per task for efficiency
    - Considers both new steps and retryable errors
 
@@ -870,11 +907,13 @@ RETURNS TABLE(
    - Includes waiting states that might have become ready
 
 3. **Priority Computation**:
+
    ```sql
    computed_priority = base_priority +
                       (age_factor * hours_waiting) +
                       (retry_factor * retry_count)
    ```
+
    - Dynamic priority based on age and retry attempts
    - Prevents task starvation through age escalation
 
@@ -921,6 +960,7 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
 **Key Problem-Solving Logic**:
 
 1. **Dependency Satisfaction Analysis**:
+
    ```sql
    WITH parent_completion AS (
        SELECT
@@ -933,11 +973,13 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
        GROUP BY edge.to_step_uuid
    )
    ```
+
    - Counts total vs. completed parent dependencies
    - Handles conditional dependencies based on parent results
    - Supports complex DAG structures with multiple paths
 
 2. **Retry Eligibility Assessment**:
+
    ```sql
    retry_eligible = (
        current_state = 'error' AND
@@ -946,12 +988,14 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
         last_attempted_at + backoff_interval <= NOW())
    )
    ```
+
    - Enforces retry limits to prevent infinite loops
    - Calculates exponential backoff: `2^attempts` seconds (max 30)
    - Respects custom backoff periods from step configuration
    - Considers temporal constraints for retry timing
 
 3. **State Validation**:
+
    ```sql
    ready_for_execution = (
        current_state IN ('pending', 'error') AND
@@ -959,12 +1003,14 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
        retry_eligible
    )
    ```
+
    - Only pending or retryable error steps can execute
    - Requires all dependencies satisfied
    - Must pass retry eligibility checks
    - Prevents execution of steps in terminal states
 
 4. **Backoff Calculation**:
+
    ```sql
    next_retry_at = CASE
        WHEN current_state = 'error' AND attempts > 0
@@ -973,6 +1019,7 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
        ELSE NULL
    END
    ```
+
    - Custom backoff from step configuration takes precedence
    - Default exponential backoff with maximum cap
    - Temporal precision for scheduling retry attempts
@@ -1077,12 +1124,14 @@ $$ LANGUAGE plpgsql;
 Instead of database triggers for task readiness notifications, the system uses a fallback polling mechanism to ensure no ready tasks are missed:
 
 **FallbackPoller Configuration**:
+
 - Default polling interval: 30 seconds
 - Runs `StepEnqueuerService::process_batch()` periodically
 - Catches tasks that may have been missed by primary PGMQ notification system
 - Configurable enable/disable via TOML configuration
 
 **Key Benefits**:
+
 - **Resilience**: Ensures no tasks are permanently stuck if notifications fail
 - **Simplicity**: No complex database triggers or state tracking required
 - **Observability**: Clear metrics on fallback discovery vs. event-driven discovery
@@ -1138,16 +1187,19 @@ $$ LANGUAGE plpgsql;
 All SQL functions are designed with transaction safety in mind:
 
 **Atomic Operations**:
+
 - State transitions use row-level locking (`FOR UPDATE`)
 - Compare-and-swap patterns prevent race conditions
 - Rollback safety for partial failures
 
 **Consistency Guarantees**:
+
 - Foreign key constraints maintained across all operations
 - Check constraints validate state transitions
 - Audit trails preserved for debugging and compliance
 
 **Performance Optimization**:
+
 - Efficient indexes for common query patterns
 - Materialized views for expensive analytics queries
 - Connection pooling for high concurrency

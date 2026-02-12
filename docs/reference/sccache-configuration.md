@@ -7,6 +7,7 @@ This document records our sccache configuration for future reference. Sccache is
 ## Current Status
 
 🚫 **DISABLED** - Temporarily disabled due to GitHub Actions cache service issues:
+
 ```
 sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>
 ```
@@ -14,6 +15,7 @@ sccache: error: Server startup failed: cache storage failed to read: Unexpected 
 ## Planned Configuration
 
 ### Environment Variables (setup-env action)
+
 ```bash
 RUSTC_WRAPPER=sccache
 SCCACHE_GHA_ENABLED=true
@@ -23,11 +25,13 @@ SCCACHE_CACHE_SIZE=2G  # For Docker builds
 ### GitHub Actions Integration
 
 #### Workflows Using sccache
+
 1. **code-quality.yml** - Build caching for clippy and rustfmt
-2. **test-unit.yml** - Build caching for unit tests 
+2. **test-unit.yml** - Build caching for unit tests
 3. **test-integration.yml** - Build caching for integration tests
 
 #### Action Configuration
+
 ```yaml
 - uses: mozilla-actions/sccache-action@v0.0.4
 ```
@@ -83,7 +87,8 @@ When GitHub Actions cache service is stable:
 
 ## Configuration Locations
 
-### Files containing sccache configuration:
+### Files containing sccache configuration
+
 - `.github/actions/setup-env/action.yml` - Environment variables
 - `.github/workflows/code-quality.yml` - Action usage
 - `.github/workflows/test-unit.yml` - Action usage  
@@ -91,7 +96,9 @@ When GitHub Actions cache service is stable:
 - `docs/sccache-configuration.md` - This documentation
 
 ### Docker Integration
+
 For Docker builds, pass sccache variables as build args:
+
 ```yaml
 build-args: |
   SCCACHE_GHA_ENABLED=true
@@ -102,11 +109,13 @@ build-args: |
 ## Troubleshooting
 
 ### Common Issues
+
 - **Cache service unavailable**: Wait for GitHub to restore service
 - **Cache misses**: Check RUSTC_WRAPPER is set correctly
 - **Permission errors**: Ensure sccache action has proper permissions
 
 ### Monitoring
+
 - Check `sccache --show-stats` for cache effectiveness
 - Monitor CI run times for performance improvements
 - Watch GitHub status page for cache service updates

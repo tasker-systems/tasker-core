@@ -31,6 +31,7 @@ This document captures the major architectural decisions, feature milestones, an
 | Feature | Dynamic workflows and decision points |
 
 **Key outcomes**:
+
 - Actor pattern established as core architectural approach
 - Event-driven + polling hybrid pattern defined
 - All channels bounded, backpressure everywhere
@@ -42,6 +43,7 @@ This document captures the major architectural decisions, feature milestones, an
 | **Breakthrough** | Processor UUID ownership enforcement **removed** |
 
 This was a pivotal moment. Analysis proved that:
+
 1. Ownership enforcement was redundant (four protection layers already sufficient)
 2. Ownership enforcement *prevented* automatic recovery after crashes
 3. Tracking for audit (without enforcement) provides full visibility
@@ -73,6 +75,7 @@ See [Defense in Depth](./principles/defense-in-depth.md) for the full protection
 | Research | Handler ergonomics analysis (composition pattern identified) |
 
 **Key outcomes**:
+
 - Worker architecture mirrors orchestration's actor pattern
 - FFI chosen over WASM for pragmatic reasons
 - Cross-language API consistency established
@@ -87,6 +90,7 @@ See [Defense in Depth](./principles/defense-in-depth.md) for the full protection
 **Context**: Monolithic command processors were growing unwieldy (1,500+ LOC files).
 
 **Decision**: Adopt lightweight actor pattern with message-passing:
+
 - 4 orchestration actors (TaskRequest, ResultProcessor, StepEnqueuer, TaskFinalizer)
 - 5 worker actors (StepExecutor, FFICompletion, TemplateCache, DomainEvent, WorkerStatus)
 
@@ -97,6 +101,7 @@ See [Defense in Depth](./principles/defense-in-depth.md) for the full protection
 **Context**: Processor UUID was being used to enforce "ownership" of tasks during processing.
 
 **Discovery**: When analyzing race conditions, we found:
+
 1. Four protection layers (database, state machine, transaction, application) already prevent corruption
 2. Ownership enforcement blocked recovery when orchestrator crashed and restarted with new UUID
 3. No data corruption occurred in 377 tests without ownership enforcement
@@ -110,6 +115,7 @@ See [Defense in Depth](./principles/defense-in-depth.md) for the full protection
 **Context**: TypeScript worker needed Rust integration. WASM seemed "pure" but FFI was proven.
 
 **Analysis**:
+
 - WASM: No production PostgreSQL client, single-threaded, WASI immaturity
 - FFI: Proven in Ruby (Magnus) and Python (PyO3), identical polling contract
 
@@ -124,6 +130,7 @@ See [Defense in Depth](./principles/defense-in-depth.md) for the full protection
 **Discovery**: Batchable handlers already used mixin pattern successfully.
 
 **Decision**: Migrate all handlers to composition pattern:
+
 ```
 Not: class Handler < API
 But: class Handler < Base; include API, include Decision, include Batchable

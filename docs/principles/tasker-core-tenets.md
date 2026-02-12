@@ -11,6 +11,7 @@ These 11 tenets guide all architectural and design decisions in Tasker Core. Eac
 **Multiple overlapping protection layers provide robust idempotency without single-point dependency.**
 
 Protection comes from four independent layers:
+
 - **Database-level atomicity**: Unique constraints, row locking, compare-and-swap
 - **State machine guards**: Current state validation before transitions
 - **Transaction boundaries**: All-or-nothing semantics
@@ -29,6 +30,7 @@ Each layer catches what others might miss. No single layer is responsible for al
 **Real-time responsiveness via PostgreSQL LISTEN/NOTIFY, with polling as a reliability backstop.**
 
 The system supports three deployment modes:
+
 - **EventDrivenOnly**: Lowest latency, relies on pg_notify
 - **PollingOnly**: Traditional polling, higher latency but simple
 - **Hybrid** (recommended): Event-driven primary, polling fallback
@@ -44,12 +46,14 @@ Events can be missed (network issues, connection drops). Polling ensures eventua
 **Mixins and traits for handler capabilities, not class hierarchies.**
 
 Handler capabilities are composed via mixins:
+
 ```
 Not: class Handler < API
 But: class Handler < Base; include API, include Decision, include Batchable
 ```
 
 This pattern enables:
+
 - Selective capability inclusion
 - Clear separation of concerns
 - Easier testing of individual capabilities
@@ -66,6 +70,7 @@ This pattern enables:
 **Unified developer-facing APIs across Rust, Ruby, Python, and TypeScript.**
 
 Consistent touchpoints include:
+
 - Handler signatures: `call(context)` pattern
 - Result factories: `success(data)` / `failure(error, retry_on)`
 - Registry APIs: `register_handler(name, handler)`
@@ -84,12 +89,14 @@ Each language expresses these idiomatically while maintaining conceptual consist
 **Lightweight actors for lifecycle management and clear boundaries.**
 
 Orchestration uses four core actors:
+
 1. **TaskRequestActor**: Task initialization
 2. **ResultProcessorActor**: Step result processing
 3. **StepEnqueuerActor**: Batch step enqueueing
 4. **TaskFinalizerActor**: Task completion
 
 Worker uses five specialized actors:
+
 1. **StepExecutorActor**: Step execution coordination
 2. **FFICompletionActor**: FFI completion handling
 3. **TemplateCacheActor**: Template cache management
@@ -111,6 +118,7 @@ Task states (12): `Pending → Initializing → EnqueuingSteps → StepsInProces
 Step states (8): `Pending → Enqueued → InProgress → Complete/Error`
 
 All transitions are:
+
 - Atomic (compare-and-swap at database level)
 - Audited (full history in transitions table)
 - Validated (state guards prevent invalid transitions)
@@ -124,11 +132,13 @@ All transitions are:
 **Track for observability, don't block for "ownership."**
 
 Processor UUID is tracked in every transition for:
+
 - Debugging (which instance processed which step)
 - Audit trails (full history of processing)
 - Metrics (load distribution analysis)
 
 But not enforced for:
+
 - Ownership claims (blocks recovery)
 - Permission checks (redundant with state guards)
 
@@ -138,22 +148,24 @@ But not enforced for:
 
 ---
 
-### 8. Pre-Alpha Freedom
+### 8. Early Release Iteration
 
-**Break things early to get architecture right.**
+**Refine architecture intentionally while adoption is limited.**
 
-In pre-alpha phase:
-- Breaking changes are encouraged when architecture is fundamentally unsound
-- No backward compatibility required for greenfield work
-- Migration debt is cheaper than technical debt
-- "Perfect" is the enemy of "architecturally sound"
+In the 0.1.x series:
 
-This freedom enables:
-- Rapid iteration on core patterns
-- Learning from real implementation
-- Correcting course before users depend on specifics
+- Breaking changes may still occur when architecture is fundamentally unsound
+- We follow semantic versioning and provide migration guidance where practical
+- Architectural correctness remains a priority, balanced with user impact
+- We communicate breaking changes clearly in release notes
 
-**Origin**: All major refactoring efforts made breaking changes that improved architecture fundamentally.
+This approach enables:
+
+- Continued refinement of core patterns
+- Learning from real-world feedback
+- Building trust through predictable releases
+
+**Origin**: All major refactoring efforts made breaking changes that improved architecture fundamentally. As the project matures, we balance this with user expectations.
 
 ---
 
@@ -162,12 +174,14 @@ This freedom enables:
 **Database-level guarantees with flexible messaging (PGMQ default, RabbitMQ optional).**
 
 PostgreSQL provides:
+
 - **State storage**: Task and step state with transactional guarantees
 - **Advisory locks**: Distributed coordination primitives
 - **Atomic functions**: State transitions in single round-trip
 - **Row-level locking**: Prevents concurrent modification
 
 Messaging is provider-agnostic:
+
 - **PGMQ** (default): Message queue built on PostgreSQL—single-dependency deployment
 - **RabbitMQ** (optional): For high-throughput or existing broker infrastructure
 
@@ -182,6 +196,7 @@ The database is not just storage—it's the coordination layer. Message delivery
 **All channels bounded, backpressure everywhere.**
 
 Every MPSC channel is:
+
 - **Bounded**: Fixed capacity, no unbounded memory growth
 - **Configurable**: Sizes set via TOML configuration
 - **Monitored**: Backpressure metrics exposed
@@ -199,6 +214,7 @@ Semaphores limit concurrent handler execution. Circuit breakers protect downstre
 **A system that lies is worse than one that fails. Errors are first-class citizens, not inconveniences to hide.**
 
 When data is missing, malformed, or unexpected:
+
 - **Return errors**, not fabricated defaults
 - **Propagate failures** up the call stack
 - **Make problems visible** immediately, not downstream

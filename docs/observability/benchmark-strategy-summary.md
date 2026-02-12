@@ -18,18 +18,21 @@ Complete benchmarking infrastructure for measuring distributed system performanc
 **Status**: ✅ **COMPLETE** - Fully implemented and tested
 
 **Measures**:
+
 - HTTP request → task initialized latency
 - Task record creation in PostgreSQL
 - Initial step discovery from template
 - Response generation and serialization
 
 **Results** (2025-10-08):
+
 ```
 Linear (3 steps):   17.7ms  (Target: < 50ms)  ✅ 3x better than target
 Diamond (4 steps):  20.8ms  (Target: < 75ms)  ✅ 3.6x better than target
 ```
 
 **Run Command**:
+
 ```bash
 cargo bench --package tasker-client --features benchmarks
 ```
@@ -39,11 +42,13 @@ cargo bench --package tasker-client --features benchmarks
 **Status**: ✅ **COMPLETE** - Fully implemented (Phase 5.2)
 
 **Measures**:
+
 - 6 critical PostgreSQL function benchmarks
 - Intelligent stratified sampling (5-10 diverse samples per function)
 - EXPLAIN ANALYZE query plan analysis (run once per function)
 
 **Results** (from Phase 5.2):
+
 ```
 Task discovery:            1.75-2.93ms  (O(1) scaling!)
 Step readiness:            440-603µs    (37% variance captured)
@@ -54,6 +59,7 @@ Query plan buffer hit:     100%         (all functions)
 ```
 
 **Run Command**:
+
 ```bash
 DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test" \
 cargo bench --package tasker-shared --features benchmarks sql_functions
@@ -66,24 +72,28 @@ cargo bench --package tasker-shared --features benchmarks sql_functions
 **Status**: 🚧 Skeleton created - needs implementation
 
 **Measures**:
+
 - **Claim**: PGMQ read + atomic claim
 - **Execute**: Handler execution (framework overhead)
 - **Submit**: Result serialization + HTTP submit
 - **Total**: Complete worker cycle
 
 **Targets**:
+
 - Claim: < 20ms
 - Execute (noop): < 10ms
 - Submit: < 30ms
 - **Total overhead**: < 60ms
 
 **Implementation Requirements**:
+
 - Pre-enqueued steps in namespace queues
 - Worker client with breakdown metrics
 - Multiple handler types (noop, calculation, database)
 - Accurate timestamp collection for each phase
 
 **Run Command** (when implemented):
+
 ```bash
 cargo bench --package tasker-worker --features benchmarks worker_execution
 ```
@@ -93,22 +103,26 @@ cargo bench --package tasker-worker --features benchmarks worker_execution
 **Status**: 🚧 Skeleton created - needs implementation
 
 **Measures**:
+
 - PostgreSQL LISTEN/NOTIFY latency
 - PGMQ `pgmq_send_with_notify` overhead
 - Event system framework overhead
 
 **Targets**:
+
 - p50: < 5ms
 - p95: < 10ms
 - p99: < 20ms
 
 **Implementation Requirements**:
+
 - PostgreSQL LISTEN connection setup
 - PGMQ notification channel configuration
 - Concurrent listener with timestamp correlation
 - Accurate cross-thread time measurement
 
 **Run Command** (when implemented):
+
 ```bash
 cargo bench --package tasker-shared --features benchmarks event_propagation
 ```
@@ -118,17 +132,20 @@ cargo bench --package tasker-shared --features benchmarks event_propagation
 **Status**: 🚧 Skeleton created - needs implementation
 
 **Measures**:
+
 - Ready step discovery (SQL query time)
 - Queue publishing (PGMQ write time)
 - Notification overhead (LISTEN/NOTIFY)
 - Total orchestration coordination
 
 **Targets**:
+
 - 3-step workflow: < 50ms
 - 10-step workflow: < 100ms
 - 50-step workflow: < 500ms
 
 **Implementation Requirements**:
+
 - Pre-created tasks with dependency chains
 - Orchestration client with result processing trigger
 - Queue polling to detect enqueued steps
@@ -137,6 +154,7 @@ cargo bench --package tasker-shared --features benchmarks event_propagation
 **Challenge**: Triggering step discovery without full workflow execution
 
 **Run Command** (when implemented):
+
 ```bash
 cargo bench --package tasker-orchestration --features benchmarks step_enqueueing
 ```
@@ -146,22 +164,26 @@ cargo bench --package tasker-orchestration --features benchmarks step_enqueueing
 **Status**: 🚧 Skeleton created - needs implementation
 
 **Measures**:
+
 - Pure Rust handler (baseline - direct call)
 - Rust handler via framework (dispatch overhead)
 - Ruby handler via FFI (FFI boundary cost)
 
 **Targets**:
+
 - Pure Rust: < 1µs (baseline)
 - Via Framework: < 1ms
 - Ruby FFI: < 5ms
 
 **Implementation Requirements**:
+
 - Noop handler implementations (Rust + Ruby)
 - Direct function call benchmarks
 - Framework dispatch overhead measurement
 - FFI bridge overhead measurement
 
 **Run Command** (when implemented):
+
 ```bash
 cargo bench --package tasker-worker --features benchmarks handler_overhead
 ```
@@ -171,17 +193,20 @@ cargo bench --package tasker-worker --features benchmarks handler_overhead
 **Status**: 🚧 Skeleton created - needs implementation
 
 **Measures**:
+
 - Complete workflow execution (API → Task Complete)
 - All system components (API, DB, Queue, Worker, Events)
 - Real network overhead
 - Different workflow patterns
 
 **Targets**:
+
 - Linear (3 steps): < 500ms p99
 - Diamond (4 steps): < 800ms p99
 - Tree (7 steps): < 1500ms p99
 
 **Implementation Requirements**:
+
 - All Docker Compose services running
 - Orchestration client for task creation
 - Polling mechanism for completion detection
@@ -189,12 +214,14 @@ cargo bench --package tasker-worker --features benchmarks handler_overhead
 - Timeout handling for stuck workflows
 
 **Special Considerations**:
+
 - **SLOW by design**: Measures real workflow execution (seconds)
 - Fewer samples (sample_size=10 vs 50 default)
 - Higher variance expected (network + system state)
 - Focus on regression detection, not absolute numbers
 
 **Run Command** (when implemented):
+
 ```bash
 # Requires all Docker services running
 docker-compose -f docker/docker-compose.test.yml up -d
@@ -209,6 +236,7 @@ cargo bench --test e2e_latency
 ### Current State
 
 **Implemented**:
+
 - Criterion default output (terminal + HTML reports)
 - Custom health check banners in benchmarks
 - EXPLAIN ANALYZE output in SQL benchmarks
@@ -264,6 +292,7 @@ tmp/benchmarks/
 ```
 
 **Log Format** (example):
+
 ```markdown
 # Benchmark Run: task_initialization
 Date: 2025-10-08 14:23:45 UTC
@@ -399,21 +428,25 @@ export TASKER_TEST_WORKER_URL="http://localhost:9081"
 ## Next Steps
 
 ### Immediate (Current Session)
+
 1. ✅ Create all benchmark skeletons
 2. 🎯 Design consistent logging structure
 3. Decide on implementation priorities
 
 ### Short Term
+
 1. Implement worker execution benchmark
 2. Implement event propagation benchmark
 3. Create benchmark output logging utilities
 
 ### Medium Term
+
 1. Implement step enqueueing benchmark
 2. Implement handler overhead benchmark
 3. Implement E2E latency benchmark
 
 ### Long Term
+
 1. CI integration with baseline tracking
 2. Performance regression detection
 3. Automated benchmark reports

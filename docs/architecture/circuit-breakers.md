@@ -56,6 +56,7 @@ Circuit breakers prevent cascading failures by failing fast when a component is 
 ```
 
 **States**:
+
 - **Closed**: Normal operation. All calls allowed. Tracks consecutive failures.
 - **Open**: Failing fast. All calls rejected immediately. Waiting for timeout.
 - **Half-Open**: Testing recovery. Limited calls allowed. Single failure reopens.
@@ -79,6 +80,7 @@ pub trait CircuitBreakerBehavior: Send + Sync + Debug {
 ```
 
 Each specialized breaker wraps the generic `CircuitBreaker` (composition pattern) and implements this trait. This means:
+
 - Consistent state machine behavior across all breakers
 - Proper half-open → closed recovery via `success_threshold`
 - Lock-free atomic state management
@@ -103,11 +105,13 @@ All wrap the generic `CircuitBreaker` from `tasker_shared::resilience`:
 **Scope**: Independent from orchestration system's internal operations.
 
 **Behavior**:
+
 - Opens when database queries fail repeatedly
 - Returns 503 with `Retry-After` header when open
 - Fast-fail rejection with atomic state management
 
 **Configuration** (`config/tasker/base/common.toml`):
+
 ```toml
 [common.circuit_breakers.component_configs.web]
 failure_threshold = 5      # Consecutive failures before opening
@@ -116,6 +120,7 @@ success_threshold = 2      # Successes in half-open to fully close
 ```
 
 **Health Check Integration**:
+
 - Included in `/health/ready` endpoint
 - State reported in `/health/detailed` response
 - Metric: `api_circuit_breaker_state` (0=closed, 1=half-open, 2=open)
@@ -127,11 +132,13 @@ success_threshold = 2      # Successes in half-open to fully close
 **Scope**: Independent from web circuit breaker, specific to task readiness queries.
 
 **Behavior**:
+
 - Opens when task readiness queries fail repeatedly
 - Skips polling cycles when open (doesn't fail-fast, just skips)
 - Allows orchestration to continue processing existing work
 
 **Configuration** (`config/tasker/base/common.toml`):
+
 ```toml
 [common.circuit_breakers.component_configs.task_readiness]
 failure_threshold = 10     # Higher threshold for polling
@@ -140,6 +147,7 @@ success_threshold = 3      # More successes needed for confidence
 ```
 
 **Why Separate from Web?**:
+
 - Different failure patterns (polling vs request-driven)
 - Different recovery semantics (skip vs reject)
 - Isolation prevents web failures from stopping polling (and vice versa)
@@ -151,12 +159,14 @@ success_threshold = 3      # More successes needed for confidence
 **Scope**: Worker-specific, protects FFI boundary.
 
 **Behavior**:
+
 - **Latency-based**: Treats slow sends (>100ms) as failures
 - Opens when completion channel is consistently slow
 - Prevents FFI threads from blocking on saturated channels
 - Drops completions when open (with metrics), allowing handler threads to continue
 
 **Configuration** (`config/tasker/base/worker.toml`):
+
 ```toml
 [worker.circuit_breakers.ffi_completion_send]
 failure_threshold = 5            # Slow sends before opening
@@ -166,12 +176,14 @@ slow_send_threshold_ms = 100     # Latency threshold (100ms)
 ```
 
 **Why Latency-Based?**:
+
 - Slow channel sends indicate backpressure buildup
 - Blocking FFI threads can cascade to Ruby/Python handler starvation
 - Error-only detection misses slow-but-completing operations
 - Latency detection catches degradation before total failure
 
 **Metrics**:
+
 - `ffi_completion_slow_sends_total` - Sends exceeding latency threshold
 - `ffi_completion_circuit_open_rejections_total` - Rejections due to open circuit
 
@@ -182,6 +194,7 @@ slow_send_threshold_ms = 100     # Latency threshold (100ms)
 **Scope**: Integrated into `MessageClient`, shared across orchestration and worker messaging.
 
 **Behavior**:
+
 - Opens when send/receive operations fail repeatedly
 - Protected operations: `send_step_message`, `receive_step_messages`, `send_step_result`, `receive_step_results`, `send_task_request`, `receive_task_requests`, `send_task_finalization`, `receive_task_finalizations`, `send_message`, `receive_messages`
 - Unprotected operations (safe to fail or needed for recovery): `ack_message`, `nack_message`, `extend_visibility`, `health_check`, `ensure_queue`, queue stats
@@ -189,6 +202,7 @@ slow_send_threshold_ms = 100     # Latency threshold (100ms)
 - Provider-agnostic: works with both PGMQ and RabbitMQ backends
 
 **Configuration** (`config/tasker/base/common.toml`):
+
 ```toml
 [common.circuit_breakers.component_configs.messaging]
 failure_threshold = 5      # Failures before opening
@@ -197,6 +211,7 @@ success_threshold = 2      # Successes to close
 ```
 
 **Why ack/nack bypass the breaker?**:
+
 - Ack/nack failure causes message redelivery via visibility timeout, which is safe
 - Health check must work when breaker is open to detect recovery
 - Queue management is startup-only and should not be gated
@@ -260,6 +275,7 @@ slow_send_threshold_ms = 100
 Different environments may need different thresholds:
 
 **Test** (`config/tasker/environments/test/common.toml`):
+
 ```toml
 [common.circuit_breakers.default_config]
 failure_threshold = 2      # Faster failure detection
@@ -268,6 +284,7 @@ success_threshold = 1
 ```
 
 **Production** (`config/tasker/environments/production/common.toml`):
+
 ```toml
 [common.circuit_breakers.default_config]
 failure_threshold = 10     # More tolerance for transient failures
@@ -368,6 +385,7 @@ groups:
 ### Grafana Dashboard Panels
 
 **Circuit Breaker State Timeline**:
+
 ```
 Panel: Time series
 Query: api_circuit_breaker_state
@@ -375,6 +393,7 @@ Value mappings: 0=Closed (green), 1=Half-Open (yellow), 2=Open (red)
 ```
 
 **FFI Latency Percentiles**:
+
 ```
 Panel: Time series
 Queries:
@@ -389,33 +408,39 @@ Thresholds: 100ms warning, 500ms critical
 ### When Circuit Breaker Opens
 
 **Immediate Actions**:
+
 1. Check database connectivity: `pg_isready -h <host> -p 5432`
 2. Check connection pool status: `/health/detailed` endpoint
 3. Review recent error logs for root cause
 4. Monitor queue depth for message backlog
 
 **Recovery**:
+
 - Circuit automatically tests recovery after `timeout_seconds`
 - No manual intervention needed for transient failures
 - For persistent failures, fix underlying issue first
 
 **Escalation**:
+
 - If breaker stays open >5 minutes, escalate to database team
 - If breaker oscillates (open/half-open/open), increase `failure_threshold`
 
 ### Tuning Guidelines
 
 **Symptom: Breaker opens too frequently**
+
 - Increase `failure_threshold`
 - Investigate root cause of failures
 - Consider if failures are transient vs systemic
 
 **Symptom: Breaker stays open too long**
+
 - Decrease `timeout_seconds`
 - Verify downstream system has recovered
 - Check if `success_threshold` is too high
 
 **Symptom: FFI breaker opens unnecessarily**
+
 - Increase `slow_send_threshold_ms`
 - Verify channel buffer sizes are adequate
 - Check Ruby/Python handler throughput
@@ -465,11 +490,13 @@ Each circuit breaker operates **independently**:
 **Issue**: Web circuit breaker flapping (open → half-open → open rapidly)
 
 **Diagnosis**:
+
 1. Check database query latency (slow queries can cause timeout failures)
 2. Review connection pool saturation
 3. Check if PostgreSQL is under memory pressure
 
 **Resolution**:
+
 - Increase `failure_threshold` if failures are transient
 - Increase `timeout_seconds` to give more recovery time
 - Fix underlying database performance issues
@@ -479,11 +506,13 @@ Each circuit breaker operates **independently**:
 **Issue**: FFI completion circuit breaker opens during normal load
 
 **Diagnosis**:
+
 1. Check Ruby/Python handler execution time
 2. Review completion channel buffer utilization
 3. Verify worker concurrency settings
 
 **Resolution**:
+
 - Increase `slow_send_threshold_ms` if handlers are legitimately slow
 - Increase channel buffer size in worker config
 - Reduce handler concurrency if system is overloaded
@@ -493,10 +522,12 @@ Each circuit breaker operates **independently**:
 **Issue**: Task readiness breaker open but web API working fine
 
 **Diagnosis**:
+
 - Task readiness queries may be slower/different than API queries
 - Polling may hit database at different times (e.g., during maintenance)
 
 **Resolution**:
+
 - Independent breakers are working as designed
 - Check specific task readiness query performance
 - Consider database index optimization for readiness queries

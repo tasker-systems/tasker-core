@@ -51,9 +51,9 @@ Track processor UUID for observability. Don't enforce it for ownership.
 
 **Key insight (TAS-54)**: Ownership enforcement was removed because it blocked crash recovery while providing zero additional safety over layers 1-4.
 
-### 8. Pre-Alpha Freedom
+### 8. Early Release Iteration
 
-Break things early to get architecture right. Breaking changes are encouraged when architecture is fundamentally unsound. No backward compatibility required for greenfield work.
+Refine the architecture while adoption is limited. Breaking changes may still occur when architecture is fundamentally unsound, but we approach them intentionally with semantic versioning and migration guidance where practical.
 
 ### 9. PostgreSQL as Foundation
 

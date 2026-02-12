@@ -264,10 +264,12 @@ pub fn config_routes() -> Router<Arc<WorkerWebState>> {
 ## No Middleware Changes Needed
 
 The `authorize()` wrapper handles permission checking internally. The existing auth middleware continues to:
+
 1. Validate JWT/API key
 2. Inject `SecurityContext` into request extensions
 
 The wrapper then:
+
 1. Extracts `SecurityContext` from extensions
 2. Checks `has_permission()` for the required permission
 3. Either proceeds to handler or returns 403
@@ -349,6 +351,7 @@ After wrappers are deployed and tested:
 3. **Phase 3**: Remove `SecurityContext` extractor from handlers that don't need subject identity
 
 **Before (current):**
+
 ```rust
 pub async fn create_task(
     State(state): State<AppState>,
@@ -361,6 +364,7 @@ pub async fn create_task(
 ```
 
 **After (TAS-176):**
+
 ```rust
 pub async fn create_task(
     State(state): State<AppState>,
@@ -406,6 +410,7 @@ Or with a Tonic interceptor that does the same check.
 1. **Unit tests**: `ResourceAction::to_permission()` mapping correctness
 2. **Integration tests**: Full request flow with `authorize()` wrapper
 3. **Manual verification**:
+
    ```bash
    # Health (public) - should succeed without auth
    curl http://localhost:8080/health

@@ -71,6 +71,7 @@ cargo make test-rust-all      # All test levels
 ```
 
 **Testing rules:**
+
 - Never use `SQLX_OFFLINE=true` — always export `DATABASE_URL`
 - Always use `--all-features` for consistency
 - Never remove assertions to fix compilation or test failures
@@ -98,6 +99,7 @@ git add .sqlx/
 The project includes a pre-commit hook that automatically runs `cargo fmt --all` on staged Rust files. It only touches files you've already staged, so unstaged work-in-progress is unaffected.
 
 **Install hooks** (automatic with `bin/setup-dev.sh`, or manual):
+
 ```bash
 git config core.hooksPath .githooks
 ```

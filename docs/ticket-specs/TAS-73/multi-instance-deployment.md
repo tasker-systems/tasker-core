@@ -124,12 +124,14 @@ const ALLOWED_ENV_VARS: &[(&str, &str)] = &[
 **File:** `tasker-worker/src/bootstrap.rs`
 
 Currently generates random worker_id, ignoring configuration:
+
 ```rust
 // BEFORE (broken):
 worker_id: format!("worker-{}", uuid::Uuid::new_v4()),
 ```
 
 Fix to respect configuration and instance ID:
+
 ```rust
 // AFTER (fixed):
 worker_id: std::env::var("TASKER_WORKER_ID")
@@ -142,6 +144,7 @@ worker_id: std::env::var("TASKER_WORKER_ID")
 **File:** `tasker-shared/src/logging.rs` (or appropriate location)
 
 Add instance ID to log format when available:
+
 ```rust
 // If TASKER_INSTANCE_ID is set, include in log prefix
 // Format: [instance-id] LEVEL target: message
@@ -154,6 +157,7 @@ Add instance ID to log format when available:
 ### 2.1 New Environment Files
 
 **File:** `config/dotenv/multi-instance.env`
+
 ```bash
 # Multi-instance mode settings
 TASKER_MULTI_INSTANCE_MODE=true

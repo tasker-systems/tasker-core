@@ -46,6 +46,7 @@ This document provides an executive summary of the comprehensive TAS-89 codebase
 ### 2. Vestigial `orchestration_api_reachable` Field
 
 Workers communicate **exclusively via PGMQ queues** - there is no HTTP API communication. This field:
+
 - Checks connectivity to something that doesn't exist
 - Is hardcoded to `true` (meaningless)
 - Affects `is_healthy()` calculation (incorrect requirement)
@@ -105,21 +106,21 @@ Workers communicate **exclusively via PGMQ queues** - there is no HTTP API commu
 
 ### Priority 2: High
 
-6. **Consolidate duplicate health services** - Two services with inconsistent behavior
-7. **Calculate real `execution_duration`** - Currently hardcoded to 0
-8. **Track actual `active_processors` count** - Currently hardcoded to 1
+1. **Consolidate duplicate health services** - Two services with inconsistent behavior
+2. **Calculate real `execution_duration`** - Currently hardcoded to 0
+3. **Track actual `active_processors` count** - Currently hardcoded to 1
 
 ### Priority 3: Medium
 
-9. **Migrate `#[allow]` to `#[expect]`** - 96 instances need reasons (TAS-58)
-10. **Add configuration system documentation** - 20 files missing module docs
-11. **Add doc examples to tasker-client** - External API needs examples
+1. **Migrate `#[allow]` to `#[expect]`** - 96 instances need reasons (TAS-58)
+2. **Add configuration system documentation** - 20 files missing module docs
+3. **Add doc examples to tasker-client** - External API needs examples
 
 ### Priority 4: Low
 
-12. **Remove orphaned guard structs** - 3 from TAS-41
-13. **Add remaining module documentation** - 23% gap in tasker-shared
-14. **Implement event field type validation** - TODO stub
+1. **Remove orphaned guard structs** - 3 from TAS-41
+2. **Add remaining module documentation** - 23% gap in tasker-shared
+3. **Implement event field type validation** - TODO stub
 
 ---
 
@@ -187,6 +188,7 @@ All four worker implementations achieved **excellent ratings**:
 None of these issues affect core functionality - they impact observability, monitoring accuracy, and developer experience. With the prioritized fixes in [action-items.md](./action-items.md), the codebase will achieve full production excellence.
 
 **Recommended Next Steps**:
+
 1. Create tickets for Critical priority items (1-5)
 2. Schedule `#[expect]` migration as tech debt sprint
 3. Allocate documentation improvement to ongoing work

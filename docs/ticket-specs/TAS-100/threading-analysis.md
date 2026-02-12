@@ -11,6 +11,7 @@
 This document analyzes threading models and event systems for the TypeScript worker, comparing approaches used in Ruby (dry-events), Python (pyee), and Rust (mpsc channels), and evaluating whether lightweight threading (Worker Threads in Node.js, `spawn()` in Bun) would provide performance benefits for handler execution.
 
 **Key Findings**:
+
 1. **N-API** is an alternative to FFI but adds complexity without clear benefits for our use case
 2. **EventEmitter is sufficient** for the main event loop coordination
 3. **Worker Threads could provide value** for CPU-intensive handlers but require careful design
@@ -25,6 +26,7 @@ This document analyzes threading models and event systems for the TypeScript wor
 N-API (Node-API) is a C API for building native Node.js addons that are ABI-stable across Node.js versions.
 
 **Traditional Native Addons**:
+
 ```cpp
 // V8-specific code (breaks across Node versions)
 #include <node.h>
@@ -37,6 +39,7 @@ void MyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
 ```
 
 **N-API Addons**:
+
 ```cpp
 // ABI-stable code (works across Node versions)
 #include <node_api.h>
@@ -82,6 +85,7 @@ napi_value MyFunction(napi_env env, napi_callback_info info) {
    - Easier for contributors
 
 **When N-API Would Make Sense**:
+
 - Node.js-only deployment
 - Very high-frequency FFI calls (>10k/sec)
 - Complex C++ object lifetimes
@@ -100,6 +104,7 @@ N-API adds complexity without meaningful benefits for our use case. Our FFI cont
 ### Current Implementations
 
 #### Ruby: dry-events
+
 ```ruby
 class EventBridge
   include Dry::Events::Publisher[:tasker_core]
@@ -119,12 +124,14 @@ end
 ```
 
 **Features**:
+
 - Thread-safe pub/sub
 - Event schema registration
 - Middleware support
 - Ruby GIL handles synchronization
 
 #### Python: pyee
+
 ```python
 from pyee.base import EventEmitter
 
@@ -140,12 +147,14 @@ class EventBridge:
 ```
 
 **Features**:
+
 - Node.js EventEmitter API
 - Async/await support
 - Simple, lightweight
 - GIL handles synchronization
 
 #### Rust: mpsc Channels + Actors
+
 ```rust
 // Actor-based with bounded channels
 let (tx, rx) = mpsc::channel(1000);
@@ -160,6 +169,7 @@ while let Some(cmd) = rx.recv().await {
 ```
 
 **Features**:
+
 - Truly concurrent (no GIL)
 - Bounded channels for backpressure
 - Type-safe message passing
@@ -168,6 +178,7 @@ while let Some(cmd) = rx.recv().await {
 ### TypeScript Options
 
 #### Option 1: Node.js EventEmitter (Current)
+
 ```typescript
 import { EventEmitter } from 'events';
 
@@ -179,17 +190,20 @@ bridge.emit('step:execution:received', event);
 ```
 
 **Pros**:
+
 - Built-in, no dependencies
 - Familiar API
 - Works in Bun and Node
 - Single-threaded (no race conditions)
 
 **Cons**:
+
 - Not type-safe by default
 - No backpressure control
 - Synchronous by default
 
 #### Option 2: eventemitter3 (Popular Alternative)
+
 ```typescript
 import EventEmitter from 'eventemitter3';
 
@@ -198,15 +212,18 @@ const bridge = new EventEmitter();
 ```
 
 **Pros**:
+
 - Faster than Node's EventEmitter
 - Works in browsers
 - Same API
 
 **Cons**:
+
 - External dependency
 - Marginal performance gain for our use case
 
 #### Option 3: Custom Channel System (Rust-like)
+
 ```typescript
 class Channel<T> {
   private buffer: T[] = [];
@@ -239,11 +256,13 @@ class Channel<T> {
 ```
 
 **Pros**:
+
 - Explicit backpressure
 - Type-safe
 - Rust-like semantics
 
 **Cons**:
+
 - More code to maintain
 - Overkill for single-threaded execution
 - EventEmitter is simpler
@@ -253,6 +272,7 @@ class Channel<T> {
 **Use Node.js EventEmitter (Current Approach)**
 
 Reasons:
+
 1. **Single-threaded execution**: No need for channel-style backpressure
 2. **Simplicity**: EventEmitter is well-understood and works everywhere
 3. **Type safety**: We can wrap it in strongly-typed methods (see TAS-104)
@@ -267,6 +287,7 @@ If performance becomes an issue, consider `eventemitter3`, but current approach 
 ### JavaScript Threading Options
 
 #### Node.js Worker Threads
+
 ```typescript
 import { Worker } from 'worker_threads';
 
@@ -280,6 +301,7 @@ worker.on('message', (result) => {
 ```
 
 **Characteristics**:
+
 - Separate V8 isolate per worker
 - ~2MB memory overhead per worker
 - Message passing via `postMessage()` (structured clone)
@@ -287,6 +309,7 @@ worker.on('message', (result) => {
 - Worker pool pattern typical
 
 #### Bun spawn()
+
 ```typescript
 const proc = Bun.spawn(['bun', 'run', 'handler.ts'], {
   stdin: 'pipe',
@@ -298,6 +321,7 @@ const result = await proc.stdout.text();
 ```
 
 **Characteristics**:
+
 - Lightweight subprocess (faster than Node)
 - Process-level isolation
 - ~1MB overhead
@@ -317,6 +341,7 @@ worker.postMessage({ runtime }); // ERROR: Can't transfer
 ```
 
 **Why**:
+
 1. FFI pointers are process-specific
 2. Rust `tokio::Runtime` is single-threaded
 3. `libtasker_worker` assumes single-threaded access
@@ -338,6 +363,7 @@ Main Thread (with TaskerRuntime)    Worker Thread (Handler)
 ```
 
 This is **exactly the pattern** Python and Ruby use:
+
 - Python: Main thread polls FFI, spawns async tasks for handlers
 - Ruby: Main thread polls FFI, handlers run in GIL-protected threads
 
@@ -381,6 +407,7 @@ This is **exactly the pattern** Python and Ruby use:
 ### Implementation Sketch
 
 **Main Thread** (`src/events/EventPoller.ts`):
+
 ```typescript
 class EventPoller {
   private workerPool: WorkerPool;
@@ -401,6 +428,7 @@ class EventPoller {
 ```
 
 **Worker Thread** (`src/workers/handler-worker.ts`):
+
 ```typescript
 import { parentPort, workerData } from 'worker_threads';
 
@@ -420,11 +448,13 @@ parentPort.on('message', async (stepEvent: FfiStepEvent) => {
 ### When Threading Makes Sense
 
 **Benefits**:
+
 1. **CPU-intensive handlers**: Image processing, data transformation
 2. **Parallel execution**: Multiple handlers running simultaneously
 3. **Isolation**: Handler crash doesn't kill main process
 
 **Costs**:
+
 1. **Complexity**: Worker pool management, message serialization
 2. **Memory overhead**: ~2MB per worker
 3. **Serialization cost**: JSON cloning for message passing
@@ -433,6 +463,7 @@ parentPort.on('message', async (stepEvent: FfiStepEvent) => {
 ### Benchmark Targets
 
 Threading is worth it if:
+
 - Handler execution > 100ms (amortizes overhead)
 - High concurrency (>10 concurrent steps)
 - CPU-bound work (not I/O-bound)
@@ -444,6 +475,7 @@ For I/O-bound handlers (API calls, database queries), single-threaded async is b
 ## Recommendations
 
 ### Phase 1 (TAS-100): Single-Threaded
+
 **Status**: Implement as specified
 
 - Use Node.js EventEmitter for coordination
@@ -464,6 +496,7 @@ for (const event of events) {
 ```
 
 ### Phase 2 (TAS-106): Optional Threading
+
 **Status**: Future optimization
 
 Add opt-in worker thread pool for CPU-intensive handlers:
@@ -481,15 +514,18 @@ const config = {
 ```
 
 Implementation:
+
 1. Create worker pool abstraction
 2. Route CPU-intensive handlers to workers
 3. Keep I/O-bound handlers on main thread
 4. Fallback to single-threaded if workers unavailable
 
 ### Phase 3 (Post-TAS-100): Bun-Specific Optimization
+
 **Status**: Research
 
 Investigate Bun's `spawn()` for handler isolation:
+
 - Faster than Node Worker Threads
 - Process-level isolation
 - May require different architecture

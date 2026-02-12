@@ -44,6 +44,7 @@ Crate-level Makefile.toml files:
 ```
 
 Worker directories have their own complete Makefile.toml files (not extending base-tasks):
+
 - `workers/python/Makefile.toml` - Uses uv, maturin, ruff, mypy, pytest
 - `workers/ruby/Makefile.toml` - Uses bundler, rake, rubocop, rspec
 - `workers/typescript/Makefile.toml` - Uses bun, biome, vitest
@@ -86,6 +87,7 @@ cargo-make/
 ### `cargo-make/main.toml`
 
 The main entry point that chains all module configurations. This file:
+
 - Extends `base-tasks.toml` for core Rust tasks
 - Defines cross-cutting composite tasks (code-quality, pre-commit, pre-push)
 - Configures workspace-wide parallel operations
@@ -108,6 +110,7 @@ Defines base task templates that crate-level Makefile.toml files extend:
 ### `Makefile.toml` (Root)
 
 The root configuration provides:
+
 - Top-level composite tasks (`check`, `test`, `fix`, `build`)
 - Language-specific delegation (`check-rust`, `check-python`, `check-ruby`, `check-typescript`)
 - Database operations (`db-setup`, `db-check`, `db-migrate`, `db-reset`)
@@ -123,36 +126,48 @@ The root configuration provides:
 All complex operations are externalized to shell scripts in `cargo-make/scripts/` for easier debugging and maintenance.
 
 ### `check-db.sh`
+
 Verifies PostgreSQL connectivity using `pg_isready`. Exits with helpful error message if database is unavailable.
 
 ### `run-migrations.sh`
+
 Runs SQLx migrations against the configured DATABASE_URL. Validates connection before attempting migration.
 
 ### `reset-db.sh`
+
 Drops and recreates the test database. **Use with caution** - this destroys all data.
 
 ### `sqlx-prepare.sh`
+
 Prepares the SQLX offline query cache for all workspace crates. Required after modifying any `sqlx::query!` macros.
 
 ### `setup-workers.sh`
+
 Sets up all polyglot workers in parallel:
+
 - Python: Creates venv, syncs dependencies with uv
 - Ruby: Runs bundle install
 - TypeScript: Runs bun install
 
 ### `clean-workers.sh`
+
 Cleans build artifacts from all workers:
+
 - Python: Removes .venv, target, cache directories
 - Ruby: Runs rake clean, removes compiled extensions
 - TypeScript: Removes node_modules, dist, cache directories
 
 ### `check-services.sh`
+
 Verifies required services are running for integration tests:
+
 - PostgreSQL on configured port
 - Worker services on their respective ports
 
 ### `setup-env.sh`
+
 CI environment setup that mirrors `.github/actions/setup-env`:
+
 - Installs required tools
 - Configures environment variables
 - Validates prerequisites
@@ -492,6 +507,7 @@ TASKER_TEST_WORKER_URL=http://localhost:8100
 ### Instance Identification
 
 Each instance gets a unique identifier used in:
+
 - PID files: `.pids/orchestration-1.pid`, `.pids/worker-rust-2.pid`
 - Log files: `.logs/orchestration-1.log`, `.logs/worker-rust-2.log`
 - Metrics: `tasker_tasks_processed{instance="orchestration-1"}`

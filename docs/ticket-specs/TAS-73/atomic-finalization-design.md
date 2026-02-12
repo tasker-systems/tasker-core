@@ -54,6 +54,7 @@ ALTER TABLE tasker.tasks ADD COLUMN finalization_claimed_by UUID;
 **Problem:** If orchestrator A claims the task then crashes before completing, the claim is stuck. Orchestrator B cannot finalize because A "owns" it.
 
 **Required mitigations (complex):**
+
 - Claim timeout logic
 - Cleanup background job
 - Edge cases around timeout expiry during processing
@@ -162,7 +163,7 @@ async fn get_current_state_with_tx(
 }
 ```
 
-2. **Add transition method that uses external transaction:**
+1. **Add transition method that uses external transaction:**
 
 ```rust
 async fn transition_with_tx(
@@ -198,9 +199,10 @@ async fn transition_with_tx(
 }
 ```
 
-3. **Update complete_task to use atomic version:**
+1. **Update complete_task to use atomic version:**
 
 The existing `complete_task` method can either:
+
 - Be replaced with the atomic version
 - Call the atomic version internally
 - Remain as fallback with atomic version as opt-in
@@ -283,6 +285,7 @@ This is a **P2 improvement** because:
 3. Impact scales with number of orchestrators
 
 Recommend implementing after:
+
 - Identity hash strategy (P1)
 - Multi-instance test infrastructure (P0 for validation)
 

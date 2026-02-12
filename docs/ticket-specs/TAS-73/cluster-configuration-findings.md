@@ -11,12 +11,14 @@ During multi-instance cluster testing, we discovered a configuration architectur
 The cluster start scripts (`start-cluster.sh`) inherit environment from the root `.env` file, which is configured for orchestration, not workers.
 
 **Root `.env` has:**
+
 ```bash
 TASKER_CONFIG_PATH=/Users/.../config/tasker/generated/complete-test.toml
 TASKER_TEMPLATE_PATH=/Users/.../config/tasks
 ```
 
 **But rust workers need:**
+
 ```bash
 TASKER_CONFIG_PATH=/Users/.../config/tasker/generated/worker-test.toml
 TASKER_TEMPLATE_PATH=/Users/.../tests/fixtures/task_templates/rust
@@ -31,6 +33,7 @@ TASKER_TEMPLATE_PATH=/Users/.../tests/fixtures/task_templates/rust
 ### Evidence
 
 Worker logs show polling only:
+
 - `worker_integration_queue` (namespace=integration)
 - `worker_payments_queue` (namespace=payments)
 - `worker_test_queue` (namespace=test)
@@ -45,6 +48,7 @@ But test tasks use namespace `rust_e2e_linear` which maps to `worker_rust_e2e_li
 4. Task times out in `steps_in_process` state
 
 Database snapshot:
+
 ```
 task_state        | step_name     | step_state | in_process | processed
 ------------------+---------------+------------+------------+-----------

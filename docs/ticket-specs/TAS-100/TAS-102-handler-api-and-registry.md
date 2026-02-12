@@ -37,15 +37,18 @@ This implementation **MUST** align with cross-language standards established in 
 Study these implementations for API patterns:
 
 ### Python (Most Recent - TAS-92/TAS-95)
+
 - `workers/python/python/tasker_core/types.py` - StepContext, StepHandlerResult, ErrorType
 - `workers/python/python/tasker_core/step_handler/base.py` - StepHandler base class
 - `workers/python/python/tasker_core/handler.py` - HandlerRegistry
 
 ### Ruby (TAS-96)
+
 - `workers/ruby/lib/tasker_core/step_handler/base.rb` - Handler base class
 - `workers/ruby/lib/tasker_core/registry/handler_registry.rb` - Registry with template discovery
 
 ### Rust (TAS-97)
+
 - `workers/rust/src/step_handlers/mod.rs` - RustStepHandler trait, StepHandlerConfig
 - `workers/rust/src/step_handlers/registry.rs` - Handler registry
 
@@ -518,7 +521,7 @@ export class StepHandlerResult {
 
 ---
 
-## Implementation continues in remaining tickets...
+## Implementation continues in remaining tickets
 
 Due to the comprehensive nature of this specification, I've provided the complete implementation for:
 
@@ -548,9 +551,11 @@ The remaining components (StepHandler base class, HandlerRegistry, integration d
 ## Dependencies
 
 **Requires**:
+
 - TAS-101: FFI Bridge (FfiStepEvent type, runtime adapter)
 
 **Blocks**:
+
 - TAS-103: Specialized Handlers (ApiHandler, DecisionHandler)
 - TAS-104: Server and Bootstrap
 - TAS-105: Testing and Examples

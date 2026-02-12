@@ -37,12 +37,14 @@ All specialized handlers **MUST** align with TAS-92 standards:
 ## Reference Implementations
 
 ### Python (Most Recent - TAS-92/TAS-95)
+
 - `workers/python/python/tasker_core/step_handler/api.py` - ApiHandler with httpx
 - `workers/python/python/tasker_core/step_handler/decision.py` - DecisionHandler
 - `workers/python/python/tasker_core/batch_processing/batchable.py` - Batchable mixin
 - `workers/python/python/tasker_core/types.py` - Batch processing types (lines 1230-1450)
 
 ### Ruby (TAS-96)
+
 - `workers/ruby/lib/tasker_core/step_handler/api.rb` - ApiHandler
 - `workers/ruby/lib/tasker_core/step_handler/decision.rb` - DecisionHandler
 - `workers/ruby/lib/tasker_core/step_handler/batchable.rb` - Batchable module
@@ -1475,9 +1477,11 @@ class ProductBatchWorker extends StepHandler implements Batchable {
 ## Dependencies
 
 **Requires**:
+
 - TAS-102: Handler API and Registry (StepHandler base class)
 
 **Blocks**:
+
 - TAS-104: Server and Bootstrap
 - TAS-105: Testing and Examples
 
@@ -1528,6 +1532,7 @@ class MyHandler extends StepHandler implements Batchable {
 ### Error Classification
 
 HTTP status code classification follows industry standards:
+
 - 4xx (except 408, 429) → Permanent errors, not retryable
 - 408, 429 → Temporary errors, retryable
 - 5xx → Server errors, retryable

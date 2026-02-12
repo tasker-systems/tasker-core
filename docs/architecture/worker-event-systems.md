@@ -119,10 +119,12 @@ Implements the `EventDrivenSystem` trait for worker namespace queue processing. 
 | `Hybrid` | Event-driven + polling | pg_notify + fallback | Push only (no fallback) |
 
 **Provider-Specific Behavior**:
+
 - **PGMQ**: Uses `MessageNotification::Available` (signal-only), requires fallback polling
 - **RabbitMQ**: Uses `MessageNotification::Message` (full payload), no fallback needed
 
 **Key Features**:
+
 - Unified configuration via `WorkerEventSystemConfig`
 - Atomic statistics with `AtomicU64` counters
 - Converts `WorkerNotification` to `WorkerCommand` for processing
@@ -156,6 +158,7 @@ match notification {
 Non-blocking handler dispatch with bounded parallelism.
 
 **Architecture**:
+
 ```
 dispatch_receiver → [Semaphore] → handler.call() → [callback] → completion_sender
                          │                              │
@@ -241,6 +244,7 @@ See [Handler Resolution Guide](../guides/handler-resolution.md) for complete doc
 Pull-based polling interface for FFI workers (Ruby, Python). Enables language-specific handlers without complex FFI memory management.
 
 **Flow**:
+
 ```
 Rust                           Ruby/Python
   │                                 │
@@ -262,6 +266,7 @@ Rust                           Ruby/Python
 ```
 
 **Key Features**:
+
 - Thread-safe pending events map with lock poisoning recovery
 - Configurable completion timeout (default 30s)
 - Starvation detection and warnings
@@ -286,6 +291,7 @@ completion_receiver → CompletionProcessorService → FFICompletionService → 
 Async system for fire-and-forget domain event publishing.
 
 **Architecture**:
+
 ```
 command_processor.rs                  DomainEventSystem
       │                                     │
@@ -298,6 +304,7 @@ mpsc::Sender<DomainEventCommand>  →  mpsc::Receiver
 ```
 
 **Key Design**:
+
 - `try_send()` never blocks - if channel is full, events are dropped with metrics
 - Background task processes commands asynchronously
 - Graceful shutdown drains fast events up to configurable timeout
@@ -368,6 +375,7 @@ pub trait PostHandlerCallback: Send + Sync + 'static {
 ```
 
 **Implementations**:
+
 - `NoOpCallback`: Default no-operation callback
 - `DomainEventCallback`: Publishes domain events to `DomainEventSystem`
 
@@ -561,6 +569,7 @@ sender.send(result).await?;
 ```
 
 **Why permit release before send matters**:
+
 - If completion channel is full, handler task blocks on send
 - If permit is held during block, no new handlers can start
 - By releasing permit first, new handlers can start even if completions are backing up
@@ -577,6 +586,7 @@ The `FfiDispatchChannel` handles backpressure for Ruby/Python workers:
 | Callback timeout | Callback fire-and-forget, logged |
 
 **Starvation Detection**:
+
 ```toml
 [worker.mpsc_channels.ffi_dispatch]
 starvation_warning_threshold_ms = 10000  # Warn if event waits > 10s
@@ -617,6 +627,7 @@ fn should_claim_step(&self) -> bool {
 ```
 
 If at capacity:
+
 - Worker does NOT acknowledge the PGMQ message
 - Message returns to queue after visibility timeout
 - Another worker (or same worker later) claims it
@@ -653,6 +664,7 @@ max_concurrent_handlers = 10  # Start here, increase based on monitoring
 ```
 
 Monitor:
+
 - Semaphore wait times
 - Handler execution latency
 - Completion channel saturation

@@ -42,18 +42,21 @@ OpenTelemetry automatically appends `_milliseconds` to histogram metric names wh
 **Pattern**: `metric_name` → `metric_name_milliseconds_{bucket,sum,count}`
 
 **Example**:
+
 - Code: `tasker.step.execution.duration` with unit "ms"
 - Prometheus: `tasker_step_execution_duration_milliseconds_*`
 
 ### Query Patterns: Instant vs Rate-Based
 
 **Instant/Recent Data Queries** - Use these when:
+
 - Testing with burst/batch task execution
 - Viewing data from recent runs (last few minutes)
 - Data points are sparse or clustered together
 - You want simple averages without time windows
 
 **Rate-Based Queries** - Use these when:
+
 - Continuous production monitoring
 - Data flows steadily over time
 - Calculating per-second rates
@@ -97,9 +100,11 @@ enabled = true  # Must be true to export metrics
 ### Counters
 
 #### `tasker.tasks.requests.total`
+
 **Description**: Total number of task creation requests received
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `task_type`: Task name (e.g., "mathematical_sequence")
 - `namespace`: Task namespace (e.g., "rust_e2e_linear")
@@ -107,6 +112,7 @@ enabled = true  # Must be true to export metrics
 **Instrumented In**: `task_initializer.rs:start_task_initialization()`
 
 **Example Query**:
+
 ```promql
 # Total task requests
 tasker_tasks_requests_total
@@ -123,14 +129,17 @@ tasker_tasks_requests_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5
 ---
 
 #### `tasker.tasks.completions.total`
+
 **Description**: Total number of tasks that completed successfully
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 
 **Instrumented In**: `task_finalizer.rs:finalize_task()` (FinalizationAction::Completed)
 
 **Example Query**:
+
 ```promql
 # Total completions
 tasker_tasks_completions_total
@@ -144,14 +153,17 @@ rate(tasker_tasks_completions_total[5m])
 ---
 
 #### `tasker.tasks.failures.total`
+
 **Description**: Total number of tasks that failed
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 
 **Instrumented In**: `task_finalizer.rs:finalize_task()` (FinalizationAction::Failed)
 
 **Example Query**:
+
 ```promql
 # Total failures
 tasker_tasks_failures_total
@@ -165,9 +177,11 @@ rate(tasker_tasks_failures_total[5m])
 ---
 
 #### `tasker.steps.enqueued.total`
+
 **Description**: Total number of steps enqueued to worker queues
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `namespace`: Task namespace
 - `step_name`: Name of the enqueued step
@@ -175,6 +189,7 @@ rate(tasker_tasks_failures_total[5m])
 **Instrumented In**: `step_enqueuer.rs:enqueue_steps()`
 
 **Example Query**:
+
 ```promql
 # Total steps enqueued
 tasker_steps_enqueued_total
@@ -191,15 +206,18 @@ tasker_steps_enqueued_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4a5
 ---
 
 #### `tasker.step_results.processed.total`
+
 **Description**: Total number of step results processed from workers
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `result_type`: "success", "error", "timeout", "cancelled", "skipped"
 
 **Instrumented In**: `result_processor.rs:process_step_result()`
 
 **Example Query**:
+
 ```promql
 # Total results processed
 tasker_step_results_processed_total
@@ -218,15 +236,18 @@ rate(tasker_step_results_processed_total{result_type="success"}[5m])
 ### Histograms
 
 #### `tasker.task.initialization.duration`
+
 **Description**: Task initialization duration in milliseconds
 **Type**: Histogram (f64)
 **Unit**: ms
 **Prometheus Metric Names**:
+
 - `tasker_task_initialization_duration_milliseconds_bucket`
 - `tasker_task_initialization_duration_milliseconds_sum`
 - `tasker_task_initialization_duration_milliseconds_count`
 
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `task_type`: Task name
 
@@ -235,6 +256,7 @@ rate(tasker_step_results_processed_total{result_type="success"}[5m])
 **Example Queries**:
 
 **Instant/Recent Data** (works immediately after task execution):
+
 ```promql
 # Simple average initialization time
 tasker_task_initialization_duration_milliseconds_sum /
@@ -248,6 +270,7 @@ histogram_quantile(0.99, sum by (le) (tasker_task_initialization_duration_millis
 ```
 
 **Rate-Based** (for continuous monitoring, requires data spread over time):
+
 ```promql
 # Average initialization time over 5 minutes
 rate(tasker_task_initialization_duration_milliseconds_sum[5m]) /
@@ -262,15 +285,18 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_task_initialization_duration_m
 ---
 
 #### `tasker.task.finalization.duration`
+
 **Description**: Task finalization duration in milliseconds
 **Type**: Histogram (f64)
 **Unit**: ms
 **Prometheus Metric Names**:
+
 - `tasker_task_finalization_duration_milliseconds_bucket`
 - `tasker_task_finalization_duration_milliseconds_sum`
 - `tasker_task_finalization_duration_milliseconds_count`
 
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `final_state`: "complete", "error", "cancelled"
 
@@ -279,6 +305,7 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_task_initialization_duration_m
 **Example Queries**:
 
 **Instant/Recent Data**:
+
 ```promql
 # Simple average finalization time
 tasker_task_finalization_duration_milliseconds_sum /
@@ -293,6 +320,7 @@ histogram_quantile(0.95,
 ```
 
 **Rate-Based**:
+
 ```promql
 # Average finalization time over 5 minutes
 rate(tasker_task_finalization_duration_milliseconds_sum[5m]) /
@@ -311,15 +339,18 @@ histogram_quantile(0.95,
 ---
 
 #### `tasker.step_result.processing.duration`
+
 **Description**: Step result processing duration in milliseconds
 **Type**: Histogram (f64)
 **Unit**: ms
 **Prometheus Metric Names**:
+
 - `tasker_step_result_processing_duration_milliseconds_bucket`
 - `tasker_step_result_processing_duration_milliseconds_sum`
 - `tasker_step_result_processing_duration_milliseconds_count`
 
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `result_type`: "success", "error", "timeout", "cancelled", "skipped"
 
@@ -328,6 +359,7 @@ histogram_quantile(0.95,
 **Example Queries**:
 
 **Instant/Recent Data**:
+
 ```promql
 # Simple average result processing time
 tasker_step_result_processing_duration_milliseconds_sum /
@@ -340,6 +372,7 @@ histogram_quantile(0.99, sum by (le) (tasker_step_result_processing_duration_mil
 ```
 
 **Rate-Based**:
+
 ```promql
 # Average result processing time over 5 minutes
 rate(tasker_step_result_processing_duration_milliseconds_sum[5m]) /
@@ -356,9 +389,11 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_processing_duratio
 ### Gauges
 
 #### `tasker.tasks.active`
+
 **Description**: Number of tasks currently being processed
 **Type**: Gauge (u64)
 **Labels**:
+
 - `state`: Current task state
 
 **Status**: Planned (not yet instrumented)
@@ -366,9 +401,11 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_processing_duratio
 ---
 
 #### `tasker.steps.ready`
+
 **Description**: Number of steps ready for execution
 **Type**: Gauge (u64)
 **Labels**:
+
 - `namespace`: Worker namespace
 
 **Status**: Planned (not yet instrumented)
@@ -383,14 +420,17 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_processing_duratio
 ### Counters
 
 #### `tasker.steps.executions.total`
+
 **Description**: Total number of step executions attempted
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 
 **Instrumented In**: `command_processor.rs:handle_execute_step()`
 
 **Example Query**:
+
 ```promql
 # Total step executions
 tasker_steps_executions_total
@@ -407,15 +447,18 @@ tasker_steps_executions_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa4
 ---
 
 #### `tasker.steps.successes.total`
+
 **Description**: Total number of step executions that completed successfully
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `namespace`: Worker namespace
 
 **Instrumented In**: `command_processor.rs:handle_execute_step()` (success path)
 
 **Example Query**:
+
 ```promql
 # Total successes
 tasker_steps_successes_total
@@ -432,9 +475,11 @@ sum by (namespace) (tasker_steps_successes_total)
 ---
 
 #### `tasker.steps.failures.total`
+
 **Description**: Total number of step executions that failed
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `namespace`: Worker namespace (or "unknown" for early failures)
 - `error_type`: "claim_failed", "database_error", "step_not_found", "message_deletion_failed"
@@ -442,6 +487,7 @@ sum by (namespace) (tasker_steps_successes_total)
 **Instrumented In**: `command_processor.rs:handle_execute_step()` (error paths)
 
 **Example Query**:
+
 ```promql
 # Total failures
 tasker_steps_failures_total
@@ -461,15 +507,18 @@ topk(5, sum by (error_type) (tasker_steps_failures_total))
 ---
 
 #### `tasker.steps.claimed.total`
+
 **Description**: Total number of steps claimed from queues
 **Type**: Counter (u64)
 **Labels**:
+
 - `namespace`: Worker namespace
 - `claim_method`: "event", "poll"
 
 **Instrumented In**: `step_claim.rs:try_claim_step()`
 
 **Example Query**:
+
 ```promql
 # Total claims
 tasker_steps_claimed_total
@@ -486,15 +535,18 @@ rate(tasker_steps_claimed_total[5m])
 ---
 
 #### `tasker.steps.results_submitted.total`
+
 **Description**: Total number of step results submitted to orchestration
 **Type**: Counter (u64)
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `result_type`: "completion"
 
 **Instrumented In**: `orchestration_result_sender.rs:send_completion()`
 
 **Example Query**:
+
 ```promql
 # Total submissions
 tasker_steps_results_submitted_total
@@ -513,15 +565,18 @@ tasker_steps_results_submitted_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f6
 ### Histograms
 
 #### `tasker.step.execution.duration`
+
 **Description**: Step execution duration in milliseconds
 **Type**: Histogram (f64)
 **Unit**: ms
 **Prometheus Metric Names**:
+
 - `tasker_step_execution_duration_milliseconds_bucket`
 - `tasker_step_execution_duration_milliseconds_sum`
 - `tasker_step_execution_duration_milliseconds_count`
 
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `namespace`: Worker namespace
 - `result`: "success", "error"
@@ -531,6 +586,7 @@ tasker_steps_results_submitted_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f6
 **Example Queries**:
 
 **Instant/Recent Data**:
+
 ```promql
 # Simple average execution time
 tasker_step_execution_duration_milliseconds_sum /
@@ -548,6 +604,7 @@ histogram_quantile(0.99, sum by (le) (tasker_step_execution_duration_millisecond
 ```
 
 **Rate-Based**:
+
 ```promql
 # Average execution time over 5 minutes
 rate(tasker_step_execution_duration_milliseconds_sum[5m]) /
@@ -566,15 +623,18 @@ histogram_quantile(0.95,
 ---
 
 #### `tasker.step.claim.duration`
+
 **Description**: Step claiming duration in milliseconds
 **Type**: Histogram (f64)
 **Unit**: ms
 **Prometheus Metric Names**:
+
 - `tasker_step_claim_duration_milliseconds_bucket`
 - `tasker_step_claim_duration_milliseconds_sum`
 - `tasker_step_claim_duration_milliseconds_count`
 
 **Labels**:
+
 - `namespace`: Worker namespace
 - `claim_method`: "event", "poll"
 
@@ -583,6 +643,7 @@ histogram_quantile(0.95,
 **Example Queries**:
 
 **Instant/Recent Data**:
+
 ```promql
 # Simple average claim time
 tasker_step_claim_duration_milliseconds_sum /
@@ -597,6 +658,7 @@ histogram_quantile(0.95,
 ```
 
 **Rate-Based**:
+
 ```promql
 # Average claim time over 5 minutes
 rate(tasker_step_claim_duration_milliseconds_sum[5m]) /
@@ -615,15 +677,18 @@ histogram_quantile(0.95,
 ---
 
 #### `tasker.step_result.submission.duration`
+
 **Description**: Step result submission duration in milliseconds
 **Type**: Histogram (f64)
 **Unit**: ms
 **Prometheus Metric Names**:
+
 - `tasker_step_result_submission_duration_milliseconds_bucket`
 - `tasker_step_result_submission_duration_milliseconds_sum`
 - `tasker_step_result_submission_duration_milliseconds_count`
 
 **Labels**:
+
 - `correlation_id`: Request correlation ID
 - `result_type`: "completion"
 
@@ -632,6 +697,7 @@ histogram_quantile(0.95,
 **Example Queries**:
 
 **Instant/Recent Data**:
+
 ```promql
 # Simple average submission time
 tasker_step_result_submission_duration_milliseconds_sum /
@@ -642,6 +708,7 @@ histogram_quantile(0.95, sum by (le) (tasker_step_result_submission_duration_mil
 ```
 
 **Rate-Based**:
+
 ```promql
 # Average submission time over 5 minutes
 rate(tasker_step_result_submission_duration_milliseconds_sum[5m]) /
@@ -658,9 +725,11 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_submission_duratio
 ### Gauges
 
 #### `tasker.steps.active_executions`
+
 **Description**: Number of steps currently being executed
 **Type**: Gauge (u64)
 **Labels**:
+
 - `namespace`: Worker namespace
 - `handler_type`: "rust", "ruby"
 
@@ -669,9 +738,11 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_submission_duratio
 ---
 
 #### `tasker.queue.depth`
+
 **Description**: Current queue depth per namespace
 **Type**: Gauge (u64)
 **Labels**:
+
 - `namespace`: Worker namespace
 
 **Status**: Planned (not yet instrumented)
@@ -689,6 +760,7 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_submission_duratio
 Circuit breakers provide fault isolation and cascade prevention. These metrics track breaker state transitions and related operations.
 
 #### `api_circuit_breaker_state`
+
 **Description**: Current state of the web API database circuit breaker
 **Type**: Gauge (i64)
 **Values**: 0=Closed, 1=Half-Open, 2=Open
@@ -697,6 +769,7 @@ Circuit breakers provide fault isolation and cascade prevention. These metrics t
 **Instrumented In**: `tasker-orchestration/src/web/circuit_breaker.rs`
 
 **Example Queries**:
+
 ```promql
 # Current state
 api_circuit_breaker_state
@@ -708,15 +781,18 @@ api_circuit_breaker_state == 2
 ---
 
 #### `tasker_circuit_breaker_state`
+
 **Description**: Per-component circuit breaker state
 **Type**: Gauge (i64)
 **Values**: 0=Closed, 1=Half-Open, 2=Open
 **Labels**:
+
 - `component`: Circuit breaker name (e.g., "ffi_completion", "task_readiness", "pgmq")
 
 **Instrumented In**: Various circuit breaker implementations
 
 **Example Queries**:
+
 ```promql
 # All circuit breaker states
 tasker_circuit_breaker_state
@@ -731,14 +807,17 @@ count(tasker_circuit_breaker_state == 2)
 ---
 
 #### `api_requests_rejected_total`
+
 **Description**: Total API requests rejected due to open circuit breaker
 **Type**: Counter (u64)
 **Labels**:
+
 - `endpoint`: The rejected endpoint path
 
 **Instrumented In**: `tasker-orchestration/src/web/circuit_breaker.rs`
 
 **Example Queries**:
+
 ```promql
 # Total rejections
 api_requests_rejected_total
@@ -753,6 +832,7 @@ sum by (endpoint) (api_requests_rejected_total)
 ---
 
 #### `ffi_completion_slow_sends_total`
+
 **Description**: FFI completion channel sends exceeding latency threshold (100ms default)
 **Type**: Counter (u64)
 **Labels**: None
@@ -760,6 +840,7 @@ sum by (endpoint) (api_requests_rejected_total)
 **Instrumented In**: `tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs`
 
 **Example Queries**:
+
 ```promql
 # Total slow sends
 ffi_completion_slow_sends_total
@@ -773,6 +854,7 @@ rate(ffi_completion_slow_sends_total[5m]) > 10
 ---
 
 #### `ffi_completion_circuit_open_rejections_total`
+
 **Description**: FFI completion operations rejected due to open circuit breaker
 **Type**: Counter (u64)
 **Labels**: None
@@ -780,6 +862,7 @@ rate(ffi_completion_slow_sends_total[5m]) > 10
 **Instrumented In**: `tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs`
 
 **Example Queries**:
+
 ```promql
 # Total rejections
 ffi_completion_circuit_open_rejections_total
@@ -795,15 +878,18 @@ rate(ffi_completion_circuit_open_rejections_total[5m])
 Bounded MPSC channels provide backpressure control. These metrics track channel utilization and overflow events.
 
 #### `mpsc_channel_usage_percent`
+
 **Description**: Current fill percentage of a bounded MPSC channel
 **Type**: Gauge (f64)
 **Labels**:
+
 - `channel`: Channel name (e.g., "orchestration_command", "pgmq_notifications")
 - `component`: Owning component
 
 **Instrumented In**: Channel monitor integration points
 
 **Example Queries**:
+
 ```promql
 # All channel usage
 mpsc_channel_usage_percent
@@ -816,21 +902,25 @@ max by (component) (mpsc_channel_usage_percent)
 ```
 
 **Alert Thresholds**:
+
 - Warning: > 80% for 15 minutes
 - Critical: > 90% for 5 minutes
 
 ---
 
 #### `mpsc_channel_capacity`
+
 **Description**: Configured buffer capacity for an MPSC channel
 **Type**: Gauge (u64)
 **Labels**:
+
 - `channel`: Channel name
 - `component`: Owning component
 
 **Instrumented In**: Channel monitor initialization
 
 **Example Queries**:
+
 ```promql
 # All channel capacities
 mpsc_channel_capacity
@@ -842,15 +932,18 @@ mpsc_channel_usage_percent / 100 * mpsc_channel_capacity
 ---
 
 #### `mpsc_channel_full_events_total`
+
 **Description**: Count of channel overflow events (backpressure applied)
 **Type**: Counter (u64)
 **Labels**:
+
 - `channel`: Channel name
 - `component`: Owning component
 
 **Instrumented In**: Channel send operations with backpressure handling
 
 **Example Queries**:
+
 ```promql
 # Total overflow events
 mpsc_channel_full_events_total
@@ -869,6 +962,7 @@ sum by (channel) (mpsc_channel_full_events_total)
 ### Resilience Dashboard Panels
 
 **Circuit Breaker State Timeline**:
+
 ```promql
 # Panel: Time series with state mapping
 api_circuit_breaker_state
@@ -876,6 +970,7 @@ api_circuit_breaker_state
 ```
 
 **FFI Completion Health**:
+
 ```promql
 # Panel: Multi-stat showing slow sends and rejections
 rate(ffi_completion_slow_sends_total[5m])
@@ -883,6 +978,7 @@ rate(ffi_completion_circuit_open_rejections_total[5m])
 ```
 
 **Channel Saturation Overview**:
+
 ```promql
 # Panel: Gauge showing max channel usage
 max(mpsc_channel_usage_percent)
@@ -890,6 +986,7 @@ max(mpsc_channel_usage_percent)
 ```
 
 **Backpressure Events**:
+
 ```promql
 # Panel: Time series of overflow rate
 rate(mpsc_channel_full_events_total[5m])
@@ -974,6 +1071,7 @@ tasker_tasks_completions_total{correlation_id="0199c3e0-ccdb-7581-87ab-3f67daeaa
 **Task initialization latency percentiles:**
 
 **Instant/Recent Data**:
+
 ```promql
 # P50 (median)
 histogram_quantile(0.50, sum by (le) (tasker_task_initialization_duration_milliseconds_bucket))
@@ -986,6 +1084,7 @@ histogram_quantile(0.99, sum by (le) (tasker_task_initialization_duration_millis
 ```
 
 **Rate-Based** (continuous monitoring):
+
 ```promql
 # P50 (median)
 histogram_quantile(0.50, sum by (le) (rate(tasker_task_initialization_duration_milliseconds_bucket[5m])))
@@ -1000,6 +1099,7 @@ histogram_quantile(0.99, sum by (le) (rate(tasker_task_initialization_duration_m
 **Step execution latency by namespace:**
 
 **Instant/Recent Data**:
+
 ```promql
 histogram_quantile(0.95,
   sum by (namespace, le) (
@@ -1009,6 +1109,7 @@ histogram_quantile(0.95,
 ```
 
 **Rate-Based**:
+
 ```promql
 histogram_quantile(0.95,
   sum by (namespace, le) (
@@ -1178,17 +1279,20 @@ sum(rate(tasker_steps_failures_total[5m]))
 Use this checklist to verify metrics are working correctly:
 
 ### Prerequisites
+
 - [ ] `telemetry.opentelemetry.enabled = true` in development config
 - [ ] Services restarted after config change
 - [ ] Logs show `opentelemetry_enabled=true`
 - [ ] Grafana LGTM container running on ports 3000, 4317
 
 ### Basic Verification
+
 - [ ] At least one task created via CLI
 - [ ] Correlation ID captured from task creation
 - [ ] Trace visible in Grafana Tempo for correlation ID
 
 ### Orchestration Metrics
+
 - [ ] `tasker_tasks_requests_total` returns non-zero
 - [ ] `tasker_steps_enqueued_total` returns expected step count
 - [ ] `tasker_step_results_processed_total` returns expected result count
@@ -1196,6 +1300,7 @@ Use this checklist to verify metrics are working correctly:
 - [ ] `tasker_task_initialization_duration_bucket` has histogram data
 
 ### Worker Metrics
+
 - [ ] `tasker_steps_executions_total` returns non-zero
 - [ ] `tasker_steps_successes_total` matches successful steps
 - [ ] `tasker_steps_claimed_total` returns expected claims
@@ -1203,6 +1308,7 @@ Use this checklist to verify metrics are working correctly:
 - [ ] `tasker_step_execution_duration_bucket` has histogram data
 
 ### Resilience Metrics
+
 - [ ] `api_circuit_breaker_state` returns 0 (Closed) during normal operation
 - [ ] `/health/detailed` endpoint shows circuit breaker states
 - [ ] `mpsc_channel_usage_percent` returns values < 80% (no saturation)
@@ -1210,6 +1316,7 @@ Use this checklist to verify metrics are working correctly:
 - [ ] FFI workers: `ffi_completion_slow_sends_total` is near zero
 
 ### Correlation
+
 - [ ] All metrics filterable by `correlation_id`
 - [ ] Correlation ID in metrics matches trace ID in Tempo
 - [ ] Complete execution flow visible from request to completion
@@ -1221,18 +1328,21 @@ Use this checklist to verify metrics are working correctly:
 ### No Metrics Appearing
 
 **Check 1**: OpenTelemetry enabled
+
 ```bash
 grep "opentelemetry_enabled" tmp/*.log
 # Should show: opentelemetry_enabled=true
 ```
 
 **Check 2**: OTLP endpoint accessible
+
 ```bash
 curl -v http://localhost:4317 2>&1 | grep Connected
 # Should show: Connected to localhost (127.0.0.1) port 4317
 ```
 
 **Check 3**: Grafana LGTM running
+
 ```bash
 curl -s http://localhost:3000/api/health | jq
 # Should return healthy status
@@ -1244,6 +1354,7 @@ Metrics are batched and exported every 60 seconds. Wait at least 1 minute after 
 ### Metrics Missing Labels
 
 If correlation_id or other labels are missing, check:
+
 - Logs for `correlation_id` field presence
 - Metric instrumentation includes KeyValue::new() calls
 - Labels match between metric definition and usage
@@ -1251,6 +1362,7 @@ If correlation_id or other labels are missing, check:
 ### Histogram Buckets Empty
 
 If histogram queries return no data:
+
 - Verify histogram is initialized: check logs for metric initialization
 - Ensure duration values are non-zero and reasonable
 - Check that `record()` is called, not `add()` for histograms
@@ -1260,12 +1372,14 @@ If histogram queries return no data:
 ## Next Steps
 
 ### Phase 3.4 (Future)
+
 - Instrument database metrics (7 metrics)
 - Instrument messaging metrics (11 metrics)
 - Add gauge tracking for active operations
 - Implement queue depth monitoring
 
 ### Production Readiness
+
 - Create alert rules for error rates
 - Set up automated dashboards
 - Configure metric retention policies
@@ -1278,5 +1392,6 @@ If histogram queries return no data:
 **Status**: All orchestration and worker metrics verified and producing data ✅
 
 **Recent Updates**:
+
 - 2025-12-10: Added Resilience Metrics section (circuit breakers, MPSC channels)
 - 2025-10-08: Initial metrics verification completed

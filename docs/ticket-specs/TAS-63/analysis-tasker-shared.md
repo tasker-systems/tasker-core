@@ -356,6 +356,7 @@ These require `--features test-services` with a running PostgreSQL instance.
 | **All phases combined** | **8-12 days** | **+3,415** | **~66.8%** |
 
 To reach the full 70% target (21,933 lines), approximately 991 additional lines beyond Phase 4 would need coverage. This could come from:
+
 - Deeper coverage of partially-tested modules (e.g., pushing `messaging/service/provider.rs` from 44.5% to 80%)
 - Additional edge-case tests for `config/tasker.rs` (currently 88.3%, 66 uncovered lines)
 - Expanding `models/core/task.rs` tests (currently 30.4%, 682 uncovered lines)

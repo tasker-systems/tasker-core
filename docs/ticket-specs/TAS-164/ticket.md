@@ -37,31 +37,31 @@ acquire_timeout_seconds = 5
 
 ### 1\. Add Pool Metrics Endpoint
 
-* Expose pool utilization via `/health` or `/metrics`
-* Track: active connections, idle connections, acquire latency P50/P95/P99
+- Expose pool utilization via `/health` or `/metrics`
+- Track: active connections, idle connections, acquire latency P50/P95/P99
 
 ### 2\. SQLx Event Handlers
 
-* Implement connection event callbacks
-* Log/metric slow connection acquisitions (>100ms threshold)
+- Implement connection event callbacks
+- Log/metric slow connection acquisitions (>100ms threshold)
 
 ### 3\. Tuning Recommendations (after metrics collection)
 
-* If acquire waits common: increase `max_connections`
-* If connections frequently expire: adjust `max_lifetime`
-* If many idle connections: reduce `min_connections`
+- If acquire waits common: increase `max_connections`
+- If connections frequently expire: adjust `max_lifetime`
+- If many idle connections: reduce `min_connections`
 
 ### 4\. Config-Driven Pool Sizing
 
-* Add environment-specific overrides in `config/tasker/environments/`
-* Consider separate pool sizes for orchestration vs worker
+- Add environment-specific overrides in `config/tasker/environments/`
+- Consider separate pool sizes for orchestration vs worker
 
 ## Files to Modify
 
-* `tasker-shared/src/database/pools.rs`
-* `config/tasker/base/common.toml`
-* `config/tasker/environments/*/common.toml`
-* Health endpoint handlers
+- `tasker-shared/src/database/pools.rs`
+- `config/tasker/base/common.toml`
+- `config/tasker/environments/*/common.toml`
+- Health endpoint handlers
 
 ## Acceptance Criteria
 
@@ -72,10 +72,11 @@ acquire_timeout_seconds = 5
 
 ## References
 
-* Profiling Report: `docs/ticket-specs/TAS-71/profiling-report.md`
-* Optimization Tickets: `docs/ticket-specs/TAS-71/optimization-tickets.md`
+- Profiling Report: `docs/ticket-specs/TAS-71/profiling-report.md`
+- Optimization Tickets: `docs/ticket-specs/TAS-71/optimization-tickets.md`
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-164/connection-pool-observability-and-tuning](https://linear.app/tasker-systems/issue/TAS-164/connection-pool-observability-and-tuning)
 - Identifier: TAS-164
 - Status: In Progress

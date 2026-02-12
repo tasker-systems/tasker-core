@@ -29,6 +29,7 @@ Build the foundational FFI bridge layer and core infrastructure for the TypeScri
 **Python**: `workers/python/python/tasker_core/bootstrap.py` (PyO3 FFI)
 
 Both use the same FFI contract:
+
 - `poll_step_events()` → Returns JSON string or null
 - `complete_step_event(event_id, result_json)` → Sends completion
 - `bootstrap_worker(config_json)` → Initializes worker
@@ -39,6 +40,7 @@ Both use the same FFI contract:
 ### Phase 1: Project Setup
 
 **Create directory structure:**
+
 ```
 workers/typescript/
 ├── package.json
@@ -64,6 +66,7 @@ workers/typescript/
 ```
 
 **package.json:**
+
 ```json
 {
   "name": "@tasker-systems/worker",
@@ -118,6 +121,7 @@ workers/typescript/
 ```
 
 **tsconfig.json:**
+
 ```json
 {
   "compilerOptions": {
@@ -813,6 +817,7 @@ export class BunTaskerRuntime implements TaskerRuntime {
 ### Phase 7: Usage Examples
 
 **Strongly-typed bootstrap:**
+
 ```typescript
 import { getTaskerRuntime } from './ffi/runtime-factory';
 
@@ -831,6 +836,7 @@ if (result.status === 'started') {
 ```
 
 **Strongly-typed logging:**
+
 ```typescript
 const runtime = getTaskerRuntime();
 
@@ -844,6 +850,7 @@ runtime.logInfo('Processing payment', {
 ```
 
 **Strongly-typed step polling:**
+
 ```typescript
 const runtime = getTaskerRuntime();
 
@@ -859,6 +866,7 @@ for (const event of events) {
 ```
 
 **Strongly-typed metrics:**
+
 ```typescript
 const runtime = getTaskerRuntime();
 
@@ -895,7 +903,8 @@ if (metrics.starvation_detected) {
    - No need to grep for `callFfiFunction` calls
 
 /**
- * Base error for FFI operations
+
+- Base error for FFI operations
  */
 export class FfiError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -905,7 +914,8 @@ export class FfiError extends Error {
 }
 
 /**
- * Error when FFI library cannot be loaded
+
+- Error when FFI library cannot be loaded
  */
 export class FfiLibraryError extends FfiError {
   constructor(message: string, cause?: unknown) {
@@ -915,7 +925,8 @@ export class FfiLibraryError extends FfiError {
 }
 
 /**
- * Error when FFI call fails
+
+- Error when FFI call fails
  */
 export class FfiCallError extends FfiError {
   constructor(message: string, cause?: unknown) {
@@ -923,6 +934,7 @@ export class FfiCallError extends FfiError {
     this.name = 'FfiCallError';
   }
 }
+
 ```
 
 ### Phase 5: Bun FFI Adapter
@@ -1573,6 +1585,7 @@ export class EventPoller {
 ## Files Summary
 
 ### New Files
+
 | File | Purpose |
 |------|---------|
 | `src/ffi/runtime.ts` | Runtime detection (Bun/Node/Deno) |
@@ -1608,6 +1621,7 @@ export class EventPoller {
 ## Testing Strategy
 
 ### Unit Tests (TAS-105)
+
 ```typescript
 // tests/unit/ffi/runtime.test.ts
 describe('Runtime Detection', () => {
@@ -1636,11 +1650,13 @@ describe('NodeFfiAdapter', () => {
 ## Risk Assessment
 
 **Medium Risk**:
+
 - Bun FFI experimental with known bugs
 - Memory management at FFI boundary
 - Runtime-specific FFI differences
 
 **Mitigation**:
+
 - Start with Node.js adapter (mature)
 - Comprehensive null pointer handling
 - Extensive test coverage per runtime
@@ -1666,6 +1682,7 @@ describe('NodeFfiAdapter', () => {
 ## Next Steps
 
 After TAS-101 completion:
+
 - **TAS-102**: Build handler API and registry on top of FFI bridge
 - **TAS-103**: Implement specialized handlers
 - **TAS-104**: Create server and bootstrap
@@ -1673,5 +1690,6 @@ After TAS-101 completion:
 ---
 
 **Reference Commits**:
+
 - Ruby FFI Bootstrap: See `workers/ruby/lib/tasker_core/bootstrap.rb`
 - Python FFI Bootstrap: See `workers/python/python/tasker_core/bootstrap.py`

@@ -51,6 +51,7 @@ RETURNING *;
 ```
 
 If two processors try to claim the same task:
+
 - First: Succeeds, task transitions to `in_progress`
 - Second: Fails (0 rows affected), no state change
 
@@ -126,6 +127,7 @@ async fn enqueue_steps(task_id: TaskId, steps: Vec<Step>) -> Result<()> {
 ```
 
 If step insertion fails:
+
 - Transaction rolls back
 - Task state unchanged
 - No partial steps created
@@ -192,6 +194,7 @@ fn process(&self, processor_uuid: Uuid) -> Result<()> {
 | Race condition | Rejected | Layer 1 (CAS) rejects |
 
 The four protection layers already prevent corruption. Ownership added:
+
 - **Zero additional safety** (layers 1-4 sufficient)
 - **Recovery blocking** (crashed tasks stuck forever)
 - **Operational complexity** (manual intervention needed)
@@ -201,6 +204,7 @@ The four protection layers already prevent corruption. Ownership added:
 > "Processor UUID ownership was redundant protection with harmful side effects."
 
 When two actors receive identical messages:
+
 - First: Succeeds atomically (Layer 1 CAS)
 - Second: Fails cleanly (Layer 1 CAS)
 - No partial state, no corruption
@@ -225,11 +229,13 @@ When adding protection mechanisms, evaluate against this checklist:
 > Find the minimal set of protections that prevents corruption. Additional layers that prevent recovery are worse than none.
 
 A system that:
+
 - Has fewer protections
 - Recovers automatically from crashes
 - Handles duplicates idempotently
 
 Is better than a system that:
+
 - Has more protections
 - Requires manual intervention after crashes
 - Is "theoretically more secure"

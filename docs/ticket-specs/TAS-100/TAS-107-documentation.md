@@ -14,12 +14,14 @@ Comprehensive documentation for the TypeScript worker, including API reference, 
 ## Documentation Files to Create/Update
 
 ### New Documentation
+
 ```
 docs/worker-crates/
 └── typescript.md                 # TypeScript worker guide
 ```
 
 ### Updates to Existing Docs
+
 ```
 docs/worker-crates/
 ├── README.md                     # Add TypeScript to worker overview
@@ -29,40 +31,48 @@ docs/worker-crates/
 ## Documentation Sections
 
 ### 1. TypeScript Worker Guide (`typescript.md`)
+
 Following the structure of `ruby.md` and `python.md`:
 
 #### Quick Start
+
 - Installation (npm/bun/pnpm)
 - Running the server
 - Environment variables
 
 #### Architecture
+
 - FFI bridge overview
 - Runtime adapter pattern
 - Event system
 
 #### Handler Development
+
 - Base handler
 - Handler signature (`call(context)`)
 - Result methods (`success()`, `failure()`)
 - StepContext accessors
 
 #### Specialized Handlers
+
 - ApiHandler examples
 - DecisionHandler examples
 - Batchable examples
 
 #### Runtime Support
+
 - Bun vs Node.js differences
 - Runtime detection
 - When to use each runtime
 
 #### Configuration
+
 - TOML configuration
 - Environment variables
 - Headless mode
 
 ### 2. Cross-Language Comparison Matrix
+
 Update `README.md` comparison table to include TypeScript:
 
 | Feature | Rust | Ruby | Python | **TypeScript** |
@@ -73,6 +83,7 @@ Update `README.md` comparison table to include TypeScript:
 | Concurrency | Tokio async | Thread+FFI | Thread+FFI | **Event loop+FFI** |
 
 ### 3. Migration Guides
+
 - Migrating from Node.js worker libraries
 - TypeScript vs JavaScript usage
 - Bun vs Node.js runtime selection

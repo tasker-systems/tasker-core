@@ -234,7 +234,7 @@ impl JwksKeyStore {
 }
 ```
 
-2. **Disable redirects** in the HTTP client:
+1. **Disable redirects** in the HTTP client:
 
 ```rust
 let client = reqwest::Client::builder()
@@ -243,7 +243,7 @@ let client = reqwest::Client::builder()
     .build()?;
 ```
 
-3. **Add `jwks_url_allow_http` config flag** (default: false) for test environments.
+1. **Add `jwks_url_allow_http` config flag** (default: false) for test environments.
 
 ### Configuration
 
@@ -290,14 +290,14 @@ for jwk in &jwks.keys {
 const ALLOWED_ALGORITHMS: &[&str] = &["RS256", "RS384", "RS512"];
 ```
 
-2. **Make allowed algorithms configurable**:
+1. **Make allowed algorithms configurable**:
 
 ```toml
 [orchestration.web.auth]
 jwt_allowed_algorithms = ["RS256"]  # Only accept RS256 tokens
 ```
 
-3. **Match key algorithm during validation** when the JWK specifies one:
+1. **Match key algorithm during validation** when the JWK specifies one:
 
 ```rust
 async fn validate_with_jwks(&self, jwks: &JwksKeyStore, token: &str) -> Result<SecurityContext, AuthError> {

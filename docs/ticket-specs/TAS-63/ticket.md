@@ -7,6 +7,7 @@
 **Current State**: 1,185+ tests across workspace
 
 **Related documents:**
+
 - `README.md` - Coverage tooling quick start and command reference
 - `coverage-tooling.md` - Architecture, JSON schema, and script reference
 
@@ -34,6 +35,7 @@ This document merges the original TAS-63 coverage analysis with updated findings
 ### 🔴 Critical Priority (Production Risk)
 
 #### 1. Result Processing Module (NEW - Not in original ticket)
+
 **Location**: `tasker-orchestration/src/orchestration/lifecycle/result_processing/`
 
 | File | Lines | Inline Tests | Risk |
@@ -46,12 +48,14 @@ This document merges the original TAS-63 coverage analysis with updated findings
 **Impact**: This is the core task completion logic. Edge cases (partial failures, concurrent state transitions, malformed messages) are not tested at the unit level.
 
 **Recommended Tests**:
+
 - State transition validation logic
 - Error recovery paths in message handling
 - Concurrent task coordination scenarios
 - Processing context state management
 
 #### 2. FFI Dispatch Channel (Severity increased)
+
 **Location**: `tasker-worker/src/handlers/ffi_dispatch_channel.rs`
 **Size**: 1,143 lines
 **Tests**: 4 inline tests only
@@ -59,15 +63,18 @@ This document merges the original TAS-63 coverage analysis with updated findings
 **Impact**: Bridges Rust to Ruby/Python/TypeScript workers. Failures affect all cross-language workloads.
 
 **Recommended Tests**:
+
 - Channel backpressure handling
 - Timeout scenarios during FFI calls
 - Error propagation from foreign handlers
 - Semaphore exhaustion behavior
 
 #### 3. Actor System (From original ticket - still 0%)
+
 **Location**: `tasker-orchestration/src/orchestration/actors/`
 
 All 4 core actors have 0% unit test coverage:
+
 - `TaskRequestActor` - Task initialization
 - `ResultProcessorActor` - Step result processing
 - `StepEnqueuerActor` - Batch step enqueueing
@@ -78,27 +85,33 @@ All 4 core actors have 0% unit test coverage:
 ### 🟠 High Priority (Quality Risk)
 
 #### 4. Web Handlers (From original ticket - still 0%)
+
 **Locations**:
+
 - `tasker-orchestration/src/web/` (middleware, routes, extractors)
 - `tasker-worker/src/web/` (handlers, middleware)
 
 **Recommended Tests**:
+
 - Authentication middleware edge cases
 - Route parameter extraction/validation
 - Error response formatting
 - Request validation logic
 
 #### 5. CLI Binary (From original ticket - still 0%)
+
 **Location**: `tasker-client/bin/tasker-cli.rs`
 **Size**: 1,302 lines
 **Coverage**: 0%
 
 **Recommended Tests**:
+
 - Command parsing and validation
 - Error handling and user feedback
 - Configuration file handling
 
 #### 6. Bootstrap Code (From original ticket - minimal coverage)
+
 | File | Coverage |
 |------|----------|
 | `tasker-orchestration/bootstrap.rs` | 0% (251 lines) |
@@ -107,13 +120,17 @@ All 4 core actors have 0% unit test coverage:
 ### 🟡 Medium Priority (Technical Debt)
 
 #### 7. Core Orchestration Integration Points
+
 **Files needing tests**:
+
 - `orchestration/core.rs` - Lifecycle integration point
 - `orchestration/commands/mod.rs`, `orchestration/commands/types.rs` - Command dispatch
 - `orchestration/hydration/mod.rs`, `hydration/step_result_hydrator.rs` - Data hydration
 
 #### 8. Infrastructure Components (From original ticket)
+
 **tasker-shared** untested areas:
+
 - `cache/mod.rs`, `cache/errors.rs`, `cache/traits.rs` - Cache infrastructure
 - `config/mod.rs`, `config/circuit_breaker.rs`, `config/web.rs` - Config system
 - `database/mod.rs`, `database/migrator.rs`, `database/sql_functions.rs` - Database layer
@@ -122,9 +139,11 @@ All 4 core actors have 0% unit test coverage:
 - `messaging/mod.rs` - Messaging routing
 
 #### 9. Error Handling Paths
+
 **Current state**: Tests primarily cover happy paths + single failure scenarios.
 
 **Missing coverage**:
+
 - Network timeouts in async handlers
 - Circuit breaker cascade failures
 - Database pool exhaustion
@@ -134,7 +153,9 @@ All 4 core actors have 0% unit test coverage:
 ### 🟢 Lower Priority (Completeness)
 
 #### 10. Property-Based Testing
+
 State machines would benefit from property-based tests:
+
 ```rust
 proptest! {
     #[test]
@@ -145,6 +166,7 @@ proptest! {
 ```
 
 #### 11. Doctest Migration (From ticket comment)
+
 Migrate from `ignore` doctests to `no_run` wherever possible to maintain code validity checking without requiring runtime dependencies.
 
 ---
@@ -152,6 +174,7 @@ Migrate from `ignore` doctests to `no_run` wherever possible to maintain code va
 ## Coverage Strengths (What's Working Well)
 
 ### High Coverage Areas (>90%)
+
 - **Test Factories**: 96-100% (`foundation.rs`, `complex_workflows.rs`, `states.rs`)
 - **Worker Event Types**: 95-100% (worker_queues/events)
 - **Task Templates**: 97% (`task_template.rs`)
@@ -161,6 +184,7 @@ Migrate from `ignore` doctests to `no_run` wherever possible to maintain code va
 - **Health Checks**: 100% (`worker/health.rs`)
 
 ### Strong Test Infrastructure
+
 - **Factory System**: Comprehensive test data builders in `tasker-shared/src/models/factories/`
 - **Test Utilities**: `tests/common/` with actor harnesses, lifecycle managers, cluster simulation
 - **E2E Patterns**: 115 integration test files covering 8 major workflow patterns
@@ -211,6 +235,7 @@ Migrate from `ignore` doctests to `no_run` wherever possible to maintain code va
 ### Phase 4: Error Path Testing (Weeks 6-7)
 
 Add targeted error scenario tests:
+
 ```rust
 #[tokio::test]
 async fn test_handles_database_timeout() { ... }

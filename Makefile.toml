@@ -882,6 +882,59 @@ description = "CI: Prepare for offline builds"
 dependencies = ["sqlx-prepare"]
 
 # =============================================================================
+# Markdown Linting Tasks
+# =============================================================================
+# Lint and fix markdown files in docs/ directory using markdownlint-cli2.
+# Requires: brew install markdownlint-cli2 (or run bin/setup-dev.sh)
+# Config: .markdownlint-cli2.jsonc
+
+[tasks.lint-docs]
+description = "Lint markdown files in docs/"
+script = '''
+#!/bin/bash
+set -euo pipefail
+
+if ! command -v markdownlint-cli2 &> /dev/null; then
+    echo "❌ markdownlint-cli2 not found"
+    echo "   Install with: brew install markdownlint-cli2"
+    exit 1
+fi
+
+echo "📝 Linting markdown files..."
+markdownlint-cli2 "docs/**/*.md" "*.md" || {
+    echo ""
+    echo "💡 To auto-fix some issues, run: cargo make fix-docs"
+    exit 1
+}
+echo "✅ Markdown lint passed"
+'''
+
+[tasks.fix-docs]
+description = "Auto-fix markdown lint issues in docs/"
+script = '''
+#!/bin/bash
+set -euo pipefail
+
+if ! command -v markdownlint-cli2 &> /dev/null; then
+    echo "❌ markdownlint-cli2 not found"
+    echo "   Install with: brew install markdownlint-cli2"
+    exit 1
+fi
+
+echo "🔧 Auto-fixing markdown files..."
+markdownlint-cli2 --fix "docs/**/*.md" "*.md"
+echo "✅ Markdown auto-fix complete"
+'''
+
+[tasks.ld]
+alias = "lint-docs"
+description = "Shortcut for lint-docs"
+
+[tasks.fd]
+alias = "fix-docs"
+description = "Shortcut for fix-docs"
+
+# =============================================================================
 # Development Convenience Tasks
 # =============================================================================
 

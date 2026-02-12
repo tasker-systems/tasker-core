@@ -63,11 +63,13 @@ Result: Items 1001-2000 processed TWICE → idempotency violation
 ### Concern 2: Overloaded `workflow_step.results`
 
 The existing `results` column mixes concerns:
+
 - Business output (`result`)
 - Orchestration metadata (`metadata.context.checkpoint_progress`)
 - Batch outcomes (`batch_processing_outcome`)
 
 **Issues**:
+
 1. Deep serialization paths: `results.metadata.context.checkpoint_progress`
 2. Ownership confusion: handler output vs orchestration bookkeeping
 3. Coupling: checkpoint logic tangled with result persistence
@@ -150,6 +152,7 @@ ALTER TABLE tasker_workflow_steps ADD COLUMN checkpoint JSONB;
 ```
 
 **Rationale for dedicated column**:
+
 - Clean separation: `checkpoint` is orchestration bookkeeping, `results` is business output
 - Simple read path: `step.checkpoint?.cursor`
 - Independent lifecycle: checkpoint updates don't mutate results
@@ -179,6 +182,7 @@ ALTER TABLE tasker_workflow_steps ADD COLUMN checkpoint JSONB;
 ```
 
 **Fields**:
+
 - `cursor`: Current position (any JSON value - integer, timestamp, UUID, etc.)
 - `items_processed`: Running count for observability
 - `timestamp`: When checkpoint was persisted
@@ -188,12 +192,14 @@ ALTER TABLE tasker_workflow_steps ADD COLUMN checkpoint JSONB;
 ### Accumulated Results: Use Cases
 
 **When accumulated results help:**
+
 1. **Running aggregations** (inventory totals): Can't re-derive without re-reading processed items
 2. **Error collection**: Accumulate errors for final report without losing them on restart
 3. **Per-segment metrics**: Keep segment-level metrics for debugging/observability
 4. **Distributed counters**: Category counts, histograms that span segments
 
 **When cursor-only suffices:**
+
 1. **CSV row processing**: Just track row number, re-read from file
 2. **API pagination**: Server maintains state, just need offset/page
 3. **Database streaming**: Just track ID cutoff
@@ -574,10 +580,12 @@ curl -X PATCH /v1/tasks/{task}/workflow_steps/{step} \
 ### Rationale
 
 If batch worker 4 of 5 fails after processing 1000 of 2000 assigned items:
+
 - **Without checkpoint reset**: Retry processes remaining 1000 items only
 - **With checkpoint reset**: Retry reprocesses all 2000 items
 
 Default to continuation for idempotency. Operators can explicitly reset when:
+
 - Data corruption suspected in processed items
 - Business logic changed requiring reprocessing
 - Debugging requires fresh execution

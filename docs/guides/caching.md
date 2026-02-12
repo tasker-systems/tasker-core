@@ -126,6 +126,7 @@ max_capacity = 10000
 ```
 
 **Important**: Moka is only suitable for:
+
 - Single-instance deployments
 - Development environments
 - Analytics caching (where brief staleness is acceptable)
@@ -206,6 +207,7 @@ definitions. However, workers invalidate the template cache on bootstrap when
 they register new handler versions.
 
 If an in-memory cache (Moka) is used:
+
 1. Orchestration server caches templates in its local memory
 2. Worker boots and invalidates templates in Redis (or nowhere, if Moka)
 3. Orchestration server never sees the invalidation

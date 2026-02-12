@@ -31,6 +31,7 @@ This report synthesizes the findings from systematic code audits of all concurre
 **Issue:** The `identity_hash` column on the `tasks` table has only a regular B-tree index (`idx_tasks_identity_hash`), not a UNIQUE constraint. This was a regression from the schema migration (original `public.tasker_tasks` had a unique index).
 
 **Evidence:**
+
 ```sql
 -- Current (line 183):
 CREATE INDEX idx_tasks_identity_hash ON tasker.tasks USING btree (identity_hash);
@@ -53,6 +54,7 @@ Task identity is **domain-specific**. The current approach (`hash(named_task_uui
 | Event-driven triggers | Often intentional | **Allow** |
 
 **Resolution:** Design a **strategy pattern** for task identity:
+
 - `STRICT` (default): Current behavior, hash of (named_task_uuid, context)
 - `CALLER_PROVIDED`: Caller supplies idempotency_key (like Stripe)
 - `ALWAYS_UNIQUE`: Every request creates new task (uuidv7)
@@ -72,6 +74,7 @@ Task identity is **domain-specific**. The current approach (`hash(named_task_uui
 **Issue:** Task initialization started a database transaction, then performed template loading which required acquiring another connection from the same pool. Under high concurrency, this caused connection pool deadlock.
 
 **Evidence:**
+
 ```rust
 // BEFORE (line 158 - caused deadlock):
 let mut tx = self.context.database_pool().begin().await?;  // Holds connection 1
@@ -83,11 +86,13 @@ let mut tx = self.context.database_pool().begin().await?;  // Now safe
 ```
 
 **Deadlock Scenario:**
+
 1. N concurrent task creations each start transactions (hold N connections)
 2. Each needs 1 more connection for template loading
 3. Pool exhausted → all requests timeout waiting
 
 **Implemented Fix:**
+
 - Moved template loading BEFORE transaction begins
 - Template loading releases connection after read completes
 - Transaction only holds connection during write operations
@@ -108,6 +113,7 @@ let mut tx = self.context.database_pool().begin().await?;  // Now safe
 **Issue:** Task finalization used a check-then-act pattern without atomic locking. If two orchestrators simultaneously detected task completion, both would attempt finalization.
 
 **Previous Pattern (Fixed):**
+
 ```rust
 let current_state = state_machine.current_state().await?;  // T0: Query (no lock)
 if current_state == TaskState::Complete {
@@ -118,12 +124,14 @@ state_machine.transition(TaskEvent::AllStepsSuccessful).await?;  // T2: Transiti
 ```
 
 **Race Scenario (Before Fix):**
+
 1. Orchestrator A queries state → `EvaluatingResults`
 2. Orchestrator B queries state → `EvaluatingResults`
 3. A transitions to `Complete` (succeeds)
 4. B attempts transition (gets state machine error, not graceful)
 
 **Implemented Fix:** Transaction-based locking using `SELECT ... FOR UPDATE`:
+
 - `complete_task()` now wraps finalization in a transaction that acquires row lock
 - Other orchestrators wait for lock instead of racing
 - Crash = transaction rollback = lock released automatically
@@ -180,6 +188,7 @@ state_machine.transition(TaskEvent::AllStepsSuccessful).await?;  // T2: Transiti
 **Q: If two orchestrators simultaneously detect that all steps are complete, what prevents both from finalizing the task?**
 
 **A:** State machine guards prevent invalid transitions, but not gracefully:
+
 - First finalization succeeds
 - Second receives `StateTransitionFailed` error
 - No data corruption, but suboptimal UX
@@ -190,6 +199,7 @@ state_machine.transition(TaskEvent::AllStepsSuccessful).await?;  // T2: Transiti
 **Q: Can the same result be processed by multiple orchestrators? Is it idempotent?**
 
 **A:** Yes, processing is idempotent:
+
 - Workers mark steps `Complete` BEFORE sending result to orchestration
 - SQL functions skip completed/in-progress steps
 - Second result processing finds no matching "ready to process" steps
@@ -200,6 +210,7 @@ state_machine.transition(TaskEvent::AllStepsSuccessful).await?;  // T2: Transiti
 **Q: Can the same step be enqueued to PGMQ multiple times?**
 
 **A:** No, protected by state machine:
+
 - `mark_step_enqueued()` transitions state `Pending` → `Enqueued` BEFORE PGMQ send
 - If two orchestrators attempt same step:
   - First: succeeds, sends message
@@ -210,6 +221,7 @@ state_machine.transition(TaskEvent::AllStepsSuccessful).await?;  // T2: Transiti
 **Q: Is the most_recent pattern atomic?**
 
 **A:** Yes, verified:
+
 - SQL function uses `FOR UPDATE` lock
 - Compare-and-swap validates expected state
 - Unique constraint on `most_recent` flag
@@ -220,6 +232,7 @@ state_machine.transition(TaskEvent::AllStepsSuccessful).await?;  // T2: Transiti
 **Q: Is pgmq.delete atomic with result recording?**
 
 **A:** N/A - Tasker doesn't use explicit message deletion:
+
 - Visibility timeout model handles recovery
 - Messages automatically re-appear after timeout
 - Duplicate processing prevented by step state checks
@@ -254,12 +267,14 @@ state_machine.transition(TaskEvent::AllStepsSuccessful).await?;  // T2: Transiti
 ### 4.3 Test Infrastructure Available
 
 Strong foundation exists:
+
 - `LifecycleTestManager`: Task/step lifecycle operations
 - `IntegrationTestManager`: Docker Compose coordination
 - `ActorTestHarness`: Actor system initialization
 - `IntegrationTestUtils`: Task creation helpers
 
 Missing:
+
 - Multi-instance deployment scripts
 - OrchestrationCluster abstraction for round-robin endpoints
 - Chaos injection framework
@@ -272,6 +287,7 @@ Missing:
 ### ✅ Phase 0: Atomic Finalization (COMPLETED)
 
 **Implemented:** Transaction-based locking for task finalization
+
 - Modified `completion_handler.rs` with `SELECT ... FOR UPDATE` pattern
 - Both `complete_task()` and `error_task()` now use atomic finalization
 - Added `test_concurrent_finalization_is_graceful` unit test
@@ -284,6 +300,7 @@ Missing:
 See: `docs/ticket-specs/TAS-154/identity-hash-strategy.md`
 
 This work was moved out of TAS-73 scope because it represents a **feature enhancement** (configurable deduplication semantics) rather than a **resiliency gap**. TAS-154 includes:
+
 - UNIQUE constraint on identity_hash
 - Identity strategy pattern (STRICT, CALLER_PROVIDED, ALWAYS_UNIQUE)
 - Thundering herd test validation
@@ -291,6 +308,7 @@ This work was moved out of TAS-73 scope because it represents a **feature enhanc
 ### Phase 2: Infrastructure Development
 
 **TAS-73b: Multi-Instance Deployment Scripts**
+
 1. Create `cargo-make/scripts/multi-deploy/start-orchestration-cluster.sh`
 2. Create `cargo-make/scripts/multi-deploy/start-worker-cluster.sh`
 3. Add environment variable support for `TASKER_INSTANCE_ID`
@@ -298,6 +316,7 @@ This work was moved out of TAS-73 scope because it represents a **feature enhanc
 5. Shared DATABASE_URL and PGMQ_DATABASE_URL
 
 **TAS-73c: Test Infrastructure Enhancement**
+
 1. Add `OrchestrationCluster` abstraction to test utils
 2. Extend `IntegrationTestManager` with cluster support
 3. Add test categorization (`#[cfg_attr(feature = "multi-instance", ...)]`)
@@ -307,6 +326,7 @@ This work was moved out of TAS-73 scope because it represents a **feature enhanc
 **TAS-73d: Concurrency Test Suite**
 
 Priority order:
+
 1. `tests/integration/concurrency/thundering_herd_test.rs`
 2. `tests/integration/concurrency/step_claiming_contention_test.rs`
 3. `tests/integration/concurrency/orchestrator_race_test.rs`
@@ -314,6 +334,7 @@ Priority order:
 5. `tests/integration/concurrency/concurrent_finalization_test.rs`
 
 **TAS-73e: Chaos Test Suite** (if time permits)
+
 1. Service restart during processing
 2. Database connectivity loss
 3. Long-running step timeout
@@ -321,6 +342,7 @@ Priority order:
 ### ✅ Phase 4: Operational Improvements (COMPLETED)
 
 **Atomic Finalization** - Implemented using transaction-based locking instead of claim-based approach:
+
 - No schema changes needed (uses PostgreSQL row locks)
 - Crash recovery is automatic (transaction rollback releases locks)
 - Concurrent finalization returns gracefully (no errors logged)
@@ -478,6 +500,7 @@ T33: C discards message (idempotent)
 
 **Report Status:** Research Complete, Implementation Complete
 **Completed:**
+
 - Atomic task finalization (transaction-based locking)
 - Connection pool deadlock fix (template loading before transaction)
 - Pool size tuning for cluster workloads

@@ -47,6 +47,7 @@ Under system load, parallelism benefit disappears (diamond ≈ linear). This mat
 TAS-71 pattern where diamond == linear.
 
 **Observations:**
+
 - Linear pattern is stable across runs (255-258ms, <2% variance)
 - Diamond pattern is environment-sensitive (200-259ms depending on system I/O contention)
 - When system has spare I/O capacity, diamond is ~30% faster (Run 1)
@@ -63,6 +64,7 @@ TAS-71 pattern where diamond == linear.
 | hierarchical_tree_rust | 388.88ms | 425.65ms | +9.5% | 1.05 |
 
 **Observations:**
+
 - Complex DAG is very stable across runs (<1% variance)
 - Hierarchical tree is sensitive to I/O contention (deep sequential chains)
 - Conditional is fastest due to dynamic path selection (fewer steps executed)
@@ -78,6 +80,7 @@ TAS-71 pattern where diamond == linear.
 | concurrent_tasks_2x | 331.91ms | 383.64ms | +15.6% | 1.03 |
 
 **Observations:**
+
 - Single task in cluster shows negligible overhead vs Tier 1 linear (~261 vs ~257ms)
 - Single task performance is very stable across runs (<1% variance)
 - Concurrent 2x tasks are sensitive to system load (scheduling contention)
@@ -106,6 +109,7 @@ TAS-71 pattern where diamond == linear.
 | TypeScript | 315.08ms | 315.95ms | **+23%** |
 
 **Observations:**
+
 - FFI linear performance is extremely stable across runs (<1% variance)
 - All FFI languages within 3ms of each other (framework-dominated, not language-dominated)
 - FFI overhead of ~23% is consistent and represents pure dispatch cost
@@ -120,6 +124,7 @@ TAS-71 pattern where diamond == linear.
 | csv_products_1000_rows | 357.76ms | 367.86ms | +2.8% | 1.08 |
 
 **Observations:**
+
 - 1000-row batch processing is stable (~3% variance between runs)
 - Throughput: ~2,700-2,800 rows/second
 - Batch processing is I/O-bound (parallel workers writing results to DB)

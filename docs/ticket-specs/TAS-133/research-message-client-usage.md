@@ -13,6 +13,7 @@ The `MessageClient` trait is a high-level abstraction in `tasker-shared/src/mess
 2. **UnifiedMessageClient** - enum-based abstraction that wraps multiple backends (Pgmq, RabbitMq, InMemory)
 
 The trait provides 11 async methods covering step messages, results, task requests, and queue management. It's injected via `SystemContext` as `message_client: Arc<UnifiedPgmqClient>` and is used primarily by:
+
 - Worker completion processing services
 - Event consumer polling loops
 - SystemContext initialization methods
@@ -31,6 +32,7 @@ There's an architectural inconsistency: `SystemContext` declares `message_client
 **Location**: `tasker-shared/src/messaging/clients/unified_client.rs` (lines 392-634)
 
 Implements `MessageClient` trait with complete async support. Methods delegate to underlying pgmq operations:
+
 - `send_step_message()` - Converts StepMessage to PgmqStepMessage and sends via extension trait
 - `receive_step_messages()` - Reads from worker namespace queues and deserializes
 - `send_step_result()` - Sends execution results to orchestration_step_results_queue
@@ -46,6 +48,7 @@ Implements `MessageClient` trait with complete async support. Methods delegate t
 **Location**: `tasker-shared/src/messaging/clients/in_memory_client.rs` (lines 168-401)
 
 Testing-focused implementation with HashMap-backed queues:
+
 - Proper visibility timeout semantics with tokio::sync::Mutex
 - Supports SimpleStepMessage → StepMessage conversion
 - Queue name formatting matches production (worker_{namespace}_queue)
@@ -62,6 +65,7 @@ Stub implementation - all methods return "not yet implemented" error. This is th
 **Location**: `tasker-shared/src/messaging/clients/unified_client.rs` (lines 56-273)
 
 Zero-cost abstraction enum with three variants:
+
 ```rust
 enum UnifiedMessageClient {
     Pgmq(Arc<PgmqClient>),
@@ -79,6 +83,7 @@ Each method pattern-matches and delegates to the appropriate variant.
 ### tasker-shared Crate
 
 **SystemContext Initialization** (`system_context.rs`)
+
 - `initialize_queues()` - calls `message_client.initialize_namespace_queues()`
 - `initialize_orchestration_owned_queues()` - creates owned queues via `message_client.create_queue()`
 - `initialize_domain_event_queues()` - TAS-65 domain event queue setup
@@ -88,11 +93,13 @@ Each method pattern-matches and delegates to the appropriate variant.
 ### tasker-worker Crate
 
 **Worker Web State** (`web/state.rs`)
+
 - Field declaration: `pub message_client: Arc<UnifiedMessageClient>`
 - Creation via `UnifiedMessageClient::new_pgmq_with_pool()`
 - Passed to MetricsService for queue statistics
 
 **Event Consumer** (`worker/event_consumer.rs`)
+
 - Field: `message_client: Arc<UnifiedMessageClient>`
 - Extraction of PGMQ client variant: `as_pgmq().ok_or_else()`
 - Calls to `read_messages()` from underlying PgmqClientTrait
@@ -102,10 +109,12 @@ Each method pattern-matches and delegates to the appropriate variant.
 **Critical Pattern**: EventConsumer downcasts to PgmqClient via `as_pgmq()` to access lower-level PgmqClientTrait methods. This couples code to PGMQ implementation.
 
 **Completion Processor Service** (`worker/handlers/completion_processor.rs`)
+
 - Indirectly used via `FFICompletionService`
 - Completion results flow through `FFICompletionService.send_step_result()`
 
 **FFI Completion Service** (`worker/services/ffi_completion/service.rs`)
+
 - `OrchestrationResultSender::new(context.message_client(), queues_config)`
 - Delegates to `OrchestrationResultSender` for actual messaging
 
@@ -189,14 +198,18 @@ pgmq_client.read_messages(queue, timeout, batch).await?
 ## Files Requiring Updates for TAS-133
 
 **Core trait boundary**:
+
 - `tasker-shared/src/messaging/clients/traits.rs` - Add MessageRouter, expand with ID-level operations
 
 **Implementations requiring update**:
+
 - `tasker-shared/src/messaging/clients/unified_client.rs` - PgmqClient, RabbitMqClient implementations
 - `tasker-shared/src/messaging/clients/in_memory_client.rs` - Expand to match new trait surface
 
 **Consumer requiring refactor**:
+
 - `tasker-worker/src/worker/event_consumer.rs` - Remove downcast pattern
 
 **Factory pattern (new)**:
+
 - `tasker-shared/src/messaging/service/factory.rs` - Create MessagingServiceFactory

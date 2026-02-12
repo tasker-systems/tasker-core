@@ -30,6 +30,7 @@ build-postgres → build-workers → [parallel]
 ```
 
 **CI already handles the hierarchy correctly**:
+
 - Unit tests: `cargo nextest run --lib --package ...` (DB only)
 - E2E tests: `cargo nextest run --test '*'` (services running)
 - Matrix tests both PGMQ and RabbitMQ messaging backends
@@ -198,10 +199,12 @@ cargo nextest run --profile ci --test '*'
 ### Cluster Tests in CI
 
 **Cluster tests are explicitly excluded from CI** due to GitHub Actions resource limitations:
+
 - Running multiple orchestration instances + multiple workers requires more memory than free GHA runners provide
 - This is a conscious tradeoff for an open-source, pre-alpha project
 
 **Future consideration**: When project reaches alpha/beta, could add cluster testing via:
+
 - Self-hosted runners with more resources
 - Paid GHA larger runners
 - Separate manual workflow trigger for cluster tests

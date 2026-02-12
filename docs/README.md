@@ -46,12 +46,14 @@ The documentation is organized by cognitive function:
 **Making design decisions?** These documents explain architectural patterns and trade-offs:
 
 **Principles & Philosophy**:
+
 - **[Tasker Core Tenets](principles/tasker-core-tenets.md)** - The 10 foundational design principles
 - **[Defense in Depth](principles/defense-in-depth.md)** - Multi-layer protection model
 - **[Composition Over Inheritance](principles/composition-over-inheritance.md)** - Handler composition patterns
 - **[Cross-Language Consistency](principles/cross-language-consistency.md)** - Multi-language API philosophy
 
 **Architecture**:
+
 - **[Crate Architecture](architecture/crate-architecture.md)** - Workspace structure and crate responsibilities
 - **[Messaging Abstraction](architecture/messaging-abstraction.md)** - Provider-agnostic messaging (PGMQ, RabbitMQ)
 - **[Actor-Based Architecture](architecture/actors.md)** - Lightweight actor pattern for orchestration
@@ -66,6 +68,7 @@ The documentation is organized by cognitive function:
 - **[Deployment Patterns](architecture/deployment-patterns.md)** - Hybrid, EventDriven, PollingOnly modes; PGMQ/RabbitMQ backends
 
 **Historical Context**:
+
 - **[CHRONOLOGY](CHRONOLOGY.md)** - Development timeline and lessons learned
 
 ### For Developers
@@ -73,22 +76,26 @@ The documentation is organized by cognitive function:
 **Building with Tasker?** These guides help you be productive:
 
 **Getting Started**:
+
 - **[Quick Start](guides/quick-start.md)** - Get your first workflow running
 - **[Crate Architecture](architecture/crate-architecture.md)** - Understand the codebase structure
 - **[Use Cases & Patterns](guides/use-cases-and-patterns.md)** - Practical workflow examples
 
 **Workflow Patterns**:
+
 - **[Conditional Workflows](guides/conditional-workflows.md)** - Runtime decision-making and dynamic step creation
 - **[Batch Processing](guides/batch-processing.md)** - Parallel processing with cursor-based workers
 - **[DLQ System](guides/dlq-system.md)** - Dead letter queue investigation and resolution
 - **[Retry Semantics](guides/retry-semantics.md)** - Understanding max_attempts and retryable flags
 
 **Handler Development**:
+
 - **[Worker Patterns](workers/patterns-and-practices.md)** - Common handler patterns
 - **[API Convergence Matrix](workers/api-convergence-matrix.md)** - Cross-language API reference
 - **[Ruby Worker](workers/ruby.md)** | **[Python Worker](workers/python.md)** | **[TypeScript Worker](workers/typescript.md)** | **[Rust Worker](workers/rust.md)**
 
 **Reference**:
+
 - **[Task and Step Readiness](reference/task-and-step-readiness-and-execution.md)** - SQL functions and execution logic
 - **[FFI Telemetry Pattern](reference/ffi-telemetry-pattern.md)** - Cross-language telemetry
 
@@ -230,6 +237,7 @@ docs/
 ### What is Tasker Core?
 
 Tasker Core is a high-performance workflow orchestration system built in Rust, designed for:
+
 - **DAG-based workflow execution** with complex dependencies
 - **Provider-agnostic messaging** supporting PGMQ and RabbitMQ backends
 - **Event-driven coordination** with polling fallback for reliability

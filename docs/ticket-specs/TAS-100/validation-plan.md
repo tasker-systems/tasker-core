@@ -9,6 +9,7 @@
 Comprehensive validation checklist for the TypeScript worker implementation. This ensures cross-language consistency with Ruby, Python, and Rust workers.
 
 **Completion Status**:
+
 - TAS-101 (FFI Bridge): ✅ Complete
 - TAS-102 (Handler API): ✅ Complete
 - TAS-103 (Specialized Handlers): ✅ Complete
@@ -24,6 +25,7 @@ Comprehensive validation checklist for the TypeScript worker implementation. Thi
 ### Multi-Runtime Support
 
 **Bun Runtime** (`bun-runtime.ts`):
+
 - [x] FFI adapter loads `libtasker_worker` via koffi
 - [x] `pollStepEvents()` returns events correctly
 - [x] `completeStepEvent()` sends completions without errors
@@ -31,6 +33,7 @@ Comprehensive validation checklist for the TypeScript worker implementation. Thi
 - [x] Handles null pointers safely
 
 **Node.js Runtime** (`node-runtime.ts`):
+
 - [x] FFI adapter loads `libtasker_worker` via koffi
 - [x] `pollStepEvents()` returns events correctly
 - [x] `completeStepEvent()` sends completions without errors
@@ -38,6 +41,7 @@ Comprehensive validation checklist for the TypeScript worker implementation. Thi
 - [x] Handles null pointers safely
 
 **Deno Runtime** (`deno-runtime.ts`):
+
 - [x] FFI adapter loads `libtasker_worker` via Deno.dlopen
 - [x] `pollStepEvents()` returns events correctly
 - [x] `completeStepEvent()` sends completions without errors
@@ -45,6 +49,7 @@ Comprehensive validation checklist for the TypeScript worker implementation. Thi
 - [x] Handles null pointers safely
 
 **Common FFI Interface** (`runtime-interface.ts`):
+
 - [x] Runtime detection correctly identifies Bun, Node.js, and Deno
 - [x] Unified `TaskerRuntime` interface across all runtimes
 - [x] Bootstrap/shutdown lifecycle is clean
@@ -263,12 +268,14 @@ Performance optimization deferred for future work:
 ### Registry API
 
 All languages implement:
+
 - `register()` / `isRegistered()` / `resolve()` / `listHandlers()`
 - **TypeScript** matches this API ✅
 
 ### Error Fields
 
 All languages have:
+
 - `errorMessage`, `errorType`, `errorCode`, `retryable`
 - **TypeScript** has these fields ✅
 
@@ -279,32 +286,38 @@ All languages have:
 All scenarios validated via E2E tests:
 
 ### Scenario 1: Linear Workflow
+
 - [x] Sequential step execution
 - [x] Dependency result passing
 - [x] Task completion
 
 ### Scenario 2: Diamond Workflow
+
 - [x] Parallel branch execution
 - [x] Convergence step waits for both branches
 - [x] Result aggregation
 
 ### Scenario 3: Conditional Approval
+
 - [x] Decision point evaluation
 - [x] Conditional path activation
 - [x] Multiple threshold boundaries
 
 ### Scenario 4: Batch Processing
+
 - [x] Batchable step creates worker configs
 - [x] Batch workers process in parallel
 - [x] Deferred convergence aggregates results
 - [x] NoBatches scenario (empty data)
 
 ### Scenario 5: Error Handling
+
 - [x] Success path completes
 - [x] Permanent errors fail immediately (no retries)
 - [x] Retryable errors trigger backoff and eventually fail
 
 ### Scenario 6: Domain Events
+
 - [x] Events published during step execution
 - [x] Concurrent task execution
 - [x] Metrics endpoint verification
@@ -322,6 +335,7 @@ All scenarios validated via E2E tests:
 ## Regression Testing
 
 After TAS-100 completion:
+
 - [x] Rust worker tests pass
 - [x] Ruby worker tests pass
 - [x] Python worker tests pass

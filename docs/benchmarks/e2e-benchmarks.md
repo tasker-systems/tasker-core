@@ -61,6 +61,7 @@ Task:  StepsInProcess → EvaluatingResults → (EnqueuingSteps if more ready) �
 ### Dependency Graph Evaluation (per step completion)
 
 After each step completes, the orchestration:
+
 1. Queries all steps in the task for current state
 2. Evaluates dependency edges (parent steps must be Complete)
 3. Calculates retry eligibility (attempts < max_attempts, backoff expired)
@@ -398,6 +399,7 @@ process_csv_batch_005 ──┘
 **Why this matters**: Tests the most complex orchestration pattern — dynamic step
 generation. The analyze_csv step returns a `BatchProcessingOutcome` that tells the
 orchestration to create N worker steps at runtime. The orchestration must:
+
 1. Create new step records in the database
 2. Create dependency edges dynamically
 3. Enqueue all batch workers for parallel execution

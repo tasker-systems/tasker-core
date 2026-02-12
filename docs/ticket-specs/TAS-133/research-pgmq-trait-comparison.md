@@ -45,6 +45,7 @@ The current `PgmqClientTrait` (in `tasker-shared/src/messaging/clients/traits.rs
 ### 1. Archive Pattern (`archive_message()`)
 
 **Current**: Direct method in `PgmqClientTrait`
+
 ```rust
 async fn archive_message(&self, queue_name: &str, message_id: i64) -> MessagingResult<()>;
 ```
@@ -52,6 +53,7 @@ async fn archive_message(&self, queue_name: &str, message_id: i64) -> MessagingR
 **PGMQ Capability**: PGMQ provides built-in archive tables and `pgmq.archive()` SQL function for moving messages to a separate archive queue without deleting them.
 
 **Spec Strategy**: Use `SupportsDeadLetter` marker trait instead. Archive becomes a DLQ pattern:
+
 - Configure with `[messaging.dead_letter]` section
 - Failed messages automatically move to `{queue_name}_dlq` after `max_receive_count`
 - This generalizes across providers (PGMQ, RabbitMQ both support this)
@@ -59,6 +61,7 @@ async fn archive_message(&self, queue_name: &str, message_id: i64) -> MessagingR
 ### 2. Namespace Queue Initialization (`initialize_namespace_queues()`)
 
 **Current**:
+
 ```rust
 async fn initialize_namespace_queues(&self, namespaces: &[&str]) -> MessagingResult<()>;
 ```
@@ -66,6 +69,7 @@ async fn initialize_namespace_queues(&self, namespaces: &[&str]) -> MessagingRes
 **PGMQ Specific**: Creates queues matching pattern `worker_{namespace}_queue` for known namespaces.
 
 **Spec Strategy**: Removed from trait; handled via:
+
 - Task template discovery mechanism discovers namespaces at startup
 - `ensure_queues()` called with discovered queue names during worker bootstrap
 - MessageRouter trait handles queue naming pattern (pluggable)
@@ -73,6 +77,7 @@ async fn initialize_namespace_queues(&self, namespaces: &[&str]) -> MessagingRes
 ### 3. Namespace-Based Queue Operations
 
 **Current**: Dedicated methods that bundle queue name calculation with operations
+
 ```rust
 async fn enqueue_step(&self, namespace: &str, step_message: PgmqStepMessage) -> MessagingResult<i64>;
 async fn process_namespace_queue(&self, namespace: &str, ...) -> MessagingResult<Vec<...>>;
@@ -80,6 +85,7 @@ async fn complete_message(&self, namespace: &str, message_id: i64) -> MessagingR
 ```
 
 **Spec Strategy**: Separated concerns:
+
 - `MessageRouter` trait handles namespace → queue_name mapping
 - Basic `send_message()`, `receive_messages()` use router externally
 - More composable; enables custom routing strategies
@@ -87,11 +93,13 @@ async fn complete_message(&self, namespace: &str, message_id: i64) -> MessagingR
 ### 4. Raw JSON Message Handling (`send_json_message<T>()`)
 
 **Current**: Generic JSON serialization in `PgmqClientTrait`
+
 ```rust
 async fn send_json_message<T: Serialize + Clone + Send + Sync>(...) -> MessagingResult<i64>;
 ```
 
 **Spec Strategy**: Unified via `QueueMessage` trait
+
 ```rust
 pub trait QueueMessage: Send + Sync + Clone + 'static {
     fn to_bytes(&self) -> Result<Vec<u8>, MessagingError>;
@@ -100,6 +108,7 @@ pub trait QueueMessage: Send + Sync + Clone + 'static {
 ```
 
 This allows:
+
 - Custom serialization per message type (JSON, bincode, protobuf, etc.)
 - Better type safety
 - Cross-language FFI serialization (critical for Ruby/Python workers)
@@ -147,11 +156,13 @@ This allows:
 ### 1. Receipt Handles for PGMQ
 
 PGMQ doesn't have traditional receipt handles (unlike RabbitMQ/SQS). The spec handles this with:
+
 ```rust
 pub struct ReceiptHandle(pub String);
 ```
 
 **PGMQ Implementation**:
+
 ```rust
 // For PGMQ, ReceiptHandle = message_id (as string)
 // Implementation detail hidden in PgmqMessagingService
@@ -162,6 +173,7 @@ pub struct ReceiptHandle(pub String);
 `PgmqStepMessage` includes metadata: `enqueued_at`, `retry_count`, `max_retries`, `timeout_seconds`, `correlation_id`.
 
 **Spec Handling**: Via `QueuedMessage<T>` wrapper:
+
 ```rust
 pub struct QueuedMessage<T> {
     pub receipt_handle: ReceiptHandle,
@@ -179,6 +191,7 @@ pub struct QueuedMessage<T> {
 PGMQ uses `visibility_timeout` (seconds). Spec uses `Duration`.
 
 **Mapping**:
+
 ```rust
 // Current PGMQ
 read_messages(queue_name, Some(30), Some(10))  // 30 sec timeout, 10 messages
@@ -192,6 +205,7 @@ receive_messages(queue_name, 10, Duration::from_secs(30))
 PGMQ achieves push notifications via atomic `pgmq_send_with_notify()` wrapper function.
 
 **Spec Integration**:
+
 - Handled via `SupportsPushNotifications` marker trait
 - PGMQ implementation uses existing `tasker-pgmq` crate's notification mechanism
 - Callers don't need to know about this; it's transparent
@@ -205,6 +219,7 @@ PGMQ achieves push notifications via atomic `pgmq_send_with_notify()` wrapper fu
 **Current State**: PGMQ has `archive_message()` but no explicit nack
 
 **Spec Addition**:
+
 ```rust
 async fn nack_message(
     &self,
@@ -215,6 +230,7 @@ async fn nack_message(
 ```
 
 **PGMQ Implementation Options**:
+
 - `nack(requeue=true)`: No-op - PGMQ visibility timeout handles this automatically
 - `nack(requeue=false)`: Archive to DLQ if configured
 
@@ -223,6 +239,7 @@ async fn nack_message(
 **Current State**: No extend/heartbeat in `PgmqClientTrait`
 
 **Spec Addition**:
+
 ```rust
 async fn extend_visibility(
     &self,
@@ -233,6 +250,7 @@ async fn extend_visibility(
 ```
 
 **PGMQ Implementation**:
+
 - PGMQ has `pgmq.set_vt()` function that can reset visibility timeout
 - Can be implemented using this
 
@@ -241,11 +259,13 @@ async fn extend_visibility(
 **Current State**: No startup validation in `PgmqClientTrait`
 
 **Spec Addition**:
+
 ```rust
 async fn verify_queues(&self, queue_names: &[String]) -> Result<QueueHealthReport, MessagingError>;
 ```
 
 **PGMQ Implementation**:
+
 - Query `pgmq.meta` table to verify queues exist
 - Straightforward addition
 
@@ -256,6 +276,7 @@ async fn verify_queues(&self, queue_names: &[String]) -> Result<QueueHealthRepor
 **Spec Addition**: `SupportsPushNotifications` trait with `subscribe()` and `subscribe_pattern()`
 
 **PGMQ Implementation**:
+
 - Wrap existing `tasker-pgmq` PgmqNotifyListener
 - Return stream of `MessageNotification::Available` events
 

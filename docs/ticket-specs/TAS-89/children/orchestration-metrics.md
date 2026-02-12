@@ -39,6 +39,7 @@ Orchestration metrics currently return hardcoded values, making capacity plannin
 **Location**: `tasker-orchestration/src/orchestration/command_processor.rs:1135`
 
 **Current**:
+
 ```rust
 Ok(SystemHealth {
     active_processors: 1, // TODO: Track actual active processors
@@ -77,6 +78,7 @@ impl CommandProcessor {
 **Location**: `tasker-orchestration/src/web/handlers/analytics.rs:198`
 
 **Current**:
+
 ```rust
 // TODO: Consider fetching from separate connection pool monitoring if needed
 let pool_utilization = 0.0;
@@ -104,6 +106,7 @@ fn pool_utilization(pool: &PgPool) -> f64 {
 **Location**: `tasker-orchestration/src/orchestration/lifecycle/task_request_processor.rs:297`
 
 **Current**:
+
 ```rust
 // TODO: Implement queue_size method in PgmqClient
 Ok(TaskRequestProcessorStats {
@@ -168,6 +171,7 @@ pub async fn get_statistics(&self) -> TaskerResult<TaskRequestProcessorStats> {
 ## Testing
 
 ### Active Processors
+
 ```rust
 #[tokio::test]
 async fn active_processors_tracks_spawned_processors() {
@@ -189,6 +193,7 @@ async fn active_processors_tracks_spawned_processors() {
 ```
 
 ### Pool Utilization
+
 ```rust
 #[tokio::test]
 async fn pool_utilization_reflects_connection_usage() {
@@ -210,6 +215,7 @@ async fn pool_utilization_reflects_connection_usage() {
 ```
 
 ### Queue Size
+
 ```rust
 #[tokio::test]
 async fn queue_size_reflects_actual_depth() {
@@ -234,6 +240,7 @@ async fn queue_size_reflects_actual_depth() {
 ## Risk Assessment
 
 **Risk**: Low
+
 - Adding metrics tracking has minimal performance overhead
 - Pool and queue queries are lightweight
 - No change to existing behavior, only adds measurement

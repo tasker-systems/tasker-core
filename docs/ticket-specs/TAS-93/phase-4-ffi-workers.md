@@ -169,6 +169,7 @@ handler:
 ```
 
 **Actual implementation** (from `resolver_chain.rb`):
+
 ```ruby
 def resolve(definition, config = {})
   # Contract: If resolver hint is present, use ONLY that resolver
@@ -204,6 +205,7 @@ handler:
 ```
 
 **Actual implementation** (from `resolver_chain.rb`):
+
 ```ruby
 def wrap_for_method_dispatch(handler, definition)
   # No wrapping needed if using default .call method
@@ -730,6 +732,7 @@ The following files were **removed** as they referenced non-existent classes and
 - `workers/ruby/spec/registry/step_handler_resolver_integration_spec.rb` - Tests for removed code
 
 The actual production dispatch path uses:
+
 - `HandlerRegistry` (singleton) → `ResolverChain` → Built-in/Custom Resolvers → `MethodDispatchWrapper`
 
 ---
@@ -753,6 +756,7 @@ workers/python/python/tasker_core/registry/
 ```
 
 Key differences:
+
 - Use `importlib` for class lookup
 - Use `@dataclass` or `pydantic` for HandlerDefinition
 - Use `abc.ABC` and `@abstractmethod`
@@ -776,6 +780,7 @@ workers/typescript/src/registry/
 ```
 
 Key differences:
+
 - Use interfaces instead of abstract classes
 - Dynamic import for class lookup
 - Async resolution support

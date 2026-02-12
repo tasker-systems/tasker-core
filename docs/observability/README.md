@@ -16,9 +16,11 @@ This directory contains documentation for monitoring, metrics, logging, and perf
 ## Quick Navigation
 
 ### 📊 **Performance & Benchmarking** → **[../benchmarks/](../benchmarks/)**
+
 All benchmark documentation has been consolidated in the `docs/benchmarks/` directory.
 
 **See**: [Benchmark README](../benchmarks/README.md) for:
+
 - API performance benchmarks
 - SQL function benchmarks
 - Event propagation benchmarks
@@ -27,6 +29,7 @@ All benchmark documentation has been consolidated in the `docs/benchmarks/` dire
 - Performance targets and CI integration
 
 **Migration Note**: The following files remain in this directory for historical context but are superseded by the consolidated benchmarks documentation:
+
 - `benchmark-implementation-decision.md` - Decision rationale (archived)
 - `benchmark-quick-reference.md` - Superseded by [../benchmarks/README.md](../benchmarks/README.md)
 - `benchmark-strategy-summary.md` - Consolidated into benchmark-specific docs
@@ -38,14 +41,17 @@ All benchmark documentation has been consolidated in the `docs/benchmarks/` dire
 ## Observability Categories
 
 ### 1. **Metrics** (`metrics-*.md`)
+
 **Purpose**: System health, performance counters, and operational metrics
 
 **Documentation**:
+
 - **[metrics-reference.md](./metrics-reference.md)** - Complete metrics catalog
 - **[metrics-verification.md](./metrics-verification.md)** - Verification procedures
 - **[VERIFICATION_RESULTS.md](./VERIFICATION_RESULTS.md)** - Test results and validation
 
 **Key Metrics Tracked**:
+
 - Task lifecycle events (created, started, completed, failed)
 - Step execution metrics (claimed, executed, retried)
 - Database operation performance (query times, cache hit rates)
@@ -53,12 +59,14 @@ All benchmark documentation has been consolidated in the `docs/benchmarks/` dire
 - System resource usage (memory, connections, threads)
 
 **Export Targets**:
+
 - OpenTelemetry (planned)
 - Prometheus (supported)
 - CloudWatch (planned)
 - Datadog (planned)
 
 **Quick Reference**:
+
 ```rust
 // Example: Recording a metric
 metrics::counter!("tasker.tasks.created").increment(1);
@@ -69,12 +77,15 @@ metrics::gauge!("tasker.workers.active").set(worker_count as f64);
 ---
 
 ### 2. **Logging** (`logging-standards.md`)
+
 **Purpose**: Structured logging for debugging, audit trails, and operational visibility
 
 **Documentation**:
+
 - **[logging-standards.md](./logging-standards.md)** - Logging standards and best practices
 
 **Log Levels**:
+
 - **ERROR**: Critical failures requiring immediate attention
 - **WARN**: Degraded operation or retry scenarios
 - **INFO**: Significant lifecycle events and state transitions
@@ -82,6 +93,7 @@ metrics::gauge!("tasker.workers.active").set(worker_count as f64);
 - **TRACE**: Exhaustive detail for deep debugging
 
 **Structured Fields**:
+
 ```rust
 info!(
     task_uuid = %task_uuid,
@@ -93,6 +105,7 @@ info!(
 ```
 
 **Key Standards**:
+
 - Use structured logging (not string interpolation)
 - Include correlation IDs for distributed tracing
 - Log state transitions at INFO level
@@ -102,14 +115,17 @@ info!(
 ---
 
 ### 3. **Tracing and OpenTelemetry**
+
 **Purpose**: Distributed request tracing across services
 
 **Status**: ✅ **Active**
 
 **Documentation**:
+
 - **[opentelemetry-improvements.md](./opentelemetry-improvements.md)** - Telemetry enhancements
 
 **Current Features**:
+
 - Distributed trace propagation via correlation IDs (UUIDv7)
 - Span creation for major operations:
   - API request handling
@@ -122,10 +138,12 @@ info!(
 - Domain event metrics (`/metrics/events` endpoint)
 
 **Two-Phase FFI Initialization**:
+
 - **Phase 1**: Console-only logging (safe during FFI bridge setup)
 - **Phase 2**: Full OpenTelemetry (after FFI established)
 
 **Example**:
+
 ```rust
 #[tracing::instrument(
     name = "publish_domain_event",
@@ -145,14 +163,17 @@ async fn publish_event(&self, event_name: &str, ...) -> Result<()> {
 ---
 
 ### 4. **Health Checks**
+
 **Purpose**: Service health monitoring for orchestration, availability, and alerting
 
 **Endpoints**:
+
 - **`GET /health`** - Overall service health
 - **`GET /health/ready`** - Readiness for traffic (K8s readiness probe)
 - **`GET /health/live`** - Liveness check (K8s liveness probe)
 
 **Health Indicators**:
+
 - Database connection pool status
 - Message queue connectivity
 - Worker availability
@@ -160,6 +181,7 @@ async fn publish_event(&self, event_name: &str, ...) -> Result<()> {
 - Resource utilization (memory, connections)
 
 **Response Format**:
+
 ```json
 {
   "status": "healthy",
@@ -213,6 +235,7 @@ async fn publish_event(&self, event_name: &str, ...) -> Result<()> {
 ### Instrumentation Points
 
 **Orchestration**:
+
 - Task lifecycle transitions
 - Step discovery and enqueueing
 - Result processing
@@ -220,6 +243,7 @@ async fn publish_event(&self, event_name: &str, ...) -> Result<()> {
 - Database query performance
 
 **Worker**:
+
 - Step claiming
 - Handler execution
 - Result submission
@@ -227,12 +251,14 @@ async fn publish_event(&self, event_name: &str, ...) -> Result<()> {
 - Event propagation latency
 
 **Database**:
+
 - Query execution times
 - Connection pool metrics
 - Transaction commit latency
 - Buffer cache hit ratio
 
 **Message Queue**:
+
 - Message send/receive latency
 - Queue depth
 - Notification propagation time
@@ -288,6 +314,7 @@ async fn publish_event(&self, event_name: &str, ...) -> Result<()> {
 ### Correlation ID Propagation
 
 Every request generates a UUIDv7 correlation ID that flows through:
+
 1. API request → Task creation
 2. Task → Step enqueueing
 3. Step → Worker execution
@@ -295,6 +322,7 @@ Every request generates a UUIDv7 correlation ID that flows through:
 5. Result → Orchestration processing
 
 **Tracing a Request**:
+
 ```bash
 # Find correlation ID from task creation
 curl http://localhost:8080/v1/tasks/{task_uuid} | jq .correlation_id
@@ -319,6 +347,7 @@ psql $DATABASE_URL -c "
 ### Debug Logging
 
 Enable debug logging for detailed execution flow:
+
 ```bash
 # Docker Compose
 RUST_LOG=debug docker-compose up
@@ -335,7 +364,9 @@ RUST_LOG=tasker_worker::worker::command_processor=trace cargo test
 ## Best Practices
 
 ### 1. **Structured Logging**
+
 ✅ **Do**:
+
 ```rust
 info!(
     task_uuid = %task.uuid,
@@ -346,13 +377,16 @@ info!(
 ```
 
 ❌ **Don't**:
+
 ```rust
 info!("Task {} in namespace {} completed in {}ms",
     task.uuid, task.namespace, elapsed.as_millis());
 ```
 
 ### 2. **Metric Naming**
+
 Use consistent, hierarchical naming:
+
 ```rust
 metrics::counter!("tasker.tasks.created").increment(1);
 metrics::counter!("tasker.tasks.completed").increment(1);
@@ -361,7 +395,9 @@ metrics::histogram!("tasker.step.execution_time_ms").record(elapsed);
 ```
 
 ### 3. **Performance Measurement**
+
 Measure at operation boundaries:
+
 ```rust
 let start = Instant::now();
 let result = operation().await?;
@@ -379,7 +415,9 @@ info!(
 ```
 
 ### 4. **Error Context**
+
 Include rich context in errors:
+
 ```rust
 error!(
     task_uuid = %task_uuid,
@@ -397,6 +435,7 @@ error!(
 ### Development Tools
 
 **Metrics Visualization**:
+
 ```bash
 # Prometheus (if configured)
 open http://localhost:9090
@@ -406,6 +445,7 @@ open http://localhost:3000
 ```
 
 **Log Aggregation**:
+
 ```bash
 # Docker Compose logs
 docker-compose -f docker/docker-compose.test.yml logs -f
@@ -438,6 +478,7 @@ docker-compose logs orchestration | jq 'select(.level == "ERROR")'
 ### Current Files
 
 **Active**:
+
 - `metrics-reference.md` - Complete metrics catalog
 - `metrics-verification.md` - Verification procedures
 - `logging-standards.md` - Logging best practices
@@ -445,6 +486,7 @@ docker-compose logs orchestration | jq 'select(.level == "ERROR")'
 - `VERIFICATION_RESULTS.md` - Test results
 
 **Archived** (superseded by `docs/benchmarks/`):
+
 - `benchmark-implementation-decision.md`
 - `benchmark-quick-reference.md`
 - `benchmark-strategy-summary.md`
@@ -454,6 +496,7 @@ docker-compose logs orchestration | jq 'select(.level == "ERROR")'
 ### Recommended Cleanup
 
 Move benchmark files to `docs/archive/` or delete:
+
 ```bash
 # Option 1: Archive
 mkdir -p docs/archive/benchmarks

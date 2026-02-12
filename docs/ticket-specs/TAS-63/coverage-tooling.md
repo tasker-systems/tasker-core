@@ -238,6 +238,7 @@ Usage: normalize-rust.py <input_json> <output_json> --crate <crate_name>
 ```
 
 **Key behaviors:**
+
 - Filters out external dependency files (`index.crates.io-*`, `.cargo/registry/`, `target/`)
 - Scopes files and functions to the target crate's `src/` directory
 - Batch-demangles all Rust symbols through `rustfilt` in a single subprocess
@@ -332,6 +333,7 @@ for the root cause analysis.
 
 HTML reports are great for humans but can't be diffed, aggregated, or enforced
 in CI. The normalized JSON enables:
+
 - Cross-language aggregation (Rust + Python + Ruby + TypeScript in one report)
 - Threshold enforcement with exit codes
 - File-level gap analysis via `jq`

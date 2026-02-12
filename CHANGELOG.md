@@ -4,7 +4,7 @@ All notable changes to Tasker Core will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-During alpha (0.1.x), all crates version together. Post-alpha, crates may adopt independent versioning.
+During the 0.1.x series, all crates version together. Once the API stabilizes, crates may adopt independent versioning.
 
 ## [Unreleased]
 
@@ -16,7 +16,7 @@ During alpha (0.1.x), all crates version together. Post-alpha, crates may adopt 
 
 ## [0.1.0] - 2025-12-01
 
-Initial alpha release of Tasker Core.
+Initial public release of Tasker Core.
 
 ### Crates
 

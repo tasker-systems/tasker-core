@@ -23,6 +23,7 @@
 ## Problem Statement
 
 The TAS-133e migration introduced `.as_pgmq()` checks that reject non-PGMQ providers, but this **blocks the intended architecture**. Per the TAS-133 spec:
+
 - `SupportsPushNotifications` trait enables provider-specific push consumers
 - RabbitMQ should use native `basic_consume()` push delivery (no fallback polling needed)
 - PGMQ uses LISTEN/NOTIFY + fallback polling
@@ -42,6 +43,7 @@ From [push-notifications-research.md](./push-notifications-research.md), **updat
 | RabbitMQ | **Push** | Yes (native) | **Full message** | **No** |
 
 The distinction is in **delivery models**:
+
 - **PGMQ (small messages < 7KB)**: `pg_notify` includes full message payload -> process directly (RabbitMQ-like)
 - **PGMQ (large messages >= 7KB)**: `pg_notify` sends signal with msg_id -> fetch via `read_specific_message()` -> fallback polling catches missed signals
 - **RabbitMQ**: `basic_consume()` delivers full messages -> no fallback needed because delivery is protocol-guaranteed
@@ -53,6 +55,7 @@ The distinction is in **delivery models**:
 ## Intended Architecture (from TAS-133 spec, updated Phase 2.4)
 
 ### SupportsPushNotifications Trait
+
 ```rust
 pub trait SupportsPushNotifications: MessagingService {
     fn subscribe(&self, queue_name: &str)
@@ -70,6 +73,7 @@ pub enum MessageNotification {
 ```
 
 ### HybridConsumer Pattern (from push-notifications-research.md)
+
 ```rust
 pub struct HybridConsumer<S: MessagingService + SupportsPushNotifications> {
     service: Arc<S>,
@@ -83,6 +87,7 @@ pub struct HybridConsumer<S: MessagingService + SupportsPushNotifications> {
 ## Current State vs Intended State
 
 ### Current State (After Phase 1)
+
 ```
 PGMQ:
   PgmqNotifyListener (LISTEN/NOTIFY) ─┐
@@ -96,6 +101,7 @@ RabbitMQ:                              │   MessageHandle::Pgmq
 with explicit `MessageHandle` variants. The shared code path is ready for multiple providers.
 
 ### Intended State (After Phase 4)
+
 ```
 PGMQ-Specific Files:
   PgmqNotifyListener (LISTEN/NOTIFY) ─┐
@@ -250,6 +256,7 @@ pub type NotificationStream = Pin<Box<dyn Stream<Item = MessageNotification> + S
 **2.1.3 Module exports updated (mod.rs)**
 
 Updated exports in `tasker-shared/src/messaging/service/mod.rs`:
+
 - Added `SupportsPushNotifications` to traits exports
 - Added `NotificationStream` to traits exports
 - Added `MessageNotification` to types exports
@@ -389,6 +396,7 @@ impl SupportsPushNotifications for RabbitMqMessagingService {
 PostgreSQL's `pg_notify` has a compile-time payload limit of ~8KB (8000 bytes). This is a hard constraint that cannot be changed without recompiling PostgreSQL. Most managed PostgreSQL services (RDS, Aurora, etc.) use the default limit.
 
 By using a 7KB threshold (leaving room for JSON wrapper metadata), PGMQ can:
+
 - Include full message payloads for small messages → process directly
 - Fall back to signal-only notifications for large messages → fetch via `read_specific_message(msg_id)`
 
@@ -448,6 +456,7 @@ pub enum MessageNotification {
 ```
 
 New helper methods:
+
 - `available_with_msg_id(queue_name, msg_id)` - Create Available with specific msg_id
 - `msg_id()` - Get the msg_id if present
 
@@ -526,6 +535,7 @@ match notification {
 **Phase 3 is now considered complete** because the RabbitMQ push consumer functionality was implemented directly in Phase 2.3 via the `SupportsPushNotifications::subscribe()` method.
 
 The original plan called for separate consumer wrapper files:
+
 - `tasker-shared/src/messaging/consumers/rabbitmq.rs`
 - `tasker-orchestration/.../rabbitmq_consumer.rs`
 - `tasker-worker/.../rabbitmq_consumer.rs`
@@ -592,6 +602,7 @@ match context.messaging_provider().provider_name() {
 **Requirement**: "Shared flows in shared files, backend-specific flows to backend-specific files, even if impl blocks are roughly the same, so code paths are straightforward to analyze."
 
 ### Shared (Provider-Agnostic) - Use `MessageClient`
+
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | `MessageClient` | `tasker-shared/src/messaging/client.rs` | Generic queue operations |
@@ -600,6 +611,7 @@ match context.messaging_provider().provider_name() {
 | Actor handlers | Various `*_actor.rs` files | Business logic |
 
 ### PGMQ-Specific - Keep in Dedicated Files
+
 | Component | Location | Why PGMQ-Only |
 |-----------|----------|---------------|
 | `PgmqNotifyListener` | `pgmq-notify/src/listener.rs` | PostgreSQL LISTEN subscription |
@@ -610,6 +622,7 @@ match context.messaging_provider().provider_name() {
 | `read_specific_message()` | Various | Read by msg_id after notification |
 
 ### RabbitMQ-Specific - TO BE IMPLEMENTED (Phase 3)
+
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | `RabbitMqConsumer` | NEW: `tasker-shared/src/messaging/consumers/rabbitmq.rs` | Push consumer via `basic_consume()` |
@@ -621,10 +634,12 @@ match context.messaging_provider().provider_name() {
 ## Critical Files Reference
 
 ### Already Correct (Keep As-Is)
+
 - `tasker-worker/src/worker/actors/step_executor_actor.rs`: `read_specific_message()` after event notification IS PGMQ-specific
 - `tasker-orchestration/src/orchestration/command_processor.rs`: Event-driven message read IS PGMQ-specific
 
 ### Documentation Added (Phase 1)
+
 - Fallback pollers now have TAS-133 comments explaining the `QueuedMessage` wrapping
 - Command processors document the provider-agnostic design
 

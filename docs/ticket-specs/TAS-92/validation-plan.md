@@ -27,6 +27,7 @@ Before running this validation:
 | Context has dependency_results | [ ] | [ ] | [ ] |
 
 **Verification Commands:**
+
 ```bash
 # Ruby - verify StepContext exists
 grep -r "class StepContext" workers/ruby/lib/
@@ -53,6 +54,7 @@ grep -A 20 "pub struct TaskSequenceStep" tasker-shared/src/
 | Returns retryable | [ ] | [ ] | [ ] |
 
 **Verification Commands:**
+
 ```bash
 # Python - verify renamed methods
 grep -n "def success\|def failure" python/tasker_core/types.py
@@ -75,6 +77,7 @@ grep -n "with_error_code" tasker-shared/src/messaging/step_execution_result.rs
 | `list_handlers()` | [ ] | [ ] | [ ] |
 
 **Verification Commands:**
+
 ```bash
 # Ruby - verify method renames
 grep -n "def register\|def is_registered\|def resolve\|def list_handlers" \
@@ -100,6 +103,7 @@ grep -n "fn is_registered\|fn list_handlers" workers/rust/src/step_handlers/regi
 | `delete()` method | [ ] | [ ] | Documented |
 
 **Verification Commands:**
+
 ```bash
 # Ruby - verify HTTP convenience methods
 grep -n "def get\|def post\|def put\|def delete" \
@@ -119,6 +123,7 @@ grep -n "def get\|def post\|def put\|def delete" \
 | Full method accepts DecisionPointOutcome | [ ] | [ ] |
 
 **Verification Commands:**
+
 ```bash
 # Python - verify decision_success helper
 grep -A 10 "def decision_success" python/tasker_core/step_handler/decision.py
@@ -138,6 +143,7 @@ grep -A 10 "def decision_success" workers/ruby/lib/tasker_core/step_handler/deci
 | Uses `items_failed` field | [ ] | [ ] |
 
 **Verification Commands:**
+
 ```bash
 # Ruby - verify method renames
 grep -n "batch_worker_success\|get_batch_context" \
@@ -163,6 +169,7 @@ grep -rn "batch_worker_complete\|extract_cursor_context" workers/ruby/ python/
 | `StepEventContext` defined | [ ] | [ ] | [ ] |
 
 **Verification Commands:**
+
 ```bash
 # Python - verify BasePublisher
 grep -A 20 "class BasePublisher" python/tasker_core/domain_events/
@@ -183,6 +190,7 @@ grep -A 10 "trait StepEventPublisher" tasker-worker/src/
 | `handle(event)` method | [ ] | [ ] |
 
 **Verification Commands:**
+
 ```bash
 # Python - verify BaseSubscriber
 grep -A 20 "class BaseSubscriber" python/tasker_core/domain_events/
@@ -204,6 +212,7 @@ grep -A 10 "class BaseSubscriber" workers/ruby/lib/tasker_core/domain_events/
 | `handler_error` | [ ] | [ ] | [ ] |
 
 **Verification Commands:**
+
 ```bash
 # Ruby - verify ErrorTypes module
 grep -A 10 "module ErrorTypes" workers/ruby/lib/tasker_core/types/

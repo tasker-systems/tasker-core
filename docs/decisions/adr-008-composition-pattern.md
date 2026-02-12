@@ -26,6 +26,7 @@ Current State:
 **Migrate all handler patterns to composition (mixins/traits)**, using batchable as the reference implementation.
 
 **Target Architecture**:
+
 ```
 All patterns use composition:
   Ruby:      include Base, include API, include Decision, include Batchable
@@ -35,12 +36,14 @@ All patterns use composition:
 ```
 
 **Benefits**:
+
 - Single responsibility - each mixin handles one concern
 - Flexible composition - handlers can mix capabilities as needed
 - Easier testing - can test each capability independently
 - Matches batchable pattern (already proven successful)
 
 **Example Migration**:
+
 ```ruby
 # Old pattern (deprecated)
 class MyHandler < TaskerCore::StepHandler::API
@@ -105,6 +108,7 @@ pub trait DecisionCapable {
 ### FFI Boundary Types
 
 Data structures crossing FFI boundaries must have identical serialization. Create explicit type mirrors in all languages:
+
 - `DecisionPointOutcome`
 - `BatchProcessingOutcome`
 - `CursorConfig`

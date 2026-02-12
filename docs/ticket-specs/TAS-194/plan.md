@@ -82,6 +82,7 @@ Ships TS SDK layer only — no Rust cdylib bundled. No Rust toolchain needed.
 ### `.github/workflows/release.yml`
 
 **Triggers:**
+
 - Tag push: `release-*`, `v*`
 - `workflow_dispatch` with `dry_run` (boolean) and `from_ref` (string, optional)
 
@@ -128,6 +129,7 @@ All Rust compilation jobs set `SQLX_OFFLINE: 'true'`.
 ## Relationship to TAS-170
 
 TAS-170 Phase 1 (local dry-run tooling) is complete and in production use:
+
 - `scripts/release/detect-changes.sh`
 - `scripts/release/calculate-versions.sh`
 - `scripts/release/update-versions.sh`
@@ -135,6 +137,7 @@ TAS-170 Phase 1 (local dry-run tooling) is complete and in production use:
 - `scripts/release/lib/common.sh`
 
 TAS-170 Phases 2-4 are **superseded** by this implementation with:
+
 - Updated package names (post TAS-233 rename)
 - OIDC authentication for PyPI and npm (eliminating token management)
 - Forced dry-run safety mechanism

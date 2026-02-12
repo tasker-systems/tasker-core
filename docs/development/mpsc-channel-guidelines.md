@@ -32,11 +32,13 @@ your_channel_timeout_ms = 1000
 ```
 
 **Naming Convention**:
+
 - Subsystem: `orchestration`, `task_readiness`, `worker`, `shared`
 - Component: Descriptive name (snake_case)
 - Field: `<purpose>_buffer_size` or `<purpose>_channel_buffer_size`
 
 **Example**:
+
 ```toml
 [mpsc_channels.worker.step_processor]
 # Processes step execution requests from orchestration
@@ -46,12 +48,14 @@ execution_request_buffer_size = 1000
 ### Step 2: Add Environment Overrides
 
 **Test** (`config/tasker/environments/test/mpsc_channels.toml`):
+
 ```toml
 [mpsc_channels.worker.step_processor]
 execution_request_buffer_size = 100  # Small to expose backpressure
 ```
 
 **Production** (`config/tasker/environments/production/mpsc_channels.toml`):
+
 ```toml
 [mpsc_channels.worker.step_processor]
 execution_request_buffer_size = 5000  # Large for production load

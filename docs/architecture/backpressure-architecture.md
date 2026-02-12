@@ -75,16 +75,19 @@ The API layer provides backpressure through 503 responses with intelligent `Retr
 | Request Validation | **Implemented** | Return 400 for invalid requests |
 
 **Response Codes**:
+
 - `200 OK` - Request accepted
 - `400 Bad Request` - Invalid request format
 - `503 Service Unavailable` - System overloaded (includes `Retry-After` header)
 
 **503 Response Triggers**:
+
 1. **Circuit Breaker Open**: Database operations failing repeatedly
 2. **Queue Depth High** (Planned): PGMQ namespace queues approaching capacity
 3. **Channel Saturation** (Planned): Command channel buffer > 80% full
 
 **Retry-After Header Strategy**:
+
 ```
 503 Service Unavailable
 Retry-After: {calculated_delay_seconds}
@@ -96,6 +99,7 @@ Calculation:
 ```
 
 **Configuration**:
+
 ```toml
 # config/tasker/base/common.toml
 [common.circuit_breakers.component_configs.web]
@@ -115,6 +119,7 @@ The orchestration layer protects internal processing from command flooding.
 | PGMQ Depth Check | **Planned** | Reject enqueue when queue too deep |
 
 **Command Channel Backpressure**:
+
 ```
 Command Sender → [Bounded Channel] → Command Processor
                       │
@@ -122,6 +127,7 @@ Command Sender → [Bounded Channel] → Command Processor
 ```
 
 **Configuration**:
+
 ```toml
 # config/tasker/base/orchestration.toml
 [orchestration.mpsc_channels.command_processor]
@@ -165,11 +171,13 @@ Soft limit is advisory, not a hard PGMQ constraint.
 ```
 
 **Portability Considerations**:
+
 - Queue depth semantics vary by backend (PGMQ vs RabbitMQ vs SQS)
 - Configuration is backend-agnostic where possible
 - Backend-specific tuning goes in backend-specific config sections
 
 **Configuration**:
+
 ```toml
 # config/tasker/base/common.toml
 [common.queues]
@@ -201,6 +209,7 @@ The worker layer protects handler execution from saturation.
 | Completion Channel | **Implemented** | Bounded result buffer |
 
 **Handler Dispatch Flow**:
+
 ```
 Step Message
      │
@@ -234,6 +243,7 @@ Step Message
 ```
 
 **Configuration**:
+
 ```toml
 # config/tasker/base/worker.toml
 [worker.mpsc_channels.handler_dispatch]
@@ -254,6 +264,7 @@ Domain events use fire-and-forget semantics to avoid blocking the critical path.
 | Metrics | **Planned** | Track dropped events |
 
 **Domain Event Flow**:
+
 ```
 Handler Complete
      │
@@ -278,6 +289,7 @@ The orchestration system must protect itself from:
 4. **Queue explosion**: Unbounded PGMQ growth
 
 **Backpressure Response Hierarchy**:
+
 1. Return 503 to client with Retry-After (fastest, cheapest)
 2. Block at command channel (internal buffering)
 3. Soft-reject at queue depth threshold (503 to new tasks)
@@ -293,6 +305,7 @@ The worker system must protect itself from:
 4. **Step starvation**: Claims outpacing processing
 
 **Backpressure Response Hierarchy**:
+
 1. Refuse step claim (leave in queue, visibility timeout)
 2. Block at dispatch channel (internal buffering)
 3. Block at completion channel (handler waits)
@@ -549,6 +562,7 @@ starvation_warning_threshold_ms = 10000  # Warn if event waits this long
 ## Monitoring and Alerting
 
 See [Backpressure Monitoring Runbook](operations/backpressure-monitoring.md) for:
+
 - Key metrics to monitor
 - Alerting thresholds
 - Incident response procedures

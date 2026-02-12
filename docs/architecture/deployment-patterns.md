@@ -14,11 +14,13 @@
 Tasker Core supports three deployment modes, each optimized for different operational requirements and infrastructure constraints. This guide covers deployment patterns, configuration management, and production considerations.
 
 **Key Deployment Modes**:
+
 - **Hybrid Mode** (Recommended) - Event-driven with polling fallback
 - **EventDrivenOnly Mode** - Pure event-driven for lowest latency
 - **PollingOnly Mode** - Traditional polling for restricted environments
 
 **Messaging Backend Options**:
+
 - **PGMQ** (Default) - PostgreSQL-based, single infrastructure dependency
 - **RabbitMQ** - AMQP broker, higher throughput for high-volume scenarios
 
@@ -43,17 +45,20 @@ Tasker Core supports multiple messaging backends through a provider-agnostic abs
 ### PGMQ (Default)
 
 PostgreSQL Message Queue is the default backend, ideal for:
+
 - **Simpler deployments**: Single database dependency
 - **Transactional workflows**: Messages participate in PostgreSQL transactions
 - **Smaller to medium scale**: Excellent for most workloads
 
 **Configuration**:
+
 ```bash
 # Default - no additional configuration needed
 TASKER_MESSAGING_BACKEND=pgmq
 ```
 
 **Deployment Mode Interaction**:
+
 - Uses `pg_notify` for real-time notifications
 - Fallback polling recommended for reliability
 - Hybrid mode provides best balance
@@ -61,17 +66,20 @@ TASKER_MESSAGING_BACKEND=pgmq
 ### RabbitMQ
 
 AMQP-based messaging for high-throughput scenarios:
+
 - **High-volume workloads**: Better throughput characteristics
 - **Existing RabbitMQ infrastructure**: Leverage existing investments
 - **Pure push delivery**: No fallback polling required
 
 **Configuration**:
+
 ```bash
 TASKER_MESSAGING_BACKEND=rabbitmq
 RABBITMQ_URL=amqp://user:password@rabbitmq:5672/%2F
 ```
 
 **Deployment Mode Interaction**:
+
 - EventDrivenOnly mode is natural fit (no fallback needed)
 - Native push delivery via `basic_consume()`
 - Protocol-guaranteed message delivery
@@ -128,6 +136,7 @@ Decision Tree:
 ```
 
 **Why this works**:
+
 1. **EventDrivenOnly containers** handle the bulk of work with ~10ms latency
 2. **PollingOnly containers** catch any events that might be missed during network issues or LISTEN/NOTIFY failures
 3. Both sets of containers coordinate through atomic SQL operations (no conflicts)
@@ -143,6 +152,7 @@ You can also deploy all containers in Hybrid mode and scale horizontally:
 ```
 
 This is simpler but less flexible. The mixed-mode approach lets you:
+
 - **Tune for specific workload patterns** (event-heavy vs. polling-heavy)
 - **Adapt to infrastructure constraints** (some networks better for events, others for polling)
 - **Optimize resource usage** (EventDrivenOnly uses less CPU than Hybrid)
@@ -174,6 +184,7 @@ The different deployment modes exist **not just for config tuning**, but to enab
 Hybrid mode combines the best of both worlds: event-driven coordination for real-time performance with polling fallback for reliability.
 
 **How it works**:
+
 1. PostgreSQL LISTEN/NOTIFY provides real-time event notifications
 2. If event listeners fail or lag, polling automatically takes over
 3. System continuously monitors and switches between modes
@@ -206,12 +217,14 @@ worker_listener_reconnect_ms = 5000
 ### When to Use Hybrid Mode
 
 **Ideal for**:
+
 - Production deployments requiring high reliability
 - Environments with occasional network instability
 - Systems requiring both low latency and guaranteed delivery
 - Multi-region deployments with variable network quality
 
 **Example: Production E-commerce Platform**
+
 ```yaml
 # docker-compose.production.yml
 version: '3.8'
@@ -259,6 +272,7 @@ volumes:
 ### Monitoring Hybrid Mode
 
 **Key Metrics**:
+
 ```rust
 // Hybrid mode health indicators
 tasker_event_listener_active{mode="hybrid"} = 1           // Listener is active
@@ -268,6 +282,7 @@ tasker_mode_switches_total{mode="hybrid"} < 10/hour       // Infrequent mode swi
 ```
 
 **Alert conditions**:
+
 - Event listener down for > 60 seconds
 - Polling fallback active for > 5 minutes
 - Mode switches > 20 per hour (indicates instability)
@@ -281,6 +296,7 @@ tasker_mode_switches_total{mode="hybrid"} < 10/hour       // Infrequent mode swi
 EventDrivenOnly mode provides the lowest possible latency by relying entirely on PostgreSQL LISTEN/NOTIFY for coordination.
 
 **How it works**:
+
 1. Orchestration and workers establish persistent PostgreSQL connections
 2. LISTEN on specific channels for events
 3. Immediate notification on queue changes
@@ -314,17 +330,20 @@ connection_timeout_ms = 5000
 ### When to Use EventDrivenOnly Mode
 
 **Ideal for**:
+
 - High-throughput, low-latency requirements
 - Stable network environments
 - Development and testing environments
 - Systems with reliable PostgreSQL infrastructure
 
 **Not recommended for**:
+
 - Unstable network connections
 - Environments with frequent PostgreSQL failovers
 - Systems requiring guaranteed operation during network issues
 
 **Example: High-Performance Payment Processing**
+
 ```rust
 // Worker configuration for event-driven mode
 use tasker_worker::WorkerConfig;
@@ -348,6 +367,7 @@ worker.start().await?;
 ### Monitoring EventDrivenOnly Mode
 
 **Critical Metrics**:
+
 ```rust
 // Event-driven health indicators
 tasker_event_listener_active{mode="event_driven"} = 1    // Must be 1
@@ -357,6 +377,7 @@ tasker_listener_reconnections_total                       // Should be low
 ```
 
 **Alert conditions**:
+
 - Event listener inactive
 - No events received for > 60 seconds (when activity expected)
 - Reconnections > 5 per hour
@@ -370,6 +391,7 @@ tasker_listener_reconnections_total                       // Should be low
 PollingOnly mode provides the most reliable operation in restricted or unstable network environments by using traditional polling.
 
 **How it works**:
+
 1. Orchestration and workers poll message queues at regular intervals
 2. No dependency on persistent connections or LISTEN/NOTIFY
 3. Configurable polling intervals for performance/resource trade-offs
@@ -401,17 +423,20 @@ error_backoff_multiplier = 2.0
 ### When to Use PollingOnly Mode
 
 **Ideal for**:
+
 - Restricted network environments (firewalls blocking persistent connections)
 - Environments with frequent PostgreSQL connection issues
 - Systems prioritizing reliability over latency
 - Legacy infrastructure with limited LISTEN/NOTIFY support
 
 **Not recommended for**:
+
 - High-frequency, low-latency requirements
 - Systems with strict resource constraints
 - Environments where polling overhead is problematic
 
 **Example: Batch Processing System**
+
 ```toml
 # config/tasker/environments/production/orchestration.toml
 [orchestration]
@@ -431,6 +456,7 @@ max_messages_per_poll = 500
 ### Monitoring PollingOnly Mode
 
 **Key Metrics**:
+
 ```rust
 // Polling health indicators
 tasker_polling_cycles_total                               // Should be increasing
@@ -440,6 +466,7 @@ tasker_polling_errors_total                               // Should be low
 ```
 
 **Alert conditions**:
+
 - Polling stopped (no cycles in last 60 seconds)
 - Polling duration > 10x interval (indicates overload)
 - Error rate > 5% of polling cycles
@@ -453,6 +480,7 @@ tasker_polling_errors_total                               // Should be low
 Tasker Core uses a component-based TOML configuration system with environment-specific overrides.
 
 **Configuration Structure**:
+
 ```
 config/tasker/
 ├── base/                          # Base configuration (all environments)
@@ -866,6 +894,7 @@ spec:
 ```
 
 **Key points about this mixed-mode deployment**:
+
 1. **10 EventDrivenOnly pods** handle 80-90% of work with ~10ms latency
 2. **3 PollingOnly pods** catch anything missed by event listeners
 3. **Single service** load balances across all 13 pods
@@ -1056,6 +1085,7 @@ spec:
 ### Health Check Endpoints
 
 **Orchestration Health**:
+
 ```bash
 # Basic health check
 curl http://localhost:8080/health
@@ -1108,6 +1138,7 @@ curl http://localhost:8080/health/detailed
 ```
 
 **Worker Health**:
+
 ```bash
 # Worker health check
 curl http://localhost:8081/health
@@ -1160,6 +1191,7 @@ Tasker Core exposes gRPC health endpoints alongside REST for Kubernetes gRPC hea
 | TypeScript Worker | 8085 | 9400 |
 
 **gRPC Health Endpoints**:
+
 ```bash
 # Using grpcurl
 grpcurl -plaintext localhost:9190 tasker.v1.HealthService/CheckLiveness
@@ -1168,6 +1200,7 @@ grpcurl -plaintext localhost:9190 tasker.v1.HealthService/CheckDetailedHealth
 ```
 
 **Kubernetes gRPC Probes** (Kubernetes 1.24+):
+
 ```yaml
 # gRPC liveness probe
 livenessProbe:
@@ -1191,6 +1224,7 @@ readinessProbe:
 ```
 
 **Configuration** (`config/tasker/base/orchestration.toml`):
+
 ```toml
 [orchestration.grpc]
 enabled = true
@@ -1236,6 +1270,7 @@ kubectl scale deployment tasker-orchestration --replicas=10 -n tasker
 ```
 
 **Key principles**:
+
 - Multiple orchestration instances process tasks independently
 - Atomic finalization claiming prevents duplicate processing
 - Load balancer distributes API requests across instances
@@ -1256,6 +1291,7 @@ kubectl scale deployment tasker-worker-payments --replicas=10 -n tasker
 ### Vertical Scaling
 
 **Resource Allocation**:
+
 ```yaml
 # High-throughput orchestration
 resources:
@@ -1279,6 +1315,7 @@ resources:
 ### Auto-Scaling
 
 **HPA Configuration**:
+
 ```yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -1327,6 +1364,7 @@ spec:
 ### Database Configuration
 
 **Connection Pooling**:
+
 ```toml
 # config/tasker/environments/production/database.toml
 [database]
@@ -1338,6 +1376,7 @@ max_lifetime_seconds = 1800       # Recycle connections after 30 minutes
 ```
 
 **Calculation**:
+
 ```
 Total DB Connections = (Orchestration Replicas × Pool Size) + (Worker Replicas × Pool Size)
 Example: (3 × 50) + (10 × 20) = 350 connections
@@ -1389,6 +1428,7 @@ queue_low_watermark = 15
 ### Observability Integration
 
 **Prometheus Metrics**:
+
 ```yaml
 # Prometheus scrape config
 scrape_configs:
@@ -1414,6 +1454,7 @@ scrape_configs:
 ```
 
 **Key Alerts**:
+
 ```yaml
 # alerts.yaml
 groups:
@@ -1460,6 +1501,7 @@ groups:
 ### Migrating to Hybrid Mode
 
 **Step 1: Enable event listeners**
+
 ```toml
 # config/tasker/environments/production/orchestration.toml
 [orchestration]
@@ -1471,12 +1513,14 @@ enable_polling_fallback = true    # Keep polling enabled during migration
 ```
 
 **Step 2: Monitor event listener health**
+
 ```bash
 # Check metrics for event listener stability
 curl http://localhost:8080/health/detailed | jq '.event_listeners'
 ```
 
 **Step 3: Gradually reduce polling frequency**
+
 ```toml
 # Once event listeners are stable
 [orchestration.hybrid]
@@ -1484,12 +1528,14 @@ polling_interval_ms = 5000        # Increase from 1000ms to 5000ms
 ```
 
 **Step 4: Validate performance**
+
 - Monitor latency metrics: `tasker_step_discovery_duration_seconds`
 - Verify no missed events: `tasker_polling_messages_found_total` should be near zero
 
 ### Rollback Plan
 
 **If event-driven mode fails**:
+
 ```toml
 # Immediate rollback to PollingOnly
 [orchestration]
@@ -1500,6 +1546,7 @@ task_request_poll_interval_ms = 500    # Aggressive polling
 ```
 
 **Gradual rollback**:
+
 1. Increase polling frequency in Hybrid mode
 2. Monitor for stability
 3. Disable event listeners once polling is stable
@@ -1514,6 +1561,7 @@ task_request_poll_interval_ms = 500    # Aggressive polling
 **Problem**: Event listeners not receiving notifications
 
 **Diagnosis**:
+
 ```sql
 -- Check PostgreSQL LISTEN/NOTIFY is working
 NOTIFY pgmq_message_ready, 'test';
@@ -1525,6 +1573,7 @@ curl http://localhost:8080/health/detailed | jq '.event_listeners'
 ```
 
 **Solutions**:
+
 - Verify PostgreSQL version supports LISTEN/NOTIFY (9.0+)
 - Check firewall rules allow persistent connections
 - Increase `listener_reconnect_interval_ms` if connections drop frequently
@@ -1535,12 +1584,14 @@ curl http://localhost:8080/health/detailed | jq '.event_listeners'
 **Problem**: High CPU usage from polling
 
 **Diagnosis**:
+
 ```bash
 # Check polling frequency and batch sizes
 curl http://localhost:8080/health/detailed | jq '.polling'
 ```
 
 **Solutions**:
+
 - Increase polling intervals
 - Increase batch sizes to process more messages per poll
 - Switch to Hybrid or EventDrivenOnly mode for better performance
@@ -1551,6 +1602,7 @@ curl http://localhost:8080/health/detailed | jq '.polling'
 **Problem**: "connection pool exhausted" errors
 
 **Diagnosis**:
+
 ```sql
 -- Check active connections
 SELECT count(*) FROM pg_stat_activity WHERE datname = 'tasker_production';
@@ -1560,6 +1612,7 @@ SHOW max_connections;
 ```
 
 **Solutions**:
+
 - Increase `max_connections` in database.toml
 - Increase PostgreSQL `max_connections` setting
 - Reduce number of replicas
@@ -1629,6 +1682,7 @@ Tasker Core's flexible deployment modes enable sophisticated production architec
 ### Recommended Production Pattern
 
 **Mixed-Mode Architecture** (recommended for production at scale):
+
 - Deploy majority of orchestration pods in **EventDrivenOnly** mode for high throughput
 - Deploy minority of orchestration pods in **PollingOnly** mode as reliability safety net
 - Both deployments coordinate through atomic SQL operations with no conflicts

@@ -84,12 +84,14 @@ impl ActorCommandProcessor {
 ### Actor vs Service
 
 **Services** (underlying business logic):
+
 - Encapsulate step execution logic
 - Stateless operations on step data
 - Direct method invocation
 - Examples: `StepExecutorService`, `FFICompletionService`, `WorkerStatusService`
 
 **Actors** (message-based coordination):
+
 - Wrap services with message-based interface
 - Manage service lifecycle
 - Asynchronous message handling
@@ -244,6 +246,7 @@ Handles step execution from PGMQ messages and events.
 **Location**: `tasker-worker/src/worker/actors/step_executor_actor.rs`
 
 **Messages**:
+
 - `ExecuteStepMessage` - Execute step from raw data
 - `ExecuteStepWithCorrelationMessage` - Execute with FFI correlation
 - `ExecuteStepFromPgmqMessage` - Execute from PGMQ message
@@ -260,6 +263,7 @@ Handles step completion results from FFI handlers.
 **Location**: `tasker-worker/src/worker/actors/ffi_completion_actor.rs`
 
 **Messages**:
+
 - `SendStepResultMessage` - Send result to orchestration
 - `ProcessStepCompletionMessage` - Process completion with correlation
 
@@ -274,6 +278,7 @@ Manages task template caching and refresh.
 **Location**: `tasker-worker/src/worker/actors/template_cache_actor.rs`
 
 **Messages**:
+
 - `RefreshTemplateCacheMessage` - Refresh cache for namespace
 
 **Delegation**: Wraps `TaskTemplateManager`
@@ -287,6 +292,7 @@ Dispatches domain events after step completion.
 **Location**: `tasker-worker/src/worker/actors/domain_event_actor.rs`
 
 **Messages**:
+
 - `DispatchDomainEventsMessage` - Dispatch events for completed step
 
 **Delegation**: Wraps `DomainEventSystemHandle`
@@ -300,12 +306,14 @@ Provides worker health and status reporting.
 **Location**: `tasker-worker/src/worker/actors/worker_status_actor.rs`
 
 **Messages**:
+
 - `GetWorkerStatusMessage` - Get current worker status
 - `HealthCheckMessage` - Perform health check
 - `GetEventStatusMessage` - Get event integration status
 - `SetEventIntegrationMessage` - Enable/disable event integration
 
 **Features**:
+
 - **Lock-free statistics** via `AtomicStepExecutionStats`
 - AtomicU64 counters for `total_executed`, `total_succeeded`, `total_failed`
 - Average execution time computed on read from `sum / count`
@@ -362,6 +370,7 @@ impl AtomicStepExecutionStats {
 ```
 
 **Benefits**:
+
 - Zero lock contention on step completion (every step calls `record_success` or `record_failure`)
 - Sub-microsecond overhead per operation
 - Consistent averages computed from totals
@@ -492,6 +501,7 @@ impl StepExecutorService {
 ```
 
 **Benefits**:
+
 - Zero lock contention
 - Maximum concurrency per worker
 - Simplified reasoning about state
@@ -511,6 +521,7 @@ pub async fn new(
 ```
 
 **Benefits**:
+
 - Compiler enforces complete initialization
 - No "partially initialized" states
 - Clear dependency graph
@@ -530,6 +541,7 @@ processor.enable_event_subscriber(Some(shared_event_system)).await;
 ```
 
 **Benefits**:
+
 - FFI handlers reliably receive step execution events
 - No isolated event systems causing silent failures
 
@@ -569,6 +581,7 @@ pub async fn dispatch_domain_events(
 ### 1. Consistency with Orchestration
 
 Same patterns and traits as orchestration actors:
+
 - Identical `Handler<M>` trait interface
 - Similar registry lifecycle management
 - Consistent message-based communication
@@ -582,6 +595,7 @@ Same patterns and traits as orchestration actors:
 ### 3. Type Safety
 
 Messages and responses checked at compile time:
+
 ```rust
 // Compile error if types don't match
 impl Handler<ExecuteStepMessage> for StepExecutorActor {

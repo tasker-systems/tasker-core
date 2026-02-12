@@ -144,6 +144,7 @@ tokio::runtime::Builder::new_multi_thread()
 ```
 
 **Current Settings**:
+
 | Setting | Value | Configurable |
 |---------|-------|--------------|
 | Runtime Type | Multi-threaded | Hardcoded |
@@ -161,6 +162,7 @@ tokio::runtime::Builder::new_multi_thread()
 ### 2.3 Recommendations
 
 1. **Add runtime configuration to TOML**:
+
    ```toml
    [runtime]
    worker_threads = 8
@@ -182,6 +184,7 @@ tokio::runtime::Builder::new_multi_thread()
 **All MPSC channels are bounded** - fully compliant with TAS-51 guidelines.
 
 Evidence from codebase:
+
 - `tasker-shared/src/config/mpsc_channels.rs` - Centralized channel configuration
 - All channels created via `ChannelFactory` with configurable buffer sizes
 - Explicit comments documenting TAS-51 migration from unbounded channels
@@ -201,6 +204,7 @@ Evidence from codebase:
 ### 3.3 Channel Monitoring
 
 Comprehensive monitoring via `ChannelMonitor`:
+
 - Saturation tracking
 - Health status (healthy/degraded/critical)
 - OpenTelemetry metrics export
@@ -213,6 +217,7 @@ Comprehensive monitoring via `ChannelMonitor`:
 ### 4.1 spawn_blocking Usage
 
 **Zero spawn_blocking calls detected.** This is a positive finding indicating:
+
 - No blocking operations in async contexts
 - Proper async/await throughout
 - Database operations use async sqlx
@@ -233,6 +238,7 @@ While no explicit spawn_blocking calls exist, these areas warrant monitoring:
 ### 4.3 Async Anti-Patterns
 
 **None detected.** The codebase follows good async patterns:
+
 - No `.block_on()` inside async contexts (except FFI boundaries)
 - Proper use of `tokio::time::timeout`
 - Channel-based communication without busy loops
@@ -271,6 +277,7 @@ async fn handle_initialize_task(&self, ...) -> TaskerResult<...>
 ```
 
 Found 100+ `#[instrument]` macros across:
+
 - `tasker-pgmq/src/` - Queue operations
 - `tasker-orchestration/src/` - Lifecycle services
 - `tasker-worker/src/` - Handler dispatch
@@ -293,6 +300,7 @@ Found 100+ `#[instrument]` macros across:
 **TAS-158 Implementation Status: COMPLETE**
 
 1. **Add console-subscriber dependency** (DONE):
+
    ```toml
    # tasker-shared/Cargo.toml
    console-subscriber = { version = "0.4", optional = true }
@@ -302,6 +310,7 @@ Found 100+ `#[instrument]` macros across:
    ```
 
 2. **Enable tokio unstable features** (required at compile time):
+
    ```bash
    RUSTFLAGS="--cfg tokio_unstable" cargo build --features tokio-console
    ```
@@ -311,6 +320,7 @@ Found 100+ `#[instrument]` macros across:
    the `tokio-console` feature is enabled. See `tasker-shared/src/logging.rs`.
 
 4. **Name spawned tasks** (DONE - 15 long-running spawns named):
+
    ```rust
    // Example from tasker-orchestration/src/actors/command_processor_actor.rs
    tokio::task::Builder::new()
@@ -379,19 +389,19 @@ unnamed as it's a standalone crate without tasker-shared dependency.
 
 ### 7.2 Medium Priority (Near-Term)
 
-3. **Add runtime configuration to TOML**
+1. **Add runtime configuration to TOML**
    - Worker threads, thread names
    - Enable per-environment tuning
    - Effort: 3 hours
 
-4. **Add spawn metrics**
+2. **Add spawn metrics**
    - Track active task count per category
    - Expose via health endpoints
    - Effort: 4 hours
 
 ### 7.3 Low Priority (Future)
 
-5. **Consider separate runtimes**
+1. **Consider separate runtimes**
    - Isolate FFI from core processing
    - Only if profiling reveals contention
    - Effort: 8 hours
@@ -403,19 +413,23 @@ unnamed as it's a standalone crate without tasker-shared dependency.
 Key files analyzed for this report:
 
 **Spawn Patterns:**
+
 - `/Users/petetaylor/projects/tasker-systems/tasker-core/tasker-orchestration/src/actors/command_processor_actor.rs`
 - `/Users/petetaylor/projects/tasker-systems/tasker-core/tasker-orchestration/src/orchestration/core.rs`
 - `/Users/petetaylor/projects/tasker-systems/tasker-core/tasker-worker/src/worker/core.rs`
 - `/Users/petetaylor/projects/tasker-systems/tasker-core/tasker-worker/src/worker/handlers/dispatch_service.rs`
 
 **Runtime Configuration:**
+
 - `/Users/petetaylor/projects/tasker-systems/tasker-core/workers/ruby/ext/tasker_core/src/bootstrap.rs`
 
 **Channel Patterns:**
+
 - `/Users/petetaylor/projects/tasker-systems/tasker-core/tasker-shared/src/config/mpsc_channels.rs`
 - `/Users/petetaylor/projects/tasker-systems/tasker-core/tasker-shared/src/metrics/channels.rs`
 
 **Tracing Integration:**
+
 - `/Users/petetaylor/projects/tasker-systems/tasker-core/tasker-shared/src/logging.rs`
 
 ---

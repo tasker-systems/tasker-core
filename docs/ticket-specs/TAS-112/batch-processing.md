@@ -12,6 +12,7 @@
 This analysis examines the **batch processing lifecycle** - the data structures, orchestration flow, and cross-language boundaries that enable parallel batch processing. Unlike Phase 5 (handler helpers), this phase focuses on the **workflow orchestration** and **data structures at FFI boundaries** between workers and Rust orchestration.
 
 **Key Findings**:
+
 1. **✅ Excellent FFI Boundary Alignment** - Data structures serialize consistently across languages
 2. **✅ CursorConfig Flexibility** - Rust uses `Value` for flexible cursor types (int, UUID, timestamp, etc.)
 3. **⚠️ BatchWorkerInputs Structure** - Not fully documented in Python/Ruby, well-defined in TypeScript/Rust
@@ -80,6 +81,7 @@ pub enum BatchProcessingOutcome {
 ```
 
 **JSON Serialization**:
+
 ```json
 // NoBatches
 {
@@ -143,6 +145,7 @@ end
 ```
 
 **Analysis**:
+
 - ✅ **Identical serialization** - `to_h` matches Rust JSON
 - ✅ **Dry-Struct validation** - constraints match Rust types
 - ✅ **Factory methods** - `no_batches()`, `create_batches()`
@@ -157,6 +160,7 @@ end
 ```
 
 **Pattern** (from Phase 5):
+
 ```python
 def batch_analyzer_success(self, outcome, metadata=None, worker_template_name="batch_worker"):
     # Build batch_processing_outcome in format Rust expects
@@ -172,6 +176,7 @@ def batch_analyzer_success(self, outcome, metadata=None, worker_template_name="b
 ```
 
 **Analysis**:
+
 - ⚠️ **No type class** - constructed as dict inline
 - ✅ **Correct serialization** - matches Rust structure
 - ⚠️ **Less type safety** - no Pydantic validation for outcome itself
@@ -186,6 +191,7 @@ def batch_analyzer_success(self, outcome, metadata=None, worker_template_name="b
 ```
 
 **Pattern** (from Phase 5):
+
 ```typescript
 batchSuccess(
   workerTemplateName: string,
@@ -208,6 +214,7 @@ batchSuccess(
 ```
 
 **Analysis**:
+
 - ⚠️ **No type interface** - constructed as object inline
 - ✅ **Correct serialization** - matches Rust structure
 - ⚠️ **Less type safety** - relies on handler helper correctness
@@ -223,6 +230,7 @@ batchSuccess(
 | **FFI Safety** | ✅ | ✅ | ✅ | ✅ |
 
 **Recommendation**:
+
 - ✅ **Python**: Create `BatchProcessingOutcome` Pydantic model for type safety
 - ✅ **TypeScript**: Create `BatchProcessingOutcome` interface
 - 📝 **Zen Alignment**: "Explicit is better than implicit" - dedicated types improve safety
@@ -258,6 +266,7 @@ pub struct CursorConfig {
 **Key Feature**: `start_cursor` and `end_cursor` are `serde_json::Value` - **any JSON type allowed!**
 
 **Flexibility Examples**:
+
 ```rust
 // Integer cursors (most common)
 CursorConfig {
@@ -295,6 +304,7 @@ CursorConfig {
 #### Language Type Definitions
 
 **Ruby**:
+
 ```ruby
 # No dedicated CursorConfig class
 # Represented as Hash with flexible cursor values
@@ -307,6 +317,7 @@ CursorConfig {
 ```
 
 **Python**:
+
 ```python
 class CursorConfig(BaseModel):
     start_cursor: int  # ⚠️ LIMITATION: int only!
@@ -316,6 +327,7 @@ class CursorConfig(BaseModel):
 ```
 
 **TypeScript**:
+
 ```typescript
 interface CursorConfig {
   startCursor: number;  // ⚠️ LIMITATION: number only!
@@ -334,6 +346,7 @@ interface CursorConfig {
 | **batch_size** | ✅ u32 | ✅ Integer | ⚠️ Implicit (end-start) | ⚠️ Implicit |
 
 **Recommendation** (from Phase 5):
+
 - ✅ **Python**: Change `start_cursor`/`end_cursor` from `int` to `Any`
 - ✅ **TypeScript**: Change from `number` to `unknown`
 - ✅ **Python/TypeScript**: Add `batch_id` field (currently missing)
@@ -365,6 +378,7 @@ pub struct BatchWorkerInputs {
 ```
 
 **Example** (stored in database):
+
 ```json
 {
   "cursor": {
@@ -385,6 +399,7 @@ pub struct BatchWorkerInputs {
 #### Language Access Patterns
 
 **Ruby**:
+
 ```ruby
 def get_batch_context(context)
   # Extracts from context.workflow_step
@@ -414,6 +429,7 @@ end
 ```
 
 **Python**:
+
 ```python
 class BatchWorkerContext(BaseModel):
     batch_id: str
@@ -430,6 +446,7 @@ class BatchWorkerContext(BaseModel):
 ```
 
 **TypeScript**:
+
 ```typescript
 export interface RustBatchWorkerInputs {
   cursor: {
@@ -455,12 +472,14 @@ function getBatchWorkerInputs(context: StepContext): Partial<RustBatchWorkerInpu
 ```
 
 **Analysis**:
+
 - ✅ **TypeScript**: Explicitly models Rust structure (best alignment)
 - ⚠️ **Python**: `BatchWorkerContext` doesn't match Rust `BatchWorkerInputs` exactly
 - ✅ **Ruby**: `from_step_data()` correctly reads Rust structure
 - 📝 **Key Point**: This is an **FFI boundary** - must match Rust exactly
 
 **Recommendation**:
+
 - ✅ **Python**: Align `BatchWorkerContext` with Rust `BatchWorkerInputs` structure
 - ✅ **All languages**: Document that `BatchWorkerInputs` is Rust-owned, immutable structure
 - 📝 **Zen Alignment**: "Explicit is better than implicit" - FFI structures need precise documentation
@@ -539,6 +558,7 @@ match outcome {
 ```
 
 **Transaction Boundary**:
+
 ```rust
 let mut tx = pool.begin().await?;
 
@@ -580,6 +600,7 @@ tx.commit().await?; // All-or-nothing atomicity
 ```
 
 **Key Guarantees**:
+
 - ✅ **Atomic**: All N workers created or none
 - ✅ **Consistent DAG**: All edges created in same transaction
 - ✅ **Isolated**: Other transactions don't see partial state
@@ -590,6 +611,7 @@ tx.commit().await?; // All-or-nothing atomicity
 ### Step 3: Worker Execution (Any Language)
 
 **Access Pattern**:
+
 ```
 Worker process claims step from queue
    ↓
@@ -605,6 +627,7 @@ Returns result with processing metrics
 ```
 
 **Checkpoint Pattern** (Ruby example):
+
 ```ruby
 def call(context)
   batch_ctx = get_batch_context(context)
@@ -633,6 +656,7 @@ end
 ```
 
 **Checkpoint Storage**:
+
 - Stored in `workflow_steps.results` JSONB column
 - Preserved during `ResetForRetry` action
 - Worker resumes from checkpoint on retry
@@ -642,6 +666,7 @@ end
 ### Step 4: Convergence/Aggregation (Any Language)
 
 **Deferred Convergence Pattern**:
+
 ```
 Convergence step waits until:
   - ALL workers in declared_dependencies
@@ -654,6 +679,7 @@ Worker claims and executes aggregator handler
 ```
 
 **Aggregation Pattern** (Ruby):
+
 ```ruby
 def call(context)
   # Detect scenario
@@ -689,6 +715,7 @@ end
 ```
 
 **Aggregation Pattern** (Python):
+
 ```python
 def call(self, context: StepContext) -> StepHandlerResult:
     # Get all worker results
@@ -704,10 +731,12 @@ def call(self, context: StepContext) -> StepHandlerResult:
 ```
 
 **Key Difference**:
+
 - **Ruby**: Flexible block-based aggregation (supports sum, max, concat, merge, custom)
 - **Python/TypeScript**: Static sum aggregation (most common case)
 
 **Recommendation** (from Phase 5):
+
 - ✅ **Python/TypeScript**: Add optional `aggregation_fn` parameter
 - 📝 **Zen Alignment**: "Practicality beats purity" - default sum, allow custom
 
@@ -751,6 +780,7 @@ end
 ```
 
 **Usage**:
+
 ```ruby
 scenario = BatchAggregationScenario.detect(
   context.dependency_results,
@@ -769,11 +799,13 @@ end
 ```
 
 **Analysis**:
+
 - ✅ **Ruby Only**: Sophisticated scenario detection helper
 - ❌ **Python/TypeScript Missing**: No equivalent helper class
 - ⚠️ **Manual Detection**: Python/TypeScript handlers detect manually
 
 **Recommendation**:
+
 - ✅ **Python**: Add `BatchAggregationScenario` class
 - ✅ **TypeScript**: Add `BatchAggregationScenario` class
 - ✅ **Standardize**: Detection logic should be consistent
@@ -794,6 +826,7 @@ end
 ### Implementation Patterns
 
 **Ruby**:
+
 ```ruby
 def call(context)
   batch_ctx = get_batch_context(context)
@@ -816,6 +849,7 @@ end
 ```
 
 **Python**:
+
 ```python
 def call(self, context: StepContext) -> StepHandlerResult:
     batch_ctx = self.get_batch_context(context)
@@ -837,6 +871,7 @@ def call(self, context: StepContext) -> StepHandlerResult:
 ```
 
 **TypeScript**:
+
 ```typescript
 async call(context: StepContext): Promise<StepHandlerResult> {
   const batchCtx = this.getBatchContext(context);
@@ -865,6 +900,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 | **Resumability** | ✅ Full support | ✅ Full support | ⚠️ Read-only | ⚠️ Read-only |
 
 **Recommendation**:
+
 - ✅ **Python/TypeScript**: Add `update_checkpoint()` or `update_step_results()` helper
 - ✅ **Document**: Checkpoint preservation during retry is critical feature
 - 📝 **Zen Alignment**: "Practicality beats purity" - checkpoints enable resilience
@@ -874,18 +910,21 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 ## Functional Gaps Summary
 
 ### Rust (Orchestration Complete)
+
 1. ✅ **Full orchestration** - atomic worker creation
 2. ✅ **Flexible cursors** - `Value` type supports all JSON types
 3. ✅ **Transaction safety** - all-or-nothing guarantees
 4. ✅ **Checkpoint preservation** - `ResetForRetry` verified
 
 ### Ruby (Most Complete Worker Support)
+
 1. ✅ **BatchAggregationScenario** - sophisticated detection
 2. ✅ **Checkpoint updates** - `update_workflow_step_results()`
 3. ✅ **Type mirrors** - Dry-Struct matches Rust structures
 4. ✅ **Flexible cursors** - via block customization
 
 ### Python (Good Core, Missing Advanced Features)
+
 1. ⚠️ **No BatchProcessingOutcome type** - inline dict
 2. ⚠️ **No BatchAggregationScenario** - manual detection
 3. ❌ **No checkpoint write helper** - read-only
@@ -893,6 +932,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 5. ⚠️ **BatchWorkerContext mismatch** - doesn't align with Rust `BatchWorkerInputs`
 
 ### TypeScript (Good Core, Missing Advanced Features)
+
 1. ⚠️ **No BatchProcessingOutcome interface** - inline object
 2. ⚠️ **No BatchAggregationScenario** - manual detection
 3. ❌ **No checkpoint write helper** - read-only
@@ -908,54 +948,64 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 #### 1. Type Safety at FFI Boundaries
 
 **Python**:
+
 - ✅ Create `BatchProcessingOutcome` Pydantic model
 - ✅ Align `BatchWorkerContext` with Rust `BatchWorkerInputs` structure
 - ✅ Change `CursorConfig` cursor types from `int` to `Any`
 - ✅ Add `batch_id` field to `CursorConfig`
 
 **TypeScript**:
+
 - ✅ Create `BatchProcessingOutcome` interface
 - ✅ Change `CursorConfig` cursor types from `number` to `unknown`
 - ✅ Add `batch_id` field to `CursorConfig`
 - ✅ Document `RustBatchWorkerInputs` as FFI boundary type
 
 **Ruby**:
+
 - ✅ Already excellent - keep current pattern
 - ✅ Document Dry-Struct types as FFI mirrors
 
 #### 2. Scenario Detection Standardization
 
 **Python**:
+
 - ✅ Create `BatchAggregationScenario` class
 - ✅ Add `detect()` class method
 - ✅ Support both `no_batches` and `with_batches` scenarios
 
 **TypeScript**:
+
 - ✅ Create `BatchAggregationScenario` class
 - ✅ Add static `detect()` method
 - ✅ Support both scenarios
 
 **Ruby**:
+
 - ✅ Already implemented - use as reference
 
 #### 3. Checkpoint Write Support
 
 **Python**:
+
 - ✅ Add `update_checkpoint(cursor, metadata)` helper
 - ✅ Or add `update_step_results(data)` general helper
 - ✅ Document checkpoint preservation during retry
 
 **TypeScript**:
+
 - ✅ Add `updateCheckpoint(cursor, metadata)` helper
 - ✅ Or add `updateStepResults(data)` general helper
 - ✅ Document checkpoint preservation during retry
 
 **Ruby**:
+
 - ✅ Already has `update_workflow_step_results()` - document better
 
 #### 4. Flexible Cursor Types (from Phase 5)
 
 **All Languages**:
+
 - ✅ Support int, string, timestamp, UUID, composite object cursors
 - ✅ Document cursor flexibility with examples
 - ✅ Add cursor type examples to batch processing docs
@@ -992,6 +1042,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 ## Implementation Checklist
 
 ### Python Enhancements
+
 - [ ] Create `BatchProcessingOutcome` Pydantic model:
   - [ ] `NoBatches` and `CreateBatches` variants
   - [ ] Validation matching Rust constraints
@@ -1006,6 +1057,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 - [ ] Add `batch_id` field to `CursorConfig`
 
 ### TypeScript Enhancements
+
 - [ ] Create `BatchProcessingOutcome` interface:
   - [ ] Union type for NoBatches | CreateBatches
   - [ ] Type guards: `isCreateBatches()`, `isNoBatches()`
@@ -1020,12 +1072,14 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 - [ ] Document `RustBatchWorkerInputs` as canonical FFI type
 
 ### Ruby Enhancements
+
 - [ ] Document existing types as FFI mirrors
 - [ ] Add flexible cursor examples to documentation
 - [ ] Document `update_workflow_step_results()` for checkpoints
 - [ ] Add cursor customization examples (UUID, timestamp, etc.)
 
 ### Documentation
+
 - [ ] Create `docs/batch-processing-ffi-boundaries.md`:
   - [ ] Document all FFI structures
   - [ ] Show exact JSON serialization
@@ -1046,6 +1100,7 @@ async call(context: StepContext): Promise<StepHandlerResult> {
 ## Next Phase
 
 **Phase 7: Domain Events Integration** will analyze how domain event publishing integrates with handlers (TAS-109). Key questions:
+
 - Is event publisher registration consistent?
 - Do all languages support post-execution publishing (TAS-65)?
 - Are event routing patterns (durable vs fast paths) aligned?

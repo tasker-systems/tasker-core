@@ -169,26 +169,31 @@ Priority: endpoint-specific token > global token > API key > config file.
 ### Common Role Patterns
 
 **Read-only operator:**
+
 ```
 permissions: ["tasks:read", "tasks:list", "steps:read", "dlq:read", "dlq:stats"]
 ```
 
 **Task submitter:**
+
 ```
 permissions: ["tasks:create", "tasks:read", "tasks:list"]
 ```
 
 **Ops admin:**
+
 ```
 permissions: ["tasks:*", "steps:*", "dlq:*", "system:*"]
 ```
 
 **Worker service:**
+
 ```
 permissions: ["worker:config_read", "worker:templates_read"]
 ```
 
 **Superuser:**
+
 ```
 permissions: ["*"]
 ```
@@ -215,6 +220,7 @@ curl -H "X-API-Key: sk-prod-key-1" http://localhost:8080/v1/tasks
 ```
 
 API keys are simpler than JWTs but have limitations:
+
 - No expiration (rotate by removing from config)
 - No claims beyond permissions
 - Best for service-to-service communication with static permissions
@@ -224,6 +230,7 @@ API keys are simpler than JWTs but have limitations:
 ## Error Responses
 
 ### 401 Unauthorized (Missing/Invalid Credentials)
+
 ```json
 {
   "error": "unauthorized",
@@ -232,6 +239,7 @@ API keys are simpler than JWTs but have limitations:
 ```
 
 ### 403 Forbidden (Insufficient Permissions)
+
 ```json
 {
   "error": "forbidden",

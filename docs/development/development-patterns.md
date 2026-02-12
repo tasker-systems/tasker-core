@@ -105,6 +105,7 @@ cargo make sqlx-check     # SQLX_OFFLINE=true cargo check
 ## Python Worker Tasks
 
 Located in `workers/python/`. Uses:
+
 - **uv**: Fast Python package manager
 - **maturin**: Rust-Python FFI builds (PyO3)
 - **ruff**: Linting and formatting
@@ -137,6 +138,7 @@ cargo make setup   # Creates .venv, syncs dependencies
 ## Ruby Worker Tasks
 
 Located in `workers/ruby/`. Uses:
+
 - **Bundler**: Ruby dependency management
 - **Magnus**: Rust-Ruby FFI (via rake compile)
 - **RuboCop**: Linting
@@ -169,6 +171,7 @@ cargo make setup   # bundle install
 ## TypeScript Worker Tasks
 
 Located in `workers/typescript/`. Uses:
+
 - **Bun**: JavaScript runtime and package manager
 - **Biome**: Fast linting and formatting
 - **tsup**: TypeScript bundler
@@ -284,6 +287,7 @@ cargo make b   # Alias for build
 ### Adding a Rust Crate
 
 1. Add to workspace `Cargo.toml`:
+
    ```toml
    [workspace]
    members = [
@@ -298,6 +302,7 @@ cargo make b   # Alias for build
 
 1. Create `workers/<language>/Makefile.toml` following existing patterns
 2. Add delegation tasks to root `Makefile.toml`:
+
    ```toml
    [tasks.check-<language>]
    description = "Run <language> worker quality checks"
@@ -305,6 +310,7 @@ cargo make b   # Alias for build
    command = "cargo"
    args = ["make", "check"]
    ```
+
 3. Add to composite tasks (`check`, `test`, `fix`, `build`)
 
 ## Makefile.toml Structure
@@ -330,6 +336,7 @@ dependencies = ["lint", "typecheck", "test"]
 ### Task Types
 
 - **Command tasks**: Direct command execution
+
   ```toml
   [tasks.build-ffi]
   command = "cargo"
@@ -337,6 +344,7 @@ dependencies = ["lint", "typecheck", "test"]
   ```
 
 - **Script tasks**: Shell scripts
+
   ```toml
   [tasks.setup]
   script = '''
@@ -348,12 +356,14 @@ dependencies = ["lint", "typecheck", "test"]
   ```
 
 - **Composite tasks**: Dependencies on other tasks
+
   ```toml
   [tasks.build]
   dependencies = ["build-ffi", "build-ts"]
   ```
 
 - **Alias tasks**: Shortcuts to other tasks
+
   ```toml
   [tasks.c]
   alias = "check"
@@ -403,6 +413,7 @@ cargo make compile-clean   # Clean and recompile
 ### Custom Step Handler Resolvers (TAS-93)
 
 The resolver chain pattern allows extending handler resolution with custom strategies. This is useful for:
+
 - Service discovery integration
 - Dynamic handler loading from plugins
 - Environment-specific resolution
@@ -466,6 +477,7 @@ chain.register(Arc::new(ClassConstantResolver::new()));
 ```
 
 **Priority Guidelines**:
+
 | Priority | Use Case |
 |----------|----------|
 | 1-9 | Override all other resolvers |

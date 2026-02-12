@@ -8,15 +8,15 @@ Implement API-level security for Tasker orchestration and worker services with J
 
 **Tasker's Responsibility:**
 
-* Define the permission vocabulary (actions on resources)
-* Verify JWT signatures and validate claims
-* Enforce: "Does this token have permission X?"
+- Define the permission vocabulary (actions on resources)
+- Verify JWT signatures and validate claims
+- Enforce: "Does this token have permission X?"
 
 **External System's Responsibility:**
 
-* User/service account management
-* Role definitions and role → permission mapping
-* Token issuance with final permission list
+- User/service account management
+- Role definitions and role → permission mapping
+- Token issuance with final permission list
 
 ## Permission Vocabulary
 
@@ -71,16 +71,16 @@ worker:templates:read GET /templates, GET /templates/{ns}/{name}/{ver}
 
 **Allowed:**
 
-* `tasks:*` - All task operations
-* `steps:*` - All step operations
-* `dlq:*` - All DLQ operations
-* `templates:*` - All template operations
-* `worker:*` - All worker operations
+- `tasks:*` - All task operations
+- `steps:*` - All step operations
+- `dlq:*` - All DLQ operations
+- `templates:*` - All template operations
+- `worker:*` - All worker operations
 
 **Not Allowed:**
 
-* `*` - Too broad, must be explicit
-* `*:read` - Cross-resource wildcards not supported
+- `*` - Too broad, must be explicit
+- `*:read` - Cross-resource wildcards not supported
 
 ## Configuration Schema
 
@@ -289,20 +289,21 @@ description = "Admin access"
 
 ## Out of Scope (Future Enhancements)
 
-* Namespace-level permission filtering (e.g., `tasks:create:namespace:payment_processing`)
-* Role management within Tasker
-* User identity management
-* Token issuance
-* OAuth/OIDC flows
+- Namespace-level permission filtering (e.g., `tasks:create:namespace:payment_processing`)
+- Role management within Tasker
+- User identity management
+- Token issuance
+- OAuth/OIDC flows
 
 ## Notes
 
-* Database access remains protected by PostgreSQL credentials + network isolation
-* Workers authenticate via database credentials, not HTTP auth
-* Health and metrics endpoints must remain public for Kubernetes probes
-* Permission vocabulary should be versioned for future evolution
+- Database access remains protected by PostgreSQL credentials + network isolation
+- Workers authenticate via database credentials, not HTTP auth
+- Health and metrics endpoints must remain public for Kubernetes probes
+- Permission vocabulary should be versioned for future evolution
 
 ## Metadata
+
 - URL: [https://linear.app/tasker-systems/issue/TAS-150/api-level-security-jwtapi-key-authentication-and-permission](https://linear.app/tasker-systems/issue/TAS-150/api-level-security-jwtapi-key-authentication-and-permission)
 - Identifier: TAS-150
 - Status: In Progress

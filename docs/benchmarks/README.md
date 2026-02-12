@@ -58,12 +58,14 @@ Measures complete workflow execution from API call through orchestration, messag
 Each step involves ~19 database operations, 2 message queue round-trips, 4+ state transitions, and dependency graph evaluation. See [e2e-benchmarks.md](./e2e-benchmarks.md) for the detailed per-step lifecycle.
 
 **Key Characteristics**:
+
 - FFI overhead: ~23% vs native Rust (all languages within 3ms of each other)
 - Linear patterns: highly reproducible (<2% variance between runs)
 - Parallel patterns: environment-sensitive (I/O contention affects parallelism)
 - Batch processing: 2,700-2,800 rows/second with tight P95/P50 ratios
 
 **Run Commands**:
+
 ```bash
 cargo make bench-e2e           # Tier 1: Rust core
 cargo make bench-e2e-full      # Tier 1+2: + complexity
@@ -227,6 +229,7 @@ open target/criterion/report/index.html
 ### Stable Metrics (Reliable for Regression Detection)
 
 These metrics show <2% variance between runs:
+
 - **Linear pattern P50** (sequential execution baseline)
 - **FFI linear P50** (framework overhead measurement)
 - **Single task in cluster** (cluster overhead measurement)
@@ -235,6 +238,7 @@ These metrics show <2% variance between runs:
 ### Environment-Sensitive Metrics
 
 These metrics vary 10-30% depending on system load:
+
 - **Diamond pattern P50** (parallelism benefit depends on I/O capacity)
 - **Concurrent 2x** (scheduling contention varies)
 - **Hierarchical tree** (deep dependency chains amplify I/O latency)
@@ -251,26 +255,33 @@ These metrics vary 10-30% depending on system load:
 ## Design Principles
 
 ### Natural Measurement
+
 Benchmarks measure real system behavior without artificial test harnesses:
+
 - API benchmarks hit actual HTTP endpoints
 - SQL benchmarks use real database with realistic data volumes
 - E2E benchmarks execute complete workflows through all distributed components
 
 ### Distributed System Focus
+
 All benchmarks account for distributed system characteristics:
+
 - Network latency included (HTTP, PostgreSQL, message queues)
 - Database transaction timing considered
 - Message queue delivery overhead measured
 - Worker coordination and scheduling included
 
 ### Load-Based Validation
+
 Benchmarks serve dual purpose:
+
 - **Performance measurement**: Track regressions and improvements
 - **Load testing**: Expose race conditions and timing bugs
 
 E2E benchmark warmup has historically discovered critical race conditions that manual testing never revealed.
 
 ### Statistical Rigor
+
 - 50 samples per benchmark for P50/P95 validity
 - Criterion framework with statistical regression detection
 - Multiple independent runs recommended for absolute comparisons
@@ -281,24 +292,28 @@ E2E benchmark warmup has historically discovered critical race conditions that m
 ## Troubleshooting
 
 ### "Services must be running"
+
 ```bash
 cargo make cluster-status          # Check cluster health
 cargo make cluster-start-all       # Restart cluster
 ```
 
 ### Tier 3/4 benchmarks skipped
+
 ```bash
 # Ensure cluster env is configured (not single-service)
 cargo make setup-env-all-cluster   # Generates .env with cluster URLs
 ```
 
 ### High variance between runs
+
 - Close resource-intensive applications (browsers, IDEs)
 - Ensure machine is plugged in (not throttling)
 - Focus on stable metrics (linear P50, FFI overhead %) for comparisons
 - Run benchmarks twice and compare for reproducibility
 
 ### Benchmark takes too long
+
 ```bash
 # Reduce sample size (default: 50)
 cargo bench -- --sample-size 10
@@ -357,6 +372,7 @@ When adding new benchmarks:
 6. **Use 50 samples**: Minimum for P50/P95 statistical validity
 
 ### Benchmark Template
+
 ```rust
 use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
 use std::time::Duration;

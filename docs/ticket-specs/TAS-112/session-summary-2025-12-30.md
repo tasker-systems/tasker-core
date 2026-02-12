@@ -1,11 +1,13 @@
 # TAS-112 Session Summary - December 30, 2025
 
 ## Session Focus
+
 Cross-Language Domain Events implementation for TypeScript and Python workers.
 
 ## What Was Accomplished
 
 ### TypeScript Domain Events (Stream A)
+
 - **Complete domain events module** (`workers/typescript/src/handler/domain-events.ts`):
   - `BasePublisher` with lifecycle hooks (before_publish, after_publish, on_publish_error, additional_metadata)
   - `BaseSubscriber` with lifecycle hooks (before_handle, after_handle, on_handle_error)
@@ -23,6 +25,7 @@ Cross-Language Domain Events implementation for TypeScript and Python workers.
 - **Test Coverage**: 532 tests passing, including 17 new subscriber lifecycle tests
 
 ### Python Enhancements (Stream B)
+
 - **Domain Events Types** (migrated to Pydantic for consistency):
   - `EventDeclaration` - event declaration from YAML templates
   - `StepResult` - step execution result
@@ -61,6 +64,7 @@ Cross-Language Domain Events implementation for TypeScript and Python workers.
 ## Files Modified
 
 ### TypeScript Worker
+
 - `workers/typescript/src/handler/domain-events.ts` - Complete domain events module
 - `workers/typescript/src-rust/dto.rs` - FFI DTOs with ts-rs generation
 - `workers/typescript/.cargo/config.toml` - NEW: ts-rs export configuration
@@ -70,6 +74,7 @@ Cross-Language Domain Events implementation for TypeScript and Python workers.
 - `workers/typescript/tests/unit/handler/domain-events.test.ts` - Removed unused class
 
 ### Python Worker
+
 - `workers/python/python/tasker_core/domain_events.py` - Migrated to Pydantic, added types
 - `workers/python/python/tasker_core/types.py` - Added ExecutionResult, updated InProcessDomainEvent
 - `workers/python/python/tasker_core/__init__.py` - Updated exports
@@ -79,31 +84,38 @@ Cross-Language Domain Events implementation for TypeScript and Python workers.
 ## Next Steps (Phase 3 and Beyond)
 
 ### Remaining for Validation Gate 1
+
 1. **TypeScript**: Update `bridge.rs` to use DTO serialization instead of manual JSON construction
 2. **TypeScript**: Create domain event examples (payment publisher, logging/metrics subscribers)
 3. **TypeScript**: Add integration tests for full publish/subscribe cycle
 4. **Python**: Batchable enhancements (handle_no_op_worker, create_cursor_configs, checkpoint APIs)
 
 ### Stream C: FFI Boundary Types
+
 - Python/TypeScript BatchProcessingOutcome explicit types
 - CursorConfig flexible cursor type support
 
 ### Stream D: Examples & Tests
+
 - Conditional workflow examples for Python/TypeScript
 - E2E tests for all scenarios
 
 ### Phase 2: Rust Ergonomics
+
 - APICapable, DecisionCapable, BatchableCapable traits
 - Rust handler examples
 
 ### Phase 3: Breaking Changes
+
 - Composition pattern migration (mixins over inheritance)
 - Ruby result unification
 - Ruby cursor indexing fix (1-indexed to 0-indexed)
 
 ## Reference Documents
+
 - Implementation Plan: `docs/ticket-specs/TAS-112/implementation-plan.md`
 - Research Analysis: `docs/ticket-specs/TAS-112/domain-events-research-analysis.md`
 
 ## Branch
+
 `jcoletaylor/tas-112-cross-language-step-handler-ergonomics-analysis`

@@ -81,6 +81,7 @@ pub struct InMemoryMessagingService {
 ```
 
 Features:
+
 - Thread-safe queue storage
 - Visibility timeout simulation via `in_flight` map
 - Receipt handle generation
@@ -150,6 +151,7 @@ impl QueueMessage for StepMessage {
 ```
 
 Apply same pattern to:
+
 - `StepMessage` (formerly `SimpleStepMessage`)
 - `StepExecutionResult`
 - `TaskRequestMessage`

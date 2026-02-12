@@ -103,24 +103,24 @@ Our e2e test suite exercises various DAG patterns. We need benchmarks for each:
 
 ### Scaling Characteristics
 
-5. **Worker scaling**: Does adding workers improve throughput linearly? Where does it plateau?
-6. **Orchestration scaling**: At what worker count does orchestration become the bottleneck?
-7. **Database scaling**: When does PostgreSQL become the bottleneck?
-8. **Queue saturation**: At what message volume do PGMQ/RabbitMQ show degradation?
+1. **Worker scaling**: Does adding workers improve throughput linearly? Where does it plateau?
+2. **Orchestration scaling**: At what worker count does orchestration become the bottleneck?
+3. **Database scaling**: When does PostgreSQL become the bottleneck?
+4. **Queue saturation**: At what message volume do PGMQ/RabbitMQ show degradation?
 
 ### Bottleneck Identification
 
-9. **Hot paths**: Where does the system spend most time in the happy path?
-10. **Contention points**: Are there locks, mutexes, or resources causing contention?
-11. **Allocation patterns**: Are there excessive allocations in hot paths?
-12. **Async overhead**: Is tokio task scheduling or channel communication a bottleneck?
+1. **Hot paths**: Where does the system spend most time in the happy path?
+2. **Contention points**: Are there locks, mutexes, or resources causing contention?
+3. **Allocation patterns**: Are there excessive allocations in hot paths?
+4. **Async overhead**: Is tokio task scheduling or channel communication a bottleneck?
 
 ### Tuning Questions
 
-13. **Config tunables**: Which config parameters most impact performance?
-14. **Pool sizing**: What are optimal connection pool sizes for different loads?
-15. **Channel buffers**: What are optimal MPSC channel buffer sizes?
-16. **Batch sizes**: What are optimal batch sizes for step enqueueing?
+1. **Config tunables**: Which config parameters most impact performance?
+2. **Pool sizing**: What are optimal connection pool sizes for different loads?
+3. **Channel buffers**: What are optimal MPSC channel buffer sizes?
+4. **Batch sizes**: What are optimal batch sizes for step enqueueing?
 
 ---
 
@@ -133,6 +133,7 @@ The following research tasks can be executed in parallel by sub-agents:
 **Goal:** Evaluate and recommend profiling tools for our stack
 
 **Sub-tasks:**
+
 1. Research `cargo-flamegraph` - installation, usage with services, release profile requirements
 2. Research `samply` - macOS-specific, comparison to flamegraph, async support
 3. Research `tokio-console` - setup requirements, runtime instrumentation, what it reveals
@@ -145,6 +146,7 @@ The following research tasks can be executed in parallel by sub-agents:
 **Goal:** Assess current benchmarks, identify gaps, verify they work
 
 **Sub-tasks:**
+
 1. Audit `tasker-shared/benches/*.rs` - verify running, review methodology
 2. Audit `tasker-client/benches/*.rs` - verify running, review methodology
 3. Audit `tasker-orchestration/benches/*.rs` - verify running, review methodology
@@ -157,6 +159,7 @@ The following research tasks can be executed in parallel by sub-agents:
 **Goal:** Design benchmarks that exercise full task lifecycles across complexity levels
 
 **Sub-tasks:**
+
 1. Review existing e2e test fixtures for workflow patterns available
 2. Design linear workflow benchmark (baseline)
 3. Design diamond workflow benchmark (fan-out/fan-in)
@@ -170,6 +173,7 @@ The following research tasks can be executed in parallel by sub-agents:
 **Goal:** Design infrastructure for benchmarking across service configurations
 
 **Sub-tasks:**
+
 1. Review TAS-73 cluster scripts for benchmark compatibility
 2. Design automated cluster configuration switching
 3. Design metrics collection across cluster instances
@@ -182,6 +186,7 @@ The following research tasks can be executed in parallel by sub-agents:
 **Goal:** Design framework for sustained load testing and saturation analysis
 
 **Sub-tasks:**
+
 1. Research existing Rust load testing tools (drill, goose, criterion throughput mode)
 2. Design concurrent task submission harness
 3. Design backpressure measurement approach
@@ -194,6 +199,7 @@ The following research tasks can be executed in parallel by sub-agents:
 **Goal:** Understand async runtime behavior and potential optimizations
 
 **Sub-tasks:**
+
 1. Research tokio::spawn naming for traceability (mentioned in ticket)
 2. Research tokio-console integration requirements
 3. Analyze current spawn patterns in codebase
@@ -208,6 +214,7 @@ The following research tasks can be executed in parallel by sub-agents:
 ### Phase 1: Tooling Foundation (This Ticket)
 
 **Deliverables:**
+
 - [ ] Profiling tool selection and setup guide
 - [ ] Existing benchmark audit and gaps document
 - [ ] Benchmark harness improvements (if quick wins identified)
@@ -217,6 +224,7 @@ The following research tasks can be executed in parallel by sub-agents:
 ### Phase 2: Benchmark Development (Likely Follow-up Ticket)
 
 **Deliverables:**
+
 - [ ] E2E workflow benchmarks for each complexity level
 - [ ] Cluster benchmark infrastructure
 - [ ] Automated benchmark run scripts
@@ -225,6 +233,7 @@ The following research tasks can be executed in parallel by sub-agents:
 ### Phase 3: Analysis & Profiling (Likely Follow-up Ticket)
 
 **Deliverables:**
+
 - [ ] Flame graphs for key workflows
 - [ ] Bottleneck identification report
 - [ ] Scaling characteristic graphs
@@ -233,6 +242,7 @@ The following research tasks can be executed in parallel by sub-agents:
 ### Phase 4: Optimizations (Subsequent Tickets)
 
 **Deliverables:**
+
 - [ ] Targeted optimizations based on findings
 - [ ] Before/after benchmark comparisons
 - [ ] Documentation updates

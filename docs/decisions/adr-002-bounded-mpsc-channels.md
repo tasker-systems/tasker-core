@@ -87,15 +87,18 @@ drop_policy = "block"
 ### Environment-Specific Overrides
 
 **Production** (`config/tasker/environments/production/mpsc_channels.toml`):
+
 - Orchestration command: 5000 (5x base)
 - PGMQ listeners: 50000 (5x base) - handles bulk task creation bursts
 - Event publisher: 10000 (2x base)
 
 **Development** (`config/tasker/environments/development/mpsc_channels.toml`):
+
 - Task readiness: 500 (0.5x base)
 - Worker FFI: 500 (0.5x base)
 
 **Test** (`config/tasker/environments/test/mpsc_channels.toml`):
+
 - Orchestration command: 100 (0.1x base) - exposes backpressure issues
 - Task readiness: 100 (0.1x base)
 
@@ -120,11 +123,13 @@ This was discovered during implementation when environment files created conflic
 Migrated MPSC sizing fields from `event_systems.toml` to `mpsc_channels.toml`:
 
 **Moved to mpsc_channels.toml:**
+
 - `event_systems.task_readiness.metadata.event_channel.buffer_size`
 - `event_systems.task_readiness.metadata.event_channel.send_timeout_ms`
 - `event_systems.worker.metadata.in_process_events.broadcast_buffer_size`
 
 **Kept in event_systems.toml (event processing logic):**
+
 - `event_systems.task_readiness.metadata.event_channel.max_retries`
 - `event_systems.task_readiness.metadata.event_channel.backoff`
 
@@ -159,11 +164,13 @@ let (tx, rx) = mpsc::channel(buffer_size);
 ### Observability
 
 **ChannelMonitor Integration:**
+
 - Tracks channel usage in real-time
 - Logs warnings at 80% saturation
 - Exposes metrics via OpenTelemetry
 
 **Metrics Available:**
+
 - `mpsc_channel_usage_percent` - Current channel fill percentage
 - `mpsc_channel_capacity` - Configured capacity
 - Component and channel name labels for filtering
@@ -194,16 +201,19 @@ let (tx, rx) = mpsc::channel(buffer_size);
 ### Backpressure Strategies by Component
 
 **PGMQ Notification Listener:**
+
 - Strategy: Block sender (apply backpressure)
 - Rationale: Cannot drop database notifications
 - Buffer: Large (10000 base, 50000 production) to handle bursts
 
 **Event Publisher:**
+
 - Strategy: Drop events with metrics when full
 - Rationale: Internal events are non-critical
 - Buffer: Medium (5000 base, 10000 production)
 
 **Ruby FFI Handler:**
+
 - Strategy: Return error to Rust (signal backpressure)
 - Rationale: Ruby must handle gracefully
 - Buffer: Standard (1000) with monitoring
@@ -211,15 +221,18 @@ let (tx, rx) = mpsc::channel(buffer_size);
 ### Sizing Guidelines
 
 **Command Channels (orchestration, worker):**
+
 - Base: 1000
 - Test: 100 (expose issues)
 - Production: 2000-5000 (concurrent load)
 
 **Event Channels:**
+
 - Base: 1000
 - Production: Higher if event-driven architecture
 
 **Notification Channels:**
+
 - Base: 10000 (burst handling)
 - Production: 50000 (bulk operations)
 

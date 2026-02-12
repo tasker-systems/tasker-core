@@ -52,6 +52,7 @@ Ordered by expected testability gain per effort:
 Three distinct sources of duplication and tight coupling:
 
 **A. `process_event()` (lines 636–1011)** — 375 lines with three nearly identical branches for `StepResult`, `TaskRequest`, `TaskFinalization`. Each branch does:
+
 1. Clone message ID
 2. Create oneshot channel
 3. Build `OrchestrationCommand` variant
@@ -164,6 +165,7 @@ async fn create_and_start_queue_listener(
 The `CommandHandler` has three groups of three handlers each, with significant structural duplication:
 
 **Group 1: Message Event handlers** (PGMQ signal-only) — `handle_task_initialize_from_message_event`, `handle_step_result_from_message_event`, `handle_task_finalize_from_message_event`. Each does:
+
 1. Provider guard clause (identical ~12 lines)
 2. Parse message ID from string to i64 (identical ~5 lines)
 3. Read specific message from PGMQ (identical ~15 lines, different error messages)
@@ -171,6 +173,7 @@ The `CommandHandler` has three groups of three handlers each, with significant s
 5. Delegate to corresponding message handler
 
 **Group 2: Message handlers** (provider-agnostic) — `handle_task_initialize_from_message`, `handle_step_result_from_message`, `handle_task_finalize_from_message`. Each does:
+
 1. Hydrate domain object from queued message (different hydrator)
 2. Delegate to direct handler (different handler)
 3. On success: ack message (identical ~8 lines)
@@ -241,6 +244,7 @@ where
 Convert `OrchestrationProcessingStats` from `Arc<std::sync::RwLock<OrchestrationProcessingStats>>` to a lock-free SWMR design:
 
 **Current (problematic)**:
+
 ```rust
 pub struct OrchestrationProcessingStats {
     pub tasks_initialized: u64,
@@ -254,6 +258,7 @@ pub struct OrchestrationProcessingStats {
 ```
 
 **Target (lock-free)**:
+
 ```rust
 pub struct OrchestrationProcessingStats {
     pub tasks_initialized: AtomicU64,
@@ -266,6 +271,7 @@ pub struct OrchestrationProcessingStats {
 ```
 
 Changes:
+
 1. **Remove `current_queue_sizes: HashMap<String, i64>`** — investigation confirmed it is initialized as `HashMap::new()` and never written to in production. Dead weight that forces the struct behind a lock.
 2. **Convert 5 `u64` fields to `AtomicU64`** with `Ordering::Relaxed` for counter increments (consistent with `OrchestrationPollerStats` and `OrchestrationListenerStats`).
 3. **Remove `RwLock` wrapper** — `Arc<OrchestrationProcessingStats>` is sufficient when all fields are atomic.
@@ -392,6 +398,7 @@ The user's assessment: the state machines (`TaskStateMachine`, `StepStateMachine
 #### Step 2: Remove `StateManager` and its 20 tests
 
 Once the 3 used methods are migrated, delete:
+
 - `orchestration/state_manager.rs` (1,297 lines)
 - The `StateManager` re-export from `orchestration/mod.rs`
 - Any remaining imports/references across the crate
@@ -411,6 +418,7 @@ Run the full test suite (`cargo test --all-features`) plus the integration test 
 ### Risk and Rollback
 
 This is the highest-risk change in the plan. Mitigation:
+
 - Grep the entire workspace for `StateManager` before removing to catch any references not found in the initial investigation
 - Run the full CI suite after migration
 - If any caller turns out to need the evaluation/recommendation logic, it can be reintroduced as focused, tested functions on the state machine types themselves rather than resurrecting the full `StateManager`
@@ -507,6 +515,7 @@ orchestration/commands/
 ```
 
 **Key design decisions:**
+
 - `PgmqMessageResolver` encapsulates all PGMQ-specific logic (`pgmq_client()`, `resolve_message_event()`, `wrap_pgmq_message()`). Flow 3 methods become thin wrappers.
 - `ack_message_with_handle()` stays on the service — it's provider-agnostic (uses `MessageClient.ack_message()`).
 - Service methods are organized by lifecycle flow, making the provider-agnostic vs PGMQ-specific boundary explicit in the code structure.

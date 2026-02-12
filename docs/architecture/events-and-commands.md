@@ -59,18 +59,21 @@ pub trait EventDrivenSystem: Send + Sync {
 The system supports three deployment modes for different operational requirements:
 
 #### PollingOnly Mode
+
 - Traditional polling-based coordination
 - No event listeners or real-time notifications
 - Reliable fallback for environments with networking restrictions
 - Higher latency but guaranteed operation
 
 #### EventDrivenOnly Mode
+
 - Pure event-driven coordination using PostgreSQL LISTEN/NOTIFY
 - Real-time response to database changes
 - Lowest latency for step discovery and task coordination
 - Requires reliable PostgreSQL connections
 
 #### Hybrid Mode
+
 - Primary event-driven coordination with polling fallback
 - Best of both worlds: real-time when possible, reliable when needed
 - Automatic fallback during connection issues
@@ -110,6 +113,7 @@ pub enum MessageNotification {
 | InMemory | `Message` | No | Not needed |
 
 **Common Event Types**:
+
 - **Step Results**: Worker completion notifications
 - **Task Requests**: New task initialization requests
 - **Message Ready Events**: Queue message availability notifications
@@ -122,6 +126,7 @@ pub enum MessageNotification {
 Both orchestration and worker systems implement the command pattern to replace complex polling-based coordinators:
 
 **Benefits**:
+
 - **No Polling Loops (Except where intended for fallback)**: Pure tokio mpsc command processing
 - **Simplified Architecture**: ~100 lines vs 1000+ lines of complex systems
 - **Race Condition Prevention**: Atomic operations through proper delegation
@@ -200,6 +205,7 @@ pub enum OrchestrationCommand {
 ```
 
 **Command Routing by Notification Type**:
+
 - `MessageNotification::Message` -> `*FromMessage` commands (immediate processing)
 - `MessageNotification::Available` -> `*FromMessageEvent` commands (requires fetch)
 
@@ -229,6 +235,7 @@ pub struct TaskReadinessEventSystem {
 ```
 
 **PGMQ Notification Channels**:
+
 - `pgmq_message_ready.orchestration`: Orchestration queue messages ready (task requests, step results, finalizations)
 - `pgmq_message_ready.{namespace}`: Worker namespace queue messages ready (e.g., `payments`, `fulfillment`, `linear_workflow`)
 - `pgmq_message_ready`: Global channel for all queue messages (fallback)
@@ -249,6 +256,7 @@ pub struct UnifiedEventCoordinator {
 ```
 
 **Coordination Features**:
+
 - **Shared Command Channel**: Both systems send commands to same orchestration processor
 - **Health Monitoring**: Unified health checking across all event systems
 - **Deployment Mode Management**: Synchronized mode changes
@@ -403,6 +411,7 @@ The system uses PostgreSQL Message Queue (PGMQ) for reliable message delivery:
 #### Message Processing Patterns
 
 **Event-Driven Processing**:
+
 1. Message arrives in PGMQ queue
 2. PostgreSQL triggers pg_notify with `MessageReadyEvent`
 3. Event system receives notification
@@ -410,6 +419,7 @@ The system uses PostgreSQL Message Queue (PGMQ) for reliable message delivery:
 5. Message deleted after successful processing
 
 **Polling-Based Processing** (Fallback):
+
 1. Periodic queue polling (configurable interval)
 2. Fetch available messages in batches
 3. Process messages via command pattern
@@ -428,6 +438,7 @@ pub struct UnifiedPgmqClient {
 ```
 
 **Circuit Breaker Features**:
+
 - **Automatic Protection**: Failure detection and circuit opening
 - **Configurable Thresholds**: Error rate and timeout configuration
 - **Seamless Fallback**: Automatic switching between standard and protected clients
@@ -475,6 +486,7 @@ pub enum DeploymentModeHealthStatus {
 Key metrics collected across the system:
 
 #### Orchestration Metrics
+
 - **Task Initialization Rate**: Tasks/minute initialized
 - **Step Enqueueing Rate**: Steps/minute enqueued to worker queues
 - **Result Processing Rate**: Results/minute processed from workers
@@ -482,6 +494,7 @@ Key metrics collected across the system:
 - **Error Rates**: Failures by operation type and cause
 
 #### Worker Metrics
+
 - **Step Execution Rate**: Steps/minute executed
 - **Handler Performance**: Execution time by handler type
 - **Queue Processing**: Messages claimed/processed by queue
@@ -495,16 +508,19 @@ Key metrics collected across the system:
 The system handles multiple error categories with appropriate strategies:
 
 #### Transient Errors
+
 - **Database Connection Issues**: Circuit breaker protection + retry with exponential backoff
 - **Queue Processing Failures**: Message retry with backoff, poison message detection
 - **Network Interruptions**: Automatic fallback to polling mode
 
 #### Permanent Errors
+
 - **Invalid Message Format**: Dead letter queue for manual analysis
 - **Handler Execution Failures**: Step failure state with retry limits
 - **Configuration Errors**: System startup prevention with clear error messages
 
 #### System Errors
+
 - **Resource Exhaustion**: Graceful degradation and load shedding
 - **Component Crashes**: Automatic restart with state recovery
 - **Data Corruption**: Transaction rollback and consistency validation
@@ -512,11 +528,13 @@ The system handles multiple error categories with appropriate strategies:
 ### Fallback Mechanisms
 
 #### Event System Fallbacks
+
 1. **Event-Driven -> Polling**: Automatic fallback when event connection fails
 2. **Real-time -> Batch**: Switch to batch processing during high load
 3. **Primary -> Secondary**: Database failover support for high availability
 
 #### Command Processing Fallbacks
+
 1. **Async -> Sync**: Degraded operation for critical operations
 2. **Distributed -> Local**: Local processing when coordination fails
 3. **Optimistic -> Pessimistic**: Conservative processing during uncertainty
@@ -745,6 +763,7 @@ actors.shutdown().await;  // Calls stopped() on all actors in reverse order
 ```
 
 **Current Actors**:
+
 - **TaskRequestActor**: Handles task initialization requests
 - **ResultProcessorActor**: Processes step execution results
 - **StepEnqueuerActor**: Manages batch processing of ready tasks
@@ -790,6 +809,7 @@ The actor integration is complete:
 Large services (800-900 lines) were decomposed into focused components:
 
 **TaskFinalizer** (848 → 6 files):
+
 - `service.rs`: Main TaskFinalizer (~200 lines)
 - `completion_handler.rs`: Task completion logic
 - `event_publisher.rs`: Lifecycle event publishing
@@ -797,11 +817,13 @@ Large services (800-900 lines) were decomposed into focused components:
 - `state_handlers.rs`: State-specific handling
 
 **StepEnqueuerService** (781 → 3 files):
+
 - `service.rs`: Main service (~250 lines)
 - `batch_processor.rs`: Batch processing logic
 - `state_handlers.rs`: State-specific processing
 
 **ResultProcessor** (889 → 4 files):
+
 - `service.rs`: Main processor
 - `metadata_processor.rs`: Metadata handling
 - `error_handler.rs`: Error processing

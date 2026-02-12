@@ -87,6 +87,7 @@ Struct metadata (actual defaults from `TaskerConfig::default()`, type names, fie
 The `#[derive(Template)]` structs and template files are in `tasker-client`. This keeps compile-time template expansion out of `tasker-shared`, `tasker-orchestration`, and `tasker-worker`. The context builder types live in `tasker-shared` since they depend on `TaskerConfig` and `ConfigDocumentation`.
 
 **3. Templates directory alongside binary source.**
+
 ```
 tasker-client/
 ├── templates/              ← Askama template files
@@ -137,6 +138,7 @@ Selection criteria: parameters whose purpose is self-evident from their name, ty
 | `worker.toml` | worker_id, worker_type, circuit_breakers (slow_send_threshold), event_systems (system_id, deployment_mode), step_processing, health_monitoring, orchestration_client (base_url, timeout, retries), web (enabled, bind_address, auth), grpc (enabled, bind_address, max_concurrent_streams) | ~17 |
 
 Each `_docs` entry follows the established convention from `documentation.rs`:
+
 ```toml
 [section._docs.parameter_name]
 description = "Human-readable description"
@@ -158,12 +160,14 @@ production = { value = "...", rationale = "..." }
 **Add Askama to the workspace.**
 
 `Cargo.toml` (workspace):
+
 ```toml
 [workspace.dependencies]
 askama = "0.15"
 ```
 
 `tasker-client/Cargo.toml`:
+
 ```toml
 [features]
 default = ["grpc", "docs-gen"]
@@ -174,6 +178,7 @@ askama = { workspace = true, optional = true }
 ```
 
 `tasker-client/askama.toml` (Askama configuration):
+
 ```toml
 [general]
 dirs = ["templates"]
@@ -418,6 +423,7 @@ pub struct DocIndexTemplate<'a> {
 ```toml
 {{ p.example }}
 ```
+
 {% endif %}
 
 {% endif %}
@@ -430,6 +436,7 @@ pub struct DocIndexTemplate<'a> {
 
 {% endfor %}
 {% endblock %}
+
 ```
 
 **Example template — `annotated-config.toml`:**

@@ -120,6 +120,9 @@ brew "shellcheck"
 # GitHub Actions workflow linter
 brew "actionlint"
 
+# Markdown linter for docs/ directory
+brew "markdownlint-cli2"
+
 # -----------------------------------------------------------------------------
 # Performance & Profiling Tools (TAS-71)
 # -----------------------------------------------------------------------------

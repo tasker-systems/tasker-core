@@ -24,6 +24,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 ### ✅ Working & Complete Benchmarks
 
 #### 1. SQL Function Benchmarks
+
 - **Location**: `tasker-shared/benches/sql_functions.rs`
 - **Status**: ✅ Complete, Compiles, Well-documented
 - **Coverage**:
@@ -34,30 +35,36 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
   - `get_step_transitive_dependencies()` (10 samples)
 - **Documentation**: `docs/observability/benchmarking-guide.md`
 - **Run Command**:
+
   ```bash
   cargo bench --package tasker-shared --features benchmarks
   ```
 
 #### 2. Event Propagation Benchmarks
+
 - **Location**: `tasker-shared/benches/event_propagation.rs`
 - **Status**: ✅ Complete, Compiles
 - **Coverage**: PostgreSQL LISTEN/NOTIFY event propagation
 - **Run Command**:
+
   ```bash
   cargo bench --package tasker-shared --features benchmarks event_propagation
   ```
 
 #### 3. Task Initialization Benchmarks
+
 - **Location**: `tasker-client/benches/task_initialization.rs`
 - **Status**: ✅ Complete, Compiles
 - **Coverage**: API task creation latency
 - **Run Command**:
+
   ```bash
   export SQLX_OFFLINE=true
   cargo bench --package tasker-client --features benchmarks task_initialization
   ```
 
 #### 4. End-to-End Workflow Latency Benchmarks
+
 - **Location**: `tests/benches/e2e_latency.rs`
 - **Status**: ✅ Complete, Compiles
 - **Coverage**: Complete workflow execution (API → Result)
@@ -67,6 +74,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
   - Diamond workflow (Rust native)
 - **Prerequisites**: Docker Compose services running
 - **Run Command**:
+
   ```bash
   export SQLX_OFFLINE=true
   cargo bench --bench e2e_latency
@@ -75,6 +83,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 ### ⚠️ Placeholder Benchmarks (Need Decision)
 
 #### 5. Orchestration Benchmarks
+
 - **Location**: `tasker-orchestration/benches/`
 - **Files**:
   - `orchestration_benchmarks.rs` - Empty placeholder
@@ -87,6 +96,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
   - Queue publishing and notification overhead breakdown
 
 #### 6. Worker Benchmarks
+
 - **Location**: `tasker-worker/benches/`
 - **Files**:
   - `worker_benchmarks.rs` - Empty placeholder
@@ -109,12 +119,14 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 ### Option 1: Keep Placeholders for Future Work ✅ RECOMMENDED
 
 **Rationale**:
+
 - Phase 5.4 distributed benchmarks are **documented** but complex to implement
 - E2E benchmarks (`e2e_latency.rs`) already provide full workflow metrics
 - SQL benchmarks provide component-level detail
 - Actor/Services refactor is more urgent than distributed component benchmarks
 
 **Action**:
+
 - Keep placeholder files with clear "NOT IMPLEMENTED" status
 - Update comments to reference this audit document
 - Future ticket (post-refactor) can implement if needed
@@ -122,11 +134,13 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 ### Option 2: Remove Placeholders
 
 **Rationale**:
+
 - Reduce confusion about benchmark status
 - E2E benchmarks already cover end-to-end latency
 - SQL benchmarks cover database hot paths
 
 **Action**:
+
 - Delete placeholder bench files
 - Document decision in this file
 - Can recreate later if specific component isolation needed
@@ -134,10 +148,12 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 ### Option 3: Implement Placeholders Now
 
 **Rationale**:
+
 - Complete benchmark suite before refactor
 - Better baseline data for Actor/Services comparison
 
 **Concerns**:
+
 - 2-3 days implementation effort
 - Delays Actor/Services refactor
 - May need re-implementation post-refactor anyway
@@ -147,17 +163,20 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 ## Decision: Option 1 (Keep Placeholders, Document Status)
 
 We have **sufficient benchmarking coverage**:
+
 1. ✅ SQL functions (hot path queries)
 2. ✅ E2E workflows (user-facing latency)
 3. ✅ Event propagation (LISTEN/NOTIFY)
 4. ✅ Task initialization (API latency)
 
 **What's Missing**:
+
 - Component-level orchestration breakdown (not critical for refactor)
 - Worker cycle breakdown (available via OpenTelemetry traces)
 - Framework overhead measurement (nice-to-have, not blocking)
 
 **Action Items**:
+
 1. Update placeholder comments with "Status: Planned for future implementation"
 2. Reference this document for implementation guidance
 3. Move forward with profiling and refactor
@@ -176,6 +195,7 @@ We have **sufficient benchmarking coverage**:
 ### Tool Selection
 
 #### Primary: `samply` (macOS-friendly)
+
 - **GitHub**: https://github.com/mstange/samply
 - **Advantages**:
   - Native macOS support (uses Instruments)
@@ -185,6 +205,7 @@ We have **sufficient benchmarking coverage**:
 - **Use Case**: Development profiling on macOS
 
 #### Secondary: `flamegraph` (CI/production)
+
 - **GitHub**: https://github.com/flamegraph-rs/flamegraph
 - **Advantages**:
   - Linux support (perf-based)
@@ -193,6 +214,7 @@ We have **sufficient benchmarking coverage**:
 - **Use Case**: CI profiling, Linux production analysis
 
 #### Tertiary: `cargo-flamegraph` (Convenience)
+
 - **Cargo Plugin**: Wraps flamegraph-rs
 - **Advantages**:
   - Single command profiling
@@ -262,6 +284,7 @@ cargo flamegraph --bench e2e_latency -- --profile-time=60
 ```
 
 **What to Look For**:
+
 - Time spent in `lifecycle/` modules (task_initializer, step_enqueuer, result_processor, etc.)
 - Database query time vs business logic time
 - Serialization/deserialization overhead
@@ -279,6 +302,7 @@ samply record cargo bench --package tasker-shared --features benchmarks sql_func
 ```
 
 **What to Look For**:
+
 - Time in `sqlx` query execution
 - Connection pool overhead
 - Query planning time (shouldn't be visible if using prepared statements)
@@ -296,6 +320,7 @@ samply record cargo test --test e2e_tests --all-features
 ```
 
 **What to Look For**:
+
 - Initialization overhead
 - Test setup time vs actual execution time
 - Repeated patterns across tests
@@ -350,6 +375,7 @@ samply record --output=baseline-result-processor-pre-refactor.json \
 ```
 
 **Deliverables** (completed, profiles removed — superseded by cluster benchmarks):
+
 - ~~Baseline profile files in `profiles/pre-refactor/`~~ (removed)
 - Performance baselines now in `docs/benchmarks/README.md`
 
@@ -358,6 +384,7 @@ samply record --output=baseline-result-processor-pre-refactor.json \
 **Goal**: Document current performance characteristics to preserve in refactor
 
 **Analysis Checklist**:
+
 1. ✅ Time spent in each lifecycle module (task_initializer, step_enqueuer, etc.)
 2. ✅ Database query time breakdown
 3. ✅ Serialization overhead (JSON, MessagePack)
@@ -384,12 +411,14 @@ samply record --output=baseline-e2e-post-refactor.json \
 ```
 
 **Success Criteria**:
+
 - E2E latency: Within 10% of baseline (preferably faster)
 - SQL latency: Unchanged (no regression from refactor)
 - Lifecycle operation time: Within 20% of baseline
 - No new hot paths or contention points
 
 **Regression Signals**:
+
 - E2E latency >20% slower
 - New allocations/clones in hot paths
 - Increased lock contention
@@ -433,6 +462,7 @@ done
 **80/20 Rule**: 80% of time is spent in 20% of code
 
 **Priority Order**:
+
 1. Top 5 functions by time (>5% each)
 2. Recursive calls (can amplify overhead)
 3. Locks and synchronization (contention multiplies)
@@ -441,6 +471,7 @@ done
 ### 5. Benchmark-Driven Profiling
 
 Always profile **realistic workloads**:
+
 - ✅ E2E benchmarks (represents user experience)
 - ✅ Integration tests (real workflow patterns)
 - ❌ Unit tests (too isolated, not representative)
@@ -476,14 +507,17 @@ Always profile **realistic workloads**:
 ### Key Patterns
 
 #### 1. Wide Flat Bars = Hot Path
+
 ```
 ┌───────────────────────────────────────┐
 │ step_enqueuer::enqueue_ready_steps()  │  ← 40% of total time
 └───────────────────────────────────────┘
 ```
+
 **Action**: Optimize this function
 
 #### 2. Deep Call Stack = Recursion/Abstractions
+
 ```
 ┌─────────────────────────┐
 │ process_dependencies()  │
@@ -495,14 +529,17 @@ Always profile **realistic workloads**:
 │  └─────────────────────┘│
 └─────────────────────────┘
 ```
+
 **Action**: Consider flattening or caching
 
 #### 3. Many Narrow Bars = Fragmentation
+
 ```
 ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
 │A│B│C│D│E│F│G│H│I│J│K│L│M│  ← Many small functions
 └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 ```
+
 **Action**: Not necessarily bad (may be inlining), but check if overhead-heavy
 
 ---
@@ -572,10 +609,12 @@ jobs:
 
 1. ✅ **Audit Complete**: Documented benchmark status
 2. ⏳ **Install Profiling Tools**:
+
    ```bash
    cargo install samply  # macOS
    cargo install flamegraph  # Linux
    ```
+
 3. ⏳ **Capture Baselines** (1 day):
    - Run profiling plan Phase 1
    - Generate flamegraphs
@@ -600,6 +639,7 @@ jobs:
 ## Summary
 
 **Current State**:
+
 - ✅ SQL benchmarks working
 - ✅ E2E benchmarks working
 - ✅ Event propagation benchmarks working
@@ -607,11 +647,13 @@ jobs:
 - ⚠️ Component benchmarks are placeholders (OK for now)
 
 **Decision**:
+
 - Keep placeholder benchmarks for future work
 - Move forward with profiling and baseline capture
 - Sufficient coverage to validate Actor/Services refactor
 
 **Action Plan**:
+
 1. Install profiling tools (samply/flamegraph)
 2. Capture pre-refactor baselines (1 day)
 3. Document current hot paths
@@ -619,6 +661,7 @@ jobs:
 5. Validate post-refactor performance
 
 **Success Criteria**:
+
 - Baseline profiles captured
 - Hot paths documented
 - Post-refactor validation plan established

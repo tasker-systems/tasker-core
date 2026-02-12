@@ -12,6 +12,7 @@
 Optional runtime-specific optimizations leveraging Bun-specific APIs and Node.js performance features. This ticket is **optional** and can be deferred if time-constrained.
 
 **IMPORTANT**: See `threading-analysis.md` for detailed analysis of:
+
 - N-API vs FFI (conclusion: stick with FFI)
 - EventEmitter vs custom channels (conclusion: EventEmitter is sufficient)
 - Worker Threads for parallel execution (conclusion: opt-in for CPU-intensive handlers)
@@ -19,24 +20,29 @@ Optional runtime-specific optimizations leveraging Bun-specific APIs and Node.js
 ## Bun-Specific Optimizations
 
 ### 1. Bun.file() for Fast File I/O
+
 - Zero-copy file reading for handlers that process files
 - Faster than `fs.readFile()` in Node
 
 ### 2. Bun.spawn() for Subprocess Handlers
+
 - Native subprocess spawning (faster than `child_process`)
 - Useful for handlers that shell out to external tools
 
 ### 3. Bun.serve() for Embedded HTTP
+
 - Fast HTTP server for handlers that need to expose webhooks
 - Alternative to Express/Fastify
 
 ### 4. FFI Performance Tuning
+
 - Investigate Bun FFI callback optimizations
 - Memory pooling for frequent FFI calls
 
 ## Node.js-Specific Optimizations
 
 ### 1. Worker Threads (Opt-in)
+
 - Offload CPU-intensive handlers to worker threads
 - Keep main thread free for FFI polling
 - Pattern: Main thread owns TaskerRuntime, workers execute handlers
@@ -44,11 +50,13 @@ Optional runtime-specific optimizations leveraging Bun-specific APIs and Node.js
 - See `threading-analysis.md` for architecture proposal
 
 ### 2. Native Addons (NOT RECOMMENDED)
+
 - N-API wrapper would be Node.js-only (breaks Bun compatibility)
 - FFI is sufficient for our use case
 - See `threading-analysis.md` for detailed N-API vs FFI comparison
 
 ### 3. Performance Hooks
+
 - Use `perf_hooks` for detailed handler profiling
 - Integrate with APM tools (DataDog, New Relic)
 

@@ -14,6 +14,7 @@
 Handler resolution is the process of converting a **callable address** (a string in your YAML template) into an **executable handler instance** that can process workflow steps. The resolver chain pattern provides a flexible, extensible approach that works consistently across all language workers.
 
 This guide covers:
+
 - The mental model for handler resolution
 - The common path for task templates
 - Built-in resolvers and how they work
@@ -61,6 +62,7 @@ handler:
 ```
 
 **When to use method dispatch:**
+
 - Payment handlers with `charge`, `refund`, `void` methods
 - Validation handlers with `validate_input`, `validate_output` methods
 - CRUD handlers with `create`, `read`, `update`, `delete` methods
@@ -81,6 +83,7 @@ handler:
 ```
 
 **When to use resolver hints:**
+
 - Performance optimization for high-throughput steps
 - Explicit documentation of resolution strategy
 - Avoiding ambiguity when multiple resolvers could match
@@ -187,6 +190,7 @@ registry.register("process_payment", ProcessPaymentHandler);
 **When it resolves:** When the `callable` exactly matches a registered key.
 
 **Best for:**
+
 - Native Rust handlers (required - no runtime reflection)
 - Performance-critical handlers
 - Explicit, predictable resolution
@@ -214,6 +218,7 @@ handler:
 **When it resolves:** When the `callable` looks like a class/module path (contains `::`, `.`, or starts with uppercase).
 
 **Best for:**
+
 - Convention-over-configuration setups
 - Handlers that don't need explicit registration
 - Dynamic handler loading
@@ -477,6 +482,7 @@ Rust has **no runtime reflection**, which affects handler resolution:
 | Dynamic handler loading | ✅ `const_get`, `importlib` | ❌ Must pre-register |
 
 **Best Practice for Rust:**
+
 - Always use ExplicitMappingResolver with explicit registration
 - Implement `invoke_method()` for multi-method handlers
 - Use resolver hints (`resolver: explicit_mapping`) for clarity
@@ -499,11 +505,13 @@ Rust has **no runtime reflection**, which affects handler resolution:
 **Symptoms:** `ResolutionError: No resolver could resolve callable 'my_handler'`
 
 **Causes:**
+
 1. Handler not registered with ExplicitMappingResolver
 2. Class path typo (for ClassConstantResolver)
 3. Handler registered with different name than callable
 
 **Solutions:**
+
 ```rust
 // Verify registration
 assert!(registry.is_registered("my_handler"));
@@ -517,11 +525,13 @@ println!("{:?}", registry.list_handlers());
 **Symptoms:** `MethodNotFound: Handler 'my_handler' does not respond to 'refund'`
 
 **Causes:**
+
 1. Method name typo in YAML template
 2. Method not defined on handler class
 3. Method is private (Ruby) or underscore-prefixed (Python)
 
 **Solutions:**
+
 ```yaml
 # Verify method name matches exactly
 handler:
@@ -534,10 +544,12 @@ handler:
 **Symptoms:** Resolution works but seems slow, or wrong resolver is used
 
 **Causes:**
+
 1. Resolver hint name doesn't match any registered resolver
 2. Resolver with that name returns `None` for this callable
 
 **Solutions:**
+
 ```yaml
 # Use exact resolver name
 handler:

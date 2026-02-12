@@ -125,6 +125,7 @@ TASKER_TEST_SKIP_HEALTH_CHECK=true cargo bench --features benchmarks
 ## Troubleshooting
 
 ### "Services must be running"
+
 ```bash
 # Start Docker services
 docker-compose -f docker/docker-compose.test.yml up -d
@@ -134,11 +135,13 @@ curl http://localhost:8080/health
 ```
 
 ### "DATABASE_URL must be set"
+
 ```bash
 export DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test"
 ```
 
 ### "Task template not found"
+
 ```bash
 # Ensure worker services are running (they register templates)
 docker-compose -f docker/docker-compose.test.yml ps
@@ -148,6 +151,7 @@ curl -s http://localhost:8080/v1/handlers | jq
 ```
 
 ### Compilation errors
+
 ```bash
 # Clean and rebuild
 cargo clean

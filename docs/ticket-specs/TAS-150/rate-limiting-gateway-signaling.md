@@ -9,6 +9,7 @@ Tasker's API is fully stateless — it tracks nothing about client connections (
 ## Problem
 
 Without any rate limiting or auth failure signaling:
+
 - An attacker can brute-force API keys or JWT tokens at line speed
 - The application has no way to slow down or block repeated failures
 - Gateway services (ALB, NLB, API Gateway, Cloudflare) have no application-level signal about auth failure severity
@@ -124,6 +125,7 @@ impl IntoResponse for ApiError {
 ### AWS ALB/NLB
 
 ALB can't inspect custom response headers for rate limiting directly, but:
+
 - The `Retry-After` header is respected by well-behaved clients
 - AWS WAF rules can be configured to count 401/403 responses and rate-limit by source IP
 - Custom headers can be logged to CloudWatch for alerting
@@ -131,12 +133,14 @@ ALB can't inspect custom response headers for rate limiting directly, but:
 ### AWS API Gateway
 
 API Gateway supports response-based throttling:
+
 - Use a Lambda authorizer that reads `X-Auth-Failure-Severity` and returns throttling metadata
 - Configure usage plans with per-client rate limits
 
 ### Cloudflare / Generic Reverse Proxy
 
 Most reverse proxies can be configured to:
+
 1. Count responses with `X-Auth-Failure-Severity: high`
 2. Rate-limit the source IP after N high-severity failures
 3. Block entirely after sustained attacks
@@ -175,6 +179,7 @@ pub struct AuthFailureCounter {
 ```
 
 This would:
+
 - Track failure counts per source IP (from `X-Forwarded-For` or socket addr)
 - Emit metrics when thresholds are crossed
 - NOT block requests (that's the gateway's job)

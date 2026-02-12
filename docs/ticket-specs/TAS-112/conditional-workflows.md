@@ -12,6 +12,7 @@
 This analysis examines **conditional workflow orchestration** - the complete lifecycle of runtime decision-making from decision point evaluation to convergence step aggregation. Unlike Phase 4 (which focused on decision handler APIs), this phase analyzes the **orchestration patterns** and **deferred dependency resolution**.
 
 **Key Findings**:
+
 1. **✅ Orchestration is 100% Rust** - Decision logic in workers, orchestration in Rust only
 2. **✅ Intersection Semantics Complete** - Deferred steps use `declared_deps ∩ created_steps`
 3. **✅ Consistent YAML Patterns** - All languages use same template structure
@@ -118,6 +119,7 @@ steps:
 ```
 
 **Key Patterns**:
+
 - `type: decision` - Marks decision point step
 - `type: deferred` - Enables intersection semantics for convergence
 - ALL possible dependencies listed in deferred step
@@ -190,6 +192,7 @@ fn extract_decision_outcome(result: &StepExecutionResult) -> Option<DecisionPoin
 ```
 
 **Key Design Decisions**:
+
 1. **Detection**: Check `result.result.decision_point_outcome` field
 2. **Delegation**: Separate service for decision point logic
 3. **Transaction**: All within single transaction (atomic)
@@ -277,12 +280,14 @@ impl DecisionPointService {
 ```
 
 **Transaction Guarantees**:
+
 - ✅ **Atomic**: All N steps created or none
 - ✅ **Consistent**: All edges created in same transaction
 - ✅ **Validated**: Step names checked against template before creation
 - ✅ **Enqueued**: Steps immediately enqueued if dependencies met
 
 **Error Handling**:
+
 - Invalid step name → Permanent failure (step doesn't exist in template)
 - Database error → Transaction rolled back (no partial state)
 - Template not found → Permanent failure
@@ -296,6 +301,7 @@ impl DecisionPointService {
 **Scenario**: Convergence step must wait for dynamically created steps, but doesn't know which steps will be created at template-design time.
 
 **Example**:
+
 ```yaml
 # Convergence step declares ALL possible paths
 - name: finalize_approval
@@ -310,6 +316,7 @@ impl DecisionPointService {
 **Runtime**: Decision point creates only `['manager_approval']`
 
 **Question**: What should finalize_approval wait for?
+
 - ❌ **All declared dependencies** → Would wait forever (auto_approve, finance_review never created)
 - ✅ **Intersection of declared + created** → Waits for: routing_decision ∩ {manager_approval}
 
@@ -384,6 +391,7 @@ impl ReadinessService {
 ```
 
 **Key Algorithm**:
+
 ```
 declared_deps = {"routing_decision", "auto_approve", "manager_approval", "finance_review"}
 created_steps = {"validate_request", "routing_decision", "manager_approval", "finalize_approval"}
@@ -397,6 +405,7 @@ ready_when = all steps in effective_deps have status = Completed
 **Behavior Examples**:
 
 **Example 1: Small Amount ($500)**
+
 ```
 Decision: routing_decision creates ['auto_approve']
 
@@ -410,6 +419,7 @@ finalize_approval waits for: routing_decision + auto_approve ✅
 ```
 
 **Example 2: Large Amount ($10,000)**
+
 ```
 Decision: routing_decision creates ['manager_approval', 'finance_review']
 
@@ -423,6 +433,7 @@ finalize_approval waits for: routing_decision + manager_approval + finance_revie
 ```
 
 **Example 3: No Branches**
+
 ```
 Decision: routing_decision creates [] (NoBranches)
 
@@ -598,6 +609,7 @@ warn_threshold = 2
 **Environment Overrides**:
 
 **Test Environment**:
+
 ```toml
 [orchestration.decision_points]
 enabled = true
@@ -606,6 +618,7 @@ warn_threshold = 1
 ```
 
 **Production Environment**:
+
 ```toml
 [orchestration.decision_points]
 enabled = true
@@ -616,6 +629,7 @@ warn_threshold = 3
 ### Depth Tracking
 
 **Implementation**:
+
 ```rust
 pub async fn check_decision_depth(
     tx: &mut Transaction<'_, Postgres>,
@@ -663,6 +677,7 @@ pub async fn check_decision_depth(
 ```
 
 **Depth Enforcement**:
+
 ```rust
 // Before creating steps from decision point
 let current_depth = check_decision_depth(tx, task_uuid).await?;
@@ -729,6 +744,7 @@ histogram.record(effective_deps.len() as u64, &[
 ### Structured Logging
 
 **Decision Point Creation**:
+
 ```rust
 info!(
     decision_step_uuid = %decision_step_uuid,
@@ -748,6 +764,7 @@ for step_name in &step_names {
 ```
 
 **Intersection Semantics**:
+
 ```rust
 debug!(
     deferred_step_uuid = %deferred_step_uuid,
@@ -760,6 +777,7 @@ debug!(
 ```
 
 **Readiness Check**:
+
 ```rust
 trace!(
     step_uuid = %step_uuid,
@@ -773,6 +791,7 @@ trace!(
 ### Prometheus Queries
 
 **Steps Created by Decision Points**:
+
 ```promql
 sum by (decision_step_name) (
   rate(tasker_decision_points_steps_created_total[5m])
@@ -780,11 +799,13 @@ sum by (decision_step_name) (
 ```
 
 **Average Decision Depth**:
+
 ```promql
 avg(tasker_decision_points_depth)
 ```
 
 **Deferred Step Dependency Reduction**:
+
 ```promql
 histogram_quantile(0.95, 
   sum(rate(tasker_deferred_steps_effective_dependencies_bucket[5m])) by (le)
@@ -796,6 +817,7 @@ histogram_quantile(0.95,
 ## Functional Gaps Summary
 
 ### Rust (Complete Orchestration)
+
 1. ✅ **DecisionPointService** - Atomic step creation
 2. ✅ **ReadinessService** - Intersection semantics
 3. ✅ **Depth tracking** - Recursive query
@@ -803,6 +825,7 @@ histogram_quantile(0.95,
 5. ❌ **No decision handler trait** - Manual outcome construction (from Phase 4)
 
 ### Ruby (Complete Examples)
+
 1. ✅ **Decision handler example** - Routing decision with thresholds
 2. ✅ **Convergence handler example** - Route-aware aggregation
 3. ✅ **E2E tests** - All routing scenarios covered
@@ -810,6 +833,7 @@ histogram_quantile(0.95,
 5. ✅ **Documentation** - Pattern explained in detail
 
 ### Python (Missing Examples)
+
 1. ✅ **Decision handler API** - Has `DecisionHandler` class (Phase 4)
 2. ❌ **No convergence example** - Missing finalize step pattern
 3. ❌ **No E2E test** - No conditional workflow tests
@@ -817,6 +841,7 @@ histogram_quantile(0.95,
 5. ⚠️ **Minimal documentation** - Mentioned but not demonstrated
 
 ### TypeScript (Missing Examples)
+
 1. ✅ **Decision handler API** - Has `DecisionHandler` class (Phase 4)
 2. ❌ **No convergence example** - Missing finalize step pattern
 3. ❌ **No E2E test** - No conditional workflow tests
@@ -832,6 +857,7 @@ histogram_quantile(0.95,
 #### 1. Python Conditional Workflow Examples
 
 **Create `workers/python/examples/conditional_approval/`**:
+
 ```python
 # step_handlers/routing_decision_handler.py
 class RoutingDecisionHandler(DecisionHandler):
@@ -890,6 +916,7 @@ class FinalizeApprovalHandler(StepHandler):
 ```
 
 **Create YAML Template**:
+
 ```yaml
 # tests/fixtures/task_templates/python/conditional_approval.yaml
 name: conditional_approval_python
@@ -938,6 +965,7 @@ steps:
 #### 2. TypeScript Conditional Workflow Examples
 
 **Create `workers/typescript/examples/conditional-approval/`**:
+
 ```typescript
 // step-handlers/routing-decision-handler.ts
 export class RoutingDecisionHandler extends DecisionHandler {
@@ -1005,12 +1033,14 @@ export class FinalizeApprovalHandler extends StepHandler {
 #### 3. Document Intersection Semantics
 
 **Update `docs/conditional-workflows.md`**:
+
 - Add "How Intersection Semantics Work" section
 - Show computation algorithm with examples
 - Explain why it prevents "missing dependency" errors
 - Compare to static DAG dependencies
 
 **Create `docs/conditional-workflows-convergence.md`**:
+
 - Deep dive on convergence patterns
 - Show route-aware aggregation
 - Explain how to access routing context
@@ -1019,6 +1049,7 @@ export class FinalizeApprovalHandler extends StepHandler {
 #### 4. E2E Tests for Python/TypeScript
 
 **Python E2E Test**:
+
 ```python
 # tests/e2e/python/test_conditional_approval.py
 async def test_conditional_approval_small_amount():
@@ -1057,6 +1088,7 @@ async def test_conditional_approval_small_amount():
 ## Implementation Checklist
 
 ### Python Enhancements
+
 - [ ] Create `examples/conditional_approval/` directory
 - [ ] Implement routing decision handler
 - [ ] Implement all approval path handlers (auto, manager, finance)
@@ -1066,6 +1098,7 @@ async def test_conditional_approval_small_amount():
 - [ ] Document patterns in worker docs
 
 ### TypeScript Enhancements
+
 - [ ] Create `examples/conditional-approval/` directory
 - [ ] Implement routing decision handler
 - [ ] Implement all approval path handlers
@@ -1075,11 +1108,13 @@ async def test_conditional_approval_small_amount():
 - [ ] Document patterns in worker docs
 
 ### Rust Enhancements
+
 - [ ] Add decision handler trait (from Phase 4 recommendation)
 - [ ] Document manual outcome construction pattern
 - [ ] Add examples to Rust worker docs
 
 ### Documentation
+
 - [ ] Create `docs/conditional-workflows-convergence.md`:
   - [ ] Convergence patterns
   - [ ] Route-aware aggregation
@@ -1097,6 +1132,7 @@ async def test_conditional_approval_small_amount():
   - [ ] Show examples
 
 ### Testing
+
 - [ ] Python: E2E tests for all routing scenarios
 - [ ] TypeScript: E2E tests for all routing scenarios
 - [ ] All languages: Test intersection semantics edge cases
@@ -1107,6 +1143,7 @@ async def test_conditional_approval_small_amount():
 ## Next Phase
 
 **Phase 9: Synthesis & Recommendations** will consolidate all findings from Phases 1-8 and produce:
+
 1. **Complete inconsistency matrix** across all patterns
 2. **Migration roadmap** with priorities
 3. **Breaking change assessment**

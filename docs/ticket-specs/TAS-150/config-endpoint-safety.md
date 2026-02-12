@@ -171,6 +171,7 @@ Same pattern for `tasker-worker/src/web/handlers/config.rs` — construct `SafeW
 ## What NOT to Expose
 
 Never include in SafeConfig:
+
 - JWT private/public keys
 - API key values
 - Database URLs / credentials
@@ -178,6 +179,7 @@ Never include in SafeConfig:
 - Any field whose value is a secret
 
 Safe to expose:
+
 - Ports, timeouts, pool sizes
 - Feature flags (enabled/disabled)
 - Algorithm names, issuer/audience identifiers

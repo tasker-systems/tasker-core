@@ -7,33 +7,42 @@
 ### Validation Steps Performed
 
 1. **Build with console support:**
+
    ```bash
    cargo make build-console
    ```
+
    Result: ✅ Builds successfully with `tokio-console` feature
 
 2. **Start orchestration with console:**
+
    ```bash
    cargo make run-console-orchestration
    ```
+
    Result: ✅ Logs show `tokio_console_enabled=true`
 
 3. **Verify gRPC server:**
+
    ```bash
    lsof -i :6669  # Console-subscriber default port
    nc -zv localhost 6669
    ```
+
    Result: ✅ Server listening and accepting connections on port 6669
 
 4. **Connect tokio-console** (requires interactive terminal):
+
    ```bash
    cargo make console  # or: tokio-console
    ```
+
    Result: ✅ Connects successfully (validated manually)
 
 ### Expected Named Tasks in tokio-console
 
 When connected, you should see these named tasks:
+
 - `orchestration_command_processor`
 - `staleness_detector`
 - `orchestration_web_server`
@@ -41,6 +50,7 @@ When connected, you should see these named tasks:
 - `orchestration_queue_listener`
 
 For Rust worker (`cargo make run-console-worker-rust`):
+
 - `worker_command_processor`
 - `worker_domain_event_system`
 - `worker_completion_processor`
@@ -60,10 +70,12 @@ For Rust worker (`cargo make run-console-worker-rust`):
 ### Current State
 
 tokio-console support is available for:
+
 - `tasker-orchestration` (tasker-server binary)
 - `workers/rust` (rust-worker binary)
 
 Usage:
+
 ```bash
 cargo make build-console
 cargo make run-console-orchestration  # or: cargo make rco
@@ -84,6 +96,7 @@ cargo make console  # in another terminal
 | TypeScript | napi-rs | Modify build config to include RUSTFLAGS |
 
 **Technical considerations:**
+
 - Console-subscriber runs a gRPC server inside the Rust runtime
 - For FFI workers, the tokio runtime runs inside the compiled dylib
 - The host language process (Ruby/Python/Node) loads the dylib
@@ -91,6 +104,7 @@ cargo make console  # in another terminal
 - Need to ensure console-subscriber initializes before tokio runtime starts
 
 **Alternative for FFI profiling:**
+
 - OpenTelemetry tracing is already integrated and works with compiled dylibs
 - Consider tracing-based analysis for FFI-specific hot paths
 - `tracing-flame` can generate flamegraphs from existing instrumentation

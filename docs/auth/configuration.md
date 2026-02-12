@@ -211,6 +211,7 @@ cargo run --bin tasker-ctl -- auth generate-keys --output-dir ./keys --key-size 
 ### Key Rotation (JWKS)
 
 Handled automatically by the identity provider. Tasker refreshes keys on:
+
 - Timer interval (`jwks_refresh_interval_seconds`)
 - Unknown `kid` in incoming token (triggers immediate refresh)
 

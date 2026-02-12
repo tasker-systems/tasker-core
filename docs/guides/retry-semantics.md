@@ -23,6 +23,7 @@ The Tasker orchestration system uses two configuration fields to control step ex
 **Definition**: The maximum number of times a step can be attempted, **including the first execution**.
 
 This is NOT "number of retries" - it's **total attempts**:
+
 - `max_attempts=0`: Step can never execute (likely a configuration error)
 - `max_attempts=1`: Exactly one attempt (no retries after failure)
 - `max_attempts=3`: First attempt + up to 2 retries = 3 total attempts
@@ -34,6 +35,7 @@ This is NOT "number of retries" - it's **total attempts**:
 **Definition**: Whether a step can be retried **after the first execution fails**.
 
 **Important**: The `retryable` flag does NOT affect the first execution attempt:
+
 - First execution (attempts=0): **Always eligible** regardless of retryable setting
 - Retry attempts (attempts>0): Require `retryable=true`
 
@@ -49,6 +51,7 @@ retry:
 ```
 
 **Behavior**:
+
 | attempts | retry_eligible | Outcome |
 |----------|---------------|---------|
 | 0 | ✅ true | First execution allowed |
@@ -67,6 +70,7 @@ retry:
 ```
 
 **Behavior**:
+
 | attempts | retry_eligible | Outcome |
 |----------|---------------|---------|
 | 0 | ✅ true | First execution allowed |
@@ -156,10 +160,12 @@ retry:
 The original field name `retry_limit` was semantically confusing:
 
 **Old Interpretation** (incorrect):
+
 - `retry_limit=1` → "1 retry allowed" → 2 total attempts?
 - `retry_limit=0` → "0 retries" → 1 attempt or blocked?
 
 **New Interpretation** (clear):
+
 - `max_attempts=1` → "1 total attempt" → exactly 1 execution
 - `max_attempts=0` → "0 attempts" → clearly invalid
 

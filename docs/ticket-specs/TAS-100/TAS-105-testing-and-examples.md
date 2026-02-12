@@ -15,6 +15,7 @@
 Comprehensive test suite covering unit tests, integration tests, and E2E tests demonstrating all workflow patterns. The TypeScript worker must achieve feature parity with Python and Ruby workers for core testing scenarios.
 
 **Key Goals**:
+
 - Achieve >80% code coverage for unit tests
 - Implement all E2E test types present in both Python AND Ruby workers
 - Follow established patterns for FFI integration (no duplicate HTTP server)
@@ -87,6 +88,7 @@ Tests present in BOTH Python and Ruby workers must be implemented for TypeScript
 ### Out of Scope (TAS-91)
 
 Blog post examples are covered by TAS-91 (separate backlog item):
+
 - `ecommerce_order_test.rs` - Blog Post 01
 - `data_pipeline_test.rs` - Blog Post 02
 - `microservices_coordination_test.rs` - Blog Post 03
@@ -103,6 +105,7 @@ Blog post examples are covered by TAS-91 (separate backlog item):
 File: `workers/typescript/bin/server.ts`
 
 Remove:
+
 - `startHttpServer()` function
 - `stopHttpServer()` function
 - `HttpServerState` interface
@@ -244,10 +247,12 @@ workers/typescript/tests/handlers/examples/
 **Template**: `csv_processing_ts/csv_product_inventory_analyzer_ts`
 
 **Test Functions**:
+
 - `test_typescript_csv_batch_processing()` - 1000 rows, 5 workers
 - `test_typescript_no_batches_scenario()` - Empty CSV handling
 
 **Key Assertions**:
+
 - Exactly 5 batch workers created for 1000 rows (batch size 200)
 - `analyze_csv_ts` step completes (batchable pattern)
 - `aggregate_csv_results_ts` step collects all worker results (deferred convergence)
@@ -262,6 +267,7 @@ workers/typescript/tests/handlers/examples/
 **Template**: `conditional_approval_ts/approval_routing_ts`
 
 **Test Functions**:
+
 - `test_typescript_small_amount_auto_approval()` - $500 → auto-approve (4 steps)
 - `test_typescript_medium_amount_manager_approval()` - $2,500 → manager (4 steps)
 - `test_typescript_large_amount_dual_approval()` - $10,000 → dual (5 steps)
@@ -269,6 +275,7 @@ workers/typescript/tests/handlers/examples/
 - `test_typescript_boundary_large_threshold()` - Exactly $5,000
 
 **Key Assertions**:
+
 - Correct steps created based on amount thresholds
 - Decision point step completes
 - Conditional paths NOT created when outside threshold
@@ -281,11 +288,13 @@ workers/typescript/tests/handlers/examples/
 **Template**: `diamond_workflow_ts/parallel_computation_ts`
 
 **Test Functions**:
+
 - `test_typescript_diamond_workflow_standard()` - Input 6: parallel branches converge
 - `test_typescript_diamond_workflow_parallel_branches()` - Verify parallel execution
 - `test_typescript_diamond_workflow_different_input()` - Input 4
 
 **Key Assertions**:
+
 - 4 steps: start → branch_b, branch_c (parallel) → end
 - All steps reach COMPLETE state
 - Convergence step waits for both branches
@@ -297,11 +306,13 @@ workers/typescript/tests/handlers/examples/
 **Template**: `domain_events_ts/domain_event_publishing_ts`
 
 **Test Functions**:
+
 - `test_typescript_domain_event_publishing_success()` - Event stats verification
 - `test_typescript_domain_event_publishing_concurrent()` - 3 concurrent tasks
 - `test_typescript_domain_event_metrics_availability()` - Worker health + metrics
 
 **Key Assertions**:
+
 - All 4 steps complete in < 10s (events are non-blocking)
 - At least 4 events published (via `/metrics/events` endpoint)
 - At least 1 durable event (PGMQ)
@@ -315,16 +326,19 @@ workers/typescript/tests/handlers/examples/
 **File**: `tests/e2e/typescript/error_scenarios_test.rs`
 
 **Templates**:
+
 - `test_scenarios_ts/success_only_ts`
 - `test_scenarios_ts/permanent_error_only_ts`
 - `test_scenarios_ts/retryable_error_only_ts`
 
 **Test Functions**:
+
 - `test_typescript_success_scenario()` - Happy path (< 3s)
 - `test_typescript_permanent_failure_scenario()` - No retries (< 5s)
 - `test_typescript_retryable_failure_scenario()` - Backoff exhaustion (100ms - 10s)
 
 **Key Assertions**:
+
 - **Success**: Task completes, step COMPLETE
 - **Permanent**: Fails quickly (no retry delays), step ERROR
 - **Retryable**: Measurable delays (backoff), eventually ERROR
@@ -336,6 +350,7 @@ workers/typescript/tests/handlers/examples/
 **Template**: `linear_workflow/mathematical_sequence_ts`
 
 **Test Functions** (already created, verify):
+
 - `test_typescript_linear_workflow_standard()` - Input 6
 - `test_typescript_linear_workflow_different_input()` - Input 10
 - `test_typescript_linear_workflow_ordering()` - Input 8
@@ -345,12 +360,14 @@ workers/typescript/tests/handlers/examples/
 ### Phase 4: Unit Test Coverage
 
 **Target**: >80% coverage on:
+
 - `src/handler/` - Handler base classes, registry, API handler
 - `src/types/` - Type definitions and result classes
 - `src/server/` - Worker server, shutdown controller
 - `src/events/` - Event poller, subscriber
 
 **Existing Tests** (verify coverage):
+
 - `tests/unit/handler/` - registry, base, api, decision, batchable
 - `tests/unit/types/` - step context, step handler result, error type
 - `tests/unit/server/` - worker-server, shutdown-controller
@@ -462,6 +479,7 @@ typescript-worker:
 ### All 19 E2E Tests Passing
 
 All TypeScript E2E tests are now passing:
+
 - 2 batch_processing tests
 - 5 conditional_approval tests
 - 3 diamond_workflow tests
@@ -513,6 +531,7 @@ metadata: {
 ### Future Work: TAS-112
 
 **TAS-112** has been created for step handler consistency improvements:
+
 - Full alignment of batchable patterns across Ruby, Python, and TypeScript
 - Standardize helper method signatures and behaviors
 - Ensure consistent error handling patterns

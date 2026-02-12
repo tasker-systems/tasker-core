@@ -133,19 +133,23 @@ orchestration_core: Arc<OrchestrationCore>,
 ## Execution Plan
 
 ### Phase 1: High-Visibility Files (covered in TAS-89-1)
+
 - [x] Step handlers (28 instances)
 
 ### Phase 2: Test Infrastructure
+
 - [ ] `tests/common/` (6 instances)
 - [ ] `tasker-pgmq/tests/` (4 instances)
 - [ ] `tasker-shared/tests/` (varies)
 
 ### Phase 3: Core Crates
+
 - [ ] `tasker-shared/src/` (24 instances)
 - [ ] `tasker-orchestration/src/` (16 instances)
 - [ ] `tasker-worker/src/` (10 instances)
 
 ### Phase 4: FFI Bindings
+
 - [ ] `workers/python/` (2 instances)
 - [ ] `workers/typescript/` (2 instances)
 - [ ] `workers/ruby/` (2 instances)
@@ -188,6 +192,7 @@ cargo clippy --all-targets --all-features
 ## Risk Assessment
 
 **Risk**: None
+
 - Lint annotation only, no runtime change
 - If an `#[expect]` becomes unnecessary, CI will flag it (this is good!)
 - Purely mechanical transformation

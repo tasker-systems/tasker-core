@@ -199,6 +199,7 @@ The same JSON representation must work across all languages:
 ### Developer Productivity
 
 When switching from a Ruby handler to a Python handler:
+
 - No relearning core concepts
 - Same mental model applies
 - Documentation transfers
@@ -206,6 +207,7 @@ When switching from a Ruby handler to a Python handler:
 ### Code Review Consistency
 
 Reviewers can evaluate handlers in any language:
+
 - Pattern violations are obvious
 - Best practices are universal
 - Anti-patterns are recognizable
@@ -213,6 +215,7 @@ Reviewers can evaluate handlers in any language:
 ### Documentation Efficiency
 
 One set of conceptual docs serves all languages:
+
 - Language-specific pages show syntax only
 - Core patterns documented once
 - Examples parallel across languages

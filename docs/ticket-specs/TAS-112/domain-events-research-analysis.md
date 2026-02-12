@@ -99,6 +99,7 @@ let json_value = json!({
 **Risk**: If the Rust `DomainEvent` structure changes, this manual JSON construction will silently produce incorrect output. Unlike step events which use `FfiStepEventDto` with `ts-rs` generation, domain events lack compile-time type safety.
 
 **Comparison with Step Events** (correct pattern):
+
 - Step events use `FfiStepEventDto` struct in `dto.rs`
 - Types generated via `ts-rs` to `src/ffi/generated/`
 - Compile-time validation ensures Rust and TypeScript stay in sync
@@ -130,11 +131,13 @@ let json_value = json!({
 ### 3.1 Ruby Implementation (Most Complete)
 
 **Files**:
+
 - `workers/ruby/ext/tasker_core/src/bridge.rs` - Core lifecycle
 - `workers/ruby/ext/tasker_core/src/event_publisher_ffi.rs` - Durable publishing
 - `workers/ruby/ext/tasker_core/src/in_process_event_ffi.rs` - Fast polling
 
 **Architecture**:
+
 ```
 Ruby Handler → FFI.publish_domain_event() → event_publisher_ffi.rs
                                            ↓
@@ -146,6 +149,7 @@ Ruby Subscriber ← InProcessDomainEventPoller ← FFI.poll_in_process_events()
 ```
 
 **Strengths**:
+
 - Dedicated FFI files for publishing and polling
 - Full `EventPublishRequest` struct with `serde_magnus` deserialization
 - Thread-safe `WORKER_SYSTEM` mutex pattern
@@ -154,9 +158,11 @@ Ruby Subscriber ← InProcessDomainEventPoller ← FFI.poll_in_process_events()
 ### 3.2 TypeScript Implementation (Recently Completed)
 
 **Files**:
+
 - `workers/typescript/src-rust/bridge.rs` - Combined lifecycle, polling, and events
 
 **Architecture**:
+
 ```
 TypeScript Handler → Rust orchestration publishes (not direct FFI)
 
@@ -168,21 +174,25 @@ TypeScript Subscriber ← InProcessDomainEventPoller ← runtime.pollInProcessEv
 ```
 
 **Strengths**:
+
 - Single bridge file (simpler but less modular)
 - Runtime abstraction (`TaskerRuntime`) for multi-runtime support (Bun, Node, Deno)
 - `ffiEventToDomainEvent()` transformation function
 
 **Weaknesses**:
+
 - No direct publishing FFI (relies on Rust orchestration)
 - Manual JSON construction for domain events
 
 ### 3.3 Python Implementation
 
 **Files**:
+
 - `workers/python/src/bridge.rs` - Core lifecycle
 - `workers/python/src/observability.rs` - Domain event polling
 
 **Architecture**:
+
 ```
 Python Handler → Rust orchestration publishes (not direct FFI)
 
@@ -194,10 +204,12 @@ Python Subscriber ← InProcessDomainEventPoller ← _poll_in_process_events()
 ```
 
 **Strengths**:
+
 - `pythonize` crate for safe serde-based serialization
 - Threaded polling model (daemon thread)
 
 **Weaknesses**:
+
 - No direct publishing FFI
 - Missing lifecycle hooks
 - No structured registries
@@ -402,6 +414,7 @@ class InProcessDomainEvent(BaseModel):
 **Where**: Architecture documentation
 
 Document the behavior of nullable fields:
+
 - `stepUuid`: null for task-level events, populated for step-level events
 - `stepName`: null for task-level events
 - `firedBy`: null when publisher not specified
@@ -435,6 +448,7 @@ Document the behavior of nullable fields:
 ## Appendix A: File References
 
 ### TypeScript Worker
+
 - `workers/typescript/src-rust/bridge.rs` - FFI bridge (409-423 manual JSON)
 - `workers/typescript/src-rust/dto.rs` - DTO definitions
 - `workers/typescript/src/ffi/types.ts` - FFI type definitions (153-175)
@@ -442,12 +456,14 @@ Document the behavior of nullable fields:
 - `workers/typescript/src/handler/index.ts` - Public exports
 
 ### Python Worker
+
 - `workers/python/src/bridge.rs` - FFI bridge
 - `workers/python/src/observability.rs` - Domain event polling (31-107)
 - `workers/python/python/tasker_core/domain_events.py` - Domain event infrastructure
 - `workers/python/python/tasker_core/types.py` - Type definitions (978-1032)
 
 ### Ruby Worker
+
 - `workers/ruby/ext/tasker_core/src/bridge.rs` - FFI bridge (35-309)
 - `workers/ruby/ext/tasker_core/src/event_publisher_ffi.rs` - Durable publishing (1-240)
 - `workers/ruby/ext/tasker_core/src/in_process_event_ffi.rs` - Fast polling (1-320)
@@ -458,12 +474,14 @@ Document the behavior of nullable fields:
 - `workers/ruby/lib/tasker_core/worker/in_process_domain_event_poller.rb` - Event poller
 
 ### Rust Core
+
 - `tasker-shared/src/events/domain_events.rs` - Domain event types (1-348)
 - `tasker-shared/src/events/registry.rs` - Event registry (1-300)
 - `tasker-worker/src/worker/in_process_event_bus.rs` - In-process bus (1-380)
 - `workers/rust/src/event_subscribers/` - Example subscribers
 
 ### Documentation
+
 - `docs/architecture/domain-events.md` - Architecture overview
 - `docs/ticket-specs/TAS-112/implementation-plan.md` - Implementation plan
 - `docs/ticket-specs/TAS-112/domain-events.md` - Domain events specification

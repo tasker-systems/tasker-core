@@ -77,6 +77,7 @@ This module classifies exceptions for retry behavior, which is fundamental to er
 **Risk**: Incorrect error classification leads to either lost work (permanent errors retried) or infinite retry loops (transient errors not retried). This directly affects production reliability.
 
 **Tests needed**:
+
 - Unit tests for `retryable()` covering each permanent error class (13 classes), each retryable error class (12 classes), and default behavior for unknown exceptions
 - Test `classify()` returns correct classification source strings
 - Test `permanent()` returns inverse of `retryable()`
@@ -104,6 +105,7 @@ The `EventPoller` is the core threading component that polls FFI dispatch channe
 **Risk**: The event poller is the primary mechanism for receiving and dispatching work in the Python worker. Untested thread lifecycle and error handling could lead to silent failures or resource leaks in production.
 
 **Tests needed**:
+
 - Mock `_tasker_core` FFI functions (`poll_step_events`, `get_ffi_dispatch_metrics`, `check_starvation_warnings`, `cleanup_timeouts`)
 - Test `start()` creates thread, `stop()` joins it, double-start raises `RuntimeError`
 - Test `_poll_loop()` processes events via callbacks when data is available
@@ -130,6 +132,7 @@ The `HandlerRegistry` is the central singleton for handler discovery, registrati
 **Risk**: Handler registry bootstrap is the entry point for the entire worker handler system. Untested bootstrap paths could result in handlers not being discovered in production, leading to "handler not found" errors for every step event.
 
 **Tests needed**:
+
 - Test `bootstrap_handlers()` in test environment (TASKER_ENV=test) scans preloaded modules
 - Test `bootstrap_handlers()` falls through to template discovery when no test handlers found
 - Test `_discover_handlers_from_templates()` with mock YAML files
@@ -157,6 +160,7 @@ HTTP functionality mixin for step handlers. Missing coverage includes:
 **Risk**: Medium. API handlers using uncommon HTTP methods or relying on error classification may not work correctly. The error classification logic determines retry behavior for external API calls.
 
 **Tests needed**:
+
 - Test `ApiResponse` construction with JSON and non-JSON content types, body parsing fallback
 - Test `ApiResponse` properties: `ok`, `is_client_error`, `is_server_error`, `is_retryable`, `retry_after`
 - Test all HTTP methods (`put`, `patch`, `delete`, `request`) using httpx test transport
@@ -184,6 +188,7 @@ Batch processing mixin for analyzers, workers, and aggregators. Missing coverage
 **Risk**: Medium-high. Batch processing is a core workflow pattern. Incorrect cursor boundary math or aggregation logic could cause data loss or processing gaps.
 
 **Tests needed**:
+
 - Test `BatchAggregationScenario.detect()` for NoBatches and WithBatches scenarios, missing batchable step, no workers found
 - Test `create_cursor_configs()` for even/uneven division, edge cases (0 items, 1 worker)
 - Test `get_batch_worker_inputs()` with valid and invalid step inputs
@@ -208,6 +213,7 @@ YAML template-based handler discovery. Missing coverage includes:
 **Risk**: Medium. Template discovery only affects production bootstrap. Incorrect workspace detection could lead to handlers not being discovered, but this is mitigated by explicit TASKER_TEMPLATE_PATH override.
 
 **Tests needed**:
+
 - Test `find_template_config_directory()` priority: TASKER_TEMPLATE_PATH > test env > WORKSPACE_PATH > auto-detect > fallback
 - Test `_detect_workspace_root()` finds markers (Cargo.toml, .git, etc.)
 - Test `_find_test_template_path()` with correct directory structure
@@ -231,6 +237,7 @@ Domain event publishing/subscribing system. Missing coverage includes:
 **Risk**: Medium. Domain events are used for non-critical real-time notifications. However, subscriber lifecycle bugs could lead to memory leaks or missed notifications.
 
 **Tests needed**:
+
 - Test `BasePublisher.publish()` lifecycle hooks (should_publish=False skips, before_publish=False aborts, error triggers on_publish_error)
 - Test custom publisher with `transform_payload()` and `additional_metadata()`
 - Test `BaseSubscriber.start()` registers callbacks, `stop()` deactivates

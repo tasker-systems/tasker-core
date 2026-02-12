@@ -7,11 +7,13 @@
 ## Code Style
 
 ### Formatting
+
 - Use `cargo fmt` (enforced via CI)
 - Maximum line length: 100 characters (rustfmt default)
 - Use trailing commas in multi-line constructs
 
 ### Naming Conventions
+
 ```rust
 // Types: PascalCase
 struct TaskRequestActor { ... }
@@ -32,6 +34,7 @@ fn handle<Msg: Message>(msg: Msg) { ... }
 ```
 
 ### Module Organization
+
 ```rust
 // lib.rs ordering
 //! Crate-level documentation
@@ -56,6 +59,7 @@ mod tests;
 ## Error Handling
 
 ### Error Types
+
 ```rust
 // Use thiserror for library errors
 #[derive(Debug, thiserror::Error)]
@@ -75,6 +79,7 @@ pub type Result<T> = std::result::Result<T, TaskError>;
 ```
 
 ### Error Propagation
+
 ```rust
 // Use ? operator for propagation
 async fn get_task(id: Uuid) -> Result<Task> {
@@ -91,6 +96,7 @@ let config = load_config()
 ```
 
 ### No Panics in Library Code
+
 ```rust
 // BAD: Panic in library
 fn get_handler(name: &str) -> &Handler {
@@ -114,6 +120,7 @@ fn get_handler(&self, name: &str) -> &Handler {
 ## Async Patterns
 
 ### Tokio Runtime
+
 ```rust
 // Use #[tokio::main] for binaries
 #[tokio::main]
@@ -129,6 +136,7 @@ async fn test_process_step() {
 ```
 
 ### Channel Patterns (TAS-51)
+
 ```rust
 // ALWAYS use bounded channels
 let (tx, rx) = tokio::sync::mpsc::channel(config.channel_capacity);
@@ -144,6 +152,7 @@ struct ChannelConfig {
 ```
 
 ### Actor Pattern
+
 ```rust
 // Standard actor structure
 pub struct MyActor {
@@ -176,6 +185,7 @@ impl MyActor {
 ## Database Patterns
 
 ### SQLx Usage
+
 ```rust
 // Use query macros for compile-time checking
 let task = sqlx::query_as!(
@@ -198,6 +208,7 @@ tx.commit().await?;
 ```
 
 ### SQLx Cache
+
 ```bash
 # After modifying queries, update cache:
 cargo make sqlx-prepare
@@ -211,6 +222,7 @@ git add .sqlx/
 ## Documentation
 
 ### Module Documentation
+
 ```rust
 //! # Task Processing
 //!
@@ -232,6 +244,7 @@ pub mod processor;
 ```
 
 ### Item Documentation
+
 ```rust
 /// Processes a single workflow step.
 ///
@@ -273,6 +286,7 @@ pub async fn process_step(step: &Step, context: &Context) -> Result<StepResult> 
 ## Testing
 
 ### Test Organization
+
 ```rust
 // Unit tests in same file
 #[cfg(test)]
@@ -291,6 +305,7 @@ mod tests {
 ```
 
 ### Test Naming
+
 ```rust
 #[test]
 fn state_transition_from_pending_to_initializing_succeeds() { ... }
@@ -303,6 +318,7 @@ async fn process_step_with_all_dependencies_met_executes_handler() { ... }
 ```
 
 ### Property-Based Testing
+
 ```rust
 use proptest::prelude::*;
 
@@ -321,6 +337,7 @@ proptest! {
 ## Lint Compliance (TAS-58)
 
 ### Use `#[expect]` Instead of `#[allow]`
+
 ```rust
 // BAD: No reason given
 #[allow(dead_code)]
@@ -336,6 +353,7 @@ fn rabbitmq_connect() { ... }
 ```
 
 ### Required Trait Implementations
+
 ```rust
 // All public types must implement Debug
 #[derive(Debug)]
@@ -355,6 +373,7 @@ pub struct StepConfig {
 ## Performance Considerations
 
 ### Avoid Unnecessary Allocations
+
 ```rust
 // BAD: Unnecessary String allocation
 fn process(name: String) { ... }
@@ -367,6 +386,7 @@ fn process(name: Cow<'_, str>) { ... }
 ```
 
 ### Use Iterators
+
 ```rust
 // BAD: Collect then iterate
 let names: Vec<_> = items.iter().map(|i| i.name.clone()).collect();
@@ -381,6 +401,7 @@ for name in items.iter().map(|i| &i.name) { ... }
 ## Project-Specific Patterns
 
 ### Configuration Loading
+
 ```rust
 // Use tasker-shared config utilities
 use tasker_shared::config::ConfigLoader;
@@ -392,6 +413,7 @@ let config = ConfigLoader::new()
 ```
 
 ### State Machine Transitions
+
 ```rust
 // Use atomic SQL functions for state changes
 let result = sqlx::query!(
@@ -404,6 +426,7 @@ let result = sqlx::query!(
 ```
 
 ### Event Publishing
+
 ```rust
 // Use the event system for cross-component communication
 let event = StepCompletedEvent {
