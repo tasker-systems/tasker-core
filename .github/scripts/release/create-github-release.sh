@@ -6,6 +6,7 @@ set -euo pipefail
 # Env:
 #   CORE_VERSION
 #   CRATES_RESULT, RUBY_RESULT, PYTHON_RESULT, TS_RESULT, CONTAINERS_RESULT
+#   FFI_RESULT
 #   RUBY_VERSION, PYTHON_VERSION, TS_VERSION
 #   GH_TOKEN (for gh CLI authentication)
 
@@ -35,6 +36,16 @@ fi
 
 if [[ "${TS_RESULT}" == "success" && "${TS_VERSION}" != "unchanged" ]]; then
   BODY+="| @tasker-systems/tasker | ${TS_VERSION} | [npm](https://www.npmjs.com/package/@tasker-systems/tasker) |"$'\n'
+fi
+
+if [[ "${FFI_RESULT:-}" == "success" ]]; then
+  BODY+=$'\n'"## FFI Libraries"$'\n\n'
+  BODY+="Pre-built native libraries for all 3 architectures are attached to this release."$'\n\n'
+  BODY+="| Target | Python | TypeScript | Ruby |"$'\n'
+  BODY+="|--------|--------|------------|------|"$'\n'
+  BODY+="| x86_64-unknown-linux-gnu | .whl | .so | .so |"$'\n'
+  BODY+="| aarch64-unknown-linux-gnu | .whl | .so | .so |"$'\n'
+  BODY+="| aarch64-apple-darwin | .whl | .dylib | .bundle |"$'\n'
 fi
 
 if [[ "${CONTAINERS_RESULT}" == "success" ]]; then

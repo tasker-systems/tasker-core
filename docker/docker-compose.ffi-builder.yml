@@ -1,0 +1,61 @@
+# =============================================================================
+# FFI Builder Compose Configuration
+# =============================================================================
+# Builds FFI libraries for Linux x86_64 and arm64 architectures.
+# Both services share an sccache volume for maximum cache reuse.
+#
+# Usage:
+#   # Build for linux/amd64
+#   docker compose -f docker/docker-compose.ffi-builder.yml run --rm ffi-build-amd64
+#
+#   # Build for linux/arm64 (native on Apple Silicon Docker Desktop)
+#   docker compose -f docker/docker-compose.ffi-builder.yml run --rm ffi-build-arm64
+#
+#   # Build single language
+#   docker compose -f docker/docker-compose.ffi-builder.yml run --rm ffi-build-amd64 --language python
+#
+# macOS arm64 (native, no Docker):
+#   ./scripts/ffi-build/build-all.sh
+
+services:
+  # ==========================================================================
+  # Linux x86_64 builder
+  # ==========================================================================
+  ffi-build-amd64:
+    build:
+      context: ..
+      dockerfile: docker/build/ffi-builder.Dockerfile
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
+    entrypoint: ["./scripts/ffi-build/build-all.sh", "--target", "x86_64-unknown-linux-gnu"]
+    volumes:
+      - sccache-cache:/root/.cache/sccache
+      - ../artifacts:/app/artifacts
+    environment:
+      SCCACHE_DIR: /root/.cache/sccache
+      SCCACHE_CACHE_SIZE: 10G
+      SQLX_OFFLINE: "true"
+
+  # ==========================================================================
+  # Linux arm64 builder
+  # ==========================================================================
+  ffi-build-arm64:
+    build:
+      context: ..
+      dockerfile: docker/build/ffi-builder.Dockerfile
+      platforms:
+        - linux/arm64
+    platform: linux/arm64
+    entrypoint: ["./scripts/ffi-build/build-all.sh", "--target", "aarch64-unknown-linux-gnu"]
+    volumes:
+      - sccache-cache:/root/.cache/sccache
+      - ../artifacts:/app/artifacts
+    environment:
+      SCCACHE_DIR: /root/.cache/sccache
+      SCCACHE_CACHE_SIZE: 10G
+      SQLX_OFFLINE: "true"
+
+volumes:
+  sccache-cache:
+    name: tasker-ffi-sccache

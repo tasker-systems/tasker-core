@@ -1,0 +1,172 @@
+name: Build FFI Libraries
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version string for artifact naming'
+        required: true
+        type: string
+    outputs:
+      artifact-prefix:
+        description: 'Prefix for uploaded artifact names'
+        value: ${{ jobs.build.outputs.artifact-prefix }}
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version string for artifact naming'
+        required: false
+        default: 'dev'
+
+# =============================================================================
+# Matrix Strategy
+# =============================================================================
+# Builds 3 FFI libraries (Python, TypeScript, Ruby) for each architecture.
+# Within each job, libraries build sequentially to maximize sccache hit rates
+# (all 3 share ~709 compiled rlibs).
+#
+# | Job           | Runner       | Method                    | sccache Backend      |
+# |---------------|-------------|---------------------------|---------------------|
+# | linux-amd64   | ubuntu-22.04 | Docker (ffi-builder)      | Docker layer cache  |
+# | linux-arm64   | ubuntu-22.04 | Docker + QEMU             | Docker layer cache  |
+# | macos-arm64   | macos-14     | Native scripts            | GHA cache           |
+# =============================================================================
+
+jobs:
+  build:
+    name: FFI ${{ matrix.target.name }}
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: ${{ matrix.target.timeout }}
+    outputs:
+      artifact-prefix: ffi-${{ inputs.version || 'dev' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: linux-amd64
+            runner: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+            method: docker
+            platform: linux/amd64
+            timeout: 45
+          - name: linux-arm64
+            runner: ubuntu-22.04
+            triple: aarch64-unknown-linux-gnu
+            method: docker
+            platform: linux/arm64
+            # QEMU emulation is slower; Docker layer caching mitigates on repeat builds.
+            # TODO: Switch to native arm64 runners when available.
+            timeout: 60
+          - name: macos-arm64
+            runner: macos-14
+            triple: aarch64-apple-darwin
+            method: native
+            platform: ''
+            timeout: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # =====================================================================
+      # Docker-based builds (Linux)
+      # =====================================================================
+      - name: Set up Docker Buildx
+        if: matrix.target.method == 'docker'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        if: matrix.target.method == 'docker' && matrix.target.name == 'linux-arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build FFI libraries (Docker)
+        if: matrix.target.method == 'docker'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/build/ffi-builder.Dockerfile
+          platforms: ${{ matrix.target.platform }}
+          push: false
+          load: true
+          tags: tasker-ffi-builder:${{ matrix.target.name }}
+          cache-from: type=gha,scope=ffi-builder-${{ matrix.target.name }}
+          cache-to: type=gha,scope=ffi-builder-${{ matrix.target.name }},mode=max
+
+      - name: Extract FFI artifacts (Docker)
+        if: matrix.target.method == 'docker'
+        run: |
+          mkdir -p artifacts
+          docker run --rm \
+            -v "$(pwd)/artifacts:/app/artifacts" \
+            tasker-ffi-builder:${{ matrix.target.name }} \
+            --target ${{ matrix.target.triple }}
+
+      # =====================================================================
+      # Native builds (macOS)
+      # =====================================================================
+      - name: Setup Rust
+        if: matrix.target.method == 'native'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup sccache
+        if: matrix.target.method == 'native'
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Set sccache environment
+        if: matrix.target.method == 'native'
+        shell: bash
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Install protobuf compiler
+        if: matrix.target.method == 'native'
+        uses: ./.github/actions/install-protobuf
+
+      - name: Setup Python
+        if: matrix.target.method == 'native'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install maturin
+        if: matrix.target.method == 'native'
+        run: pip install maturin>=1.7
+
+      - name: Setup Ruby
+        if: matrix.target.method == 'native'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+          working-directory: workers/ruby
+
+      - name: Setup Bun
+        if: matrix.target.method == 'native'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build FFI libraries (native)
+        if: matrix.target.method == 'native'
+        run: ./scripts/ffi-build/build-all.sh --target ${{ matrix.target.triple }}
+        env:
+          SQLX_OFFLINE: 'true'
+
+      # =====================================================================
+      # Verification & upload (both methods)
+      # =====================================================================
+      - name: List artifacts
+        run: |
+          echo "Artifacts for ${{ matrix.target.triple }}:"
+          find artifacts/ -type f | sort
+
+      - name: Upload FFI artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: ffi-${{ inputs.version || 'dev' }}-${{ matrix.target.triple }}
+          path: artifacts/${{ matrix.target.triple }}/
+          retention-days: 7
+          if-no-files-found: error

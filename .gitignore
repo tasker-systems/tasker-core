@@ -76,6 +76,9 @@ __pycache__/
 # uv virtual environments (coverage tooling)
 cargo-make/scripts/coverage/.venv/
 
+# FFI build artifacts
+artifacts/
+
 # Auto-generated CLAUDE.md files in subdirectories (keep only repo root)
 CLAUDE.md
 !/CLAUDE.md
