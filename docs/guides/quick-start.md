@@ -364,19 +364,31 @@ Explore practical use cases:
 
 ```rust
 // workers/rust/src/handlers/my_handler.rs
+use async_trait::async_trait;
+use anyhow::Result;
+use serde_json::json;
+use tasker_shared::messaging::StepExecutionResult;
+use tasker_shared::types::TaskSequenceStep;
+
 pub struct MyCustomHandler;
 
 #[async_trait]
-impl StepHandler for MyCustomHandler {
-    async fn execute(&self, context: StepContext) -> Result<StepResult> {
-        // Your business logic here
-        let input: String = context.configuration.get("input")?;
+impl RustStepHandler for MyCustomHandler {
+    async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
+        let input: String = step_data.get_input_or("input", "default".to_string());
 
         let result = process_data(&input).await?;
 
-        Ok(StepResult::success(json!({
-            "output": result
-        })))
+        Ok(StepExecutionResult::success(
+            step_data.workflow_step.workflow_step_uuid,
+            json!({ "output": result }),
+            0,
+            None,
+        ))
+    }
+
+    fn name(&self) -> &'static str {
+        "my_handler"
     }
 }
 ```
@@ -384,14 +396,13 @@ impl StepHandler for MyCustomHandler {
 #### Option B: Ruby Handler (via FFI)
 
 ```ruby
-# workers/ruby/app/tasker/tasks/templates/my_workflow/handlers/my_handler.rb
-class MyHandler < TaskerCore::StepHandler
-  def execute(context)
-    input = context.configuration['input']
+class MyHandler < TaskerCore::StepHandler::Base
+  def call(context)
+    input = context.get_input('input')
 
     result = process_data(input)
 
-    { success: true, output: result }
+    success(result: { output: result })
   end
 end
 ```
@@ -400,13 +411,14 @@ end
 
 ```yaml
 # tests/fixtures/task_templates/rust/my_workflow.yaml
-namespace: my_namespace
+namespace_name: my_namespace
 name: my_workflow
-version: "1.0"
+version: "1.0.0"
 
 steps:
   - name: my_step
-    handler: my_handler
+    handler:
+      callable: my_handler
     dependencies: []
     retry:
       retryable: true

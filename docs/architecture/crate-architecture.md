@@ -405,8 +405,8 @@ pub struct WorkerCore {
 
 // Handler execution
 pub mod handlers {
-    pub trait StepHandler {
-        async fn execute(&self, context: StepContext) -> Result<StepResult>;
+    pub trait RustStepHandler {
+        async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult>;
     }
 }
 
@@ -563,10 +563,10 @@ result = TaskerCore::Worker::Bootstrap.start!
 # Ruby templates in workers/ruby/app/tasker/tasks/templates/
 
 # Handler execution (automatic via FFI)
-class MyHandler < TaskerCore::StepHandler
-  def execute(context)
+class MyHandler < TaskerCore::StepHandler::Base
+  def call(context)
     # Step implementation
-    { success: true, result: "done" }
+    success(result: { status: 'done' })
   end
 end
 ```
@@ -613,10 +613,10 @@ end
 pub struct MyHandler;
 
 #[async_trait]
-impl StepHandler for MyHandler {
-    async fn execute(&self, context: StepContext) -> Result<StepResult> {
+impl RustStepHandler for MyHandler {
+    async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
         // Step implementation
-        Ok(StepResult::success(json!({"result": "done"})))
+        Ok(StepExecutionResult::success_from_json(json!({"result": "done"})))
     }
 }
 
