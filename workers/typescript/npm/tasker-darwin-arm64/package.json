@@ -1,0 +1,25 @@
+{
+  "name": "@tasker-systems/tasker-darwin-arm64",
+  "version": "0.1.2",
+  "description": "macOS ARM64 native library for @tasker-systems/tasker",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "libtasker_ts.dylib",
+  "files": [
+    "libtasker_ts.dylib",
+    "README.md"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tasker-systems/tasker-core.git",
+    "directory": "workers/typescript/npm/tasker-darwin-arm64"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

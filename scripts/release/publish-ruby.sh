@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # scripts/release/publish-ruby.sh
 #
-# Build native gem and publish to RubyGems.
+# Build and publish Ruby gem(s) to RubyGems.
 #
 # Usage:
-#   ./scripts/release/publish-ruby.sh VERSION [--dry-run] [--on-duplicate=skip|warn|fail]
+#   ./scripts/release/publish-ruby.sh VERSION [--dry-run] [--on-duplicate=skip|warn|fail] \
+#       [--artifacts-dir DIR]
 #
-# The gem ships source — users compile the native extension at install time.
-# Requires GEM_HOST_API_KEY (skipped in dry-run mode).
-# Requires SQLX_OFFLINE=true + protobuf for Rust compilation.
+# When --artifacts-dir is provided, builds platform gems from pre-compiled FFI
+# artifacts (3 platform gems + 1 source gem). Otherwise builds just the source gem.
+#
+# Requires GEM_HOST_API_KEY for local publishing (skipped in dry-run and CI).
 
 set -euo pipefail
 
@@ -23,16 +25,19 @@ shift || true
 
 DRY_RUN=false
 ON_DUPLICATE="warn"
+ARTIFACTS_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --dry-run)          DRY_RUN=true; shift ;;
         --on-duplicate=*)   ON_DUPLICATE="${1#*=}"; shift ;;
+        --artifacts-dir)    ARTIFACTS_DIR="$2"; shift 2 ;;
+        --artifacts-dir=*)  ARTIFACTS_DIR="${1#*=}"; shift ;;
         *)                  die "Unknown argument: $1" ;;
     esac
 done
 
-[[ -z "$VERSION" ]] && die "Usage: $0 VERSION [--dry-run] [--on-duplicate=skip|warn|fail]"
+[[ -z "$VERSION" ]] && die "Usage: $0 VERSION [--dry-run] [--on-duplicate=skip|warn|fail] [--artifacts-dir DIR]"
 
 GEM_NAME="tasker-rb"
 
@@ -41,52 +46,70 @@ log_info "Package: ${GEM_NAME}"
 log_info "Version: ${VERSION}"
 log_info "Dry run: ${DRY_RUN}"
 log_info "On duplicate: ${ON_DUPLICATE}"
+log_info "Artifacts dir: ${ARTIFACTS_DIR:-none (source-only)}"
 
 # ---------------------------------------------------------------------------
 # Pre-flight: verify credentials
 # ---------------------------------------------------------------------------
-# In GitHub Actions, OIDC trusted publishing handles auth via rubygems/release-gem.
-# GEM_HOST_API_KEY is only required for local/manual publishing.
 if [[ "$DRY_RUN" != "true" && -z "${GITHUB_ACTIONS:-}" ]]; then
     require_env "GEM_HOST_API_KEY" "RubyGems publishing"
 fi
 
 # ---------------------------------------------------------------------------
-# Build
+# Build gems
 # ---------------------------------------------------------------------------
-log_section "Building native extension"
-cd "${REPO_ROOT}/workers/ruby"
-
-bundle exec rake compile
-
-log_section "Building gem"
-gem build "${GEM_NAME}.gemspec"
+if [[ -n "$ARTIFACTS_DIR" ]]; then
+    # Build platform gems + source gem from pre-built artifacts
+    log_section "Building platform gems from pre-built artifacts"
+    "${SCRIPT_DIR}/build-ruby-gems.sh" "$VERSION" "$ARTIFACTS_DIR"
+    GEM_DIR="${REPO_ROOT}/gem-output"
+else
+    # Source gem only (requires Rust toolchain)
+    log_section "Building source gem (no pre-built artifacts)"
+    cd "${REPO_ROOT}/workers/ruby"
+    gem build "${GEM_NAME}.gemspec"
+    GEM_DIR="${REPO_ROOT}/workers/ruby"
+fi
 
 # ---------------------------------------------------------------------------
 # Publish
 # ---------------------------------------------------------------------------
-GEM_FILE="${GEM_NAME}-${VERSION}.gem"
+log_section "Publishing gems"
 
-if [[ ! -f "$GEM_FILE" ]]; then
-    die "Expected gem file not found: ${GEM_FILE}"
-fi
+publish_gem() {
+    local gem_file="$1"
+    local gem_basename
+    gem_basename="$(basename "$gem_file")"
 
-if [[ "$DRY_RUN" == "true" ]]; then
-    log_info "[dry-run] Would publish ${GEM_FILE}"
-    log_info "[dry-run] Gem contents:"
-    gem specification "$GEM_FILE" | head -20
-else
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[dry-run] Would publish ${gem_basename}"
+        gem specification "$gem_file" | head -20
+        return
+    fi
+
     if gem_exists_on_registry "$GEM_NAME" "$VERSION"; then
         handle_duplicate "$ON_DUPLICATE" "$GEM_NAME" "$VERSION" "RubyGems"
-    else
-        log_info "Publishing ${GEM_FILE}..."
-        gem push "$GEM_FILE"
+        return
     fi
+
+    log_info "Publishing ${gem_basename}..."
+    gem push "$gem_file"
+}
+
+# Publish platform gems first (if they exist)
+for gem_file in "${GEM_DIR}"/${GEM_NAME}-${VERSION}-*.gem; do
+    [[ -f "$gem_file" ]] && publish_gem "$gem_file"
+done
+
+# Publish source gem
+SOURCE_GEM="${GEM_DIR}/${GEM_NAME}-${VERSION}.gem"
+if [[ -f "$SOURCE_GEM" ]]; then
+    publish_gem "$SOURCE_GEM"
 fi
 
 log_section "Done"
 if [[ "$DRY_RUN" == "true" ]]; then
-    log_info "Dry run complete — gem was not published"
+    log_info "Dry run complete — gems were not published"
 else
-    log_info "Gem published successfully"
+    log_info "Gems published successfully"
 fi

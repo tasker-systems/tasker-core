@@ -220,6 +220,74 @@ update_typescript_version() {
     fi
 }
 
+# Update TypeScript platform package versions and optionalDependencies pins.
+# Updates:
+# - workers/typescript/npm/*/package.json version fields
+# - workers/typescript/package.json optionalDependencies version pins
+update_typescript_platform_versions() {
+    local version="$1"
+    local npm_dir="${REPO_ROOT}/workers/typescript/npm"
+    local main_pkg="${REPO_ROOT}/workers/typescript/package.json"
+
+    # Update platform package versions
+    local -a platform_dirs=("tasker-linux-x64" "tasker-linux-arm64" "tasker-darwin-arm64")
+    for dir in "${platform_dirs[@]}"; do
+        local pkg="${npm_dir}/${dir}/package.json"
+        if [[ ! -f "$pkg" ]]; then
+            log_warn "Platform package not found: $pkg"
+            continue
+        fi
+        if [[ "${DRY_RUN:-false}" == "true" ]]; then
+            log_info "Would update $pkg version -> $version"
+        else
+            local line_num
+            line_num=$(grep -n -m1 '"version"' "$pkg" | cut -d: -f1)
+            if [[ -n "$line_num" ]]; then
+                sed_i "${line_num}s/\"version\": \"[^\"]*\"/\"version\": \"${version}\"/" "$pkg"
+            fi
+            log_info "Updated ${dir}/package.json -> $version"
+        fi
+    done
+
+    # Update optionalDependencies version pins in main package.json
+    if [[ -f "$main_pkg" ]]; then
+        for dir in "${platform_dirs[@]}"; do
+            local pkg_name="@tasker-systems/${dir}"
+            if [[ "${DRY_RUN:-false}" == "true" ]]; then
+                log_info "Would update optionalDependency ${pkg_name} -> $version in main package.json"
+            else
+                sed_i "s|\"${pkg_name}\": \"[^\"]*\"|\"${pkg_name}\": \"${version}\"|" "$main_pkg"
+                log_info "Updated optionalDependency ${pkg_name} -> $version"
+            fi
+        done
+    fi
+}
+
+# Update Ruby ext Cargo.toml dependency pins for standalone builds.
+# The source gem uses explicit crates.io versions instead of workspace deps.
+update_ruby_cargo_dep_pins() {
+    local version="$1"
+    local file="${REPO_ROOT}/workers/ruby/ext/tasker_core/Cargo.toml"
+
+    if [[ ! -f "$file" ]]; then
+        log_warn "Ruby ext Cargo.toml not found: $file"
+        return
+    fi
+
+    # Update pinned dependency versions: tasker-shared, tasker-worker, tasker-core
+    local -a crate_deps=("tasker-shared" "tasker-worker" "tasker-core")
+    for dep in "${crate_deps[@]}"; do
+        if grep -q "^${dep} = " "$file" 2>/dev/null; then
+            if [[ "${DRY_RUN:-false}" == "true" ]]; then
+                log_info "Would update ${dep} pin in Ruby ext Cargo.toml -> =${version}"
+            else
+                sed_i "s/\(${dep} = {.*version = \"=\)[^\"]*\"/\1${version}\"/" "$file"
+                log_info "Updated ${dep} pin -> =${version}"
+            fi
+        fi
+    done
+}
+
 # ---------------------------------------------------------------------------
 # Credential verification
 # ---------------------------------------------------------------------------

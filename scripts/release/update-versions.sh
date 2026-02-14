@@ -77,6 +77,14 @@ if [[ -n "$RUBY_VERSION" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Ruby ext Cargo.toml dependency pins (tasker-shared, tasker-worker, tasker-core)
+# These use explicit crates.io versions instead of workspace deps so the
+# source gem can build outside the workspace.
+# ---------------------------------------------------------------------------
+log_section "Ruby ext Cargo.toml dependency pins"
+update_ruby_cargo_dep_pins "$CORE_VERSION"
+
+# ---------------------------------------------------------------------------
 # Python binding
 # ---------------------------------------------------------------------------
 if [[ -n "$PYTHON_VERSION" ]]; then
@@ -90,4 +98,5 @@ fi
 if [[ -n "$TS_VERSION" ]]; then
     log_section "TypeScript binding"
     update_typescript_version "$TS_VERSION"
+    update_typescript_platform_versions "$TS_VERSION"
 fi
