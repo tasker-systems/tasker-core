@@ -54,6 +54,21 @@ bump_patch() {
     echo "${major}.${minor}.$((patch + 1))"
 }
 
+# Compare semver: returns 0 (true) if $1 >= $2, 1 (false) otherwise.
+# Needed because bash string comparison fails for multi-digit components
+# (e.g., "0.1.10" < "0.1.3" is lexically true but numerically false).
+semver_ge() {
+    local a_major a_minor a_patch b_major b_minor b_patch
+    IFS='.' read -r a_major a_minor a_patch <<< "$1"
+    IFS='.' read -r b_major b_minor b_patch <<< "$2"
+    (( a_major > b_major )) && return 0
+    (( a_major < b_major )) && return 1
+    (( a_minor > b_minor )) && return 0
+    (( a_minor < b_minor )) && return 1
+    (( a_patch >= b_patch )) && return 0
+    return 1
+}
+
 # ---------------------------------------------------------------------------
 # File update helpers
 #

@@ -73,6 +73,9 @@ jobs:
       python_changed: ${{ steps.detect.outputs.PYTHON_CHANGED }}
       typescript_changed: ${{ steps.detect.outputs.TYPESCRIPT_CHANGED }}
       containers_changed: ${{ steps.detect.outputs.CONTAINERS_CHANGED }}
+      ruby_infra_changed: ${{ steps.detect.outputs.RUBY_INFRA_CHANGED }}
+      python_infra_changed: ${{ steps.detect.outputs.PYTHON_INFRA_CHANGED }}
+      typescript_infra_changed: ${{ steps.detect.outputs.TYPESCRIPT_INFRA_CHANGED }}
       core_version: ${{ steps.read.outputs.CORE_VERSION }}
       ruby_version: ${{ steps.read.outputs.RUBY_VERSION }}
       python_version: ${{ steps.read.outputs.PYTHON_VERSION }}
@@ -171,7 +174,10 @@ jobs:
       (needs.detect-and-read.outputs.ffi_core_changed == 'true' ||
        needs.detect-and-read.outputs.ruby_changed == 'true' ||
        needs.detect-and-read.outputs.python_changed == 'true' ||
-       needs.detect-and-read.outputs.typescript_changed == 'true')
+       needs.detect-and-read.outputs.typescript_changed == 'true' ||
+       needs.detect-and-read.outputs.ruby_infra_changed == 'true' ||
+       needs.detect-and-read.outputs.python_infra_changed == 'true' ||
+       needs.detect-and-read.outputs.typescript_infra_changed == 'true')
     permissions:
       contents: read
     uses: ./.github/workflows/build-ffi-libraries.yml
@@ -236,7 +242,8 @@ jobs:
       needs.pre-flight-check.result == 'success' &&
       needs.build-ffi-libraries.result != 'cancelled' &&
       (needs.detect-and-read.outputs.ruby_changed == 'true' ||
-       needs.detect-and-read.outputs.ffi_core_changed == 'true')
+       needs.detect-and-read.outputs.ffi_core_changed == 'true' ||
+       needs.detect-and-read.outputs.ruby_infra_changed == 'true')
     permissions:
       contents: write
       id-token: write
@@ -341,7 +348,8 @@ jobs:
     if: |
       always() && !cancelled() && !failure() &&
       (needs.detect-and-read.outputs.python_changed == 'true' ||
-       needs.detect-and-read.outputs.ffi_core_changed == 'true')
+       needs.detect-and-read.outputs.ffi_core_changed == 'true' ||
+       needs.detect-and-read.outputs.python_infra_changed == 'true')
     permissions:
       contents: write
       id-token: write
@@ -419,7 +427,8 @@ jobs:
       needs.pre-flight-check.result == 'success' &&
       needs.build-ffi-libraries.result != 'cancelled' &&
       (needs.detect-and-read.outputs.typescript_changed == 'true' ||
-       needs.detect-and-read.outputs.ffi_core_changed == 'true')
+       needs.detect-and-read.outputs.ffi_core_changed == 'true' ||
+       needs.detect-and-read.outputs.typescript_infra_changed == 'true')
     permissions:
       contents: write
       id-token: write

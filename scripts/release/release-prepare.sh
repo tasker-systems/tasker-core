@@ -93,9 +93,9 @@ eval "$("${SCRIPT_DIR}/calculate-versions.sh" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}
 log_info "Base ref: ${CHANGES_BASE_REF}"
 log_info "FFI core changed: ${FFI_CORE_CHANGED}"
 log_info "Server core changed: ${SERVER_CORE_CHANGED}"
-log_info "Ruby changed: ${RUBY_CHANGED}"
-log_info "Python changed: ${PYTHON_CHANGED}"
-log_info "TypeScript changed: ${TYPESCRIPT_CHANGED}"
+log_info "Ruby changed: ${RUBY_CHANGED} (infra: ${RUBY_INFRA_CHANGED})"
+log_info "Python changed: ${PYTHON_CHANGED} (infra: ${PYTHON_INFRA_CHANGED})"
+log_info "TypeScript changed: ${TYPESCRIPT_CHANGED} (infra: ${TYPESCRIPT_INFRA_CHANGED})"
 
 # ---------------------------------------------------------------------------
 # Summary
@@ -121,16 +121,22 @@ for lang in ruby python typescript; do
     LANG_UPPER=$(echo "$lang" | tr '[:lower:]' '[:upper:]')
     VERSION_VAR="NEXT_${LANG_UPPER}_VERSION"
     VERSION_VAL="${!VERSION_VAR}"
+    CURRENT_VAR="CURRENT_${LANG_UPPER}_VERSION"
+    CURRENT_VAL="${!CURRENT_VAR}"
     if [[ "$VERSION_VAL" != "unchanged" ]]; then
         REASON=""
+        LANG_CHANGED_VAR="${LANG_UPPER}_CHANGED"
+        LANG_INFRA_VAR="${LANG_UPPER}_INFRA_CHANGED"
         if [[ "$FFI_CORE_CHANGED" == "true" ]]; then
             REASON=" (core changed)"
+        elif [[ "${!LANG_INFRA_VAR}" == "true" ]]; then
+            REASON=" (infra changed)"
         else
-            REASON=" (binding-only change)"
+            REASON=" (binding changed)"
         fi
-        printf "    %-14s %s%s\n" "${lang}:" "${VERSION_VAL}" "${REASON}"
+        printf "    %-14s %s -> %s%s\n" "${lang}:" "${CURRENT_VAL}" "${VERSION_VAL}" "${REASON}"
     else
-        printf "    %-14s %s\n" "${lang}:" "(unchanged)"
+        printf "    %-14s %s (unchanged)\n" "${lang}:" "${CURRENT_VAL}"
     fi
 done
 
@@ -162,7 +168,16 @@ UPDATE_ARGS="--core ${NEXT_CORE_VERSION}"
 # ---------------------------------------------------------------------------
 # Create release branch
 # ---------------------------------------------------------------------------
-RELEASE_BRANCH="release/v${NEXT_CORE_VERSION}"
+if [[ "$CORE_CHANGED" == "true" ]]; then
+    RELEASE_BRANCH="release/v${NEXT_CORE_VERSION}"
+else
+    # FFI-only release: build branch name from changed packages
+    FFI_SUFFIX=""
+    [[ "${NEXT_RUBY_VERSION}" != "unchanged" ]] && FFI_SUFFIX+="-rb-v${NEXT_RUBY_VERSION}"
+    [[ "${NEXT_PYTHON_VERSION}" != "unchanged" ]] && FFI_SUFFIX+="-py-v${NEXT_PYTHON_VERSION}"
+    [[ "${NEXT_TYPESCRIPT_VERSION}" != "unchanged" ]] && FFI_SUFFIX+="-ts-v${NEXT_TYPESCRIPT_VERSION}"
+    RELEASE_BRANCH="release/ffi${FFI_SUFFIX}"
+fi
 log_section "Creating branch: ${RELEASE_BRANCH}"
 
 git checkout -b "$RELEASE_BRANCH"
@@ -214,7 +229,19 @@ SQLX_OFFLINE=true cargo check --all-features
 log_section "Committing changes"
 
 git add -u
-git commit -m "chore(release): prepare v${NEXT_CORE_VERSION}"
+
+if [[ "$CORE_CHANGED" == "true" ]]; then
+    COMMIT_MSG="chore(release): prepare v${NEXT_CORE_VERSION}"
+else
+    # FFI-only: list changed packages in commit message
+    FFI_PARTS=""
+    [[ "${NEXT_RUBY_VERSION}" != "unchanged" ]] && FFI_PARTS+="Ruby v${NEXT_RUBY_VERSION}, "
+    [[ "${NEXT_PYTHON_VERSION}" != "unchanged" ]] && FFI_PARTS+="Python v${NEXT_PYTHON_VERSION}, "
+    [[ "${NEXT_TYPESCRIPT_VERSION}" != "unchanged" ]] && FFI_PARTS+="TypeScript v${NEXT_TYPESCRIPT_VERSION}, "
+    FFI_PARTS="${FFI_PARTS%, }"  # trim trailing comma
+    COMMIT_MSG="chore(release): prepare FFI packages - ${FFI_PARTS}"
+fi
+git commit -m "$COMMIT_MSG"
 
 # ---------------------------------------------------------------------------
 # Push + PR
@@ -223,24 +250,31 @@ log_section "Pushing and creating PR"
 
 git push -u origin "$RELEASE_BRANCH"
 
-# Build PR body
-PR_BODY="## Release v${NEXT_CORE_VERSION}"$'\n\n'
+# Build PR title and body
+if [[ "$CORE_CHANGED" == "true" ]]; then
+    PR_TITLE="chore(release): prepare v${NEXT_CORE_VERSION}"
+    PR_BODY="## Release v${NEXT_CORE_VERSION}"$'\n\n'
+else
+    PR_TITLE="chore(release): prepare FFI packages - ${FFI_PARTS}"
+    PR_BODY="## FFI Package Release"$'\n\n'
+fi
+
 PR_BODY+="Prepared by \`cargo make release-prepare\`."$'\n\n'
 PR_BODY+="### Version Changes"$'\n\n'
-PR_BODY+="| Component | Version |"$'\n'
-PR_BODY+="|-----------|---------|"$'\n'
+PR_BODY+="| Component | Current | Next |"$'\n'
+PR_BODY+="|-----------|---------|------|"$'\n'
 
 if [[ "$CORE_CHANGED" == "true" ]]; then
-    PR_BODY+="| Rust crates | ${NEXT_CORE_VERSION} |"$'\n'
+    PR_BODY+="| Rust crates | ${CURRENT_CORE_VERSION} | ${NEXT_CORE_VERSION} |"$'\n'
 fi
 if [[ "${NEXT_RUBY_VERSION}" != "unchanged" ]]; then
-    PR_BODY+="| Ruby (tasker-rb) | ${NEXT_RUBY_VERSION} |"$'\n'
+    PR_BODY+="| Ruby (tasker-rb) | ${CURRENT_RUBY_VERSION} | ${NEXT_RUBY_VERSION} |"$'\n'
 fi
 if [[ "${NEXT_PYTHON_VERSION}" != "unchanged" ]]; then
-    PR_BODY+="| Python (tasker-py) | ${NEXT_PYTHON_VERSION} |"$'\n'
+    PR_BODY+="| Python (tasker-py) | ${CURRENT_PYTHON_VERSION} | ${NEXT_PYTHON_VERSION} |"$'\n'
 fi
 if [[ "${NEXT_TYPESCRIPT_VERSION}" != "unchanged" ]]; then
-    PR_BODY+="| TypeScript (@tasker-systems/tasker) | ${NEXT_TYPESCRIPT_VERSION} |"$'\n'
+    PR_BODY+="| TypeScript (@tasker-systems/tasker) | ${CURRENT_TYPESCRIPT_VERSION} | ${NEXT_TYPESCRIPT_VERSION} |"$'\n'
 fi
 
 PR_BODY+=$'\n'"### Post-Merge"$'\n\n'
@@ -250,7 +284,7 @@ PR_BODY+="gh workflow run release.yml --ref main -f dry_run=false"$'\n'
 PR_BODY+="\`\`\`"$'\n'
 
 gh pr create \
-    --title "chore(release): prepare v${NEXT_CORE_VERSION}" \
+    --title "$PR_TITLE" \
     --body "$PR_BODY" \
     --base main \
     --head "$RELEASE_BRANCH"

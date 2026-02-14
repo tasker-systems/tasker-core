@@ -105,6 +105,22 @@ if changes_match '^workers/typescript/'; then
     TYPESCRIPT_CHANGED=true
 fi
 
+# FFI build/packaging infrastructure (per-language)
+RUBY_INFRA_CHANGED=false
+if changes_match '^scripts/(ffi-build/build-ruby\.sh|release/(build-ruby-gems\.sh|publish-ruby\.sh))'; then
+    RUBY_INFRA_CHANGED=true
+fi
+
+PYTHON_INFRA_CHANGED=false
+if changes_match '^scripts/(ffi-build/build-python\.sh|release/publish-python\.sh)'; then
+    PYTHON_INFRA_CHANGED=true
+fi
+
+TYPESCRIPT_INFRA_CHANGED=false
+if changes_match '^scripts/(ffi-build/build-typescript\.sh|release/publish-typescript\.sh)'; then
+    TYPESCRIPT_INFRA_CHANGED=true
+fi
+
 # Container infrastructure: Dockerfiles, compose configs, entrypoint scripts
 CONTAINERS_CHANGED=false
 if changes_match '^docker/'; then
@@ -121,4 +137,7 @@ echo "CORE_CHANGED=${CORE_CHANGED}"
 echo "RUBY_CHANGED=${RUBY_CHANGED}"
 echo "PYTHON_CHANGED=${PYTHON_CHANGED}"
 echo "TYPESCRIPT_CHANGED=${TYPESCRIPT_CHANGED}"
+echo "RUBY_INFRA_CHANGED=${RUBY_INFRA_CHANGED}"
+echo "PYTHON_INFRA_CHANGED=${PYTHON_INFRA_CHANGED}"
+echo "TYPESCRIPT_INFRA_CHANGED=${TYPESCRIPT_INFRA_CHANGED}"
 echo "CONTAINERS_CHANGED=${CONTAINERS_CHANGED}"
