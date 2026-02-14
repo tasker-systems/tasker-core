@@ -63,9 +63,9 @@ bun run build
 # Determine npm tag
 # ---------------------------------------------------------------------------
 NPM_TAG="latest"
-if [[ "$VERSION" == *"-"* || "$VERSION" == 0.* ]]; then
-    NPM_TAG="alpha"
-fi
+# if [[ "$VERSION" == *"-"* || "$VERSION" == 0.* ]]; then
+#     NPM_TAG="alpha"
+# fi
 
 # ---------------------------------------------------------------------------
 # Publish
