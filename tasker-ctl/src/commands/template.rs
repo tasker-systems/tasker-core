@@ -6,6 +6,7 @@ use std::path::Path;
 use crate::cli_config::CliConfig;
 use crate::output;
 use crate::plugins::PluginRegistry;
+use crate::remotes;
 use crate::template_engine::TemplateEngine;
 use crate::TemplateCommands;
 
@@ -17,10 +18,21 @@ pub(crate) async fn handle_template_command(
         TemplateCommands::List {
             language,
             framework,
-        } => list_templates(cli_config, language.as_deref(), framework.as_deref()),
+            remote,
+            url,
+        } => {
+            let effective = effective_cli_config(cli_config, remote.as_deref(), url.as_deref())?;
+            list_templates(&effective, language.as_deref(), framework.as_deref())
+        }
 
-        TemplateCommands::Info { name, plugin } => {
-            show_template_info(cli_config, &name, plugin.as_deref())
+        TemplateCommands::Info {
+            name,
+            plugin,
+            remote,
+            url,
+        } => {
+            let effective = effective_cli_config(cli_config, remote.as_deref(), url.as_deref())?;
+            show_template_info(&effective, &name, plugin.as_deref())
         }
 
         TemplateCommands::Generate {
@@ -29,14 +41,48 @@ pub(crate) async fn handle_template_command(
             language,
             plugin,
             output,
-        } => generate_template(
-            cli_config,
-            &template,
-            &param,
-            language.as_deref(),
-            plugin.as_deref(),
-            output.as_deref(),
-        ),
+            remote,
+            url,
+        } => {
+            let effective = effective_cli_config(cli_config, remote.as_deref(), url.as_deref())?;
+            generate_template(
+                &effective,
+                &template,
+                &param,
+                language.as_deref(),
+                plugin.as_deref(),
+                output.as_deref(),
+            )
+        }
+    }
+}
+
+/// Build an effective CliConfig with remote plugin paths resolved and appended.
+///
+/// When `--remote` or `--url` is specified, only that specific remote's plugins are added.
+/// When neither is specified, all configured remotes are auto-resolved (Phase 5).
+fn effective_cli_config(
+    cli_config: &CliConfig,
+    remote: Option<&str>,
+    url: Option<&str>,
+) -> tasker_client::ClientResult<CliConfig> {
+    if remote.is_some() || url.is_some() {
+        // Explicit --remote or --url: resolve only that source
+        let extra_paths = remotes::resolve_remote_plugin_paths(cli_config, remote, url)?;
+        let mut paths = cli_config.plugin_paths.clone();
+        for p in extra_paths {
+            paths.push(p.to_string_lossy().to_string());
+        }
+        Ok(CliConfig {
+            plugin_paths: paths,
+            default_language: cli_config.default_language.clone(),
+            default_output_dir: cli_config.default_output_dir.clone(),
+            remotes: cli_config.remotes.clone(),
+            cache_max_age_hours: cli_config.cache_max_age_hours,
+        })
+    } else {
+        // No explicit remote: auto-resolve all configured remotes
+        Ok(remotes::resolve_all_remote_plugin_paths(cli_config))
     }
 }
 

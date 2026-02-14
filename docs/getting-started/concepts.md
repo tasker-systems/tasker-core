@@ -9,7 +9,7 @@ A **Task** is a unit of work submitted to Tasker for execution. Tasks have:
 - A **task template** that defines the workflow structure
 - An **initiator** identifying the source (e.g., `user:123`, `system:scheduler`)
 - A **context** containing input data and metadata
-- A **state** that progresses through `pending` → `in_progress` → `complete`/`error`
+- A **state** managed by a 12-state machine (see below)
 
 ```json
 {
@@ -62,15 +62,27 @@ A **Step** is a single operation within a workflow. Steps:
 - Return results that downstream steps can access
 - Can be retried on failure
 
-### Step States
+### Task Lifecycle
 
-| State | Description |
-|-------|-------------|
-| `pending` | Waiting for dependencies |
-| `in_progress` | Currently executing |
-| `complete` | Finished successfully |
-| `error` | Failed (may retry) |
-| `cancelled` | Workflow cancelled |
+Tasks progress through a multi-phase lifecycle managed by the orchestration actors:
+
+```
+Pending → Initializing → EnqueuingSteps → StepsInProcess → EvaluatingResults → Complete
+```
+
+The evaluating phase may loop back to enqueue more steps as dependencies are satisfied, wait for retries, or transition to terminal states (`Complete`, `Error`, `Cancelled`, `ResolvedManually`). Tasks support cancellation from any non-terminal state and manual resolution from `BlockedByFailures`.
+
+### Step Lifecycle
+
+Steps follow a worker-to-orchestration handoff pattern through 10 states:
+
+```
+Pending → Enqueued → InProgress → EnqueuedForOrchestration → Complete
+```
+
+After a worker executes a step, the result is enqueued back to orchestration for processing. Steps can also transition through `WaitingForRetry` for automatic retry with backoff, or be cancelled, failed, or manually resolved.
+
+For the full state machine diagrams and transition tables, see [States and Lifecycles](../architecture/states-and-lifecycles.md).
 
 ## Step Handlers
 

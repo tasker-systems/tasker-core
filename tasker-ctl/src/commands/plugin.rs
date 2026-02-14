@@ -23,7 +23,7 @@ fn list_plugins(cli_config: &CliConfig) -> tasker_client::ClientResult<()> {
         output::warning("No plugins discovered.");
         if cli_config.plugin_paths.is_empty() {
             output::blank();
-            output::hint("Configure plugin paths in .tasker-cli.toml:");
+            output::hint("Configure plugin paths in .tasker-ctl.toml:");
             output::blank();
             output::plain(
                 "  plugin-paths = [\"./tasker-cli-plugins\", \"~/projects/tasker-contrib\"]",

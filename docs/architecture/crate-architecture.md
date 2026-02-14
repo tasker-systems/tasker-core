@@ -331,7 +331,7 @@ pub mod event_systems {
 The orchestration crate implements a lightweight actor pattern for lifecycle component coordination:
 
 - **ActorRegistry**: Manages all 4 orchestration actors with lifecycle hooks
-- **Message-Based Communication**: Type-safe message handling via `Handler<M>` trait
+- **Message-Based Communication**: Type-safe message handling via ``Handler<M>`` trait
 - **Service Decomposition**: Large services decomposed into focused components (<300 lines per file)
 - **Direct Integration**: Command processor calls actors directly without wrapper layers
 

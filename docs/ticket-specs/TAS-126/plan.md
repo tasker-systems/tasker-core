@@ -31,9 +31,9 @@ heck = { workspace = true }
 
 **New module: `tasker-ctl/src/cli_config/`**
 - `mod.rs` - `CliConfig` struct with `plugin_paths`, `default_language`, `default_output_dir`
-- `loader.rs` - Config file discovery: `./.tasker-cli.toml` > `~/.config/tasker-cli.toml`
+- `loader.rs` - Config file discovery: `./.tasker-ctl.toml` > `~/.config/tasker-ctl.toml`
 
-Config format (`.tasker-cli.toml`):
+Config format (`.tasker-ctl.toml`):
 ```toml
 plugin-paths = [
     "./tasker-cli-plugins",
@@ -139,7 +139,7 @@ tasker-ctl template generate step-handler \               # Generate from templa
 ## Key Design Decisions
 
 1. **Hybrid template engines**: Askama (compile-time) stays for built-in docs, Tera (runtime) for plugin templates
-2. **Separate config file**: `.tasker-cli.toml` for plugin paths (not in `.config/tasker-client.toml`)
+2. **Separate config file**: `.tasker-ctl.toml` for plugin paths (not in `.config/tasker-client.toml`)
 3. **No feature gate**: Plugin system is core CLI functionality, Tera adds ~500KB
 4. **No `directories` crate**: Simple 2-path discovery with `$HOME` expansion
 5. **Smart 2-level scan**: Handles tasker-contrib's nested layout (`rails/tasker-cli-plugin/`)
@@ -152,5 +152,5 @@ tasker-ctl template generate step-handler \               # Generate from templa
 1. `cargo build --all-features` compiles cleanly
 2. `cargo clippy --all-targets --all-features --workspace` zero warnings
 3. `cargo test --all-features -p tasker-ctl` passes all tests
-4. Manual test: point `.tasker-cli.toml` at tasker-contrib, run `tasker-ctl plugin list`
+4. Manual test: point `.tasker-ctl.toml` at tasker-contrib, run `tasker-ctl plugin list`
 5. Manual test: create a test plugin with `.tera` templates, run `tasker-ctl template generate`

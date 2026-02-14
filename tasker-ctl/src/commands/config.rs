@@ -5,7 +5,9 @@ use regex::Regex;
 use tasker_client::{ClientConfig, ClientResult};
 use tasker_shared::config::{tasker::TaskerConfig, ConfigMerger};
 
+use crate::cli_config;
 use crate::output;
+use crate::remotes;
 use crate::ConfigCommands;
 
 /// Extract line and column from TOML error message
@@ -31,21 +33,34 @@ pub(crate) async fn handle_config_command(
             source_dir,
             output,
             validate,
+            remote,
+            url,
         } => {
+            let cli_config = cli_config::load_cli_config();
+            let effective_source_dir = remotes::resolve_remote_config_path(
+                &cli_config,
+                remote.as_deref(),
+                url.as_deref(),
+            )?
+            .unwrap_or(source_dir);
+
             output::header("Generating configuration:");
             output::label("  Context", &context);
             output::label("  Environment", &environment);
-            output::label("  Source", &source_dir);
+            output::label("  Source", &effective_source_dir);
             output::label("  Output", &output);
 
             // Create ConfigMerger
-            let mut merger = ConfigMerger::new(std::path::PathBuf::from(&source_dir), &environment)
-                .map_err(|e| {
-                    tasker_client::ClientError::ConfigError(format!(
-                        "Failed to initialize config merger: {}",
-                        e
-                    ))
-                })?;
+            let mut merger = ConfigMerger::new(
+                std::path::PathBuf::from(&effective_source_dir),
+                &environment,
+            )
+            .map_err(|e| {
+                tasker_client::ClientError::ConfigError(format!(
+                    "Failed to initialize config merger: {}",
+                    e
+                ))
+            })?;
 
             // Merge configuration
             output::blank();
@@ -75,7 +90,7 @@ pub(crate) async fn handle_config_command(
                 context,
                 environment,
                 Utc::now().to_rfc3339(),
-                source_dir
+                effective_source_dir
             );
 
             // Write header + merged config to output file
@@ -311,28 +326,41 @@ pub(crate) async fn handle_config_command(
             environment,
             source_dir,
             explain_errors,
+            remote,
+            url,
         } => {
+            let cli_config = cli_config::load_cli_config();
+            let effective_source_dir = remotes::resolve_remote_config_path(
+                &cli_config,
+                remote.as_deref(),
+                url.as_deref(),
+            )?
+            .unwrap_or(source_dir);
+
             output::header("Validating source configuration:");
             output::label("  Context", &context);
             output::label("  Environment", &environment);
-            output::label("  Source directory", &source_dir);
+            output::label("  Source directory", &effective_source_dir);
 
             // Create ConfigMerger
-            let mut merger = ConfigMerger::new(std::path::PathBuf::from(&source_dir), &environment)
-                .map_err(|e| {
-                    if explain_errors {
-                        output::error("Failed to initialize config merger:");
-                        eprintln!("  {}", e);
-                        eprintln!("\nPossible causes:");
-                        eprintln!("  - Source directory doesn't exist");
-                        eprintln!("  - Missing base/ subdirectory");
-                        eprintln!("  - Invalid directory permissions");
-                    }
-                    tasker_client::ClientError::ConfigError(format!(
-                        "Failed to initialize config merger: {}",
-                        e
-                    ))
-                })?;
+            let mut merger = ConfigMerger::new(
+                std::path::PathBuf::from(&effective_source_dir),
+                &environment,
+            )
+            .map_err(|e| {
+                if explain_errors {
+                    output::error("Failed to initialize config merger:");
+                    eprintln!("  {}", e);
+                    eprintln!("\nPossible causes:");
+                    eprintln!("  - Source directory doesn't exist");
+                    eprintln!("  - Missing base/ subdirectory");
+                    eprintln!("  - Invalid directory permissions");
+                }
+                tasker_client::ClientError::ConfigError(format!(
+                    "Failed to initialize config merger: {}",
+                    e
+                ))
+            })?;
 
             // Attempt to merge configuration (validates source files, env var substitution)
             output::blank();
@@ -856,7 +884,13 @@ pub(crate) async fn handle_config_command(
             source_dir,
             format,
             path,
+            remote,
+            url,
         } => {
+            let cli_cfg = cli_config::load_cli_config();
+            let effective_source_dir =
+                remotes::resolve_remote_config_path(&cli_cfg, remote.as_deref(), url.as_deref())?
+                    .unwrap_or(source_dir);
             // Check if --path was provided (legacy single-file mode)
             let tasker_config: TaskerConfig = if let Some(config_path) = path {
                 // Load directly from path using simple V2 loader
@@ -882,14 +916,13 @@ pub(crate) async fn handle_config_command(
 
                 // Create ConfigMerger
                 let mut merger =
-                    ConfigMerger::new(std::path::PathBuf::from(&source_dir), environment).map_err(
-                        |e| {
+                    ConfigMerger::new(std::path::PathBuf::from(&effective_source_dir), environment)
+                        .map_err(|e| {
                             tasker_client::ClientError::ConfigError(format!(
                                 "Failed to initialize config merger: {}",
                                 e
                             ))
-                        },
-                    )?;
+                        })?;
 
                 // Merge configuration to TOML string
                 let merged_toml = merger.merge_context(context).map_err(|e| {

@@ -147,10 +147,10 @@ api_key_env = "TASKER_API_KEY"
 
 ### Plugin Configuration
 
-Plugin discovery paths are configured in `.tasker-cli.toml`:
+Plugin discovery paths are configured in `.tasker-ctl.toml`:
 
 ```toml
-# .tasker-cli.toml
+# .tasker-ctl.toml
 plugin-paths = [
     "./tasker-cli-plugins",
     "~/projects/tasker-systems/tasker-contrib",
@@ -159,7 +159,7 @@ default-language = "ruby"
 default-output-dir = "./app/handlers"
 ```
 
-Discovery checks: `./.tasker-cli.toml` then `~/.config/tasker-cli.toml`.
+Discovery checks: `./.tasker-ctl.toml` then `~/.config/tasker-ctl.toml`.
 
 ## Terminal Output
 

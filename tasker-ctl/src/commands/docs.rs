@@ -7,14 +7,12 @@ use tasker_client::ClientResult;
 use tasker_shared::config::doc_context::ConfigContext;
 use tasker_shared::config::doc_context_builder::DocContextBuilder;
 
-#[cfg(feature = "docs-gen")]
+use askama::Template;
+
 use crate::docs::{
     AnnotatedConfigTemplate, ConfigReferenceTemplate, DocIndexTemplate, ParameterExplainTemplate,
     SectionDetailTemplate,
 };
-#[cfg(feature = "docs-gen")]
-use askama::Template;
-
 use crate::output;
 use crate::DocsCommands;
 
@@ -253,7 +251,6 @@ async fn handle_index(output: Option<&str>, base_dir: &str) -> ClientResult<()> 
 // ── Rendering helpers ────────────────────────────────────────────────────
 // pub(crate) so `config explain` can delegate to the same Askama rendering.
 
-#[cfg(feature = "docs-gen")]
 pub(crate) fn render_reference(
     context_name: &str,
     sections: &[tasker_shared::config::doc_context::SectionContext],
@@ -271,23 +268,6 @@ pub(crate) fn render_reference(
     })
 }
 
-#[cfg(not(feature = "docs-gen"))]
-pub(crate) fn render_reference(
-    context_name: &str,
-    sections: &[tasker_shared::config::doc_context::SectionContext],
-    total_parameters: usize,
-    documented_parameters: usize,
-) -> ClientResult<String> {
-    Ok(format!(
-        "# Configuration Reference: {}\n\n{}/{} parameters documented\n\n{} sections",
-        context_name,
-        documented_parameters,
-        total_parameters,
-        sections.len()
-    ))
-}
-
-#[cfg(feature = "docs-gen")]
 pub(crate) fn render_annotated(
     context_name: &str,
     environment: &str,
@@ -303,21 +283,6 @@ pub(crate) fn render_annotated(
     })
 }
 
-#[cfg(not(feature = "docs-gen"))]
-pub(crate) fn render_annotated(
-    context_name: &str,
-    environment: &str,
-    sections: &[tasker_shared::config::doc_context::SectionContext],
-) -> ClientResult<String> {
-    Ok(format!(
-        "# Annotated config: {} (env: {})\n# {} sections",
-        context_name,
-        environment,
-        sections.len()
-    ))
-}
-
-#[cfg(feature = "docs-gen")]
 pub(crate) fn render_section_detail(
     section: &tasker_shared::config::doc_context::SectionContext,
     context_name: &str,
@@ -333,21 +298,6 @@ pub(crate) fn render_section_detail(
     })
 }
 
-#[cfg(not(feature = "docs-gen"))]
-pub(crate) fn render_section_detail(
-    section: &tasker_shared::config::doc_context::SectionContext,
-    context_name: &str,
-    _environment: Option<&str>,
-) -> ClientResult<String> {
-    Ok(format!(
-        "# Section: {} ({})\n{} parameters",
-        section.name,
-        context_name,
-        section.parameters.len()
-    ))
-}
-
-#[cfg(feature = "docs-gen")]
 pub(crate) fn render_parameter_explain(
     parameter: &tasker_shared::config::doc_context::ParameterContext,
     environment: Option<&str>,
@@ -361,18 +311,6 @@ pub(crate) fn render_parameter_explain(
     })
 }
 
-#[cfg(not(feature = "docs-gen"))]
-pub(crate) fn render_parameter_explain(
-    parameter: &tasker_shared::config::doc_context::ParameterContext,
-    _environment: Option<&str>,
-) -> ClientResult<String> {
-    Ok(format!(
-        "Parameter: {}\n  Type: {}\n  Default: {}\n  {}",
-        parameter.path, parameter.rust_type, parameter.default_value, parameter.description
-    ))
-}
-
-#[cfg(feature = "docs-gen")]
 pub(crate) fn render_index(
     common_sections: &[tasker_shared::config::doc_context::SectionContext],
     orchestration_sections: &[tasker_shared::config::doc_context::SectionContext],
@@ -392,25 +330,6 @@ pub(crate) fn render_index(
     template.render().map_err(|e| {
         tasker_client::ClientError::ConfigError(format!("Template rendering failed: {}", e))
     })
-}
-
-#[cfg(not(feature = "docs-gen"))]
-pub(crate) fn render_index(
-    common_sections: &[tasker_shared::config::doc_context::SectionContext],
-    orchestration_sections: &[tasker_shared::config::doc_context::SectionContext],
-    worker_sections: &[tasker_shared::config::doc_context::SectionContext],
-    total_parameters: usize,
-    documented_parameters: usize,
-    _coverage_percent: usize,
-) -> ClientResult<String> {
-    Ok(format!(
-        "# Documentation Index\n\n{}/{} parameters documented\n\nCommon: {} sections\nOrchestration: {} sections\nWorker: {} sections",
-        documented_parameters,
-        total_parameters,
-        common_sections.len(),
-        orchestration_sections.len(),
-        worker_sections.len()
-    ))
 }
 
 // ── Utility helpers ──────────────────────────────────────────────────────

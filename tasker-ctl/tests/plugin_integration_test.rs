@@ -19,7 +19,7 @@ fn tasker_ctl_bin() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_tasker-ctl"))
 }
 
-/// Run tasker-ctl with the given args from a working directory that has a .tasker-cli.toml.
+/// Run tasker-ctl with the given args from a working directory that has a .tasker-ctl.toml.
 fn run_tasker_ctl(work_dir: &Path, args: &[&str]) -> std::process::Output {
     Command::new(tasker_ctl_bin())
         .args(args)
@@ -78,11 +78,11 @@ description = "{tmpl_desc}"
     plugin_dir
 }
 
-/// Create a .tasker-cli.toml in the given directory.
+/// Create a .tasker-ctl.toml in the given directory.
 fn create_cli_config(dir: &Path, plugin_paths: &[&str]) {
     let paths: Vec<String> = plugin_paths.iter().map(|p| format!("\"{p}\"")).collect();
     let config = format!("plugin-paths = [{}]\n", paths.join(", "));
-    fs::write(dir.join(".tasker-cli.toml"), config).unwrap();
+    fs::write(dir.join(".tasker-ctl.toml"), config).unwrap();
 }
 
 // ==========================================================================
