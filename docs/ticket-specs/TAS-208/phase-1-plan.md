@@ -163,8 +163,8 @@ Rust excluded from variants (fewer specialized patterns in the Rust worker).
 
 1. In tasker-contrib directory:
    ```bash
-   # Create .tasker-cli.toml pointing at tasker-contrib
-   echo 'plugin-paths = ["."]' > /tmp/.tasker-cli.toml
+   # Create .tasker-ctl.toml pointing at tasker-contrib
+   echo 'plugin-paths = ["."]' > /tmp/.tasker-ctl.toml
 
    # From tasker-contrib root:
    tasker-ctl plugin list

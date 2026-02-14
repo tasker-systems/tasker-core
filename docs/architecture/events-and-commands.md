@@ -631,7 +631,7 @@ For comprehensive actor documentation, see [Actor-Based Architecture](actors.md)
 The actor pattern introduces three core traits:
 
 1. **OrchestrationActor**: Base trait for all actors with lifecycle hooks
-2. **Handler<M>**: Message handling trait for type-safe command processing
+2. **`Handler<M>`**: Message handling trait for type-safe command processing
 3. **Message**: Marker trait for command messages
 
 ```rust
@@ -735,7 +735,7 @@ The complete event-to-actor flow:
        │
        ▼
 ┌──────────────────┐
-│ Handler<M>::     │ Actor processes message
+│ `Handler<M>`::     │ Actor processes message
 │    handle()      │ Delegates to underlying service
 └──────┬───────────┘
        │
@@ -784,7 +784,7 @@ The actor pattern enhances the event-driven architecture by providing:
 The actor integration is complete:
 
 1. **Phase 1** ✅: Actor infrastructure and test harness
-   - OrchestrationActor, Handler<M>, Message traits
+   - OrchestrationActor, `Handler<M>`, Message traits
    - ActorRegistry structure
 
 2. **Phase 2-3** ✅: All 4 primary actors implemented

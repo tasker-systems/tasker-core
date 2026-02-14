@@ -7,7 +7,7 @@ This file provides detailed context for AI agents working on the `tasker-orchest
 ```
 tasker-orchestration/src/
 ├── actors/                              # Actor pattern implementation (TAS-46, TAS-148)
-│   ├── traits.rs                        # OrchestrationActor, Handler<M>, Message traits
+│   ├── traits.rs                        # OrchestrationActor, `Handler<M>`, Message traits
 │   ├── registry.rs                      # ActorRegistry with lifecycle management
 │   ├── command_processor_actor.rs       # TAS-148: Unified command processor actor
 │   ├── task_request_actor.rs            # Task initialization actor
@@ -45,7 +45,7 @@ tasker-orchestration/src/
 
 ## Key Architectural Principles
 
-1. **Actors**: Message-based coordination with type-safe `Handler<M>` trait
+1. **Actors**: Message-based coordination with type-safe ``Handler<M>`` trait
 2. **Hydration**: PGMQ message transformation layer (raw messages → domain types)
 3. **Services**: Focused components with single responsibility (<300 lines each)
 4. **Command Processor Actor**: TAS-148 unified actor for command routing with stats tracking

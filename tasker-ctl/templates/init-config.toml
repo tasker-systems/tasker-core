@@ -1,0 +1,26 @@
+# Tasker CLI configuration
+# See: https://github.com/tasker-systems/tasker-core
+
+# Additional local plugin directories (besides remotes)
+# plugin-paths = ["./plugins"]
+
+# Default language for template generation
+# default-language = "ruby"
+
+# Default output directory for generated files
+# default-output-dir = "."
+
+# Hours before cached remotes are considered stale (default: 24)
+# cache-max-age-hours = 24
+{% if include_contrib %}
+
+[[remotes]]
+name = "tasker-contrib"
+url = "https://github.com/tasker-systems/tasker-contrib.git"
+{% else %}
+
+# Add remotes for template and config access:
+# [[remotes]]
+# name = "tasker-contrib"
+# url = "https://github.com/tasker-systems/tasker-contrib.git"
+{% endif %}

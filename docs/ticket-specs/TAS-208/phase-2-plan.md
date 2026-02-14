@@ -12,7 +12,7 @@ Phase 1 (complete, pushed) populated tasker-contrib with 58 template files acros
 
 ## Phase A: Plugin Discovery Config + Cleanup
 
-### A1. Create `.tasker-cli.toml` at repo root
+### A1. Create `.tasker-ctl.toml` at repo root
 
 ```toml
 plugin-paths = ["."]
@@ -48,7 +48,7 @@ All scripts in `scripts/` — POSIX-compatible (macOS bash 3.2 safe: no `mapfile
 The main validation engine. Algorithm:
 
 1. Requires `TASKER_CTL` env var
-2. Creates temp working directory with `.tasker-cli.toml` pointing at repo root
+2. Creates temp working directory with `.tasker-ctl.toml` pointing at repo root
 3. For each plugin (`*/tasker-cli-plugin/`):
    - Extract plugin name and language from `tasker-plugin.toml`
    - Run `$TASKER_CTL plugin validate <dir>`
@@ -247,7 +247,7 @@ jobs:
 
 ## Execution Order
 
-1. **Phase A** — `.tasker-cli.toml` + cleanup .keep files (unblocks everything)
+1. **Phase A** — `.tasker-ctl.toml` + cleanup .keep files (unblocks everything)
 2. **Phase B** — Test scripts (core deliverables, can test locally immediately)
 3. **Phase C** — Makefile.toml (wraps Phase B for ergonomic local use)
 4. **Phase D** — Composite GitHub Actions (needed by CI workflows)
@@ -261,7 +261,7 @@ jobs:
 ### New files (13):
 | File | Purpose |
 |------|---------|
-| `.tasker-cli.toml` | Plugin discovery config |
+| `.tasker-ctl.toml` | Plugin discovery config |
 | `scripts/build-tasker-ctl.sh` | Local tasker-ctl build helper |
 | `scripts/validate-plugins.sh` | Plugin manifest validation |
 | `scripts/test-templates.sh` | Template generation + syntax validation |

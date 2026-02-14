@@ -22,7 +22,7 @@
 ### Actor Pattern Implementation (TAS-46)
 
 - **OrchestrationActor trait**: Clean lifecycle with `name()`, `context()`, `started()`, `stopped()`
-- **Handler<M> trait**: Type-safe message handling
+- **`Handler<M>` trait**: Type-safe message handling
 - **Six concrete actors fully implemented**:
   1. TaskRequestActor
   2. ResultProcessorActor

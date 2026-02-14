@@ -549,7 +549,7 @@ The restructuring makes `commands/service.rs` testable with the in-memory messag
 
 | Flow | Methods | Dependencies |
 |------|---------|-------------|
-| Flow 1 (Direct) | `initialize_task()`, `process_step_result()`, `finalize_task()`, `process_task_readiness()` | These delegate to actors via `Handler<M>` trait. Testable with mock actors or through the existing integration test infrastructure. |
+| Flow 1 (Direct) | `initialize_task()`, `process_step_result()`, `finalize_task()`, `process_task_readiness()` | These delegate to actors via ``Handler<M>`` trait. Testable with mock actors or through the existing integration test infrastructure. |
 
 **Require PGMQ (integration tests only):**
 

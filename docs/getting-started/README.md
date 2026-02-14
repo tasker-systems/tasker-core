@@ -50,10 +50,11 @@ With Tasker, you'll typically:
 
 1. **[Core Concepts](concepts.md)** — Tasks, steps, handlers, templates, and dependencies
 2. **[Installation](install.md)** — Installing packages and running infrastructure
-3. **[Choosing Your Package](choosing-your-package.md)** — Which language package fits your needs?
-4. **[Your First Handler](first-handler.md)** — Write a step handler in your language
-5. **[Your First Workflow](first-workflow.md)** — Define a template, submit a task, watch it run
-6. **[Next Steps](next-steps.md)** — Where to go from here
+3. **[Using tasker-ctl](tasker-ctl.md)** — Initialize projects, generate code from templates, manage config
+4. **[Choosing Your Package](choosing-your-package.md)** — Which language package fits your needs?
+5. **[Your First Handler](first-handler.md)** — Write a step handler in your language
+6. **[Your First Workflow](first-workflow.md)** — Define a template, submit a task, watch it run
+7. **[Next Steps](next-steps.md)** — Where to go from here
 
 ## Language Guides
 

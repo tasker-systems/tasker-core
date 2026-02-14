@@ -16,7 +16,7 @@ This document provides comprehensive documentation of the worker actor-based arc
 The tasker-worker system implements a **lightweight Actor pattern** that mirrors the orchestration architecture, providing:
 
 1. **Actor Abstraction**: Worker components encapsulated as actors with clear lifecycle hooks
-2. **Message-Based Communication**: Type-safe message handling via `Handler<M>` trait
+2. **Message-Based Communication**: Type-safe message handling via ``Handler<M>`` trait
 3. **Central Registry**: `WorkerActorRegistry` for managing all worker actors
 4. **Service Decomposition**: Focused services following single responsibility principle
 5. **Lock-Free Statistics**: AtomicU64 counters for hot-path performance
@@ -44,7 +44,7 @@ This architecture provides consistency between orchestration and worker systems,
 In the tasker-worker context, a **Worker Actor** is an encapsulated step execution component that:
 
 - **Manages its own state**: Each actor owns its dependencies and configuration
-- **Processes messages**: Responds to typed command messages via the `Handler<M>` trait
+- **Processes messages**: Responds to typed command messages via the ``Handler<M>`` trait
 - **Has lifecycle hooks**: Initialization (`started`) and cleanup (`stopped`) methods
 - **Is isolated**: Actors communicate through message passing
 - **Is thread-safe**: All actors are `Send + Sync + 'static`
@@ -147,7 +147,7 @@ pub trait WorkerActor: Send + Sync + 'static {
 }
 ```
 
-### Handler<M> Trait
+### `Handler<M>` Trait
 
 The message handling trait, enabling type-safe message processing:
 
@@ -571,7 +571,7 @@ pub async fn dispatch_domain_events(
 | **Actor Count** | 4 actors | 5 actors |
 | **Registry** | `ActorRegistry` | `WorkerActorRegistry` |
 | **Base Trait** | `OrchestrationActor` | `WorkerActor` |
-| **Message Trait** | `Handler<M>` | `Handler<M>` (same) |
+| **Message Trait** | ``Handler<M>`` | ``Handler<M>`` (same) |
 | **Service Design** | Decomposed | Stateless |
 | **Statistics** | N/A | Lock-free AtomicU64 |
 | **LOC Reduction** | ~800 -> ~200 | 1575 -> ~200 |
@@ -582,7 +582,7 @@ pub async fn dispatch_domain_events(
 
 Same patterns and traits as orchestration actors:
 
-- Identical `Handler<M>` trait interface
+- Identical ``Handler<M>`` trait interface
 - Similar registry lifecycle management
 - Consistent message-based communication
 

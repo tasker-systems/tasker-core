@@ -16,7 +16,7 @@ This document provides comprehensive documentation of the actor-based architectu
 The tasker-core system implements a **lightweight Actor pattern** inspired by frameworks like Actix, but designed specifically for our orchestration needs without external dependencies. The architecture provides:
 
 1. **Actor Abstraction**: Lifecycle components encapsulated as actors with clear lifecycle hooks
-2. **Message-Based Communication**: Type-safe message handling via Handler<M> trait
+2. **Message-Based Communication**: Type-safe message handling via `Handler<M>` trait
 3. **Central Registry**: ActorRegistry for managing all orchestration actors
 4. **Service Decomposition**: Focused components following single responsibility principle
 5. **Direct Integration**: Command processor calls actors directly without wrapper layers
@@ -34,7 +34,7 @@ All phases implemented and production-ready: core abstractions, all 4 primary ac
 In the tasker-core context, an **Actor** is an encapsulated lifecycle component that:
 
 - **Manages its own state**: Each actor owns its dependencies and configuration
-- **Processes messages**: Responds to typed command messages via the Handler<M> trait
+- **Processes messages**: Responds to typed command messages via the `Handler<M>` trait
 - **Has lifecycle hooks**: Initialization (started) and cleanup (stopped) methods
 - **Is isolated**: Actors communicate through message passing
 - **Is thread-safe**: All actors are Send + Sync + 'static
@@ -121,7 +121,7 @@ The base trait for all orchestration actors, defined in `tasker-orchestration/sr
 ///
 /// 1. **Construction**: Actor is created by ActorRegistry
 /// 2. **Initialization**: `started()` is called during registry build
-/// 3. **Operation**: Actor processes messages via Handler<M> implementations
+/// 3. **Operation**: Actor processes messages via `Handler<M>` implementations
 /// 4. **Shutdown**: `stopped()` is called during registry shutdown
 pub trait OrchestrationActor: Send + Sync + 'static {
     /// Returns the unique name of this actor
@@ -177,14 +177,14 @@ pub trait OrchestrationActor: Send + Sync + 'static {
 3. **Context injection**: All actors have access to SystemContext
 4. **Error handling**: Lifecycle failures are TaskerResult for proper error propagation
 
-### Handler<M> Trait
+### `Handler<M>` Trait
 
 The message handling trait, enabling type-safe message processing:
 
 ```rust
 /// Message handler trait for specific message types
 ///
-/// Actors implement Handler<M> for each message type they can process.
+/// Actors implement `Handler<M>` for each message type they can process.
 /// This provides type-safe, asynchronous message handling with clear
 /// input/output contracts.
 #[async_trait]
@@ -204,7 +204,7 @@ pub trait Handler<M: Message>: OrchestrationActor {
 
 1. **async_trait**: All message handling is asynchronous
 2. **Type safety**: Message and Response types are checked at compile time
-3. **Multiple implementations**: Actor can implement Handler<M> for multiple message types
+3. **Multiple implementations**: Actor can implement `Handler<M>` for multiple message types
 4. **Error propagation**: TaskerResult ensures proper error handling
 
 ### Message Trait
@@ -552,7 +552,7 @@ result_processing/ (889 lines → 4 files)
          │
          ▼
 ┌─────────────────┐
-│   Operation     │  Actors process messages via Handler<M>::handle()
+│   Operation     │  Actors process messages via `Handler<M>`::handle()
 └────────┬────────┘
          │
          ▼
@@ -629,7 +629,7 @@ All lifecycle components follow the same pattern:
 
 - Uniform initialization via `started()`
 - Uniform cleanup via `stopped()`
-- Uniform message handling via `Handler<M>`
+- Uniform message handling via ``Handler<M>``
 
 ### 2. Type Safety
 

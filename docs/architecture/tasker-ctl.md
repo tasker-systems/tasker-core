@@ -34,10 +34,15 @@ tasker-ctl/src/
 │   ├── auth.rs          # JWT key generation, token creation/validation
 │   ├── docs.rs          # Configuration documentation generation
 │   ├── plugin.rs        # Plugin discovery and validation
-│   └── template.rs      # Template listing, info, and code generation
-├── cli_config/          # CLI-specific config (.tasker-cli.toml)
+│   ├── template.rs      # Template listing, info, and code generation
+│   ├── remote.rs        # Remote repository management (add, remove, update, list)
+│   └── init.rs          # Bootstrap .tasker-ctl.toml with sensible defaults
+├── cli_config/          # CLI-specific config (.tasker-ctl.toml)
 │   ├── mod.rs
 │   └── loader.rs
+├── remotes/             # Remote git repository fetching and caching
+│   ├── mod.rs
+│   └── cache.rs         # Git clone/fetch operations, cache directory management
 ├── plugins/             # Plugin discovery and registry
 │   ├── mod.rs
 │   ├── manifest.rs      # Parse tasker-plugin.toml manifests
@@ -74,7 +79,7 @@ Commands that interact with Tasker services (task, worker, system, dlq) create A
 Two separate configuration systems serve different purposes:
 
 - **`ClientConfig`** (from `tasker-client`): Server URLs, transport (REST/gRPC), authentication. Loaded via profiles from `.config/tasker-client.toml` with CLI flag and environment variable overrides.
-- **`CliConfig`** (from `cli_config/`): Plugin search paths, default language, default output directory. Loaded from `.tasker-cli.toml` with project-local and user-global discovery.
+- **`CliConfig`** (from `cli_config/`): Plugin search paths, default language, default output directory. Loaded from `.tasker-ctl.toml` with project-local and user-global discovery.
 
 ### Output Styling
 
@@ -153,6 +158,36 @@ template = "handler.rb.tera"
 - `camel_case` — `process_payment` → `processPayment`
 - `kebab_case` — `process_payment` → `process-payment`
 
+### Remote System (TAS-270)
+
+The remote system enables `tasker-ctl` to fetch plugins and configuration from git repositories, removing the need for local checkouts of community template repositories like `tasker-contrib`.
+
+**Cache** (`remotes/cache.rs`): Manages local clones of remote git repos under `~/.cache/tasker-ctl/remotes/<name>/`. Uses `git2` for clone and fetch operations. A `.tasker-last-fetch` timestamp file tracks cache freshness against the configurable `cache-max-age-hours` threshold.
+
+**Configuration** (`cli_config/mod.rs`): Remotes are defined in `.tasker-ctl.toml`:
+```toml
+[[remotes]]
+name = "tasker-contrib"
+url = "https://github.com/tasker-systems/tasker-contrib.git"
+git-ref = "main"
+config-path = "config/tasker/"
+```
+
+**Integration**: Remote cached paths are transparently injected into the existing plugin discovery and config generation pipelines. The `--remote` and `--url` flags on `template` and `config` commands select a specific remote or ad-hoc URL. The `plugin list` command auto-discovers plugins from all configured remotes.
+
+**Commands** (`commands/remote.rs`): `remote list`, `remote add`, `remote remove`, `remote update` manage the configured remotes and their caches.
+
+### Init Command
+
+The `init` command (`commands/init.rs`) bootstraps a new `.tasker-ctl.toml` in the current directory with sensible defaults:
+
+```bash
+tasker-ctl init              # Creates config with tasker-contrib remote pre-configured
+tasker-ctl init --no-contrib # Creates config without any remotes
+```
+
+The command refuses to overwrite an existing `.tasker-ctl.toml` to prevent accidental data loss. After creation, it prints next-step hints guiding the user toward fetching remotes and generating templates.
+
 ### Documentation Generation
 
 Documentation generation uses a separate template system from plugins. Askama provides compile-time template verification for the built-in documentation templates (configuration reference, annotated configs, parameter explanations). These templates live in `templates/` and are bound to Rust structs at compile time via the `docs-gen` feature flag.
@@ -176,6 +211,10 @@ Both are lightweight and the overlap is intentional — they solve different pro
 
 Plugins are discovered by scanning filesystem paths rather than through a package manager. This keeps the system simple and predictable: drop a directory with a `tasker-plugin.toml` into a configured path and it's immediately available. No installation step, no version resolution, no network requests.
 
+### Cache-as-Local-Path for Remotes
+
+Remote repos are cloned to a local cache directory, then the existing filesystem-based plugin discovery and config generation pipelines operate on the cached path. This avoids adding "remote-aware" logic throughout the codebase — the remote system's only job is to ensure a local directory exists and is reasonably fresh. Everything downstream sees a regular directory.
+
 ### Piping-Safe Output
 
 Commands that produce data for scripting (`config dump`, `auth generate-token`, docs rendering to stdout) write raw unformatted output via `println!`. Styled output is reserved for interactive feedback (status messages, errors, progress). This ensures `tasker-ctl config dump | jq .` and `tasker-ctl auth generate-token | pbcopy` work correctly.
@@ -193,6 +232,8 @@ Commands that produce data for scripting (`config dump`, `auth generate-token`, 
 | `tera` | Runtime template rendering for plugins |
 | `heck` | Case conversion for template filters |
 | `askama` | Compile-time templates for documentation (optional, `docs-gen` feature) |
+| `git2` | Git clone/fetch for remote repositories |
+| `toml_edit` | Format-preserving TOML editing for `remote add`/`remove`/`init` |
 | `rsa` + `rand` | RSA key pair generation for JWT auth |
 | `tokio` | Async runtime |
 

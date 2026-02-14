@@ -32,6 +32,11 @@ Run Tasker in production:
 - [Configuration Reference](../generated/configuration.md) — All configuration options
 - [API Reference](../reference/README.md) — REST API documentation
 
+## CLI Tooling
+
+- [Using tasker-ctl](tasker-ctl.md) — Initialize projects, generate scaffolding, manage remotes
+- [tasker-ctl Architecture](../architecture/tasker-ctl.md) — How the CLI tool is built
+
 ## Contributing
 
 - [tasker-contrib](../contrib/README.md) — Community extensions and examples

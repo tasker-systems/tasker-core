@@ -24,7 +24,7 @@ Adopt a lightweight actor pattern with message-based interfaces:
 
 1. `OrchestrationActor` trait with lifecycle hooks (`started()`, `stopped()`)
 2. `Message` trait for type-safe messages with associated `Response` type
-3. `Handler<M>` trait for async message processing
+3. ``Handler<M>`` trait for async message processing
 4. `ActorRegistry` for centralized actor management
 
 **Four Orchestration Actors**:

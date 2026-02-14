@@ -48,8 +48,8 @@ regex = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
-# Template rendering (optional, for docs generation)
-askama = { workspace = true, optional = true }
+# Template rendering (compile-time Askama for docs + init templates)
+askama = { workspace = true }
 
 # Styled terminal output (auto-detects TTY, degrades gracefully when piped)
 anstream = { workspace = true }
@@ -60,9 +60,11 @@ tera = { workspace = true }
 heck = { workspace = true }
 thiserror = { workspace = true }
 
+# Remote template/config fetching (TAS-270)
+toml_edit = { workspace = true }
+
 [features]
-default = ["docs-gen"]
-docs-gen = ["askama"]
+default = []
 
 [dev-dependencies]
 serial_test = { workspace = true }

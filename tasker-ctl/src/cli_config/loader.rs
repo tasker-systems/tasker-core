@@ -1,16 +1,16 @@
-//! Config file discovery and loading for `.tasker-cli.toml`.
+//! Config file discovery and loading for `.tasker-ctl.toml`.
 //!
 //! Checks two locations in precedence order:
-//! 1. `./.tasker-cli.toml` (project-local)
-//! 2. `~/.config/tasker-cli.toml` (user-global)
+//! 1. `./.tasker-ctl.toml` (project-local)
+//! 2. `~/.config/tasker-ctl.toml` (user-global)
 
 use std::path::PathBuf;
 
 use super::CliConfig;
 
-const CONFIG_FILENAME: &str = ".tasker-cli.toml";
+const CONFIG_FILENAME: &str = ".tasker-ctl.toml";
 const GLOBAL_CONFIG_DIR: &str = ".config";
-const GLOBAL_CONFIG_FILENAME: &str = "tasker-cli.toml";
+const GLOBAL_CONFIG_FILENAME: &str = "tasker-ctl.toml";
 
 /// Load CLI config from the first discovered location, or return defaults.
 pub(crate) fn load_cli_config() -> CliConfig {
@@ -35,13 +35,13 @@ pub(crate) fn load_cli_config() -> CliConfig {
 
 /// Search for config file in precedence order.
 fn find_config_file() -> Option<PathBuf> {
-    // 1. Project-local: ./.tasker-cli.toml
+    // 1. Project-local: ./.tasker-ctl.toml
     let local = PathBuf::from(CONFIG_FILENAME);
     if local.is_file() {
         return Some(local);
     }
 
-    // 2. User-global: ~/.config/tasker-cli.toml
+    // 2. User-global: ~/.config/tasker-ctl.toml
     if let Some(home) = home_dir() {
         let global = home.join(GLOBAL_CONFIG_DIR).join(GLOBAL_CONFIG_FILENAME);
         if global.is_file() {
@@ -98,6 +98,8 @@ mod tests {
         assert!(config.plugin_paths.is_empty());
         assert!(config.default_language.is_none());
         assert!(config.default_output_dir.is_none());
+        assert!(config.remotes.is_empty());
+        assert_eq!(config.cache_max_age_hours, 0); // Default trait gives 0, serde default gives 24
     }
 
     #[test]
@@ -129,5 +131,74 @@ plugin-paths = ["./plugins"]
         let config = load_cli_config();
         // Just verify it doesn't panic — actual paths depend on environment
         assert!(config.plugin_paths.is_empty() || !config.plugin_paths.is_empty());
+    }
+
+    #[test]
+    fn test_parse_config_with_remotes() {
+        let toml_str = r#"
+plugin-paths = ["./plugins"]
+
+[[remotes]]
+name = "tasker-contrib"
+url = "https://github.com/tasker-systems/tasker-contrib.git"
+git-ref = "main"
+config-path = "config/tasker/"
+
+[[remotes]]
+name = "internal-plugins"
+url = "https://github.com/myorg/internal-tasker-plugins.git"
+git-ref = "v1.0"
+plugin-path = "plugins/"
+"#;
+        let config: CliConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.remotes.len(), 2);
+        assert_eq!(config.remotes[0].name, "tasker-contrib");
+        assert_eq!(
+            config.remotes[0].url,
+            "https://github.com/tasker-systems/tasker-contrib.git"
+        );
+        assert_eq!(config.remotes[0].git_ref, "main");
+        assert_eq!(config.remotes[0].config_path, "config/tasker/");
+        assert!(config.remotes[0].plugin_path.is_none());
+
+        assert_eq!(config.remotes[1].name, "internal-plugins");
+        assert_eq!(config.remotes[1].git_ref, "v1.0");
+        assert_eq!(config.remotes[1].plugin_path.as_deref(), Some("plugins/"));
+    }
+
+    #[test]
+    fn test_parse_config_with_remotes_defaults() {
+        let toml_str = r#"
+[[remotes]]
+name = "minimal"
+url = "https://github.com/example/repo.git"
+"#;
+        let config: CliConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.remotes.len(), 1);
+        assert_eq!(config.remotes[0].git_ref, "main");
+        assert_eq!(config.remotes[0].config_path, "config/tasker/");
+        assert!(config.remotes[0].plugin_path.is_none());
+        assert_eq!(config.cache_max_age_hours, 24);
+    }
+
+    #[test]
+    fn test_parse_config_with_custom_cache_max_age() {
+        let toml_str = r#"
+cache-max-age-hours = 48
+"#;
+        let config: CliConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.cache_max_age_hours, 48);
+    }
+
+    #[test]
+    fn test_backward_compat_no_remotes() {
+        let toml_str = r#"
+plugin-paths = ["./plugins", "~/contrib"]
+default-language = "ruby"
+"#;
+        let config: CliConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.plugin_paths.len(), 2);
+        assert!(config.remotes.is_empty());
+        assert_eq!(config.cache_max_age_hours, 24);
     }
 }

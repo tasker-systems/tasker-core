@@ -7,10 +7,10 @@
 
 pub(crate) mod cli_config;
 pub(crate) mod commands;
-#[cfg(feature = "docs-gen")]
 pub(crate) mod docs;
 pub(crate) mod output;
 pub(crate) mod plugins;
+pub(crate) mod remotes;
 pub(crate) mod template_engine;
 
 use clap::{Parser, Subcommand};
@@ -19,8 +19,8 @@ use tracing::info;
 
 use commands::{
     handle_auth_command, handle_config_command, handle_dlq_command, handle_docs_command,
-    handle_plugin_command, handle_system_command, handle_task_command, handle_template_command,
-    handle_worker_command,
+    handle_init_command, handle_plugin_command, handle_remote_command, handle_system_command,
+    handle_task_command, handle_template_command, handle_worker_command,
 };
 
 #[derive(Parser, Debug)]
@@ -92,6 +92,17 @@ pub(crate) enum Commands {
     /// Template operations (TAS-126: list, inspect, and generate from plugin templates)
     #[command(subcommand)]
     Template(TemplateCommands),
+
+    /// Remote repository management (TAS-270: fetch templates and config from git repos)
+    #[command(subcommand)]
+    Remote(RemoteCommands),
+
+    /// Initialize a new .tasker-ctl.toml with sensible defaults
+    Init {
+        /// Skip adding tasker-contrib as a default remote
+        #[arg(long)]
+        no_contrib: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -284,6 +295,14 @@ pub(crate) enum ConfigCommands {
         /// Validate configuration after generation
         #[arg(long)]
         validate: bool,
+
+        /// Use config from a configured remote instead of source-dir
+        #[arg(long, conflicts_with_all = ["url", "source_dir"])]
+        remote: Option<String>,
+
+        /// Use config from an ad-hoc git URL instead of source-dir
+        #[arg(long, conflicts_with_all = ["remote", "source_dir"])]
+        url: Option<String>,
     },
 
     /// Validate configuration file
@@ -337,6 +356,14 @@ pub(crate) enum ConfigCommands {
         /// Provide detailed error explanations
         #[arg(long)]
         explain_errors: bool,
+
+        /// Use config from a configured remote
+        #[arg(long, conflicts_with = "url")]
+        remote: Option<String>,
+
+        /// Use config from an ad-hoc git URL
+        #[arg(long, conflicts_with = "remote")]
+        url: Option<String>,
     },
 
     /// Analyze configuration usage patterns across the codebase (TAS-61)
@@ -387,6 +414,14 @@ pub(crate) enum ConfigCommands {
         /// Path to complete TOML configuration file (bypasses context/environment)
         #[arg(short, long, conflicts_with = "context")]
         path: Option<String>,
+
+        /// Use config from a configured remote
+        #[arg(long, conflicts_with = "url")]
+        remote: Option<String>,
+
+        /// Use config from an ad-hoc git URL
+        #[arg(long, conflicts_with = "remote")]
+        url: Option<String>,
     },
 
     /// Show current CLI configuration
@@ -597,6 +632,14 @@ pub(crate) enum TemplateCommands {
         /// Filter by framework (e.g., rails, django, axum)
         #[arg(short, long)]
         framework: Option<String>,
+
+        /// Use templates from a specific configured remote
+        #[arg(long, conflicts_with = "url")]
+        remote: Option<String>,
+
+        /// Use templates from an ad-hoc git URL
+        #[arg(long, conflicts_with = "remote")]
+        url: Option<String>,
     },
 
     /// Show detailed information about a template
@@ -608,6 +651,14 @@ pub(crate) enum TemplateCommands {
         /// Scope to a specific plugin
         #[arg(short, long)]
         plugin: Option<String>,
+
+        /// Use templates from a specific configured remote
+        #[arg(long, conflicts_with = "url")]
+        remote: Option<String>,
+
+        /// Use templates from an ad-hoc git URL
+        #[arg(long, conflicts_with = "remote")]
+        url: Option<String>,
     },
 
     /// Generate files from a template
@@ -631,6 +682,54 @@ pub(crate) enum TemplateCommands {
         /// Output directory (default: current directory or config default)
         #[arg(short, long)]
         output: Option<String>,
+
+        /// Use templates from a specific configured remote
+        #[arg(long, conflicts_with = "url")]
+        remote: Option<String>,
+
+        /// Use templates from an ad-hoc git URL
+        #[arg(long, conflicts_with = "remote")]
+        url: Option<String>,
+    },
+}
+
+/// TAS-270: Remote repository management commands
+#[derive(Debug, Subcommand)]
+pub(crate) enum RemoteCommands {
+    /// List configured remotes and their cache status
+    List,
+
+    /// Add a remote to .tasker-ctl.toml
+    Add {
+        /// Unique name for this remote
+        name: String,
+
+        /// Git repository URL
+        url: String,
+
+        /// Git ref (branch or tag) to track
+        #[arg(short, long, default_value = "main")]
+        git_ref: String,
+
+        /// Path within the repo to the config directory
+        #[arg(long, default_value = "config/tasker/")]
+        config_path: String,
+
+        /// Path within the repo to scan for plugins (default: repo root)
+        #[arg(long)]
+        plugin_path: Option<String>,
+    },
+
+    /// Remove a remote and delete its cache
+    Remove {
+        /// Name of the remote to remove
+        name: String,
+    },
+
+    /// Fetch latest for cached remotes
+    Update {
+        /// Specific remote to update (updates all if omitted)
+        name: Option<String>,
     },
 }
 
@@ -680,11 +779,17 @@ async fn main() -> tasker_client::ClientResult<()> {
         Commands::Docs(docs_cmd) => handle_docs_command(docs_cmd).await,
         Commands::Plugin(plugin_cmd) => {
             let cli_config = cli_config::load_cli_config();
-            handle_plugin_command(plugin_cmd, &cli_config).await
+            let effective_config = remotes::resolve_all_remote_plugin_paths(&cli_config);
+            handle_plugin_command(plugin_cmd, &effective_config).await
         }
         Commands::Template(template_cmd) => {
             let cli_config = cli_config::load_cli_config();
             handle_template_command(template_cmd, &cli_config).await
         }
+        Commands::Remote(remote_cmd) => {
+            let cli_config = cli_config::load_cli_config();
+            handle_remote_command(remote_cmd, &cli_config).await
+        }
+        Commands::Init { no_contrib } => handle_init_command(no_contrib).await,
     }
 }
