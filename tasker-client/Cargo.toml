@@ -1,6 +1,6 @@
 [package]
 name = "tasker-client"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Tasker API client library — transport-agnostic REST and gRPC clients"
 readme = "README.md"
@@ -46,7 +46,7 @@ reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 # Core tasker dependencies
-tasker-shared = { path = "../tasker-shared", version = "=0.1.1" }
+tasker-shared = { path = "../tasker-shared", version = "=0.1.2" }
 # gRPC dependencies (optional)
 tonic = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }

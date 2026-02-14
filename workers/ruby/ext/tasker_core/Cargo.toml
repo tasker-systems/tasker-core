@@ -1,6 +1,6 @@
 [package]
 name = "tasker-rb"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Ruby bindings for tasker-core: High-performance workflow orchestration"
 readme = "../../../../README.md"
