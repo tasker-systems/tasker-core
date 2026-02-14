@@ -5,6 +5,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Pre-built native FFI libraries (populated by CI during release)
+native/
+
 # ts-rs default bindings directory (we use src/ffi/generated/ instead)
 bindings/
 

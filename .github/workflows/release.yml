@@ -224,15 +224,17 @@ jobs:
   # ============================================================================
 
   publish-ruby:
-    name: Publish Ruby Gem
+    name: Publish Ruby Gems
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs: [detect-and-read, pre-flight-check, publish-crates, build-ffi-libraries]
-    # Run if ruby or FFI core changed, even if publish-crates or build-ffi-libraries was skipped.
-    # The gem ships source — users compile the native extension at install time.
-    # build-ffi-libraries validates that the Rust code compiles for all architectures.
+    # Uses pre-built artifacts from build-ffi-libraries for platform gems.
+    # Runs even if some FFI matrix jobs failed (e.g. QEMU arm64 timeout) —
+    # build-ruby-gems.sh warns and skips missing architectures gracefully.
     if: |
-      always() && !cancelled() && !failure() &&
+      always() && !cancelled() &&
+      needs.pre-flight-check.result == 'success' &&
+      needs.build-ffi-libraries.result != 'cancelled' &&
       (needs.detect-and-read.outputs.ruby_changed == 'true' ||
        needs.detect-and-read.outputs.ffi_core_changed == 'true')
     permissions:
@@ -261,25 +263,66 @@ jobs:
         with:
           ruby-version: '3.4'
 
-      # No Rust compilation needed — gem ships source with spec.extensions.
-      # build-ffi-libraries already validated the build for all architectures.
-      - name: Build source gem
+      - name: Download pre-built FFI artifacts
         if: steps.check-published.outputs.already_published != 'true'
-        run: cd workers/ruby && gem build tasker-rb.gemspec
+        id: download-artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v6
+        with:
+          pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
+          path: ffi-artifacts/
+          merge-multiple: true
+
+      - name: List FFI artifacts
+        if: steps.check-published.outputs.already_published != 'true'
+        run: |
+          if [[ -d ffi-artifacts ]]; then
+            echo "Downloaded FFI artifacts:"
+            find ffi-artifacts/ -type f | sort
+          else
+            echo "::warning::No FFI artifacts downloaded — only source gem will be built"
+            mkdir -p ffi-artifacts/ruby
+          fi
+
+      - name: Build platform gems + source gem
+        if: steps.check-published.outputs.already_published != 'true'
+        run: |
+          ./scripts/release/build-ruby-gems.sh \
+            "${{ needs.detect-and-read.outputs.ruby_version }}" \
+            "ffi-artifacts"
+
+      - name: List built gems
+        if: steps.check-published.outputs.already_published != 'true'
+        run: |
+          echo "Built gems:"
+          ls -la gem-output/*.gem
 
       - name: Configure RubyGems credentials (OIDC)
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
         uses: rubygems/configure-rubygems-credentials@v1.0.0
 
-      - name: Publish gem
+      - name: Publish all gems
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
-        run: gem push workers/ruby/tasker-rb-*.gem
+        run: |
+          # Publish platform gems first, then source gem
+          for gem_file in gem-output/tasker-rb-*-*.gem; do
+            if [[ -f "$gem_file" ]]; then
+              echo "Publishing platform gem: $(basename "$gem_file")"
+              gem push "$gem_file"
+            fi
+          done
+          # Publish the source gem (no platform suffix)
+          SOURCE_GEM="gem-output/tasker-rb-${{ needs.detect-and-read.outputs.ruby_version }}.gem"
+          if [[ -f "$SOURCE_GEM" ]]; then
+            echo "Publishing source gem: $(basename "$SOURCE_GEM")"
+            gem push "$SOURCE_GEM"
+          fi
 
       - name: Dry-run summary
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run == 'true'
         run: |
-          echo "[dry-run] Would publish:"
-          ls -la workers/ruby/tasker-rb-*.gem
+          echo "[dry-run] Would publish the following gems:"
+          ls -la gem-output/*.gem
 
       - name: Tag ruby release
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
@@ -368,8 +411,13 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     needs: [detect-and-read, pre-flight-check, publish-crates, build-ffi-libraries]
+    # Bundles pre-built native libraries from build-ffi-libraries.
+    # Runs even if some FFI matrix jobs failed (e.g. QEMU arm64 timeout) —
+    # bundling step warns and skips missing architectures, fails only if zero succeeded.
     if: |
-      always() && !cancelled() && !failure() &&
+      always() && !cancelled() &&
+      needs.pre-flight-check.result == 'success' &&
+      needs.build-ffi-libraries.result != 'cancelled' &&
       (needs.detect-and-read.outputs.typescript_changed == 'true' ||
        needs.detect-and-read.outputs.ffi_core_changed == 'true')
     permissions:
@@ -391,6 +439,42 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
+
+      - name: Download pre-built FFI artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v6
+        with:
+          pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
+          path: ffi-artifacts/
+          merge-multiple: true
+
+      - name: Bundle native libraries into package
+        run: |
+          mkdir -p workers/typescript/native
+          BUNDLED=0
+          # Copy each artifact if available; warn and continue if missing (e.g. QEMU timeout)
+          try_bundle() {
+            local src="$1" dest="$2" label="$3"
+            if [[ -f "$src" ]]; then
+              cp "$src" "$dest"
+              echo "  Bundled: $label"
+              BUNDLED=$((BUNDLED + 1))
+            else
+              echo "::warning::Native library not found for $label — skipping (artifact may not have built)"
+            fi
+          }
+          try_bundle "ffi-artifacts/typescript/libtasker_ts-x86_64-unknown-linux-gnu.so" \
+                     "workers/typescript/native/libtasker_ts-linux-x64.so" "linux-x64"
+          try_bundle "ffi-artifacts/typescript/libtasker_ts-aarch64-unknown-linux-gnu.so" \
+                     "workers/typescript/native/libtasker_ts-linux-arm64.so" "linux-arm64"
+          try_bundle "ffi-artifacts/typescript/libtasker_ts-aarch64-apple-darwin.dylib" \
+                     "workers/typescript/native/libtasker_ts-darwin-arm64.dylib" "darwin-arm64"
+          echo "Bundled ${BUNDLED}/3 native libraries"
+          if [[ "$BUNDLED" -eq 0 ]]; then
+            echo "::warning::No native libraries bundled — package will still work with TASKER_FFI_LIBRARY_PATH"
+          else
+            ls -lh workers/typescript/native/
+          fi
 
       - name: Publish package
         run: .github/scripts/release/publish-component.sh

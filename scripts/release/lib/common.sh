@@ -220,6 +220,31 @@ update_typescript_version() {
     fi
 }
 
+# Update Ruby ext Cargo.toml dependency pins for standalone builds.
+# The source gem uses explicit crates.io versions instead of workspace deps.
+update_ruby_cargo_dep_pins() {
+    local version="$1"
+    local file="${REPO_ROOT}/workers/ruby/ext/tasker_core/Cargo.toml"
+
+    if [[ ! -f "$file" ]]; then
+        log_warn "Ruby ext Cargo.toml not found: $file"
+        return
+    fi
+
+    # Update pinned dependency versions: tasker-shared, tasker-worker, tasker-core
+    local -a crate_deps=("tasker-shared" "tasker-worker" "tasker-core")
+    for dep in "${crate_deps[@]}"; do
+        if grep -q "^${dep} = " "$file" 2>/dev/null; then
+            if [[ "${DRY_RUN:-false}" == "true" ]]; then
+                log_info "Would update ${dep} pin in Ruby ext Cargo.toml -> =${version}"
+            else
+                sed_i "s/\(${dep} = {.*version = \"=\)[^\"]*\"/\1${version}\"/" "$file"
+                log_info "Updated ${dep} pin -> =${version}"
+            fi
+        fi
+    done
+}
+
 # ---------------------------------------------------------------------------
 # Credential verification
 # ---------------------------------------------------------------------------

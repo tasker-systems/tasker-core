@@ -13,6 +13,8 @@
  */
 
 import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { detectRuntime, type RuntimeType } from './runtime.js';
 import type { TaskerRuntime } from './runtime-interface.js';
 
@@ -77,9 +79,11 @@ export class FfiLayer {
 
     if (!path) {
       throw new Error(
-        'FFI library not found. TASKER_FFI_LIBRARY_PATH environment variable must be set to the path of the compiled library.\n' +
-          'Example: export TASKER_FFI_LIBRARY_PATH=/path/to/target/debug/libtasker_ts.dylib\n' +
-          'Build the library with: cargo build -p tasker-ts'
+        'FFI library not found. No bundled native library matches this platform, ' +
+          'and TASKER_FFI_LIBRARY_PATH is not set.\n' +
+          `Current platform: ${process.platform}-${process.arch}\n` +
+          'Supported: linux-x64, linux-arm64, darwin-arm64\n' +
+          'Override: export TASKER_FFI_LIBRARY_PATH=/path/to/libtasker_ts.dylib'
       );
     }
 
@@ -140,26 +144,32 @@ export class FfiLayer {
    * Static method for finding the library path without creating an instance.
    * Useful for test utilities and pre-flight checks.
    *
-   * REQUIRES: TASKER_FFI_LIBRARY_PATH environment variable to be set.
-   * This explicit requirement prevents confusion from automatic debug/release
-   * library discovery and ensures intentional configuration at build/runtime.
+   * Resolution order:
+   * 1. TASKER_FFI_LIBRARY_PATH environment variable (explicit override)
+   * 2. Bundled native library in the package's native/ directory
    *
    * @param _callerDir Deprecated parameter, kept for API compatibility
    * @returns Path to the library if found and exists, null otherwise
    */
   static findLibraryPath(_callerDir?: string): string | null {
+    // 1. Check explicit environment variable
     const envPath = process.env.TASKER_FFI_LIBRARY_PATH;
 
-    if (!envPath) {
-      return null;
+    if (envPath) {
+      if (!existsSync(envPath)) {
+        console.warn(`TASKER_FFI_LIBRARY_PATH is set to "${envPath}" but the file does not exist`);
+        return null;
+      }
+      return envPath;
     }
 
-    if (!existsSync(envPath)) {
-      console.warn(`TASKER_FFI_LIBRARY_PATH is set to "${envPath}" but the file does not exist`);
-      return null;
+    // 2. Try bundled native library
+    const bundledPath = findBundledNativeLibrary();
+    if (bundledPath && existsSync(bundledPath)) {
+      return bundledPath;
     }
 
-    return envPath;
+    return null;
   }
 
   /**
@@ -198,4 +208,39 @@ export class FfiLayer {
         );
     }
   }
+}
+
+/**
+ * Bundled native library filenames by platform/arch.
+ *
+ * These libraries are placed in the package's native/ directory during the
+ * release build. All supported platforms are bundled in every published package
+ * so that npm install "just works" without per-platform optional dependencies.
+ */
+const BUNDLED_LIBRARIES: Record<string, string> = {
+  'linux-x64': 'libtasker_ts-linux-x64.so',
+  'linux-arm64': 'libtasker_ts-linux-arm64.so',
+  'darwin-arm64': 'libtasker_ts-darwin-arm64.dylib',
+};
+
+/**
+ * Find the bundled native library for the current platform.
+ *
+ * Looks in the package's native/ directory (sibling to dist/) for a
+ * pre-compiled library matching the current platform and architecture.
+ *
+ * @returns Absolute path to the native library, or null if not found
+ */
+function findBundledNativeLibrary(): string | null {
+  const key = `${process.platform}-${process.arch}`;
+  const filename = BUNDLED_LIBRARIES[key];
+  if (!filename) {
+    return null;
+  }
+
+  // This file lives in dist/ffi/ffi-layer.js at runtime.
+  // The native/ directory is at the package root (sibling to dist/).
+  const thisDir = dirname(fileURLToPath(import.meta.url));
+  const packageRoot = join(thisDir, '..', '..');
+  return join(packageRoot, 'native', filename);
 }
