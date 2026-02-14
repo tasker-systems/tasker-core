@@ -230,6 +230,17 @@ class TestModuleExports:
             "ClassLookupResolver",
         }
 
+        # Client wrapper exports (TAS-231)
+        client_exports = {
+            "TaskerClient",
+            "ClientTaskResponse",
+            "ClientTaskListResponse",
+            "ClientStepResponse",
+            "ClientStepAuditResponse",
+            "ClientHealthResponse",
+            "ClientPaginationInfo",
+        }
+
         expected = (
             phase1_exports
             | phase2_exports
@@ -241,6 +252,7 @@ class TestModuleExports:
             | tas95_exports
             | tas112_exports
             | tas93_exports
+            | client_exports
         )
         assert set(tasker_core.__all__) == expected
 

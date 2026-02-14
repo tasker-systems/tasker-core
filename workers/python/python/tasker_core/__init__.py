@@ -68,6 +68,29 @@ from tasker_core.bootstrap import (
     transition_to_graceful_shutdown,
 )
 
+# Import client wrapper (TAS-231)
+from tasker_core.client import (
+    HealthResponse as ClientHealthResponse,
+)
+from tasker_core.client import (
+    PaginationInfo as ClientPaginationInfo,
+)
+from tasker_core.client import (
+    StepAuditResponse as ClientStepAuditResponse,
+)
+from tasker_core.client import (
+    StepResponse as ClientStepResponse,
+)
+from tasker_core.client import (
+    TaskerClient,
+)
+from tasker_core.client import (
+    TaskListResponse as ClientTaskListResponse,
+)
+from tasker_core.client import (
+    TaskResponse as ClientTaskResponse,
+)
+
 # Import Phase 5: Domain events and observability
 from tasker_core.domain_events import (
     BasePublisher,
@@ -330,6 +353,14 @@ __all__ = [
     "BatchAnalyzerOutcome",
     "BatchWorkerContext",
     "BatchWorkerOutcome",
+    # Client wrapper (TAS-231)
+    "TaskerClient",
+    "ClientTaskResponse",
+    "ClientTaskListResponse",
+    "ClientStepResponse",
+    "ClientStepAuditResponse",
+    "ClientHealthResponse",
+    "ClientPaginationInfo",
 ]
 
 

@@ -27,12 +27,19 @@ export type {
   StopResult,
   WorkerStatus,
 } from './bootstrap/types.js';
-
+// =============================================================================
+// Client module (TAS-231) - High-level orchestration API client
+// =============================================================================
+export {
+  type CreateTaskOptions,
+  type ListTasksOptions,
+  TaskerClient,
+  TaskerClientError,
+} from './client/index.js';
 // =============================================================================
 // Events module
 // =============================================================================
 export * from './events/index.js';
-
 // =============================================================================
 // FFI module - Runtime and low-level types
 // =============================================================================
@@ -57,7 +64,6 @@ export {
   type RuntimeType,
   type TaskerRuntime,
 } from './ffi/index.js';
-
 // Export FFI types under Ffi prefix to avoid conflicts
 export type {
   BootstrapConfig as FfiBootstrapConfig,
@@ -88,7 +94,6 @@ export type {
   WorkerStatus as FfiWorkerStatus,
   WorkflowStep,
 } from './ffi/types.js';
-
 // =============================================================================
 // Handler module (TAS-102/103)
 // =============================================================================
@@ -109,7 +114,6 @@ export {
 // Registry module (TAS-93) - Step handler resolver chain infrastructure
 // =============================================================================
 export * from './registry/index.js';
-
 // =============================================================================
 // Server module (TAS-104)
 // =============================================================================
@@ -118,7 +122,6 @@ export {
   type ShutdownHandler,
   WorkerServer,
 } from './server/index.js';
-
 // Export server types under Server prefix to avoid conflicts with bootstrap
 export type {
   HealthCheckResult as ServerHealthCheckResult,
@@ -127,7 +130,6 @@ export type {
   ServerStatus,
   WorkerServerConfig,
 } from './server/types.js';
-
 // =============================================================================
 // Subscriber module (TAS-104)
 // =============================================================================

@@ -130,29 +130,40 @@ steps:
 pub struct ValidateOrderHandler;
 
 #[async_trait]
-impl StepHandler for ValidateOrderHandler {
-    async fn execute(&self, context: StepContext) -> Result<StepResult> {
+impl RustStepHandler for ValidateOrderHandler {
+    async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
         // Extract order data from context
-        let order_id: String = context.configuration.get("order_id")?;
-        let customer_id: String = context.configuration.get("customer_id")?;
+        let order_id: String = step_data.get_input_or("order_id", String::new());
+        let customer_id: String = step_data.get_input_or("customer_id", String::new());
 
         // Validate order
         let order = validate_order_data(&order_id).await?;
 
         // Check fraud detection
         if check_fraud_risk(&customer_id, &order).await? {
-            return Ok(StepResult::permanent_failure(
-                "fraud_detected",
-                json!({"reason": "High fraud risk"})
+            return Ok(StepExecutionResult::failure(
+                step_data.workflow_step.workflow_step_uuid,
+                json!({"reason": "High fraud risk"}),
+                "fraud_detected".to_string(),
+                false, // not retryable
             ));
         }
 
         // Success - pass data to next steps
-        Ok(StepResult::success(json!({
-            "order_id": order_id,
-            "validated_at": Utc::now(),
-            "total_amount": order.total
-        })))
+        Ok(StepExecutionResult::success(
+            step_data.workflow_step.workflow_step_uuid,
+            json!({
+                "order_id": order_id,
+                "validated_at": Utc::now(),
+                "total_amount": order.total
+            }),
+            0,
+            None,
+        ))
+    }
+
+    fn name(&self) -> &'static str {
+        "validate_order"
     }
 }
 ```
@@ -160,29 +171,29 @@ impl StepHandler for ValidateOrderHandler {
 **Ruby Handler Alternative**:
 
 ```ruby
-class ProcessPaymentHandler < TaskerCore::StepHandler
-  def execute(context)
-    order_id = context.configuration['order_id']
-    amount = context.configuration['amount']
+class ProcessPaymentHandler < TaskerCore::StepHandler::Base
+  def call(context)
+    order_id = context.get_input('order_id')
+    amount = context.get_input('amount')
 
     # Process payment via payment gateway
     result = PaymentGateway.charge(
       amount: amount,
-      idempotency_key: context.step_uuid
+      idempotency_key: step_data.workflow_step.workflow_step_uuid
     )
 
     if result.success?
-      { success: true, transaction_id: result.transaction_id }
+      success(result: { transaction_id: result.transaction_id })
     else
       # Retryable failure with backoff
-      { success: false, retryable: true, error: result.error }
+      failure(message: result.error, error_type: 'PaymentError', retryable: true)
     end
   rescue PaymentGateway::NetworkError => e
     # Transient error, retry
-    { success: false, retryable: true, error: e.message }
+    raise TaskerCore::Errors::RetryableError.new(e.message)
   rescue PaymentGateway::CardDeclined => e
     # Permanent failure, don't retry
-    { success: false, retryable: false, error: e.message }
+    raise TaskerCore::Errors::PermanentError.new(e.message, error_code: 'CARD_DECLINED')
   end
 end
 ```
@@ -210,7 +221,7 @@ end
 **4. Data Flow**
 
 - Early steps provide data to later steps via results
-- Access parent results: `context.parent_results["validate_order"]`
+- Access parent results: `step_data.dependency_results["validate_order"]`
 - Build context as workflow progresses
 
 ### Observability
@@ -297,13 +308,13 @@ Task: payment_processing_#{payment_id}
 **Retry Strategy for Payment Gateway**:
 
 ```rust
-impl StepHandler for AuthorizePaymentHandler {
-    async fn execute(&self, context: StepContext) -> Result<StepResult> {
-        let payment_id = context.configuration.get("payment_id")?;
+impl RustStepHandler for AuthorizePaymentHandler {
+    async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
+        let payment_id = step_data.get_input_or("payment_id")?;
 
-        match gateway.authorize(payment_id, &context.step_uuid).await {
+        match gateway.authorize(payment_id, &step_data.workflow_step.workflow_step_uuid).await {
             Ok(auth) => {
-                Ok(StepResult::success(json!({
+                Ok(StepExecutionResult::success_from_json(json!({
                     "authorization_code": auth.code,
                     "authorized_at": Utc::now(),
                     "gateway_transaction_id": auth.transaction_id
@@ -312,7 +323,7 @@ impl StepHandler for AuthorizePaymentHandler {
 
             Err(GatewayError::NetworkTimeout) => {
                 // Transient - retry with backoff
-                Ok(StepResult::retryable_failure(
+                Ok(StepExecutionResult::retryable_failure(
                     "network_timeout",
                     json!({"retry_recommended": true})
                 ))
@@ -320,7 +331,7 @@ impl StepHandler for AuthorizePaymentHandler {
 
             Err(GatewayError::InsufficientFunds) => {
                 // Permanent - don't retry
-                Ok(StepResult::permanent_failure(
+                Ok(StepExecutionResult::permanent_failure(
                     "insufficient_funds",
                     json!({"requires_manual_intervention": false})
                 ))
@@ -328,7 +339,7 @@ impl StepHandler for AuthorizePaymentHandler {
 
             Err(GatewayError::InvalidCard) => {
                 // Permanent - don't retry
-                Ok(StepResult::permanent_failure(
+                Ok(StepExecutionResult::permanent_failure(
                     "invalid_card",
                     json!({"requires_manual_intervention": true})
                 ))
@@ -341,12 +352,12 @@ impl StepHandler for AuthorizePaymentHandler {
 **Idempotency Pattern**:
 
 ```rust
-async fn capture_payment(context: &StepContext) -> Result<StepResult> {
-    let idempotency_key = context.step_uuid.to_string();
+async fn capture_payment(step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
+    let idempotency_key = step_data.workflow_step.workflow_step_uuid.to_string();
 
     // Check if we already captured this payment
     if let Some(existing) = check_existing_capture(&idempotency_key).await? {
-        return Ok(StepResult::success(json!({
+        return Ok(StepExecutionResult::success_from_json(json!({
             "already_captured": true,
             "transaction_id": existing.transaction_id,
             "note": "Idempotent duplicate detected"
@@ -359,7 +370,7 @@ async fn capture_payment(context: &StepContext) -> Result<StepResult> {
     // Store idempotency record
     store_capture_record(&idempotency_key, &result).await?;
 
-    Ok(StepResult::success(json!(result)))
+    Ok(StepExecutionResult::success_from_json(json!(result)))
 }
 ```
 
@@ -451,9 +462,9 @@ Task: etl_customer_data_#{date}
 pub struct ExtractCustomerProfilesHandler;
 
 #[async_trait]
-impl StepHandler for ExtractCustomerProfilesHandler {
-    async fn execute(&self, context: StepContext) -> Result<StepResult> {
-        let date: String = context.configuration.get("processing_date")?;
+impl RustStepHandler for ExtractCustomerProfilesHandler {
+    async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
+        let date: String = step_data.get_input_or("processing_date")?;
 
         // Determine partitions (e.g., by customer_id ranges)
         let partitions = calculate_partitions(1000000, 100000)?; // 10 partitions
@@ -466,7 +477,7 @@ impl StepHandler for ExtractCustomerProfilesHandler {
         }
 
         // Return partition info for downstream steps
-        Ok(StepResult::success(json!({
+        Ok(StepExecutionResult::success_from_json(json!({
             "partitions": partition_files,
             "total_records": 1000000,
             "extracted_at": Utc::now()
@@ -478,8 +489,8 @@ impl StepHandler for ExtractCustomerProfilesHandler {
 **Error Handling for Data Quality**:
 
 ```rust
-async fn enrich_customer_data(context: &StepContext) -> Result<StepResult> {
-    let partition_file: String = context.configuration.get("partition_file")?;
+async fn enrich_customer_data(step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
+    let partition_file: String = step_data.get_input_or("partition_file")?;
 
     let mut processed = 0;
     let mut skipped = 0;
@@ -498,7 +509,7 @@ async fn enrich_customer_data(context: &StepContext) -> Result<StepResult> {
             }
             Err(EnrichmentError::ApiTimeout(e)) => {
                 // Transient failure, retry entire step
-                return Ok(StepResult::retryable_failure(
+                return Ok(StepExecutionResult::retryable_failure(
                     "api_timeout",
                     json!({"error": e.to_string()})
                 ));
@@ -508,7 +519,7 @@ async fn enrich_customer_data(context: &StepContext) -> Result<StepResult> {
 
     if skipped as f64 / processed as f64 > 0.1 {
         // Too many skipped records
-        return Ok(StepResult::permanent_failure(
+        return Ok(StepExecutionResult::permanent_failure(
             "data_quality_issue",
             json!({
                 "processed": processed,
@@ -518,7 +529,7 @@ async fn enrich_customer_data(context: &StepContext) -> Result<StepResult> {
         ));
     }
 
-    Ok(StepResult::success(json!({
+    Ok(StepExecutionResult::success_from_json(json!({
         "processed": processed,
         "skipped": skipped,
         "errors": errors
@@ -610,20 +621,20 @@ Task: user_registration_#{user_id}
 pub struct CreateUserProfileHandler;
 
 #[async_trait]
-impl StepHandler for CreateUserProfileHandler {
-    async fn execute(&self, context: StepContext) -> Result<StepResult> {
-        let user_id: String = context.configuration.get("user_id")?;
-        let email: String = context.configuration.get("email")?;
+impl RustStepHandler for CreateUserProfileHandler {
+    async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
+        let user_id: String = step_data.get_input_or("user_id")?;
+        let email: String = step_data.get_input_or("email")?;
 
         // Get auth details from previous step
-        let auth_result = context.parent_results.get("create_auth_account")
+        let auth_result = step_data.dependency_results.get("create_auth_account")
             .ok_or("Missing auth result")?;
         let auth_token: String = auth_result.get("auth_token")?;
 
         // Call profile service
         match profile_service.create_profile(&user_id, &email, &auth_token).await {
             Ok(profile) => {
-                Ok(StepResult::success(json!({
+                Ok(StepExecutionResult::success_from_json(json!({
                     "profile_id": profile.id,
                     "created_at": profile.created_at,
                     "user_id": user_id
@@ -633,7 +644,7 @@ impl StepHandler for CreateUserProfileHandler {
             Err(ProfileServiceError::DuplicateEmail) => {
                 // Permanent failure - email already exists
                 // Trigger compensation
-                Ok(StepResult::permanent_failure_with_compensation(
+                Ok(StepExecutionResult::permanent_failure_with_compensation(
                     "duplicate_email",
                     json!({"email": email}),
                     vec!["delete_auth_account"] // Compensation steps
@@ -642,7 +653,7 @@ impl StepHandler for CreateUserProfileHandler {
 
             Err(ProfileServiceError::ServiceUnavailable) => {
                 // Transient - retry
-                Ok(StepResult::retryable_failure(
+                Ok(StepExecutionResult::retryable_failure(
                     "service_unavailable",
                     json!({"retry_recommended": true})
                 ))
@@ -658,14 +669,14 @@ impl StepHandler for CreateUserProfileHandler {
 pub struct DeleteAuthAccountHandler;
 
 #[async_trait]
-impl StepHandler for DeleteAuthAccountHandler {
-    async fn execute(&self, context: StepContext) -> Result<StepResult> {
-        let user_id: String = context.configuration.get("user_id")?;
+impl RustStepHandler for DeleteAuthAccountHandler {
+    async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult> {
+        let user_id: String = step_data.get_input_or("user_id")?;
 
         // Best-effort deletion
         match auth_service.delete_account(&user_id).await {
             Ok(_) => {
-                Ok(StepResult::success(json!({
+                Ok(StepExecutionResult::success_from_json(json!({
                     "compensated": true,
                     "user_id": user_id
                 })))
@@ -673,7 +684,7 @@ impl StepHandler for DeleteAuthAccountHandler {
             Err(e) => {
                 // Log error but don't fail - compensation is best-effort
                 warn!("Compensation failed for user {}: {}", user_id, e);
-                Ok(StepResult::success(json!({
+                Ok(StepExecutionResult::success_from_json(json!({
                     "compensated": false,
                     "error": e.to_string(),
                     "requires_manual_cleanup": true

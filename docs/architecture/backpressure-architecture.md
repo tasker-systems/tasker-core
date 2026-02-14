@@ -426,19 +426,19 @@ The FFI boundary (Rust → Ruby/Python handler) creates a critical demarcation f
 ```rust
 // BEFORE FFI - system error, retryable
 match dispatch_to_handler(step).await {
-    Err(DispatchError::ChannelFull) => StepResult::retryable("dispatch_channel_full"),
-    Err(DispatchError::Timeout) => StepResult::retryable("dispatch_timeout"),
+    Err(DispatchError::ChannelFull) => StepExecutionResult::retryable("dispatch_channel_full"),
+    Err(DispatchError::Timeout) => StepExecutionResult::retryable("dispatch_timeout"),
     Ok(ffi_handle) => {
         // AFTER FFI - different rules apply
         match ffi_handle.await {
             // System crash after FFI = permanent (unknown state)
-            Err(FfiError::ProcessCrash) => StepResult::permanent("handler_crash"),
-            Err(FfiError::Panic) => StepResult::permanent("handler_panic"),
+            Err(FfiError::ProcessCrash) => StepExecutionResult::permanent("handler_crash"),
+            Err(FfiError::Panic) => StepExecutionResult::permanent("handler_panic"),
 
             // Developer-returned errors = trust their classification
-            Ok(HandlerResult::RetryableError(msg)) => StepResult::retryable(msg),
-            Ok(HandlerResult::PermanentError(msg)) => StepResult::permanent(msg),
-            Ok(HandlerResult::Success(data)) => StepResult::success(data),
+            Ok(HandlerResult::RetryableError(msg)) => StepExecutionResult::retryable(msg),
+            Ok(HandlerResult::PermanentError(msg)) => StepExecutionResult::permanent(msg),
+            Ok(HandlerResult::Success(data)) => StepExecutionResult::success(data),
         }
     }
 }

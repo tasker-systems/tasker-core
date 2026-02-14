@@ -16,6 +16,7 @@ The tasker-core workspace provides four worker implementations for executing wor
 | Document | Description |
 |----------|-------------|
 | [API Convergence Matrix](api-convergence-matrix.md) | Quick reference for aligned APIs across languages |
+| [Client Wrapper API](client-wrapper.md) | High-level client for submitting tasks (Ruby, Python, TypeScript) |
 | [Example Handlers](example-handlers.md) | Side-by-side handler examples |
 | [Patterns and Practices](patterns-and-practices.md) | Common patterns across all workers |
 | [Rust Worker](rust.md) | Native Rust implementation |
