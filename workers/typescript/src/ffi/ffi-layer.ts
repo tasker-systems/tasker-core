@@ -13,8 +13,8 @@
  */
 
 import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { detectRuntime, type RuntimeType } from './runtime.js';
 import type { TaskerRuntime } from './runtime-interface.js';
 
@@ -79,9 +79,11 @@ export class FfiLayer {
 
     if (!path) {
       throw new Error(
-        'FFI library not found. Install the platform-specific package or set TASKER_FFI_LIBRARY_PATH.\n' +
-          'Install: npm install @tasker-systems/tasker-darwin-arm64  (or the package matching your platform)\n' +
-          'Or set:  export TASKER_FFI_LIBRARY_PATH=/path/to/libtasker_ts.dylib'
+        'FFI library not found. No bundled native library matches this platform, ' +
+          'and TASKER_FFI_LIBRARY_PATH is not set.\n' +
+          `Current platform: ${process.platform}-${process.arch}\n` +
+          'Supported: linux-x64, linux-arm64, darwin-arm64\n' +
+          'Override: export TASKER_FFI_LIBRARY_PATH=/path/to/libtasker_ts.dylib'
       );
     }
 
@@ -144,7 +146,7 @@ export class FfiLayer {
    *
    * Resolution order:
    * 1. TASKER_FFI_LIBRARY_PATH environment variable (explicit override)
-   * 2. Platform-specific npm package (@tasker-systems/tasker-{os}-{arch})
+   * 2. Bundled native library in the package's native/ directory
    *
    * @param _callerDir Deprecated parameter, kept for API compatibility
    * @returns Path to the library if found and exists, null otherwise
@@ -161,10 +163,10 @@ export class FfiLayer {
       return envPath;
     }
 
-    // 2. Try platform-specific npm package
-    const platformPath = tryResolvePlatformPackage();
-    if (platformPath && existsSync(platformPath)) {
-      return platformPath;
+    // 2. Try bundled native library
+    const bundledPath = findBundledNativeLibrary();
+    if (bundledPath && existsSync(bundledPath)) {
+      return bundledPath;
     }
 
     return null;
@@ -209,50 +211,36 @@ export class FfiLayer {
 }
 
 /**
- * Platform package name mapping.
+ * Bundled native library filenames by platform/arch.
  *
- * Maps Node.js process.platform/process.arch values to the corresponding
- * @tasker-systems platform package name and native library filename.
+ * These libraries are placed in the package's native/ directory during the
+ * release build. All supported platforms are bundled in every published package
+ * so that npm install "just works" without per-platform optional dependencies.
  */
-const PLATFORM_PACKAGES: Record<string, { package: string; library: string }> = {
-  'linux-x64': {
-    package: '@tasker-systems/tasker-linux-x64',
-    library: 'libtasker_ts.so',
-  },
-  'linux-arm64': {
-    package: '@tasker-systems/tasker-linux-arm64',
-    library: 'libtasker_ts.so',
-  },
-  'darwin-arm64': {
-    package: '@tasker-systems/tasker-darwin-arm64',
-    library: 'libtasker_ts.dylib',
-  },
+const BUNDLED_LIBRARIES: Record<string, string> = {
+  'linux-x64': 'libtasker_ts-linux-x64.so',
+  'linux-arm64': 'libtasker_ts-linux-arm64.so',
+  'darwin-arm64': 'libtasker_ts-darwin-arm64.dylib',
 };
 
 /**
- * Try to resolve the native library path from a platform-specific npm package.
+ * Find the bundled native library for the current platform.
  *
- * Uses createRequire to locate the installed platform package, then resolves
- * the native library path relative to the package directory.
+ * Looks in the package's native/ directory (sibling to dist/) for a
+ * pre-compiled library matching the current platform and architecture.
  *
  * @returns Absolute path to the native library, or null if not found
  */
-function tryResolvePlatformPackage(): string | null {
+function findBundledNativeLibrary(): string | null {
   const key = `${process.platform}-${process.arch}`;
-  const entry = PLATFORM_PACKAGES[key];
-  if (!entry) {
+  const filename = BUNDLED_LIBRARIES[key];
+  if (!filename) {
     return null;
   }
 
-  try {
-    // Use createRequire to resolve the platform package's package.json,
-    // then derive the library path from the package directory.
-    const require = createRequire(import.meta.url);
-    const pkgJsonPath = require.resolve(`${entry.package}/package.json`);
-    const pkgDir = dirname(pkgJsonPath);
-    return join(pkgDir, entry.library);
-  } catch {
-    // Package not installed — expected when platform packages are optional
-    return null;
-  }
+  // This file lives in dist/ffi/ffi-layer.js at runtime.
+  // The native/ directory is at the package root (sibling to dist/).
+  const thisDir = dirname(fileURLToPath(import.meta.url));
+  const packageRoot = join(thisDir, '..', '..');
+  return join(packageRoot, 'native', filename);
 }

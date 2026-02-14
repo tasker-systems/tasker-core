@@ -98,5 +98,4 @@ fi
 if [[ -n "$TS_VERSION" ]]; then
     log_section "TypeScript binding"
     update_typescript_version "$TS_VERSION"
-    update_typescript_platform_versions "$TS_VERSION"
 fi

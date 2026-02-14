@@ -22,6 +22,7 @@
   },
   "files": [
     "dist",
+    "native",
     "README.md"
   ],
   "scripts": {
@@ -76,9 +77,6 @@
     "typescript": "^5.9.3"
   },
   "optionalDependencies": {
-    "koffi": "^2.9.0",
-    "@tasker-systems/tasker-linux-x64": "0.1.2",
-    "@tasker-systems/tasker-linux-arm64": "0.1.2",
-    "@tasker-systems/tasker-darwin-arm64": "0.1.2"
+    "koffi": "^2.9.0"
   }
 }
