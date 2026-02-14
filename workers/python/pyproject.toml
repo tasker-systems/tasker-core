@@ -1,6 +1,6 @@
 [project]
 name = "tasker-py"
-version = "0.1.1"
+version = "0.1.2"
 description = "Python worker for Tasker workflow orchestration"
 readme = "README.md"
 license = { text = "MIT" }
