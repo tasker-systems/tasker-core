@@ -505,10 +505,9 @@ jobs:
           VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
 
   # ============================================================================
-  # Stage 4b: Publish Container Images to GHCR (parallel matrix, amd64)
+  # Stage 4b: Publish Container Images to GHCR (parallel matrix, multi-arch)
   # ============================================================================
   # Each image builds in its own parallel job via matrix strategy.
-  # amd64-only for now; add arm64 with native runners later (no QEMU).
   publish-containers:
     name: Publish ${{ matrix.image.name }}
     runs-on: ubuntu-22.04
@@ -569,7 +568,7 @@ jobs:
           context: .
           file: ${{ matrix.image.dockerfile }}
           push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image.name }}
