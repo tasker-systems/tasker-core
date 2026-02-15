@@ -98,7 +98,10 @@ ENV SQLX_OFFLINE=true
 
 # Build optimized release binary
 # IMPORTANT: Use --locked to ensure Cargo.lock is respected (prevents serde version conflicts)
-RUN cargo build --release --all-features --locked --bin tasker-server -p tasker-orchestration
+# NOTE: Do NOT use --all-features here. Default features include everything needed
+# (grpc-api, postgres, web-api). Using --all-features would pull in tokio-console,
+# which panics at runtime without RUSTFLAGS="--cfg tokio_unstable" (TAS-278).
+RUN cargo build --release --locked --bin tasker-server -p tasker-orchestration
 
 # Strip binary for minimal size
 RUN strip target/release/tasker-server

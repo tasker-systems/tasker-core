@@ -97,7 +97,9 @@ ENV SQLX_OFFLINE=true
 
 # Build optimized release binary
 # IMPORTANT: Use --locked to ensure Cargo.lock is respected (prevents serde version conflicts)
-RUN cargo build --release --all-features --locked --bin rust-worker -p tasker-worker-rust
+# NOTE: Do NOT use --all-features here. Using --all-features would pull in tokio-console,
+# which panics at runtime without RUSTFLAGS="--cfg tokio_unstable" (TAS-278).
+RUN cargo build --release --locked --bin rust-worker -p tasker-worker-rust
 
 # Strip binary for minimal size
 RUN strip target/release/rust-worker
