@@ -306,6 +306,8 @@ fn build_task_event_context(
     to_state: TaskState,
     event: &TaskEvent,
 ) -> Value {
+    // TAS-279: Only include structural metadata, never log task.context
+    // which may contain PII, credentials, or other sensitive business data
     serde_json::json!({
         "task_uuid": task.task_uuid,
         "named_task_uuid": task.named_task_uuid,
@@ -315,7 +317,7 @@ fn build_task_event_context(
         "to_state": to_state.as_str(),
         "event": format!("{:?}", event),
         "transitioned_at": Utc::now(),
-        "context": task.context
+        "has_context": task.context.is_some()
     })
 }
 
@@ -327,6 +329,8 @@ fn build_task_event_context_legacy(
     to_state: &String,
     event: &str,
 ) -> Value {
+    // TAS-279: Only include structural metadata, never log task.context
+    // which may contain PII, credentials, or other sensitive business data
     serde_json::json!({
         "task_uuid": task.task_uuid,
         "named_task_uuid": task.named_task_uuid,
@@ -336,7 +340,7 @@ fn build_task_event_context_legacy(
         "to_state": to_state,
         "event": event,
         "transitioned_at": Utc::now(),
-        "context": task.context
+        "has_context": task.context.is_some()
     })
 }
 
@@ -541,8 +545,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as complete with results and legacy flags updated"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step completion results (full payload)"
         );
         Ok(())
     }
@@ -645,8 +655,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as enqueued for orchestration with results preserved"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step orchestration enqueue results (full payload)"
         );
         Ok(())
     }
@@ -684,8 +700,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as enqueued as error for orchestration with results preserved"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step error orchestration enqueue results (full payload)"
         );
         Ok(())
     }
@@ -876,6 +898,12 @@ impl StateAction<Task> for ErrorStateCleanupAction {
                 error_message = error_message,
                 "Task transitioned to error state"
             );
+            // TAS-279: Full event data only at TRACE level for local debugging
+            tracing::trace!(
+                task_uuid = %task.task_uuid,
+                event = event,
+                "Task error event (full payload)"
+            );
         }
 
         Ok(())
@@ -905,6 +933,13 @@ impl StateAction<WorkflowStep> for ErrorStateCleanupAction {
                 task_uuid = %step.task_uuid,
                 error_message = error_message,
                 "Workflow step transitioned to error state"
+            );
+            // TAS-279: Full event data only at TRACE level for local debugging
+            tracing::trace!(
+                step_uuid = %step.workflow_step_uuid,
+                task_uuid = %step.task_uuid,
+                event = event,
+                "Step error event (full payload)"
             );
         }
 
@@ -1053,17 +1088,38 @@ fn build_step_event_context(
     to_state: &str,
     event: &str,
 ) -> Value {
+    // TAS-279: Extract only the event type from the event string, never include
+    // the full event payload which may contain step results with PII
+    let event_type = extract_event_type_from_event(event);
+
     serde_json::json!({
         "task_uuid": step.task_uuid,
         "step_uuid": step.workflow_step_uuid,
         "named_step_uuid": step.named_step_uuid,
         "from_state": from_state,
         "to_state": to_state,
-        "event": event,
+        "event_type": event_type,
         "transitioned_at": Utc::now()
     })
     // Note: WorkflowStep doesn't have correlation_id field - it's inherited from Task
     // Future enhancement: Add task correlation_id lookup when needed for distributed tracing
+}
+
+/// TAS-279: Extract just the event type name from a serialized event string,
+/// avoiding inclusion of full payload data that may contain PII.
+fn extract_event_type_from_event(event: &str) -> String {
+    if let Ok(event_data) = serde_json::from_str::<Value>(event) {
+        if let Some(event_type) = event_data.get("type").and_then(|v| v.as_str()) {
+            return event_type.to_string();
+        }
+    }
+    // For non-JSON events, return the event string only if it's short and
+    // unlikely to contain payload data (e.g., simple event names)
+    if event.len() <= 64 && !event.contains('{') {
+        event.to_string()
+    } else {
+        "unknown".to_string()
+    }
 }
 
 fn extract_results_from_event(event: &str) -> ActionResult<Option<Value>> {
@@ -1093,8 +1149,17 @@ fn extract_error_from_event(event: &str) -> Option<String> {
         if let Some(error) = event_data.get("error") {
             return error.as_str().map(|s| s.to_string());
         }
+        // TAS-279: Extract only the event type, not the full payload which may contain PII
+        if let Some(event_type) = event_data.get("type") {
+            return Some(format!(
+                "Error in event type: {}",
+                event_type.as_str().unwrap_or("unknown")
+            ));
+        }
     }
 
-    // Fallback: use the event string itself as error message
-    Some(event.to_string())
+    // TAS-279: Don't use the raw event string as fallback - it may contain
+    // step results with PII, credentials, or other sensitive data.
+    // Return a generic message instead; full details available at TRACE level.
+    Some("Error details redacted from logs (enable TRACE level for full event data)".to_string())
 }
