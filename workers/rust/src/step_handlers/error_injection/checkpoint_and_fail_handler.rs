@@ -79,12 +79,17 @@ impl RustStepHandler for CheckpointAndFailHandler {
         // Current attempt (1-indexed)
         let current_attempt = step_data.workflow_step.attempts.unwrap_or(1);
 
-        // DEBUG: Log what's in results at the start of attempt
+        // Log attempt metadata (results omitted - may contain sensitive data)
         tracing::info!(
             step_uuid = %step_uuid,
             current_attempt = current_attempt,
+            has_results = step_data.workflow_step.results.is_some(),
+            "CheckpointAndFailHandler: Starting attempt"
+        );
+        tracing::trace!(
+            step_uuid = %step_uuid,
             results = ?step_data.workflow_step.results,
-            "CheckpointAndFailHandler: Starting attempt with results"
+            "CheckpointAndFailHandler: Attempt results (sensitive - trace level only)"
         );
 
         // Extract batch worker context from inputs

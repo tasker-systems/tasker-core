@@ -541,8 +541,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as complete with results and legacy flags updated"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step completion results (sensitive - trace level only)"
         );
         Ok(())
     }
@@ -645,8 +651,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as enqueued for orchestration with results preserved"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step enqueued results (sensitive - trace level only)"
         );
         Ok(())
     }
@@ -684,8 +696,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as enqueued as error for orchestration with results preserved"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step error enqueued results (sensitive - trace level only)"
         );
         Ok(())
     }

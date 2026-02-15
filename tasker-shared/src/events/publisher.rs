@@ -53,7 +53,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::{broadcast, mpsc, RwLock};
 use tokio::time::{timeout, Duration};
-use tracing::{error, info, instrument, warn};
+use tracing::{error, info, instrument, trace, warn};
 use uuid::Uuid;
 
 /// Event subscriber callback type
@@ -519,12 +519,17 @@ impl FfiBridge {
             );
         }
 
-        // Log the event for observability
+        // Log the event for observability (payload omitted - may contain sensitive data)
         info!(
             event_name = event_name,
             correlation_id = self.correlation_id,
-            payload = ?payload,
             "FFI bridge event published"
+        );
+        trace!(
+            event_name = event_name,
+            correlation_id = self.correlation_id,
+            payload = ?payload,
+            "FFI bridge event payload (sensitive - trace level only)"
         );
 
         Ok(())

@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use thiserror::Error;
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, trace};
 use uuid::Uuid;
 
 use tasker_shared::models::batch_worker::{CheckpointRecord, CheckpointYieldData};
@@ -93,9 +93,14 @@ impl CheckpointService {
     ) -> Result<(), CheckpointError> {
         debug!(
             step_uuid = %step_uuid,
-            cursor = ?data.cursor,
+            has_cursor = !data.cursor.is_null(),
             items_processed = data.items_processed,
             "Persisting checkpoint"
+        );
+        trace!(
+            step_uuid = %step_uuid,
+            cursor = ?data.cursor,
+            "Checkpoint cursor details (sensitive - trace level only)"
         );
 
         // Build the checkpoint record
