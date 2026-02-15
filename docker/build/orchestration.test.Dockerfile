@@ -137,10 +137,11 @@ ENV SQLX_OFFLINE=true
 # This avoids the inefficient double-copy pattern
 # Use sharing=locked to prevent concurrent access issues
 # IMPORTANT: Use --locked to ensure Cargo.lock is respected (prevents serde version conflicts)
+# NOTE: Do NOT use --all-features - it pulls in tokio-console which panics at runtime (TAS-278)
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
-    cargo build --all-features --locked --bin tasker-server -p tasker-orchestration && \
+    cargo build --locked --bin tasker-server -p tasker-orchestration && \
     cp /app/target/debug/tasker-server /app/tasker-server
 
 # =============================================================================
