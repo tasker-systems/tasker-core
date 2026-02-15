@@ -2,27 +2,23 @@
 
 ## When to Use
 
-Use this skill when working with Docker/Podman setup, CI pipelines, deployment modes, container configuration, or understanding how tasker-core services run in local, CI, and production environments.
+Use this skill when working with Docker setup, CI pipelines, deployment modes, container configuration, or understanding how tasker-core services run in local, CI, and production environments.
 
 ## Container Runtime
 
-The project uses **Podman** as the container runtime. Docker CLI commands work via shell aliases (`docker` -> `podman`, `docker-compose` -> `podman compose`).
+The project uses **Docker** as the container runtime.
 
 ### Local Service Management
 
 ```bash
 # Start PostgreSQL with PGMQ
-docker-compose up -d postgres
+docker compose up -d postgres
 
 # Full server (orchestration + workers)
-docker-compose --profile server up -d
+docker compose --profile server up -d
 
 # Test services (includes RabbitMQ)
 docker compose -f docker/docker-compose.test.yml up -d
-
-# Equivalent podman commands
-podman compose up -d postgres
-podman compose -f docker/docker-compose.test.yml up -d
 ```
 
 ## Deployment Modes

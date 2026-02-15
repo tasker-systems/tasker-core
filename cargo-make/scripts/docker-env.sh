@@ -9,11 +9,8 @@
 #   $DOCKER_CMD ps
 #   $COMPOSE_CMD up -d
 
-# Detect container runtime
-if command -v podman &> /dev/null; then
-    export DOCKER_CMD="podman"
-    export COMPOSE_CMD="podman compose"
-elif command -v docker &> /dev/null; then
+# Detect container runtime (prefer Docker)
+if command -v docker &> /dev/null; then
     export DOCKER_CMD="docker"
     # Check if docker compose (v2) is available, else fall back to docker-compose
     if docker compose version &> /dev/null 2>&1; then
@@ -21,7 +18,10 @@ elif command -v docker &> /dev/null; then
     else
         export COMPOSE_CMD="docker-compose"
     fi
+elif command -v podman &> /dev/null; then
+    export DOCKER_CMD="podman"
+    export COMPOSE_CMD="podman compose"
 else
-    echo "❌ Neither docker nor podman found in PATH" >&2
+    echo "Neither docker nor podman found in PATH" >&2
     exit 1
 fi
