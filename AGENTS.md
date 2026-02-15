@@ -139,18 +139,12 @@ grpcurl -plaintext -H "X-API-Key: test-api-key-full-access" \
 | Python Worker | 8083 | 9300 |
 | TypeScript Worker | 8085 | 9400 |
 
-### Container Operations (Podman)
-
-The project uses Podman as the container runtime. Docker CLI commands work via shell aliases (`docker` → `podman`, `docker-compose` → `podman compose`).
+### Container Operations (Docker)
 
 ```bash
-docker-compose up -d postgres                           # Start PostgreSQL (includes PGMQ)
-docker-compose --profile server up -d                   # Full server
+docker compose up -d postgres                           # Start PostgreSQL (includes PGMQ)
+docker compose --profile server up -d                   # Full server
 docker compose -f docker/docker-compose.test.yml up -d  # Test services (includes RabbitMQ)
-
-# Direct podman commands (equivalent)
-podman compose up -d postgres
-podman compose -f docker/docker-compose.test.yml up -d
 ```
 
 ---
@@ -268,7 +262,7 @@ Dual-channel system: dispatch channel + completion channel
 | `testing-infrastructure` | Feature flags, test levels, cluster/gRPC testing |
 | `coverage-tooling` | Cross-language coverage pipeline and thresholds |
 | `configuration-management` | TOML structure, environments, CLI tools |
-| `deployment-and-infrastructure` | Docker/Podman, CI, deployment modes |
+| `deployment-and-infrastructure` | Docker, CI, deployment modes |
 | `architecture-fundamentals` | Actors, state machines, event systems |
 | `workflow-concepts` | Tasks, steps, handler patterns, composition |
 | `project-principles` | 11 tenets, twelve-factor alignment, design philosophy, code review |

@@ -8,7 +8,7 @@ Thank you for your interest in contributing to Tasker Core. This guide covers th
 
 - **Rust** 1.75+ (stable toolchain)
 - **PostgreSQL** 17+ (with PGMQ extension)
-- **Podman** or Docker (for services)
+- **Docker** (for services)
 - **cargo-make** (`cargo install cargo-make`)
 - Optional: Ruby 3.4+, Python 3.12+, Bun 1.x (for FFI worker development)
 

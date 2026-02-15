@@ -505,10 +505,11 @@ jobs:
           VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
 
   # ============================================================================
-  # Stage 4b: Publish Container Images to GHCR (parallel matrix, amd64)
+  # Stage 4b: Publish Container Images to GHCR (parallel matrix, amd64-only)
+  # Rust compilation under QEMU arm64 emulation exceeds GHA free runner timeouts.
+  # Add arm64 once native runners are available or cross-compilation is set up.
   # ============================================================================
   # Each image builds in its own parallel job via matrix strategy.
-  # amd64-only for now; add arm64 with native runners later (no QEMU).
   publish-containers:
     name: Publish ${{ matrix.image.name }}
     runs-on: ubuntu-22.04
@@ -569,6 +570,8 @@ jobs:
           context: .
           file: ${{ matrix.image.dockerfile }}
           push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
+          # arm64 builds via QEMU are too slow for Rust compilation on free GHA runners.
+          # Enable linux/arm64 here once native arm64 runners are available.
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
