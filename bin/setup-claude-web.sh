@@ -16,6 +16,7 @@
 #   - Protocol Buffers compiler (protoc)
 #   - Rust toolchain (if not present)
 #   - cargo-make, sqlx-cli, cargo-nextest
+#   - GitHub CLI (gh) for PR creation and GitHub API
 #   - PostgreSQL database (via Docker or native) with PGMQ + uuidv7
 #   - Redis cache server
 #   - Project environment variables
@@ -90,6 +91,9 @@ setup_cargo_tools
 # ---------------------------------------------------------------------------
 source "${LIB_DIR}/setup-grpcurl.sh"
 setup_grpcurl
+
+source "${LIB_DIR}/setup-gh.sh"
+setup_gh
 
 # ---------------------------------------------------------------------------
 # Phase 4: Data services (PostgreSQL + Redis)
@@ -243,6 +247,7 @@ command_exists cargo-make && echo "    cargo-make:    yes"
 command_exists sqlx       && echo "    sqlx-cli:      yes"
 command_exists cargo-nextest && echo "    cargo-nextest: yes"
 command_exists grpcurl    && echo "    grpcurl:       yes"
+command_exists gh         && echo "    gh:            $(gh --version 2>/dev/null | head -1 | awk '{print $3}' || echo 'yes')"
 echo ""
 
 echo "  Services:"

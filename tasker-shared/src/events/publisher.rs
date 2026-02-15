@@ -519,12 +519,19 @@ impl FfiBridge {
             );
         }
 
-        // Log the event for observability
+        // TAS-279: Log only structural metadata at INFO level, never the full payload
+        // which may contain step results with PII, credentials, or sensitive business data
         info!(
             event_name = event_name,
             correlation_id = self.correlation_id,
-            payload = ?payload,
             "FFI bridge event published"
+        );
+        // Full payload available at TRACE level for local debugging only
+        tracing::trace!(
+            event_name = event_name,
+            correlation_id = self.correlation_id,
+            payload = ?payload,
+            "FFI bridge event payload (full)"
         );
 
         Ok(())

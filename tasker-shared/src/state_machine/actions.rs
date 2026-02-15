@@ -541,8 +541,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as complete with results and legacy flags updated"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step completion results (full payload)"
         );
         Ok(())
     }
@@ -645,8 +651,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as enqueued for orchestration with results preserved"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step orchestration enqueue results (full payload)"
         );
         Ok(())
     }
@@ -684,8 +696,14 @@ impl UpdateStepResultsAction {
         tracing::info!(
             step_uuid = %step.workflow_step_uuid,
             task_uuid = %step.task_uuid,
-            ?results,
+            has_results = results.is_some(),
             "Step marked as enqueued as error for orchestration with results preserved"
+        );
+        tracing::trace!(
+            step_uuid = %step.workflow_step_uuid,
+            task_uuid = %step.task_uuid,
+            ?results,
+            "Step error orchestration enqueue results (full payload)"
         );
         Ok(())
     }
@@ -876,6 +894,12 @@ impl StateAction<Task> for ErrorStateCleanupAction {
                 error_message = error_message,
                 "Task transitioned to error state"
             );
+            // TAS-279: Full event data only at TRACE level for local debugging
+            tracing::trace!(
+                task_uuid = %task.task_uuid,
+                event = event,
+                "Task error event (full payload)"
+            );
         }
 
         Ok(())
@@ -905,6 +929,13 @@ impl StateAction<WorkflowStep> for ErrorStateCleanupAction {
                 task_uuid = %step.task_uuid,
                 error_message = error_message,
                 "Workflow step transitioned to error state"
+            );
+            // TAS-279: Full event data only at TRACE level for local debugging
+            tracing::trace!(
+                step_uuid = %step.workflow_step_uuid,
+                task_uuid = %step.task_uuid,
+                event = event,
+                "Step error event (full payload)"
             );
         }
 
