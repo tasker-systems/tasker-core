@@ -237,10 +237,11 @@ jobs:
     # Uses pre-built artifacts from build-ffi-libraries for platform gems.
     # Runs even if some FFI matrix jobs failed (e.g. QEMU arm64 timeout) —
     # build-ruby-gems.sh warns and skips missing architectures gracefully.
+    # Note: build-ffi-libraries may report cancelled/failure from partial matrix
+    # results (e.g. arm64 QEMU timeout), so we only gate on pre-flight success.
     if: |
       always() && !cancelled() &&
       needs.pre-flight-check.result == 'success' &&
-      needs.build-ffi-libraries.result != 'cancelled' &&
       (needs.detect-and-read.outputs.ruby_changed == 'true' ||
        needs.detect-and-read.outputs.ffi_core_changed == 'true' ||
        needs.detect-and-read.outputs.ruby_infra_changed == 'true')
@@ -345,8 +346,11 @@ jobs:
     needs: [detect-and-read, pre-flight-check, publish-crates, build-ffi-libraries]
     # Uploads pre-built wheels from build-ffi-libraries to PyPI.
     # No Rust compilation — all 3 architecture wheels are pre-built.
+    # Note: build-ffi-libraries may report cancelled/failure from partial matrix
+    # results (e.g. arm64 QEMU timeout), so we only gate on pre-flight success.
     if: |
-      always() && !cancelled() && !failure() &&
+      always() && !cancelled() &&
+      needs.pre-flight-check.result == 'success' &&
       (needs.detect-and-read.outputs.python_changed == 'true' ||
        needs.detect-and-read.outputs.ffi_core_changed == 'true' ||
        needs.detect-and-read.outputs.python_infra_changed == 'true')
@@ -422,10 +426,11 @@ jobs:
     # Bundles pre-built native libraries from build-ffi-libraries.
     # Runs even if some FFI matrix jobs failed (e.g. QEMU arm64 timeout) —
     # bundling step warns and skips missing architectures, fails only if zero succeeded.
+    # Note: build-ffi-libraries may report cancelled/failure from partial matrix
+    # results (e.g. arm64 QEMU timeout), so we only gate on pre-flight success.
     if: |
       always() && !cancelled() &&
       needs.pre-flight-check.result == 'success' &&
-      needs.build-ffi-libraries.result != 'cancelled' &&
       (needs.detect-and-read.outputs.typescript_changed == 'true' ||
        needs.detect-and-read.outputs.ffi_core_changed == 'true' ||
        needs.detect-and-read.outputs.typescript_infra_changed == 'true')
