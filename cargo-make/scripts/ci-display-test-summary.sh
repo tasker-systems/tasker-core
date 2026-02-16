@@ -31,9 +31,9 @@ summarize_xml() {
     echo "${label}:"
     if [ -f "$file" ]; then
         local test_count
-        test_count=$(grep -o '<testcase' "$file" | wc -l | tr -d ' ')
+        test_count=$(grep -c '<testcase' "$file" || true)
         local fail_count
-        fail_count=$(grep -o '<failure' "$file" | wc -l | tr -d ' ')
+        fail_count=$(grep -c '<failure' "$file" || true)
         if [ "$fail_count" -gt 0 ]; then
             echo "  Tests: ${test_count} (${fail_count} failed)"
         else
