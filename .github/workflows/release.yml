@@ -39,8 +39,8 @@ concurrency:
 #           |
 #     +-----+------------------+
 #     |                        |
-#  publish-crates          build-ffi-libraries  (3x matrix: amd64/arm64/macOS)
-#  (20 min)                (45-60 min)
+#  publish-crates          build-ffi-libraries  (2x matrix: amd64/macOS)
+#  (20 min)                (45 min)
 #     |                        |
 #     +-----+------------------+
 #           |
@@ -163,7 +163,7 @@ jobs:
   # ============================================================================
   # Stage 2b: Build FFI Libraries (cross-architecture)
   # ============================================================================
-  # Builds all 3 FFI libraries for 3 architectures (9 artifacts total).
+  # Builds all 3 FFI libraries for 2 architectures (6 artifacts total).
   # Runs in parallel with publish-crates. Publish jobs download pre-built
   # artifacts instead of compiling from source.
   build-ffi-libraries:
@@ -234,11 +234,8 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     needs: [detect-and-read, pre-flight-check, publish-crates, build-ffi-libraries]
-    # Uses pre-built artifacts from build-ffi-libraries for platform gems.
-    # Runs even if some FFI matrix jobs failed (e.g. QEMU arm64 timeout) —
+    # Uses pre-built artifacts from build-ffi-libraries for platform gems (linux-amd64, macos-arm64).
     # build-ruby-gems.sh warns and skips missing architectures gracefully.
-    # Note: build-ffi-libraries may report cancelled/failure from partial matrix
-    # results (e.g. arm64 QEMU timeout), so we only gate on pre-flight success.
     if: |
       always() && !cancelled() &&
       needs.pre-flight-check.result == 'success' &&
@@ -344,10 +341,8 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     needs: [detect-and-read, pre-flight-check, publish-crates, build-ffi-libraries]
-    # Uploads pre-built wheels from build-ffi-libraries to PyPI.
-    # No Rust compilation — all 3 architecture wheels are pre-built.
-    # Note: build-ffi-libraries may report cancelled/failure from partial matrix
-    # results (e.g. arm64 QEMU timeout), so we only gate on pre-flight success.
+    # Uploads pre-built wheels from build-ffi-libraries to PyPI (linux-amd64, macos-arm64).
+    # No Rust compilation — wheels are pre-built.
     if: |
       always() && !cancelled() &&
       needs.pre-flight-check.result == 'success' &&
@@ -423,11 +418,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     needs: [detect-and-read, pre-flight-check, publish-crates, build-ffi-libraries]
-    # Bundles pre-built native libraries from build-ffi-libraries.
-    # Runs even if some FFI matrix jobs failed (e.g. QEMU arm64 timeout) —
-    # bundling step warns and skips missing architectures, fails only if zero succeeded.
-    # Note: build-ffi-libraries may report cancelled/failure from partial matrix
-    # results (e.g. arm64 QEMU timeout), so we only gate on pre-flight success.
+    # Bundles pre-built native libraries from build-ffi-libraries (linux-amd64, macos-arm64).
     if: |
       always() && !cancelled() &&
       needs.pre-flight-check.result == 'success' &&
@@ -466,7 +457,6 @@ jobs:
         run: |
           mkdir -p workers/typescript/native
           BUNDLED=0
-          # Copy each artifact if available; warn and continue if missing (e.g. QEMU timeout)
           try_bundle() {
             local src="$1" dest="$2" label="$3"
             if [[ -f "$src" ]]; then
@@ -479,11 +469,9 @@ jobs:
           }
           try_bundle "ffi-artifacts/typescript/libtasker_ts-x86_64-unknown-linux-gnu.so" \
                      "workers/typescript/native/libtasker_ts-linux-x64.so" "linux-x64"
-          try_bundle "ffi-artifacts/typescript/libtasker_ts-aarch64-unknown-linux-gnu.so" \
-                     "workers/typescript/native/libtasker_ts-linux-arm64.so" "linux-arm64"
           try_bundle "ffi-artifacts/typescript/libtasker_ts-aarch64-apple-darwin.dylib" \
                      "workers/typescript/native/libtasker_ts-darwin-arm64.dylib" "darwin-arm64"
-          echo "Bundled ${BUNDLED}/3 native libraries"
+          echo "Bundled ${BUNDLED}/2 native libraries"
           if [[ "$BUNDLED" -eq 0 ]]; then
             echo "::warning::No native libraries bundled — package will still work with TASKER_FFI_LIBRARY_PATH"
           else
@@ -506,8 +494,6 @@ jobs:
 
   # ============================================================================
   # Stage 4b: Publish Container Images to GHCR (parallel matrix, amd64-only)
-  # Rust compilation under QEMU arm64 emulation exceeds GHA free runner timeouts.
-  # Add arm64 once native runners are available or cross-compilation is set up.
   # ============================================================================
   # Each image builds in its own parallel job via matrix strategy.
   publish-containers:
@@ -570,8 +556,6 @@ jobs:
           context: .
           file: ${{ matrix.image.dockerfile }}
           push: ${{ needs.detect-and-read.outputs.is_dry_run != 'true' }}
-          # arm64 builds via QEMU are too slow for Rust compilation on free GHA runners.
-          # Enable linux/arm64 here once native arm64 runners are available.
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -40,11 +40,10 @@ fi
 
 if [[ "${FFI_RESULT:-}" == "success" ]]; then
   BODY+=$'\n'"## FFI Libraries"$'\n\n'
-  BODY+="Pre-built native libraries for all 3 architectures are attached to this release."$'\n\n'
+  BODY+="Pre-built native libraries are attached to this release."$'\n\n'
   BODY+="| Target | Python | TypeScript | Ruby |"$'\n'
   BODY+="|--------|--------|------------|------|"$'\n'
   BODY+="| x86_64-unknown-linux-gnu | .whl | .so | .so |"$'\n'
-  BODY+="| aarch64-unknown-linux-gnu | .whl | .so | .so |"$'\n'
   BODY+="| aarch64-apple-darwin | .whl | .dylib | .bundle |"$'\n'
 fi
 

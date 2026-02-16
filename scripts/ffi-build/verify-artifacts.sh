@@ -112,13 +112,6 @@ check_architecture() {
                 fail_check "${description} expected x86_64, got: ${file_output}"
             fi
             ;;
-        aarch64-unknown-linux-gnu)
-            if echo "$file_output" | grep -qi "aarch64\|ARM aarch64"; then
-                pass_check "${description} arch matches aarch64"
-            else
-                fail_check "${description} expected aarch64, got: ${file_output}"
-            fi
-            ;;
         aarch64-apple-darwin)
             if echo "$file_output" | grep -qi "arm64\|aarch64"; then
                 pass_check "${description} arch matches arm64"
@@ -178,13 +171,6 @@ verify_python() {
                         pass_check "Wheel platform tag matches x86_64 Linux"
                     else
                         fail_check "Wheel platform tag mismatch for x86_64 Linux: ${basename}"
-                    fi
-                    ;;
-                aarch64-unknown-linux-gnu)
-                    if echo "$basename" | grep -qE "manylinux.*aarch64|linux_aarch64"; then
-                        pass_check "Wheel platform tag matches aarch64 Linux"
-                    else
-                        fail_check "Wheel platform tag mismatch for aarch64 Linux: ${basename}"
                     fi
                     ;;
                 aarch64-apple-darwin)

@@ -49,13 +49,11 @@ mkdir -p "$OUTPUT_DIR"
 # ---------------------------------------------------------------------------
 declare -A PLATFORM_MAP=(
     ["x86_64-unknown-linux-gnu"]="x86_64-linux"
-    ["aarch64-unknown-linux-gnu"]="aarch64-linux"
     ["aarch64-apple-darwin"]="arm64-darwin"
 )
 
 declare -A EXTENSION_MAP=(
     ["x86_64-unknown-linux-gnu"]="so"
-    ["aarch64-unknown-linux-gnu"]="so"
     ["aarch64-apple-darwin"]="bundle"
 )
 
