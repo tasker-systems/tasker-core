@@ -4,5 +4,5 @@
     "strict": true,
     "lib": ["deno.window", "deno.unstable", "esnext"]
   },
-  "exclude": ["src/ffi/node-runtime.ts", "src/ffi/bun-runtime.ts", "node_modules", "dist"]
+  "exclude": ["src/ffi/node-runtime.ts", "node_modules", "dist"]
 }

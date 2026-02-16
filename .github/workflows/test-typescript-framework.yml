@@ -140,21 +140,10 @@ jobs:
       # ========================================================================
       # FFI Integration Tests (multi-runtime)
       # ========================================================================
-      - name: Run FFI integration tests (Bun)
-        run: |
-          echo "🧪 Running Bun FFI integration tests..."
-          bun test tests/integration/ffi/bun-runtime.test.ts 2>&1 | tee ../../target/typescript-ffi-bun-results.txt
-
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo "❌ Bun FFI tests failed"
-            exit 1
-          fi
-          echo "✅ Bun FFI tests passed"
-        env:
-          TASKER_ENV: test
-          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
-          REDIS_URL: redis://localhost:6379
-          FFI_BOOTSTRAP_TESTS: "true"
+      # Note: BunRuntime now extends NodeRuntime (both use koffi via Node-API),
+      # so the separate bun:ffi integration test was removed in TAS-282.
+      # Bun FFI coverage is provided by the Node.js koffi tests below,
+      # which validate the shared koffi code path used by both runtimes.
 
       - name: Run FFI integration tests (Node.js)
         run: |

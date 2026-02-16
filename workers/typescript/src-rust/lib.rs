@@ -5,8 +5,8 @@
 //!
 //! # Runtime Support
 //!
-//! - **Node.js**: Via `ffi-napi` package
-//! - **Bun**: Via built-in `bun:ffi`
+//! - **Node.js**: Via koffi (Node-API)
+//! - **Bun**: Via koffi (Node-API, same as Node.js)
 //! - **Deno**: Via `Deno.dlopen`
 //!
 //! # Memory Management
@@ -582,7 +582,7 @@ pub unsafe extern "C" fn client_create_task(request_json: *const c_char) -> *mut
 
     // SAFETY: Caller guarantees request_json is a valid null-terminated C string
     let request_str = match unsafe { CStr::from_ptr(request_json) }.to_str() {
-        Ok(s) => s.to_string(),
+        Ok(s) => s.trim_end_matches('\0').to_string(),
         Err(_) => return json_error("client_create_task: invalid UTF-8"),
     };
 
@@ -641,7 +641,7 @@ pub unsafe extern "C" fn client_list_tasks(params_json: *const c_char) -> *mut c
 
     // SAFETY: Caller guarantees params_json is a valid null-terminated C string
     let params_str = match unsafe { CStr::from_ptr(params_json) }.to_str() {
-        Ok(s) => s.to_string(),
+        Ok(s) => s.trim_end_matches('\0').to_string(),
         Err(_) => return json_error("client_list_tasks: invalid UTF-8"),
     };
 

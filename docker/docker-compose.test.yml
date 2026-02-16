@@ -22,6 +22,8 @@
 # - OTLP gRPC: localhost:4317
 # - Prometheus: http://localhost:9090
 
+name: tasker-test
+
 services:
   # ==========================================================================
   # Grafana LGTM Stack - All-in-One Observability (TAS-65 Phase 1)
@@ -178,7 +180,7 @@ services:
     container_name: tasker-test-dragonfly
     command: ["--memcached_port", "11211"]
     ports:
-      - "6379:6379"   # Redis protocol
+      - "6379:6379" # Redis protocol
       - "11211:11211" # Memcached protocol
     volumes:
       - dragonfly_data:/data

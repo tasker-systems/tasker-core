@@ -47,7 +47,6 @@ export {
   // Runtime interface
   BaseTaskerRuntime,
   // Runtime implementations
-  BunRuntime,
   DenoRuntime,
   // Runtime detection
   detectRuntime,

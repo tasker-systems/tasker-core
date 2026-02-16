@@ -1,6 +1,6 @@
 # @tasker-systems/tasker
 
-TypeScript worker for the Tasker workflow orchestration system. Supports Bun (native FFI), Node.js (via koffi), and Deno runtimes.
+TypeScript worker for the Tasker workflow orchestration system. Supports Bun, Node.js (both via koffi/Node-API), and Deno runtimes.
 
 ## Status
 
@@ -9,10 +9,10 @@ Production ready. TypeScript worker bindings provide full step handler execution
 ## Installation
 
 ```bash
-# Bun (recommended - native FFI support)
-bun add @tasker-systems/tasker
+# Bun (recommended)
+bun add @tasker-systems/tasker koffi
 
-# Node.js (requires koffi for FFI)
+# Node.js
 npm install @tasker-systems/tasker koffi
 ```
 
@@ -97,7 +97,7 @@ workers/typescript/
 
 ## Technology Stack
 
-- **FFI Layer**: Bun native FFI / koffi (Node.js)
+- **FFI Layer**: koffi (Node-API, works with both Bun and Node.js)
 - **Build Tool**: tsup
 - **Runtime**: Bun, Node.js 18+, or Deno
 - **Testing**: Bun test runner
@@ -109,8 +109,8 @@ workers/typescript/
 
 | Runtime | FFI Mechanism | Status |
 |---------|---------------|--------|
-| Bun | Native `bun:ffi` | Recommended |
-| Node.js | koffi | Supported |
+| Bun | koffi (Node-API) | Recommended |
+| Node.js | koffi (Node-API) | Supported |
 | Deno | `Deno.dlopen` | Experimental |
 
 ## License

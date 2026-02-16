@@ -6,6 +6,7 @@
 use crate::bridge::WORKER_SYSTEM;
 use crate::error::TypeScriptFfiError;
 use anyhow::Result;
+use serde::Deserialize;
 use tracing::error;
 
 /// Helper: call a client method, returning JSON string result.
@@ -51,10 +52,14 @@ where
 
 /// Internal implementation of client_create_task.
 pub fn client_create_task_internal(request_json: &str) -> Result<String> {
-    let task_request: tasker_shared::models::core::task_request::TaskRequest =
-        serde_json::from_str(request_json).map_err(|e| {
-            TypeScriptFfiError::InvalidArgument(format!("Invalid task request JSON: {e}"))
-        })?;
+    // Use Deserializer to read exactly one JSON value, tolerating trailing bytes
+    // that koffi's string marshalling may include in the buffer.
+    let mut deserializer = serde_json::Deserializer::from_str(request_json);
+    let task_request =
+        tasker_shared::models::core::task_request::TaskRequest::deserialize(&mut deserializer)
+            .map_err(|e| {
+                TypeScriptFfiError::InvalidArgument(format!("Invalid task request JSON: {e}"))
+            })?;
 
     call_client("create_task", move |client| {
         client.create_task(task_request)
@@ -71,7 +76,10 @@ pub fn client_get_task_internal(task_uuid: &str) -> Result<String> {
 
 /// Internal implementation of client_list_tasks.
 pub fn client_list_tasks_internal(params_json: &str) -> Result<String> {
-    let params: serde_json::Value = serde_json::from_str(params_json)
+    // Use Deserializer to read exactly one JSON value, tolerating trailing bytes
+    // that koffi's string marshalling may include in the buffer.
+    let mut deserializer = serde_json::Deserializer::from_str(params_json);
+    let params: serde_json::Value = serde_json::Value::deserialize(&mut deserializer)
         .map_err(|e| TypeScriptFfiError::InvalidArgument(format!("Invalid params JSON: {e}")))?;
 
     let limit = params.get("limit").and_then(|v| v.as_i64()).unwrap_or(50) as i32;

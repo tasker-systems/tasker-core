@@ -5,7 +5,6 @@
  */
 
 // Runtime implementations (for direct use if needed)
-export { BunRuntime } from './bun-runtime.js';
 export { DenoRuntime } from './deno-runtime.js';
 // FfiLayer - primary API for FFI management
 export { FfiLayer, type FfiLayerConfig } from './ffi-layer.js';

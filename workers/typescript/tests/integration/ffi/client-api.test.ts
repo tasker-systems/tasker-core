@@ -15,7 +15,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { BunRuntime } from '../../../src/ffi/bun-runtime.js';
+import { NodeRuntime } from '../../../src/ffi/node-runtime.js';
 import type { ClientResult } from '../../../src/ffi/types.js';
 import {
   findLibraryPath,
@@ -25,7 +25,7 @@ import {
 } from './common.js';
 
 describe('Client API FFI Integration', () => {
-  let runtime: BunRuntime;
+  let runtime: NodeRuntime;
   let libraryPath: string | null;
   let skipAll = false;
 
@@ -47,7 +47,7 @@ describe('Client API FFI Integration', () => {
       return;
     }
 
-    runtime = new BunRuntime();
+    runtime = new NodeRuntime();
     await runtime.load(libraryPath);
 
     // Bootstrap the worker (required for client to be initialized)
