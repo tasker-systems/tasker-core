@@ -1,10 +1,14 @@
 /**
  * Tests for StepExecutionSubscriber.
+ *
+ * TAS-290: Updated for napi-rs — 4-arg constructor (emitter, registry, module, config),
+ * camelCase event fields, flattened stepDefinition.handlerCallable.
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { TaskerEventEmitter } from '../../../src/events/event-emitter';
 import { StepEventNames } from '../../../src/events/event-names';
+import type { NapiModule } from '../../../src/ffi/ffi-layer';
 import type { FfiStepEvent } from '../../../src/ffi/types';
 import { StepHandler } from '../../../src/handler/base';
 import { HandlerRegistry } from '../../../src/handler/registry';
@@ -15,7 +19,10 @@ import {
 import type { StepContext } from '../../../src/types/step-context';
 import type { StepHandlerResult } from '../../../src/types/step-handler-result';
 
-// Test handler implementation
+// =============================================================================
+// Test Handlers
+// =============================================================================
+
 class TestHandler extends StepHandler {
   static handlerName = 'test_handler';
 
@@ -24,7 +31,6 @@ class TestHandler extends StepHandler {
   }
 }
 
-// Slow handler for timeout tests
 class SlowHandler extends StepHandler {
   static handlerName = 'slow_handler';
 
@@ -34,7 +40,6 @@ class SlowHandler extends StepHandler {
   }
 }
 
-// Failing handler
 class FailingHandler extends StepHandler {
   static handlerName = 'failing_handler';
 
@@ -43,7 +48,6 @@ class FailingHandler extends StepHandler {
   }
 }
 
-// Throwing handler
 class ThrowingHandler extends StepHandler {
   static handlerName = 'throwing_handler';
 
@@ -52,97 +56,174 @@ class ThrowingHandler extends StepHandler {
   }
 }
 
-// Create a mock FFI step event
+// =============================================================================
+// Mock NapiModule
+// =============================================================================
+
+function createMockModule(): NapiModule {
+  return {
+    getVersion: () => '0.1.0-mock',
+    getRustVersion: () => '0.1.0-mock-rust',
+    healthCheck: () => true,
+    bootstrapWorker: () => ({
+      success: true,
+      status: 'started',
+      message: 'mock bootstrap',
+      workerId: 'mock-worker',
+    }),
+    isWorkerRunning: () => true,
+    getWorkerStatus: () => ({
+      success: true,
+      running: true,
+      workerId: 'mock-worker',
+      status: null,
+      environment: null,
+    }),
+    stopWorker: () => ({
+      success: true,
+      running: false,
+      workerId: null,
+      status: 'stopped',
+      environment: null,
+    }),
+    transitionToGracefulShutdown: () => ({
+      success: true,
+      running: false,
+      workerId: null,
+      status: 'transitioning',
+      environment: null,
+    }),
+    pollStepEvents: () => null,
+    pollInProcessEvents: () => null,
+    completeStepEvent: () => true,
+    checkpointYieldStepEvent: () => true,
+    getFfiDispatchMetrics: () => ({
+      pendingCount: 0,
+      starvationDetected: false,
+      starvingEventCount: 0,
+      oldestPendingAgeMs: null,
+      newestPendingAgeMs: null,
+      oldestEventId: null,
+    }),
+    checkStarvationWarnings: () => {},
+    cleanupTimeouts: () => {},
+    logError: () => {},
+    logWarn: () => {},
+    logInfo: () => {},
+    logDebug: () => {},
+    logTrace: () => {},
+    clientCreateTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientListTasks: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientCancelTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientListTaskSteps: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetStep: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetStepAuditHistory: () => ({
+      success: true,
+      data: null,
+      error: null,
+      recoverable: null,
+    }),
+    clientHealthCheck: () => ({ success: true, data: null, error: null, recoverable: null }),
+  } as NapiModule;
+}
+
+// =============================================================================
+// Mock Event Helper
+// =============================================================================
+
 function createMockEvent(handlerName: string, overrides: Partial<FfiStepEvent> = {}): FfiStepEvent {
   return {
-    event_id: `event-${Date.now()}`,
-    task_uuid: 'task-123',
-    step_uuid: 'step-456',
-    correlation_id: 'corr-789',
-    trace_id: null,
-    span_id: null,
-    task_correlation_id: 'task-corr-123',
-    parent_correlation_id: null,
+    eventId: `event-${Date.now()}`,
+    taskUuid: 'task-123',
+    stepUuid: 'step-456',
+    correlationId: 'corr-789',
+    traceId: null,
+    spanId: null,
+    taskCorrelationId: 'task-corr-123',
+    parentCorrelationId: null,
     task: {
-      task_uuid: 'task-123',
-      named_task_uuid: 'named-task-123',
+      taskUuid: 'task-123',
+      namedTaskUuid: 'named-task-123',
       name: 'test_task',
       namespace: 'default',
       version: '1.0.0',
       context: { order_id: 'order-001' },
-      correlation_id: 'task-corr-123',
-      parent_correlation_id: null,
+      correlationId: 'task-corr-123',
+      parentCorrelationId: null,
       complete: false,
       priority: 1,
       initiator: 'test',
-      source_system: 'test',
+      sourceSystem: 'test',
       reason: null,
       tags: null,
-      identity_hash: 'hash-123',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      requested_at: new Date().toISOString(),
+      identityHash: 'hash-123',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      requestedAt: new Date().toISOString(),
     },
-    workflow_step: {
-      workflow_step_uuid: 'step-456',
-      task_uuid: 'task-123',
-      named_step_uuid: 'named-step-456',
+    workflowStep: {
+      workflowStepUuid: 'step-456',
+      taskUuid: 'task-123',
+      namedStepUuid: 'named-step-456',
       name: 'test_step',
-      template_step_name: 'test_step',
+      templateStepName: 'test_step',
       retryable: true,
-      max_attempts: 3,
+      maxAttempts: 3,
       attempts: 0,
-      in_process: false,
+      inProcess: false,
       processed: false,
-
       inputs: null,
       results: null,
-      backoff_request_seconds: null,
-      processed_at: null,
-      last_attempted_at: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      backoffRequestSeconds: null,
+      processedAt: null,
+      lastAttemptedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      checkpoint: null,
     },
-    step_definition: {
+    stepDefinition: {
       name: 'test_step',
       description: 'Test step',
-      handler: {
-        callable: handlerName,
-        initialization: {},
-      },
-
+      handlerCallable: handlerName,
+      handlerMethod: null,
+      handlerResolver: null,
+      handlerInitialization: {},
+      systemDependency: null,
       dependencies: [],
-      timeout_seconds: 60,
-      retry: {
-        retryable: true,
-        max_attempts: 3,
-        backoff: 'exponential',
-        backoff_base_ms: 1000,
-        max_backoff_ms: 30000,
-      },
+      timeoutSeconds: 60,
+      retryRetryable: true,
+      retryMaxAttempts: 3,
+      retryBackoff: 'exponential',
+      retryBackoffBaseMs: 1000,
+      retryMaxBackoffMs: 30000,
     },
-    dependency_results: {},
+    dependencyResults: {},
     ...overrides,
   };
 }
 
+// =============================================================================
+// Tests
+// =============================================================================
+
 describe('StepExecutionSubscriber', () => {
   let emitter: TaskerEventEmitter;
   let registry: HandlerRegistry;
+  let module: NapiModule;
   let subscriber: StepExecutionSubscriber;
 
   beforeEach(() => {
-    // Create fresh instances (explicit construction)
     emitter = new TaskerEventEmitter();
     registry = new HandlerRegistry();
+    module = createMockModule();
 
-    // Register test handlers
     registry.register('test_handler', TestHandler);
     registry.register('slow_handler', SlowHandler);
     registry.register('failing_handler', FailingHandler);
     registry.register('throwing_handler', ThrowingHandler);
 
-    subscriber = new StepExecutionSubscriber(emitter, registry, {
+    subscriber = new StepExecutionSubscriber(emitter, registry, module, {
       workerId: 'test-worker',
       maxConcurrent: 5,
       handlerTimeoutMs: 1000,
@@ -157,7 +238,7 @@ describe('StepExecutionSubscriber', () => {
 
   describe('constructor', () => {
     test('should create subscriber with default config', () => {
-      const sub = new StepExecutionSubscriber(emitter, registry);
+      const sub = new StepExecutionSubscriber(emitter, registry, module);
 
       expect(sub.isRunning()).toBe(false);
       expect(sub.getProcessedCount()).toBe(0);
@@ -171,7 +252,7 @@ describe('StepExecutionSubscriber', () => {
         handlerTimeoutMs: 60000,
       };
 
-      const sub = new StepExecutionSubscriber(emitter, registry, config);
+      const sub = new StepExecutionSubscriber(emitter, registry, module, config);
 
       expect(sub.isRunning()).toBe(false);
     });
@@ -232,14 +313,12 @@ describe('StepExecutionSubscriber', () => {
 
   describe('event handling', () => {
     test('should ignore events when not running', () => {
-      // Emit event without starting subscriber (using correct payload format)
       const event = createMockEvent('test_handler');
       emitter.emit(StepEventNames.STEP_EXECUTION_RECEIVED, {
         event,
         receivedAt: new Date(),
       });
 
-      // Should not process (subscriber not started)
       expect(subscriber.getActiveHandlers()).toBe(0);
     });
 
@@ -248,16 +327,13 @@ describe('StepExecutionSubscriber', () => {
 
       const event = createMockEvent('test_handler');
 
-      // Emit event with correct payload format (matches TaskerEventEmitter.emitStepReceived)
       emitter.emit(StepEventNames.STEP_EXECUTION_RECEIVED, {
         event,
         receivedAt: new Date(),
       });
 
-      // Give time for async handler to execute
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Verify event was processed
       expect(subscriber.getProcessedCount()).toBe(1);
       expect(subscriber.getErrorCount()).toBe(0);
     });
@@ -265,7 +341,6 @@ describe('StepExecutionSubscriber', () => {
     test('should dispatch to correct handler based on callable name', async () => {
       let handlerCalled = false;
 
-      // Create a tracking handler
       class TrackingHandler extends StepHandler {
         static handlerName = 'tracking_handler';
 
@@ -301,8 +376,6 @@ describe('StepExecutionSubscriber', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Handler not found doesn't increment processedCount
-      // (errorCount only incremented if runtime is available for result submission)
       expect(subscriber.getProcessedCount()).toBe(0);
     });
 
@@ -317,7 +390,6 @@ describe('StepExecutionSubscriber', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Handler returned failure result (not an exception)
       expect(subscriber.getProcessedCount()).toBe(1);
     });
 
@@ -332,24 +404,23 @@ describe('StepExecutionSubscriber', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Handler threw exception
       expect(subscriber.getErrorCount()).toBeGreaterThan(0);
     });
   });
 
   describe('config defaults', () => {
     test('should use default workerId based on process pid', () => {
-      const sub = new StepExecutionSubscriber(emitter, registry, {});
+      const sub = new StepExecutionSubscriber(emitter, registry, module, {});
       expect(sub.isRunning()).toBe(false);
     });
 
     test('should use default maxConcurrent of 10', () => {
-      const sub = new StepExecutionSubscriber(emitter, registry, {});
+      const sub = new StepExecutionSubscriber(emitter, registry, module, {});
       expect(sub.isRunning()).toBe(false);
     });
 
     test('should use default handlerTimeoutMs of 300000', () => {
-      const sub = new StepExecutionSubscriber(emitter, registry, {});
+      const sub = new StepExecutionSubscriber(emitter, registry, module, {});
       expect(sub.isRunning()).toBe(false);
     });
   });

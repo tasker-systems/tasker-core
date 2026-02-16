@@ -1,47 +1,39 @@
 /**
  * FFI module for TypeScript/JavaScript workers.
  *
- * Provides runtime-specific FFI adapters for Bun, Node.js, and Deno.
+ * TAS-290: Simplified to napi-rs native module loading.
+ * No more multi-runtime abstraction (koffi/DenoRuntime/NodeRuntime).
  */
 
-// Runtime implementations (for direct use if needed)
-export { DenoRuntime } from './deno-runtime.js';
 // FfiLayer - primary API for FFI management
-export { FfiLayer, type FfiLayerConfig } from './ffi-layer.js';
-export { NodeRuntime } from './node-runtime.js';
-// Runtime detection
-export {
-  detectRuntime,
-  getLibraryPath,
-  getRuntimeInfo,
-  isBun,
-  isDeno,
-  isNode,
-  type RuntimeInfo,
-  type RuntimeType,
-} from './runtime.js';
-// Runtime interface
-export { BaseTaskerRuntime, type TaskerRuntime } from './runtime-interface.js';
+export { FfiLayer, type FfiLayerConfig, type NapiModule } from './ffi-layer.js';
 
 // FFI types
 export type {
   BootstrapConfig,
   BootstrapResult,
-  DependencyResult,
+  CheckpointYieldData,
   FfiDispatchMetrics,
   FfiDomainEvent,
   FfiDomainEventMetadata,
   FfiStepEvent,
-  HandlerDefinition,
   LogFields,
+  NapiCheckpointYieldData,
+  NapiClientResult,
+  NapiDependencyResult,
+  NapiDispatchMetrics,
+  NapiDomainEvent,
+  NapiDomainEventMetadata,
+  NapiListTasksParams,
+  NapiStepDefinition,
+  NapiStepEvent,
+  NapiStepResult,
+  NapiTaskInfo,
+  NapiTaskRequest,
+  NapiWorkflowStep,
   OrchestrationMetadata,
-  RetryConfiguration,
-  StepDefinition,
-  StepExecutionError,
   StepExecutionMetadata,
   StepExecutionResult,
   StopResult,
-  Task,
   WorkerStatus,
-  WorkflowStep,
 } from './types.js';

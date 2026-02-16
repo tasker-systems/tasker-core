@@ -4,14 +4,17 @@
  * Subscribes to step execution events from the EventPoller and dispatches
  * them to the appropriate handlers via the HandlerRegistry.
  *
+ * TAS-290: Uses NapiModule directly instead of TaskerRuntime.
+ * All field access uses camelCase (napi-rs auto-converts from Rust snake_case).
+ *
  * Matches Python's StepExecutionSubscriber pattern (TAS-92 aligned).
  */
 
 import pino, { type Logger, type LoggerOptions } from 'pino';
 import type { StepExecutionReceivedPayload, TaskerEventEmitter } from '../events/event-emitter.js';
 import { StepEventNames } from '../events/event-names.js';
-import type { TaskerRuntime } from '../ffi/runtime-interface.js';
-import type { CheckpointYieldData, FfiStepEvent, StepExecutionResult } from '../ffi/types.js';
+import type { NapiModule } from '../ffi/ffi-layer.js';
+import type { FfiStepEvent, NapiCheckpointYieldData, NapiStepResult } from '../ffi/types.js';
 import type { ExecutableHandler } from '../handler/base.js';
 import { logDebug, logError, logInfo, logWarn } from '../logging/index.js';
 import { StepContext } from '../types/step-context.js';
@@ -74,7 +77,7 @@ export interface StepExecutionSubscriberConfig {
  * const subscriber = new StepExecutionSubscriber(
  *   eventEmitter,
  *   handlerRegistry,
- *   runtime,
+ *   module,
  *   { workerId: 'worker-1' }
  * );
  *
@@ -87,7 +90,7 @@ export interface StepExecutionSubscriberConfig {
 export class StepExecutionSubscriber {
   private readonly emitter: TaskerEventEmitter;
   private readonly registry: HandlerRegistryInterface;
-  private readonly runtime: TaskerRuntime;
+  private readonly module: NapiModule;
   private readonly workerId: string;
   private readonly maxConcurrent: number;
   private readonly handlerTimeoutMs: number;
@@ -102,18 +105,18 @@ export class StepExecutionSubscriber {
    *
    * @param emitter - The event emitter to subscribe to (required, no fallback)
    * @param registry - The handler registry for resolving step handlers
-   * @param runtime - The FFI runtime for submitting results (required, no fallback)
+   * @param module - The napi-rs module for submitting results (required, no fallback)
    * @param config - Optional configuration for execution behavior
    */
   constructor(
     emitter: TaskerEventEmitter,
     registry: HandlerRegistryInterface,
-    runtime: TaskerRuntime,
+    module: NapiModule,
     config: StepExecutionSubscriberConfig = {}
   ) {
     this.emitter = emitter;
     this.registry = registry;
-    this.runtime = runtime;
+    this.module = module;
     this.workerId = config.workerId ?? `typescript-worker-${process.pid}`;
     this.maxConcurrent = config.maxConcurrent ?? 10;
     this.handlerTimeoutMs = config.handlerTimeoutMs ?? 300000;
@@ -156,8 +159,8 @@ export class StepExecutionSubscriber {
           pinoLog.info(
             {
               component: 'subscriber',
-              eventId: payload.event.event_id,
-              stepUuid: payload.event.step_uuid,
+              eventId: payload.event.eventId,
+              stepUuid: payload.event.stepUuid,
             },
             'Received step event in subscriber callback!'
           );
@@ -271,7 +274,7 @@ export class StepExecutionSubscriber {
     pinoLog.info(
       {
         component: 'subscriber',
-        eventId: event.event_id,
+        eventId: event.eventId,
         running: this.running,
         activeHandlers: this.activeHandlers,
         maxConcurrent: this.maxConcurrent,
@@ -281,7 +284,7 @@ export class StepExecutionSubscriber {
 
     if (!this.running) {
       pinoLog.warn(
-        { component: 'subscriber', eventId: event.event_id },
+        { component: 'subscriber', eventId: event.eventId },
         'Received event while stopped, ignoring'
       );
       return;
@@ -302,7 +305,7 @@ export class StepExecutionSubscriber {
     }
 
     pinoLog.info(
-      { component: 'subscriber', eventId: event.event_id },
+      { component: 'subscriber', eventId: event.eventId },
       'About to call processEvent()'
     );
 
@@ -311,7 +314,7 @@ export class StepExecutionSubscriber {
       pinoLog.error(
         {
           component: 'subscriber',
-          eventId: event.event_id,
+          eventId: event.eventId,
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
         },
@@ -324,7 +327,7 @@ export class StepExecutionSubscriber {
    * Process a step execution event.
    */
   private async processEvent(event: FfiStepEvent): Promise<void> {
-    pinoLog.info({ component: 'subscriber', eventId: event.event_id }, 'processEvent() starting');
+    pinoLog.info({ component: 'subscriber', eventId: event.eventId }, 'processEvent() starting');
 
     this.activeHandlers++;
     const startTime = Date.now();
@@ -333,13 +336,13 @@ export class StepExecutionSubscriber {
       // Extract handler name from step definition
       const handlerName = this.extractHandlerName(event);
       pinoLog.info(
-        { component: 'subscriber', eventId: event.event_id, handlerName },
+        { component: 'subscriber', eventId: event.eventId, handlerName },
         'Extracted handler name'
       );
 
       if (!handlerName) {
         pinoLog.error(
-          { component: 'subscriber', eventId: event.event_id },
+          { component: 'subscriber', eventId: event.eventId },
           'No handler name found!'
         );
         await this.submitErrorResult(event, 'No handler name found in step definition', startTime);
@@ -349,8 +352,8 @@ export class StepExecutionSubscriber {
       pinoLog.info(
         {
           component: 'subscriber',
-          eventId: event.event_id,
-          stepUuid: event.step_uuid,
+          eventId: event.eventId,
+          stepUuid: event.stepUuid,
           handlerName,
         },
         'Processing step event'
@@ -358,8 +361,8 @@ export class StepExecutionSubscriber {
 
       // Emit started event
       this.emitter.emit(StepEventNames.STEP_EXECUTION_STARTED, {
-        eventId: event.event_id,
-        stepUuid: event.step_uuid,
+        eventId: event.eventId,
+        stepUuid: event.stepUuid,
         handlerName,
         timestamp: new Date(),
       });
@@ -405,16 +408,16 @@ export class StepExecutionSubscriber {
       // Emit completed/failed event
       if (result.success) {
         this.emitter.emit(StepEventNames.STEP_EXECUTION_COMPLETED, {
-          eventId: event.event_id,
-          stepUuid: event.step_uuid,
+          eventId: event.eventId,
+          stepUuid: event.stepUuid,
           handlerName,
           executionTimeMs,
           timestamp: new Date(),
         });
       } else {
         this.emitter.emit(StepEventNames.STEP_EXECUTION_FAILED, {
-          eventId: event.event_id,
-          stepUuid: event.step_uuid,
+          eventId: event.eventId,
+          stepUuid: event.stepUuid,
           handlerName,
           error: result.errorMessage,
           executionTimeMs,
@@ -429,16 +432,16 @@ export class StepExecutionSubscriber {
 
       logError('Handler execution failed', {
         component: 'subscriber',
-        event_id: event.event_id,
-        step_uuid: event.step_uuid,
+        event_id: event.eventId,
+        step_uuid: event.stepUuid,
         error_message: errorMessage,
       });
 
       await this.submitErrorResult(event, errorMessage, startTime);
 
       this.emitter.emit(StepEventNames.STEP_EXECUTION_FAILED, {
-        eventId: event.event_id,
-        stepUuid: event.step_uuid,
+        eventId: event.eventId,
+        stepUuid: event.stepUuid,
         error: errorMessage,
         executionTimeMs: Date.now() - startTime,
         timestamp: new Date(),
@@ -466,20 +469,10 @@ export class StepExecutionSubscriber {
   /**
    * Extract handler name from FFI event.
    *
-   * The handler name is in step_definition.handler.callable
+   * TAS-290: With napi-rs, handler callable is flattened to stepDefinition.handlerCallable
    */
   private extractHandlerName(event: FfiStepEvent): string | null {
-    const stepDefinition = event.step_definition;
-    if (!stepDefinition) {
-      return null;
-    }
-
-    const handler = stepDefinition.handler;
-    if (!handler) {
-      return null;
-    }
-
-    return handler.callable || null;
+    return event.stepDefinition?.handlerCallable || null;
   }
 
   /**
@@ -491,20 +484,12 @@ export class StepExecutionSubscriber {
   private async submitResult(
     event: FfiStepEvent,
     result: StepHandlerResult,
-    executionTimeMs: number
+    _executionTimeMs: number
   ): Promise<void> {
     pinoLog.info(
-      { component: 'subscriber', eventId: event.event_id, runtimeLoaded: this.runtime.isLoaded },
+      { component: 'subscriber', eventId: event.eventId },
       'submitResult() called'
     );
-
-    if (!this.runtime.isLoaded) {
-      pinoLog.error(
-        { component: 'subscriber', eventId: event.event_id },
-        'Cannot submit result: runtime not loaded!'
-      );
-      return;
-    }
 
     // TAS-125: Check for checkpoint yield in metadata
     if (result.metadata?.checkpoint_yield === true) {
@@ -512,8 +497,8 @@ export class StepExecutionSubscriber {
       return;
     }
 
-    const executionResult = this.buildExecutionResult(event, result, executionTimeMs);
-    await this.sendCompletionViaFfi(event, executionResult, result.success);
+    const napiResult = this.buildNapiStepResult(event, result);
+    await this.sendCompletionViaFfi(event, napiResult, result.success);
   }
 
   /**
@@ -527,78 +512,78 @@ export class StepExecutionSubscriber {
     result: StepHandlerResult
   ): Promise<void> {
     pinoLog.info(
-      { component: 'subscriber', eventId: event.event_id },
+      { component: 'subscriber', eventId: event.eventId },
       'submitCheckpointYield() called - handler yielded checkpoint'
     );
 
     // Extract checkpoint data from the result
     const resultData = result.result ?? {};
-    const checkpointData: CheckpointYieldData = {
-      step_uuid: event.step_uuid,
+    const checkpointData: NapiCheckpointYieldData = {
+      stepUuid: event.stepUuid,
       cursor: resultData.cursor ?? 0,
-      items_processed: (resultData.items_processed as number) ?? 0,
+      itemsProcessed: (resultData.items_processed as number) ?? 0,
     };
 
-    // Only set accumulated_results if it exists
+    // Only set accumulatedResults if it exists
     const accumulatedResults = resultData.accumulated_results as
       | Record<string, unknown>
       | undefined;
     if (accumulatedResults !== undefined) {
-      checkpointData.accumulated_results = accumulatedResults;
+      checkpointData.accumulatedResults = accumulatedResults;
     }
 
     try {
-      const success = this.runtime.checkpointYieldStepEvent(event.event_id, checkpointData);
+      const success = this.module.checkpointYieldStepEvent(event.eventId, checkpointData);
 
       if (success) {
         pinoLog.info(
           {
             component: 'subscriber',
-            eventId: event.event_id,
+            eventId: event.eventId,
             cursor: checkpointData.cursor,
-            itemsProcessed: checkpointData.items_processed,
+            itemsProcessed: checkpointData.itemsProcessed,
           },
           'Checkpoint yield submitted successfully - step will be re-dispatched'
         );
 
         this.emitter.emit(StepEventNames.STEP_CHECKPOINT_YIELD_SENT, {
-          eventId: event.event_id,
-          stepUuid: event.step_uuid,
+          eventId: event.eventId,
+          stepUuid: event.stepUuid,
           cursor: checkpointData.cursor,
-          itemsProcessed: checkpointData.items_processed,
+          itemsProcessed: checkpointData.itemsProcessed,
           timestamp: new Date(),
         });
 
         logInfo('Checkpoint yield submitted', {
           component: 'subscriber',
-          event_id: event.event_id,
-          step_uuid: event.step_uuid,
+          event_id: event.eventId,
+          step_uuid: event.stepUuid,
           cursor: String(checkpointData.cursor),
-          items_processed: String(checkpointData.items_processed),
+          items_processed: String(checkpointData.itemsProcessed),
         });
       } else {
         pinoLog.error(
-          { component: 'subscriber', eventId: event.event_id },
+          { component: 'subscriber', eventId: event.eventId },
           'Checkpoint yield rejected by Rust - event may not be in pending map'
         );
         logError('Checkpoint yield rejected', {
           component: 'subscriber',
-          event_id: event.event_id,
-          step_uuid: event.step_uuid,
+          event_id: event.eventId,
+          step_uuid: event.stepUuid,
         });
       }
     } catch (error) {
       pinoLog.error(
         {
           component: 'subscriber',
-          eventId: event.event_id,
+          eventId: event.eventId,
           error: error instanceof Error ? error.message : String(error),
         },
         'Checkpoint yield failed with error'
       );
       logError('Failed to submit checkpoint yield', {
         component: 'subscriber',
-        event_id: event.event_id,
+        event_id: event.eventId,
         error_message: error instanceof Error ? error.message : String(error),
       });
     }
@@ -610,91 +595,53 @@ export class StepExecutionSubscriber {
   private async submitErrorResult(
     event: FfiStepEvent,
     errorMessage: string,
-    startTime: number
+    _startTime: number
   ): Promise<void> {
-    if (!this.runtime.isLoaded) {
-      logError('Cannot submit error result: runtime not available', {
-        component: 'subscriber',
-        event_id: event.event_id,
-      });
-      return;
-    }
-
-    const executionTimeMs = Date.now() - startTime;
-    const executionResult = this.buildErrorExecutionResult(event, errorMessage, executionTimeMs);
-
-    const accepted = await this.sendCompletionViaFfi(event, executionResult, false);
+    const napiResult = this.buildErrorNapiStepResult(event, errorMessage);
+    const accepted = await this.sendCompletionViaFfi(event, napiResult, false);
     if (accepted) {
       this.errorCount++;
     }
   }
 
   /**
-   * Build a StepExecutionResult from a handler result.
+   * Build a NapiStepResult from a handler result.
    *
-   * IMPORTANT: metadata.retryable must be set for Rust's is_retryable() to work correctly.
+   * TAS-290: Flat structure matching #[napi(object)] NapiStepResult.
+   * Metadata (executionTimeMs, workerId, etc.) is not passed — Rust side uses defaults.
    */
-  private buildExecutionResult(
+  private buildNapiStepResult(
     event: FfiStepEvent,
-    result: StepHandlerResult,
-    executionTimeMs: number
-  ): StepExecutionResult {
-    const executionResult: StepExecutionResult = {
-      step_uuid: event.step_uuid,
+    result: StepHandlerResult
+  ): NapiStepResult {
+    return {
+      stepUuid: event.stepUuid,
       success: result.success,
       result: result.result ?? {},
-      metadata: {
-        execution_time_ms: executionTimeMs,
-        worker_id: this.workerId,
-        handler_name: this.extractHandlerName(event) ?? 'unknown',
-        attempt_number: event.workflow_step?.attempts ?? 1,
-        retryable: result.retryable ?? false,
-        ...result.metadata,
-      },
       status: result.success ? 'completed' : 'failed',
+      errorMessage: result.success ? null : (result.errorMessage ?? 'Unknown error'),
+      errorType: result.success ? null : (result.errorType ?? 'handler_error'),
+      errorRetryable: result.success ? null : (result.retryable ?? false),
+      errorStatusCode: null,
     };
-
-    // Only add error field when not successful
-    if (!result.success) {
-      executionResult.error = {
-        message: result.errorMessage ?? 'Unknown error',
-        error_type: result.errorType ?? 'handler_error',
-        retryable: result.retryable,
-        status_code: null,
-        backtrace: null,
-      };
-    }
-
-    return executionResult;
   }
 
   /**
-   * Build an error StepExecutionResult for handler resolution/execution failures.
-   *
-   * IMPORTANT: metadata.retryable must be set for Rust's is_retryable() to work correctly.
+   * Build an error NapiStepResult for handler resolution/execution failures.
    */
-  private buildErrorExecutionResult(
+  private buildErrorNapiStepResult(
     event: FfiStepEvent,
-    errorMessage: string,
-    executionTimeMs: number
-  ): StepExecutionResult {
+    errorMessage: string
+  ): NapiStepResult {
     return {
-      step_uuid: event.step_uuid,
+      stepUuid: event.stepUuid,
       success: false,
       result: {},
-      metadata: {
-        execution_time_ms: executionTimeMs,
-        worker_id: this.workerId,
-        retryable: true,
-      },
       status: 'error',
-      error: {
-        message: errorMessage,
-        error_type: 'handler_error',
-        retryable: true,
-        status_code: null,
-        backtrace: null,
-      },
+      errorMessage,
+      errorType: 'handler_error',
+      errorRetryable: true,
+      errorStatusCode: null,
     };
   }
 
@@ -705,24 +652,25 @@ export class StepExecutionSubscriber {
    */
   private async sendCompletionViaFfi(
     event: FfiStepEvent,
-    executionResult: StepExecutionResult,
+    napiResult: NapiStepResult,
     isSuccess: boolean
   ): Promise<boolean> {
     pinoLog.info(
       {
         component: 'subscriber',
-        eventId: event.event_id,
-        stepUuid: event.step_uuid,
-        resultJson: JSON.stringify(executionResult),
+        eventId: event.eventId,
+        stepUuid: event.stepUuid,
+        success: napiResult.success,
+        status: napiResult.status,
       },
-      'About to call runtime.completeStepEvent()'
+      'About to call module.completeStepEvent()'
     );
 
     try {
-      const ffiResult = this.runtime.completeStepEvent(event.event_id, executionResult);
+      const ffiResult = this.module.completeStepEvent(event.eventId, napiResult);
 
       if (ffiResult) {
-        this.handleFfiSuccess(event, executionResult, isSuccess);
+        this.handleFfiSuccess(event, isSuccess);
         return true;
       }
       this.handleFfiRejection(event);
@@ -738,27 +686,25 @@ export class StepExecutionSubscriber {
    */
   private handleFfiSuccess(
     event: FfiStepEvent,
-    executionResult: StepExecutionResult,
     isSuccess: boolean
   ): void {
     pinoLog.info(
-      { component: 'subscriber', eventId: event.event_id, success: isSuccess },
+      { component: 'subscriber', eventId: event.eventId, success: isSuccess },
       'completeStepEvent() returned TRUE - completion accepted by Rust'
     );
 
     this.emitter.emit(StepEventNames.STEP_COMPLETION_SENT, {
-      eventId: event.event_id,
-      stepUuid: event.step_uuid,
+      eventId: event.eventId,
+      stepUuid: event.stepUuid,
       success: isSuccess,
       timestamp: new Date(),
     });
 
     logDebug('Step result submitted', {
       component: 'subscriber',
-      event_id: event.event_id,
-      step_uuid: event.step_uuid,
+      event_id: event.eventId,
+      step_uuid: event.stepUuid,
       success: String(isSuccess),
-      execution_time_ms: String(executionResult.metadata.execution_time_ms),
     });
   }
 
@@ -769,15 +715,15 @@ export class StepExecutionSubscriber {
     pinoLog.error(
       {
         component: 'subscriber',
-        eventId: event.event_id,
-        stepUuid: event.step_uuid,
+        eventId: event.eventId,
+        stepUuid: event.stepUuid,
       },
       'completeStepEvent() returned FALSE - completion REJECTED by Rust! Event may not be in pending map.'
     );
     logError('FFI completion rejected', {
       component: 'subscriber',
-      event_id: event.event_id,
-      step_uuid: event.step_uuid,
+      event_id: event.eventId,
+      step_uuid: event.stepUuid,
     });
   }
 
@@ -788,7 +734,7 @@ export class StepExecutionSubscriber {
     pinoLog.error(
       {
         component: 'subscriber',
-        eventId: event.event_id,
+        eventId: event.eventId,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       },
@@ -796,7 +742,7 @@ export class StepExecutionSubscriber {
     );
     logError('Failed to submit step result', {
       component: 'subscriber',
-      event_id: event.event_id,
+      event_id: event.eventId,
       error_message: error instanceof Error ? error.message : String(error),
     });
   }

@@ -9,4 +9,13 @@
 |----|------|---|-------|------|
 | #7324 | 12:36 PM | 🔵 | TypeScript FFI loader expects native dylibs in package native/ directory | ~376 |
 | #7323 | " | 🔵 | TypeScript FFI layer uses bundled native library discovery pattern | ~407 |
+
+### Feb 16, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #7638 | 12:39 AM | 🔵 | FfiLayer: Runtime-Agnostic FFI Management | ~531 |
+| #7637 | " | 🔵 | Deno FFI Runtime Implementation | ~468 |
+| #7636 | 12:38 AM | 🔵 | Node.js FFI Runtime Implementation Using Koffi | ~521 |
+| #7634 | " | 🔵 | TypeScript Worker FFI Module Design | ~395 |
 </claude-mem-context>

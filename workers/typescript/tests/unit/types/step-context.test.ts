@@ -1,6 +1,7 @@
 /**
  * StepContext class tests.
  *
+ * TAS-290: Updated for napi-rs camelCase FFI types.
  * Verifies context creation, field access, and factory method.
  */
 
@@ -42,7 +43,6 @@ describe('StepContext', () => {
     it('creates readonly properties', () => {
       const context = createValidStepContext();
 
-      // Verify properties exist and are frozen
       expect(context.taskUuid).toBeDefined();
       expect(context.stepUuid).toBeDefined();
     });
@@ -53,15 +53,15 @@ describe('StepContext', () => {
       const event = createValidFfiStepEvent();
       const context = StepContext.fromFfiEvent(event, 'my_handler');
 
-      expect(context.taskUuid).toBe(event.task_uuid);
-      expect(context.stepUuid).toBe(event.step_uuid);
+      expect(context.taskUuid).toBe(event.taskUuid);
+      expect(context.stepUuid).toBe(event.stepUuid);
     });
 
     it('extracts correlation ID from event', () => {
       const event = createValidFfiStepEvent();
       const context = StepContext.fromFfiEvent(event, 'my_handler');
 
-      expect(context.correlationId).toBe(event.correlation_id);
+      expect(context.correlationId).toBe(event.correlationId);
     });
 
     it('sets handler name from parameter', () => {
@@ -89,23 +89,25 @@ describe('StepContext', () => {
 
     it('extracts dependency results from event', () => {
       const event = createValidFfiStepEvent();
-      event.dependency_results = {
+      event.dependencyResults = {
         step_1: {
-          step_uuid: 's1',
+          stepUuid: 's1',
           success: true,
           result: { value: 42 },
           status: 'completed',
-          error: null,
+          errorMessage: null,
+          errorType: null,
+          errorRetryable: null,
         },
       };
       const context = StepContext.fromFfiEvent(event, 'my_handler');
 
-      expect(context.dependencyResults).toEqual(event.dependency_results);
+      expect(context.dependencyResults).toEqual(event.dependencyResults);
     });
 
     it('extracts step config from handler initialization', () => {
       const event = createValidFfiStepEvent();
-      event.step_definition.handler.initialization = {
+      event.stepDefinition.handlerInitialization = {
         api_key: 'secret',
         timeout: 30,
       };
@@ -116,8 +118,8 @@ describe('StepContext', () => {
 
     it('extracts retry count and max retries from workflow step', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.attempts = 2;
-      event.workflow_step.max_attempts = 5;
+      event.workflowStep.attempts = 2;
+      event.workflowStep.maxAttempts = 5;
       const context = StepContext.fromFfiEvent(event, 'my_handler');
 
       expect(context.retryCount).toBe(2);
@@ -126,7 +128,7 @@ describe('StepContext', () => {
 
     it('extracts step inputs from workflow step', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.inputs = { cursor: { offset: 100 } };
+      event.workflowStep.inputs = { cursor: { offset: 100 } };
       const context = StepContext.fromFfiEvent(event, 'my_handler');
 
       expect(context.stepInputs).toEqual({ cursor: { offset: 100 } });
@@ -378,7 +380,7 @@ describe('StepContext', () => {
   describe('checkpoint', () => {
     it('returns checkpoint data when present', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = { cursor: 500, items_processed: 500 };
+      event.workflowStep.checkpoint = { cursor: 500, items_processed: 500 };
       const context = StepContext.fromFfiEvent(event, 'handler');
 
       expect(context.checkpoint).toEqual({ cursor: 500, items_processed: 500 });
@@ -395,7 +397,7 @@ describe('StepContext', () => {
   describe('checkpointCursor', () => {
     it('returns cursor value when present', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = { cursor: 1000 };
+      event.workflowStep.checkpoint = { cursor: 1000 };
       const context = StepContext.fromFfiEvent(event, 'handler');
 
       expect(context.checkpointCursor).toBe(1000);
@@ -409,7 +411,7 @@ describe('StepContext', () => {
 
     it('returns string cursor', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = { cursor: 'page_token_abc' };
+      event.workflowStep.checkpoint = { cursor: 'page_token_abc' };
       const context = StepContext.fromFfiEvent(event, 'handler');
 
       expect(context.checkpointCursor).toBe('page_token_abc');
@@ -419,7 +421,7 @@ describe('StepContext', () => {
   describe('checkpointItemsProcessed', () => {
     it('returns items_processed when present', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = { cursor: 100, items_processed: 250 };
+      event.workflowStep.checkpoint = { cursor: 100, items_processed: 250 };
       const context = StepContext.fromFfiEvent(event, 'handler');
 
       expect(context.checkpointItemsProcessed).toBe(250);
@@ -433,7 +435,7 @@ describe('StepContext', () => {
 
     it('returns 0 when checkpoint has no items_processed', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = { cursor: 100 };
+      event.workflowStep.checkpoint = { cursor: 100 };
       const context = StepContext.fromFfiEvent(event, 'handler');
 
       expect(context.checkpointItemsProcessed).toBe(0);
@@ -443,7 +445,7 @@ describe('StepContext', () => {
   describe('accumulatedResults', () => {
     it('returns accumulated_results when present', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = {
+      event.workflowStep.checkpoint = {
         cursor: 100,
         accumulated_results: { sum: 5000, count: 100 },
       };
@@ -460,7 +462,7 @@ describe('StepContext', () => {
 
     it('returns null when checkpoint has no accumulated_results', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = { cursor: 100 };
+      event.workflowStep.checkpoint = { cursor: 100 };
       const context = StepContext.fromFfiEvent(event, 'handler');
 
       expect(context.accumulatedResults).toBeNull();
@@ -470,7 +472,7 @@ describe('StepContext', () => {
   describe('hasCheckpoint', () => {
     it('returns true when cursor exists', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = { cursor: 500 };
+      event.workflowStep.checkpoint = { cursor: 500 };
       const context = StepContext.fromFfiEvent(event, 'handler');
 
       expect(context.hasCheckpoint()).toBe(true);
@@ -484,7 +486,7 @@ describe('StepContext', () => {
 
     it('returns false when checkpoint has no cursor', () => {
       const event = createValidFfiStepEvent();
-      event.workflow_step.checkpoint = { items_processed: 100 };
+      event.workflowStep.checkpoint = { items_processed: 100 };
       const context = StepContext.fromFfiEvent(event, 'handler');
 
       expect(context.hasCheckpoint()).toBe(false);
@@ -573,73 +575,71 @@ describe('StepContext', () => {
 
 function createValidFfiStepEvent(): FfiStepEvent {
   return {
-    event_id: 'event-123',
-    task_uuid: 'task-456',
-    step_uuid: 'step-789',
-    correlation_id: 'corr-001',
-    trace_id: null,
-    span_id: null,
-    task_correlation_id: 'task-corr-001',
-    parent_correlation_id: null,
+    eventId: 'event-123',
+    taskUuid: 'task-456',
+    stepUuid: 'step-789',
+    correlationId: 'corr-001',
+    traceId: null,
+    spanId: null,
+    taskCorrelationId: 'task-corr-001',
+    parentCorrelationId: null,
     task: {
-      task_uuid: 'task-456',
-      named_task_uuid: 'named-task-001',
+      taskUuid: 'task-456',
+      namedTaskUuid: 'named-task-001',
       name: 'TestTask',
       namespace: 'test',
       version: '1.0.0',
       context: null,
-      correlation_id: 'corr-001',
-      parent_correlation_id: null,
+      correlationId: 'corr-001',
+      parentCorrelationId: null,
       complete: false,
       priority: 0,
       initiator: null,
-      source_system: null,
+      sourceSystem: null,
       reason: null,
       tags: null,
-      identity_hash: 'hash-123',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      requested_at: new Date().toISOString(),
+      identityHash: 'hash-123',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      requestedAt: new Date().toISOString(),
     },
-    workflow_step: {
-      workflow_step_uuid: 'step-789',
-      task_uuid: 'task-456',
-      named_step_uuid: 'named-step-001',
+    workflowStep: {
+      workflowStepUuid: 'step-789',
+      taskUuid: 'task-456',
+      namedStepUuid: 'named-step-001',
       name: 'TestStep',
-      template_step_name: 'test_step',
+      templateStepName: 'test_step',
       retryable: true,
-      max_attempts: 3,
+      maxAttempts: 3,
       attempts: 0,
-      in_process: false,
+      inProcess: false,
       processed: false,
-
       inputs: null,
       results: null,
-      backoff_request_seconds: null,
-      processed_at: null,
-      last_attempted_at: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      backoffRequestSeconds: null,
+      processedAt: null,
+      lastAttemptedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      checkpoint: null,
     },
-    step_definition: {
+    stepDefinition: {
       name: 'test_step',
       description: 'A test step',
-      handler: {
-        callable: 'TestHandler',
-        initialization: {},
-      },
-
+      handlerCallable: 'TestHandler',
+      handlerMethod: null,
+      handlerResolver: null,
+      handlerInitialization: {},
+      systemDependency: null,
       dependencies: [],
-      timeout_seconds: 30,
-      retry: {
-        retryable: true,
-        max_attempts: 3,
-        backoff: 'exponential',
-        backoff_base_ms: 1000,
-        max_backoff_ms: 30000,
-      },
+      timeoutSeconds: 30,
+      retryRetryable: true,
+      retryMaxAttempts: 3,
+      retryBackoff: 'exponential',
+      retryBackoffBaseMs: 1000,
+      retryMaxBackoffMs: 30000,
     },
-    dependency_results: {},
+    dependencyResults: {},
   };
 }
 

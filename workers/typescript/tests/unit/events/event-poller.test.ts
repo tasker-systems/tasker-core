@@ -1,8 +1,7 @@
 /**
  * Event poller coherence tests.
  *
- * Verifies that the EventPoller manages its lifecycle correctly
- * and interacts properly with the runtime interface.
+ * TAS-290: Updated to use NapiModule mock instead of TaskerRuntime.
  */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
@@ -12,21 +11,21 @@ import {
   EventPoller,
   type EventPollerConfig,
 } from '../../../src/events/event-poller.js';
-import type { TaskerRuntime } from '../../../src/ffi/runtime-interface.js';
+import type { NapiModule } from '../../../src/ffi/ffi-layer.js';
 import type { FfiStepEvent } from '../../../src/ffi/types.js';
 
 describe('EventPoller', () => {
-  let mockRuntime: MockRuntime;
+  let mockModule: NapiModule;
   let emitter: TaskerEventEmitter;
 
   beforeEach(() => {
-    mockRuntime = createMockRuntime();
+    mockModule = createMockModule();
     emitter = new TaskerEventEmitter();
   });
 
   describe('construction', () => {
     it('creates a poller with default configuration', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       expect(poller).toBeInstanceOf(EventPoller);
       expect(poller.getState()).toBe('stopped');
     });
@@ -39,16 +38,15 @@ describe('EventPoller', () => {
         metricsInterval: 50,
         maxEventsPerCycle: 50,
       };
-      const poller = new EventPoller(mockRuntime, emitter, config);
+      const poller = new EventPoller(mockModule, emitter, config);
       expect(poller).toBeInstanceOf(EventPoller);
     });
 
     it('uses the provided event emitter', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       const startedHandler = mock(() => {});
       emitter.on('poller.started', startedHandler);
 
-      mockRuntime._setLoaded(true);
       poller.start();
       poller.stop();
 
@@ -57,18 +55,14 @@ describe('EventPoller', () => {
   });
 
   describe('lifecycle', () => {
-    beforeEach(() => {
-      mockRuntime._setLoaded(true);
-    });
-
     it('starts in stopped state', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       expect(poller.getState()).toBe('stopped');
       expect(poller.isRunning()).toBe(false);
     });
 
     it('transitions to running state on start', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       poller.start();
 
       expect(poller.getState()).toBe('running');
@@ -78,7 +72,7 @@ describe('EventPoller', () => {
     });
 
     it('transitions back to stopped state on stop', async () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       poller.start();
       await poller.stop();
 
@@ -86,15 +80,8 @@ describe('EventPoller', () => {
       expect(poller.isRunning()).toBe(false);
     });
 
-    it('throws error when starting with unloaded runtime', () => {
-      mockRuntime._setLoaded(false);
-      const poller = new EventPoller(mockRuntime, emitter);
-
-      expect(() => poller.start()).toThrow('Runtime not loaded');
-    });
-
     it('is idempotent when starting multiple times', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       poller.start();
       poller.start(); // Should not throw
 
@@ -103,7 +90,7 @@ describe('EventPoller', () => {
     });
 
     it('is idempotent when stopping multiple times', async () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       poller.start();
       await poller.stop();
       await poller.stop(); // Should not throw
@@ -113,15 +100,11 @@ describe('EventPoller', () => {
   });
 
   describe('event emission', () => {
-    beforeEach(() => {
-      mockRuntime._setLoaded(true);
-    });
-
     it('emits poller.started when starting', () => {
       const handler = mock(() => {});
       emitter.on('poller.started', handler);
 
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       poller.start();
       poller.stop();
 
@@ -132,7 +115,7 @@ describe('EventPoller', () => {
       const handler = mock(() => {});
       emitter.on('poller.stopped', handler);
 
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       poller.start();
       await poller.stop();
 
@@ -141,12 +124,8 @@ describe('EventPoller', () => {
   });
 
   describe('callbacks', () => {
-    beforeEach(() => {
-      mockRuntime._setLoaded(true);
-    });
-
     it('supports onStepEvent callback registration', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       const callback = mock(async () => {});
 
       const result = poller.onStepEvent(callback);
@@ -154,7 +133,7 @@ describe('EventPoller', () => {
     });
 
     it('supports onError callback registration', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       const callback = mock(() => {});
 
       const result = poller.onError(callback);
@@ -162,7 +141,7 @@ describe('EventPoller', () => {
     });
 
     it('supports onMetrics callback registration', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       const callback = mock(() => {});
 
       const result = poller.onMetrics(callback);
@@ -170,7 +149,7 @@ describe('EventPoller', () => {
     });
 
     it('supports fluent callback chaining', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
 
       const result = poller
         .onStepEvent(async () => {})
@@ -182,22 +161,18 @@ describe('EventPoller', () => {
   });
 
   describe('polling counters', () => {
-    beforeEach(() => {
-      mockRuntime._setLoaded(true);
-    });
-
     it('initializes poll count to 0', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       expect(poller.getPollCount()).toBe(0);
     });
 
     it('initializes cycle count to 0', () => {
-      const poller = new EventPoller(mockRuntime, emitter);
+      const poller = new EventPoller(mockModule, emitter);
       expect(poller.getCycleCount()).toBe(0);
     });
 
     it('resets counters on start', async () => {
-      const poller = new EventPoller(mockRuntime, emitter, {
+      const poller = new EventPoller(mockModule, emitter, {
         pollIntervalMs: 5,
       });
 
@@ -219,7 +194,7 @@ describe('EventPoller', () => {
 
   describe('createEventPoller factory', () => {
     it('creates an EventPoller instance', () => {
-      const poller = createEventPoller(mockRuntime, emitter);
+      const poller = createEventPoller(mockModule, emitter);
       expect(poller).toBeInstanceOf(EventPoller);
     });
 
@@ -227,123 +202,80 @@ describe('EventPoller', () => {
       const config: EventPollerConfig = {
         pollIntervalMs: 50,
       };
-      const poller = createEventPoller(mockRuntime, emitter, config);
+      const poller = createEventPoller(mockModule, emitter, config);
       expect(poller).toBeInstanceOf(EventPoller);
     });
   });
 });
 
-// Mock runtime implementation for testing
+// Mock NapiModule for testing
 
-interface MockRuntime extends TaskerRuntime {
-  _setLoaded(loaded: boolean): void;
-  _setEvents(events: FfiStepEvent[]): void;
-}
-
-function createMockRuntime(): MockRuntime {
-  let loaded = false;
-  let events: FfiStepEvent[] = [];
-  let eventIndex = 0;
-
+function createMockModule(): NapiModule {
   return {
-    name: 'mock',
-
-    get isLoaded() {
-      return loaded;
-    },
-
-    _setLoaded(value: boolean) {
-      loaded = value;
-    },
-
-    _setEvents(newEvents: FfiStepEvent[]) {
-      events = newEvents;
-      eventIndex = 0;
-    },
-
-    async load(_libraryPath: string) {
-      loaded = true;
-    },
-
-    unload() {
-      loaded = false;
-    },
-
-    getVersion() {
-      return '1.0.0-mock';
-    },
-
-    getRustVersion() {
-      return '1.0.0-mock';
-    },
-
-    healthCheck() {
-      return true;
-    },
-
-    bootstrapWorker(_config) {
-      return {
-        success: true,
-        status: 'started',
-        message: 'Mock worker started',
-      };
-    },
-
-    isWorkerRunning() {
-      return true;
-    },
-
-    getWorkerStatus() {
-      return { success: true, running: true };
-    },
-
-    stopWorker() {
-      return {
-        success: true,
-        status: 'stopped',
-        message: 'Mock worker stopped',
-      };
-    },
-
-    transitionToGracefulShutdown() {
-      return {
-        success: true,
-        status: 'stopped',
-        message: 'Mock graceful shutdown',
-      };
-    },
-
-    pollStepEvents() {
-      if (eventIndex < events.length) {
-        return events[eventIndex++];
-      }
-      return null;
-    },
-
-    completeStepEvent(_eventId, _result) {
-      return true;
-    },
-
-    getFfiDispatchMetrics() {
-      return {
-        pending_count: events.length - eventIndex,
-        starvation_detected: false,
-        starving_event_count: 0,
-        oldest_pending_age_ms: null,
-        newest_pending_age_ms: null,
-      };
-    },
-
-    checkStarvationWarnings() {},
-
-    cleanupTimeouts() {},
-
-    logError(_message, _fields) {},
-    logWarn(_message, _fields) {},
-    logInfo(_message, _fields) {},
-    logDebug(_message, _fields) {},
-    logTrace(_message, _fields) {},
-  };
+    getVersion: () => '1.0.0-mock',
+    getRustVersion: () => '1.0.0-mock-rust',
+    healthCheck: () => true,
+    bootstrapWorker: () => ({
+      success: true,
+      status: 'started',
+      message: 'Mock worker started',
+      workerId: 'mock-worker',
+    }),
+    isWorkerRunning: () => true,
+    getWorkerStatus: () => ({
+      success: true,
+      running: true,
+      workerId: 'mock-worker',
+      status: null,
+      environment: null,
+    }),
+    stopWorker: () => ({
+      success: true,
+      running: false,
+      workerId: 'mock-worker',
+      status: 'stopped',
+      environment: null,
+    }),
+    transitionToGracefulShutdown: () => ({
+      success: true,
+      running: false,
+      workerId: 'mock-worker',
+      status: 'transitioning',
+      environment: null,
+    }),
+    pollStepEvents: () => null,
+    pollInProcessEvents: () => null,
+    completeStepEvent: () => true,
+    checkpointYieldStepEvent: () => true,
+    getFfiDispatchMetrics: () => ({
+      pendingCount: 0,
+      starvationDetected: false,
+      starvingEventCount: 0,
+      oldestPendingAgeMs: null,
+      newestPendingAgeMs: null,
+      oldestEventId: null,
+    }),
+    checkStarvationWarnings: () => {},
+    cleanupTimeouts: () => {},
+    logError: () => {},
+    logWarn: () => {},
+    logInfo: () => {},
+    logDebug: () => {},
+    logTrace: () => {},
+    clientCreateTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientListTasks: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientCancelTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientListTaskSteps: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetStep: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetStepAuditHistory: () => ({
+      success: true,
+      data: null,
+      error: null,
+      recoverable: null,
+    }),
+    clientHealthCheck: () => ({ success: true, data: null, error: null, recoverable: null }),
+  } as NapiModule;
 }
 
 function sleep(ms: number): Promise<void> {

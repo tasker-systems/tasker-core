@@ -2,12 +2,12 @@
 name = "tasker-ts"
 version = "0.1.3"
 edition = "2021"
-rust-version = "1.70"
-description = "TypeScript FFI bindings for tasker-core"
+rust-version = "1.77"
+description = "TypeScript FFI bindings for tasker-core (napi-rs)"
 readme = "AGENTS.md"
 repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
-keywords = ["bun", "ffi", "nodejs", "tasker", "typescript", "workflow"]
+keywords = ["bun", "ffi", "napi", "tasker", "typescript", "workflow"]
 categories = ["api-bindings", "development-tools::ffi"]
 publish = false  # Internal crate, not published to crates.io
 
@@ -25,13 +25,16 @@ name = "tasker_ts"
 path = "src-rust/lib.rs"
 
 [dependencies]
+# napi-rs core (TAS-290: replaces koffi C FFI)
+napi = { version = "2", features = ["napi9", "serde-json"] }
+napi-derive = "2"
 # Error handling
 anyhow = { workspace = true }
 # Time handling
 chrono = { workspace = true }
 # Environment variable loading
 dotenvy = { workspace = true }
-# Serialization for FFI type conversion
+# Serialization (for internal conversions, NOT for FFI boundary)
 serde = { workspace = true }
 serde_json = { workspace = true }
 # Core tasker libraries
@@ -46,9 +49,8 @@ tracing = { workspace = true }
 # UUID generation and handling
 uuid = { workspace = true }
 
-[dev-dependencies]
-# TypeScript binding generation (dev-only for export_bindings tests)
-ts-rs = { workspace = true }
+[build-dependencies]
+napi-build = "2"
 
 [features]
 default = []

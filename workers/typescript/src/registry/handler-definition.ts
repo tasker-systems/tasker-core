@@ -23,7 +23,19 @@
  * ```
  */
 
-import type { HandlerDefinitionDto } from '../ffi/generated/HandlerDefinitionDto.js';
+/**
+ * Handler definition DTO from napi-rs (flattened from step definition).
+ *
+ * TAS-290: With napi-rs, handler fields are flattened into NapiStepDefinition
+ * (handlerCallable, handlerMethod, handlerResolver, handlerInitialization).
+ * This interface provides a compatible shape for fromDto().
+ */
+export interface HandlerDefinitionDto {
+  callable?: string;
+  method?: string | null;
+  resolver?: string | null;
+  initialization?: Record<string, unknown>;
+}
 
 /**
  * Handler definition with resolution metadata.

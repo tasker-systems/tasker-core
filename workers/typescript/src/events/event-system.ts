@@ -9,6 +9,8 @@
  * By owning all three components, EventSystem guarantees they share the
  * same emitter instance, eliminating reference sharing bugs.
  *
+ * TAS-290: Uses NapiModule directly instead of TaskerRuntime.
+ *
  * Design principles:
  * - Explicit construction: All dependencies injected via constructor
  * - Clear ownership: This class owns the emitter lifecycle
@@ -16,7 +18,7 @@
  */
 
 import pino, { type Logger, type LoggerOptions } from 'pino';
-import type { TaskerRuntime } from '../ffi/runtime-interface.js';
+import type { NapiModule } from '../ffi/ffi-layer.js';
 import {
   type HandlerRegistryInterface,
   StepExecutionSubscriber,
@@ -113,12 +115,12 @@ export interface EventSystemStats {
 /**
  * Unified event processing system.
  *
- * Owns the complete event flow: emitter → poller → subscriber.
+ * Owns the complete event flow: emitter -> poller -> subscriber.
  * Guarantees all components share the same emitter instance.
  *
  * @example
  * ```typescript
- * const eventSystem = new EventSystem(runtime, registry, {
+ * const eventSystem = new EventSystem(module, registry, {
  *   poller: { pollIntervalMs: 10 },
  *   subscriber: { workerId: 'worker-1', maxConcurrent: 10 },
  * });
@@ -137,12 +139,12 @@ export class EventSystem {
   /**
    * Create a new EventSystem.
    *
-   * @param runtime - The FFI runtime for polling events and submitting results
+   * @param module - The napi-rs module for polling events and submitting results
    * @param registry - The handler registry for resolving step handlers
    * @param config - Optional configuration for poller and subscriber
    */
   constructor(
-    runtime: TaskerRuntime,
+    module: NapiModule,
     registry: HandlerRegistryInterface,
     config: EventSystemConfig = {}
   ) {
@@ -150,13 +152,13 @@ export class EventSystem {
     this.emitter = new TaskerEventEmitter();
 
     // Create poller with explicit emitter (no global fallback)
-    this.poller = new EventPoller(runtime, this.emitter, config.poller);
+    this.poller = new EventPoller(module, this.emitter, config.poller);
 
-    // Create subscriber with explicit emitter and runtime
+    // Create subscriber with explicit emitter and module
     this.subscriber = new StepExecutionSubscriber(
       this.emitter,
       registry,
-      runtime,
+      module,
       config.subscriber
     );
   }
@@ -190,11 +192,11 @@ export class EventSystem {
           {
             component: 'event-system',
             debugListener: true,
-            eventId: payload.event?.event_id,
-            stepUuid: payload.event?.step_uuid,
+            eventId: payload.event?.eventId,
+            stepUuid: payload.event?.stepUuid,
             eventName: StepEventNames.STEP_EXECUTION_RECEIVED,
           },
-          `🔍 DEBUG LISTENER: Received ${StepEventNames.STEP_EXECUTION_RECEIVED} event!`
+          `DEBUG LISTENER: Received ${StepEventNames.STEP_EXECUTION_RECEIVED} event!`
         );
       }
     );

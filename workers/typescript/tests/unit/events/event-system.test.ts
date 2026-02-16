@@ -1,123 +1,84 @@
 /**
  * EventSystem lifecycle tests.
  *
- * Tests EventSystem start/stop/isRunning/getEmitter/getStats using
- * mock runtime and mock registry. The EventSystem constructor creates
- * an emitter, poller, and subscriber that share the same emitter instance.
+ * TAS-290: Updated to use NapiModule mock instead of TaskerRuntime.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
 import { EventSystem } from '../../../src/events/event-system.js';
-import type { TaskerRuntime } from '../../../src/ffi/runtime-interface.js';
-import type {
-  BootstrapConfig,
-  BootstrapResult,
-  CheckpointYieldData,
-  FfiDispatchMetrics,
-  FfiDomainEvent,
-  FfiStepEvent,
-  LogFields,
-  StepExecutionResult,
-  StopResult,
-  WorkerStatus,
-} from '../../../src/ffi/types.js';
+import type { NapiModule } from '../../../src/ffi/ffi-layer.js';
 import type { HandlerRegistryInterface } from '../../../src/subscriber/step-execution-subscriber.js';
 
 // =============================================================================
-// Mock Runtime
+// Mock NapiModule
 // =============================================================================
 
-class MockTaskerRuntime implements TaskerRuntime {
-  readonly name = 'mock';
-  private _isLoaded = true;
-
-  get isLoaded(): boolean {
-    return this._isLoaded;
-  }
-
-  _setLoaded(value: boolean): void {
-    this._isLoaded = value;
-  }
-
-  async load(_libraryPath: string): Promise<void> {
-    this._isLoaded = true;
-  }
-
-  unload(): void {
-    this._isLoaded = false;
-  }
-
-  getVersion(): string {
-    return '0.1.0-mock';
-  }
-
-  getRustVersion(): string {
-    return '0.1.0-mock-rust';
-  }
-
-  healthCheck(): boolean {
-    return true;
-  }
-
-  bootstrapWorker(_config?: BootstrapConfig): BootstrapResult {
-    return { success: true, worker_id: 'mock-worker', message: 'mock bootstrap' };
-  }
-
-  isWorkerRunning(): boolean {
-    return true;
-  }
-
-  getWorkerStatus(): WorkerStatus {
-    return {
+function createMockModule(): NapiModule {
+  return {
+    getVersion: () => '0.1.0-mock',
+    getRustVersion: () => '0.1.0-mock-rust',
+    healthCheck: () => true,
+    bootstrapWorker: () => ({
+      success: true,
+      status: 'started',
+      message: 'mock bootstrap',
+      workerId: 'mock-worker',
+    }),
+    isWorkerRunning: () => true,
+    getWorkerStatus: () => ({
+      success: true,
       running: true,
-      worker_id: 'mock-worker',
-      active_tasks: 0,
-      uptime_seconds: 0,
-    };
-  }
-
-  stopWorker(): StopResult {
-    return { success: true, message: 'stopped' };
-  }
-
-  transitionToGracefulShutdown(): StopResult {
-    return { success: true, message: 'transitioning' };
-  }
-
-  pollStepEvents(): FfiStepEvent | null {
-    return null;
-  }
-
-  pollInProcessEvents(): FfiDomainEvent | null {
-    return null;
-  }
-
-  completeStepEvent(_eventId: string, _result: StepExecutionResult): boolean {
-    return true;
-  }
-
-  checkpointYieldStepEvent(_eventId: string, _checkpointData: CheckpointYieldData): boolean {
-    return true;
-  }
-
-  getFfiDispatchMetrics(): FfiDispatchMetrics {
-    return {
-      total_dispatched: 0,
-      total_completed: 0,
-      total_errors: 0,
-      pending_count: 0,
-      events_per_second: 0,
-    };
-  }
-
-  checkStarvationWarnings(): void {}
-  cleanupTimeouts(): void {}
-
-  logError(_message: string, _fields?: LogFields): void {}
-  logWarn(_message: string, _fields?: LogFields): void {}
-  logInfo(_message: string, _fields?: LogFields): void {}
-  logDebug(_message: string, _fields?: LogFields): void {}
-  logTrace(_message: string, _fields?: LogFields): void {}
+      workerId: 'mock-worker',
+      status: null,
+      environment: null,
+    }),
+    stopWorker: () => ({
+      success: true,
+      running: false,
+      workerId: null,
+      status: 'stopped',
+      environment: null,
+    }),
+    transitionToGracefulShutdown: () => ({
+      success: true,
+      running: false,
+      workerId: null,
+      status: 'transitioning',
+      environment: null,
+    }),
+    pollStepEvents: () => null,
+    pollInProcessEvents: () => null,
+    completeStepEvent: () => true,
+    checkpointYieldStepEvent: () => true,
+    getFfiDispatchMetrics: () => ({
+      pendingCount: 0,
+      starvationDetected: false,
+      starvingEventCount: 0,
+      oldestPendingAgeMs: null,
+      newestPendingAgeMs: null,
+      oldestEventId: null,
+    }),
+    checkStarvationWarnings: () => {},
+    cleanupTimeouts: () => {},
+    logError: () => {},
+    logWarn: () => {},
+    logInfo: () => {},
+    logDebug: () => {},
+    logTrace: () => {},
+    clientCreateTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientListTasks: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientCancelTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientListTaskSteps: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetStep: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetStepAuditHistory: () => ({
+      success: true,
+      data: null,
+      error: null,
+      recoverable: null,
+    }),
+    clientHealthCheck: () => ({ success: true, data: null, error: null, recoverable: null }),
+  } as NapiModule;
 }
 
 // =============================================================================
@@ -135,7 +96,7 @@ class MockHandlerRegistry implements HandlerRegistryInterface {
 // =============================================================================
 
 describe('EventSystem', () => {
-  let runtime: MockTaskerRuntime;
+  let module: NapiModule;
   let registry: MockHandlerRegistry;
   let eventSystem: EventSystem;
 
@@ -147,9 +108,9 @@ describe('EventSystem', () => {
   });
 
   function createEventSystem(config = {}): EventSystem {
-    runtime = new MockTaskerRuntime();
+    module = createMockModule();
     registry = new MockHandlerRegistry();
-    eventSystem = new EventSystem(runtime, registry, config);
+    eventSystem = new EventSystem(module, registry, config);
     return eventSystem;
   }
 

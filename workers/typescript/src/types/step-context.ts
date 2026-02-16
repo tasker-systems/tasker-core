@@ -59,10 +59,10 @@ export class StepContext {
   /** Results from dependent steps */
   public readonly dependencyResults: Record<string, unknown>;
 
-  /** Handler-specific configuration (from step_definition.handler.initialization) */
+  /** Handler-specific configuration (from stepDefinition.handlerInitialization) */
   public readonly stepConfig: Record<string, unknown>;
 
-  /** Step-specific inputs (from workflow_step.inputs, used for batch cursor config) */
+  /** Step-specific inputs (from workflowStep.inputs, used for batch cursor config) */
   public readonly stepInputs: Record<string, unknown>;
 
   /** Current retry attempt number */
@@ -88,16 +88,15 @@ export class StepContext {
   /**
    * Create a StepContext from an FFI event.
    *
-   * Extracts input data, dependency results, and configuration from
-   * the task_sequence_step payload.
+   * TAS-290: All field access uses camelCase (napi-rs auto-converts).
    *
    * The FFI data structure mirrors the Ruby TaskSequenceStepWrapper:
    * - task.context -> inputData (task context with user inputs)
-   * - dependency_results -> results from parent steps
-   * - step_definition.handler.initialization -> stepConfig
-   * - workflow_step.attempts -> retryCount
-   * - workflow_step.max_attempts -> maxRetries
-   * - workflow_step.inputs -> stepInputs
+   * - dependencyResults -> results from parent steps
+   * - stepDefinition.handlerInitialization -> stepConfig
+   * - workflowStep.attempts -> retryCount
+   * - workflowStep.maxAttempts -> maxRetries
+   * - workflowStep.inputs -> stepInputs
    *
    * @param event - The FFI step event
    * @param handlerName - Name of the handler to execute
@@ -110,24 +109,23 @@ export class StepContext {
     const inputData = (task.context as Record<string, unknown>) ?? {};
 
     // Extract dependency results
-    const dependencyResults = (event.dependency_results as Record<string, unknown>) ?? {};
+    const dependencyResults = (event.dependencyResults as Record<string, unknown>) ?? {};
 
-    // Extract step config from handler initialization
-    const stepDefinition = event.step_definition ?? {};
-    const handlerConfig = stepDefinition.handler ?? {};
-    const stepConfig = (handlerConfig.initialization as Record<string, unknown>) ?? {};
+    // Extract step config from handler initialization (flattened in napi-rs)
+    const stepDefinition = event.stepDefinition ?? {};
+    const stepConfig = (stepDefinition.handlerInitialization as Record<string, unknown>) ?? {};
 
-    // Extract retry information and step inputs from workflow_step
-    const workflowStep = event.workflow_step ?? {};
+    // Extract retry information and step inputs from workflowStep
+    const workflowStep = event.workflowStep ?? {};
     const retryCount = workflowStep.attempts ?? 0;
-    const maxRetries = workflowStep.max_attempts ?? 3;
+    const maxRetries = workflowStep.maxAttempts ?? 3;
     const stepInputs = (workflowStep.inputs as Record<string, unknown>) ?? {};
 
     return new StepContext({
       event,
-      taskUuid: event.task_uuid,
-      stepUuid: event.step_uuid,
-      correlationId: event.correlation_id,
+      taskUuid: event.taskUuid,
+      stepUuid: event.stepUuid,
+      correlationId: event.correlationId,
       handlerName,
       inputData,
       dependencyResults,
@@ -270,10 +268,14 @@ export class StepContext {
   /**
    * Get the raw checkpoint data from the workflow step.
    *
+   * Note: Checkpoint data from the database uses snake_case keys
+   * (cursor, items_processed, accumulated_results) because it's stored
+   * as a serde_json::Value that passes through napi-rs as-is.
+   *
    * @returns The checkpoint data object or null if not set
    */
   get checkpoint(): Record<string, unknown> | null {
-    const workflowStep = this.event.workflow_step ?? {};
+    const workflowStep = this.event.workflowStep ?? {};
     return (workflowStep.checkpoint as Record<string, unknown>) ?? null;
   }
 

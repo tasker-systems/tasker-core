@@ -1,44 +1,44 @@
 /**
  * Unit tests for the TaskerClient high-level client wrapper.
  *
- * These tests mock the FfiLayer and runtime to verify that TaskerClient
- * constructs correct requests, applies defaults, unwraps ClientResult
- * envelopes, and throws TaskerClientError on failures.
+ * TAS-290: Updated for napi-rs — uses getModule() instead of getRuntime(),
+ * NapiClientResult instead of ClientResult, and typed objects instead of
+ * JSON strings at the FFI boundary.
  */
 
 import { describe, expect, it, mock } from 'bun:test';
 import { TaskerClient, TaskerClientError } from '../../../src/client/index.js';
 import type { FfiLayer } from '../../../src/ffi/ffi-layer.js';
-import type { ClientResult } from '../../../src/ffi/types.js';
+import type { NapiClientResult } from '../../../src/ffi/types.js';
 
 /**
- * Create a mock FfiLayer with a mock runtime.
+ * Create a mock FfiLayer with a mock module.
  */
-function createMockFfiLayer(runtimeOverrides: Record<string, unknown> = {}) {
-  const mockRuntime = {
-    clientCreateTask: mock(() => ({}) as ClientResult),
-    clientGetTask: mock(() => ({}) as ClientResult),
-    clientListTasks: mock(() => ({}) as ClientResult),
-    clientCancelTask: mock(() => ({}) as ClientResult),
-    clientListTaskSteps: mock(() => ({}) as ClientResult),
-    clientGetStep: mock(() => ({}) as ClientResult),
-    clientGetStepAuditHistory: mock(() => ({}) as ClientResult),
-    clientHealthCheck: mock(() => ({}) as ClientResult),
-    ...runtimeOverrides,
+function createMockFfiLayer(moduleOverrides: Record<string, unknown> = {}) {
+  const mockModule = {
+    clientCreateTask: mock(() => ({}) as NapiClientResult),
+    clientGetTask: mock(() => ({}) as NapiClientResult),
+    clientListTasks: mock(() => ({}) as NapiClientResult),
+    clientCancelTask: mock(() => ({}) as NapiClientResult),
+    clientListTaskSteps: mock(() => ({}) as NapiClientResult),
+    clientGetStep: mock(() => ({}) as NapiClientResult),
+    clientGetStepAuditHistory: mock(() => ({}) as NapiClientResult),
+    clientHealthCheck: mock(() => ({}) as NapiClientResult),
+    ...moduleOverrides,
   };
 
   const mockFfiLayer = {
-    getRuntime: () => mockRuntime,
+    getModule: () => mockModule,
   } as unknown as FfiLayer;
 
-  return { mockFfiLayer, mockRuntime };
+  return { mockFfiLayer, mockModule };
 }
 
-function successResult(data: unknown): ClientResult {
+function successResult(data: unknown): NapiClientResult {
   return { success: true, data, error: null, recoverable: null };
 }
 
-function errorResult(error: string, recoverable = false): ClientResult {
+function errorResult(error: string, recoverable = false): NapiClientResult {
   return { success: false, data: null, error, recoverable };
 }
 
@@ -89,23 +89,24 @@ const MOCK_STEP_RESPONSE = {
 describe('TaskerClient', () => {
   describe('createTask', () => {
     it('creates a task with defaults and returns typed response', () => {
-      const { mockFfiLayer, mockRuntime } = createMockFfiLayer({
+      const { mockFfiLayer, mockModule } = createMockFfiLayer({
         clientCreateTask: mock(() => successResult(MOCK_TASK_RESPONSE)),
       });
       const client = new TaskerClient(mockFfiLayer);
 
       const result = client.createTask({ name: 'test_task', namespace: 'test' });
 
-      expect(mockRuntime.clientCreateTask).toHaveBeenCalledTimes(1);
-      const requestJson = (mockRuntime.clientCreateTask as ReturnType<typeof mock>).mock
-        .calls[0][0] as string;
-      const request = JSON.parse(requestJson);
+      expect(mockModule.clientCreateTask).toHaveBeenCalledTimes(1);
+
+      // napi-rs receives typed objects directly (no JSON serialization)
+      const request = (mockModule.clientCreateTask as ReturnType<typeof mock>).mock
+        .calls[0][0] as Record<string, unknown>;
 
       expect(request.name).toBe('test_task');
       expect(request.namespace).toBe('test');
       expect(request.version).toBe('1.0.0');
       expect(request.initiator).toBe('tasker-core-typescript');
-      expect(request.source_system).toBe('tasker-core');
+      expect(request.sourceSystem).toBe('tasker-core');
       expect(request.reason).toBe('Task requested');
       expect(request.context).toEqual({});
       expect(request.tags).toEqual([]);
@@ -115,7 +116,7 @@ describe('TaskerClient', () => {
     });
 
     it('allows overriding all defaults', () => {
-      const { mockFfiLayer, mockRuntime } = createMockFfiLayer({
+      const { mockFfiLayer, mockModule } = createMockFfiLayer({
         clientCreateTask: mock(() => successResult(MOCK_TASK_RESPONSE)),
       });
       const client = new TaskerClient(mockFfiLayer);
@@ -131,15 +132,14 @@ describe('TaskerClient', () => {
         tags: ['tag1', 'tag2'],
       });
 
-      const requestJson = (mockRuntime.clientCreateTask as ReturnType<typeof mock>).mock
-        .calls[0][0] as string;
-      const request = JSON.parse(requestJson);
+      const request = (mockModule.clientCreateTask as ReturnType<typeof mock>).mock
+        .calls[0][0] as Record<string, unknown>;
 
       expect(request.namespace).toBe('custom');
       expect(request.version).toBe('2.0.0');
       expect(request.context).toEqual({ order_id: 123 });
       expect(request.initiator).toBe('my-app');
-      expect(request.source_system).toBe('my-system');
+      expect(request.sourceSystem).toBe('my-system');
       expect(request.reason).toBe('Custom reason');
       expect(request.tags).toEqual(['tag1', 'tag2']);
     });
@@ -177,14 +177,14 @@ describe('TaskerClient', () => {
 
   describe('getTask', () => {
     it('gets a task by UUID and returns typed response', () => {
-      const { mockFfiLayer, mockRuntime } = createMockFfiLayer({
+      const { mockFfiLayer, mockModule } = createMockFfiLayer({
         clientGetTask: mock(() => successResult(MOCK_TASK_RESPONSE)),
       });
       const client = new TaskerClient(mockFfiLayer);
 
       const result = client.getTask('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
 
-      expect(mockRuntime.clientGetTask).toHaveBeenCalledWith(
+      expect(mockModule.clientGetTask).toHaveBeenCalledWith(
         'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
       );
       expect(result.task_uuid).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
@@ -209,37 +209,34 @@ describe('TaskerClient', () => {
         tasks: [MOCK_TASK_RESPONSE],
         pagination: { page: 1, per_page: 50, total_count: 1, total_pages: 1 },
       };
-      const { mockFfiLayer, mockRuntime } = createMockFfiLayer({
+      const { mockFfiLayer, mockModule } = createMockFfiLayer({
         clientListTasks: mock(() => successResult(mockListResponse)),
       });
       const client = new TaskerClient(mockFfiLayer);
 
       const result = client.listTasks();
 
-      const paramsJson = (mockRuntime.clientListTasks as ReturnType<typeof mock>).mock
-        .calls[0][0] as string;
-      const params = JSON.parse(paramsJson);
+      // napi-rs receives typed object directly
+      const params = (mockModule.clientListTasks as ReturnType<typeof mock>).mock
+        .calls[0][0] as Record<string, unknown>;
 
       expect(params.limit).toBe(50);
       expect(params.offset).toBe(0);
-      expect(params.namespace).toBeNull();
-      expect(params.status).toBeNull();
 
       expect(result.tasks).toHaveLength(1);
       expect(result.pagination.total_count).toBe(1);
     });
 
     it('passes filter arguments', () => {
-      const { mockFfiLayer, mockRuntime } = createMockFfiLayer({
+      const { mockFfiLayer, mockModule } = createMockFfiLayer({
         clientListTasks: mock(() => successResult({ tasks: [], pagination: {} })),
       });
       const client = new TaskerClient(mockFfiLayer);
 
       client.listTasks({ limit: 10, offset: 5, namespace: 'test', status: 'pending' });
 
-      const paramsJson = (mockRuntime.clientListTasks as ReturnType<typeof mock>).mock
-        .calls[0][0] as string;
-      const params = JSON.parse(paramsJson);
+      const params = (mockModule.clientListTasks as ReturnType<typeof mock>).mock
+        .calls[0][0] as Record<string, unknown>;
 
       expect(params.limit).toBe(10);
       expect(params.offset).toBe(5);
@@ -250,14 +247,14 @@ describe('TaskerClient', () => {
 
   describe('cancelTask', () => {
     it('cancels a task without throwing', () => {
-      const { mockFfiLayer, mockRuntime } = createMockFfiLayer({
+      const { mockFfiLayer, mockModule } = createMockFfiLayer({
         clientCancelTask: mock(() => successResult({ cancelled: true })),
       });
       const client = new TaskerClient(mockFfiLayer);
 
       client.cancelTask('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
 
-      expect(mockRuntime.clientCancelTask).toHaveBeenCalledWith(
+      expect(mockModule.clientCancelTask).toHaveBeenCalledWith(
         'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
       );
     });
@@ -291,14 +288,14 @@ describe('TaskerClient', () => {
 
   describe('getStep', () => {
     it('gets a step and returns typed response', () => {
-      const { mockFfiLayer, mockRuntime } = createMockFfiLayer({
+      const { mockFfiLayer, mockModule } = createMockFfiLayer({
         clientGetStep: mock(() => successResult(MOCK_STEP_RESPONSE)),
       });
       const client = new TaskerClient(mockFfiLayer);
 
       const result = client.getStep('task-uuid', 'step-uuid');
 
-      expect(mockRuntime.clientGetStep).toHaveBeenCalledWith('task-uuid', 'step-uuid');
+      expect(mockModule.clientGetStep).toHaveBeenCalledWith('task-uuid', 'step-uuid');
       expect(result.current_state).toBe('pending');
     });
   });
@@ -315,14 +312,14 @@ describe('TaskerClient', () => {
         step_name: 'validate_input',
         to_state: 'complete',
       };
-      const { mockFfiLayer, mockRuntime } = createMockFfiLayer({
+      const { mockFfiLayer, mockModule } = createMockFfiLayer({
         clientGetStepAuditHistory: mock(() => successResult([mockAudit])),
       });
       const client = new TaskerClient(mockFfiLayer);
 
       const result = client.getStepAuditHistory('task-uuid', 'step-uuid');
 
-      expect(mockRuntime.clientGetStepAuditHistory).toHaveBeenCalledWith('task-uuid', 'step-uuid');
+      expect(mockModule.clientGetStepAuditHistory).toHaveBeenCalledWith('task-uuid', 'step-uuid');
       expect(result).toHaveLength(1);
       expect(result[0].step_name).toBe('validate_input');
     });

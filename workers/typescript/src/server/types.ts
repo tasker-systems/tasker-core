@@ -6,7 +6,7 @@
 
 import type { TaskerEventEmitter } from '../events/event-emitter.js';
 import type { EventPoller } from '../events/event-poller.js';
-import type { TaskerRuntime } from '../ffi/runtime-interface.js';
+import type { NapiModule } from '../ffi/ffi-layer.js';
 import type { HandlerRegistry } from '../handler/registry.js';
 import type { StepExecutionSubscriber } from '../subscriber/step-execution-subscriber.js';
 
@@ -125,8 +125,8 @@ export interface ServerStatus {
  * Used by WorkerServer to manage lifecycle of all components.
  */
 export interface ServerComponents {
-  /** FFI runtime instance */
-  runtime: TaskerRuntime;
+  /** napi-rs FFI module instance */
+  module: NapiModule;
 
   /** Event emitter for step events */
   emitter: TaskerEventEmitter;

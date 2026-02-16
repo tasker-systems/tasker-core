@@ -11,32 +11,32 @@
  * If no runtime is installed, logs fall back to console output.
  */
 
-import type { TaskerRuntime } from '../ffi/runtime-interface.js';
+import type { NapiModule } from '../ffi/ffi-layer.js';
 import type { LogFields as FfiLogFields } from '../ffi/types.js';
 
 /**
- * Installed runtime for logging.
+ * Installed module for logging.
  * Set via setLoggingRuntime() for explicit dependency injection.
  */
-let installedRuntime: TaskerRuntime | null = null;
+let installedModule: NapiModule | null = null;
 
 /**
- * Install a runtime for logging to use.
+ * Install a napi module for logging to use.
  *
  * Call this after loading the FFI layer to enable Rust tracing integration.
  * If not called, logs fall back to console output.
  *
- * @param runtime - The runtime to use for logging
+ * @param module - The napi module to use for logging
  *
  * @example
  * ```typescript
  * const ffiLayer = new FfiLayer();
  * await ffiLayer.load();
- * setLoggingRuntime(ffiLayer.getRuntime());
+ * setLoggingRuntime(ffiLayer.getModule());
  * ```
  */
-export function setLoggingRuntime(runtime: TaskerRuntime): void {
-  installedRuntime = runtime;
+export function setLoggingRuntime(module: NapiModule): void {
+  installedModule = module;
 }
 
 /**
@@ -45,19 +45,16 @@ export function setLoggingRuntime(runtime: TaskerRuntime): void {
  * Primarily for testing.
  */
 export function clearLoggingRuntime(): void {
-  installedRuntime = null;
+  installedModule = null;
 }
 
 /**
- * Get the runtime for logging.
- * Returns null if no runtime is installed (falls back to console).
+ * Get the module for logging.
+ * Returns null if no module is installed (falls back to console).
  * @internal
  */
-function getLoggingRuntime(): TaskerRuntime | null {
-  if (installedRuntime?.isLoaded) {
-    return installedRuntime;
-  }
-  return null;
+function getLoggingModule(): NapiModule | null {
+  return installedModule;
 }
 
 /**
@@ -106,28 +103,16 @@ function fallbackLog(level: string, message: string, fields?: LogFields): void {
 
 /**
  * Log an ERROR level message with structured fields.
- *
- * Use this for unrecoverable failures that require intervention.
- *
- * @param message - The log message
- * @param fields - Optional structured fields for context
- *
- * @example
- * logError('Database connection failed', {
- *   component: 'database',
- *   operation: 'connect',
- *   error_message: 'Connection timeout',
- * });
  */
 export function logError(message: string, fields?: LogFields): void {
-  const runtime = getLoggingRuntime();
-  if (!runtime) {
+  const module = getLoggingModule();
+  if (!module) {
     fallbackLog('error', message, fields);
     return;
   }
 
   try {
-    runtime.logError(message, toFfiFields(fields));
+    module.logError(message, toFfiFields(fields));
   } catch {
     fallbackLog('error', message, fields);
   }
@@ -135,28 +120,16 @@ export function logError(message: string, fields?: LogFields): void {
 
 /**
  * Log a WARN level message with structured fields.
- *
- * Use this for degraded operation or retryable failures.
- *
- * @param message - The log message
- * @param fields - Optional structured fields for context
- *
- * @example
- * logWarn('Retry attempt 3 of 5', {
- *   component: 'handler',
- *   operation: 'retry',
- *   attempt: 3,
- * });
  */
 export function logWarn(message: string, fields?: LogFields): void {
-  const runtime = getLoggingRuntime();
-  if (!runtime) {
+  const module = getLoggingModule();
+  if (!module) {
     fallbackLog('warn', message, fields);
     return;
   }
 
   try {
-    runtime.logWarn(message, toFfiFields(fields));
+    module.logWarn(message, toFfiFields(fields));
   } catch {
     fallbackLog('warn', message, fields);
   }
@@ -164,29 +137,16 @@ export function logWarn(message: string, fields?: LogFields): void {
 
 /**
  * Log an INFO level message with structured fields.
- *
- * Use this for lifecycle events and state transitions.
- *
- * @param message - The log message
- * @param fields - Optional structured fields for context
- *
- * @example
- * logInfo('Task processing started', {
- *   component: 'handler',
- *   operation: 'process_payment',
- *   correlation_id: 'abc-123',
- *   task_uuid: 'task-456',
- * });
  */
 export function logInfo(message: string, fields?: LogFields): void {
-  const runtime = getLoggingRuntime();
-  if (!runtime) {
+  const module = getLoggingModule();
+  if (!module) {
     fallbackLog('info', message, fields);
     return;
   }
 
   try {
-    runtime.logInfo(message, toFfiFields(fields));
+    module.logInfo(message, toFfiFields(fields));
   } catch {
     fallbackLog('info', message, fields);
   }
@@ -194,28 +154,16 @@ export function logInfo(message: string, fields?: LogFields): void {
 
 /**
  * Log a DEBUG level message with structured fields.
- *
- * Use this for detailed diagnostic information during development.
- *
- * @param message - The log message
- * @param fields - Optional structured fields for context
- *
- * @example
- * logDebug('Parsed request payload', {
- *   component: 'handler',
- *   payload_size: 1024,
- *   content_type: 'application/json',
- * });
  */
 export function logDebug(message: string, fields?: LogFields): void {
-  const runtime = getLoggingRuntime();
-  if (!runtime) {
+  const module = getLoggingModule();
+  if (!module) {
     fallbackLog('debug', message, fields);
     return;
   }
 
   try {
-    runtime.logDebug(message, toFfiFields(fields));
+    module.logDebug(message, toFfiFields(fields));
   } catch {
     fallbackLog('debug', message, fields);
   }
@@ -223,28 +171,16 @@ export function logDebug(message: string, fields?: LogFields): void {
 
 /**
  * Log a TRACE level message with structured fields.
- *
- * Use this for very verbose logging, like function entry/exit.
- * This level is typically disabled in production.
- *
- * @param message - The log message
- * @param fields - Optional structured fields for context
- *
- * @example
- * logTrace('Entering process_step', {
- *   component: 'handler',
- *   step_uuid: 'step-789',
- * });
  */
 export function logTrace(message: string, fields?: LogFields): void {
-  const runtime = getLoggingRuntime();
-  if (!runtime) {
+  const module = getLoggingModule();
+  if (!module) {
     fallbackLog('trace', message, fields);
     return;
   }
 
   try {
-    runtime.logTrace(message, toFfiFields(fields));
+    module.logTrace(message, toFfiFields(fields));
   } catch {
     fallbackLog('trace', message, fields);
   }
@@ -252,17 +188,6 @@ export function logTrace(message: string, fields?: LogFields): void {
 
 /**
  * Create a logger with preset fields.
- *
- * Useful for creating component-specific loggers that automatically
- * include common fields in every log message.
- *
- * @param defaultFields - Fields to include in every log message
- * @returns Logger object with log methods
- *
- * @example
- * const logger = createLogger({ component: 'payment_handler' });
- * logger.info('Processing payment', { amount: 100 });
- * // Logs: { component: 'payment_handler', amount: 100 }
  */
 export function createLogger(defaultFields: LogFields) {
   const mergeFields = (fields?: LogFields): LogFields => ({

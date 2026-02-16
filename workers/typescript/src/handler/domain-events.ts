@@ -15,7 +15,7 @@
  */
 
 import pino, { type Logger, type LoggerOptions } from 'pino';
-import type { TaskerRuntime } from '../ffi/runtime-interface.js';
+import type { NapiModule } from '../ffi/ffi-layer.js';
 import type { FfiDomainEvent } from '../ffi/types.js';
 
 // ---------------------------------------------------------------------------
@@ -1509,9 +1509,9 @@ export function ffiEventToDomainEvent(ffiEvent: FfiDomainEvent): DomainEvent {
  * poller.start();
  * ```
  */
-export function createFfiPollAdapter(runtime: TaskerRuntime): () => DomainEvent | null {
+export function createFfiPollAdapter(module: NapiModule): () => DomainEvent | null {
   return () => {
-    const ffiEvent = runtime.pollInProcessEvents();
+    const ffiEvent = module.pollInProcessEvents();
     if (ffiEvent === null) {
       return null;
     }

@@ -1,187 +1,178 @@
 /**
  * FFI type definitions for TypeScript/JavaScript workers.
  *
- * These types are automatically generated from Rust DTOs using ts-rs.
- * Run `cargo make generate-bindings` to regenerate the base types.
+ * TAS-290: These types match the napi-rs `#[napi(object)]` structs defined in
+ * the Rust layer. napi-rs automatically converts snake_case field names to
+ * camelCase in JavaScript.
  *
- * This file re-exports generated types with API-friendly names and adds
- * runtime-specific types that aren't part of the DTO layer.
+ * Unlike the previous koffi approach, these types represent native JavaScript
+ * objects that cross the FFI boundary directly — no JSON serialization.
  */
 
 // =============================================================================
-// Generated Types (from ts-rs)
+// Step Event Types (from bridge.rs)
 // =============================================================================
-// These types are automatically generated from Rust DTOs in src-rust/dto.rs.
-// Re-exported with API-friendly names (without Dto suffix).
-
-// Client API DTOs (TAS-231)
-import type { ClientHealthResponseDto } from './generated/ClientHealthResponseDto';
-import type { ClientPaginationInfoDto } from './generated/ClientPaginationInfoDto';
-import type { ClientResultDto } from './generated/ClientResultDto';
-import type { ClientStepAuditResponseDto } from './generated/ClientStepAuditResponseDto';
-import type { ClientStepReadinessDto } from './generated/ClientStepReadinessDto';
-import type { ClientStepResponseDto } from './generated/ClientStepResponseDto';
-import type { ClientTaskListResponseDto } from './generated/ClientTaskListResponseDto';
-import type { ClientTaskRequestDto } from './generated/ClientTaskRequestDto';
-import type { ClientTaskResponseDto } from './generated/ClientTaskResponseDto';
-import type { DependencyResultDto } from './generated/DependencyResultDto';
-import type { FfiDispatchMetricsDto } from './generated/FfiDispatchMetricsDto';
-import type { FfiStepEventDto } from './generated/FfiStepEventDto';
-import type { HandlerDefinitionDto } from './generated/HandlerDefinitionDto';
-import type { RetryConfigurationDto } from './generated/RetryConfigurationDto';
-import type { StepDefinitionDto } from './generated/StepDefinitionDto';
-import type { StepExecutionErrorDto } from './generated/StepExecutionErrorDto';
-import type { TaskDto } from './generated/TaskDto';
-import type { WorkflowStepDto } from './generated/WorkflowStepDto';
-
-// Re-export with API-friendly names
-export type Task = TaskDto;
-export type WorkflowStep = WorkflowStepDto;
-export type HandlerDefinition = HandlerDefinitionDto;
-export type RetryConfiguration = RetryConfigurationDto;
-export type StepDefinition = StepDefinitionDto;
-export type StepExecutionError = StepExecutionErrorDto;
-export type DependencyResult = DependencyResultDto;
-export type FfiStepEvent = FfiStepEventDto;
-export type FfiDispatchMetrics = FfiDispatchMetricsDto;
-
-// Client API types with API-friendly names (TAS-231)
-export type ClientTaskRequest = ClientTaskRequestDto;
-export type ClientTaskResponse = ClientTaskResponseDto;
-export type ClientTaskListResponse = ClientTaskListResponseDto;
-export type ClientStepResponse = ClientStepResponseDto;
-export type ClientStepAuditResponse = ClientStepAuditResponseDto;
-export type ClientStepReadiness = ClientStepReadinessDto;
-export type ClientPaginationInfo = ClientPaginationInfoDto;
-export type ClientHealthResponse = ClientHealthResponseDto;
-export type ClientResult = ClientResultDto;
-
-// Also export the Dto-suffixed types for explicit usage
-export type {
-  DependencyResultDto,
-  FfiDispatchMetricsDto,
-  FfiStepEventDto,
-  HandlerDefinitionDto,
-  RetryConfigurationDto,
-  StepDefinitionDto,
-  StepExecutionErrorDto,
-  TaskDto,
-  WorkflowStepDto,
-  // Client API Dto types (TAS-231)
-  ClientHealthResponseDto,
-  ClientPaginationInfoDto,
-  ClientResultDto,
-  ClientStepAuditResponseDto,
-  ClientStepReadinessDto,
-  ClientStepResponseDto,
-  ClientTaskListResponseDto,
-  ClientTaskRequestDto,
-  ClientTaskResponseDto,
-};
-
-// =============================================================================
-// Runtime Types (not generated)
-// =============================================================================
-// These types are specific to the TypeScript runtime and don't exist in Rust DTOs.
 
 /**
- * Bootstrap configuration for the worker
+ * A step event dispatched to the TypeScript handler.
+ *
+ * This is the primary data structure received when polling for work.
+ * All fields are camelCase (napi-rs auto-converts from Rust snake_case).
  */
-export interface BootstrapConfig {
-  worker_id?: string;
-  log_level?: 'trace' | 'debug' | 'info' | 'warn' | 'error';
-  database_url?: string;
-  [key: string]: unknown;
+export interface NapiStepEvent {
+  eventId: string;
+  taskUuid: string;
+  stepUuid: string;
+  correlationId: string;
+  traceId: string | null;
+  spanId: string | null;
+  taskCorrelationId: string;
+  parentCorrelationId: string | null;
+  task: NapiTaskInfo;
+  workflowStep: NapiWorkflowStep;
+  stepDefinition: NapiStepDefinition;
+  dependencyResults: Record<string, NapiDependencyResult>;
 }
 
+export interface NapiTaskInfo {
+  taskUuid: string;
+  namedTaskUuid: string;
+  name: string;
+  namespace: string;
+  version: string;
+  context: unknown | null;
+  correlationId: string;
+  parentCorrelationId: string | null;
+  complete: boolean;
+  priority: number;
+  initiator: string | null;
+  sourceSystem: string | null;
+  reason: string | null;
+  tags: unknown | null;
+  identityHash: string;
+  createdAt: string;
+  updatedAt: string;
+  requestedAt: string;
+}
+
+export interface NapiWorkflowStep {
+  workflowStepUuid: string;
+  taskUuid: string;
+  namedStepUuid: string;
+  name: string;
+  templateStepName: string;
+  retryable: boolean;
+  maxAttempts: number;
+  attempts: number;
+  inProcess: boolean;
+  processed: boolean;
+  inputs: unknown | null;
+  results: unknown | null;
+  backoffRequestSeconds: number | null;
+  processedAt: string | null;
+  lastAttemptedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  checkpoint: unknown | null;
+}
+
+export interface NapiStepDefinition {
+  name: string;
+  description: string | null;
+  handlerCallable: string;
+  handlerMethod: string | null;
+  handlerResolver: string | null;
+  handlerInitialization: unknown;
+  systemDependency: string | null;
+  dependencies: string[];
+  timeoutSeconds: number | null;
+  retryRetryable: boolean;
+  retryMaxAttempts: number;
+  retryBackoff: string;
+  retryBackoffBaseMs: number | null;
+  retryMaxBackoffMs: number | null;
+}
+
+export interface NapiDependencyResult {
+  stepUuid: string;
+  success: boolean;
+  result: unknown;
+  status: string;
+  errorMessage: string | null;
+  errorType: string | null;
+  errorRetryable: boolean | null;
+}
+
+// =============================================================================
+// Step Result Types (from bridge.rs)
+// =============================================================================
+
 /**
- * Bootstrap result from Rust
+ * Result of completing a step event.
+ *
+ * Flat structure — no nested handler/error objects.
  */
+export interface NapiStepResult {
+  stepUuid: string;
+  success: boolean;
+  result: unknown;
+  status: string;
+  errorMessage: string | null;
+  errorType: string | null;
+  errorRetryable: boolean | null;
+  errorStatusCode: number | null;
+}
+
+// =============================================================================
+// Bootstrap Types (from bridge.rs)
+// =============================================================================
+
+export interface BootstrapConfig {
+  namespace?: string;
+  configPath?: string;
+}
+
 export interface BootstrapResult {
   success: boolean;
-  status: 'started' | 'already_running' | 'error';
+  status: string;
   message: string;
-  worker_id?: string;
-  error?: string;
+  workerId: string | null;
 }
 
-/**
- * Worker status from get_worker_status
- */
 export interface WorkerStatus {
   success: boolean;
   running: boolean;
-  status?: 'stopped';
-  worker_id?: string;
-  environment?: string;
-  worker_core_status?: string;
-  web_api_enabled?: boolean;
-  supported_namespaces?: string[];
-  database_pool_size?: number;
-  database_pool_idle?: number;
-}
-
-/**
- * Stop result from stop_worker
- */
-export interface StopResult {
-  success: boolean;
-  status: 'stopped' | 'not_running' | 'error';
-  message: string;
-  worker_id?: string;
-  error?: string;
-}
-
-/**
- * Step execution result to send back to Rust
- *
- * This structure matches tasker_shared::messaging::StepExecutionResult
- */
-export interface StepExecutionResult {
-  step_uuid: string;
-  success: boolean;
-  result: Record<string, unknown>;
-  metadata: StepExecutionMetadata;
-  status: 'completed' | 'failed' | 'error';
-  error?: StepExecutionError;
-  orchestration_metadata?: OrchestrationMetadata;
-}
-
-/**
- * Metadata about step execution
- */
-export interface StepExecutionMetadata {
-  execution_time_ms: number;
-  worker_id?: string;
-  handler_name?: string;
-  attempt_number?: number;
-  [key: string]: unknown;
-}
-
-/**
- * Orchestration metadata for routing
- */
-export interface OrchestrationMetadata {
-  routing_context?: Record<string, unknown>;
-  next_steps?: string[];
-  [key: string]: unknown;
-}
-
-/**
- * Log fields for structured logging
- */
-export interface LogFields {
-  [key: string]: string | number | boolean | null;
+  workerId: string | null;
+  status: string | null;
+  environment: string | null;
 }
 
 // =============================================================================
-// Domain Event Types (for in-process event polling)
+// Dispatch Metrics Types (from bridge.rs)
 // =============================================================================
 
-/**
- * Metadata attached to every domain event from FFI.
- */
-export interface FfiDomainEventMetadata {
+export interface NapiDispatchMetrics {
+  pendingCount: number;
+  starvationDetected: boolean;
+  starvingEventCount: number;
+  oldestPendingAgeMs: number | null;
+  newestPendingAgeMs: number | null;
+  oldestEventId: string | null;
+}
+
+// =============================================================================
+// Domain Event Types (from bridge.rs)
+// =============================================================================
+
+export interface NapiDomainEvent {
+  eventId: string;
+  eventName: string;
+  eventVersion: string;
+  metadata: NapiDomainEventMetadata;
+  payload: Record<string, unknown>;
+}
+
+export interface NapiDomainEventMetadata {
   taskUuid: string;
   stepUuid: string | null;
   stepName: string | null;
@@ -191,34 +182,120 @@ export interface FfiDomainEventMetadata {
   firedBy: string | null;
 }
 
-/**
- * Domain event from in-process event bus (fast path).
- *
- * Used for real-time notifications that don't require guaranteed delivery
- * (e.g., metrics updates, logging, notifications).
- */
-export interface FfiDomainEvent {
-  eventId: string;
-  eventName: string;
-  eventVersion: string;
-  metadata: FfiDomainEventMetadata;
-  payload: Record<string, unknown>;
+// =============================================================================
+// Checkpoint Types (TAS-125, from bridge.rs)
+// =============================================================================
+
+export interface NapiCheckpointYieldData {
+  stepUuid: string;
+  cursor: unknown;
+  itemsProcessed: number;
+  accumulatedResults?: Record<string, unknown>;
 }
 
 // =============================================================================
-// Checkpoint Types (TAS-125)
+// Client Types (from client_ffi.rs)
 // =============================================================================
+
+export interface NapiTaskRequest {
+  name: string;
+  namespace: string;
+  version: string;
+  context: unknown;
+  initiator: string;
+  sourceSystem: string;
+  reason: string;
+  tags?: string[];
+  priority?: number;
+  correlationId?: string;
+  parentCorrelationId?: string;
+  idempotencyKey?: string;
+}
+
+export interface NapiClientResult {
+  success: boolean;
+  data: unknown | null;
+  error: string | null;
+  recoverable: boolean | null;
+}
+
+export interface NapiListTasksParams {
+  limit?: number;
+  offset?: number;
+  namespace?: string;
+  status?: string;
+}
+
+// =============================================================================
+// Compatibility Aliases
+// =============================================================================
+
+/** @deprecated Use NapiStepEvent directly */
+export type FfiStepEvent = NapiStepEvent;
+
+/** @deprecated Use NapiDispatchMetrics directly */
+export type FfiDispatchMetrics = NapiDispatchMetrics;
+
+/** @deprecated Use NapiDomainEvent directly */
+export type FfiDomainEvent = NapiDomainEvent;
+
+/** @deprecated Use NapiDomainEventMetadata directly */
+export type FfiDomainEventMetadata = NapiDomainEventMetadata;
+
+// =============================================================================
+// Runtime Types (not from napi-rs)
+// =============================================================================
+
+/**
+ * Log fields for structured logging
+ */
+export interface LogFields {
+  [key: string]: string | number | boolean | null;
+}
+
+/**
+ * Step execution result to send back to Rust (builds into NapiStepResult)
+ */
+export interface StepExecutionResult {
+  stepUuid: string;
+  success: boolean;
+  result: Record<string, unknown>;
+  status: 'completed' | 'failed' | 'error';
+  errorMessage?: string;
+  errorType?: string;
+  errorRetryable?: boolean;
+  errorStatusCode?: number;
+  metadata?: StepExecutionMetadata;
+}
+
+export interface StepExecutionMetadata {
+  executionTimeMs: number;
+  workerId?: string;
+  handlerName?: string;
+  attemptNumber?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Orchestration metadata for routing
+ */
+export interface OrchestrationMetadata {
+  routingContext?: Record<string, unknown>;
+  nextSteps?: string[];
+  [key: string]: unknown;
+}
 
 /**
  * Checkpoint yield data for batch processing handlers (TAS-125)
- *
- * Sent when a handler wants to persist progress and be re-dispatched.
- * The step remains in_process and will be re-executed with the checkpoint
- * data available.
  */
 export interface CheckpointYieldData {
-  step_uuid: string;
-  cursor: unknown; // Flexible: number | string | object
-  items_processed: number;
-  accumulated_results?: Record<string, unknown>;
+  stepUuid: string;
+  cursor: unknown;
+  itemsProcessed: number;
+  accumulatedResults?: Record<string, unknown>;
 }
+
+/**
+ * Stop result from stop_worker
+ */
+export type StopResult = WorkerStatus;

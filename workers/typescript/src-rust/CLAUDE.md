@@ -8,4 +8,12 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #5428 | 2:14 PM | 🔵 | TypeScript Worker FFI Library Documentation | ~519 |
+
+### Feb 16, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #7652 | 12:43 AM | 🔴 | Complete Analysis of Trailing Input JSON Bug in TypeScript FFI | ~663 |
+| #7644 | 12:41 AM | 🔵 | TypeScript FFI Library Entry Point with Panic Safety | ~589 |
+| #7643 | " | 🔵 | Client FFI Implementation Handles Trailing Input Issue | ~502 |
 </claude-mem-context>

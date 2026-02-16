@@ -1,19 +1,18 @@
 /**
  * Bootstrap configuration and result types.
  *
- * These types extend the FFI types with TypeScript-friendly interfaces
- * for worker lifecycle management.
+ * TAS-290: With napi-rs, FFI types are already camelCase, so conversion
+ * functions are simplified (mostly pass-through).
  */
 
 import type {
   BootstrapConfig as FfiBootstrapConfig,
   BootstrapResult as FfiBootstrapResult,
-  StopResult as FfiStopResult,
   WorkerStatus as FfiWorkerStatus,
 } from '../ffi/types.js';
 
 // Re-export FFI types for convenience
-export type { FfiBootstrapConfig, FfiBootstrapResult, FfiWorkerStatus, FfiStopResult };
+export type { FfiBootstrapConfig, FfiBootstrapResult, FfiWorkerStatus };
 
 /**
  * Configuration for worker bootstrap.
@@ -39,8 +38,6 @@ export interface BootstrapConfig {
 
 /**
  * Result from worker bootstrap.
- *
- * Contains information about the bootstrapped worker instance.
  */
 export interface BootstrapResult {
   /** Whether bootstrap was successful. */
@@ -61,8 +58,6 @@ export interface BootstrapResult {
 
 /**
  * Current worker status.
- *
- * Contains detailed information about the worker's state and resources.
  */
 export interface WorkerStatus {
   /** Whether the status query succeeded. */
@@ -118,6 +113,9 @@ export interface StopResult {
 
 /**
  * Convert TypeScript BootstrapConfig to FFI format.
+ *
+ * TAS-290: With napi-rs, the FFI BootstrapConfig is already camelCase.
+ * Only namespace and configPath are passed to the Rust layer.
  */
 export function toFfiBootstrapConfig(config?: BootstrapConfig): FfiBootstrapConfig {
   if (!config) {
@@ -125,99 +123,49 @@ export function toFfiBootstrapConfig(config?: BootstrapConfig): FfiBootstrapConf
   }
 
   const result: FfiBootstrapConfig = {};
-
-  if (config.workerId !== undefined) {
-    result.worker_id = config.workerId;
-  }
-  if (config.logLevel !== undefined) {
-    result.log_level = config.logLevel;
-  }
-  if (config.databaseUrl !== undefined) {
-    result.database_url = config.databaseUrl;
-  }
-  if (config.namespace !== undefined) {
-    result.namespace = config.namespace;
-  }
-  if (config.configPath !== undefined) {
-    result.config_path = config.configPath;
-  }
-
+  if (config.namespace !== undefined) result.namespace = config.namespace;
+  if (config.configPath !== undefined) result.configPath = config.configPath;
   return result;
 }
 
 /**
  * Convert FFI BootstrapResult to TypeScript format.
+ *
+ * TAS-290: FFI result is already camelCase, minimal conversion needed.
  */
 export function fromFfiBootstrapResult(result: FfiBootstrapResult): BootstrapResult {
-  const converted: BootstrapResult = {
+  const out: BootstrapResult = {
     success: result.success,
-    status: result.status,
+    status: result.status as BootstrapResult['status'],
     message: result.message,
   };
-
-  if (result.worker_id !== undefined) {
-    converted.workerId = result.worker_id;
-  }
-  if (result.error !== undefined) {
-    converted.error = result.error;
-  }
-
-  return converted;
+  if (result.workerId != null) out.workerId = result.workerId;
+  return out;
 }
 
 /**
  * Convert FFI WorkerStatus to TypeScript format.
  */
 export function fromFfiWorkerStatus(status: FfiWorkerStatus): WorkerStatus {
-  const converted: WorkerStatus = {
+  const out: WorkerStatus = {
     success: status.success,
     running: status.running,
   };
-
-  if (status.status !== undefined) {
-    converted.status = status.status;
-  }
-  if (status.worker_id !== undefined) {
-    converted.workerId = status.worker_id;
-  }
-  if (status.environment !== undefined) {
-    converted.environment = status.environment;
-  }
-  if (status.worker_core_status !== undefined) {
-    converted.workerCoreStatus = status.worker_core_status;
-  }
-  if (status.web_api_enabled !== undefined) {
-    converted.webApiEnabled = status.web_api_enabled;
-  }
-  if (status.supported_namespaces !== undefined) {
-    converted.supportedNamespaces = status.supported_namespaces;
-  }
-  if (status.database_pool_size !== undefined) {
-    converted.databasePoolSize = status.database_pool_size;
-  }
-  if (status.database_pool_idle !== undefined) {
-    converted.databasePoolIdle = status.database_pool_idle;
-  }
-
-  return converted;
+  if (status.status != null) out.status = status.status;
+  if (status.workerId != null) out.workerId = status.workerId;
+  if (status.environment != null) out.environment = status.environment;
+  return out;
 }
 
 /**
- * Convert FFI StopResult to TypeScript format.
+ * Convert FFI WorkerStatus to StopResult format.
  */
-export function fromFfiStopResult(result: FfiStopResult): StopResult {
-  const converted: StopResult = {
+export function fromFfiStopResult(result: FfiWorkerStatus): StopResult {
+  const out: StopResult = {
     success: result.success,
-    status: result.status,
-    message: result.message,
+    status: result.running ? 'stopped' : 'not_running',
+    message: result.status ?? 'Worker stopped',
   };
-
-  if (result.worker_id !== undefined) {
-    converted.workerId = result.worker_id;
-  }
-  if (result.error !== undefined) {
-    converted.error = result.error;
-  }
-
-  return converted;
+  if (result.workerId != null) out.workerId = result.workerId;
+  return out;
 }
