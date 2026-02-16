@@ -25,10 +25,12 @@ on:
 # Within each job, libraries build sequentially to maximize sccache hit rates
 # (all 3 share ~709 compiled rlibs).
 #
+# linux-arm64 removed — QEMU emulation exceeds GHA free runner timeouts.
+# Clone the repo and use scripts/ffi-build/build-all.sh for linux-arm64 builds.
+#
 # | Job           | Runner       | Method                    | sccache Backend      |
 # |---------------|-------------|---------------------------|---------------------|
 # | linux-amd64   | ubuntu-22.04 | Docker (ffi-builder)      | Docker layer cache  |
-# | linux-arm64   | ubuntu-22.04 | Docker + QEMU             | Docker layer cache  |
 # | macos-arm64   | macos-14     | Native scripts            | GHA cache           |
 # =============================================================================
 
@@ -49,14 +51,6 @@ jobs:
             method: docker
             platform: linux/amd64
             timeout: 45
-          - name: linux-arm64
-            runner: ubuntu-22.04
-            triple: aarch64-unknown-linux-gnu
-            method: docker
-            platform: linux/arm64
-            # QEMU emulation is slower; Docker layer caching mitigates on repeat builds.
-            # TODO: Switch to native arm64 runners when available.
-            timeout: 60
           - name: macos-arm64
             runner: macos-14
             triple: aarch64-apple-darwin
@@ -74,12 +68,6 @@ jobs:
       - name: Set up Docker Buildx
         if: matrix.target.method == 'docker'
         uses: docker/setup-buildx-action@v3
-
-      - name: Set up QEMU
-        if: matrix.target.method == 'docker' && matrix.target.name == 'linux-arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
 
       - name: Build FFI libraries (Docker)
         if: matrix.target.method == 'docker'
