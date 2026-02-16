@@ -1,0 +1,53 @@
+[package]
+name = "tasker-ts-napi"
+version = "0.1.3"
+edition = "2021"
+description = "Research spike: napi-rs FFI bindings for tasker-core TypeScript worker"
+repository = "https://github.com/tasker-systems/tasker-core"
+license = "MIT"
+publish = false  # Research crate, not published
+
+[lib]
+crate-type = ["cdylib"]
+name = "tasker_ts_napi"
+path = "src/lib.rs"
+
+[dependencies]
+# napi-rs core
+napi = { version = "2", features = ["napi9", "serde-json"] }
+napi-derive = "2"
+
+# Error handling
+anyhow = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+
+# Serialization (for internal conversions, NOT for FFI boundary)
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Core tasker libraries
+tasker-shared = { path = "../../tasker-shared" }
+tasker-worker = { path = "../../tasker-worker" }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Async runtime (needed for FFI blocking)
+tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
+
+# Logging
+tracing = { workspace = true }
+
+# UUID generation and handling
+uuid = { workspace = true }
+
+# Environment variable loading
+dotenvy = { workspace = true }
+
+[build-dependencies]
+napi-build = "2"
+
+[lints]
+workspace = true
