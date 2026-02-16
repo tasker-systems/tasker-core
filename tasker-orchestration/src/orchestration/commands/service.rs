@@ -27,7 +27,7 @@ use uuid::Uuid;
 
 use tasker_shared::messaging::client::MessageClient;
 use tasker_shared::messaging::service::{MessageEvent, MessageHandle, QueuedMessage};
-use tasker_shared::messaging::{StepExecutionResult, TaskRequestMessage};
+use tasker_shared::messaging::{StepExecutionResult, StepResultStatus, TaskRequestMessage};
 use tasker_shared::system_context::SystemContext;
 use tasker_shared::{TaskerError, TaskerResult};
 
@@ -129,12 +129,9 @@ impl CommandProcessingService {
                     step_result.step_uuid
                 ),
             }),
-            Err(e) => match step_result.status.as_str() {
-                "failed" => Ok(StepProcessResult::Failed {
+            Err(e) => match step_result.status_enum() {
+                Some(StepResultStatus::Failed) => Ok(StepProcessResult::Failed {
                     error: format!("{e}"),
-                }),
-                "skipped" => Ok(StepProcessResult::Skipped {
-                    reason: format!("{e}"),
                 }),
                 _ => Err(TaskerError::OrchestrationError(format!("{e}"))),
             },
