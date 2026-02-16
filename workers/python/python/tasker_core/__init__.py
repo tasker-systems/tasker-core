@@ -221,6 +221,9 @@ from tasker_core.types import (
     WorkerStatus,
 )
 
+# Import high-level Worker lifecycle manager (TAS-281)
+from tasker_core.worker import Worker
+
 __all__ = [
     # Version info (Phase 1)
     "__version__",
@@ -361,6 +364,8 @@ __all__ = [
     "ClientStepAuditResponse",
     "ClientHealthResponse",
     "ClientPaginationInfo",
+    # High-level Worker lifecycle manager (TAS-281)
+    "Worker",
 ]
 
 

@@ -241,6 +241,11 @@ class TestModuleExports:
             "ClientPaginationInfo",
         }
 
+        # High-level Worker lifecycle manager (TAS-281)
+        worker_exports = {
+            "Worker",
+        }
+
         expected = (
             phase1_exports
             | phase2_exports
@@ -253,6 +258,7 @@ class TestModuleExports:
             | tas112_exports
             | tas93_exports
             | client_exports
+            | worker_exports
         )
         assert set(tasker_core.__all__) == expected
 
