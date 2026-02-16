@@ -16,5 +16,8 @@ elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
     echo "Tag $TAG already exists on remote, skipping"
 else
     git tag "$TAG"
-    git push origin "$TAG"
+    if ! git push origin "$TAG"; then
+        echo "::warning::Failed to push tag $TAG — GITHUB_TOKEN may lack permission when commit includes workflow changes. Push manually: git tag $TAG && git push origin $TAG"
+        exit 1
+    fi
 fi

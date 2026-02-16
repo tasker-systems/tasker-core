@@ -220,6 +220,7 @@ jobs:
 
       - name: Tag core release
         if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        continue-on-error: true
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: core
@@ -331,6 +332,7 @@ jobs:
 
       - name: Tag ruby release
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
+        continue-on-error: true
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: ruby
@@ -408,6 +410,7 @@ jobs:
 
       - name: Tag python release
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
+        continue-on-error: true
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: python
@@ -487,6 +490,7 @@ jobs:
 
       - name: Tag typescript release
         if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        continue-on-error: true
         run: .github/scripts/release/tag-component.sh
         env:
           COMPONENT: typescript
