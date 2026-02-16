@@ -15,7 +15,54 @@ use crate::messaging::message::OrchestrationMetadata;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fmt;
 use uuid::Uuid;
+
+/// Type-safe status for `StepExecutionResult`.
+///
+/// This enum represents the possible status values produced by
+/// `StepExecutionResult` factory methods:
+/// - `success()` → `Completed`
+/// - `failure()` → `Failed`
+/// - `error()` → `Error`
+///
+/// Use `StepExecutionResult::status_enum()` to parse the string status field
+/// into this enum for compile-time safe matching.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum StepResultStatus {
+    /// Step completed successfully (status = "completed")
+    Completed,
+    /// Step failed due to business logic (status = "failed")
+    Failed,
+    /// Step failed due to a system-level error (status = "error")
+    Error,
+}
+
+impl fmt::Display for StepResultStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StepResultStatus::Completed => write!(f, "completed"),
+            StepResultStatus::Failed => write!(f, "failed"),
+            StepResultStatus::Error => write!(f, "error"),
+        }
+    }
+}
+
+impl std::str::FromStr for StepResultStatus {
+    type Err = String;
+
+    /// Parse a status string into a `StepResultStatus`.
+    ///
+    /// Returns `Err` for unrecognized status values.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            "error" => Ok(Self::Error),
+            other => Err(format!("unrecognized step result status: {other}")),
+        }
+    }
+}
 
 /// Request message sent from Rust orchestrator to language handlers
 #[derive(Serialize, Debug, Clone)]
@@ -560,6 +607,16 @@ impl StepExecutionResult {
         } else {
             self.status.clone()
         }
+    }
+
+    /// Get the status as a type-safe enum for compile-time safe matching.
+    ///
+    /// Parses the normalized status string into a [`StepResultStatus`] enum.
+    /// Returns `None` only for unrecognized status values, which should not
+    /// occur with results produced by the standard factory methods.
+    pub fn status_enum(&self) -> Option<StepResultStatus> {
+        let status = self.normalized_status();
+        status.parse().ok()
     }
 
     /// Get the result as the expected structure for persistence
@@ -1462,5 +1519,86 @@ mod tests {
         assert_eq!(result.error_code(), Some("RATE_LIMITED"));
         assert!(result.is_retryable());
         assert!(!result.is_success());
+    }
+
+    // ============================================================================
+    // TAS-153: StepResultStatus enum tests
+    // ============================================================================
+
+    #[test]
+    fn test_step_result_status_from_str() {
+        assert_eq!(
+            "completed".parse::<StepResultStatus>(),
+            Ok(StepResultStatus::Completed)
+        );
+        assert_eq!(
+            "failed".parse::<StepResultStatus>(),
+            Ok(StepResultStatus::Failed)
+        );
+        assert_eq!(
+            "error".parse::<StepResultStatus>(),
+            Ok(StepResultStatus::Error)
+        );
+        assert!("unknown".parse::<StepResultStatus>().is_err());
+        assert!("".parse::<StepResultStatus>().is_err());
+    }
+
+    #[test]
+    fn test_step_result_status_display() {
+        assert_eq!(StepResultStatus::Completed.to_string(), "completed");
+        assert_eq!(StepResultStatus::Failed.to_string(), "failed");
+        assert_eq!(StepResultStatus::Error.to_string(), "error");
+    }
+
+    #[test]
+    fn test_status_enum_success() {
+        let step_uuid = Uuid::now_v7();
+        let result =
+            StepExecutionResult::success(step_uuid, serde_json::json!({"status": "ok"}), 100, None);
+        assert_eq!(result.status_enum(), Some(StepResultStatus::Completed));
+    }
+
+    #[test]
+    fn test_status_enum_failure() {
+        let step_uuid = Uuid::now_v7();
+        let result = StepExecutionResult::failure(
+            step_uuid,
+            "Something went wrong".to_string(),
+            None,
+            None,
+            false,
+            100,
+            None,
+        );
+        assert_eq!(result.status_enum(), Some(StepResultStatus::Failed));
+    }
+
+    #[test]
+    fn test_status_enum_error() {
+        let step_uuid = Uuid::now_v7();
+        let result = StepExecutionResult::error(
+            step_uuid,
+            "System failure".to_string(),
+            None,
+            None,
+            100,
+            None,
+        );
+        assert_eq!(result.status_enum(), Some(StepResultStatus::Error));
+    }
+
+    #[test]
+    fn test_status_enum_empty_status_normalizes() {
+        let result = StepExecutionResult {
+            step_uuid: Uuid::now_v7(),
+            success: true,
+            result: serde_json::json!({}),
+            metadata: StepExecutionMetadata::default(),
+            status: String::new(), // Empty, as FFI workers may send
+            error: None,
+            orchestration_metadata: None,
+        };
+        // normalized_status() returns "completed" for success=true with empty status
+        assert_eq!(result.status_enum(), Some(StepResultStatus::Completed));
     }
 }

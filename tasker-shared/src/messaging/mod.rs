@@ -36,7 +36,7 @@ pub use errors::{MessagingError, MessagingResult};
 pub use execution_types::{
     BatchProcessingOutcome, CursorConfig, DecisionPointOutcome, StepBatchRequest,
     StepBatchResponse, StepExecutionError, StepExecutionMetadata, StepExecutionRequest,
-    StepExecutionResult, StepRequestMetadata,
+    StepExecutionResult, StepRequestMetadata, StepResultStatus,
 };
 
 // Re-export message types

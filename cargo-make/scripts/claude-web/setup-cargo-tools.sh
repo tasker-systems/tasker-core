@@ -29,7 +29,7 @@ install_cargo_tool() {
     log_ok "$crate"
   else
     log_install "$crate"
-    cargo install --quiet "$crate" "${extra_args[@]}"
+    cargo install --quiet "$crate" "${extra_args[@]}" || log_warn "$crate installation failed"
   fi
 }
 
