@@ -147,6 +147,40 @@ docker compose --profile server up -d                   # Full server
 docker compose -f docker/docker-compose.test.yml up -d  # Test services (includes RabbitMQ)
 ```
 
+### Claude Code on the Web Setup
+
+The SessionStart hook (`bin/setup-claude-web.sh`) is intentionally lightweight — it only
+configures environment variables, PATH, git hooks, and the `.env` file. Heavy tool
+installations and service startup are available on-demand via individual scripts.
+
+**Full setup** (installs everything, takes several minutes):
+```bash
+./bin/setup-claude-web-full.sh
+```
+
+**Individual setup scripts** (in `cargo-make/scripts/claude-web/`):
+```bash
+# Source the common helpers first
+source cargo-make/scripts/claude-web/setup-common.sh
+
+# Then source and run the specific setup you need:
+source cargo-make/scripts/claude-web/setup-system-deps.sh && setup_system_deps  # apt packages
+source cargo-make/scripts/claude-web/setup-protoc.sh && setup_protoc            # protobuf compiler
+source cargo-make/scripts/claude-web/setup-rust.sh && setup_rust                # Rust toolchain
+source cargo-make/scripts/claude-web/setup-cargo-tools.sh && setup_cargo_tools  # cargo-make, sqlx-cli, nextest
+source cargo-make/scripts/claude-web/setup-gh.sh && setup_gh                    # GitHub CLI
+source cargo-make/scripts/claude-web/setup-grpcurl.sh && setup_grpcurl          # gRPC testing tool
+source cargo-make/scripts/claude-web/setup-postgres.sh && setup_postgres        # PostgreSQL + PGMQ + uuidv7
+source cargo-make/scripts/claude-web/setup-redis.sh && setup_redis              # Redis cache
+source cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migrations  # Run DB migrations
+```
+
+**When to run what:**
+- Need to create a PR? → `setup_gh`
+- Need to run database tests? → `setup_postgres` then `setup_db_migrations`
+- Need to build (protoc missing)? → `setup_protoc`
+- Fresh environment, need everything? → `./bin/setup-claude-web-full.sh`
+
 ---
 
 ## Workspace Structure

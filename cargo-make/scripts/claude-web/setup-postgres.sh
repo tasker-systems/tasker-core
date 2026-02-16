@@ -315,8 +315,8 @@ setup_postgres() {
     # Install pgcrypto (needed for uuidv7 fallback on pg16/pg17)
     setup_pgcrypto_extension "tasker_rust_test"
 
-    # Install PGMQ extension
-    setup_pgmq_extension "tasker_rust_test"
+    # Install PGMQ extension (non-fatal: messaging tests will fail without it)
+    setup_pgmq_extension "tasker_rust_test" || true
 
     # Create uuid_generate_v7() compatibility function
     setup_uuidv7_function "tasker_rust_test"

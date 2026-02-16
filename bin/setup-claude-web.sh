@@ -3,39 +3,26 @@
 # Tasker Core - Claude Code on the Web Environment Setup
 # =============================================================================
 #
-# Companion to bin/setup-dev.sh (macOS). This script sets up the Claude Code
-# on the web (remote) environment with the tools needed for Rust development,
-# PostgreSQL, and environment configuration.
+# Lightweight SessionStart hook that runs on every session start/resume.
+# Must complete in seconds, not minutes.
 #
-# This script is invoked automatically via .claude/settings.json SessionStart
-# hook when running in a Claude Code remote environment. It is idempotent and
-# safe to run on session resume/compact events.
+# This script ONLY handles:
+#   - PATH configuration
+#   - Environment variables (persisted to CLAUDE_ENV_FILE)
+#   - Git hooks
+#   - .env file generation
 #
-# What it installs:
-#   - System libraries (libssl-dev, libpq-dev, pkg-config, cmake)
-#   - Protocol Buffers compiler (protoc)
-#   - Rust toolchain (if not present)
-#   - cargo-make, sqlx-cli, cargo-nextest
-#   - GitHub CLI (gh) for PR creation and GitHub API
-#   - PostgreSQL database (via Docker or native) with PGMQ + uuidv7
-#   - Redis cache server
-#   - Project environment variables
-#
-# What it skips (to minimize overhead):
-#   - Profiling tools (samply, flamegraph, tokio-console)
-#   - Code quality tools (cargo-audit, cargo-machete, cargo-llvm-cov)
-#   - Ruby/Python/TypeScript runtimes (focus on Rust core)
-#   - Telemetry stack (Grafana, OTLP)
-#
-# Architecture:
-#   This script composes smaller, isolated scripts from cargo-make/scripts/claude-web/
-#   that each handle a specific concern. Each script can also be run independently
-#   for debugging or partial setup. Keeping them alongside other cargo-make scripts
-#   makes it easier to audit and unify shared patterns.
+# Heavy installations (cargo tools, PostgreSQL, etc.) are handled by
+# individual scripts in cargo-make/scripts/claude-web/ and documented
+# in CLAUDE.md. The web agent can run them on-demand when specific
+# capabilities are needed.
 #
 # Usage:
 #   ./bin/setup-claude-web.sh           # Auto-invoked by SessionStart hook
 #   FORCE_SETUP=1 ./bin/setup-claude-web.sh  # Run even outside remote env
+#
+# For full environment setup (tools + services), run:
+#   ./bin/setup-claude-web-full.sh
 #
 # =============================================================================
 
@@ -61,53 +48,14 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 # Source the shared helpers (makes log_*, command_exists, persist_env available)
 source "${LIB_DIR}/setup-common.sh"
 
-# Persist PATH for the Claude session
-persist_env 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
-
 echo ""
-echo "==> Setting up tasker-core for Claude Code on the web"
+echo "==> Configuring tasker-core environment for Claude Code on the web"
 echo "  Project: $PROJECT_DIR"
 
 # ---------------------------------------------------------------------------
-# Phase 1: System-level dependencies
+# Phase 1: PATH and environment variables (instant, no I/O)
 # ---------------------------------------------------------------------------
-source "${LIB_DIR}/setup-system-deps.sh"
-setup_system_deps
-
-source "${LIB_DIR}/setup-protoc.sh"
-setup_protoc
-
-# ---------------------------------------------------------------------------
-# Phase 2: Rust toolchain and cargo tools
-# ---------------------------------------------------------------------------
-source "${LIB_DIR}/setup-rust.sh"
-setup_rust
-
-source "${LIB_DIR}/setup-cargo-tools.sh"
-setup_cargo_tools
-
-# ---------------------------------------------------------------------------
-# Phase 3: Optional tools
-# ---------------------------------------------------------------------------
-source "${LIB_DIR}/setup-grpcurl.sh"
-setup_grpcurl
-
-source "${LIB_DIR}/setup-gh.sh"
-setup_gh
-
-# ---------------------------------------------------------------------------
-# Phase 4: Data services (PostgreSQL + Redis)
-# ---------------------------------------------------------------------------
-source "${LIB_DIR}/setup-postgres.sh"
-setup_postgres
-
-source "${LIB_DIR}/setup-redis.sh"
-setup_redis
-
-# ---------------------------------------------------------------------------
-# Phase 5: Environment configuration
-# ---------------------------------------------------------------------------
-log_section "Environment configuration"
+persist_env 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
 
 # Core project paths
 persist_env "export WORKSPACE_PATH=\"$PROJECT_DIR\""
@@ -120,11 +68,7 @@ persist_env 'export LOG_LEVEL="warn"'
 # Database
 persist_env 'export DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test"'
 persist_env 'export TEST_DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test"'
-
-# PGMQ database URL (must be explicitly set - empty default causes hangs)
 persist_env 'export PGMQ_DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test"'
-
-# Messaging: default to pgmq (simpler, no RabbitMQ needed)
 persist_env 'export TASKER_MESSAGING_BACKEND="pgmq"'
 
 # Config and template paths
@@ -162,23 +106,20 @@ persist_env 'export REDIS_URL="redis://localhost:6379"'
 log_ok "environment variables persisted to session"
 
 # ---------------------------------------------------------------------------
-# Phase 5b: Git hooks
+# Phase 2: Git hooks (fast, local filesystem only)
 # ---------------------------------------------------------------------------
-log_section "Git hooks"
 if git rev-parse --is-inside-work-tree &>/dev/null; then
   git config core.hooksPath .githooks
   chmod +x "$PROJECT_DIR/.githooks/"* 2>/dev/null || true
   log_ok "git hooks configured (.githooks/pre-commit)"
-else
-  log_warn "not a git repo, skipping hooks"
 fi
 
 # ---------------------------------------------------------------------------
-# Fallback .env generator (used when cargo-make is not available)
+# Phase 3: Generate .env file
 # ---------------------------------------------------------------------------
 generate_fallback_env() {
   cat > "$PROJECT_DIR/.env" << ENVEOF
-# Generated by setup-claude-web.sh (fallback)
+# Generated by setup-claude-web.sh
 WORKSPACE_PATH=$PROJECT_DIR
 TASKER_CONFIG_ROOT=$PROJECT_DIR/config
 TASKER_FIXTURE_PATH=$PROJECT_DIR/tests/fixtures
@@ -203,70 +144,52 @@ WEB_CIRCUIT_BREAKER_ENABLED=true
 WEB_RESOURCE_MONITORING_ENABLED=true
 REDIS_URL=redis://localhost:6379
 ENVEOF
-  log_ok "minimal .env created"
+  log_ok ".env file created"
 }
-
-# ---------------------------------------------------------------------------
-# Phase 6: Generate .env file (via cargo make)
-# ---------------------------------------------------------------------------
-log_section "Generating .env file"
 
 export WORKSPACE_PATH="$PROJECT_DIR"
 
 if command_exists cargo-make; then
   cd "$PROJECT_DIR"
   if cargo make setup-env-claude-web 2>/dev/null; then
-    log_ok ".env generated via cargo make setup-env-claude-web"
+    log_ok ".env generated via cargo make"
   elif cargo make setup-env 2>/dev/null; then
-    log_ok ".env generated via cargo make setup-env (fallback)"
+    log_ok ".env generated via cargo make (fallback)"
   else
-    log_warn "cargo make setup-env failed - creating minimal .env"
     generate_fallback_env
   fi
 else
-  log_warn "cargo-make not available - creating minimal .env"
   generate_fallback_env
 fi
 
 # ---------------------------------------------------------------------------
-# Phase 7: Database migrations
+# Phase 4: Detect available tools and services
 # ---------------------------------------------------------------------------
-source "${LIB_DIR}/setup-db-migrations.sh"
-setup_db_migrations
-
-# ---------------------------------------------------------------------------
-# Summary
-# ---------------------------------------------------------------------------
-log_section "Setup complete"
+log_section "Environment status"
 
 echo ""
-echo "  Tools installed:"
-command_exists protoc     && echo "    protoc:        $(protoc --version 2>/dev/null | head -1 || echo 'yes')"
-command_exists cargo      && echo "    cargo:         $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'yes')"
-command_exists cargo-make && echo "    cargo-make:    yes"
-command_exists sqlx       && echo "    sqlx-cli:      yes"
-command_exists cargo-nextest && echo "    cargo-nextest: yes"
-command_exists grpcurl    && echo "    grpcurl:       yes"
-command_exists gh         && echo "    gh:            $(gh --version 2>/dev/null | head -1 | awk '{print $3}' || echo 'yes')"
+echo "  Tools:"
+command_exists cargo      && echo "    cargo:         $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'yes')" || echo "    cargo:         NOT INSTALLED (run: source $LIB_DIR/setup-rust.sh && setup_rust)"
+command_exists protoc     && echo "    protoc:        $(protoc --version 2>/dev/null | head -1 || echo 'yes')" || echo "    protoc:        NOT INSTALLED (run: source $LIB_DIR/setup-protoc.sh && setup_protoc)"
+command_exists cargo-make && echo "    cargo-make:    yes" || echo "    cargo-make:    NOT INSTALLED"
+command_exists sqlx       && echo "    sqlx-cli:      yes" || echo "    sqlx-cli:      NOT INSTALLED"
+command_exists cargo-nextest && echo "    cargo-nextest: yes" || echo "    cargo-nextest: NOT INSTALLED"
+command_exists gh         && echo "    gh:            $(gh --version 2>/dev/null | head -1 | awk '{print $3}' || echo 'yes')" || echo "    gh:            NOT INSTALLED"
 echo ""
 
 echo "  Services:"
-if [ "${PG_READY:-false}" = true ]; then
+if pg_isready -q 2>/dev/null; then
   echo "    PostgreSQL:    ready"
 else
-  echo "    PostgreSQL:    NOT available (compilation will use .sqlx/ cache)"
+  echo "    PostgreSQL:    NOT RUNNING"
 fi
-if [ "${REDIS_READY:-false}" = true ]; then
+if redis-cli ping 2>/dev/null | grep -q PONG; then
   echo "    Redis:         ready"
 else
-  echo "    Redis:         NOT available (cache-dependent tests may fail)"
+  echo "    Redis:         NOT RUNNING"
 fi
 echo ""
 
-echo "  Quick start:"
-echo "    cargo make check    # Run all quality checks"
-echo "    cargo make build    # Build everything"
-if [ "${PG_READY:-false}" = true ]; then
-  echo "    cargo make test     # Run tests"
-fi
+echo "  To install missing tools or start services, see CLAUDE.md"
+echo "  or run: ./bin/setup-claude-web-full.sh"
 echo ""

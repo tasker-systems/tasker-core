@@ -30,15 +30,17 @@ setup_system_deps() {
   local pkgs_needed=""
 
   for pkg in libssl-dev libpq-dev pkg-config cmake jq unzip curl; do
-    if ! dpkg -l "$pkg" >/dev/null 2>&1; then
+    if ! dpkg -s "$pkg" >/dev/null 2>&1; then
       pkgs_needed="$pkgs_needed $pkg"
     fi
   done
 
   if [ -n "$pkgs_needed" ]; then
     log_install "apt packages:$pkgs_needed"
-    sudo apt-get update -qq 2>/dev/null
-    sudo apt-get install -y -qq $pkgs_needed 2>/dev/null
+    # apt-get update may return non-zero when some PPAs are blocked by proxies;
+    # this is expected in constrained environments and must not abort the script.
+    sudo apt-get update -qq 2>/dev/null || log_warn "apt-get update had errors (some repos may be unreachable)"
+    sudo apt-get install -y -qq $pkgs_needed 2>/dev/null || log_warn "some apt packages failed to install:$pkgs_needed"
   else
     log_ok "all system packages present"
   fi

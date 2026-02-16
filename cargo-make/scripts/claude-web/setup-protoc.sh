@@ -33,12 +33,12 @@ setup_protoc() {
   log_install "protoc v${PROTOC_VERSION}"
 
   curl -sSL -o "/tmp/${protoc_zip}" \
-    "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${protoc_zip}"
-  mkdir -p "$HOME/.local"
-  unzip -qo "/tmp/${protoc_zip}" -d "$HOME/.local"
-  rm -f "/tmp/${protoc_zip}"
-
-  log_ok "protoc installed to ~/.local/bin"
+    "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${protoc_zip}" && \
+  mkdir -p "$HOME/.local" && \
+  unzip -qo "/tmp/${protoc_zip}" -d "$HOME/.local" && \
+  rm -f "/tmp/${protoc_zip}" && \
+  log_ok "protoc installed to ~/.local/bin" || \
+  log_warn "protoc installation failed (build.rs will fail without it)"
 }
 
 # Run if executed directly
