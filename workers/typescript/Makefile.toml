@@ -261,12 +261,12 @@ dependencies = ["build-ffi", "watch"]
 #   cargo make test-ffi-all     # Run all FFI integration tests
 
 [tasks.test-ffi-bun]
-description = "Run FFI integration tests with Bun"
+description = "Run FFI integration tests with Bun (uses koffi/Node-API)"
 dependencies = ["build-ffi", "install"]
 script = '''
 source scripts/load-env.sh
-echo "🧪 Running Bun FFI integration tests..."
-bun test tests/integration/ffi/bun-runtime.test.ts
+echo "🧪 Running Bun FFI integration tests (koffi)..."
+bun test tests/integration/ffi/node-runtime.test.ts
 '''
 
 [tasks.test-ffi-node]
@@ -312,8 +312,8 @@ script = '''
 source scripts/load-env.sh
 FAILED=0
 
-echo "🧪 Running Bun FFI integration tests..."
-if bun test tests/integration/ffi/bun-runtime.test.ts; then
+echo "🧪 Running Bun FFI integration tests (koffi)..."
+if bun test tests/integration/ffi/node-runtime.test.ts; then
     echo "✅ Bun FFI tests passed"
 else
     echo "❌ Bun FFI tests failed"

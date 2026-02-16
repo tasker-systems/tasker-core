@@ -19,22 +19,3 @@ declare module 'ref-napi' {
     void: unknown;
   };
 }
-
-// Bun FFI module
-declare module 'bun:ffi' {
-  export enum FFIType {
-    ptr = 'ptr',
-    i32 = 'i32',
-    void = 'void',
-  }
-
-  // biome-ignore lint/suspicious/noExplicitAny: FFI types are dynamic
-  export function dlopen(path: string, symbols: Record<string, any>): any;
-  // biome-ignore lint/suspicious/noExplicitAny: FFI pointer types
-  export function ptr(buffer: Uint8Array): any;
-  export class CString {
-    // biome-ignore lint/suspicious/noExplicitAny: FFI pointer input
-    constructor(ptr: any);
-    toString(): string;
-  }
-}

@@ -2,9 +2,11 @@
  * FfiLayer - Owns FFI runtime loading and lifecycle.
  *
  * This class encapsulates the FFI runtime management:
- * - Runtime detection (Bun, Node.js, Deno)
+ * - Runtime detection (Node.js, Bun, Deno)
  * - Library path discovery
  * - Runtime loading and unloading
+ *
+ * Both Node.js and Bun use koffi (Node-API) for stable FFI.
  *
  * Design principles:
  * - Explicit construction: No singleton pattern
@@ -184,10 +186,9 @@ export class FfiLayer {
   /**
    * Create a runtime adapter for the configured runtime type.
    *
-   * NOTE: We use koffi (NodeRuntime) for both Node.js and Bun because:
-   * - bun:ffi is experimental with known bugs (per Bun docs)
-   * - koffi is stable and works with both Node.js and Bun via Node-API
-   * - See: https://bun.sh/docs/runtime/node-api
+   * NOTE: We use koffi (NodeRuntime) for both Node.js and Bun.
+   * koffi is stable and works with both runtimes via Node-API.
+   * See: https://bun.sh/docs/runtime/node-api
    */
   private async createRuntime(): Promise<TaskerRuntime> {
     switch (this.runtimeType) {
@@ -226,8 +227,9 @@ const BUNDLED_LIBRARIES: Record<string, string> = {
 /**
  * Find the bundled native library for the current platform.
  *
- * Looks in the package's native/ directory (sibling to dist/) for a
- * pre-compiled library matching the current platform and architecture.
+ * Walks up from the current file to find the package root (which contains
+ * the native/ directory). This works whether running from the unbundled
+ * layout (dist/ffi/ffi-layer.js) or the bundled layout (dist/index.js).
  *
  * @returns Absolute path to the native library, or null if not found
  */
@@ -238,9 +240,15 @@ function findBundledNativeLibrary(): string | null {
     return null;
   }
 
-  // This file lives in dist/ffi/ffi-layer.js at runtime.
-  // The native/ directory is at the package root (sibling to dist/).
-  const thisDir = dirname(fileURLToPath(import.meta.url));
-  const packageRoot = join(thisDir, '..', '..');
-  return join(packageRoot, 'native', filename);
+  // Walk up from current file to find package root (contains native/).
+  // Works whether running from dist/ffi/ffi-layer.js or dist/index.js.
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, 'native', filename);
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
 }

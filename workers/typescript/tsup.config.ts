@@ -12,7 +12,6 @@ export default defineConfig({
   treeshake: true,
   external: [
     // Runtime-specific FFI modules (loaded dynamically at runtime)
-    'bun:ffi',
     'ffi-napi',
     'ref-napi',
   ],

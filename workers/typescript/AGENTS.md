@@ -73,8 +73,8 @@ The TypeScript worker supports three runtimes with a unified API:
 
 | Runtime | FFI Method | Status |
 |---------|------------|--------|
-| Bun | `bun:ffi` dlopen | Primary |
-| Node.js | `ffi-napi` | Supported |
+| Bun | koffi (Node-API) | Primary |
+| Node.js | koffi (Node-API) | Supported |
 | Deno | `Deno.dlopen` | Supported |
 
 Runtime detection happens automatically via `src/ffi/runtime.ts`.
@@ -132,7 +132,7 @@ The TypeScript worker is part of the CI pipeline:
 
 1. Add `#[no_mangle] pub extern "C" fn` in `src-rust/lib.rs`
 2. Add type definition in `src/ffi/types.ts`
-3. Add runtime binding in `src/ffi/bun-runtime.ts` (and node/deno)
+3. Add runtime binding in `src/ffi/node-runtime.ts` (and deno)
 4. Add to `TaskerRuntime` interface in `src/ffi/runtime-interface.ts`
 5. Add coherence test in `tests/unit/ffi/`
 
