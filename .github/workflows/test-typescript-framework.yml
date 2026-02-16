@@ -1,4 +1,4 @@
-name: TypeScript Framework Tests
+name: TypeScript Framework & Client Tests
 
 on:
   workflow_call:
@@ -10,9 +10,9 @@ on:
 
 jobs:
   typescript-framework:
-    name: TypeScript Framework Tests
+    name: TypeScript Framework & Client Tests
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     # PostgreSQL service for FFI bootstrap tests
     services:
@@ -80,7 +80,13 @@ jobs:
       - name: Install tools
         uses: ./.github/actions/install-tools
         with:
-          tools: "make"
+          tools: "sqlx-cli make"
+
+      - name: Run database migrations
+        run: cargo sqlx migrate run
+        working-directory: .
+        env:
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -97,21 +103,16 @@ jobs:
 
       - name: Setup FFI library path
         run: |
-          echo "📦 Setting up FFI library and TypeScript artifacts..."
-          # Run from repo root since script paths are relative to there
           cd ../..
           if [ -d artifacts ]; then
             ARTIFACTS_DIR=artifacts cargo-make/scripts/ci-restore-typescript-artifacts.sh
           else
             echo "⚠️ No artifacts directory found, FFI tests may skip"
           fi
-          # Set TASKER_FFI_LIBRARY_PATH for subsequent steps
           if [ -f target/debug/libtasker_ts.so ]; then
             echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/target/debug/libtasker_ts.so" >> $GITHUB_ENV
-            echo "✅ FFI library path set: $(pwd)/target/debug/libtasker_ts.so"
           elif [ -f target/debug/libtasker_ts.dylib ]; then
             echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/target/debug/libtasker_ts.dylib" >> $GITHUB_ENV
-            echo "✅ FFI library path set: $(pwd)/target/debug/libtasker_ts.dylib"
           else
             echo "⚠️ No FFI library available - FFI tests will skip"
           fi
@@ -122,18 +123,11 @@ jobs:
       # ========================================================================
       - name: Run quality checks (lint + typecheck)
         run: |
-          echo "🔍 Running Biome lint and TypeScript type checks..."
           cargo make lint
           cargo make typecheck
 
       - name: Run TypeScript unit tests
-        run: |
-          echo "🧪 Running TypeScript unit tests (FFI types, events, runtime)..."
-          echo "   - tests/unit/ffi/ - FFI types and runtime detection"
-          echo "   - tests/unit/events/ - Event emitter and poller"
-          echo ""
-
-          cargo make test-ci
+        run: cargo make test-ci
         env:
           TASKER_ENV: test
 
@@ -147,47 +141,70 @@ jobs:
 
       - name: Run FFI integration tests (Node.js)
         run: |
-          echo "🧪 Running Node.js FFI integration tests..."
-          # Node.js requires tsx for TypeScript support
           npx tsx --test tests/integration/ffi/node-runtime.test.ts 2>&1 | tee ../../target/typescript-ffi-node-results.txt
-
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo "⚠️ Node.js FFI tests failed (may be due to ffi-napi not installed)"
-          else
-            echo "✅ Node.js FFI tests passed"
-          fi
+          [ ${PIPESTATUS[0]} -eq 0 ] && echo "✅ Node.js FFI tests passed" || echo "⚠️ Node.js FFI tests failed"
         env:
           TASKER_ENV: test
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           REDIS_URL: redis://localhost:6379
           FFI_BOOTSTRAP_TESTS: "true"
-        continue-on-error: true  # Node.js FFI is optional (requires ffi-napi)
+        continue-on-error: true
 
       - name: Run FFI integration tests (Deno)
         run: |
-          echo "🧪 Running Deno FFI integration tests..."
-          # Deno requires explicit permissions for FFI, environment, and file access
           deno test --allow-ffi --allow-env --allow-read tests/integration/ffi/deno-runtime.test.ts 2>&1 | tee ../../target/typescript-ffi-deno-results.txt
-
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo "⚠️ Deno FFI tests failed"
-          else
-            echo "✅ Deno FFI tests passed"
-          fi
+          [ ${PIPESTATUS[0]} -eq 0 ] && echo "✅ Deno FFI tests passed" || echo "⚠️ Deno FFI tests failed"
         env:
           TASKER_ENV: test
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           REDIS_URL: redis://localhost:6379
           FFI_BOOTSTRAP_TESTS: "true"
-        continue-on-error: true  # Deno FFI may have compatibility issues
+        continue-on-error: true
+
+      # ========================================================================
+      # Client API Integration Tests (TAS-284: merged from test-ffi-client.yml)
+      # ========================================================================
+      - name: Download core artifacts (for orchestration server)
+        uses: actions/download-artifact@v7
+        with:
+          name: core-artifacts
+          path: artifacts/core
+        continue-on-error: true
+
+      - name: Start orchestration server
+        working-directory: .
+        run: cargo-make/scripts/ci-start-orchestration-server.sh
+        env:
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+          REDIS_URL: redis://localhost:6379
+          TASKER_ENV: test
+          TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
+          SQLX_OFFLINE: "true"
+
+      - name: Run TypeScript client API tests
+        run: cargo make test-client-ci
+        env:
+          TASKER_ENV: test
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+          REDIS_URL: redis://localhost:6379
+          FFI_CLIENT_TESTS: "true"
+          FFI_BOOTSTRAP_TESTS: "true"
+          TASKER_ORCHESTRATION_URL: http://localhost:8080
+          TASKER_CONFIG_PATH: ${{ github.workspace }}/config/tasker/generated/worker-test.toml
+          TASKER_WEB_BIND_ADDRESS: "0.0.0.0:8182"
+          TASKER_WORKER_GRPC_BIND_ADDRESS: "0.0.0.0:9182"
+          TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
+
+      - name: Stop orchestration server
+        if: always()
+        working-directory: .
+        run: cargo-make/scripts/ci-stop-orchestration-server.sh
 
       # ========================================================================
       # Build and Summary
       # ========================================================================
       - name: Run build
-        run: |
-          echo "📦 Building TypeScript package..."
-          bun run build
+        run: bun run build
 
       - name: Upload test results
         uses: actions/upload-artifact@v6
@@ -199,24 +216,10 @@ jobs:
             target/typescript-ffi-bun-results.txt
             target/typescript-ffi-node-results.txt
             target/typescript-ffi-deno-results.txt
+            target/typescript-client-results.txt
           if-no-files-found: warn
 
       - name: Display test summary
         if: always()
-        run: |
-          echo "📊 TypeScript Framework Test Summary"
-          echo "====================================="
-          echo ""
-          echo "Unit Tests:"
-          if [ -f "../../target/typescript-unit-results.txt" ]; then
-            tail -5 ../../target/typescript-unit-results.txt
-          else
-            echo "⚠️ No unit test results"
-          fi
-          echo ""
-          echo "FFI Integration Tests:"
-          echo "  Bun:     $(grep -c 'pass' ../../target/typescript-ffi-bun-results.txt 2>/dev/null || echo '?') tests"
-          echo "  Node.js: $(grep -c 'pass' ../../target/typescript-ffi-node-results.txt 2>/dev/null || echo 'skipped/failed')"
-          echo "  Deno:    $(grep -c 'pass' ../../target/typescript-ffi-deno-results.txt 2>/dev/null || echo 'skipped/failed')"
-          echo ""
-          echo "✅ TypeScript framework tests completed"
+        working-directory: .
+        run: cargo-make/scripts/ci-display-test-summary.sh typescript

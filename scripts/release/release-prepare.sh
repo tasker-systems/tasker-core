@@ -125,7 +125,6 @@ for lang in ruby python typescript; do
     CURRENT_VAL="${!CURRENT_VAR}"
     if [[ "$VERSION_VAL" != "unchanged" ]]; then
         REASON=""
-        LANG_CHANGED_VAR="${LANG_UPPER}_CHANGED"
         LANG_INFRA_VAR="${LANG_UPPER}_INFRA_CHANGED"
         if [[ "$FFI_CORE_CHANGED" == "true" ]]; then
             REASON=" (core changed)"

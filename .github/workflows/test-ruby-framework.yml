@@ -1,4 +1,4 @@
-name: Ruby Framework Tests
+name: Ruby Framework & Client Tests
 
 on:
   workflow_call:
@@ -10,9 +10,9 @@ on:
 
 jobs:
   ruby-framework:
-    name: Ruby Framework Tests (with PostgreSQL)
+    name: Ruby Framework & Client Tests (with PostgreSQL)
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -94,7 +94,6 @@ jobs:
 
       - name: Restore or compile Ruby FFI extension
         run: |
-          # Try to use pre-built extension from build-ruby job
           if [ -d artifacts ] && (ls artifacts/*.bundle 2>/dev/null || ls artifacts/*.so 2>/dev/null); then
             echo "📦 Restoring pre-built Ruby extension..."
             ARTIFACTS_DIR=artifacts ../../cargo-make/scripts/ci-restore-ruby-extension.sh
@@ -106,26 +105,57 @@ jobs:
           SQLX_OFFLINE: "true"
 
       - name: Run Ruby framework tests
-        run: |
-          echo "🧪 Running Ruby framework tests (FFI, types, events, worker)..."
-          echo "   - spec/ffi/ - FFI layer integration"
-          echo "   - spec/types/ - Type wrappers and conversions"
-          echo "   - spec/worker/ - Worker core functionality"
-          echo "   - spec/events/ - Event system"
-          echo ""
-
-          cargo make test-ci
+        run: cargo make test-ci
         env:
           TASKER_ENV: test
-          # Use worker-test.toml with unique port to enable health/observability FFI
           TASKER_CONFIG_PATH: ../../config/tasker/generated/worker-test.toml
           TASKER_WEB_BIND_ADDRESS: "0.0.0.0:8182"
           TASKER_WORKER_GRPC_BIND_ADDRESS: "0.0.0.0:9182"
           TASKER_TEMPLATE_PATH: ./spec/fixtures/templates
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
-          # TAS-156: Redis for distributed template cache
           REDIS_URL: redis://localhost:6379
 
+      # ========================================================================
+      # Client API Integration Tests (TAS-284: merged from test-ffi-client.yml)
+      # ========================================================================
+      - name: Download core artifacts (for orchestration server)
+        uses: actions/download-artifact@v7
+        with:
+          name: core-artifacts
+          path: artifacts/core
+        continue-on-error: true
+
+      - name: Start orchestration server
+        working-directory: .
+        run: cargo-make/scripts/ci-start-orchestration-server.sh
+        env:
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+          REDIS_URL: redis://localhost:6379
+          TASKER_ENV: test
+          TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
+          SQLX_OFFLINE: "true"
+
+      - name: Run Ruby client API tests
+        run: cargo make test-client-ci
+        env:
+          TASKER_ENV: test
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+          REDIS_URL: redis://localhost:6379
+          FFI_CLIENT_TESTS: "true"
+          TASKER_ORCHESTRATION_URL: http://localhost:8080
+          TASKER_CONFIG_PATH: ${{ github.workspace }}/config/tasker/generated/worker-test.toml
+          TASKER_WEB_BIND_ADDRESS: "0.0.0.0:8182"
+          TASKER_WORKER_GRPC_BIND_ADDRESS: "0.0.0.0:9182"
+          TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
+
+      - name: Stop orchestration server
+        if: always()
+        working-directory: .
+        run: cargo-make/scripts/ci-stop-orchestration-server.sh
+
+      # ========================================================================
+      # Results
+      # ========================================================================
       - name: Upload test results
         uses: actions/upload-artifact@v6
         if: always()
@@ -133,17 +163,10 @@ jobs:
           name: ruby-framework-test-results
           path: |
             target/ruby-framework-results.xml
+            target/ruby-client-results.xml
           if-no-files-found: warn
 
       - name: Display test summary
         if: always()
-        run: |
-          echo "📊 Ruby Framework Test Summary"
-          echo "================================"
-          if [ -f "../../target/ruby-framework-results.xml" ]; then
-            test_count=$(grep -o '<testcase' ../../target/ruby-framework-results.xml | wc -l || echo "0")
-            echo "Framework tests: $test_count"
-          else
-            echo "⚠️ No framework test results file found"
-          fi
-          echo "✅ Ruby framework tests completed"
+        working-directory: .
+        run: cargo-make/scripts/ci-display-test-summary.sh ruby
