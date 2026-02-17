@@ -443,6 +443,12 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Setup Node.js (npm >= 11.5.1 required for OIDC trusted publishing)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Download pre-built FFI artifacts
         continue-on-error: true
         uses: actions/download-artifact@v7
