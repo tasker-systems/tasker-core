@@ -69,7 +69,7 @@ RUN bun install --frozen-lockfile
 
 # Build napi-rs FFI module (places .node file in package root)
 # IMPORTANT: --locked ensures Cargo.lock is respected (prevents serde version conflicts)
-RUN npx napi build --platform --release -- --locked
+RUN bunx napi build --platform --release -- --locked
 
 # Build TypeScript
 RUN bun run build
