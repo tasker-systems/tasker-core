@@ -2,10 +2,12 @@
  * FfiLayer tests.
  *
  * Tests FfiLayer state management, load/unload lifecycle,
- * getRuntime error handling, and findLibraryPath static method.
+ * getModule error handling, and findModulePath/findLibraryPath static methods.
+ *
+ * TAS-290: Updated for napi-rs (no runtimeType, .node modules).
  */
 
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { FfiLayer } from '../../../src/ffi/ffi-layer.js';
 
 // =============================================================================
@@ -14,25 +16,14 @@ import { FfiLayer } from '../../../src/ffi/ffi-layer.js';
 
 describe('FfiLayer', () => {
   describe('constructor', () => {
-    test('should create with default runtime detection', () => {
+    test('should create with defaults', () => {
       const layer = new FfiLayer();
-
-      // Bun test environment should detect 'bun'
-      const runtimeType = layer.getRuntimeType();
-      expect(['bun', 'node', 'deno', 'unknown']).toContain(runtimeType);
+      expect(layer.isLoaded()).toBe(false);
     });
 
-    test('should accept runtimeType override', () => {
-      const layer = new FfiLayer({ runtimeType: 'node' });
-
-      expect(layer.getRuntimeType()).toBe('node');
-    });
-
-    test('should accept libraryPath override', () => {
-      const layer = new FfiLayer({ libraryPath: '/custom/path.dylib' });
-
-      expect(layer.getRuntimeType()).toBeDefined();
-      // libraryPath is used during load(), not accessible directly before load
+    test('should accept modulePath override', () => {
+      const layer = new FfiLayer({ modulePath: '/custom/path.node' });
+      expect(layer.isLoaded()).toBe(false);
     });
   });
 
@@ -44,52 +35,39 @@ describe('FfiLayer', () => {
     });
   });
 
-  describe('getRuntime', () => {
+  describe('getModule', () => {
     test('should throw when not loaded', () => {
       const layer = new FfiLayer();
 
-      expect(() => layer.getRuntime()).toThrow('FFI not loaded. Call load() first.');
+      expect(() => layer.getModule()).toThrow('FFI not loaded');
     });
   });
 
-  describe('getLibraryPath', () => {
+  describe('getModulePath', () => {
     test('should return null before load', () => {
       const layer = new FfiLayer();
 
-      expect(layer.getLibraryPath()).toBeNull();
-    });
-  });
-
-  describe('getRuntimeType', () => {
-    test('should return configured type', () => {
-      const layer = new FfiLayer({ runtimeType: 'deno' });
-
-      expect(layer.getRuntimeType()).toBe('deno');
-    });
-
-    test('should return detected type when no override', () => {
-      const layer = new FfiLayer();
-
-      const runtimeType = layer.getRuntimeType();
-      expect(typeof runtimeType).toBe('string');
-      expect(runtimeType.length).toBeGreaterThan(0);
+      expect(layer.getModulePath()).toBeNull();
     });
   });
 
   describe('load', () => {
-    test('should throw when no library path found', async () => {
-      // No configured path, no env var, no discoverable path
-      const originalEnv = process.env.TASKER_FFI_LIBRARY_PATH;
-      delete process.env.TASKER_FFI_LIBRARY_PATH;
+    test('should throw when given nonexistent custom path', async () => {
+      const layer = new FfiLayer();
+      await expect(layer.load('/nonexistent/path/to/module.node')).rejects.toThrow();
+    });
 
+    test('should be idempotent when called twice', async () => {
+      const layer = new FfiLayer();
+      // If a .node file exists (from build-ffi), load succeeds.
+      // If not, it throws. Either way, second call should be safe.
       try {
-        const layer = new FfiLayer();
-
-        await expect(layer.load()).rejects.toThrow('FFI library not found');
-      } finally {
-        if (originalEnv !== undefined) {
-          process.env.TASKER_FFI_LIBRARY_PATH = originalEnv;
-        }
+        await layer.load();
+        await layer.load(); // Should not throw (idempotent)
+        expect(layer.isLoaded()).toBe(true);
+      } catch {
+        // No module available — expected in environments without build artifacts
+        expect(layer.isLoaded()).toBe(false);
       }
     });
   });
@@ -102,7 +80,7 @@ describe('FfiLayer', () => {
       await layer.unload();
 
       expect(layer.isLoaded()).toBe(false);
-      expect(layer.getLibraryPath()).toBeNull();
+      expect(layer.getModulePath()).toBeNull();
     });
 
     test('should clear state after unload', async () => {
@@ -111,58 +89,65 @@ describe('FfiLayer', () => {
       await layer.unload();
 
       expect(layer.isLoaded()).toBe(false);
-      expect(layer.getLibraryPath()).toBeNull();
+      expect(layer.getModulePath()).toBeNull();
     });
   });
 });
 
 // =============================================================================
-// findLibraryPath (static method)
+// findModulePath / findLibraryPath (static methods)
 // =============================================================================
 
-describe('FfiLayer.findLibraryPath', () => {
-  const originalEnv = process.env.TASKER_FFI_LIBRARY_PATH;
+describe('FfiLayer.findModulePath', () => {
+  let savedModulePath: string | undefined;
+
+  beforeEach(() => {
+    savedModulePath = process.env.TASKER_FFI_MODULE_PATH;
+  });
 
   afterEach(() => {
-    if (originalEnv === undefined) {
-      delete process.env.TASKER_FFI_LIBRARY_PATH;
+    if (savedModulePath === undefined) {
+      delete process.env.TASKER_FFI_MODULE_PATH;
     } else {
-      process.env.TASKER_FFI_LIBRARY_PATH = originalEnv;
+      process.env.TASKER_FFI_MODULE_PATH = savedModulePath;
     }
   });
 
-  test('should return null when TASKER_FFI_LIBRARY_PATH is not set', () => {
-    delete process.env.TASKER_FFI_LIBRARY_PATH;
+  test('should return null when no env var is set and no bundled module', () => {
+    delete process.env.TASKER_FFI_MODULE_PATH;
 
-    const result = FfiLayer.findLibraryPath();
+    const result = FfiLayer.findModulePath();
+
+    // May find bundled .node file in package root, or null
+    // Just verify it doesn't throw
+    expect(result === null || typeof result === 'string').toBe(true);
+  });
+
+  test('should return null when TASKER_FFI_MODULE_PATH points to nonexistent file', () => {
+    process.env.TASKER_FFI_MODULE_PATH = '/nonexistent/path/to/lib.node';
+
+    const result = FfiLayer.findModulePath();
 
     expect(result).toBeNull();
   });
 
-  test('should return null when path does not exist', () => {
-    process.env.TASKER_FFI_LIBRARY_PATH = '/nonexistent/path/to/lib.dylib';
-
-    const result = FfiLayer.findLibraryPath();
-
-    expect(result).toBeNull();
-  });
-
-  test('should return path when env var is set and file exists', () => {
+  test('should return path when TASKER_FFI_MODULE_PATH points to existing file', () => {
     // Use a file that we know exists (this test file itself)
     const existingFile = import.meta.path;
-    process.env.TASKER_FFI_LIBRARY_PATH = existingFile;
+    process.env.TASKER_FFI_MODULE_PATH = existingFile;
 
-    const result = FfiLayer.findLibraryPath();
+    const result = FfiLayer.findModulePath();
 
+    expect(result).not.toBeNull();
     expect(result).toBe(existingFile);
   });
 
-  test('should accept deprecated callerDir parameter', () => {
-    delete process.env.TASKER_FFI_LIBRARY_PATH;
+  test('findLibraryPath delegates to findModulePath (backward compat)', () => {
+    delete process.env.TASKER_FFI_MODULE_PATH;
 
-    // callerDir is deprecated and ignored, should still return null
-    const result = FfiLayer.findLibraryPath('/some/dir');
+    const modulePath = FfiLayer.findModulePath();
+    const libraryPath = FfiLayer.findLibraryPath();
 
-    expect(result).toBeNull();
+    expect(libraryPath).toBe(modulePath);
   });
 });

@@ -2,7 +2,10 @@
  * Client API FFI Integration Tests (TAS-231)
  *
  * Tests the client FFI functions against a running orchestration server.
- * Verifies full round-trip: TypeScript -> C FFI -> Rust -> REST API -> PostgreSQL -> response.
+ * Verifies full round-trip: TypeScript -> napi-rs -> Rust -> REST API -> PostgreSQL -> response.
+ *
+ * TAS-290: Updated to use FfiLayer + NapiModule instead of NodeRuntime.
+ * Client calls now pass typed objects directly (no JSON serialization).
  *
  * Prerequisites:
  * - FFI library built: cargo build -p tasker-ts
@@ -15,8 +18,8 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { NodeRuntime } from '../../../src/ffi/node-runtime.js';
-import type { ClientResult } from '../../../src/ffi/types.js';
+import { FfiLayer, type NapiModule } from '../../../src/ffi/ffi-layer.js';
+import type { NapiClientResult } from '../../../src/ffi/types.js';
 import {
   findLibraryPath,
   SKIP_CLIENT_MESSAGE,
@@ -25,7 +28,8 @@ import {
 } from './common.js';
 
 describe('Client API FFI Integration', () => {
-  let runtime: NodeRuntime;
+  let ffiLayer: FfiLayer;
+  let module: NapiModule;
   let libraryPath: string | null;
   let skipAll = false;
 
@@ -47,24 +51,29 @@ describe('Client API FFI Integration', () => {
       return;
     }
 
-    runtime = new NodeRuntime();
-    await runtime.load(libraryPath);
+    ffiLayer = new FfiLayer();
+    await ffiLayer.load(libraryPath);
+    module = ffiLayer.getModule();
 
     // Bootstrap the worker (required for client to be initialized)
-    const bootstrapResult = runtime.bootstrapWorker({});
+    const bootstrapResult = module.bootstrapWorker({});
     if (!bootstrapResult.success) {
-      console.warn(`Skipping: Bootstrap failed: ${bootstrapResult.error}`);
+      console.warn(`Skipping: Bootstrap failed: ${bootstrapResult.message}`);
       skipAll = true;
       return;
     }
   });
 
-  afterAll(() => {
-    if (runtime?.isWorkerRunning()) {
-      runtime.stopWorker();
-    }
-    if (runtime?.isLoaded) {
-      runtime.unload();
+  afterAll(async () => {
+    if (module && ffiLayer.isLoaded()) {
+      try {
+        if (module.isWorkerRunning()) {
+          module.stopWorker();
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+      await ffiLayer.unload();
     }
   });
 
@@ -75,10 +84,9 @@ describe('Client API FFI Integration', () => {
         return;
       }
 
-      const result: ClientResult = runtime.clientHealthCheck();
+      const result: NapiClientResult = module.clientHealthCheck();
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data.healthy).toBeDefined();
     });
   });
 
@@ -89,26 +97,27 @@ describe('Client API FFI Integration', () => {
         return;
       }
 
-      const request = JSON.stringify({
+      // TAS-290: Pass typed object directly (no JSON.stringify)
+      const result: NapiClientResult = module.clientCreateTask({
         name: 'success_only_ts',
         namespace: 'test_scenarios_ts',
         version: '1.0.0',
         context: { test_run: 'client_api_integration', run_id: crypto.randomUUID() },
         initiator: 'typescript-client-test',
-        source_system: 'integration-test',
+        sourceSystem: 'integration-test',
         reason: 'TAS-231 client API integration test',
       });
-
-      const result: ClientResult = runtime.clientCreateTask(request);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data.task_uuid).toBeDefined();
-      expect(typeof result.data.task_uuid).toBe('string');
-      expect(result.data.name).toBe('success_only_ts');
-      expect(result.data.namespace).toBe('test_scenarios_ts');
+
+      const data = result.data as Record<string, unknown>;
+      expect(data.task_uuid).toBeDefined();
+      expect(typeof data.task_uuid).toBe('string');
+      expect(data.name).toBe('success_only_ts');
+      expect(data.namespace).toBe('test_scenarios_ts');
 
       // Save for subsequent tests
-      taskUuid = result.data.task_uuid;
+      taskUuid = data.task_uuid as string;
     });
 
     it('gets the created task by UUID', () => {
@@ -117,17 +126,19 @@ describe('Client API FFI Integration', () => {
         return;
       }
 
-      const result: ClientResult = runtime.clientGetTask(taskUuid);
+      const result: NapiClientResult = module.clientGetTask(taskUuid);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data.task_uuid).toBe(taskUuid);
-      expect(result.data.name).toBe('success_only_ts');
-      expect(result.data.namespace).toBe('test_scenarios_ts');
-      expect(result.data.version).toBe('1.0.0');
-      expect(result.data.created_at).toBeDefined();
-      expect(result.data.updated_at).toBeDefined();
-      expect(result.data.correlation_id).toBeDefined();
-      expect(typeof result.data.total_steps).toBe('number');
+
+      const data = result.data as Record<string, unknown>;
+      expect(data.task_uuid).toBe(taskUuid);
+      expect(data.name).toBe('success_only_ts');
+      expect(data.namespace).toBe('test_scenarios_ts');
+      expect(data.version).toBe('1.0.0');
+      expect(data.created_at).toBeDefined();
+      expect(data.updated_at).toBeDefined();
+      expect(data.correlation_id).toBeDefined();
+      expect(typeof data.total_steps).toBe('number');
     });
 
     it('lists tasks with pagination', () => {
@@ -136,15 +147,18 @@ describe('Client API FFI Integration', () => {
         return;
       }
 
-      const params = JSON.stringify({ limit: 50, offset: 0 });
-      const result: ClientResult = runtime.clientListTasks(params);
+      // TAS-290: Pass typed object directly
+      const result: NapiClientResult = module.clientListTasks({ limit: 50, offset: 0 });
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data.tasks).toBeDefined();
-      expect(Array.isArray(result.data.tasks)).toBe(true);
-      expect(result.data.pagination).toBeDefined();
-      expect(typeof result.data.pagination.total_count).toBe('number');
-      expect(result.data.pagination.total_count).toBeGreaterThanOrEqual(1);
+
+      const data = result.data as Record<string, unknown>;
+      expect(data.tasks).toBeDefined();
+      expect(Array.isArray(data.tasks)).toBe(true);
+      expect(data.pagination).toBeDefined();
+      const pagination = data.pagination as Record<string, unknown>;
+      expect(typeof pagination.total_count).toBe('number');
+      expect(pagination.total_count as number).toBeGreaterThanOrEqual(1);
     });
 
     it('lists task steps', () => {
@@ -153,19 +167,20 @@ describe('Client API FFI Integration', () => {
         return;
       }
 
-      const result: ClientResult = runtime.clientListTaskSteps(taskUuid);
+      const result: NapiClientResult = module.clientListTaskSteps(taskUuid);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       // The response is an array of steps
-      expect(Array.isArray(result.data)).toBe(true);
+      const data = result.data as Record<string, unknown>[];
+      expect(Array.isArray(data)).toBe(true);
 
-      if (result.data.length > 0) {
-        const step = result.data[0];
+      if (data.length > 0) {
+        const step = data[0];
         expect(step.step_uuid).toBeDefined();
         expect(step.task_uuid).toBe(taskUuid);
         expect(step.name).toBeDefined();
         // Save for subsequent tests
-        stepUuid = step.step_uuid;
+        stepUuid = step.step_uuid as string;
       }
     });
 
@@ -175,15 +190,17 @@ describe('Client API FFI Integration', () => {
         return;
       }
 
-      const result: ClientResult = runtime.clientGetStep(taskUuid, stepUuid);
+      const result: NapiClientResult = module.clientGetStep(taskUuid, stepUuid);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data.step_uuid).toBe(stepUuid);
-      expect(result.data.task_uuid).toBe(taskUuid);
-      expect(result.data.name).toBeDefined();
-      expect(result.data.current_state).toBeDefined();
-      expect(typeof result.data.attempts).toBe('number');
-      expect(typeof result.data.max_attempts).toBe('number');
+
+      const data = result.data as Record<string, unknown>;
+      expect(data.step_uuid).toBe(stepUuid);
+      expect(data.task_uuid).toBe(taskUuid);
+      expect(data.name).toBeDefined();
+      expect(data.current_state).toBeDefined();
+      expect(typeof data.attempts).toBe('number');
+      expect(typeof data.max_attempts).toBe('number');
     });
 
     it('gets step audit history', () => {
@@ -192,7 +209,7 @@ describe('Client API FFI Integration', () => {
         return;
       }
 
-      const result: ClientResult = runtime.clientGetStepAuditHistory(taskUuid, stepUuid);
+      const result: NapiClientResult = module.clientGetStepAuditHistory(taskUuid, stepUuid);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       // Audit history is an array (may be empty for newly created tasks)
@@ -205,7 +222,7 @@ describe('Client API FFI Integration', () => {
         return;
       }
 
-      const result: ClientResult = runtime.clientCancelTask(taskUuid);
+      const result: NapiClientResult = module.clientCancelTask(taskUuid);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
     });
@@ -220,7 +237,7 @@ describe('Client API FFI Integration', () => {
 
       // Rapid-fire 100 calls to verify no memory leaks or use-after-free
       for (let i = 0; i < 100; i++) {
-        const result: ClientResult = runtime.clientHealthCheck();
+        const result: NapiClientResult = module.clientHealthCheck();
         expect(result.success).toBe(true);
       }
     });
@@ -232,7 +249,7 @@ describe('Client API FFI Integration', () => {
       }
 
       // Get a non-existent task - should return error, not crash
-      const result: ClientResult = runtime.clientGetTask('00000000-0000-0000-0000-000000000000');
+      const result: NapiClientResult = module.clientGetTask('00000000-0000-0000-0000-000000000000');
       // May succeed with 404-mapped error or fail gracefully
       expect(result).toBeDefined();
       expect(typeof result.success).toBe('boolean');

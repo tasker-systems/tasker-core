@@ -3,12 +3,15 @@
  *
  * These tests verify that the EventPoller → EventEmitter → StepExecutionSubscriber
  * flow works correctly using real (non-mock) components.
+ *
+ * TAS-290: Updated for napi-rs — uses NapiModule mock, camelCase event fields,
+ * flattened stepDefinition.handlerCallable.
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { TaskerEventEmitter } from '../../src/events/event-emitter';
 import { StepEventNames } from '../../src/events/event-names';
-import type { TaskerRuntime } from '../../src/ffi/runtime-interface';
+import type { NapiModule } from '../../src/ffi/ffi-layer';
 import type { FfiStepEvent } from '../../src/ffi/types';
 import { StepHandler } from '../../src/handler/base';
 import { HandlerRegistry } from '../../src/handler/registry';
@@ -17,39 +20,52 @@ import type { StepContext } from '../../src/types/step-context';
 import type { StepHandlerResult } from '../../src/types/step-handler-result';
 
 /**
- * Create a mock TaskerRuntime for testing.
- *
- * The mock runtime simulates a loaded FFI layer that accepts result submissions
- * but doesn't actually call any FFI functions.
+ * Create a mock NapiModule for testing.
  */
-function createMockRuntime(): TaskerRuntime {
+function createMockModule(): NapiModule {
   return {
-    name: 'mock-runtime',
-    isLoaded: true,
-    load: async () => {},
-    unload: () => {},
     getVersion: () => '0.0.0-mock',
     getRustVersion: () => '0.0.0-mock',
     healthCheck: () => true,
     bootstrapWorker: () => ({
       success: true,
-      status: 'running',
+      status: 'started',
       message: 'Mock bootstrap',
+      workerId: 'mock-worker',
     }),
     isWorkerRunning: () => true,
-    getWorkerStatus: () => ({ running: true, state: 'running' }),
-    stopWorker: () => ({ success: true, message: 'stopped' }),
+    getWorkerStatus: () => ({
+      success: true,
+      running: true,
+      workerId: 'mock-worker',
+      status: null,
+      environment: null,
+    }),
+    stopWorker: () => ({
+      success: true,
+      running: false,
+      workerId: null,
+      status: 'stopped',
+      environment: null,
+    }),
     transitionToGracefulShutdown: () => ({
       success: true,
-      message: 'shutting down',
+      running: false,
+      workerId: null,
+      status: 'transitioning',
+      environment: null,
     }),
     pollStepEvents: () => null,
-    completeStepEvent: () => true, // Accept result submissions
+    pollInProcessEvents: () => null,
+    completeStepEvent: () => true,
+    checkpointYieldStepEvent: () => true,
     getFfiDispatchMetrics: () => ({
-      pending_events: 0,
-      completed_events: 0,
-      failed_events: 0,
-      starvation_detected: false,
+      pendingCount: 0,
+      starvationDetected: false,
+      starvingEventCount: 0,
+      oldestPendingAgeMs: null,
+      newestPendingAgeMs: null,
+      oldestEventId: null,
     }),
     checkStarvationWarnings: () => {},
     cleanupTimeouts: () => {},
@@ -58,93 +74,104 @@ function createMockRuntime(): TaskerRuntime {
     logInfo: () => {},
     logDebug: () => {},
     logTrace: () => {},
-  };
+    clientCreateTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientListTasks: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientCancelTask: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientListTaskSteps: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetStep: () => ({ success: true, data: null, error: null, recoverable: null }),
+    clientGetStepAuditHistory: () => ({
+      success: true,
+      data: null,
+      error: null,
+      recoverable: null,
+    }),
+    clientHealthCheck: () => ({ success: true, data: null, error: null, recoverable: null }),
+  } as NapiModule;
 }
 
-// Create a mock FFI step event
+// Create a mock FFI step event with camelCase fields (napi-rs format)
 function createMockEvent(handlerName: string): FfiStepEvent {
   return {
-    event_id: `event-${Date.now()}-${Math.random()}`,
-    task_uuid: 'task-123',
-    step_uuid: 'step-456',
-    correlation_id: 'corr-789',
-    trace_id: null,
-    span_id: null,
-    task_correlation_id: 'task-corr-123',
-    parent_correlation_id: null,
+    eventId: `event-${Date.now()}-${Math.random()}`,
+    taskUuid: 'task-123',
+    stepUuid: 'step-456',
+    correlationId: 'corr-789',
+    traceId: null,
+    spanId: null,
+    taskCorrelationId: 'task-corr-123',
+    parentCorrelationId: null,
     task: {
-      task_uuid: 'task-123',
-      named_task_uuid: 'named-task-123',
+      taskUuid: 'task-123',
+      namedTaskUuid: 'named-task-123',
       name: 'test_task',
       namespace: 'default',
       version: '1.0.0',
       context: { order_id: 'order-001' },
-      correlation_id: 'task-corr-123',
-      parent_correlation_id: null,
+      correlationId: 'task-corr-123',
+      parentCorrelationId: null,
       complete: false,
       priority: 1,
       initiator: 'test',
-      source_system: 'test',
+      sourceSystem: 'test',
       reason: null,
       tags: null,
-      identity_hash: 'hash-123',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      requested_at: new Date().toISOString(),
+      identityHash: 'hash-123',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      requestedAt: new Date().toISOString(),
     },
-    workflow_step: {
-      workflow_step_uuid: 'step-456',
-      task_uuid: 'task-123',
-      named_step_uuid: 'named-step-456',
+    workflowStep: {
+      workflowStepUuid: 'step-456',
+      taskUuid: 'task-123',
+      namedStepUuid: 'named-step-456',
       name: 'test_step',
-      template_step_name: 'test_step',
+      templateStepName: 'test_step',
       retryable: true,
-      max_attempts: 3,
+      maxAttempts: 3,
       attempts: 0,
-      in_process: false,
+      inProcess: false,
       processed: false,
-
       inputs: null,
       results: null,
-      backoff_request_seconds: null,
-      processed_at: null,
-      last_attempted_at: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      backoffRequestSeconds: null,
+      processedAt: null,
+      lastAttemptedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      checkpoint: null,
     },
-    step_definition: {
+    stepDefinition: {
       name: 'test_step',
       description: 'Test step',
-      handler: {
-        callable: handlerName,
-        initialization: {},
-      },
-
+      handlerCallable: handlerName,
+      handlerMethod: null,
+      handlerResolver: null,
+      handlerInitialization: {},
+      systemDependency: null,
       dependencies: [],
-      timeout_seconds: 60,
-      retry: {
-        retryable: true,
-        max_attempts: 3,
-        backoff: 'exponential',
-        backoff_base_ms: 1000,
-        max_backoff_ms: 30000,
-      },
+      timeoutSeconds: 60,
+      retryRetryable: true,
+      retryMaxAttempts: 3,
+      retryBackoff: 'exponential',
+      retryBackoffBaseMs: 1000,
+      retryMaxBackoffMs: 30000,
     },
-    dependency_results: {},
+    dependencyResults: {},
   };
 }
 
 describe('Event Flow Integration', () => {
   let emitter: TaskerEventEmitter;
   let registry: HandlerRegistry;
-  let mockRuntime: TaskerRuntime;
+  let module: NapiModule;
   let subscriber: StepExecutionSubscriber;
 
   beforeEach(() => {
     // Create fresh instances for each test (explicit construction)
     emitter = new TaskerEventEmitter();
     registry = new HandlerRegistry();
-    mockRuntime = createMockRuntime();
+    module = createMockModule();
   });
 
   afterEach(() => {
@@ -192,8 +219,8 @@ describe('Event Flow Integration', () => {
 
     registry.register('integration_test_handler', IntegrationTestHandler);
 
-    // Create subscriber with the SAME emitter and mock runtime (explicit injection)
-    subscriber = new StepExecutionSubscriber(emitter, registry, mockRuntime, {
+    // Create subscriber with the SAME emitter and mock module (explicit injection)
+    subscriber = new StepExecutionSubscriber(emitter, registry, module, {
       workerId: 'integration-test-worker',
     });
     subscriber.start();
@@ -228,14 +255,14 @@ describe('Event Flow Integration', () => {
 
     registry.register('context_capturing_handler', ContextCapturingHandler);
 
-    subscriber = new StepExecutionSubscriber(emitter, registry, mockRuntime, {
+    subscriber = new StepExecutionSubscriber(emitter, registry, module, {
       workerId: 'context-test-worker',
     });
     subscriber.start();
 
     const event = createMockEvent('context_capturing_handler');
-    event.step_uuid = 'test-step-uuid-12345';
-    event.task_uuid = 'test-task-uuid-67890';
+    event.stepUuid = 'test-step-uuid-12345';
+    event.taskUuid = 'test-task-uuid-67890';
 
     emitter.emitStepReceived(event);
 
@@ -260,7 +287,7 @@ describe('Event Flow Integration', () => {
 
     registry.register('counting_handler', CountingHandler);
 
-    subscriber = new StepExecutionSubscriber(emitter, registry, mockRuntime, {
+    subscriber = new StepExecutionSubscriber(emitter, registry, module, {
       workerId: 'counting-test-worker',
     });
     subscriber.start();

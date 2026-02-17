@@ -290,8 +290,7 @@ jobs:
           name: typescript-artifacts
           path: |
             workers/typescript/dist/
-            target/debug/libtasker_ts.so
-            target/debug/libtasker_ts.dylib
+            workers/typescript/tasker_ts.*.node
           retention-days: 1
           if-no-files-found: warn
 

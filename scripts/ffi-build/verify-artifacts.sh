@@ -194,22 +194,17 @@ verify_python() {
 # TypeScript verification
 # ---------------------------------------------------------------------------
 verify_typescript() {
-    local dir ext lib_path
+    local dir lib_path
     dir="$(artifact_dir "$TARGET" "typescript")"
     log_section "Verifying TypeScript artifacts in ${dir}"
 
-    # Determine expected extension
-    case "$TARGET" in
-        *-darwin) ext="dylib" ;;
-        *)        ext="so" ;;
-    esac
+    # napi-rs artifacts use .node extension regardless of platform
+    lib_path="${dir}/tasker_ts-${TARGET}.node"
 
-    lib_path="${dir}/libtasker_ts-${TARGET}.${ext}"
-
-    check_exists "$lib_path" "TypeScript FFI library"
-    check_min_size "$lib_path" "TypeScript FFI library" 1048576
-    check_shared_lib "$lib_path" "TypeScript FFI library"
-    check_architecture "$lib_path" "$TARGET" "TypeScript FFI library"
+    check_exists "$lib_path" "TypeScript napi-rs module"
+    check_min_size "$lib_path" "TypeScript napi-rs module" 1048576
+    check_shared_lib "$lib_path" "TypeScript napi-rs module"
+    check_architecture "$lib_path" "$TARGET" "TypeScript napi-rs module"
 }
 
 # ---------------------------------------------------------------------------

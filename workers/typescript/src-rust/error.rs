@@ -1,43 +1,31 @@
-//! Error types for TypeScript FFI bindings.
+//! Error types for napi-rs FFI boundary.
+//!
+//! TAS-290: Replaces C FFI error handling with napi-rs JavaScript exceptions.
+//! Unlike the koffi approach which wraps errors in JSON envelopes,
+//! napi-rs converts Rust errors directly into JavaScript exceptions.
+//! This matches how pyo3 and magnus handle errors.
 
-use thiserror::Error;
-
-/// Errors that can occur in the TypeScript FFI layer.
-#[derive(Error, Debug)]
-pub enum TypeScriptFfiError {
-    /// Worker has not been initialized (bootstrap not called)
-    #[error("Worker not initialized. Call bootstrap_worker first.")]
+/// FFI-specific errors that map to JavaScript exceptions.
+#[derive(Debug, thiserror::Error)]
+pub enum NapiFfiError {
+    #[error("Worker not initialized — call bootstrapWorker() first")]
     WorkerNotInitialized,
 
-    /// Bootstrap failed
+    #[error("Failed to acquire lock on worker system")]
+    LockError,
+
     #[error("Bootstrap failed: {0}")]
     BootstrapFailed(String),
 
-    /// Worker is already running
-    #[error("Worker is already running")]
-    WorkerAlreadyRunning,
-
-    /// Failed to acquire lock
-    #[error("Failed to acquire lock on worker state")]
-    LockError,
-
-    /// Runtime error
     #[error("Runtime error: {0}")]
     RuntimeError(String),
 
-    /// Invalid argument provided
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
+}
 
-    /// Type conversion error
-    #[error("Conversion error: {0}")]
-    ConversionError(String),
-
-    /// Serialization error (e.g., JSON serialization failed)
-    #[error("Serialization error: {0}")]
-    SerializationError(String),
-
-    /// FFI-specific error
-    #[error("FFI error: {0}")]
-    FfiError(String),
+impl From<NapiFfiError> for napi::Error {
+    fn from(err: NapiFfiError) -> Self {
+        napi::Error::from_reason(err.to_string())
+    }
 }

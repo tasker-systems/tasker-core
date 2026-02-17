@@ -1,172 +1,200 @@
 /**
- * FfiLayer - Owns FFI runtime loading and lifecycle.
+ * FfiLayer - Owns napi-rs module loading and lifecycle.
  *
- * This class encapsulates the FFI runtime management:
- * - Runtime detection (Node.js, Bun, Deno)
- * - Library path discovery
- * - Runtime loading and unloading
- *
- * Both Node.js and Bun use koffi (Node-API) for stable FFI.
+ * TAS-290: Simplified from the multi-runtime koffi approach.
+ * The napi-rs `.node` file IS the runtime — no runtime detection,
+ * no NodeRuntime/DenoRuntime adapters, no JSON serialization.
  *
  * Design principles:
  * - Explicit construction: No singleton pattern
- * - Clear ownership: Owns the runtime instance
+ * - Clear ownership: Owns the napi module instance
  * - Explicit lifecycle: load() and unload() methods
  */
 
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { detectRuntime, type RuntimeType } from './runtime.js';
-import type { TaskerRuntime } from './runtime-interface.js';
+import type {
+  BootstrapConfig,
+  BootstrapResult,
+  NapiCheckpointYieldData,
+  NapiClientResult,
+  NapiDispatchMetrics,
+  NapiDomainEvent,
+  NapiListTasksParams,
+  NapiStepEvent,
+  NapiStepExecutionResult,
+  NapiTaskRequest,
+  WorkerStatus,
+} from './types.js';
+
+/**
+ * Interface for the napi-rs native module.
+ *
+ * These are the functions exported by the Rust `#[napi]` bindings.
+ * Function names are auto-camelCased by napi-rs from Rust snake_case.
+ */
+export interface NapiModule {
+  // Lifecycle
+  getVersion(): string;
+  getRustVersion(): string;
+  healthCheck(): boolean;
+  bootstrapWorker(config: BootstrapConfig): BootstrapResult;
+  isWorkerRunning(): boolean;
+  getWorkerStatus(): WorkerStatus;
+  stopWorker(): WorkerStatus;
+  transitionToGracefulShutdown(): WorkerStatus;
+
+  // Step dispatch
+  pollStepEvents(): NapiStepEvent | null;
+  completeStepEvent(eventId: string, result: NapiStepExecutionResult): boolean;
+  pollInProcessEvents(): NapiDomainEvent | null;
+  checkpointYieldStepEvent(eventId: string, checkpoint: NapiCheckpointYieldData): boolean;
+
+  // Metrics & maintenance
+  getFfiDispatchMetrics(): NapiDispatchMetrics;
+  checkStarvationWarnings(): void;
+  cleanupTimeouts(): void;
+
+  // Client API
+  clientCreateTask(request: NapiTaskRequest): NapiClientResult;
+  clientGetTask(taskUuid: string): NapiClientResult;
+  clientListTasks(params: NapiListTasksParams): NapiClientResult;
+  clientCancelTask(taskUuid: string): NapiClientResult;
+  clientListTaskSteps(taskUuid: string): NapiClientResult;
+  clientGetStep(taskUuid: string, stepUuid: string): NapiClientResult;
+  clientGetStepAuditHistory(taskUuid: string, stepUuid: string): NapiClientResult;
+  clientHealthCheck(): NapiClientResult;
+
+  // Logging
+  logError(message: string, fields?: Record<string, unknown>): void;
+  logWarn(message: string, fields?: Record<string, unknown>): void;
+  logInfo(message: string, fields?: Record<string, unknown>): void;
+  logDebug(message: string, fields?: Record<string, unknown>): void;
+  logTrace(message: string, fields?: Record<string, unknown>): void;
+}
 
 /**
  * Configuration for FfiLayer.
  */
 export interface FfiLayerConfig {
-  /** Override runtime detection */
-  runtimeType?: RuntimeType;
-
-  /** Custom library path (overrides discovery) */
-  libraryPath?: string;
+  /** Custom module path (overrides discovery) */
+  modulePath?: string;
 }
 
 /**
- * Owns FFI runtime loading and lifecycle.
- *
- * Unlike RuntimeFactory, this class:
- * - Is NOT a singleton - created and passed explicitly
- * - Owns the runtime instance directly
- * - Has clear load/unload lifecycle
+ * Owns napi-rs module loading and lifecycle.
  *
  * @example
  * ```typescript
  * const ffiLayer = new FfiLayer();
  * await ffiLayer.load();
- * const runtime = ffiLayer.getRuntime();
- * // ... use runtime ...
+ * const module = ffiLayer.getModule();
+ * const result = module.bootstrapWorker({ namespace: 'default' });
  * await ffiLayer.unload();
  * ```
  */
 export class FfiLayer {
-  private runtime: TaskerRuntime | null = null;
-  private libraryPath: string | null = null;
-  private readonly runtimeType: RuntimeType;
-  private readonly configuredLibraryPath: string | undefined;
+  private module: NapiModule | null = null;
+  private modulePath: string | null = null;
+  private readonly configuredModulePath: string | undefined;
 
-  /**
-   * Create a new FfiLayer.
-   *
-   * @param config - Optional configuration for runtime type and library path
-   */
   constructor(config: FfiLayerConfig = {}) {
-    this.runtimeType = config.runtimeType ?? detectRuntime();
-    this.configuredLibraryPath = config.libraryPath;
+    this.configuredModulePath = config.modulePath;
   }
 
   /**
-   * Load the FFI library.
+   * Load the napi-rs native module.
    *
-   * Discovers and loads the native library for the current runtime.
-   *
-   * @param customPath - Optional override for library path (takes precedence over config)
-   * @throws Error if library not found or failed to load
+   * @param customPath - Optional override for module path
+   * @throws Error if module not found or failed to load
    */
   async load(customPath?: string): Promise<void> {
-    if (this.runtime?.isLoaded) {
+    if (this.module) {
       return; // Already loaded
     }
 
-    const path = customPath ?? this.configuredLibraryPath ?? this.discoverLibraryPath();
+    const path = customPath ?? this.configuredModulePath ?? this.discoverModulePath();
 
     if (!path) {
       throw new Error(
-        'FFI library not found. No bundled native library matches this platform, ' +
-          'and TASKER_FFI_LIBRARY_PATH is not set.\n' +
+        'napi-rs native module not found. No bundled .node file matches this platform, ' +
+          'and TASKER_FFI_MODULE_PATH is not set.\n' +
           `Current platform: ${process.platform}-${process.arch}\n` +
-          'Supported: linux-x64, linux-arm64, darwin-arm64\n' +
-          'Override: export TASKER_FFI_LIBRARY_PATH=/path/to/libtasker_ts.dylib'
+          'Supported: linux-x64, darwin-arm64\n' +
+          'Override: export TASKER_FFI_MODULE_PATH=/path/to/tasker_ts.linux-x64-gnu.node'
       );
     }
 
-    this.runtime = await this.createRuntime();
-    await this.runtime.load(path);
-    this.libraryPath = path;
+    // Load the .node file — this is a native Node-API module
+    const nativeModule = require(path) as NapiModule;
+    this.module = nativeModule;
+    this.modulePath = path;
   }
 
   /**
-   * Unload the FFI library and release resources.
-   *
-   * Safe to call even if not loaded.
+   * Unload the native module and release resources.
    */
   async unload(): Promise<void> {
-    if (this.runtime?.isLoaded) {
-      this.runtime.unload();
-    }
-    this.runtime = null;
-    this.libraryPath = null;
+    this.module = null;
+    this.modulePath = null;
   }
 
   /**
-   * Check if the FFI library is loaded.
+   * Check if the native module is loaded.
    */
   isLoaded(): boolean {
-    return this.runtime?.isLoaded ?? false;
+    return this.module !== null;
   }
 
   /**
-   * Get the loaded runtime.
+   * Get the loaded napi-rs module.
    *
-   * @throws Error if runtime is not loaded
+   * @throws Error if module is not loaded
    */
-  getRuntime(): TaskerRuntime {
-    if (!this.runtime?.isLoaded) {
+  getModule(): NapiModule {
+    if (!this.module) {
       throw new Error('FFI not loaded. Call load() first.');
     }
-    return this.runtime;
+    return this.module;
   }
 
   /**
-   * Get the path to the loaded library.
-   */
-  getLibraryPath(): string | null {
-    return this.libraryPath;
-  }
-
-  /**
-   * Get the detected runtime type.
-   */
-  getRuntimeType(): RuntimeType {
-    return this.runtimeType;
-  }
-
-  /**
-   * Find the FFI library path.
+   * Backward-compatible alias for getModule().
    *
-   * Static method for finding the library path without creating an instance.
-   * Useful for test utilities and pre-flight checks.
+   * @deprecated Use getModule() instead
+   */
+  getRuntime(): NapiModule {
+    return this.getModule();
+  }
+
+  /**
+   * Get the path to the loaded module.
+   */
+  getModulePath(): string | null {
+    return this.modulePath;
+  }
+
+  /**
+   * Find the napi-rs module path.
    *
    * Resolution order:
-   * 1. TASKER_FFI_LIBRARY_PATH environment variable (explicit override)
-   * 2. Bundled native library in the package's native/ directory
-   *
-   * @param _callerDir Deprecated parameter, kept for API compatibility
-   * @returns Path to the library if found and exists, null otherwise
+   * 1. TASKER_FFI_MODULE_PATH environment variable (explicit override, for unusual setups)
+   * 2. Bundled .node file in package directory (standard path — `napi build --platform` places it here)
    */
-  static findLibraryPath(_callerDir?: string): string | null {
-    // 1. Check explicit environment variable
-    const envPath = process.env.TASKER_FFI_LIBRARY_PATH;
-
+  static findModulePath(): string | null {
+    // 1. Check explicit environment variable override
+    const envPath = process.env.TASKER_FFI_MODULE_PATH;
     if (envPath) {
       if (!existsSync(envPath)) {
-        console.warn(`TASKER_FFI_LIBRARY_PATH is set to "${envPath}" but the file does not exist`);
+        console.warn(`TASKER_FFI_MODULE_PATH is set to "${envPath}" but the file does not exist`);
         return null;
       }
       return envPath;
     }
 
-    // 2. Try bundled native library
-    const bundledPath = findBundledNativeLibrary();
+    // 2. Try bundled .node file (placed by `napi build --platform`)
+    const bundledPath = findBundledNodeModule();
     if (bundledPath && existsSync(bundledPath)) {
       return bundledPath;
     }
@@ -175,77 +203,49 @@ export class FfiLayer {
   }
 
   /**
-   * Discover the FFI library path.
+   * Backward-compatible alias for findModulePath().
    *
-   * Instance method that delegates to the static findLibraryPath.
+   * @deprecated Use findModulePath() instead
    */
-  private discoverLibraryPath(): string | null {
-    return FfiLayer.findLibraryPath();
+  static findLibraryPath(_callerDir?: string): string | null {
+    return FfiLayer.findModulePath();
   }
 
-  /**
-   * Create a runtime adapter for the configured runtime type.
-   *
-   * NOTE: We use koffi (NodeRuntime) for both Node.js and Bun.
-   * koffi is stable and works with both runtimes via Node-API.
-   * See: https://bun.sh/docs/runtime/node-api
-   */
-  private async createRuntime(): Promise<TaskerRuntime> {
-    switch (this.runtimeType) {
-      case 'bun':
-      case 'node': {
-        // Use koffi-based NodeRuntime for both Bun and Node.js
-        // koffi is stable and Bun supports Node-API modules
-        const { NodeRuntime } = await import('./node-runtime.js');
-        return new NodeRuntime();
-      }
-      case 'deno': {
-        const { DenoRuntime } = await import('./deno-runtime.js');
-        return new DenoRuntime();
-      }
-      default:
-        throw new Error(
-          `Unsupported runtime: ${this.runtimeType}. Tasker TypeScript worker requires Bun, Node.js, or Deno.`
-        );
-    }
+  private discoverModulePath(): string | null {
+    return FfiLayer.findModulePath();
   }
 }
 
 /**
- * Bundled native library filenames by platform/arch.
+ * Bundled .node module filenames by platform/arch.
  *
- * These libraries are placed in the package's native/ directory during the
- * release build. All supported platforms are bundled in every published package
- * so that npm install "just works" without per-platform optional dependencies.
+ * napi-rs generates platform-specific .node files with this naming convention.
  */
-const BUNDLED_LIBRARIES: Record<string, string> = {
-  'linux-x64': 'libtasker_ts-linux-x64.so',
-  'linux-arm64': 'libtasker_ts-linux-arm64.so',
-  'darwin-arm64': 'libtasker_ts-darwin-arm64.dylib',
+const BUNDLED_NODE_MODULES: Record<string, string> = {
+  'linux-x64': 'tasker_ts.linux-x64-gnu.node',
+  'darwin-arm64': 'tasker_ts.darwin-arm64.node',
+  'darwin-x64': 'tasker_ts.darwin-x64.node',
 };
 
 /**
- * Find the bundled native library for the current platform.
- *
- * Walks up from the current file to find the package root (which contains
- * the native/ directory). This works whether running from the unbundled
- * layout (dist/ffi/ffi-layer.js) or the bundled layout (dist/index.js).
- *
- * @returns Absolute path to the native library, or null if not found
+ * Find the bundled .node module for the current platform.
  */
-function findBundledNativeLibrary(): string | null {
+function findBundledNodeModule(): string | null {
   const key = `${process.platform}-${process.arch}`;
-  const filename = BUNDLED_LIBRARIES[key];
+  const filename = BUNDLED_NODE_MODULES[key];
   if (!filename) {
     return null;
   }
 
-  // Walk up from current file to find package root (contains native/).
-  // Works whether running from dist/ffi/ffi-layer.js or dist/index.js.
+  // Walk up from current file to find package root
   let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 5; i++) {
-    const candidate = join(dir, 'native', filename);
+    // Check in package root directory
+    const candidate = join(dir, filename);
     if (existsSync(candidate)) return candidate;
+    // Check in native/ subdirectory (backward compat layout)
+    const nativeCandidate = join(dir, 'native', filename);
+    if (existsSync(nativeCandidate)) return nativeCandidate;
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;

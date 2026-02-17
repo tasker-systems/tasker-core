@@ -1,210 +1,114 @@
 /**
  * FFI type coherence tests.
  *
- * Verifies that FFI types are correctly structured and can be
- * used for JSON serialization/deserialization as expected.
+ * TAS-290: Verifies that napi-rs camelCase types are correctly
+ * structured and can be used as expected.
  */
 
 import { describe, expect, it } from 'bun:test';
 import type {
   BootstrapConfig,
   BootstrapResult,
-  DependencyResult,
   FfiDispatchMetrics,
   FfiStepEvent,
-  HandlerDefinition,
   LogFields,
-  RetryConfiguration,
-  StepDefinition,
-  StepExecutionError,
+  NapiCheckpointYieldData,
+  NapiDependencyResult,
+  NapiStepDefinition,
+  NapiTaskInfo,
+  NapiWorkflowStep,
   StepExecutionResult,
-  StopResult,
-  Task,
   WorkerStatus,
-  WorkflowStep,
 } from '../../../src/ffi/types.js';
 
-describe('FFI Types', () => {
-  describe('Task', () => {
+describe('FFI Types (napi-rs camelCase)', () => {
+  describe('NapiTaskInfo', () => {
     it('can be created with required fields', () => {
-      const task: Task = createValidTask();
-      expect(task.task_uuid).toBeDefined();
+      const task: NapiTaskInfo = createValidTask();
+      expect(task.taskUuid).toBeDefined();
       expect(task.name).toBeDefined();
       expect(task.namespace).toBeDefined();
-    });
-
-    it('serializes to JSON correctly', () => {
-      const task = createValidTask();
-      const json = JSON.stringify(task);
-      const parsed = JSON.parse(json) as Task;
-
-      expect(parsed.task_uuid).toBe(task.task_uuid);
-      expect(parsed.name).toBe(task.name);
-      expect(parsed.namespace).toBe(task.namespace);
     });
 
     it('supports optional nullable fields', () => {
       const task = createValidTask();
       expect(task.context).toBeNull();
-      expect(task.parent_correlation_id).toBeNull();
+      expect(task.parentCorrelationId).toBeNull();
       expect(task.initiator).toBeNull();
     });
   });
 
-  describe('WorkflowStep', () => {
+  describe('NapiWorkflowStep', () => {
     it('can be created with required fields', () => {
-      const step: WorkflowStep = createValidWorkflowStep();
-      expect(step.workflow_step_uuid).toBeDefined();
-      expect(step.task_uuid).toBeDefined();
+      const step: NapiWorkflowStep = createValidWorkflowStep();
+      expect(step.workflowStepUuid).toBeDefined();
+      expect(step.taskUuid).toBeDefined();
       expect(step.name).toBeDefined();
-    });
-
-    it('serializes to JSON correctly', () => {
-      const step = createValidWorkflowStep();
-      const json = JSON.stringify(step);
-      const parsed = JSON.parse(json) as WorkflowStep;
-
-      expect(parsed.workflow_step_uuid).toBe(step.workflow_step_uuid);
-      expect(parsed.name).toBe(step.name);
-      expect(parsed.retryable).toBe(step.retryable);
     });
 
     it('supports optional nullable fields', () => {
       const step = createValidWorkflowStep();
-      expect(step.max_attempts).toBe(3);
+      expect(step.maxAttempts).toBe(3);
       expect(step.inputs).toBeNull();
       expect(step.results).toBeNull();
     });
   });
 
-  describe('HandlerDefinition', () => {
+  describe('NapiStepDefinition', () => {
     it('can be created with required fields', () => {
-      const handler: HandlerDefinition = {
-        callable: 'MyHandler',
-        initialization: { key: 'value' },
-      };
-
-      expect(handler.callable).toBe('MyHandler');
-      expect(handler.initialization).toEqual({ key: 'value' });
-    });
-
-    it('supports empty initialization', () => {
-      const handler: HandlerDefinition = {
-        callable: 'SimpleHandler',
-        initialization: {},
-      };
-
-      expect(handler.initialization).toEqual({});
-    });
-  });
-
-  describe('RetryConfiguration', () => {
-    it('can be created with all fields', () => {
-      const retry: RetryConfiguration = {
-        retryable: true,
-        max_attempts: 5,
-        backoff: 'exponential',
-        backoff_base_ms: 1000,
-        max_backoff_ms: 60000,
-      };
-
-      expect(retry.retryable).toBe(true);
-      expect(retry.max_attempts).toBe(5);
-      expect(retry.backoff).toBe('exponential');
-    });
-
-    it('supports nullable backoff fields', () => {
-      const retry: RetryConfiguration = {
-        retryable: false,
-        max_attempts: 1,
-        backoff: 'none',
-        backoff_base_ms: null,
-        max_backoff_ms: null,
-      };
-
-      expect(retry.backoff_base_ms).toBeNull();
-      expect(retry.max_backoff_ms).toBeNull();
-    });
-  });
-
-  describe('StepDefinition', () => {
-    it('can be created with required fields', () => {
-      const definition: StepDefinition = createValidStepDefinition();
+      const definition: NapiStepDefinition = createValidStepDefinition();
       expect(definition.name).toBeDefined();
-      expect(definition.handler).toBeDefined();
-      expect(definition.retry).toBeDefined();
+      expect(definition.handlerCallable).toBe('TestHandler');
+      expect(definition.retryRetryable).toBe(true);
     });
 
-    it('serializes to JSON with nested structures', () => {
+    it('supports flattened handler fields', () => {
       const definition = createValidStepDefinition();
-      const json = JSON.stringify(definition);
-      const parsed = JSON.parse(json) as StepDefinition;
+      expect(definition.handlerCallable).toBe('TestHandler');
+      expect(definition.handlerInitialization).toEqual({});
+      expect(definition.handlerMethod).toBeNull();
+      expect(definition.handlerResolver).toBeNull();
+    });
 
-      expect(parsed.handler.callable).toBe(definition.handler.callable);
-      expect(parsed.retry.max_attempts).toBe(definition.retry.max_attempts);
+    it('supports flattened retry fields', () => {
+      const definition = createValidStepDefinition();
+      expect(definition.retryRetryable).toBe(true);
+      expect(definition.retryMaxAttempts).toBe(3);
+      expect(definition.retryBackoff).toBe('exponential');
+      expect(definition.retryBackoffBaseMs).toBe(1000);
+      expect(definition.retryMaxBackoffMs).toBe(30000);
     });
   });
 
-  describe('StepExecutionError', () => {
-    it('can be created with required fields', () => {
-      const error: StepExecutionError = {
-        message: 'Something went wrong',
-        error_type: 'ValidationError',
-        retryable: true,
-        status_code: 400,
-        backtrace: ['line1', 'line2'],
-      };
-
-      expect(error.message).toBe('Something went wrong');
-      expect(error.retryable).toBe(true);
-    });
-
-    it('supports nullable optional fields', () => {
-      const error: StepExecutionError = {
-        message: 'Error',
-        error_type: null,
-        retryable: false,
-        status_code: null,
-        backtrace: null,
-      };
-
-      expect(error.error_type).toBeNull();
-      expect(error.status_code).toBeNull();
-      expect(error.backtrace).toBeNull();
-    });
-  });
-
-  describe('DependencyResult', () => {
+  describe('NapiDependencyResult', () => {
     it('can be created for successful dependency', () => {
-      const result: DependencyResult = {
-        step_uuid: 'step-123',
+      const result: NapiDependencyResult = {
+        stepUuid: 'step-123',
         success: true,
         result: { data: 'output' },
         status: 'completed',
-        error: null,
+        errorMessage: null,
+        errorType: null,
+        errorRetryable: null,
       };
 
       expect(result.success).toBe(true);
-      expect(result.error).toBeNull();
+      expect(result.errorMessage).toBeNull();
     });
 
     it('can be created for failed dependency', () => {
-      const result: DependencyResult = {
-        step_uuid: 'step-123',
+      const result: NapiDependencyResult = {
+        stepUuid: 'step-123',
         success: false,
         result: null,
         status: 'failed',
-        error: {
-          message: 'Dependency failed',
-          error_type: 'RuntimeError',
-          retryable: false,
-          status_code: 500,
-          backtrace: null,
-        },
+        errorMessage: 'Dependency failed',
+        errorType: 'RuntimeError',
+        errorRetryable: false,
       };
 
       expect(result.success).toBe(false);
-      expect(result.error).not.toBeNull();
+      expect(result.errorMessage).toBe('Dependency failed');
     });
   });
 
@@ -212,37 +116,29 @@ describe('FFI Types', () => {
     it('can be created with all required fields', () => {
       const event: FfiStepEvent = createValidFfiStepEvent();
 
-      expect(event.event_id).toBeDefined();
-      expect(event.task_uuid).toBeDefined();
-      expect(event.step_uuid).toBeDefined();
+      expect(event.eventId).toBeDefined();
+      expect(event.taskUuid).toBeDefined();
+      expect(event.stepUuid).toBeDefined();
       expect(event.task).toBeDefined();
-      expect(event.workflow_step).toBeDefined();
-      expect(event.step_definition).toBeDefined();
-    });
-
-    it('serializes to JSON correctly', () => {
-      const event = createValidFfiStepEvent();
-      const json = JSON.stringify(event);
-      const parsed = JSON.parse(json) as FfiStepEvent;
-
-      expect(parsed.event_id).toBe(event.event_id);
-      expect(parsed.task.task_uuid).toBe(event.task.task_uuid);
-      expect(parsed.workflow_step.name).toBe(event.workflow_step.name);
+      expect(event.workflowStep).toBeDefined();
+      expect(event.stepDefinition).toBeDefined();
     });
 
     it('supports dependency results map', () => {
       const event = createValidFfiStepEvent();
-      event.dependency_results = {
+      event.dependencyResults = {
         'dep-step-1': {
-          step_uuid: 'dep-step-1',
+          stepUuid: 'dep-step-1',
           success: true,
           result: { value: 42 },
           status: 'completed',
-          error: null,
+          errorMessage: null,
+          errorType: null,
+          errorRetryable: null,
         },
       };
 
-      expect(event.dependency_results['dep-step-1'].success).toBe(true);
+      expect(event.dependencyResults['dep-step-1']?.success).toBe(true);
     });
   });
 
@@ -252,17 +148,14 @@ describe('FFI Types', () => {
       expect(config).toBeDefined();
     });
 
-    it('supports all optional fields', () => {
+    it('supports optional fields', () => {
       const config: BootstrapConfig = {
-        worker_id: 'worker-123',
-        log_level: 'debug',
-        database_url: 'postgresql://localhost/tasker',
-        custom_field: 'custom_value',
+        namespace: 'payments',
+        configPath: '/path/to/config.toml',
       };
 
-      expect(config.worker_id).toBe('worker-123');
-      expect(config.log_level).toBe('debug');
-      expect(config.custom_field).toBe('custom_value');
+      expect(config.namespace).toBe('payments');
+      expect(config.configPath).toBe('/path/to/config.toml');
     });
   });
 
@@ -272,34 +165,11 @@ describe('FFI Types', () => {
         success: true,
         status: 'started',
         message: 'Worker started successfully',
-        worker_id: 'worker-123',
+        workerId: 'worker-123',
       };
 
       expect(result.success).toBe(true);
       expect(result.status).toBe('started');
-    });
-
-    it('can represent already running state', () => {
-      const result: BootstrapResult = {
-        success: true,
-        status: 'already_running',
-        message: 'Worker is already running',
-        worker_id: 'worker-123',
-      };
-
-      expect(result.status).toBe('already_running');
-    });
-
-    it('can represent error state', () => {
-      const result: BootstrapResult = {
-        success: false,
-        status: 'error',
-        message: 'Failed to start worker',
-        error: 'Database connection failed',
-      };
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
     });
   });
 
@@ -308,17 +178,13 @@ describe('FFI Types', () => {
       const status: WorkerStatus = {
         success: true,
         running: true,
-        worker_id: 'worker-123',
+        workerId: 'worker-123',
+        status: 'active',
         environment: 'production',
-        worker_core_status: 'active',
-        web_api_enabled: true,
-        supported_namespaces: ['orders', 'payments'],
-        database_pool_size: 10,
-        database_pool_idle: 8,
       };
 
       expect(status.running).toBe(true);
-      expect(status.supported_namespaces).toContain('orders');
+      expect(status.workerId).toBe('worker-123');
     });
 
     it('can represent stopped worker', () => {
@@ -326,132 +192,135 @@ describe('FFI Types', () => {
         success: true,
         running: false,
         status: 'stopped',
+        workerId: null,
+        environment: null,
       };
 
       expect(status.running).toBe(false);
-      expect(status.status).toBe('stopped');
-    });
-  });
-
-  describe('StopResult', () => {
-    it('can represent successful stop', () => {
-      const result: StopResult = {
-        success: true,
-        status: 'stopped',
-        message: 'Worker stopped gracefully',
-        worker_id: 'worker-123',
-      };
-
-      expect(result.success).toBe(true);
-      expect(result.status).toBe('stopped');
-    });
-
-    it('can represent not running state', () => {
-      const result: StopResult = {
-        success: true,
-        status: 'not_running',
-        message: 'Worker was not running',
-      };
-
-      expect(result.status).toBe('not_running');
     });
   });
 
   describe('FfiDispatchMetrics', () => {
     it('can represent healthy state', () => {
       const metrics: FfiDispatchMetrics = {
-        pending_count: 5,
-        starvation_detected: false,
-        starving_event_count: 0,
-        oldest_pending_age_ms: 100,
-        newest_pending_age_ms: 10,
+        pendingCount: 5,
+        starvationDetected: false,
+        starvingEventCount: 0,
+        oldestPendingAgeMs: 100,
+        newestPendingAgeMs: 10,
+        oldestEventId: null,
       };
 
-      expect(metrics.starvation_detected).toBe(false);
-      expect(metrics.starving_event_count).toBe(0);
+      expect(metrics.starvationDetected).toBe(false);
+      expect(metrics.starvingEventCount).toBe(0);
     });
 
     it('can represent starvation state', () => {
       const metrics: FfiDispatchMetrics = {
-        pending_count: 50,
-        starvation_detected: true,
-        starving_event_count: 10,
-        oldest_pending_age_ms: 30000,
-        newest_pending_age_ms: 5000,
+        pendingCount: 50,
+        starvationDetected: true,
+        starvingEventCount: 10,
+        oldestPendingAgeMs: 30000,
+        newestPendingAgeMs: 5000,
+        oldestEventId: 'event-1',
       };
 
-      expect(metrics.starvation_detected).toBe(true);
-      expect(metrics.starving_event_count).toBe(10);
+      expect(metrics.starvationDetected).toBe(true);
+      expect(metrics.starvingEventCount).toBe(10);
     });
 
     it('supports null age fields when empty', () => {
       const metrics: FfiDispatchMetrics = {
-        pending_count: 0,
-        starvation_detected: false,
-        starving_event_count: 0,
-        oldest_pending_age_ms: null,
-        newest_pending_age_ms: null,
+        pendingCount: 0,
+        starvationDetected: false,
+        starvingEventCount: 0,
+        oldestPendingAgeMs: null,
+        newestPendingAgeMs: null,
+        oldestEventId: null,
       };
 
-      expect(metrics.oldest_pending_age_ms).toBeNull();
+      expect(metrics.oldestPendingAgeMs).toBeNull();
     });
   });
 
-  describe('StepExecutionResult', () => {
+  describe('NapiStepExecutionResult', () => {
     it('can represent successful completion', () => {
       const result: StepExecutionResult = {
-        step_uuid: 'step-123',
+        stepUuid: 'step-123',
         success: true,
         result: { output: 'data' },
-        metadata: {
-          execution_time_ms: 150,
-          worker_id: 'worker-123',
-          handler_name: 'MyHandler',
-        },
         status: 'completed',
+        metadata: {
+          executionTimeMs: 42,
+          workerId: 'worker-1',
+          completedAt: new Date().toISOString(),
+          retryable: null,
+          errorType: null,
+          errorCode: null,
+          custom: null,
+        },
+        error: null,
+        orchestrationMetadata: null,
       };
 
       expect(result.success).toBe(true);
       expect(result.status).toBe('completed');
+      expect(result.error).toBeNull();
     });
 
-    it('can represent failure', () => {
+    it('can represent failure with error details', () => {
       const result: StepExecutionResult = {
-        step_uuid: 'step-123',
+        stepUuid: 'step-123',
         success: false,
         result: {},
-        metadata: {
-          execution_time_ms: 50,
-        },
         status: 'failed',
+        metadata: {
+          executionTimeMs: 100,
+          workerId: 'worker-1',
+          completedAt: new Date().toISOString(),
+          retryable: true,
+          errorType: 'RuntimeError',
+          errorCode: null,
+          custom: null,
+        },
         error: {
           message: 'Handler threw exception',
-          error_type: 'RuntimeError',
+          errorType: 'RuntimeError',
           retryable: true,
-          status_code: null,
+          statusCode: null,
           backtrace: null,
+          context: null,
         },
+        orchestrationMetadata: null,
       };
 
       expect(result.success).toBe(false);
       expect(result.status).toBe('failed');
-      expect(result.error).toBeDefined();
+      expect(result.error?.message).toBe('Handler threw exception');
     });
+  });
 
-    it('supports orchestration metadata', () => {
-      const result: StepExecutionResult = {
-        step_uuid: 'step-123',
-        success: true,
-        result: {},
-        metadata: { execution_time_ms: 100 },
-        status: 'completed',
-        orchestration_metadata: {
-          routing_context: { region: 'us-east' },
-          next_steps: ['step-456', 'step-789'],
-        },
+  describe('NapiCheckpointYieldData', () => {
+    it('can be created with required fields', () => {
+      const data: NapiCheckpointYieldData = {
+        stepUuid: 'step-123',
+        cursor: 500,
+        itemsProcessed: 250,
       };
 
-      expect(result.orchestration_metadata?.next_steps).toContain('step-456');
+      expect(data.cursor).toBe(500);
+      expect(data.itemsProcessed).toBe(250);
+    });
+
+    it('supports accumulated results', () => {
+      const data: NapiCheckpointYieldData = {
+        stepUuid: 'step-123',
+        cursor: 1000,
+        itemsProcessed: 500,
+        accumulatedResults: { sum: 5000, count: 500 },
+      };
+
+      expect(data.accumulatedResults?.sum).toBe(5000);
     });
   });
 
@@ -495,86 +364,84 @@ describe('FFI Types', () => {
 
 // Test helpers
 
-function createValidTask(): Task {
+function createValidTask(): NapiTaskInfo {
   return {
-    task_uuid: 'task-123',
-    named_task_uuid: 'named-task-001',
+    taskUuid: 'task-123',
+    namedTaskUuid: 'named-task-001',
     name: 'TestTask',
     namespace: 'test',
     version: '1.0.0',
     context: null,
-    correlation_id: 'corr-001',
-    parent_correlation_id: null,
+    correlationId: 'corr-001',
+    parentCorrelationId: null,
     complete: false,
     priority: 0,
     initiator: null,
-    source_system: null,
+    sourceSystem: null,
     reason: null,
     tags: null,
-    identity_hash: 'hash-123',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    requested_at: new Date().toISOString(),
+    identityHash: 'hash-123',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    requestedAt: new Date().toISOString(),
   };
 }
 
-function createValidWorkflowStep(): WorkflowStep {
+function createValidWorkflowStep(): NapiWorkflowStep {
   return {
-    workflow_step_uuid: 'step-123',
-    task_uuid: 'task-123',
-    named_step_uuid: 'named-step-001',
+    workflowStepUuid: 'step-123',
+    taskUuid: 'task-123',
+    namedStepUuid: 'named-step-001',
     name: 'TestStep',
-    template_step_name: 'test_step',
+    templateStepName: 'test_step',
     retryable: true,
-    max_attempts: 3,
+    maxAttempts: 3,
     attempts: 0,
-    in_process: false,
+    inProcess: false,
     processed: false,
-
     inputs: null,
     results: null,
-    backoff_request_seconds: null,
-    processed_at: null,
-    last_attempted_at: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    backoffRequestSeconds: null,
+    processedAt: null,
+    lastAttemptedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    checkpoint: null,
   };
 }
 
-function createValidStepDefinition(): StepDefinition {
+function createValidStepDefinition(): NapiStepDefinition {
   return {
     name: 'test_step',
     description: 'A test step',
-    handler: {
-      callable: 'TestHandler',
-      initialization: {},
-    },
-
+    handlerCallable: 'TestHandler',
+    handlerMethod: null,
+    handlerResolver: null,
+    handlerInitialization: {},
+    systemDependency: null,
     dependencies: [],
-    timeout_seconds: 30,
-    retry: {
-      retryable: true,
-      max_attempts: 3,
-      backoff: 'exponential',
-      backoff_base_ms: 1000,
-      max_backoff_ms: 30000,
-    },
+    timeoutSeconds: 30,
+    retryRetryable: true,
+    retryMaxAttempts: 3,
+    retryBackoff: 'exponential',
+    retryBackoffBaseMs: 1000,
+    retryMaxBackoffMs: 30000,
   };
 }
 
 function createValidFfiStepEvent(): FfiStepEvent {
   return {
-    event_id: 'event-123',
-    task_uuid: 'task-456',
-    step_uuid: 'step-789',
-    correlation_id: 'corr-001',
-    trace_id: null,
-    span_id: null,
-    task_correlation_id: 'task-corr-001',
-    parent_correlation_id: null,
+    eventId: 'event-123',
+    taskUuid: 'task-456',
+    stepUuid: 'step-789',
+    correlationId: 'corr-001',
+    traceId: null,
+    spanId: null,
+    taskCorrelationId: 'task-corr-001',
+    parentCorrelationId: null,
     task: createValidTask(),
-    workflow_step: createValidWorkflowStep(),
-    step_definition: createValidStepDefinition(),
-    dependency_results: {},
+    workflowStep: createValidWorkflowStep(),
+    stepDefinition: createValidStepDefinition(),
+    dependencyResults: {},
   };
 }

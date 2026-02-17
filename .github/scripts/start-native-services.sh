@@ -124,22 +124,13 @@ fi
 
 echo "📜 Starting TypeScript FFI worker on port $TYPESCRIPT_WORKER_PORT..."
 cd workers/typescript
-# Determine FFI library path based on platform
-if [ -f "../../target/debug/libtasker_ts.so" ]; then
-  FFI_LIB_PATH="$(pwd)/../../target/debug/libtasker_ts.so"
-elif [ -f "../../target/debug/libtasker_ts.dylib" ]; then
-  FFI_LIB_PATH="$(pwd)/../../target/debug/libtasker_ts.dylib"
-else
-  echo "⚠️ Warning: FFI library not found in target/debug/"
-  FFI_LIB_PATH=""
-fi
-echo "   TASKER_FFI_LIBRARY_PATH=$FFI_LIB_PATH"
+# napi CLI places .node files in package root — FfiLayer auto-discovers them
+echo "   .node files: $(ls tasker_ts.*.node 2>/dev/null || echo 'none found')"
 TASKER_CONFIG_PATH="$WORKER_CONFIG" \
   DATABASE_URL="$POSTGRES_URL" \
   TASKER_ENV=test \
   TASKER_TEMPLATE_PATH="$TYPESCRIPT_TEMPLATE_PATH" \
   TYPESCRIPT_HANDLER_PATH="$TYPESCRIPT_HANDLER_PATH" \
-  TASKER_FFI_LIBRARY_PATH="$FFI_LIB_PATH" \
   TASKER_WEB_BIND_ADDRESS="0.0.0.0:$TYPESCRIPT_WORKER_PORT" \
   RUST_LOG=info \
   bun run bin/server.ts \

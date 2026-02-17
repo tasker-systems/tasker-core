@@ -554,7 +554,6 @@ The `@tasker-systems/tasker` package works with:
 
 - **Bun** (recommended) - Native TypeScript execution
 - **Node.js** (18+) - Requires transpilation
-- **Deno** - Native TypeScript support
 
 ```typescript path=null start=null
 // server.ts - Worker entry point

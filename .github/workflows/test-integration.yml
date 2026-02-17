@@ -311,13 +311,14 @@ jobs:
           echo "📜 Setting up TypeScript worker..."
           cd workers/typescript
           bun install --frozen-lockfile
-          bun run build
-          if [ -f "../../target/debug/libtasker_ts.so" ]; then
-            echo "✅ FFI library found at target/debug/libtasker_ts.so"
+          # Build napi-rs .node file if not already present
+          if ls tasker_ts.*.node 1>/dev/null 2>&1; then
+            echo "✅ napi-rs .node file found"
           else
-            echo "⚠️ FFI library not found, building..."
-            cargo build -p tasker-ts
+            echo "⚠️ .node file not found, building..."
+            bun run build:napi
           fi
+          bun run build
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
 
@@ -540,13 +541,14 @@ jobs:
           echo "📜 Setting up TypeScript worker..."
           cd workers/typescript
           bun install --frozen-lockfile
-          bun run build
-          if [ -f "../../target/debug/libtasker_ts.so" ]; then
-            echo "✅ FFI library found at target/debug/libtasker_ts.so"
+          # Build napi-rs .node file if not already present
+          if ls tasker_ts.*.node 1>/dev/null 2>&1; then
+            echo "✅ napi-rs .node file found"
           else
-            echo "⚠️ FFI library not found, building..."
-            cargo build -p tasker-ts
+            echo "⚠️ .node file not found, building..."
+            bun run build:napi
           fi
+          bun run build
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
 

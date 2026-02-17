@@ -351,14 +351,20 @@ function createMockFfiStepEvent(): FfiStepEvent {
 
 function createMockStepExecutionResult(): StepExecutionResult {
   return {
-    step_uuid: 'step-789',
+    stepUuid: 'step-789',
     success: true,
     result: { data: 'test' },
-    metadata: {
-      execution_time_ms: 150,
-      worker_id: 'worker-123',
-      handler_name: 'TestHandler',
-    },
     status: 'completed',
+    metadata: {
+      executionTimeMs: 150,
+      workerId: 'worker-123',
+      completedAt: new Date().toISOString(),
+      retryable: null,
+      errorType: null,
+      errorCode: null,
+      custom: null,
+    },
+    error: null,
+    orchestrationMetadata: null,
   };
 }

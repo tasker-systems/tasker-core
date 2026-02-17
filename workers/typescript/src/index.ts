@@ -41,57 +41,38 @@ export {
 // =============================================================================
 export * from './events/index.js';
 // =============================================================================
-// FFI module - Runtime and low-level types
+// FFI module - napi-rs native module
 // =============================================================================
-export {
-  // Runtime interface
-  BaseTaskerRuntime,
-  // Runtime implementations
-  DenoRuntime,
-  // Runtime detection
-  detectRuntime,
-  // FfiLayer - primary API for FFI management
-  FfiLayer,
-  type FfiLayerConfig,
-  getLibraryPath,
-  getRuntimeInfo,
-  isBun,
-  isDeno,
-  isNode,
-  NodeRuntime,
-  type RuntimeInfo,
-  type RuntimeType,
-  type TaskerRuntime,
-} from './ffi/index.js';
-// Export FFI types under Ffi prefix to avoid conflicts
+export { FfiLayer, type FfiLayerConfig, type NapiModule } from './ffi/index.js';
+
+// Export FFI types under Ffi prefix to avoid conflicts with bootstrap types
 export type {
   BootstrapConfig as FfiBootstrapConfig,
   BootstrapResult as FfiBootstrapResult,
-  // Client API types (TAS-231)
-  ClientHealthResponse,
-  ClientPaginationInfo,
-  ClientResult,
-  ClientStepAuditResponse,
-  ClientStepReadiness,
-  ClientStepResponse,
-  ClientTaskListResponse,
-  ClientTaskRequest,
-  ClientTaskResponse,
-  DependencyResult,
   FfiDispatchMetrics,
+  FfiDomainEvent,
   FfiStepEvent,
-  HandlerDefinition,
   LogFields as FfiLogFields,
-  OrchestrationMetadata,
-  RetryConfiguration,
-  StepDefinition,
-  StepExecutionError,
-  StepExecutionMetadata,
+  NapiBackoffHint,
+  NapiCheckpointYieldData,
+  NapiClientResult,
+  NapiDependencyResult,
+  NapiDispatchMetrics,
+  NapiDomainEvent,
+  NapiDomainEventMetadata,
+  NapiListTasksParams,
+  NapiOrchestrationMetadata,
+  NapiStepDefinition,
+  NapiStepEvent,
+  NapiStepExecutionError,
+  NapiStepExecutionMetadata,
+  NapiStepExecutionResult,
+  NapiTaskInfo,
+  NapiTaskRequest,
+  NapiWorkflowStep,
   StepExecutionResult,
   StopResult as FfiStopResult,
-  Task,
   WorkerStatus as FfiWorkerStatus,
-  WorkflowStep,
 } from './ffi/types.js';
 // =============================================================================
 // Handler module (TAS-102/103)

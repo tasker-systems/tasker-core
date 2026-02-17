@@ -409,8 +409,7 @@ services:
       TYPESCRIPT_WORKER_ENABLED: "true"
       # Override handler path to use volume mount (allows live code updates)
       TYPESCRIPT_HANDLER_PATH: /app/typescript_worker/tests/handlers
-      # FFI library path
-      TASKER_FFI_LIBRARY_PATH: /app/lib/libtasker_ts.so
+      # napi-rs .node file auto-discovered from package root
       # Service configuration - internal port matches Rust worker
       # External port 8085 is mapped via Docker, internal binding is 8081
       # Note: Port 8084 conflicts with Mono XSP4 on GitHub Actions runners

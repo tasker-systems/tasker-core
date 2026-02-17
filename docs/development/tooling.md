@@ -376,7 +376,7 @@ cd workers/typescript
 cargo make check    # lint, typecheck, test
 cargo make build    # Build with bun
 cargo make fix      # Auto-fix with biome
-cargo make test-ffi-all # Run FFI tests (Bun, Node, Deno)
+cargo make test-ffi-all # Run FFI tests (Bun, Node)
 ```
 
 ### Rust Worker (`workers/rust/`)

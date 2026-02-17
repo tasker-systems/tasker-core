@@ -4,10 +4,12 @@
  * Provides a polling loop that retrieves step events from the Rust FFI layer
  * and dispatches them to registered handlers. Uses a 10ms polling interval
  * matching other language workers.
+ *
+ * TAS-290: Uses NapiModule directly instead of TaskerRuntime.
  */
 
 import pino, { type Logger, type LoggerOptions } from 'pino';
-import type { TaskerRuntime } from '../ffi/runtime-interface.js';
+import type { NapiModule } from '../ffi/ffi-layer.js';
 import type { FfiDispatchMetrics, FfiStepEvent } from '../ffi/types.js';
 import type { TaskerEventEmitter } from './event-emitter.js';
 import { MetricsEventNames, PollerEventNames, StepEventNames } from './event-names.js';
@@ -79,7 +81,7 @@ export type PollerState = 'stopped' | 'running' | 'stopping';
  * 5. Emits metrics for monitoring
  */
 export class EventPoller {
-  private readonly runtime: TaskerRuntime;
+  private readonly module: NapiModule;
   private readonly config: Required<EventPollerConfig>;
   private readonly emitter: TaskerEventEmitter;
 
@@ -95,12 +97,12 @@ export class EventPoller {
   /**
    * Create a new EventPoller.
    *
-   * @param runtime - The FFI runtime for polling events
+   * @param module - The napi-rs module for polling events
    * @param emitter - The event emitter to dispatch events to (required, no fallback)
    * @param config - Optional configuration for polling behavior
    */
-  constructor(runtime: TaskerRuntime, emitter: TaskerEventEmitter, config: EventPollerConfig = {}) {
-    this.runtime = runtime;
+  constructor(module: NapiModule, emitter: TaskerEventEmitter, config: EventPollerConfig = {}) {
+    this.module = module;
     this.emitter = emitter;
     this.config = {
       pollIntervalMs: config.pollIntervalMs ?? 10,
@@ -175,14 +177,6 @@ export class EventPoller {
     if (this.state === 'running') {
       log.debug({ component: 'event-poller' }, 'Already running, returning early');
       return; // Already running
-    }
-
-    log.debug(
-      { component: 'event-poller', runtimeLoaded: this.runtime.isLoaded },
-      'Checking runtime.isLoaded'
-    );
-    if (!this.runtime.isLoaded) {
-      throw new Error('Runtime not loaded. Call runtime.load() first.');
     }
 
     this.state = 'running';
@@ -265,18 +259,18 @@ export class EventPoller {
       let eventsProcessed = 0;
 
       for (let i = 0; i < this.config.maxEventsPerCycle; i++) {
-        const event = this.runtime.pollStepEvents();
+        const event = this.module.pollStepEvents();
         if (event === null) {
           break; // No more events
         }
 
         eventsProcessed++;
-        const handlerCallable = event.step_definition.handler.callable;
+        const handlerCallable = event.stepDefinition.handlerCallable;
         log.info(
           {
             component: 'event-poller',
             operation: 'event_received',
-            stepUuid: event.step_uuid,
+            stepUuid: event.stepUuid,
             handlerCallable,
             eventIndex: i,
           },
@@ -292,7 +286,7 @@ export class EventPoller {
 
       // Periodic cleanup
       if (this.pollCount % this.config.cleanupInterval === 0) {
-        this.runtime.cleanupTimeouts();
+        this.module.cleanupTimeouts();
       }
 
       // Periodic metrics
@@ -318,12 +312,12 @@ export class EventPoller {
    * Handle a step event
    */
   private handleStepEvent(event: FfiStepEvent): void {
-    const handlerCallable = event.step_definition.handler.callable;
+    const handlerCallable = event.stepDefinition.handlerCallable;
     log.debug(
       {
         component: 'event-poller',
         operation: 'handle_step_event',
-        stepUuid: event.step_uuid,
+        stepUuid: event.stepUuid,
         handlerCallable,
         hasCallback: !!this.stepEventCallback,
       },
@@ -336,7 +330,7 @@ export class EventPoller {
       {
         component: 'event-poller',
         emitterInstanceId: this.emitter.getInstanceId(),
-        stepUuid: event.step_uuid,
+        stepUuid: event.stepUuid,
         listenerCount: listenerCountBefore,
         eventName: StepEventNames.STEP_EXECUTION_RECEIVED,
       },
@@ -352,7 +346,7 @@ export class EventPoller {
       log.info(
         {
           component: 'event-poller',
-          stepUuid: event.step_uuid,
+          stepUuid: event.stepUuid,
           emitResult,
           listenerCountAfter: this.emitter.listenerCount(StepEventNames.STEP_EXECUTION_RECEIVED),
           eventName: StepEventNames.STEP_EXECUTION_RECEIVED,
@@ -363,7 +357,7 @@ export class EventPoller {
       log.error(
         {
           component: 'event-poller',
-          stepUuid: event.step_uuid,
+          stepUuid: event.stepUuid,
           error: emitError instanceof Error ? emitError.message : String(emitError),
           stack: emitError instanceof Error ? emitError.stack : undefined,
         },
@@ -374,7 +368,7 @@ export class EventPoller {
     // Call the registered callback if present
     if (this.stepEventCallback) {
       log.debug(
-        { component: 'event-poller', stepUuid: event.step_uuid },
+        { component: 'event-poller', stepUuid: event.stepUuid },
         'Invoking step event callback'
       );
       this.stepEventCallback(event).catch((error) => {
@@ -382,7 +376,7 @@ export class EventPoller {
       });
     } else {
       log.warn(
-        { component: 'event-poller', stepUuid: event.step_uuid },
+        { component: 'event-poller', stepUuid: event.stepUuid },
         'No step event callback registered!'
       );
     }
@@ -393,10 +387,10 @@ export class EventPoller {
    */
   private checkStarvation(): void {
     try {
-      this.runtime.checkStarvationWarnings();
+      this.module.checkStarvationWarnings();
 
-      const metrics = this.runtime.getFfiDispatchMetrics();
-      if (metrics.starvation_detected) {
+      const metrics = this.module.getFfiDispatchMetrics();
+      if (metrics.starvationDetected) {
         this.emitter.emitStarvationDetected(metrics);
       }
     } catch (error) {
@@ -410,7 +404,7 @@ export class EventPoller {
    */
   private emitMetrics(): void {
     try {
-      const metrics = this.runtime.getFfiDispatchMetrics();
+      const metrics = this.module.getFfiDispatchMetrics();
       this.emitter.emitMetricsUpdated(metrics);
 
       if (this.metricsCallback) {
@@ -440,12 +434,12 @@ export class EventPoller {
 }
 
 /**
- * Create an event poller with the given runtime, emitter, and configuration
+ * Create an event poller with the given module, emitter, and configuration
  */
 export function createEventPoller(
-  runtime: TaskerRuntime,
+  module: NapiModule,
   emitter: TaskerEventEmitter,
   config?: EventPollerConfig
 ): EventPoller {
-  return new EventPoller(runtime, emitter, config);
+  return new EventPoller(module, emitter, config);
 }

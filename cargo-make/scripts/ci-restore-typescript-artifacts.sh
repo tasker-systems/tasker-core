@@ -4,8 +4,11 @@ set -euo pipefail
 # =============================================================================
 # Restore TypeScript artifacts from CI build
 # =============================================================================
-# Restores the TypeScript dist folder and FFI library from the
-# typescript-artifacts artifact produced by build-workers.yml
+# Restores the TypeScript dist folder and napi-rs .node file from the
+# typescript-artifacts artifact produced by build-workers.yml.
+#
+# The napi CLI (`napi build --platform`) places .node files directly in the
+# package root (workers/typescript/). FfiLayer auto-discovers them there.
 #
 # Environment variables:
 #   ARTIFACTS_DIR - Directory where artifacts were downloaded (default: artifacts/typescript)
@@ -20,38 +23,34 @@ ARTIFACTS_DIR="${ARTIFACTS_DIR:-artifacts/typescript}"
 echo "Restoring TypeScript artifacts from ${ARTIFACTS_DIR}..."
 
 if [ -d "${ARTIFACTS_DIR}" ]; then
-    # Restore FFI library to target/debug (matches sccache config)
-    mkdir -p target/debug
+    # Restore napi-rs .node file to workers/typescript/ (package root)
+    # napi CLI names them: tasker_ts.<platform>.node (e.g., tasker_ts.linux-x64-gnu.node)
+    mkdir -p workers/typescript
 
-    for lib in libtasker_ts.so libtasker_ts.dylib; do
-        # Try flat structure first
-        if [ -f "${ARTIFACTS_DIR}/${lib}" ]; then
-            cp -f "${ARTIFACTS_DIR}/${lib}" target/debug/
-            echo "  Restored ${lib} (flat)"
-        # Try nested structure
-        elif [ -f "${ARTIFACTS_DIR}/target/debug/${lib}" ]; then
-            cp -f "${ARTIFACTS_DIR}/target/debug/${lib}" target/debug/
-            echo "  Restored ${lib} (nested)"
+    NODE_FILES_FOUND=0
+    for node_file in "${ARTIFACTS_DIR}"/tasker_ts.*.node; do
+        if [ -f "$node_file" ]; then
+            cp -f "$node_file" workers/typescript/
+            echo "  Restored $(basename "$node_file")"
+            NODE_FILES_FOUND=$((NODE_FILES_FOUND + 1))
         fi
     done
 
-    # Verify FFI library and set environment variable
-    if [ -f target/debug/libtasker_ts.so ]; then
-        echo ""
-        echo "FFI library in target/debug/:"
-        ls -lh target/debug/libtasker_ts.* 2>/dev/null || true
-        TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.so"
-        export TASKER_FFI_LIBRARY_PATH
-        echo "TASKER_FFI_LIBRARY_PATH=$TASKER_FFI_LIBRARY_PATH"
-    elif [ -f target/debug/libtasker_ts.dylib ]; then
-        echo ""
-        echo "FFI library in target/debug/:"
-        ls -lh target/debug/libtasker_ts.* 2>/dev/null || true
-        TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.dylib"
-        export TASKER_FFI_LIBRARY_PATH
-        echo "TASKER_FFI_LIBRARY_PATH=$TASKER_FFI_LIBRARY_PATH"
+    # Also check nested structure (artifact may preserve directory structure)
+    for node_file in "${ARTIFACTS_DIR}"/workers/typescript/tasker_ts.*.node; do
+        if [ -f "$node_file" ]; then
+            cp -f "$node_file" workers/typescript/
+            echo "  Restored $(basename "$node_file") (nested)"
+            NODE_FILES_FOUND=$((NODE_FILES_FOUND + 1))
+        fi
+    done
+
+    if [ "$NODE_FILES_FOUND" -eq 0 ]; then
+        echo "  Warning: No .node files found in artifacts"
     else
-        echo "  Warning: FFI library not found in artifacts"
+        echo ""
+        echo "FFI modules in workers/typescript/:"
+        ls -lh workers/typescript/tasker_ts.*.node 2>/dev/null || true
     fi
 
     # Restore TypeScript dist folder

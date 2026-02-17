@@ -1,211 +1,610 @@
-//! Global bridge state and internal FFI implementation.
+//! Global bridge state and napi-rs FFI implementation.
 //!
-//! This module manages the global worker state and provides internal
-//! implementations for the C FFI functions in lib.rs.
+//! TAS-290: Replaces C FFI + JSON serialization with napi-rs native objects.
+//! Key differences from the koffi approach:
+//! - Structured objects cross the FFI boundary directly (no JSON ser/de)
+//! - Errors become JavaScript exceptions (no {success, error} envelope)
+//! - No manual memory management (no free_rust_string)
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use anyhow::Result;
-use serde_json::json;
+use napi::bindgen_prelude::*;
 use tokio::sync::RwLock;
 use tracing::{error, info};
 use uuid::Uuid;
 
 use tasker_shared::events::domain_events::{DomainEvent, DomainEventPublisher};
+use tasker_shared::messaging::execution_types::{
+    StepExecutionError as RustStepExecutionError,
+    StepExecutionMetadata as RustStepExecutionMetadata,
+    StepExecutionResult as RustStepExecutionResult,
+};
+use tasker_shared::messaging::message::OrchestrationMetadata;
+use tasker_shared::models::core::batch_worker::CheckpointYieldData;
 use tasker_worker::worker::{
     services::CheckpointService, DomainEventCallback, FfiDispatchChannel, FfiDispatchChannelConfig,
-    StepEventPublisherRegistry,
+    FfiStepEvent, StepEventPublisherRegistry,
 };
 use tasker_worker::{WorkerBootstrap, WorkerSystemHandle};
 use tokio::sync::broadcast;
 
-use crate::conversions::{convert_ffi_dispatch_metrics_to_json, convert_ffi_step_event_to_json};
-use crate::dto::FfiDomainEventDto;
-use crate::error::TypeScriptFfiError;
-use tasker_shared::models::core::batch_worker::CheckpointYieldData;
+use crate::error::NapiFfiError;
 
-/// Global worker system state.
-///
-/// This holds the runtime and all worker components. It's protected by a Mutex
-/// because JavaScript is single-threaded and we need to ensure safe access.
-pub static WORKER_SYSTEM: Mutex<Option<TypeScriptBridgeHandle>> = Mutex::new(None);
+// =============================================================================
+// Global State (same pattern as existing TypeScript worker)
+// =============================================================================
 
-/// Handle containing all components needed for the TypeScript worker.
-pub struct TypeScriptBridgeHandle {
-    /// The main worker system handle
+pub static WORKER_SYSTEM: Mutex<Option<NapiBridgeHandle>> = Mutex::new(None);
+
+pub struct NapiBridgeHandle {
     pub system_handle: WorkerSystemHandle,
-
-    /// FFI dispatch channel for poll/complete pattern
     pub ffi_dispatch_channel: Arc<FfiDispatchChannel>,
-
-    /// Domain event publisher for fire-and-forget events
+    #[expect(
+        dead_code,
+        reason = "Kept alive for domain event publishing infrastructure"
+    )]
     pub domain_event_publisher: Arc<DomainEventPublisher>,
-
-    /// Receiver for in-process domain events (fast path)
     pub in_process_event_receiver: Option<Arc<Mutex<broadcast::Receiver<DomainEvent>>>>,
-
-    /// TAS-231: FFI client bridge for orchestration API access
     pub client: Option<Arc<tasker_worker::FfiClientBridge>>,
-
-    /// Tokio runtime for async FFI operations
     pub runtime: tokio::runtime::Runtime,
-
-    /// Worker ID for identification
     pub worker_id: String,
 }
 
-impl std::fmt::Debug for TypeScriptBridgeHandle {
+impl std::fmt::Debug for NapiBridgeHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TypeScriptBridgeHandle")
+        f.debug_struct("NapiBridgeHandle")
             .field("worker_id", &self.worker_id)
             .finish()
     }
 }
 
-/// Internal implementation of bootstrap_worker.
-pub fn bootstrap_worker_internal(config_json: Option<&str>) -> Result<String> {
+// =============================================================================
+// napi-rs Object Types (replace JSON DTOs)
+// =============================================================================
+
+/// Configuration for bootstrapping the worker.
+#[napi(object)]
+#[derive(Debug)]
+pub struct BootstrapConfig {
+    pub namespace: Option<String>,
+    pub config_path: Option<String>,
+}
+
+/// Result of bootstrapping the worker.
+#[napi(object)]
+#[derive(Debug)]
+pub struct BootstrapResult {
+    pub success: bool,
+    pub status: String,
+    pub message: String,
+    pub worker_id: Option<String>,
+}
+
+/// Worker status information.
+#[napi(object)]
+#[derive(Debug)]
+pub struct WorkerStatus {
+    pub success: bool,
+    pub running: bool,
+    pub worker_id: Option<String>,
+    pub status: Option<String>,
+    pub environment: Option<String>,
+}
+
+/// A step event dispatched to the TypeScript handler.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiStepEvent {
+    pub event_id: String,
+    pub task_uuid: String,
+    pub step_uuid: String,
+    pub correlation_id: String,
+    pub trace_id: Option<String>,
+    pub span_id: Option<String>,
+    pub task_correlation_id: String,
+    pub parent_correlation_id: Option<String>,
+    pub task: NapiTaskInfo,
+    pub workflow_step: NapiWorkflowStep,
+    pub step_definition: NapiStepDefinition,
+    pub dependency_results: HashMap<String, NapiDependencyResult>,
+}
+
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiTaskInfo {
+    pub task_uuid: String,
+    pub named_task_uuid: String,
+    pub name: String,
+    pub namespace: String,
+    pub version: String,
+    pub context: Option<serde_json::Value>,
+    pub correlation_id: String,
+    pub parent_correlation_id: Option<String>,
+    pub complete: bool,
+    pub priority: i32,
+    pub initiator: Option<String>,
+    pub source_system: Option<String>,
+    pub reason: Option<String>,
+    pub tags: Option<serde_json::Value>,
+    pub identity_hash: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub requested_at: String,
+}
+
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiWorkflowStep {
+    pub workflow_step_uuid: String,
+    pub task_uuid: String,
+    pub named_step_uuid: String,
+    pub name: String,
+    pub template_step_name: String,
+    pub retryable: bool,
+    pub max_attempts: i32,
+    pub attempts: i32,
+    pub in_process: bool,
+    pub processed: bool,
+    pub inputs: Option<serde_json::Value>,
+    pub results: Option<serde_json::Value>,
+    pub backoff_request_seconds: Option<i32>,
+    pub processed_at: Option<String>,
+    pub last_attempted_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub checkpoint: Option<serde_json::Value>,
+}
+
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiStepDefinition {
+    pub name: String,
+    pub description: Option<String>,
+    pub handler_callable: String,
+    pub handler_method: Option<String>,
+    pub handler_resolver: Option<String>,
+    pub handler_initialization: serde_json::Value,
+    pub system_dependency: Option<String>,
+    pub dependencies: Vec<String>,
+    pub timeout_seconds: Option<i64>,
+    pub retry_retryable: bool,
+    pub retry_max_attempts: u32,
+    pub retry_backoff: String,
+    pub retry_backoff_base_ms: Option<i64>,
+    pub retry_max_backoff_ms: Option<i64>,
+}
+
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiDependencyResult {
+    pub step_uuid: String,
+    pub success: bool,
+    pub result: serde_json::Value,
+    pub status: String,
+    pub error_message: Option<String>,
+    pub error_type: Option<String>,
+    pub error_retryable: Option<bool>,
+}
+
+/// FFI dispatch metrics.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiDispatchMetrics {
+    pub pending_count: u32,
+    pub starvation_detected: bool,
+    pub starving_event_count: u32,
+    pub oldest_pending_age_ms: Option<f64>,
+    pub newest_pending_age_ms: Option<f64>,
+    pub oldest_event_id: Option<String>,
+}
+
+/// Domain event from in-process event bus (fast path).
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiDomainEvent {
+    pub event_id: String,
+    pub event_name: String,
+    pub event_version: String,
+    pub metadata: NapiDomainEventMetadata,
+    pub payload: serde_json::Value,
+}
+
+/// Metadata attached to domain events.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiDomainEventMetadata {
+    pub task_uuid: String,
+    pub step_uuid: Option<String>,
+    pub step_name: Option<String>,
+    pub namespace: String,
+    pub correlation_id: String,
+    pub fired_at: String,
+    pub fired_by: Option<String>,
+}
+
+/// Checkpoint yield data for batch processing (TAS-125).
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiCheckpointYieldData {
+    pub step_uuid: String,
+    pub cursor: serde_json::Value,
+    pub items_processed: i64,
+    pub accumulated_results: Option<serde_json::Value>,
+}
+
+// =============================================================================
+// Step Execution Result (TypeScript → Rust)
+//
+// These #[napi(object)] structs provide auto-generated TypeScript types,
+// keeping the Rust↔TypeScript contract in sync. napi-rs auto-converts
+// snake_case Rust fields to camelCase JavaScript properties.
+//
+// The conversion to shared `StepExecutionResult` happens in Rust,
+// mirroring Python (depythonize) and Ruby (serde_magnus::deserialize).
+// =============================================================================
+
+/// Step execution result sent back from TypeScript handlers.
+///
+/// Auto-generates TypeScript types via napi-rs `#[napi(object)]`.
+/// Convert to the shared `StepExecutionResult` via `into_rust()`.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiStepExecutionResult {
+    /// Step UUID (string form of Uuid)
+    pub step_uuid: String,
+    /// Whether the handler executed successfully
+    pub success: bool,
+    /// Handler result data (may be empty `{}` for failures)
+    pub result: serde_json::Value,
+    /// Status: "completed", "failed", or "error"
+    pub status: String,
+    /// Execution metadata
+    pub metadata: NapiStepExecutionMetadata,
+    /// Error details (present when success=false)
+    pub error: Option<NapiStepExecutionError>,
+    /// Orchestration metadata for workflow coordination (rarely used)
+    pub orchestration_metadata: Option<serde_json::Value>,
+}
+
+/// Execution metadata for step results.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiStepExecutionMetadata {
+    /// Execution time in milliseconds
+    pub execution_time_ms: f64,
+    /// Worker identifier
+    pub worker_id: Option<String>,
+    /// When the step completed (ISO 8601 string)
+    pub completed_at: String,
+    /// Whether the operation is retryable on failure
+    pub retryable: Option<bool>,
+    /// Error type classification (when success=false)
+    pub error_type: Option<String>,
+    /// Error code for categorization (when success=false)
+    pub error_code: Option<String>,
+    /// Additional custom metadata
+    pub custom: Option<serde_json::Value>,
+}
+
+/// Error details for failed step executions.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiStepExecutionError {
+    /// Human-readable error message
+    pub message: String,
+    /// Error type/category for classification
+    pub error_type: Option<String>,
+    /// Whether this error is retryable
+    pub retryable: Option<bool>,
+    /// HTTP status code if applicable
+    pub status_code: Option<i32>,
+    /// Stack trace lines (for debugging)
+    pub backtrace: Option<serde_json::Value>,
+    /// Additional error context
+    pub context: Option<serde_json::Value>,
+}
+
+impl NapiStepExecutionResult {
+    /// Convert from the napi boundary type to the shared Rust type.
+    fn into_rust(self) -> std::result::Result<RustStepExecutionResult, NapiFfiError> {
+        let step_uuid = Uuid::parse_str(&self.step_uuid)
+            .map_err(|e| NapiFfiError::InvalidArgument(format!("Invalid step UUID: {e}")))?;
+
+        let completed_at = chrono::DateTime::parse_from_rfc3339(&self.metadata.completed_at)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|_| chrono::Utc::now());
+
+        let custom_metadata: HashMap<String, serde_json::Value> = self
+            .metadata
+            .custom
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+
+        let metadata = RustStepExecutionMetadata {
+            execution_time_ms: self.metadata.execution_time_ms as i64,
+            handler_version: None,
+            retryable: self.metadata.retryable.unwrap_or(true),
+            completed_at,
+            worker_id: self.metadata.worker_id,
+            worker_hostname: None,
+            started_at: None,
+            custom: custom_metadata,
+            error_type: self.metadata.error_type,
+            error_code: self.metadata.error_code,
+            context: HashMap::new(),
+        };
+
+        let error = self.error.map(|e| {
+            let context: HashMap<String, serde_json::Value> = e
+                .context
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let backtrace: Option<Vec<String>> =
+                e.backtrace.and_then(|v| serde_json::from_value(v).ok());
+
+            RustStepExecutionError {
+                message: e.message,
+                error_type: e.error_type,
+                backtrace,
+                retryable: e.retryable.unwrap_or(false),
+                status_code: e.status_code.map(|c| c as u16),
+                context,
+            }
+        });
+
+        let orchestration_metadata = self
+            .orchestration_metadata
+            .as_ref()
+            .and_then(OrchestrationMetadata::from_json);
+
+        Ok(RustStepExecutionResult {
+            step_uuid,
+            success: self.success,
+            result: self.result,
+            metadata,
+            status: self.status,
+            error,
+            orchestration_metadata,
+        })
+    }
+}
+
+// =============================================================================
+// Conversion helpers: internal Rust types → napi objects
+// =============================================================================
+
+fn convert_step_event(event: &FfiStepEvent) -> NapiStepEvent {
+    let payload = &event.execution_event.payload;
+    let tss = &payload.task_sequence_step;
+    let task = &tss.task;
+    let step = &tss.workflow_step;
+    let step_def = &tss.step_definition;
+
+    NapiStepEvent {
+        event_id: event.event_id.to_string(),
+        task_uuid: event.task_uuid.to_string(),
+        step_uuid: event.step_uuid.to_string(),
+        correlation_id: event.correlation_id.to_string(),
+        trace_id: event.trace_id.clone(),
+        span_id: event.span_id.clone(),
+        task_correlation_id: task.task.correlation_id.to_string(),
+        parent_correlation_id: task.task.parent_correlation_id.map(|id| id.to_string()),
+        task: NapiTaskInfo {
+            task_uuid: task.task.task_uuid.to_string(),
+            named_task_uuid: task.task.named_task_uuid.to_string(),
+            name: task.task_name.clone(),
+            namespace: task.namespace_name.clone(),
+            version: task.task_version.clone(),
+            context: task.task.context.clone(),
+            correlation_id: task.task.correlation_id.to_string(),
+            parent_correlation_id: task.task.parent_correlation_id.map(|id| id.to_string()),
+            complete: task.task.complete,
+            priority: task.task.priority,
+            initiator: task.task.initiator.clone(),
+            source_system: task.task.source_system.clone(),
+            reason: task.task.reason.clone(),
+            tags: task.task.tags.clone(),
+            identity_hash: task.task.identity_hash.clone(),
+            created_at: task.task.created_at.to_string(),
+            updated_at: task.task.updated_at.to_string(),
+            requested_at: task.task.requested_at.to_string(),
+        },
+        workflow_step: NapiWorkflowStep {
+            workflow_step_uuid: step.workflow_step_uuid.to_string(),
+            task_uuid: step.task_uuid.to_string(),
+            named_step_uuid: step.named_step_uuid.to_string(),
+            name: step.name.clone(),
+            template_step_name: step.template_step_name.clone(),
+            retryable: step.retryable,
+            max_attempts: step.max_attempts.unwrap_or(3),
+            attempts: step.attempts.unwrap_or(0),
+            in_process: step.in_process,
+            processed: step.processed,
+            inputs: step.inputs.clone(),
+            results: step.results.clone(),
+            backoff_request_seconds: step.backoff_request_seconds,
+            processed_at: step.processed_at.map(|t| t.to_string()),
+            last_attempted_at: step.last_attempted_at.map(|t| t.to_string()),
+            created_at: step.created_at.to_string(),
+            updated_at: step.updated_at.to_string(),
+            checkpoint: step.checkpoint.clone(),
+        },
+        step_definition: NapiStepDefinition {
+            name: step_def.name.clone(),
+            description: step_def.description.clone(),
+            handler_callable: step_def.handler.callable.clone(),
+            handler_method: step_def.handler.method.clone(),
+            handler_resolver: step_def.handler.resolver.clone(),
+            handler_initialization: serde_json::to_value(&step_def.handler.initialization)
+                .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+            system_dependency: step_def.system_dependency.clone(),
+            dependencies: step_def.dependencies.clone(),
+            timeout_seconds: step_def.timeout_seconds.map(|v| v as i64),
+            retry_retryable: step_def.retry.retryable,
+            retry_max_attempts: step_def.retry.max_attempts,
+            retry_backoff: format!("{:?}", step_def.retry.backoff).to_lowercase(),
+            retry_backoff_base_ms: step_def.retry.backoff_base_ms.map(|v| v as i64),
+            retry_max_backoff_ms: step_def.retry.max_backoff_ms.map(|v| v as i64),
+        },
+        dependency_results: tss
+            .dependency_results
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    NapiDependencyResult {
+                        step_uuid: v.step_uuid.to_string(),
+                        success: v.success,
+                        result: v.result.clone(),
+                        status: v.status.clone(),
+                        error_message: v.error.as_ref().map(|e| e.message.clone()),
+                        error_type: v.error.as_ref().and_then(|e| e.error_type.clone()),
+                        error_retryable: v.error.as_ref().map(|e| e.retryable),
+                    },
+                )
+            })
+            .collect(),
+    }
+}
+
+fn convert_domain_event(event: &DomainEvent) -> NapiDomainEvent {
+    NapiDomainEvent {
+        event_id: event.event_id.to_string(),
+        event_name: event.event_name.clone(),
+        event_version: event.event_version.clone(),
+        metadata: NapiDomainEventMetadata {
+            task_uuid: event.metadata.task_uuid.to_string(),
+            step_uuid: event.metadata.step_uuid.map(|id| id.to_string()),
+            step_name: event.metadata.step_name.clone(),
+            namespace: event.metadata.namespace.clone(),
+            correlation_id: event.metadata.correlation_id.to_string(),
+            fired_at: event.metadata.fired_at.to_string(),
+            fired_by: Some(event.metadata.fired_by.clone()),
+        },
+        payload: serde_json::to_value(&event.payload).unwrap_or(serde_json::Value::Null),
+    }
+}
+
+fn convert_dispatch_metrics(
+    metrics: &tasker_worker::worker::FfiDispatchMetrics,
+) -> NapiDispatchMetrics {
+    NapiDispatchMetrics {
+        pending_count: metrics.pending_count as u32,
+        starvation_detected: metrics.starvation_detected,
+        starving_event_count: metrics.starving_event_count as u32,
+        oldest_pending_age_ms: metrics.oldest_pending_age_ms.map(|v| v as f64),
+        newest_pending_age_ms: metrics.newest_pending_age_ms.map(|v| v as f64),
+        oldest_event_id: metrics.oldest_event_id.map(|id| id.to_string()),
+    }
+}
+
+// =============================================================================
+// napi-rs FFI Functions
+// =============================================================================
+
+/// Bootstrap the worker system.
+#[napi]
+pub fn bootstrap_worker(config: Option<BootstrapConfig>) -> Result<BootstrapResult> {
     let mut guard = WORKER_SYSTEM
         .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
 
     // Check if already running
     if guard.is_some() {
-        return Ok(json!({
-            "success": true,
-            "status": "already_running",
-            "message": "Worker is already running"
-        })
-        .to_string());
+        return Ok(BootstrapResult {
+            success: true,
+            status: "already_running".to_string(),
+            message: "Worker is already running".to_string(),
+            worker_id: guard.as_ref().map(|h| h.worker_id.clone()),
+        });
     }
 
-    // Parse config if provided
-    let _config: Option<serde_json::Value> = if let Some(json_str) = config_json {
-        Some(serde_json::from_str(json_str).map_err(|e| {
-            TypeScriptFfiError::InvalidArgument(format!("Invalid config JSON: {}", e))
-        })?)
-    } else {
-        None
-    };
+    if let Some(ref cfg) = config {
+        info!(?cfg, "Bootstrap config received via napi-rs");
+    }
 
-    // Generate worker ID
     let worker_id = Uuid::new_v4();
     let worker_id_str = format!("typescript-worker-{}", worker_id);
 
-    // Create Tokio runtime
     let runtime = tokio::runtime::Runtime::new().map_err(|e| {
         error!("Failed to create tokio runtime: {}", e);
-        TypeScriptFfiError::RuntimeError(format!("Runtime creation failed: {}", e))
+        napi::Error::from(NapiFfiError::RuntimeError(format!(
+            "Runtime creation failed: {}",
+            e
+        )))
     })?;
 
-    // Initialize tracing in Tokio runtime context
     runtime.block_on(async {
         tasker_shared::logging::init_tracing();
     });
 
-    // Bootstrap the worker using tasker-worker foundation
     let mut system_handle = runtime
         .block_on(async { WorkerBootstrap::bootstrap().await })
         .map_err(|e| {
             error!("Failed to bootstrap worker system: {}", e);
-            TypeScriptFfiError::BootstrapFailed(e.to_string())
+            napi::Error::from(NapiFfiError::BootstrapFailed(e.to_string()))
         })?;
 
-    info!("Worker system bootstrapped successfully");
+    info!("Worker system bootstrapped successfully via napi-rs");
 
-    // Create domain event callback for step completion
-    info!("Setting up step event publisher registry for domain events...");
-    let (domain_event_publisher, domain_event_callback) = runtime
-        .block_on(async {
-            let worker_core = system_handle.worker_core.lock().await;
+    let (domain_event_publisher, domain_event_callback) = runtime.block_on(async {
+        let worker_core = system_handle.worker_core.lock().await;
+        let message_client = worker_core.context.message_client.clone();
+        let publisher = Arc::new(DomainEventPublisher::new(message_client));
+        let event_router = worker_core.event_router().ok_or_else(|| {
+            napi::Error::from(NapiFfiError::BootstrapFailed(
+                "EventRouter not available".to_string(),
+            ))
+        })?;
+        let step_event_registry =
+            StepEventPublisherRegistry::with_event_router(publisher.clone(), event_router);
+        let registry = Arc::new(RwLock::new(step_event_registry));
+        let callback = Arc::new(DomainEventCallback::new(registry));
+        Ok::<_, napi::Error>((publisher, callback))
+    })?;
 
-            // Get the message client for durable events
-            let message_client = worker_core.context.message_client.clone();
-            let publisher = Arc::new(DomainEventPublisher::new(message_client));
-
-            // Get EventRouter from WorkerCore for stats tracking
-            // TAS-173: Use ok_or_else instead of expect to prevent panic at FFI boundary
-            let event_router = worker_core.event_router().ok_or_else(|| {
-                error!("EventRouter not available from WorkerCore after bootstrap");
-                TypeScriptFfiError::BootstrapFailed(
-                    "EventRouter not available from WorkerCore".to_string(),
-                )
-            })?;
-
-            // Create registry with EventRouter for dual-path delivery (durable + fast)
-            let step_event_registry =
-                StepEventPublisherRegistry::with_event_router(publisher.clone(), event_router);
-
-            let registry = Arc::new(RwLock::new(step_event_registry));
-            let callback = Arc::new(DomainEventCallback::new(registry));
-
-            Ok::<_, TypeScriptFfiError>((publisher, callback))
-        })
-        .map_err(|e: TypeScriptFfiError| anyhow::anyhow!(e))?;
-    info!("Domain event callback created with EventRouter for stats tracking");
-
-    // Take dispatch handles and create FfiDispatchChannel with callback
     let ffi_dispatch_channel = if let Some(dispatch_handles) = system_handle.take_dispatch_handles()
     {
-        info!("Creating FfiDispatchChannel from dispatch handles...");
-
-        // Create config with runtime handle for executing async callbacks from FFI threads
-        let config = FfiDispatchChannelConfig::new(runtime.handle().clone())
+        let config_ffi = FfiDispatchChannelConfig::new(runtime.handle().clone())
             .with_service_id(worker_id_str.clone())
             .with_completion_timeout(std::time::Duration::from_secs(30));
 
-        // TAS-125: Get database pool for checkpoint service
-        // TAS-78: database_pool() returns tasker pool (backward compatible)
         let db_pool = runtime.block_on(async {
             let worker_core = system_handle.worker_core.lock().await;
             worker_core.context.database_pool().clone()
         });
 
-        // TAS-125: Create checkpoint service for batch processing handlers
         let checkpoint_service = CheckpointService::new(db_pool);
 
         let channel = FfiDispatchChannel::new(
             dispatch_handles.dispatch_receiver,
             dispatch_handles.completion_sender,
-            config,
+            config_ffi,
             domain_event_callback,
         )
-        // TAS-125: Enable checkpoint support for batch processing
         .with_checkpoint_support(checkpoint_service, dispatch_handles.dispatch_sender);
 
-        info!("FfiDispatchChannel created with domain event callback and checkpoint support for TypeScript step dispatch");
         Arc::new(channel)
     } else {
-        error!("Failed to get dispatch handles from WorkerSystemHandle");
-        return Err(TypeScriptFfiError::BootstrapFailed(
+        return Err(napi::Error::from(NapiFfiError::BootstrapFailed(
             "Dispatch handles not available".to_string(),
-        )
-        .into());
+        )));
     };
 
-    // Get in-process event receiver from WorkerCore's event bus
-    info!("Subscribing to WorkerCore's in-process event bus for fast domain events...");
     let in_process_event_receiver = runtime.block_on(async {
         let worker_core = system_handle.worker_core.lock().await;
         let bus = worker_core.in_process_event_bus();
         let bus_guard = bus.write().await;
         bus_guard.subscribe_ffi()
     });
-    info!("Subscribed to WorkerCore's in-process event bus for FFI domain events");
 
-    // TAS-231: Create FFI client bridge for orchestration API access
-    info!("Creating FFI client bridge for orchestration API access...");
     let ffi_client = runtime.block_on(async {
         let worker_core = system_handle.worker_core.lock().await;
         tasker_worker::create_ffi_client_bridge(&worker_core, runtime.handle().clone()).await
     });
-    if ffi_client.is_some() {
-        info!("FFI client bridge created successfully");
-    } else {
-        info!("FFI client bridge not available (orchestration client not configured)");
-    }
 
-    // Store the bridge handle with FfiDispatchChannel
-    *guard = Some(TypeScriptBridgeHandle {
+    *guard = Some(NapiBridgeHandle {
         system_handle,
         ffi_dispatch_channel,
         domain_event_publisher,
@@ -215,251 +614,173 @@ pub fn bootstrap_worker_internal(config_json: Option<&str>) -> Result<String> {
         worker_id: worker_id_str.clone(),
     });
 
-    Ok(json!({
-        "success": true,
-        "status": "started",
-        "message": "TypeScript worker system started successfully",
-        "worker_id": worker_id_str
+    Ok(BootstrapResult {
+        success: true,
+        status: "started".to_string(),
+        message: "TypeScript worker system started successfully via napi-rs".to_string(),
+        worker_id: Some(worker_id_str),
     })
-    .to_string())
 }
 
-/// Internal implementation of get_worker_status.
-pub fn get_worker_status_internal() -> Result<String> {
+/// Check if the worker is currently running.
+#[napi]
+pub fn is_worker_running() -> Result<bool> {
     let guard = WORKER_SYSTEM
         .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
+    Ok(guard.is_some())
+}
+
+/// Get worker status.
+#[napi]
+pub fn get_worker_status() -> Result<WorkerStatus> {
+    let guard = WORKER_SYSTEM
+        .lock()
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
 
     match &*guard {
         Some(handle) => {
-            let runtime = &handle.runtime;
-            let status = runtime
+            let status = handle
+                .runtime
                 .block_on(async { handle.system_handle.status().await })
                 .map_err(|e| {
-                    error!("Failed to get status from runtime: {}", e);
-                    TypeScriptFfiError::RuntimeError(format!("Failed to get status: {}", e))
+                    napi::Error::from(NapiFfiError::RuntimeError(format!(
+                        "Failed to get status: {}",
+                        e
+                    )))
                 })?;
 
-            Ok(json!({
-                "success": true,
-                "running": status.running,
-                "worker_id": handle.worker_id,
-                "environment": status.environment,
-                "worker_core_status": format!("{:?}", status.worker_core_status),
-                "web_api_enabled": status.web_api_enabled,
-                "supported_namespaces": status.supported_namespaces,
-                "database_pool_size": status.database_pool_size,
-                "database_pool_idle": status.database_pool_idle
+            Ok(WorkerStatus {
+                success: true,
+                running: status.running,
+                worker_id: Some(handle.worker_id.clone()),
+                status: Some(format!("{:?}", status.worker_core_status)),
+                environment: Some(status.environment),
             })
-            .to_string())
         }
-        None => Ok(json!({
-            "success": true,
-            "running": false,
-            "status": "stopped"
-        })
-        .to_string()),
+        None => Ok(WorkerStatus {
+            success: true,
+            running: false,
+            worker_id: None,
+            status: Some("stopped".to_string()),
+            environment: None,
+        }),
     }
 }
 
-/// Internal implementation of stop_worker.
-pub fn stop_worker_internal() -> Result<String> {
+/// Stop the worker system.
+#[napi]
+pub fn stop_worker() -> Result<WorkerStatus> {
     let mut guard = WORKER_SYSTEM
         .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
 
     match guard.as_mut() {
         Some(handle) => {
             let worker_id = handle.worker_id.clone();
-
             handle
                 .runtime
                 .block_on(handle.system_handle.stop())
                 .map_err(|e| {
-                    error!("Failed to stop worker system: {}", e);
-                    TypeScriptFfiError::RuntimeError(e.to_string())
+                    napi::Error::from(NapiFfiError::RuntimeError(format!("Failed to stop: {}", e)))
                 })?;
 
             *guard = None;
 
-            Ok(json!({
-                "success": true,
-                "status": "stopped",
-                "message": "Worker stopped successfully",
-                "worker_id": worker_id
+            Ok(WorkerStatus {
+                success: true,
+                running: false,
+                worker_id: Some(worker_id),
+                status: Some("stopped".to_string()),
+                environment: None,
             })
-            .to_string())
         }
-        None => Ok(json!({
-            "success": true,
-            "status": "not_running",
-            "message": "Worker was not running"
-        })
-        .to_string()),
+        None => Ok(WorkerStatus {
+            success: true,
+            running: false,
+            worker_id: None,
+            status: Some("not_running".to_string()),
+            environment: None,
+        }),
     }
 }
 
-/// Internal implementation of transition_to_graceful_shutdown.
-pub fn transition_to_graceful_shutdown_internal() -> Result<String> {
+/// Transition the worker to graceful shutdown mode.
+#[napi]
+pub fn transition_to_graceful_shutdown() -> Result<WorkerStatus> {
     let guard = WORKER_SYSTEM
         .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
 
     match &*guard {
         Some(handle) => {
-            let runtime = &handle.runtime;
-            runtime.block_on(async {
+            handle.runtime.block_on(async {
                 let mut worker_core = handle.system_handle.worker_core.lock().await;
                 worker_core.stop().await.map_err(|e| {
-                    error!("Failed to transition to graceful shutdown: {}", e);
-                    TypeScriptFfiError::RuntimeError(format!("Graceful shutdown failed: {}", e))
+                    napi::Error::from(NapiFfiError::RuntimeError(format!(
+                        "Graceful shutdown failed: {}",
+                        e
+                    )))
                 })
             })?;
 
-            Ok(json!({
-                "success": true,
-                "status": "transitioning",
-                "message": "Transitioning to graceful shutdown"
+            Ok(WorkerStatus {
+                success: true,
+                running: true,
+                worker_id: Some(handle.worker_id.clone()),
+                status: Some("transitioning".to_string()),
+                environment: None,
             })
-            .to_string())
         }
-        None => Err(TypeScriptFfiError::WorkerNotInitialized.into()),
+        None => Err(napi::Error::from(NapiFfiError::WorkerNotInitialized)),
     }
 }
 
-/// Internal implementation of poll_step_events.
-pub fn poll_step_events_internal() -> Result<Option<String>> {
+/// Poll for a step event to dispatch.
+#[napi]
+pub fn poll_step_events() -> Result<Option<NapiStepEvent>> {
     let guard = WORKER_SYSTEM
         .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
 
     let handle = guard
         .as_ref()
-        .ok_or(TypeScriptFfiError::WorkerNotInitialized)?;
+        .ok_or_else(|| napi::Error::from(NapiFfiError::WorkerNotInitialized))?;
 
     match handle.ffi_dispatch_channel.poll() {
-        Some(event) => {
-            let json_str = convert_ffi_step_event_to_json(&event)?;
-            Ok(Some(json_str))
-        }
+        Some(event) => Ok(Some(convert_step_event(&event))),
         None => Ok(None),
     }
 }
 
-/// Internal implementation of complete_step_event.
-pub fn complete_step_event_internal(event_id_str: &str, result_json: &str) -> Result<bool> {
+/// Poll for in-process domain events (fast path).
+#[napi]
+pub fn poll_in_process_events() -> Result<Option<NapiDomainEvent>> {
     let guard = WORKER_SYSTEM
         .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
 
     let handle = guard
         .as_ref()
-        .ok_or(TypeScriptFfiError::WorkerNotInitialized)?;
+        .ok_or_else(|| napi::Error::from(NapiFfiError::WorkerNotInitialized))?;
 
-    // Parse event ID
-    let event_id = Uuid::parse_str(event_id_str)
-        .map_err(|e| TypeScriptFfiError::InvalidArgument(format!("Invalid event ID: {}", e)))?;
-
-    // Parse result
-    let result: tasker_shared::messaging::StepExecutionResult = serde_json::from_str(result_json)
-        .map_err(|e| {
-        TypeScriptFfiError::ConversionError(format!("Invalid result JSON: {}", e))
-    })?;
-
-    // Complete the event
-    Ok(handle.ffi_dispatch_channel.complete(event_id, result))
-}
-
-/// Internal implementation of get_ffi_dispatch_metrics.
-pub fn get_ffi_dispatch_metrics_internal() -> Result<String> {
-    let guard = WORKER_SYSTEM
-        .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
-
-    let handle = guard
-        .as_ref()
-        .ok_or(TypeScriptFfiError::WorkerNotInitialized)?;
-
-    let metrics = handle.ffi_dispatch_channel.metrics();
-    convert_ffi_dispatch_metrics_to_json(&metrics)
-}
-
-/// Internal implementation of check_starvation_warnings.
-pub fn check_starvation_warnings_internal() -> Result<()> {
-    let guard = WORKER_SYSTEM
-        .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
-
-    let handle = guard
-        .as_ref()
-        .ok_or(TypeScriptFfiError::WorkerNotInitialized)?;
-
-    handle.ffi_dispatch_channel.check_starvation_warnings();
-    Ok(())
-}
-
-/// Internal implementation of cleanup_timeouts.
-pub fn cleanup_timeouts_internal() -> Result<()> {
-    let guard = WORKER_SYSTEM
-        .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
-
-    let handle = guard
-        .as_ref()
-        .ok_or(TypeScriptFfiError::WorkerNotInitialized)?;
-
-    handle.ffi_dispatch_channel.cleanup_timeouts();
-    Ok(())
-}
-
-/// Internal implementation of poll_in_process_events.
-///
-/// Polls for in-process domain events (fast path) from the broadcast channel.
-/// Returns a JSON string representing the DomainEvent, or None if no events available.
-pub fn poll_in_process_events_internal() -> Result<Option<String>> {
-    let guard = WORKER_SYSTEM
-        .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
-
-    let handle = guard
-        .as_ref()
-        .ok_or(TypeScriptFfiError::WorkerNotInitialized)?;
-
-    // Check if we have an in-process event receiver
     let receiver = match &handle.in_process_event_receiver {
         Some(r) => r,
-        None => {
-            tracing::debug!("No in-process event receiver configured");
-            return Ok(None);
-        }
+        None => return Ok(None),
     };
 
-    // Try to receive an event (non-blocking)
-    let mut receiver_guard = receiver.lock().map_err(|_| TypeScriptFfiError::LockError)?;
+    let mut receiver_guard = receiver
+        .lock()
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
 
-    // Use try_recv for non-blocking receive
     match receiver_guard.try_recv() {
-        Ok(event) => {
-            tracing::debug!(event_name = %event.event_name, "Received in-process domain event");
-
-            // Convert to JSON using type-safe DTO (TAS-112)
-            let dto = FfiDomainEventDto::from(&event);
-            let json_string = dto
-                .to_json_string()
-                .map_err(|e| TypeScriptFfiError::SerializationError(e.to_string()))?;
-
-            Ok(Some(json_string))
-        }
-        Err(tokio::sync::broadcast::error::TryRecvError::Empty) => {
-            // No events available
-            Ok(None)
-        }
+        Ok(event) => Ok(Some(convert_domain_event(&event))),
+        Err(tokio::sync::broadcast::error::TryRecvError::Empty) => Ok(None),
         Err(tokio::sync::broadcast::error::TryRecvError::Lagged(count)) => {
             tracing::warn!(
-                count = count,
+                count,
                 "In-process event receiver lagged, some events dropped"
             );
-            // Still return None, next call will get new events
             Ok(None)
         }
         Err(tokio::sync::broadcast::error::TryRecvError::Closed) => {
@@ -469,45 +790,129 @@ pub fn poll_in_process_events_internal() -> Result<Option<String>> {
     }
 }
 
-/// Internal implementation of checkpoint_yield_step_event (TAS-125).
+/// Complete a step event with the handler's result.
 ///
-/// Signals a checkpoint yield for batch processing, persisting the checkpoint
-/// and causing the step to be re-dispatched for continued processing.
-///
-/// Returns true if the checkpoint was persisted and step re-dispatched successfully.
-pub fn checkpoint_yield_step_event_internal(
-    event_id_str: &str,
-    checkpoint_json: &str,
-) -> Result<bool> {
+/// Accepts a typed `NapiStepExecutionResult` (auto-generated TypeScript types)
+/// and converts it to the shared `StepExecutionResult`. This mirrors the
+/// Python (depythonize) and Ruby (serde_magnus::deserialize) pattern —
+/// the language side builds a typed object and Rust converts it internally.
+#[napi]
+pub fn complete_step_event(event_id: String, result: NapiStepExecutionResult) -> Result<bool> {
     let guard = WORKER_SYSTEM
         .lock()
-        .map_err(|_| TypeScriptFfiError::LockError)?;
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
 
     let handle = guard
         .as_ref()
-        .ok_or(TypeScriptFfiError::WorkerNotInitialized)?;
+        .ok_or_else(|| napi::Error::from(NapiFfiError::WorkerNotInitialized))?;
 
-    // Parse event ID
-    let event_id = Uuid::parse_str(event_id_str)
-        .map_err(|e| TypeScriptFfiError::InvalidArgument(format!("Invalid event ID: {}", e)))?;
+    let event_uuid = Uuid::parse_str(&event_id).map_err(|e| {
+        napi::Error::from(NapiFfiError::InvalidArgument(format!(
+            "Invalid event ID: {}",
+            e
+        )))
+    })?;
 
-    // Parse checkpoint data
-    let checkpoint_data: CheckpointYieldData =
-        serde_json::from_str(checkpoint_json).map_err(|e| {
-            TypeScriptFfiError::ConversionError(format!("Invalid checkpoint JSON: {}", e))
-        })?;
+    let rust_result = result.into_rust().map_err(napi::Error::from)?;
 
-    info!(
-        event_id = %event_id_str,
-        step_uuid = %checkpoint_data.step_uuid,
-        items_processed = checkpoint_data.items_processed,
-        "Checkpoint yield received via FFI"
-    );
-
-    // Call checkpoint_yield on the FfiDispatchChannel
     Ok(handle
         .ffi_dispatch_channel
-        .checkpoint_yield(event_id, checkpoint_data))
+        .complete(event_uuid, rust_result))
+}
+
+/// Yield a checkpoint for batch processing (TAS-125).
+#[napi]
+pub fn checkpoint_yield_step_event(
+    event_id: String,
+    checkpoint: NapiCheckpointYieldData,
+) -> Result<bool> {
+    let guard = WORKER_SYSTEM
+        .lock()
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
+
+    let handle = guard
+        .as_ref()
+        .ok_or_else(|| napi::Error::from(NapiFfiError::WorkerNotInitialized))?;
+
+    let event_uuid = Uuid::parse_str(&event_id).map_err(|e| {
+        napi::Error::from(NapiFfiError::InvalidArgument(format!(
+            "Invalid event ID: {}",
+            e
+        )))
+    })?;
+
+    let step_uuid = Uuid::parse_str(&checkpoint.step_uuid).map_err(|e| {
+        napi::Error::from(NapiFfiError::InvalidArgument(format!(
+            "Invalid step UUID: {}",
+            e
+        )))
+    })?;
+
+    let checkpoint_data = CheckpointYieldData {
+        step_uuid,
+        cursor: checkpoint.cursor,
+        items_processed: checkpoint.items_processed as u64,
+        accumulated_results: checkpoint.accumulated_results.and_then(|v| {
+            v.as_object()
+                .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        }),
+    };
+
+    info!(
+        event_id = %event_id,
+        step_uuid = %checkpoint_data.step_uuid,
+        items_processed = checkpoint_data.items_processed,
+        "Checkpoint yield received via napi-rs FFI"
+    );
+
+    Ok(handle
+        .ffi_dispatch_channel
+        .checkpoint_yield(event_uuid, checkpoint_data))
+}
+
+/// Get FFI dispatch metrics.
+#[napi]
+pub fn get_ffi_dispatch_metrics() -> Result<NapiDispatchMetrics> {
+    let guard = WORKER_SYSTEM
+        .lock()
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
+
+    let handle = guard
+        .as_ref()
+        .ok_or_else(|| napi::Error::from(NapiFfiError::WorkerNotInitialized))?;
+
+    let metrics = handle.ffi_dispatch_channel.metrics();
+    Ok(convert_dispatch_metrics(&metrics))
+}
+
+/// Check for and log starvation warnings.
+#[napi]
+pub fn check_starvation_warnings() -> Result<()> {
+    let guard = WORKER_SYSTEM
+        .lock()
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
+
+    let handle = guard
+        .as_ref()
+        .ok_or_else(|| napi::Error::from(NapiFfiError::WorkerNotInitialized))?;
+
+    handle.ffi_dispatch_channel.check_starvation_warnings();
+    Ok(())
+}
+
+/// Cleanup timed-out events.
+#[napi]
+pub fn cleanup_timeouts() -> Result<()> {
+    let guard = WORKER_SYSTEM
+        .lock()
+        .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
+
+    let handle = guard
+        .as_ref()
+        .ok_or_else(|| napi::Error::from(NapiFfiError::WorkerNotInitialized))?;
+
+    handle.ffi_dispatch_channel.cleanup_timeouts();
+    Ok(())
 }
 
 #[cfg(test)]
@@ -516,10 +921,14 @@ mod tests {
 
     #[test]
     fn test_worker_not_initialized() {
-        // Reset state
         *WORKER_SYSTEM.lock().unwrap() = None;
+        let result = get_worker_status().unwrap();
+        assert!(!result.running);
+    }
 
-        let result = get_worker_status_internal().unwrap();
-        assert!(result.contains("\"running\":false"));
+    #[test]
+    fn test_is_worker_running_not_started() {
+        *WORKER_SYSTEM.lock().unwrap() = None;
+        assert!(!is_worker_running().unwrap());
     }
 }

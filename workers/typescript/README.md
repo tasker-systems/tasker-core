@@ -1,117 +1,78 @@
 # @tasker-systems/tasker
 
-TypeScript worker for the Tasker workflow orchestration system. Supports Bun, Node.js (both via koffi/Node-API), and Deno runtimes.
-
-## Status
-
-Production ready. TypeScript worker bindings provide full step handler execution via FFI to the shared Rust `tasker-worker` infrastructure.
+TypeScript worker for the [Tasker](https://github.com/tasker-systems/tasker-core) workflow orchestration system. Uses napi-rs native addons for high-performance FFI to the shared Rust worker infrastructure. Supports Bun (primary) and Node.js runtimes.
 
 ## Installation
 
 ```bash
 # Bun (recommended)
-bun add @tasker-systems/tasker koffi
+bun add @tasker-systems/tasker
 
 # Node.js
-npm install @tasker-systems/tasker koffi
+npm install @tasker-systems/tasker
 ```
 
 ## Quick Start
 
 ```typescript
-import { TaskerWorker } from "@tasker-systems/tasker";
+import { WorkerServer, StepHandler, type StepContext, type StepHandlerResult } from "@tasker-systems/tasker";
 
-const worker = new TaskerWorker({
-  workerName: "my-worker",
-  namespaces: ["default"],
-});
+// Define a step handler
+class ProcessPaymentHandler extends StepHandler {
+  static handlerName = "process_payment";
+  static handlerVersion = "1.0.0";
 
-// Register a step handler
-worker.registerHandler("process_payment", async (step) => {
-  const result = await processPayment(step.context);
-  return { status: "complete", data: result };
-});
+  async call(context: StepContext): Promise<StepHandlerResult> {
+    const amount = context.getInput<number>("amount");
+    // ... business logic ...
+    return this.success({ amount, status: "processed" });
+  }
+}
 
-// Start the worker
-await worker.start();
+// Create and start the worker server
+const server = new WorkerServer();
+await server.start({ namespace: "default" });
+
+// Register handlers
+const handlerSystem = server.getHandlerSystem();
+handlerSystem.register(ProcessPaymentHandler.handlerName, ProcessPaymentHandler);
+
+// Server is now processing tasks — shut down gracefully on exit
+process.on("SIGINT", () => server.shutdown());
 ```
+
+## Handler Types
+
+| Type | Use Case |
+|------|----------|
+| `StepHandler` | General-purpose step execution |
+| `ApiHandler` | HTTP API integration with automatic error classification |
+| `DecisionHandler` | Dynamic workflow routing |
+| `BatchableStepHandler` | Large dataset processing in chunks |
 
 ## Development
 
 ### Prerequisites
 
 - Bun 1.0+ (recommended) or Node.js 18+
-- Rust 1.70+ (for building the FFI library)
+- Rust 1.70+ (for building the napi-rs native addon)
 
-### Setup
-
-```bash
-# Install dependencies
-bun install
-
-# Build TypeScript
-bun run build
-
-# Run tests
-bun test
-
-# Type checking
-bun run typecheck
-
-# Linting
-bun run check
-```
-
-### Building the FFI Library
+### Build
 
 ```bash
-# Build the Rust FFI shared library
-cargo build --release -p tasker-worker-ts
+bun install              # Install dependencies
+bun run build:napi       # Build napi-rs native addon (debug)
+bun run build            # Build TypeScript
 
-# The library will be at target/release/libtasker_worker_ts.{dylib,so,dll}
+bun test                 # Run tests
+bun run typecheck        # Type checking
+bun run check            # Lint (Biome)
 ```
 
-## Project Structure
+## Documentation
 
-```
-workers/typescript/
-├── src/                  # TypeScript source
-│   ├── bootstrap/        # Worker initialization
-│   ├── events/           # Event system integration
-│   ├── ffi/              # FFI bindings to Rust
-│   ├── handler/          # Step handler base classes
-│   ├── logging/          # Structured logging (pino)
-│   ├── registry/         # Handler registry
-│   ├── server/           # HTTP/gRPC server
-│   ├── subscriber/       # Queue subscriber
-│   ├── types/            # Type definitions
-│   └── index.ts          # Package entry point
-├── src-rust/             # Rust FFI source
-│   └── lib.rs            # Neon/FFI module
-├── tests/                # Test suite
-├── Cargo.toml            # Rust crate configuration
-├── package.json          # npm package configuration
-├── tsconfig.json         # TypeScript configuration
-└── biome.json            # Linting configuration
-```
-
-## Technology Stack
-
-- **FFI Layer**: koffi (Node-API, works with both Bun and Node.js)
-- **Build Tool**: tsup
-- **Runtime**: Bun, Node.js 18+, or Deno
-- **Testing**: Bun test runner
-- **Linting**: Biome
-- **Logging**: pino
-- **Events**: eventemitter3
-
-## Runtime Support
-
-| Runtime | FFI Mechanism | Status |
-|---------|---------------|--------|
-| Bun | koffi (Node-API) | Recommended |
-| Node.js | koffi (Node-API) | Supported |
-| Deno | `Deno.dlopen` | Experimental |
+- [TypeScript Worker Guide](../../docs/workers/typescript.md) — full API reference, handler patterns, event system, configuration
+- [Example App (Bun + Hono)](https://github.com/tasker-systems/tasker-contrib/tree/main/examples/bun-app) — production-style example with multiple handler types
 
 ## License
 

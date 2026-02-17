@@ -14,7 +14,7 @@ set -euo pipefail
 #   ${ARTIFACTS_BASE}/
 #     core/           -> core-artifacts (tasker-server, tasker-worker, tasker-ctl)
 #     ruby/           -> ruby-extension (tasker_rb.bundle/.so)
-#     typescript/     -> typescript-artifacts (dist/, libtasker_ts.so/.dylib)
+#     typescript/     -> typescript-artifacts (dist/, tasker_ts.*.node napi-rs modules)
 #     rust-worker/    -> rust-worker-artifact (rust-worker binary)
 #
 # Usage:

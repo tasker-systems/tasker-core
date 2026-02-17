@@ -1,12 +1,9 @@
 /**
  * High-level client wrapper for orchestration API operations.
  *
- * The raw FFI exposes `runtime.clientCreateTask(json)` and similar methods
- * that require callers to construct complete JSON request strings with all
- * required fields and return untyped `ClientResult` envelopes.
- *
- * This module provides a `TaskerClient` class with typed methods, sensible
- * defaults, and proper error handling.
+ * TAS-290: With napi-rs, requests are passed as typed objects directly —
+ * no JSON.stringify() at the boundary. This eliminates TAS-283 trailing
+ * input bugs.
  *
  * @example
  * ```typescript
@@ -17,21 +14,14 @@
  * const client = new TaskerClient(ffiLayer);
  *
  * const task = client.createTask({ name: 'process_order', namespace: 'ecommerce' });
- * console.log(task.task_uuid);
+ * console.log(task.taskUuid);
  * ```
  *
  * @packageDocumentation
  */
 
 import type { FfiLayer } from '../ffi/ffi-layer.js';
-import type {
-  ClientHealthResponse,
-  ClientResult,
-  ClientStepAuditResponse,
-  ClientStepResponse,
-  ClientTaskListResponse,
-  ClientTaskResponse,
-} from '../ffi/types.js';
+import type { NapiClientResult, NapiListTasksParams, NapiTaskRequest } from '../ffi/types.js';
 
 /**
  * Options for creating a task.
@@ -56,13 +46,13 @@ export interface CreateTaskOptions {
   /** Optional tags */
   tags?: string[];
   /** Optional priority */
-  priority?: number | null;
+  priority?: number;
   /** Optional correlation ID (auto-generated if not provided) */
   correlationId?: string;
   /** Optional parent correlation ID */
-  parentCorrelationId?: string | null;
+  parentCorrelationId?: string;
   /** Optional idempotency key */
-  idempotencyKey?: string | null;
+  idempotencyKey?: string;
 }
 
 /**
@@ -110,60 +100,60 @@ export class TaskerClient {
    * Create a task via the orchestration API.
    *
    * @param options - Task creation options (only `name` is required)
-   * @returns Typed task response
+   * @returns Typed task response data
    * @throws TaskerClientError if the operation fails
    */
-  createTask(options: CreateTaskOptions): ClientTaskResponse {
-    const request = {
+  createTask(options: CreateTaskOptions): unknown {
+    const request: NapiTaskRequest = {
       name: options.name,
       namespace: options.namespace ?? 'default',
       version: options.version ?? '1.0.0',
       context: options.context ?? {},
       initiator: options.initiator ?? 'tasker-core-typescript',
-      source_system: options.sourceSystem ?? 'tasker-core',
+      sourceSystem: options.sourceSystem ?? 'tasker-core',
       reason: options.reason ?? 'Task requested',
       tags: options.tags ?? [],
-      requested_at: new Date().toISOString(),
-      options: null,
-      priority: options.priority ?? null,
-      correlation_id: options.correlationId ?? crypto.randomUUID(),
-      parent_correlation_id: options.parentCorrelationId ?? null,
-      idempotency_key: options.idempotencyKey ?? null,
     };
+    if (options.priority !== undefined) request.priority = options.priority;
+    if (options.correlationId !== undefined) request.correlationId = options.correlationId;
+    else request.correlationId = crypto.randomUUID();
+    if (options.parentCorrelationId !== undefined)
+      request.parentCorrelationId = options.parentCorrelationId;
+    if (options.idempotencyKey !== undefined) request.idempotencyKey = options.idempotencyKey;
 
-    const result = this.getRuntime().clientCreateTask(JSON.stringify(request));
-    return this.unwrap<ClientTaskResponse>(result);
+    const result = this.getModule().clientCreateTask(request);
+    return this.unwrap(result);
   }
 
   /**
    * Get a task by UUID.
    *
    * @param taskUuid - The task UUID
-   * @returns Typed task response
+   * @returns Typed task response data
    * @throws TaskerClientError if the operation fails
    */
-  getTask(taskUuid: string): ClientTaskResponse {
-    const result = this.getRuntime().clientGetTask(taskUuid);
-    return this.unwrap<ClientTaskResponse>(result);
+  getTask(taskUuid: string): unknown {
+    const result = this.getModule().clientGetTask(taskUuid);
+    return this.unwrap(result);
   }
 
   /**
    * List tasks with optional filtering and pagination.
    *
    * @param options - Filtering and pagination options
-   * @returns Typed task list response with pagination
+   * @returns Typed task list response data
    * @throws TaskerClientError if the operation fails
    */
-  listTasks(options: ListTasksOptions = {}): ClientTaskListResponse {
-    const params = {
+  listTasks(options: ListTasksOptions = {}): unknown {
+    const params: NapiListTasksParams = {
       limit: options.limit ?? 50,
       offset: options.offset ?? 0,
-      namespace: options.namespace ?? null,
-      status: options.status ?? null,
     };
+    if (options.namespace !== undefined) params.namespace = options.namespace;
+    if (options.status !== undefined) params.status = options.status;
 
-    const result = this.getRuntime().clientListTasks(JSON.stringify(params));
-    return this.unwrap<ClientTaskListResponse>(result);
+    const result = this.getModule().clientListTasks(params);
+    return this.unwrap(result);
   }
 
   /**
@@ -173,7 +163,7 @@ export class TaskerClient {
    * @throws TaskerClientError if the operation fails
    */
   cancelTask(taskUuid: string): void {
-    const result = this.getRuntime().clientCancelTask(taskUuid);
+    const result = this.getModule().clientCancelTask(taskUuid);
     this.unwrap(result);
   }
 
@@ -181,12 +171,12 @@ export class TaskerClient {
    * List workflow steps for a task.
    *
    * @param taskUuid - The task UUID
-   * @returns Array of typed step responses
+   * @returns Array of step data
    * @throws TaskerClientError if the operation fails
    */
-  listTaskSteps(taskUuid: string): ClientStepResponse[] {
-    const result = this.getRuntime().clientListTaskSteps(taskUuid);
-    return this.unwrap<ClientStepResponse[]>(result);
+  listTaskSteps(taskUuid: string): unknown {
+    const result = this.getModule().clientListTaskSteps(taskUuid);
+    return this.unwrap(result);
   }
 
   /**
@@ -194,12 +184,12 @@ export class TaskerClient {
    *
    * @param taskUuid - The task UUID
    * @param stepUuid - The step UUID
-   * @returns Typed step response
+   * @returns Typed step response data
    * @throws TaskerClientError if the operation fails
    */
-  getStep(taskUuid: string, stepUuid: string): ClientStepResponse {
-    const result = this.getRuntime().clientGetStep(taskUuid, stepUuid);
-    return this.unwrap<ClientStepResponse>(result);
+  getStep(taskUuid: string, stepUuid: string): unknown {
+    const result = this.getModule().clientGetStep(taskUuid, stepUuid);
+    return this.unwrap(result);
   }
 
   /**
@@ -207,42 +197,42 @@ export class TaskerClient {
    *
    * @param taskUuid - The task UUID
    * @param stepUuid - The step UUID
-   * @returns Array of typed audit history entries
+   * @returns Array of audit history entries
    * @throws TaskerClientError if the operation fails
    */
-  getStepAuditHistory(taskUuid: string, stepUuid: string): ClientStepAuditResponse[] {
-    const result = this.getRuntime().clientGetStepAuditHistory(taskUuid, stepUuid);
-    return this.unwrap<ClientStepAuditResponse[]>(result);
+  getStepAuditHistory(taskUuid: string, stepUuid: string): unknown {
+    const result = this.getModule().clientGetStepAuditHistory(taskUuid, stepUuid);
+    return this.unwrap(result);
   }
 
   /**
    * Check orchestration API health.
    *
-   * @returns Typed health response
+   * @returns Typed health response data
    * @throws TaskerClientError if the operation fails
    */
-  healthCheck(): ClientHealthResponse {
-    const result = this.getRuntime().clientHealthCheck();
-    return this.unwrap<ClientHealthResponse>(result);
+  healthCheck(): unknown {
+    const result = this.getModule().clientHealthCheck();
+    return this.unwrap(result);
   }
 
   /**
-   * Unwrap a ClientResult envelope, throwing on error.
+   * Unwrap a NapiClientResult envelope, throwing on error.
    */
-  private unwrap<T>(result: ClientResult): T {
+  private unwrap(result: NapiClientResult): unknown {
     if (!result.success) {
       throw new TaskerClientError(
         result.error ?? 'Unknown client error',
         result.recoverable ?? false
       );
     }
-    return result.data as T;
+    return result.data;
   }
 
   /**
-   * Get the FFI runtime from the layer.
+   * Get the napi-rs module from the layer.
    */
-  private getRuntime() {
-    return this.ffiLayer.getRuntime();
+  private getModule() {
+    return this.ffiLayer.getModule();
   }
 }

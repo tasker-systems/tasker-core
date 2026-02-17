@@ -8,6 +8,8 @@
  * - Event processing (via EventSystem)
  * - Graceful shutdown
  *
+ * TAS-290: Uses NapiModule directly instead of TaskerRuntime.
+ *
  * Design principles:
  * - Explicit construction: No singleton pattern - caller creates and manages
  * - Clear ownership: Owns FfiLayer, HandlerSystem, EventSystem
@@ -169,7 +171,7 @@ export class WorkerServer {
       log.info('WorkerServer started successfully', {
         operation: 'start',
         worker_id: this.workerId,
-        version: getVersion(this.ffiLayer.getRuntime()),
+        version: getVersion(this.ffiLayer.getModule()),
       });
 
       return this;
@@ -225,15 +227,15 @@ export class WorkerServer {
       }
 
       // Phase 2: Stop Rust worker
-      const runtime = this.ffiLayer.isLoaded() ? this.ffiLayer.getRuntime() : undefined;
-      if (isWorkerRunning(runtime)) {
+      const module = this.ffiLayer.isLoaded() ? this.ffiLayer.getModule() : undefined;
+      if (isWorkerRunning(module)) {
         log.info('  Transitioning to graceful shutdown...', {
           operation: 'shutdown',
         });
-        transitionToGracefulShutdown(runtime);
+        transitionToGracefulShutdown(module);
 
         log.info('  Stopping Rust worker...', { operation: 'shutdown' });
-        stopWorker(runtime);
+        stopWorker(module);
         log.info('  Rust worker stopped', { operation: 'shutdown' });
       }
 
@@ -299,13 +301,13 @@ export class WorkerServer {
     }
 
     try {
-      const runtime = this.ffiLayer.isLoaded() ? this.ffiLayer.getRuntime() : undefined;
-      const ffiHealthy = ffiHealthCheck(runtime);
+      const module = this.ffiLayer.isLoaded() ? this.ffiLayer.getModule() : undefined;
+      const ffiHealthy = ffiHealthCheck(module);
       if (!ffiHealthy) {
         return { healthy: false, error: 'FFI health check failed' };
       }
 
-      const workerStatus = getWorkerStatus(runtime);
+      const workerStatus = getWorkerStatus(module);
       if (!workerStatus.running) {
         return { healthy: false, error: 'Worker not running' };
       }
@@ -356,12 +358,12 @@ export class WorkerServer {
     // Load FFI library
     log.info('Loading FFI library...', { operation: 'initialize' });
     await this.ffiLayer.load(this.config?.libraryPath);
-    log.info(`FFI library loaded: ${this.ffiLayer.getLibraryPath()}`, {
+    log.info(`FFI library loaded: ${this.ffiLayer.getModulePath()}`, {
       operation: 'initialize',
     });
 
-    // Install the runtime for logging (enables Rust tracing integration)
-    setLoggingRuntime(this.ffiLayer.getRuntime());
+    // Install the module for logging (enables Rust tracing integration)
+    setLoggingRuntime(this.ffiLayer.getModule());
 
     // Log handler info
     const totalHandlers = this.handlerSystem.handlerCount();
@@ -402,8 +404,8 @@ export class WorkerServer {
     }
 
     log.info('Bootstrapping Rust worker...', { operation: 'bootstrap' });
-    const runtime = this.ffiLayer.getRuntime();
-    const result = await bootstrapWorker(bootstrapConfig, runtime);
+    const module = this.ffiLayer.getModule();
+    const result = await bootstrapWorker(bootstrapConfig, module);
 
     if (!result.success) {
       throw new Error(`Bootstrap failed: ${result.message}`);
@@ -420,7 +422,7 @@ export class WorkerServer {
       operation: 'start_events',
     });
 
-    const runtime = this.ffiLayer.getRuntime();
+    const module = this.ffiLayer.getModule();
 
     // Build event system config
     const eventConfig: EventSystemConfig = {
@@ -445,7 +447,7 @@ export class WorkerServer {
     }
 
     // Create EventSystem with explicit dependencies
-    this.eventSystem = new EventSystem(runtime, this.handlerSystem.getRegistry(), eventConfig);
+    this.eventSystem = new EventSystem(module, this.handlerSystem.getRegistry(), eventConfig);
 
     // Start the event system
     this.eventSystem.start();
@@ -465,8 +467,9 @@ export class WorkerServer {
         await this.eventSystem.stop();
         this.eventSystem = null;
       }
-      if (isWorkerRunning()) {
-        stopWorker();
+      const module = this.ffiLayer.isLoaded() ? this.ffiLayer.getModule() : undefined;
+      if (isWorkerRunning(module)) {
+        stopWorker(module);
       }
       await this.ffiLayer.unload();
     } catch {

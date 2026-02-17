@@ -44,7 +44,7 @@ show_banner() {
     log_info "Database URL: ${DATABASE_URL:-unset}"
     log_info "Template Path: ${TASKER_TEMPLATE_PATH:-unset}"
     log_info "Handler Path: ${TYPESCRIPT_HANDLER_PATH:-unset}"
-    log_info "FFI Library: ${TASKER_FFI_LIBRARY_PATH:-unset}"
+    log_info "FFI Module: ${TASKER_FFI_MODULE_PATH:-auto-discover}"
     log_info "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
     log_info "User: $(whoami)"
     log_info "Working Directory: $(pwd)"
@@ -101,24 +101,29 @@ validate_typescript_worker_environment() {
         exit 1
     fi
 
-    # Check FFI library
-    if [[ -n "${TASKER_FFI_LIBRARY_PATH:-}" ]]; then
-        if [[ -f "${TASKER_FFI_LIBRARY_PATH}" ]]; then
-            log_info "FFI library found: ${TASKER_FFI_LIBRARY_PATH}"
+    # Check FFI module (napi-rs native addon)
+    # FfiLayer auto-discovers .node files in the package directory.
+    # TASKER_FFI_MODULE_PATH is only needed for non-standard locations.
+    if [[ -n "${TASKER_FFI_MODULE_PATH:-}" ]]; then
+        if [[ -f "$TASKER_FFI_MODULE_PATH" ]]; then
+            log_info "FFI module (explicit): $TASKER_FFI_MODULE_PATH"
         else
-            log_error "FFI library not found at: ${TASKER_FFI_LIBRARY_PATH}"
+            log_error "FFI module not found at: $TASKER_FFI_MODULE_PATH"
             exit 1
         fi
     else
-        # Try to find the library in default locations
-        if [[ -f "/app/lib/libtasker_ts.so" ]]; then
-            export TASKER_FFI_LIBRARY_PATH="/app/lib/libtasker_ts.so"
-            log_info "FFI library found: ${TASKER_FFI_LIBRARY_PATH}"
-        elif [[ -f "/app/lib/libtasker_ts.dylib" ]]; then
-            export TASKER_FFI_LIBRARY_PATH="/app/lib/libtasker_ts.dylib"
-            log_info "FFI library found: ${TASKER_FFI_LIBRARY_PATH}"
+        # Check default Docker location
+        local found_module=""
+        for f in /app/tasker_ts.*.node; do
+            if [[ -f "$f" ]]; then
+                found_module="$f"
+                break
+            fi
+        done
+        if [[ -n "$found_module" ]]; then
+            log_info "FFI module found: $found_module"
         else
-            log_error "FFI library not found. Set TASKER_FFI_LIBRARY_PATH or ensure library is in /app/lib/"
+            log_error "FFI module not found. Ensure .node files are in /app/ or set TASKER_FFI_MODULE_PATH"
             exit 1
         fi
     fi

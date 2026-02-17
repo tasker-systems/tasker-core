@@ -1,3 +1,4 @@
+import type { NapiOrchestrationMetadata } from '../ffi/types.js';
 import { ErrorType } from './error-type';
 
 /**
@@ -41,6 +42,7 @@ export interface StepHandlerResultParams {
   errorCode?: string | null;
   retryable?: boolean;
   metadata?: Record<string, unknown>;
+  orchestrationMetadata?: NapiOrchestrationMetadata | null;
 }
 
 /**
@@ -98,6 +100,9 @@ export class StepHandlerResult {
   /** Additional execution metadata */
   public readonly metadata: Record<string, unknown>;
 
+  /** Orchestration metadata for workflow coordination hints (e.g., backoff, headers) */
+  public readonly orchestrationMetadata: NapiOrchestrationMetadata | null;
+
   constructor(params: StepHandlerResultParams) {
     this.success = params.success;
     this.result = params.result ?? null;
@@ -106,6 +111,7 @@ export class StepHandlerResult {
     this.errorCode = params.errorCode ?? null;
     this.retryable = params.retryable ?? true;
     this.metadata = params.metadata ?? {};
+    this.orchestrationMetadata = params.orchestrationMetadata ?? null;
   }
 
   /**
@@ -212,6 +218,7 @@ export class StepHandlerResult {
       error_code: this.errorCode,
       retryable: this.retryable,
       metadata: this.metadata,
+      orchestration_metadata: this.orchestrationMetadata,
     };
   }
 }

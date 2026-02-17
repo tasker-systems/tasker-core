@@ -1,12 +1,13 @@
 /**
  * Tests for bootstrap types and conversion functions.
+ *
+ * TAS-290: Updated for napi-rs camelCase FFI types.
  */
 
 import { describe, expect, test } from 'bun:test';
 import {
   type BootstrapConfig,
   type FfiBootstrapResult,
-  type FfiStopResult,
   type FfiWorkerStatus,
   fromFfiBootstrapResult,
   fromFfiStopResult,
@@ -32,11 +33,9 @@ describe('Bootstrap Types', () => {
 
       const result = toFfiBootstrapConfig(config);
 
-      expect(result.worker_id).toBe('worker-1');
+      // napi-rs FFI only takes namespace and configPath
       expect(result.namespace).toBe('payments');
-      expect(result.config_path).toBe('/path/to/config.toml');
-      expect(result.log_level).toBe('debug');
-      expect(result.database_url).toBe('postgresql://localhost/test');
+      expect(result.configPath).toBe('/path/to/config.toml');
     });
 
     test('should handle partial config', () => {
@@ -47,8 +46,6 @@ describe('Bootstrap Types', () => {
       const result = toFfiBootstrapConfig(config);
 
       expect(result.namespace).toBe('default');
-      expect(result.worker_id).toBeUndefined();
-      expect(result.log_level).toBeUndefined();
     });
 
     test('should handle empty config', () => {
@@ -64,7 +61,7 @@ describe('Bootstrap Types', () => {
         success: true,
         status: 'started',
         message: 'Worker started successfully',
-        worker_id: 'worker-123',
+        workerId: 'worker-123',
       };
 
       const result = fromFfiBootstrapResult(ffiResult);
@@ -81,7 +78,7 @@ describe('Bootstrap Types', () => {
         success: false,
         status: 'error',
         message: 'Database connection failed',
-        error: 'Connection timeout',
+        workerId: null,
       };
 
       const result = fromFfiBootstrapResult(ffiResult);
@@ -89,7 +86,6 @@ describe('Bootstrap Types', () => {
       expect(result.success).toBe(false);
       expect(result.status).toBe('error');
       expect(result.message).toBe('Database connection failed');
-      expect(result.error).toBe('Connection timeout');
     });
 
     test('should convert already_running FFI result', () => {
@@ -97,7 +93,7 @@ describe('Bootstrap Types', () => {
         success: true,
         status: 'already_running',
         message: 'Worker is already running',
-        worker_id: 'existing-worker',
+        workerId: 'existing-worker',
       };
 
       const result = fromFfiBootstrapResult(ffiResult);
@@ -113,13 +109,9 @@ describe('Bootstrap Types', () => {
       const ffiStatus: FfiWorkerStatus = {
         success: true,
         running: true,
-        worker_id: 'worker-123',
+        workerId: 'worker-123',
+        status: 'healthy',
         environment: 'production',
-        worker_core_status: 'healthy',
-        web_api_enabled: true,
-        supported_namespaces: ['default', 'payments'],
-        database_pool_size: 10,
-        database_pool_idle: 5,
       };
 
       const result = fromFfiWorkerStatus(ffiStatus);
@@ -128,11 +120,6 @@ describe('Bootstrap Types', () => {
       expect(result.running).toBe(true);
       expect(result.workerId).toBe('worker-123');
       expect(result.environment).toBe('production');
-      expect(result.workerCoreStatus).toBe('healthy');
-      expect(result.webApiEnabled).toBe(true);
-      expect(result.supportedNamespaces).toEqual(['default', 'payments']);
-      expect(result.databasePoolSize).toBe(10);
-      expect(result.databasePoolIdle).toBe(5);
     });
 
     test('should convert stopped worker status', () => {
@@ -140,6 +127,8 @@ describe('Bootstrap Types', () => {
         success: true,
         running: false,
         status: 'stopped',
+        workerId: null,
+        environment: null,
       };
 
       const result = fromFfiWorkerStatus(ffiStatus);
@@ -153,6 +142,9 @@ describe('Bootstrap Types', () => {
       const ffiStatus: FfiWorkerStatus = {
         success: false,
         running: false,
+        workerId: null,
+        status: null,
+        environment: null,
       };
 
       const result = fromFfiWorkerStatus(ffiStatus);
@@ -164,48 +156,35 @@ describe('Bootstrap Types', () => {
   });
 
   describe('fromFfiStopResult', () => {
-    test('should convert successful stop result', () => {
-      const ffiResult: FfiStopResult = {
+    test('should convert stopped result', () => {
+      const ffiResult: FfiWorkerStatus = {
         success: true,
-        status: 'stopped',
-        message: 'Worker stopped successfully',
-        worker_id: 'worker-123',
-      };
-
-      const result = fromFfiStopResult(ffiResult);
-
-      expect(result.success).toBe(true);
-      expect(result.status).toBe('stopped');
-      expect(result.message).toBe('Worker stopped successfully');
-      expect(result.workerId).toBe('worker-123');
-    });
-
-    test('should convert not_running stop result', () => {
-      const ffiResult: FfiStopResult = {
-        success: true,
-        status: 'not_running',
-        message: 'Worker was not running',
+        running: false,
+        status: 'Worker stopped successfully',
+        workerId: 'worker-123',
+        environment: null,
       };
 
       const result = fromFfiStopResult(ffiResult);
 
       expect(result.success).toBe(true);
       expect(result.status).toBe('not_running');
+      expect(result.workerId).toBe('worker-123');
     });
 
-    test('should convert failed stop result', () => {
-      const ffiResult: FfiStopResult = {
-        success: false,
-        status: 'error',
-        message: 'Failed to stop worker',
-        error: 'Timeout waiting for handlers',
+    test('should convert still-running stop result', () => {
+      const ffiResult: FfiWorkerStatus = {
+        success: true,
+        running: true,
+        status: 'stopped',
+        workerId: 'worker-123',
+        environment: null,
       };
 
       const result = fromFfiStopResult(ffiResult);
 
-      expect(result.success).toBe(false);
-      expect(result.status).toBe('error');
-      expect(result.error).toBe('Timeout waiting for handlers');
+      expect(result.success).toBe(true);
+      expect(result.status).toBe('stopped');
     });
   });
 });

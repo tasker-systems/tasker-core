@@ -1,16 +1,20 @@
 # FFI Boundary Types Reference
 
-Cross-language type harmonization for Rust, Python, and TypeScript boundaries.
+Cross-language type harmonization for Rust, Ruby, Python, and TypeScript boundaries.
 
 This document defines the canonical FFI boundary types that cross the Rust orchestration layer
-and the Python/TypeScript worker implementations. These types are critical for correct
+and the Ruby/Python/TypeScript worker implementations. These types are critical for correct
 serialization/deserialization between languages.
 
 ## Overview
 
 The tasker-core system uses FFI (Foreign Function Interface) to integrate Rust orchestration
-with Python and TypeScript step handlers. Data crosses this boundary via JSON serialization.
-These types must remain consistent across all three languages.
+with Ruby, Python, and TypeScript step handlers. Data crosses this boundary via framework-native
+mechanisms: Magnus (Ruby), PyO3 (Python), and napi-rs (TypeScript). For complex types like
+`StepExecutionResult`, all three workers use serde-based deserialization — the language side
+builds a dict/hash/object with snake_case keys matching Rust serde field names, then Rust
+deserializes via `serde_magnus::deserialize()`, `depythonize()`, or `serde_json::from_value()`
+respectively. These types must remain consistent across all four languages.
 
 **Source of Truth**: Rust types in `tasker-shared/src/messaging/execution_types.rs` and
 `tasker-shared/src/models/core/batch_worker.rs`.

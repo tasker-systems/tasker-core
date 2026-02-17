@@ -8,4 +8,10 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #5427 | 2:14 PM | 🔵 | Python Worker FFI Library Documentation | ~499 |
+
+### Feb 12, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #6167 | 8:16 PM | 🔵 | Found Python FFI worker bootstrap function in tasker-core | ~450 |
 </claude-mem-context>
