@@ -7,6 +7,18 @@ on:
         description: 'Version string for artifact naming'
         required: true
         type: string
+      skip_ruby:
+        description: 'Skip Ruby FFI build (already published)'
+        type: boolean
+        default: false
+      skip_python:
+        description: 'Skip Python FFI build (already published)'
+        type: boolean
+        default: false
+      skip_typescript:
+        description: 'Skip TypeScript FFI build (already published)'
+        type: boolean
+        default: false
     outputs:
       artifact-prefix:
         description: 'Prefix for uploaded artifact names'
@@ -86,10 +98,32 @@ jobs:
         if: matrix.target.method == 'docker'
         run: |
           mkdir -p artifacts
-          docker run --rm \
-            -v "$(pwd)/artifacts:/app/artifacts" \
-            tasker-ffi-builder:${{ matrix.target.name }} \
-            --target ${{ matrix.target.triple }}
+          build_lang() {
+            local lang="$1"
+            echo "::group::Building ${lang} FFI library"
+            docker run --rm \
+              -v "$(pwd)/artifacts:/app/artifacts" \
+              tasker-ffi-builder:${{ matrix.target.name }} \
+              --target ${{ matrix.target.triple }} --language "$lang"
+            echo "::endgroup::"
+          }
+          BUILT=0
+          if [[ "${{ inputs.skip_ruby }}" != "true" ]]; then
+            build_lang ruby; BUILT=$((BUILT + 1))
+          else
+            echo "Skipping ruby FFI build (already published)"
+          fi
+          if [[ "${{ inputs.skip_python }}" != "true" ]]; then
+            build_lang python; BUILT=$((BUILT + 1))
+          else
+            echo "Skipping python FFI build (already published)"
+          fi
+          if [[ "${{ inputs.skip_typescript }}" != "true" ]]; then
+            build_lang typescript; BUILT=$((BUILT + 1))
+          else
+            echo "Skipping typescript FFI build (already published)"
+          fi
+          echo "Built ${BUILT}/3 FFI libraries for ${{ matrix.target.triple }}"
 
       # =====================================================================
       # Native builds (macOS)
@@ -139,19 +173,50 @@ jobs:
 
       - name: Build FFI libraries (native)
         if: matrix.target.method == 'native'
-        run: ./scripts/ffi-build/build-all.sh --target ${{ matrix.target.triple }}
+        run: |
+          BUILT=0
+          build_lang() {
+            local lang="$1"
+            echo "::group::Building ${lang} FFI library"
+            ./scripts/ffi-build/build-all.sh --target ${{ matrix.target.triple }} --language "$lang"
+            echo "::endgroup::"
+          }
+          if [[ "${{ inputs.skip_ruby }}" != "true" ]]; then
+            build_lang ruby; BUILT=$((BUILT + 1))
+          else
+            echo "Skipping ruby FFI build (already published)"
+          fi
+          if [[ "${{ inputs.skip_python }}" != "true" ]]; then
+            build_lang python; BUILT=$((BUILT + 1))
+          else
+            echo "Skipping python FFI build (already published)"
+          fi
+          if [[ "${{ inputs.skip_typescript }}" != "true" ]]; then
+            build_lang typescript; BUILT=$((BUILT + 1))
+          else
+            echo "Skipping typescript FFI build (already published)"
+          fi
+          echo "Built ${BUILT}/3 FFI libraries for ${{ matrix.target.triple }}"
         env:
           SQLX_OFFLINE: 'true'
 
       # =====================================================================
       # Verification & upload (both methods)
       # =====================================================================
-      - name: List artifacts
+      - name: Check if any artifacts were built
+        id: check-artifacts
         run: |
-          echo "Artifacts for ${{ matrix.target.triple }}:"
-          find artifacts/ -type f | sort
+          if find artifacts/ -type f 2>/dev/null | grep -q .; then
+            echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
+            echo "Artifacts for ${{ matrix.target.triple }}:"
+            find artifacts/ -type f | sort
+          else
+            echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
+            echo "No artifacts built (all languages skipped)"
+          fi
 
       - name: Upload FFI artifacts
+        if: steps.check-artifacts.outputs.has_artifacts == 'true'
         uses: actions/upload-artifact@v6
         with:
           name: ffi-${{ inputs.version || 'dev' }}-${{ matrix.target.triple }}

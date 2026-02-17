@@ -81,6 +81,9 @@ jobs:
       python_version: ${{ steps.read.outputs.PYTHON_VERSION }}
       typescript_version: ${{ steps.read.outputs.TYPESCRIPT_VERSION }}
       is_dry_run: ${{ steps.dry-run.outputs.is_dry_run }}
+      ruby_published: ${{ steps.registry.outputs.ruby_published }}
+      python_published: ${{ steps.registry.outputs.python_published }}
+      typescript_published: ${{ steps.registry.outputs.typescript_published }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -109,6 +112,40 @@ jobs:
           # shellcheck disable=SC2086
           ./scripts/release/detect-changes.sh ${EXTRA_ARGS} >> "$GITHUB_OUTPUT"
 
+      - name: Check registries for already-published FFI packages
+        id: registry
+        run: |
+          # Ruby — check RubyGems API
+          RUBY_V="${{ steps.read.outputs.RUBY_VERSION }}"
+          if curl -sf "https://rubygems.org/api/v1/versions/tasker-rb.json" 2>/dev/null \
+             | grep -q "\"number\":\"${RUBY_V}\""; then
+            echo "ruby_published=true" >> "$GITHUB_OUTPUT"
+            echo "Ruby ${RUBY_V}: already published on RubyGems"
+          else
+            echo "ruby_published=false" >> "$GITHUB_OUTPUT"
+            echo "Ruby ${RUBY_V}: not yet published"
+          fi
+
+          # Python — check PyPI JSON API
+          PYTHON_V="${{ steps.read.outputs.PYTHON_VERSION }}"
+          if curl -sf "https://pypi.org/pypi/tasker-py/${PYTHON_V}/json" > /dev/null 2>&1; then
+            echo "python_published=true" >> "$GITHUB_OUTPUT"
+            echo "Python ${PYTHON_V}: already published on PyPI"
+          else
+            echo "python_published=false" >> "$GITHUB_OUTPUT"
+            echo "Python ${PYTHON_V}: not yet published"
+          fi
+
+          # TypeScript — check npm registry (no npm CLI needed)
+          TS_V="${{ steps.read.outputs.TYPESCRIPT_VERSION }}"
+          if curl -sf "https://registry.npmjs.org/@tasker-systems/tasker/${TS_V}" > /dev/null 2>&1; then
+            echo "typescript_published=true" >> "$GITHUB_OUTPUT"
+            echo "TypeScript ${TS_V}: already published on npm"
+          else
+            echo "typescript_published=false" >> "$GITHUB_OUTPUT"
+            echo "TypeScript ${TS_V}: not yet published"
+          fi
+
       - name: Summary
         run: .github/scripts/release/detection-summary.sh
         env:
@@ -123,6 +160,9 @@ jobs:
           PYTHON_VERSION: ${{ steps.read.outputs.PYTHON_VERSION }}
           TS_VERSION: ${{ steps.read.outputs.TYPESCRIPT_VERSION }}
           IS_DRY_RUN: ${{ steps.dry-run.outputs.is_dry_run }}
+          RUBY_PUBLISHED: ${{ steps.registry.outputs.ruby_published }}
+          PYTHON_PUBLISHED: ${{ steps.registry.outputs.python_published }}
+          TS_PUBLISHED: ${{ steps.registry.outputs.typescript_published }}
 
   # ============================================================================
   # Stage 2: Pre-flight validation
@@ -183,6 +223,9 @@ jobs:
     uses: ./.github/workflows/build-ffi-libraries.yml
     with:
       version: ${{ needs.detect-and-read.outputs.core_version }}
+      skip_ruby: ${{ needs.detect-and-read.outputs.ruby_published == 'true' }}
+      skip_python: ${{ needs.detect-and-read.outputs.python_published == 'true' }}
+      skip_typescript: ${{ needs.detect-and-read.outputs.typescript_published == 'true' }}
 
   # ============================================================================
   # Stage 3: Publish Rust crates
@@ -435,21 +478,36 @@ jobs:
     env:
       SQLX_OFFLINE: 'true'
     steps:
+      - name: Check if already published
+        id: check-published
+        run: |
+          VERSION="${{ needs.detect-and-read.outputs.typescript_version }}"
+          if curl -sf "https://registry.npmjs.org/@tasker-systems/tasker/${VERSION}" > /dev/null 2>&1; then
+            echo "@tasker-systems/tasker ${VERSION} already exists on npm — skipping build and publish"
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
+        if: steps.check-published.outputs.already_published != 'true'
         uses: actions/checkout@v6
 
       - name: Setup Bun
+        if: steps.check-published.outputs.already_published != 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Setup Node.js (npm >= 11.5.1 required for OIDC trusted publishing)
+        if: steps.check-published.outputs.already_published != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Download pre-built FFI artifacts
+        if: steps.check-published.outputs.already_published != 'true'
         continue-on-error: true
         uses: actions/download-artifact@v7
         with:
@@ -458,6 +516,7 @@ jobs:
           merge-multiple: true
 
       - name: Bundle native napi-rs modules into package
+        if: steps.check-published.outputs.already_published != 'true'
         run: |
           BUNDLED=0
           try_bundle() {
@@ -482,6 +541,7 @@ jobs:
           fi
 
       - name: Publish package
+        if: steps.check-published.outputs.already_published != 'true'
         run: .github/scripts/release/publish-component.sh
         env:
           PUBLISH_SCRIPT: ./scripts/release/publish-typescript.sh
@@ -489,7 +549,7 @@ jobs:
           IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
 
       - name: Tag typescript release
-        if: needs.detect-and-read.outputs.is_dry_run != 'true'
+        if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
         continue-on-error: true
         run: .github/scripts/release/tag-component.sh
         env:
