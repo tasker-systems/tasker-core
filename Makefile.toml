@@ -120,6 +120,7 @@ echo ""
 echo "CI Infrastructure:"
 echo "  cargo make ci-check                    Code quality + sanity check"
 echo "  cargo make ci-sanity-check  (csc)      Shell/workflow validation"
+echo "  cargo make ci-scope-detect  (csd)      Show CI scope for this branch"
 echo "  cargo make ci-code-quality             fmt + clippy + docs + audit"
 echo ""
 echo "Run 'cargo make --list-all-steps' for all tasks"
@@ -889,6 +890,29 @@ script = { file = "${SCRIPTS_DIR}/ci-sanity-check.sh" }
 [tasks.csc]
 alias = "ci-sanity-check"
 description = "Shortcut for ci-sanity-check"
+
+[tasks.ci-scope-detect]
+description = "Show which CI jobs would run for this branch's changes vs main"
+script = '''
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT=".github/scripts/detect-ci-scope.sh"
+if [[ ! -x "$SCRIPT" ]]; then
+    echo "Error: $SCRIPT not found or not executable" >&2
+    exit 1
+fi
+echo ""
+echo "================================================================"
+echo "  CI Scope Detection — current branch vs main"
+echo "================================================================"
+echo ""
+bash "$SCRIPT" --verbose 2>&1
+echo ""
+'''
+
+[tasks.csd]
+alias = "ci-scope-detect"
+description = "Shortcut for ci-scope-detect"
 
 [tasks.ci-test]
 description = "CI: Run all tests"
