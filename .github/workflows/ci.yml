@@ -8,23 +8,72 @@ on:
 
 jobs:
   # ============================================================================
-  # Stage 0: Build PostgreSQL image with PGMQ extension
+  # Stage 0: Detect Change Scope
+  # Analyzes changed files to determine which CI jobs need to run.
+  # ~30s — runs before everything else.
+  # ============================================================================
+  detect-scope:
+    name: Detect CI Scope
+    runs-on: ubuntu-22.04
+    outputs:
+      run-build-postgres: ${{ steps.detect.outputs.run-build-postgres }}
+      run-build-workers: ${{ steps.detect.outputs.run-build-workers }}
+      run-build-ruby: ${{ steps.detect.outputs.run-build-ruby }}
+      run-build-python: ${{ steps.detect.outputs.run-build-python }}
+      run-build-typescript: ${{ steps.detect.outputs.run-build-typescript }}
+      run-build-rust-worker: ${{ steps.detect.outputs.run-build-rust-worker }}
+      run-code-quality: ${{ steps.detect.outputs.run-code-quality }}
+      run-integration-tests: ${{ steps.detect.outputs.run-integration-tests }}
+      run-ruby-framework: ${{ steps.detect.outputs.run-ruby-framework }}
+      run-python-framework: ${{ steps.detect.outputs.run-python-framework }}
+      run-typescript-framework: ${{ steps.detect.outputs.run-typescript-framework }}
+      run-performance-analysis: ${{ steps.detect.outputs.run-performance-analysis }}
+      scope-summary: ${{ steps.detect.outputs.scope-summary }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect change scope
+        id: detect
+        run: |
+          chmod +x .github/scripts/detect-ci-scope.sh
+          .github/scripts/detect-ci-scope.sh --github-output --verbose
+
+      - name: Annotate scope
+        run: |
+          echo "::notice title=CI Scope::${{ steps.detect.outputs.scope-summary }}"
+
+  # ============================================================================
+  # Stage 1: Build PostgreSQL image with PGMQ extension
   # ============================================================================
   build-postgres:
+    needs: detect-scope
+    if: needs.detect-scope.outputs.run-build-postgres == 'true'
     uses: ./.github/workflows/build-postgres.yml
 
   # ============================================================================
-  # Stage 1: Build Worker Extensions
+  # Stage 2: Build Worker Extensions
   # Builds Ruby/Python FFI extensions and Rust worker binary
   # ============================================================================
   build-workers:
-    needs: build-postgres
+    needs: [detect-scope, build-postgres]
+    if: >-
+      always() &&
+      needs.detect-scope.outputs.run-build-workers == 'true' &&
+      needs.detect-scope.result == 'success' &&
+      (needs.build-postgres.result == 'success' || needs.build-postgres.result == 'skipped')
     uses: ./.github/workflows/build-workers.yml
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
+      build-ruby: ${{ needs.detect-scope.outputs.run-build-ruby == 'true' }}
+      build-python: ${{ needs.detect-scope.outputs.run-build-python == 'true' }}
+      build-typescript: ${{ needs.detect-scope.outputs.run-build-typescript == 'true' }}
+      build-rust-worker: ${{ needs.detect-scope.outputs.run-build-rust-worker == 'true' }}
 
   # ============================================================================
-  # Stage 2: Parallel Test Execution
+  # Stage 3: Parallel Test Execution
   # All four test workflows run in parallel after build-workers completes:
   #   - integration-tests: workspace-compile → unit-tests → E2E tests
   #   - ruby-framework-tests: Ruby FFI + client API tests (rspec)
@@ -35,44 +84,76 @@ jobs:
   # into each framework workflow to avoid redundant builds and leverage sccache.
   # ============================================================================
   integration-tests:
-    needs: [build-postgres, build-workers]
+    needs: [detect-scope, build-postgres, build-workers]
+    if: >-
+      always() &&
+      needs.detect-scope.outputs.run-integration-tests == 'true' &&
+      needs.detect-scope.result == 'success' &&
+      (needs.build-postgres.result == 'success') &&
+      (needs.build-workers.result == 'success' || needs.build-workers.result == 'skipped')
     uses: ./.github/workflows/test-integration.yml
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
 
   ruby-framework-tests:
-    needs: [build-postgres, build-workers]
+    needs: [detect-scope, build-postgres, build-workers]
+    if: >-
+      always() &&
+      needs.detect-scope.outputs.run-ruby-framework == 'true' &&
+      needs.detect-scope.result == 'success' &&
+      (needs.build-postgres.result == 'success') &&
+      (needs.build-workers.result == 'success' || needs.build-workers.result == 'skipped')
     uses: ./.github/workflows/test-ruby-framework.yml
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
 
   python-framework-tests:
-    needs: [build-postgres, build-workers]
+    needs: [detect-scope, build-postgres, build-workers]
+    if: >-
+      always() &&
+      needs.detect-scope.outputs.run-python-framework == 'true' &&
+      needs.detect-scope.result == 'success' &&
+      (needs.build-postgres.result == 'success') &&
+      (needs.build-workers.result == 'success' || needs.build-workers.result == 'skipped')
     uses: ./.github/workflows/test-python-framework.yml
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
 
   typescript-framework-tests:
-    needs: [build-postgres, build-workers]
+    needs: [detect-scope, build-postgres, build-workers]
+    if: >-
+      always() &&
+      needs.detect-scope.outputs.run-typescript-framework == 'true' &&
+      needs.detect-scope.result == 'success' &&
+      (needs.build-postgres.result == 'success') &&
+      (needs.build-workers.result == 'success' || needs.build-workers.result == 'skipped')
     uses: ./.github/workflows/test-typescript-framework.yml
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
 
-  # Code quality runs in parallel with everything after postgres is ready
+  # Code quality runs in parallel with builds after postgres is ready
   code-quality:
-    needs: build-postgres
+    needs: [detect-scope, build-postgres]
+    if: >-
+      always() &&
+      needs.detect-scope.outputs.run-code-quality == 'true' &&
+      needs.detect-scope.result == 'success' &&
+      (needs.build-postgres.result == 'success' || needs.build-postgres.result == 'skipped')
     uses: ./.github/workflows/code-quality.yml
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
 
   # ============================================================================
-  # Stage 3: Performance Analysis
+  # Stage 4: Performance Analysis
   # Aggregates test results from all test stages
   # ============================================================================
   performance-analysis:
-    needs: [integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests]
+    needs: [detect-scope, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests]
     runs-on: ubuntu-22.04
-    if: always()
+    if: >-
+      always() &&
+      needs.detect-scope.outputs.run-performance-analysis == 'true' &&
+      needs.detect-scope.result == 'success'
     steps:
       - name: Download test artifacts
         uses: actions/download-artifact@v7
@@ -101,9 +182,90 @@ jobs:
             performance-data/
 
   # ============================================================================
-  # Stage 4: CI Success Gate
-  # Final status check - all jobs must pass for CI to succeed
+  # Stage 5: CI Success Gate
+  # Validates all required jobs passed based on detected scope.
+  # This is the single required status check in branch protection.
   # ============================================================================
   ci-success:
-    needs: [code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, performance-analysis]
-    uses: ./.github/workflows/ci-success.yml
+    name: CI Success
+    needs: [detect-scope, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, performance-analysis]
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Validate CI results against scope
+        run: |
+          echo "=== CI Scope: ${{ needs.detect-scope.outputs.scope-summary }} ==="
+          echo ""
+
+          # detect-scope must always succeed
+          if [ "${{ needs.detect-scope.result }}" != "success" ]; then
+            echo "FATAL: detect-scope failed (result=${{ needs.detect-scope.result }})"
+            exit 1
+          fi
+
+          FAILED=""
+
+          # Helper: check a job result against whether it was expected to run
+          # Usage: check_job "job-name" "result" "should-run"
+          check_job() {
+            local name="$1"
+            local result="$2"
+            local should_run="$3"
+
+            if [ "$should_run" = "true" ]; then
+              if [ "$result" = "success" ]; then
+                echo "  PASS: ${name} (ran and succeeded)"
+              else
+                echo "  FAIL: ${name} (expected success, got ${result})"
+                FAILED="${FAILED} ${name}"
+              fi
+            else
+              if [ "$result" = "skipped" ]; then
+                echo "  SKIP: ${name} (not in scope, correctly skipped)"
+              elif [ "$result" = "success" ]; then
+                echo "  PASS: ${name} (not in scope but succeeded anyway)"
+              else
+                echo "  SKIP: ${name} (not in scope, result=${result})"
+              fi
+            fi
+          }
+
+          check_job "build-postgres" \
+            "${{ needs.build-postgres.result }}" \
+            "${{ needs.detect-scope.outputs.run-build-postgres }}"
+
+          check_job "build-workers" \
+            "${{ needs.build-workers.result }}" \
+            "${{ needs.detect-scope.outputs.run-build-workers }}"
+
+          check_job "code-quality" \
+            "${{ needs.code-quality.result }}" \
+            "${{ needs.detect-scope.outputs.run-code-quality }}"
+
+          check_job "integration-tests" \
+            "${{ needs.integration-tests.result }}" \
+            "${{ needs.detect-scope.outputs.run-integration-tests }}"
+
+          check_job "ruby-framework-tests" \
+            "${{ needs.ruby-framework-tests.result }}" \
+            "${{ needs.detect-scope.outputs.run-ruby-framework }}"
+
+          check_job "python-framework-tests" \
+            "${{ needs.python-framework-tests.result }}" \
+            "${{ needs.detect-scope.outputs.run-python-framework }}"
+
+          check_job "typescript-framework-tests" \
+            "${{ needs.typescript-framework-tests.result }}" \
+            "${{ needs.detect-scope.outputs.run-typescript-framework }}"
+
+          check_job "performance-analysis" \
+            "${{ needs.performance-analysis.result }}" \
+            "${{ needs.detect-scope.outputs.run-performance-analysis }}"
+
+          echo ""
+          if [ -n "$FAILED" ]; then
+            echo "FAILED jobs:${FAILED}"
+            exit 1
+          else
+            echo "All required CI checks passed!"
+          fi

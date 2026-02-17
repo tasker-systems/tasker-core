@@ -312,6 +312,28 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# Pass 7: CI Scope Detection Tests
+# -----------------------------------------------------------------------------
+
+pass_header 7 "CI Scope Detection Tests"
+
+DETECT_TEST_SCRIPT=".github/scripts/test-detect-ci-scope.sh"
+
+if [[ -f "$DETECT_TEST_SCRIPT" ]] && [[ -x "$DETECT_TEST_SCRIPT" ]]; then
+    echo "  Running detect-ci-scope.sh test suite..."
+    echo ""
+
+    if bash "$DETECT_TEST_SCRIPT"; then
+        pass_ok "All CI scope detection tests passed"
+    else
+        pass_fail "CI scope detection tests failed (see above)"
+    fi
+else
+    echo "  $DETECT_TEST_SCRIPT not found or not executable, skipping"
+    pass_ok "N/A (no detection test script)"
+fi
+
+# -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------
 

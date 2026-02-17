@@ -6,6 +6,22 @@ on:
       postgres-image:
         required: true
         type: string
+      build-ruby:
+        required: false
+        type: boolean
+        default: true
+      build-python:
+        required: false
+        type: boolean
+        default: true
+      build-typescript:
+        required: false
+        type: boolean
+        default: true
+      build-rust-worker:
+        required: false
+        type: boolean
+        default: true
 
 # =============================================================================
 # Multi-Job Build Strategy
@@ -109,6 +125,7 @@ jobs:
 
   build-ruby:
     name: Build Ruby FFI Extension
+    if: inputs.build-ruby
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     needs: build-core
@@ -172,6 +189,7 @@ jobs:
 
   build-python:
     name: Build Python FFI Extension
+    if: inputs.build-python
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     needs: build-core
@@ -231,6 +249,7 @@ jobs:
 
   build-typescript:
     name: Build TypeScript Worker
+    if: inputs.build-typescript
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     needs: build-core
@@ -296,6 +315,7 @@ jobs:
 
   build-rust-worker:
     name: Build Rust Worker
+    if: inputs.build-rust-worker
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     needs: build-core
