@@ -15,7 +15,6 @@ import type {
   NapiCheckpointYieldData,
   NapiDependencyResult,
   NapiStepDefinition,
-  NapiStepResult,
   NapiTaskInfo,
   NapiWorkflowStep,
   StepExecutionResult,
@@ -140,41 +139,6 @@ describe('FFI Types (napi-rs camelCase)', () => {
       };
 
       expect(event.dependencyResults['dep-step-1']?.success).toBe(true);
-    });
-  });
-
-  describe('NapiStepResult', () => {
-    it('can represent successful completion', () => {
-      const result: NapiStepResult = {
-        stepUuid: 'step-123',
-        success: true,
-        result: { output: 'data' },
-        status: 'completed',
-        errorMessage: null,
-        errorType: null,
-        errorRetryable: null,
-        errorStatusCode: null,
-      };
-
-      expect(result.success).toBe(true);
-      expect(result.status).toBe('completed');
-    });
-
-    it('can represent failure', () => {
-      const result: NapiStepResult = {
-        stepUuid: 'step-123',
-        success: false,
-        result: {},
-        status: 'failed',
-        errorMessage: 'Handler threw exception',
-        errorType: 'RuntimeError',
-        errorRetryable: true,
-        errorStatusCode: null,
-      };
-
-      expect(result.success).toBe(false);
-      expect(result.status).toBe('failed');
-      expect(result.errorMessage).toBe('Handler threw exception');
     });
   });
 

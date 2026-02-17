@@ -104,26 +104,6 @@ export interface NapiDependencyResult {
 }
 
 // =============================================================================
-// Step Result Types (from bridge.rs)
-// =============================================================================
-
-/**
- * Result of completing a step event.
- *
- * Flat structure — no nested handler/error objects.
- */
-export interface NapiStepResult {
-  stepUuid: string;
-  success: boolean;
-  result: unknown;
-  status: string;
-  errorMessage: string | null;
-  errorType: string | null;
-  errorRetryable: boolean | null;
-  errorStatusCode: number | null;
-}
-
-// =============================================================================
 // Bootstrap Types (from bridge.rs)
 // =============================================================================
 
@@ -254,7 +234,7 @@ export interface LogFields {
 }
 
 /**
- * Step execution result to send back to Rust (builds into NapiStepResult)
+ * Step execution result to send back to Rust (serialized via serde_json)
  */
 export interface StepExecutionResult {
   stepUuid: string;

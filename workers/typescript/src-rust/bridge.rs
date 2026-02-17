@@ -182,20 +182,6 @@ pub struct NapiDependencyResult {
     pub error_retryable: Option<bool>,
 }
 
-/// Result of completing a step event.
-#[napi(object)]
-#[derive(Debug)]
-pub struct NapiStepResult {
-    pub step_uuid: String,
-    pub success: bool,
-    pub result: serde_json::Value,
-    pub status: String,
-    pub error_message: Option<String>,
-    pub error_type: Option<String>,
-    pub error_retryable: Option<bool>,
-    pub error_status_code: Option<u16>,
-}
-
 /// FFI dispatch metrics.
 #[napi(object)]
 #[derive(Debug)]
@@ -337,33 +323,6 @@ fn convert_step_event(event: &FfiStepEvent) -> NapiStepEvent {
                 )
             })
             .collect(),
-    }
-}
-
-fn convert_napi_result_to_rust(result: NapiStepResult) -> RustStepExecutionResult {
-    let error = if !result.success {
-        Some(tasker_shared::messaging::StepExecutionError {
-            message: result
-                .error_message
-                .unwrap_or_else(|| "Unknown error".to_string()),
-            error_type: result.error_type,
-            retryable: result.error_retryable.unwrap_or(false),
-            status_code: result.error_status_code,
-            backtrace: None,
-            context: std::collections::HashMap::new(),
-        })
-    } else {
-        None
-    };
-
-    RustStepExecutionResult {
-        step_uuid: Uuid::parse_str(&result.step_uuid).unwrap_or_else(|_| Uuid::nil()),
-        success: result.success,
-        result: result.result,
-        metadata: tasker_shared::messaging::StepExecutionMetadata::default(),
-        status: result.status,
-        error,
-        orchestration_metadata: None,
     }
 }
 
@@ -690,8 +649,13 @@ pub fn poll_in_process_events() -> Result<Option<NapiDomainEvent>> {
 }
 
 /// Complete a step event with the handler's result.
+///
+/// Accepts a serde_json::Value (JavaScript object) and deserializes it into
+/// a StepExecutionResult. This mirrors the Python (depythonize) and Ruby
+/// (serde_magnus::deserialize) approaches — the language side builds a full
+/// serde-compatible object with snake_case keys.
 #[napi]
-pub fn complete_step_event(event_id: String, result: NapiStepResult) -> Result<bool> {
+pub fn complete_step_event(event_id: String, result: serde_json::Value) -> Result<bool> {
     let guard = WORKER_SYSTEM
         .lock()
         .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
@@ -707,7 +671,13 @@ pub fn complete_step_event(event_id: String, result: NapiStepResult) -> Result<b
         )))
     })?;
 
-    let rust_result = convert_napi_result_to_rust(result);
+    let rust_result: RustStepExecutionResult = serde_json::from_value(result).map_err(|e| {
+        napi::Error::from(NapiFfiError::InvalidArgument(format!(
+            "Failed to deserialize StepExecutionResult: {}",
+            e
+        )))
+    })?;
+
     Ok(handle
         .ffi_dispatch_channel
         .complete(event_uuid, rust_result))

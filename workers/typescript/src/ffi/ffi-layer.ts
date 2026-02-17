@@ -23,7 +23,6 @@ import type {
   NapiDomainEvent,
   NapiListTasksParams,
   NapiStepEvent,
-  NapiStepResult,
   NapiTaskRequest,
   WorkerStatus,
 } from './types.js';
@@ -47,7 +46,7 @@ export interface NapiModule {
 
   // Step dispatch
   pollStepEvents(): NapiStepEvent | null;
-  completeStepEvent(eventId: string, result: NapiStepResult): boolean;
+  completeStepEvent(eventId: string, result: Record<string, unknown>): boolean;
   pollInProcessEvents(): NapiDomainEvent | null;
   checkpointYieldStepEvent(eventId: string, checkpoint: NapiCheckpointYieldData): boolean;
 

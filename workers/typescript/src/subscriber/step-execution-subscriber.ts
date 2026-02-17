@@ -14,7 +14,7 @@ import pino, { type Logger, type LoggerOptions } from 'pino';
 import type { StepExecutionReceivedPayload, TaskerEventEmitter } from '../events/event-emitter.js';
 import { StepEventNames } from '../events/event-names.js';
 import type { NapiModule } from '../ffi/ffi-layer.js';
-import type { FfiStepEvent, NapiCheckpointYieldData, NapiStepResult } from '../ffi/types.js';
+import type { FfiStepEvent, NapiCheckpointYieldData } from '../ffi/types.js';
 import type { ExecutableHandler } from '../handler/base.js';
 import { logDebug, logError, logInfo, logWarn } from '../logging/index.js';
 import { StepContext } from '../types/step-context.js';
@@ -484,7 +484,7 @@ export class StepExecutionSubscriber {
   private async submitResult(
     event: FfiStepEvent,
     result: StepHandlerResult,
-    _executionTimeMs: number
+    executionTimeMs: number
   ): Promise<void> {
     pinoLog.info({ component: 'subscriber', eventId: event.eventId }, 'submitResult() called');
 
@@ -494,8 +494,8 @@ export class StepExecutionSubscriber {
       return;
     }
 
-    const napiResult = this.buildNapiStepResult(event, result);
-    await this.sendCompletionViaFfi(event, napiResult, result.success);
+    const serdeResult = this.buildStepExecutionResult(event, result, executionTimeMs);
+    await this.sendCompletionViaFfi(event, serdeResult, result.success);
   }
 
   /**
@@ -592,47 +592,87 @@ export class StepExecutionSubscriber {
   private async submitErrorResult(
     event: FfiStepEvent,
     errorMessage: string,
-    _startTime: number
+    startTime: number
   ): Promise<void> {
-    const napiResult = this.buildErrorNapiStepResult(event, errorMessage);
-    const accepted = await this.sendCompletionViaFfi(event, napiResult, false);
+    const executionTimeMs = Date.now() - startTime;
+    const serdeResult = this.buildErrorStepExecutionResult(event, errorMessage, executionTimeMs);
+    const accepted = await this.sendCompletionViaFfi(event, serdeResult, false);
     if (accepted) {
       this.errorCount++;
     }
   }
 
   /**
-   * Build a NapiStepResult from a handler result.
+   * Build a serde-compatible StepExecutionResult from a handler result.
    *
-   * TAS-290: Flat structure matching #[napi(object)] NapiStepResult.
-   * Metadata (executionTimeMs, workerId, etc.) is not passed — Rust side uses defaults.
+   * Uses snake_case keys matching the Rust StepExecutionResult serde field names.
+   * This mirrors Python's depythonize() and Ruby's serde_magnus::deserialize() approach.
    */
-  private buildNapiStepResult(event: FfiStepEvent, result: StepHandlerResult): NapiStepResult {
-    return {
-      stepUuid: event.stepUuid,
+  private buildStepExecutionResult(
+    event: FfiStepEvent,
+    result: StepHandlerResult,
+    executionTimeMs: number
+  ): Record<string, unknown> {
+    const now = new Date().toISOString();
+    const base: Record<string, unknown> = {
+      step_uuid: event.stepUuid,
       success: result.success,
       result: result.result ?? {},
       status: result.success ? 'completed' : 'failed',
-      errorMessage: result.success ? null : (result.errorMessage ?? 'Unknown error'),
-      errorType: result.success ? null : (result.errorType ?? 'handler_error'),
-      errorRetryable: result.success ? null : (result.retryable ?? false),
-      errorStatusCode: null,
+      metadata: {
+        execution_time_ms: executionTimeMs,
+        worker_id: this.workerId,
+        completed_at: now,
+        custom: result.metadata ?? {},
+        retryable: result.retryable,
+        error_type: result.errorType ?? null,
+        error_code: result.errorCode ?? null,
+      },
+      orchestration_metadata: null,
     };
+
+    if (!result.success) {
+      base.error = {
+        message: result.errorMessage ?? 'Unknown error',
+        error_type: result.errorType ?? 'handler_error',
+        retryable: result.retryable ?? false,
+        status_code: null,
+        backtrace: null,
+        context: {},
+      };
+    }
+
+    return base;
   }
 
   /**
-   * Build an error NapiStepResult for handler resolution/execution failures.
+   * Build an error StepExecutionResult for handler resolution/execution failures.
    */
-  private buildErrorNapiStepResult(event: FfiStepEvent, errorMessage: string): NapiStepResult {
+  private buildErrorStepExecutionResult(
+    event: FfiStepEvent,
+    errorMessage: string,
+    executionTimeMs: number
+  ): Record<string, unknown> {
     return {
-      stepUuid: event.stepUuid,
+      step_uuid: event.stepUuid,
       success: false,
       result: {},
       status: 'error',
-      errorMessage,
-      errorType: 'handler_error',
-      errorRetryable: true,
-      errorStatusCode: null,
+      metadata: {
+        execution_time_ms: executionTimeMs,
+        worker_id: this.workerId,
+        completed_at: new Date().toISOString(),
+        retryable: true,
+      },
+      error: {
+        message: errorMessage,
+        error_type: 'execution_error',
+        retryable: true,
+        status_code: null,
+        backtrace: null,
+        context: {},
+      },
+      orchestration_metadata: null,
     };
   }
 
@@ -643,7 +683,7 @@ export class StepExecutionSubscriber {
    */
   private async sendCompletionViaFfi(
     event: FfiStepEvent,
-    napiResult: NapiStepResult,
+    serdeResult: Record<string, unknown>,
     isSuccess: boolean
   ): Promise<boolean> {
     pinoLog.info(
@@ -651,14 +691,14 @@ export class StepExecutionSubscriber {
         component: 'subscriber',
         eventId: event.eventId,
         stepUuid: event.stepUuid,
-        success: napiResult.success,
-        status: napiResult.status,
+        success: serdeResult.success,
+        status: serdeResult.status,
       },
       'About to call module.completeStepEvent()'
     );
 
     try {
-      const ffiResult = this.module.completeStepEvent(event.eventId, napiResult);
+      const ffiResult = this.module.completeStepEvent(event.eventId, serdeResult);
 
       if (ffiResult) {
         this.handleFfiSuccess(event, isSuccess);

@@ -581,6 +581,25 @@ command = "cargo"
 args = ["make", "test-ffi"]
 
 # =============================================================================
+# Serde FFI Contract Drift Detection
+# =============================================================================
+# All FFI workers (TypeScript, Python, Ruby) build plain objects with snake_case
+# keys that must match the Rust StepExecutionResult/Error/Metadata serde layout.
+# This task warns if the Rust structs changed but a language-side builder wasn't updated.
+
+[tasks.check-serde-contract]
+description = "Check if Rust serde FFI contract has drifted from language-side builders"
+script = '''
+${SCRIPTS_DIR}/check-serde-contract.sh
+'''
+
+[tasks.check-serde-contract-strict]
+description = "Strict serde contract check (fails on drift — for CI)"
+script = '''
+${SCRIPTS_DIR}/check-serde-contract.sh --strict
+'''
+
+# =============================================================================
 # Client API Integration Test Tasks (TAS-231)
 # =============================================================================
 # Tests the client FFI functions against a running orchestration server.

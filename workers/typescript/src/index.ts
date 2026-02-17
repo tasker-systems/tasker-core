@@ -62,7 +62,6 @@ export type {
   NapiListTasksParams,
   NapiStepDefinition,
   NapiStepEvent,
-  NapiStepResult,
   NapiTaskInfo,
   NapiTaskRequest,
   NapiWorkflowStep,
