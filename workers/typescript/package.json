@@ -1,6 +1,6 @@
 {
   "name": "@tasker-systems/tasker",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "TypeScript worker for tasker-core workflow orchestration",
   "type": "module",
   "main": "./dist/index.js",
