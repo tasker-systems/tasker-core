@@ -218,7 +218,18 @@ run_test "self-referential: full CI" \
     "RUN_INTEGRATION_TESTS=true" \
     "RUN_RUBY_FRAMEWORK=true" \
     "RUN_PYTHON_FRAMEWORK=true" \
-    "RUN_TYPESCRIPT_FRAMEWORK=true"
+    "RUN_TYPESCRIPT_FRAMEWORK=true" \
+    "SCOPE_SUMMARY=full-ci: cross-cutting change detected"
+
+# --- self-referential mixed with ci-tooling: full CI wins ---
+run_test "detect-script + ci-tooling: full-ci scope (not ci-tooling-only)" \
+    ".github/scripts/detect-ci-scope.sh
+.github/scripts/test-detect-ci-scope.sh
+.github/workflows/ci.yml
+cargo-make/scripts/ci-sanity-check.sh" \
+    "RUN_BUILD_WORKERS=true" \
+    "RUN_INTEGRATION_TESTS=true" \
+    "SCOPE_SUMMARY=full-ci: cross-cutting change detected"
 
 # --- migration change: full CI ---
 run_test "migration change: full CI" \

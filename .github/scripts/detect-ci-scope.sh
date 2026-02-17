@@ -343,10 +343,10 @@ fi
 # ---------------------------------------------------------------------------
 if [ "$DOCS_ONLY" = "true" ]; then
     SCOPE_SUMMARY="docs-only: skipping all CI jobs"
-elif [ "$CI_TOOLING_ONLY" = "true" ]; then
-    SCOPE_SUMMARY="ci-tooling-only: running code-quality only"
 elif [ "$FULL_CI" = "true" ]; then
     SCOPE_SUMMARY="full-ci: cross-cutting change detected"
+elif [ "$CI_TOOLING_ONLY" = "true" ]; then
+    SCOPE_SUMMARY="ci-tooling-only: running code-quality only"
 else
     # Build a summary of what's in scope
     PARTS=""
