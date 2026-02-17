@@ -26,8 +26,8 @@ path = "src-rust/lib.rs"
 
 [dependencies]
 # napi-rs core (TAS-290: replaces koffi C FFI)
-napi = { version = "2", features = ["napi9", "serde-json"] }
-napi-derive = "2"
+napi = { version = "3", features = ["napi9", "serde-json"] }
+napi-derive = "3"
 # Error handling
 anyhow = { workspace = true }
 # Time handling
@@ -50,7 +50,7 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 [build-dependencies]
-napi-build = "2"
+napi-build = "1"
 
 [features]
 default = []

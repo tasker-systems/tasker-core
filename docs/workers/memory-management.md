@@ -1,87 +1,84 @@
-# FFI Memory Management in TypeScript Workers
+# Native Module Memory Management in TypeScript Workers
 
-**Status**: Active  
-**Applies To**: TypeScript/Bun/Node.js FFI
+**Status**: Active
+**Applies To**: TypeScript/Bun/Node.js napi-rs native modules
 **Related**: Ruby (Magnus), Python (PyO3)
 
 ---
 
 ## Overview
 
-This document explains the memory management pattern used when calling Rust functions from TypeScript via FFI (Foreign Function Interface). Understanding this pattern is critical for preventing memory leaks and undefined behavior.
+This document explains the memory management pattern used when calling Rust functions from TypeScript via napi-rs native modules (Node-API). napi-rs provides automatic memory management through the Node-API, eliminating most manual memory management concerns.
 
-**Key Principle**: When Rust hands memory to JavaScript across the FFI boundary, Rust's ownership system no longer applies. The JavaScript code becomes responsible for explicitly freeing that memory.
+**Key Principle**: napi-rs handles memory lifecycle automatically via Node-API reference counting and the JavaScript garbage collector. Unlike raw FFI, you typically don't need manual memory management.
 
 ---
 
-## The Memory Handoff Pattern
+## The napi-rs Memory Pattern
 
-### Three-Step Process
+### Automatic Memory Management
 
 ```typescript
-// 1. ALLOCATE: Rust allocates memory and returns a pointer
-const ptr = this.lib.symbols.get_worker_status() as Pointer;
+// napi-rs handles memory automatically via Node-API
+import { FfiLayer } from '@/ffi';
 
-// 2. READ: JavaScript reads/copies the data from that pointer
-const json = new CString(ptr);              // Read C string into JS string
-const status = JSON.parse(json);            // Parse into JS object
+const ffi = new FfiLayer();
 
-// 3. FREE: JavaScript tells Rust to deallocate the memory
-this.lib.symbols.free_rust_string(ptr);     // Rust frees the memory
+// Returns JavaScript objects directly (no manual memory management)
+const status = ffi.getWorkerStatus();
+// status is a JavaScript object managed by V8/JavaScriptCore GC
 
-// After this point, 'status' is a safe JavaScript object
-// and the Rust memory has been freed (no leak)
+// No manual free() calls needed - napi-rs handles cleanup
 ```
 
-### Why This Pattern Exists
+### How napi-rs Works
 
-When Rust returns a pointer across the FFI boundary, it **deliberately leaks the memory** from Rust's perspective:
+napi-rs converts Rust types to JavaScript objects automatically using Node-API:
 
 ```rust
-// Rust side:
-#[no_mangle]
-pub extern "C" fn get_worker_status() -> *mut c_char {
+// Rust side with napi-rs:
+#[napi]
+pub fn get_worker_status() -> Result<WorkerStatus> {
     let status = WorkerStatus { /* ... */ };
-    let json = serde_json::to_string(&status).unwrap();
-    
-    // into_raw() transfers ownership OUT of Rust's memory system
-    CString::new(json).unwrap().into_raw()
-    // Rust's Drop trait will NOT run on this memory!
+    Ok(status)  // napi-rs converts to JS object automatically
+}
+
+#[napi(object)]
+pub struct WorkerStatus {
+    pub running: bool,
+    pub pending_count: u32,
+    // ... fields automatically mapped to JS object properties
 }
 ```
 
-The `.into_raw()` method:
+napi-rs handles:
 
-- Converts `CString` to a raw pointer
-- **Prevents Rust from freeing the memory** when it goes out of scope
-- Transfers ownership responsibility to the caller
+- Converting Rust structs to JavaScript objects
+- Managing memory lifecycle via Node-API reference counting
+- Automatic cleanup when JavaScript no longer references the object
 
-Without this, Rust would free the memory immediately, and JavaScript would read garbage data (use-after-free).
+No manual memory management needed in most cases.
 
 ---
 
-## The Free Function
+## Automatic Cleanup
 
-JavaScript must call back into Rust to free the memory:
+With napi-rs, cleanup happens automatically via Node-API:
 
 ```rust
-// Rust side:
-#[no_mangle]
-pub extern "C" fn free_rust_string(ptr: *mut c_char) {
-    if ptr.is_null() {
-        return;
-    }
-    
-    // SAFETY: We know this pointer came from CString::into_raw()
-    // and this function is only called once per pointer
-    unsafe {
-        let _ = CString::from_raw(ptr);
-        // CString goes out of scope here and properly frees the memory
+// napi-rs automatically implements cleanup
+#[napi]
+impl FfiLayer {
+    #[napi]
+    pub fn poll_step_events(&self) -> Result<Vec<FfiStepEvent>> {
+        // Returns Vec which napi-rs converts to JS Array
+        // Memory cleaned up when JavaScript releases references
+        Ok(self.inner.poll_events()?)
     }
 }
 ```
 
-This reconstructs the `CString` from the raw pointer, which causes Rust's `Drop` trait to run and free the memory.
+When JavaScript garbage collector runs and the object is no longer referenced, napi-rs handles cleanup via the Node-API finalizer mechanism.
 
 ---
 
@@ -157,78 +154,65 @@ result = tasker_core.get_worker_status()
 
 **How it works**: PyO3 wraps Rust data in `PyObject` wrappers. When Python's reference count reaches zero, the Rust data is dropped.
 
-### TypeScript (Bun/Node FFI)
+### TypeScript (napi-rs)
 
 ```typescript
-// TypeScript FFI - manual memory management required
-const ptr = lib.symbols.get_worker_status();
-const json = new CString(ptr);
-const status = JSON.parse(json);
-lib.symbols.free_rust_string(ptr);  // MUST call explicitly
+// TypeScript with napi-rs - automatic memory management
+import { FfiLayer } from '@/ffi';
+
+const ffi = new FfiLayer();
+const status = ffi.getWorkerStatus();  // Returns JS object directly
+// No manual free needed - GC handles it
 ```
 
-**Why different**: Bun and Node.js use raw C FFI (similar to ctypes in Python or FFI gem in Ruby). There's no automatic memory management bridge, so we must manually free.
+**Why different**: napi-rs is a high-level binding framework that uses Node-API to provide automatic memory management, similar to Magnus and PyO3.
 
-**Tradeoff**: More verbose, but gives us complete control and makes memory lifetime explicit.
+**Tradeoff**: Cleaner API with automatic cleanup, matching the ergonomics of Ruby and Python bindings.
 
 ---
 
 ## Common Pitfalls and How We Avoid Them
 
-### 1. Memory Leak (Forgetting to Free)
+### 1. Memory Management Simplified
 
-**Problem**:
-
-```typescript
-// BAD: Memory leak
-const ptr = this.lib.symbols.get_worker_status();
-const json = new CString(ptr);
-const status = JSON.parse(json);
-// Oops! Forgot to call free_rust_string(ptr)
-```
-
-**How we avoid it**: Every code path that allocates a pointer must free it. We wrap this in methods like `pollStepEvents()` that handle the complete lifecycle:
+**With napi-rs**: No manual memory management needed
 
 ```typescript
+// napi-rs - automatic memory management
 pollStepEvents(): FfiStepEvent[] {
-  const ptr = this.lib.symbols.poll_step_events() as Pointer;
-  if (!ptr) {
-    return [];  // No allocation, no free needed
-  }
-  
-  const json = new CString(ptr);
-  const events = JSON.parse(json);
-  this.lib.symbols.free_rust_string(ptr);  // Always freed
-  return events;
+  return this.ffi.pollStepEvents();  // Returns JS array directly
+  // GC handles cleanup automatically
 }
 ```
 
-### 2. Double-Free
+**How napi-rs avoids leaks**: All Rust objects are wrapped in Node-API handles that are automatically released when JavaScript GC runs. No manual free() calls needed.
 
-**Problem**:
+### 2. No Double-Free Issues
 
-```typescript
-// BAD: Double-free (undefined behavior)
-const ptr = this.lib.symbols.get_worker_status();
-const json = new CString(ptr);
-this.lib.symbols.free_rust_string(ptr);
-this.lib.symbols.free_rust_string(ptr);  // CRASH! Already freed
-```
-
-**How we avoid it**: We free the pointer exactly once in each code path, and we never store pointers for reuse. Each pointer is used in a single scope and immediately freed.
-
-### 3. Use-After-Free
-
-**Problem**:
+**With napi-rs**: Node-API reference counting prevents double-free
 
 ```typescript
-// BAD: Use-after-free
-const ptr = this.lib.symbols.get_worker_status();
-this.lib.symbols.free_rust_string(ptr);
-const json = new CString(ptr);  // CRASH! Memory is gone
+// napi-rs - safe to call multiple times
+const status1 = this.ffi.getWorkerStatus();
+const status2 = this.ffi.getWorkerStatus();
+// Both are independent JS objects, GC handles cleanup
 ```
 
-**How we avoid it**: We always read/copy before freeing. The order is strictly: allocate → read → free.
+**How napi-rs prevents this**: Each call returns a new JavaScript object. The Rust side doesn't track individual object lifetimes - Node-API handles reference counting automatically.
+
+### 3. No Use-After-Free
+
+**With napi-rs**: JavaScript objects are independent of Rust memory
+
+```typescript
+// napi-rs - safe object access
+const status = this.ffi.getWorkerStatus();
+// status is a pure JavaScript object
+// Rust side has already transferred ownership to JavaScript
+// Safe to use indefinitely until JS GC collects it
+```
+
+**How napi-rs prevents this**: Data is fully copied from Rust to JavaScript during the napi-rs conversion. JavaScript objects don't reference Rust memory.
 
 ---
 
@@ -238,18 +222,9 @@ const json = new CString(ptr);  // CRASH! Memory is gone
 
 ```typescript
 getWorkerStatus(): WorkerStatus {
-  // 1. Allocate: Rust allocates memory for JSON string
-  const ptr = this.lib.symbols.get_worker_status() as Pointer;
-  
-  // 2. Read: Copy data into JavaScript
-  const json = new CString(ptr);        // Rust memory → JS string
-  const status = JSON.parse(json);      // JS string → JS object
-  
-  // 3. Free: Deallocate Rust memory
-  this.lib.symbols.free_rust_string(ptr);
-  
-  // 4. Return: Pure JavaScript object (safe)
-  return status;
+  // napi-rs handles everything automatically
+  return this.ffi.getWorkerStatus();
+  // Returns JS object directly, GC handles cleanup
 }
 ```
 
@@ -257,18 +232,9 @@ getWorkerStatus(): WorkerStatus {
 
 ```typescript
 pollStepEvents(): FfiStepEvent[] {
-  const ptr = this.lib.symbols.poll_step_events() as Pointer;
-  
-  // Handle null pointer (no events available)
-  if (!ptr) {
-    return [];
-  }
-  
-  const json = new CString(ptr);
-  const events = JSON.parse(json);
-  this.lib.symbols.free_rust_string(ptr);
-  
-  return events;
+  // napi-rs returns JS array directly
+  return this.ffi.pollStepEvents();
+  // Empty array returned if no events, GC handles cleanup
 }
 ```
 
@@ -276,19 +242,9 @@ pollStepEvents(): FfiStepEvent[] {
 
 ```typescript
 bootstrapWorker(config: BootstrapConfig): BootstrapResult {
-  const configJson = JSON.stringify(config);
-  
-  // Pass JavaScript data TO Rust (no pointer returned)
-  const ptr = this.lib.symbols.bootstrap_worker(configJson) as Pointer;
-  
-  // Read the result
-  const json = new CString(ptr);
-  const result = JSON.parse(json);
-  
-  // Free the result pointer
-  this.lib.symbols.free_rust_string(ptr);
-  
-  return result;
+  // napi-rs accepts JS object directly and returns JS object
+  return this.ffi.bootstrapWorker(config);
+  // No JSON serialization, no manual memory management
 }
 ```
 
@@ -336,62 +292,52 @@ JS Objects:    [none]         → [none]     → [CORRUPT]
 
 ## Best Practices
 
-### 1. Keep Pointer Lifetime Short
+### 1. Trust Automatic Memory Management
 
 ```typescript
-// GOOD: Pointer freed in same scope
+// With napi-rs - no lifetime concerns
 const result = this.getWorkerStatus();
 
-// BAD: Don't store pointers
-this.statusPtr = this.lib.symbols.get_worker_status();  // Leak risk
+// Safe to store references
+this.cachedStatus = this.getWorkerStatus();  // GC handles it
 ```
 
-### 2. Always Free in Same Method
+### 2. Return Native JavaScript Objects
 
 ```typescript
-// GOOD: Allocate and free in same method
+// napi-rs - return JS objects freely
 pollStepEvents(): FfiStepEvent[] {
-  const ptr = this.lib.symbols.poll_step_events();
-  if (!ptr) return [];
-  
-  const json = new CString(ptr);
-  const events = JSON.parse(json);
-  this.lib.symbols.free_rust_string(ptr);
-  return events;
+  return this.ffi.pollStepEvents();
+  // Returns JS array, safe to pass around
 }
 
-// BAD: Returning pointer for later freeing
-getPtrToStatus(): Pointer {
-  return this.lib.symbols.get_worker_status();  // Who will free this?
+// Safe to return objects from any scope
+getStatus(): WorkerStatus {
+  return this.ffi.getWorkerStatus();
 }
 ```
 
-### 3. Handle Null Pointers
+### 3. Handle Empty Results Naturally
 
 ```typescript
-// GOOD: Check for null before freeing
-const ptr = this.lib.symbols.poll_step_events();
-if (!ptr) {
-  return [];  // No memory allocated, nothing to free
+// napi-rs returns appropriate JavaScript types
+const events = this.ffi.pollStepEvents();
+if (events.length === 0) {
+  return [];  // Empty array handled naturally
 }
-
-const json = new CString(ptr);
-const events = JSON.parse(json);
-this.lib.symbols.free_rust_string(ptr);
 return events;
 ```
 
-### 4. Document Ownership in Comments
+### 4. Document Return Types
 
 ```typescript
 /**
- * Poll for step events from FFI.
- * 
- * MEMORY: This function manages the lifetime of the pointer returned
- * by poll_step_events(). The pointer is freed before returning.
+ * Poll for step events from native module.
+ *
+ * @returns Array of FfiStepEvent objects (JavaScript managed)
  */
 pollStepEvents(): FfiStepEvent[] {
-  // ...
+  return this.ffi.pollStepEvents();
 }
 ```
 
@@ -419,22 +365,22 @@ fn test_status_no_leak() {
 
 ### TypeScript Tests
 
-TypeScript tests verify proper usage:
+TypeScript tests verify correct behavior:
 
 ```typescript
-test('status retrieval frees memory', () => {
-  const runtime = new BunTaskerRuntime();
-  
-  // This should not leak - memory freed internally
-  const status = runtime.getWorkerStatus();
-  
+test('status retrieval works correctly', () => {
+  const ffi = new FfiLayer();
+
+  // napi-rs handles memory automatically
+  const status = ffi.getWorkerStatus();
+
   expect(status.running).toBeDefined();
-  
-  // Call multiple times to stress test
+
+  // Call multiple times - no leaks with napi-rs
   for (let i = 0; i < 100; i++) {
-    runtime.getWorkerStatus();
+    ffi.getWorkerStatus();
   }
-  // If we leaked, we'd have 100 leaked strings
+  // GC will clean up when objects are unreferenced
 });
 ```
 
@@ -448,28 +394,28 @@ test('status retrieval frees memory', () => {
 
 ## When in Doubt
 
-**Golden Rule**: Every `*mut c_char` pointer returned by a Rust FFI function must have a corresponding `free_rust_string()` call in the TypeScript code, executed exactly once per pointer, after all reads are complete.
+**Golden Rule with napi-rs**: Trust the automatic memory management. napi-rs handles memory lifecycle via Node-API reference counting.
 
 If you see a pattern like:
 
 ```typescript
-const ptr = this.lib.symbols.some_function();
+const result = this.ffi.someFunction();
 ```
 
-Ask yourself:
+Remember:
 
-1. Does this return a pointer to allocated memory? (Check Rust signature)
-2. Am I reading the data before freeing?
-3. Am I freeing exactly once?
-4. Am I never using `ptr` after freeing?
+1. `result` is a pure JavaScript object (not a pointer)
+2. Memory is managed by JavaScript's GC (no manual free needed)
+3. Safe to pass around, store, or return from any scope
+4. napi-rs has already handled the Rust ↔ JavaScript conversion
 
-If the answer to all is "yes", you're following the pattern correctly.
+If you're working with napi-rs, you're using the correct pattern automatically.
 
 ---
 
 ## References
 
-- **Rust FFI Guidelines**: https://doc.rust-lang.org/nomicon/ffi.html
-- **Bun FFI Documentation**: https://bun.sh/docs/api/ffi
-- **Node.js ffi-napi**: https://github.com/node-ffi-napi/node-ffi-napi
+- **napi-rs Documentation**: https://napi.rs/
+- **Node-API Documentation**: https://nodejs.org/api/n-api.html
+- **Rust napi-rs Guide**: https://napi.rs/docs/introduction/getting-started
 - **docs/worker-crates/patterns-and-practices.md**: General worker patterns

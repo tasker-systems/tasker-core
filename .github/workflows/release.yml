@@ -443,11 +443,6 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
       - name: Download pre-built FFI artifacts
         continue-on-error: true
         uses: actions/download-artifact@v6
@@ -456,9 +451,8 @@ jobs:
           path: ffi-artifacts/
           merge-multiple: true
 
-      - name: Bundle native libraries into package
+      - name: Bundle native napi-rs modules into package
         run: |
-          mkdir -p workers/typescript/native
           BUNDLED=0
           try_bundle() {
             local src="$1" dest="$2" label="$3"
@@ -467,18 +461,18 @@ jobs:
               echo "  Bundled: $label"
               BUNDLED=$((BUNDLED + 1))
             else
-              echo "::warning::Native library not found for $label — skipping (artifact may not have built)"
+              echo "::warning::Native module not found for $label — skipping (artifact may not have built)"
             fi
           }
-          try_bundle "ffi-artifacts/typescript/libtasker_ts-x86_64-unknown-linux-gnu.so" \
-                     "workers/typescript/native/libtasker_ts-linux-x64.so" "linux-x64"
-          try_bundle "ffi-artifacts/typescript/libtasker_ts-aarch64-apple-darwin.dylib" \
-                     "workers/typescript/native/libtasker_ts-darwin-arm64.dylib" "darwin-arm64"
-          echo "Bundled ${BUNDLED}/2 native libraries"
+          try_bundle "ffi-artifacts/typescript/tasker_ts-x86_64-unknown-linux-gnu.node" \
+                     "workers/typescript/tasker_ts.linux-x64-gnu.node" "linux-x64"
+          try_bundle "ffi-artifacts/typescript/tasker_ts-aarch64-apple-darwin.node" \
+                     "workers/typescript/tasker_ts.darwin-arm64.node" "darwin-arm64"
+          echo "Bundled ${BUNDLED}/2 native modules"
           if [[ "$BUNDLED" -eq 0 ]]; then
-            echo "::warning::No native libraries bundled — package will still work with TASKER_FFI_LIBRARY_PATH"
+            echo "::warning::No native modules bundled — package will still work with TASKER_FFI_MODULE_PATH"
           else
-            ls -lh workers/typescript/native/
+            ls -lh workers/typescript/tasker_ts.*.node
           fi
 
       - name: Publish package

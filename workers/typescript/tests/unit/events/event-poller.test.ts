@@ -12,7 +12,6 @@ import {
   type EventPollerConfig,
 } from '../../../src/events/event-poller.js';
 import type { NapiModule } from '../../../src/ffi/ffi-layer.js';
-import type { FfiStepEvent } from '../../../src/ffi/types.js';
 
 describe('EventPoller', () => {
   let mockModule: NapiModule;

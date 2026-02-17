@@ -4,7 +4,7 @@ set -euo pipefail
 # =============================================================================
 # Restore TypeScript artifacts from CI build
 # =============================================================================
-# Restores the TypeScript dist folder and FFI library from the
+# Restores the TypeScript dist folder and napi-rs FFI library from the
 # typescript-artifacts artifact produced by build-workers.yml
 #
 # Environment variables:
@@ -20,7 +20,8 @@ ARTIFACTS_DIR="${ARTIFACTS_DIR:-artifacts/typescript}"
 echo "Restoring TypeScript artifacts from ${ARTIFACTS_DIR}..."
 
 if [ -d "${ARTIFACTS_DIR}" ]; then
-    # Restore FFI library to target/debug (matches sccache config)
+    # Restore napi-rs FFI library to target/debug
+    # napi-rs produces libtasker_ts.{so,dylib} which is loaded via require() or env var
     mkdir -p target/debug
 
     for lib in libtasker_ts.so libtasker_ts.dylib; do
@@ -35,21 +36,24 @@ if [ -d "${ARTIFACTS_DIR}" ]; then
         fi
     done
 
-    # Verify FFI library and set environment variable
+    # Create .node copy — require() only recognizes .node extension as native modules.
+    # Bun doesn't follow symlinks for .node files, so we hard-copy instead.
     if [ -f target/debug/libtasker_ts.so ]; then
-        echo ""
-        echo "FFI library in target/debug/:"
-        ls -lh target/debug/libtasker_ts.* 2>/dev/null || true
-        TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.so"
-        export TASKER_FFI_LIBRARY_PATH
-        echo "TASKER_FFI_LIBRARY_PATH=$TASKER_FFI_LIBRARY_PATH"
+        cp -f target/debug/libtasker_ts.so target/debug/tasker_ts.node
+        echo "  Created tasker_ts.node from libtasker_ts.so"
     elif [ -f target/debug/libtasker_ts.dylib ]; then
+        cp -f target/debug/libtasker_ts.dylib target/debug/tasker_ts.node
+        echo "  Created tasker_ts.node from libtasker_ts.dylib"
+    fi
+
+    # Verify FFI library and set environment variable
+    if [ -f target/debug/tasker_ts.node ]; then
         echo ""
-        echo "FFI library in target/debug/:"
-        ls -lh target/debug/libtasker_ts.* 2>/dev/null || true
-        TASKER_FFI_LIBRARY_PATH="$(pwd)/target/debug/libtasker_ts.dylib"
-        export TASKER_FFI_LIBRARY_PATH
-        echo "TASKER_FFI_LIBRARY_PATH=$TASKER_FFI_LIBRARY_PATH"
+        echo "FFI module in target/debug/:"
+        ls -lh target/debug/tasker_ts.node target/debug/libtasker_ts.* 2>/dev/null || true
+        TASKER_FFI_MODULE_PATH="$(pwd)/target/debug/tasker_ts.node"
+        export TASKER_FFI_MODULE_PATH
+        echo "TASKER_FFI_MODULE_PATH=$TASKER_FFI_MODULE_PATH"
     else
         echo "  Warning: FFI library not found in artifacts"
     fi

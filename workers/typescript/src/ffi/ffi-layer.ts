@@ -127,7 +127,6 @@ export class FfiLayer {
     }
 
     // Load the .node file — this is a native Node-API module
-    // biome-ignore lint/security/noGlobalEval: require() needed for native .node modules
     const nativeModule = require(path) as NapiModule;
     this.module = nativeModule;
     this.modulePath = path;
@@ -183,28 +182,28 @@ export class FfiLayer {
    * 1. TASKER_FFI_MODULE_PATH environment variable (explicit override)
    * 2. TASKER_FFI_LIBRARY_PATH environment variable (backward compat)
    * 3. Bundled .node file in package directory
+   * 4. .node symlink in cargo target directory (local dev)
+   *
+   * Note: require() only recognizes .node extension as native modules.
+   * If a path points to a .dylib/.so, we look for a .node sibling symlink.
    */
   static findModulePath(): string | null {
     // 1. Check explicit environment variable
     const envPath = process.env.TASKER_FFI_MODULE_PATH;
     if (envPath) {
-      if (!existsSync(envPath)) {
-        console.warn(`TASKER_FFI_MODULE_PATH is set to "${envPath}" but the file does not exist`);
-        return null;
-      }
-      return envPath;
+      const resolved = resolveNodePath(envPath);
+      if (resolved) return resolved;
+      console.warn(`TASKER_FFI_MODULE_PATH is set to "${envPath}" but the file does not exist`);
+      return null;
     }
 
     // 2. Backward compat: check old env var
     const legacyPath = process.env.TASKER_FFI_LIBRARY_PATH;
     if (legacyPath) {
-      if (!existsSync(legacyPath)) {
-        console.warn(
-          `TASKER_FFI_LIBRARY_PATH is set to "${legacyPath}" but the file does not exist`
-        );
-        return null;
-      }
-      return legacyPath;
+      const resolved = resolveNodePath(legacyPath);
+      if (resolved) return resolved;
+      console.warn(`TASKER_FFI_LIBRARY_PATH is set to "${legacyPath}" but the file does not exist`);
+      return null;
     }
 
     // 3. Try bundled .node file
@@ -228,6 +227,28 @@ export class FfiLayer {
   private discoverModulePath(): string | null {
     return FfiLayer.findModulePath();
   }
+}
+
+/**
+ * Resolve a path to a .node file that require() can load.
+ *
+ * require() only recognizes the .node extension as a native addon.
+ * If the given path points to a .dylib/.so, look for a .node sibling
+ * (created by `cargo make build-ffi` as a symlink).
+ */
+function resolveNodePath(path: string): string | null {
+  if (!existsSync(path)) return null;
+
+  // If it already has .node extension, use it directly
+  if (path.endsWith('.node')) return path;
+
+  // For .dylib/.so paths, check for a .node symlink in the same directory
+  const dir = dirname(path);
+  const nodeFile = join(dir, 'tasker_ts.node');
+  if (existsSync(nodeFile)) return nodeFile;
+
+  // Fall back to the original path (may fail at require() time)
+  return path;
 }
 
 /**

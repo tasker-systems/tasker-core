@@ -117,7 +117,8 @@ export class TaskerClient {
     if (options.priority !== undefined) request.priority = options.priority;
     if (options.correlationId !== undefined) request.correlationId = options.correlationId;
     else request.correlationId = crypto.randomUUID();
-    if (options.parentCorrelationId !== undefined) request.parentCorrelationId = options.parentCorrelationId;
+    if (options.parentCorrelationId !== undefined)
+      request.parentCorrelationId = options.parentCorrelationId;
     if (options.idempotencyKey !== undefined) request.idempotencyKey = options.idempotencyKey;
 
     const result = this.getModule().clientCreateTask(request);

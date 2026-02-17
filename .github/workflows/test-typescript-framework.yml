@@ -54,17 +54,12 @@ jobs:
         uses: ./.github/actions/free-disk-space
 
       # ========================================================================
-      # Setup all JavaScript runtimes for multi-runtime FFI testing
+      # Setup runtimes for napi-rs FFI testing
       # ========================================================================
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '20'
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: 'latest'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -101,22 +96,21 @@ jobs:
           path: artifacts/
         continue-on-error: true
 
-      - name: Setup FFI library path
+      - name: Setup FFI module path
         run: |
           cd ../..
           if [ -d artifacts ]; then
             ARTIFACTS_DIR=artifacts cargo-make/scripts/ci-restore-typescript-artifacts.sh
           else
-            echo "⚠️ No artifacts directory found, FFI tests may skip"
+            echo "No artifacts directory found, FFI tests may skip"
           fi
-          if [ -f target/debug/libtasker_ts.so ]; then
-            echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/target/debug/libtasker_ts.so" >> $GITHUB_ENV
-          elif [ -f target/debug/libtasker_ts.dylib ]; then
-            echo "TASKER_FFI_LIBRARY_PATH=$(pwd)/target/debug/libtasker_ts.dylib" >> $GITHUB_ENV
+          # Use .node symlink (created by ci-restore script) — require() needs .node extension
+          if [ -f target/debug/tasker_ts.node ]; then
+            echo "TASKER_FFI_MODULE_PATH=$(pwd)/target/debug/tasker_ts.node" >> $GITHUB_ENV
           else
-            echo "⚠️ No FFI library available - FFI tests will skip"
+            echo "No FFI module available - FFI tests will skip"
           fi
-          ls -la target/debug/libtasker_ts* 2>/dev/null || echo "No FFI library available"
+          ls -la target/debug/tasker_ts.node target/debug/libtasker_ts* 2>/dev/null || echo "No FFI library available"
 
       # ========================================================================
       # Quality Checks and Unit Tests (no FFI required)
@@ -132,28 +126,10 @@ jobs:
           TASKER_ENV: test
 
       # ========================================================================
-      # FFI Integration Tests (multi-runtime)
+      # napi-rs FFI Integration Tests
       # ========================================================================
-      # Note: BunRuntime now extends NodeRuntime (both use koffi via Node-API),
-      # so the separate bun:ffi integration test was removed in TAS-282.
-      # Bun FFI coverage is provided by the Node.js koffi tests below,
-      # which validate the shared koffi code path used by both runtimes.
-
-      - name: Run FFI integration tests (Node.js)
-        run: |
-          npx tsx --test tests/integration/ffi/node-runtime.test.ts 2>&1 | tee ../../target/typescript-ffi-node-results.txt
-          [ ${PIPESTATUS[0]} -eq 0 ] && echo "✅ Node.js FFI tests passed" || echo "⚠️ Node.js FFI tests failed"
-        env:
-          TASKER_ENV: test
-          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
-          REDIS_URL: redis://localhost:6379
-          FFI_BOOTSTRAP_TESTS: "true"
-        continue-on-error: true
-
-      - name: Run FFI integration tests (Deno)
-        run: |
-          deno test --allow-ffi --allow-env --allow-read tests/integration/ffi/deno-runtime.test.ts 2>&1 | tee ../../target/typescript-ffi-deno-results.txt
-          [ ${PIPESTATUS[0]} -eq 0 ] && echo "✅ Deno FFI tests passed" || echo "⚠️ Deno FFI tests failed"
+      - name: Run napi-rs FFI integration tests
+        run: cargo make test-ffi
         env:
           TASKER_ENV: test
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
@@ -213,9 +189,6 @@ jobs:
           name: typescript-framework-test-results
           path: |
             target/typescript-unit-results.txt
-            target/typescript-ffi-bun-results.txt
-            target/typescript-ffi-node-results.txt
-            target/typescript-ffi-deno-results.txt
             target/typescript-client-results.txt
           if-no-files-found: warn
 

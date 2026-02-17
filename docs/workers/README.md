@@ -66,12 +66,12 @@ All workers share the same Rust core (`tasker-worker` crate) for orchestration, 
 | Feature | Rust | Ruby | Python | TypeScript |
 |---------|------|------|--------|------------|
 | **Performance** | Native | GVL-limited | GIL-limited | V8/Bun native |
-| **Integration** | Standalone | Rails/Rack apps | Data pipelines | Node/Bun/Deno apps |
+| **Integration** | Standalone | Rails/Rack apps | Data pipelines | Node/Bun apps |
 | **Handler Style** | Async traits | Class-based | ABC-based | Class-based |
-| **Concurrency** | Tokio async | Thread + FFI poll | Thread + FFI poll | Event loop + FFI poll |
+| **Concurrency** | Tokio async | Thread + FFI poll | Thread + FFI poll | Event loop + native addon |
 | **Deployment** | Binary | Gem + Server | Package + Server | Package + Server |
 | **Headless Mode** | N/A | Library embed | Library embed | Library embed |
-| **Runtimes** | - | MRI | CPython | Bun, Node.js, Deno |
+| **Runtimes** | - | MRI | CPython | Bun, Node.js |
 
 ### When to Use Each
 
@@ -100,9 +100,9 @@ All workers share the same Rust core (`tasker-worker` crate) for orchestration, 
 
 - Modern JavaScript/TypeScript applications
 - Full-stack Node.js teams
-- Edge computing with Bun or Deno
+- High-performance Bun deployments
 - React/Vue/Angular backend services
-- Multi-runtime deployment flexibility
+- Native addon integration via napi-rs
 
 ---
 
@@ -194,8 +194,7 @@ registry.register("my_handler", MyHandler)
 import { createRuntime, HandlerRegistry, EventEmitter, EventPoller, StepExecutionSubscriber } from '@tasker-systems/tasker';
 
 // Bootstrap worker (web server disabled via TOML config)
-const runtime = createRuntime();
-await runtime.load('/path/to/libtasker_ts.dylib');
+const runtime = createRuntime();  // Loads napi-rs module automatically
 runtime.bootstrapWorker({ namespace: 'my-app' });
 
 // Register handlers
@@ -421,18 +420,15 @@ python bin/server.py
 
 ```bash
 # Install dependencies
-cd workers/typescript
+cd workers/typescript-napi
 bun install
-cargo build --release -p tasker-ts
+bun run build  # Builds napi-rs native module
 
 # Run server (Bun)
 bun run bin/server.ts
 
 # Run server (Node.js)
 npx tsx bin/server.ts
-
-# Run server (Deno)
-deno run --allow-ffi --allow-env --allow-net bin/server.ts
 ```
 
 ---

@@ -486,10 +486,7 @@ export class StepExecutionSubscriber {
     result: StepHandlerResult,
     _executionTimeMs: number
   ): Promise<void> {
-    pinoLog.info(
-      { component: 'subscriber', eventId: event.eventId },
-      'submitResult() called'
-    );
+    pinoLog.info({ component: 'subscriber', eventId: event.eventId }, 'submitResult() called');
 
     // TAS-125: Check for checkpoint yield in metadata
     if (result.metadata?.checkpoint_yield === true) {
@@ -610,10 +607,7 @@ export class StepExecutionSubscriber {
    * TAS-290: Flat structure matching #[napi(object)] NapiStepResult.
    * Metadata (executionTimeMs, workerId, etc.) is not passed — Rust side uses defaults.
    */
-  private buildNapiStepResult(
-    event: FfiStepEvent,
-    result: StepHandlerResult
-  ): NapiStepResult {
+  private buildNapiStepResult(event: FfiStepEvent, result: StepHandlerResult): NapiStepResult {
     return {
       stepUuid: event.stepUuid,
       success: result.success,
@@ -629,10 +623,7 @@ export class StepExecutionSubscriber {
   /**
    * Build an error NapiStepResult for handler resolution/execution failures.
    */
-  private buildErrorNapiStepResult(
-    event: FfiStepEvent,
-    errorMessage: string
-  ): NapiStepResult {
+  private buildErrorNapiStepResult(event: FfiStepEvent, errorMessage: string): NapiStepResult {
     return {
       stepUuid: event.stepUuid,
       success: false,
@@ -684,10 +675,7 @@ export class StepExecutionSubscriber {
   /**
    * Handle successful FFI completion submission.
    */
-  private handleFfiSuccess(
-    event: FfiStepEvent,
-    isSuccess: boolean
-  ): void {
+  private handleFfiSuccess(event: FfiStepEvent, isSuccess: boolean): void {
     pinoLog.info(
       { component: 'subscriber', eventId: event.eventId, success: isSuccess },
       'completeStepEvent() returned TRUE - completion accepted by Rust'

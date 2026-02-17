@@ -33,8 +33,7 @@ members = [
   "workers/python",  # TAS-72: PyO3 Python worker
   "workers/ruby/ext/tasker_core",
   "workers/rust",
-  "workers/typescript",  # TAS-100: TypeScript FFI worker
-  "workers/typescript-napi",  # Research: napi-rs FFI spike
+  "workers/typescript",  # TAS-100: TypeScript FFI worker (napi-rs)
   # "workers/wasm",      # Future
 ]
 

@@ -44,7 +44,7 @@ show_banner() {
     log_info "Database URL: ${DATABASE_URL:-unset}"
     log_info "Template Path: ${TASKER_TEMPLATE_PATH:-unset}"
     log_info "Handler Path: ${TYPESCRIPT_HANDLER_PATH:-unset}"
-    log_info "FFI Library: ${TASKER_FFI_LIBRARY_PATH:-unset}"
+    log_info "FFI Module: ${TASKER_FFI_MODULE_PATH:-${TASKER_FFI_LIBRARY_PATH:-unset}}"
     log_info "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
     log_info "User: $(whoami)"
     log_info "Working Directory: $(pwd)"
@@ -101,24 +101,26 @@ validate_typescript_worker_environment() {
         exit 1
     fi
 
-    # Check FFI library
-    if [[ -n "${TASKER_FFI_LIBRARY_PATH:-}" ]]; then
-        if [[ -f "${TASKER_FFI_LIBRARY_PATH}" ]]; then
-            log_info "FFI library found: ${TASKER_FFI_LIBRARY_PATH}"
+    # Check FFI module (napi-rs native addon)
+    # Support both new TASKER_FFI_MODULE_PATH and legacy TASKER_FFI_LIBRARY_PATH
+    local ffi_path="${TASKER_FFI_MODULE_PATH:-${TASKER_FFI_LIBRARY_PATH:-}}"
+    if [[ -n "$ffi_path" ]]; then
+        if [[ -f "$ffi_path" ]]; then
+            log_info "FFI module found: $ffi_path"
         else
-            log_error "FFI library not found at: ${TASKER_FFI_LIBRARY_PATH}"
+            log_error "FFI module not found at: $ffi_path"
             exit 1
         fi
     else
-        # Try to find the library in default locations
-        if [[ -f "/app/lib/libtasker_ts.so" ]]; then
-            export TASKER_FFI_LIBRARY_PATH="/app/lib/libtasker_ts.so"
-            log_info "FFI library found: ${TASKER_FFI_LIBRARY_PATH}"
-        elif [[ -f "/app/lib/libtasker_ts.dylib" ]]; then
-            export TASKER_FFI_LIBRARY_PATH="/app/lib/libtasker_ts.dylib"
-            log_info "FFI library found: ${TASKER_FFI_LIBRARY_PATH}"
+        # Try to find the module in default locations
+        if [[ -f "/app/lib/tasker_ts.node" ]]; then
+            export TASKER_FFI_MODULE_PATH="/app/lib/tasker_ts.node"
+            log_info "FFI module found: ${TASKER_FFI_MODULE_PATH}"
+        elif [[ -f "/app/lib/libtasker_ts.so" ]]; then
+            export TASKER_FFI_MODULE_PATH="/app/lib/libtasker_ts.so"
+            log_info "FFI module found: ${TASKER_FFI_MODULE_PATH}"
         else
-            log_error "FFI library not found. Set TASKER_FFI_LIBRARY_PATH or ensure library is in /app/lib/"
+            log_error "FFI module not found. Set TASKER_FFI_MODULE_PATH or ensure module is in /app/lib/"
             exit 1
         fi
     fi

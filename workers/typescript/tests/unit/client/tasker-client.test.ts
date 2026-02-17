@@ -184,9 +184,7 @@ describe('TaskerClient', () => {
 
       const result = client.getTask('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
 
-      expect(mockModule.clientGetTask).toHaveBeenCalledWith(
-        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-      );
+      expect(mockModule.clientGetTask).toHaveBeenCalledWith('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
       expect(result.task_uuid).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
       expect(result.namespace).toBe('test');
     });

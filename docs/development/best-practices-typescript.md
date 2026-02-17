@@ -492,46 +492,48 @@ export function createTestContext(
 
 ---
 
-## FFI Considerations
+## Native Module Integration (napi-rs)
 
-### Working with Rust Extensions
+### Working with Rust Native Modules
 
 ```typescript
-// FFI bindings use koffi for native library loading
-import { loadFfiLibrary } from '@/ffi/loader';
+// napi-rs provides seamless Rust ↔ JavaScript integration
+import { FfiLayer } from '@/ffi';
 
-// Types are converted automatically:
-// TypeScript object <-> Rust HashMap
+// Types are converted automatically via napi-rs:
+// TypeScript object <-> Rust struct
 // TypeScript array <-> Rust Vec
 // TypeScript string <-> Rust String
+// TypeScript number <-> Rust i32/u32/f64
 
-// Be mindful of async boundaries
-async function processWithFfi(data: unknown): Promise<Result> {
-  // FFI calls may block, wrap appropriately
-  const result = await ffiFunction(data);
-  return result;
+// napi-rs functions are synchronous by default (no blocking)
+const ffi = new FfiLayer();
+const status = ffi.getWorkerStatus();  // Returns JS object directly
+
+// For long-running operations, napi-rs supports async functions
+async function processAsync(data: unknown): Promise<Result> {
+  return await ffi.processAsyncTask(data);  // Rust returns Future
 }
 ```
 
-### Multi-Runtime Support
+### Runtime Support
 
 ```typescript
-// The worker supports Bun, Node.js, and Deno
+// The worker supports Bun (primary) and Node.js via napi-rs
+// napi-rs native modules (.node files) work with both runtimes
+
 // Use runtime-agnostic APIs where possible
 
-// BAD: Node-specific
-import { readFile } from 'fs/promises';
+// BAD: Runtime-specific APIs
+import { readFile } from 'fs/promises';  // Node-only
 
-// GOOD: Use Bun-compatible APIs or abstractions
-const file = await Bun.file(path).text();
+// GOOD: Use cross-runtime APIs
+const file = await Bun.file(path).text();  // Works in Bun
+// Or use Node.js APIs that work in both
+import { readFile } from 'fs/promises';  // Also works in Node.js
 
-// Or use runtime detection
-const runtime = detectRuntime();
-if (runtime === 'bun') {
-  // Bun-specific
-} else {
-  // Node/Deno fallback
-}
+// napi-rs native module works identically in both runtimes
+const ffi = new FfiLayer();  // Same API in Bun and Node.js
 ```
 
 ---

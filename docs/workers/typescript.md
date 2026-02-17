@@ -9,7 +9,7 @@
 
 ---
 
-The TypeScript worker provides a multi-runtime interface for integrating tasker-core workflow execution into TypeScript/JavaScript applications. It supports Bun, Node.js, and Deno runtimes with unified FFI bindings to the Rust worker foundation.
+The TypeScript worker provides a native Node-API (napi-rs) interface for integrating tasker-core workflow execution into TypeScript/JavaScript applications. It supports Bun (primary) and Node.js runtimes with native addon bindings to the Rust worker foundation.
 
 ## Quick Start
 
@@ -29,9 +29,6 @@ bun run bin/server.ts
 
 # With Node.js
 npx tsx bin/server.ts
-
-# With Deno
-deno run --allow-ffi --allow-env --allow-net bin/server.ts
 ```
 
 ### Environment Variables
@@ -42,7 +39,8 @@ deno run --allow-ffi --allow-env --allow-net bin/server.ts
 | `TASKER_ENV` | Environment (test/development/production) | development |
 | `TASKER_CONFIG_PATH` | Path to TOML configuration | Auto-detected |
 | `TASKER_TEMPLATE_PATH` | Path to task templates | Auto-detected |
-| `TASKER_FFI_LIBRARY_PATH` | Path to `libtasker_ts` | Auto-detected |
+| `TASKER_FFI_MODULE_PATH` | Path to napi-rs native module (`.node`) | Auto-detected |
+| `TASKER_FFI_LIBRARY_PATH` | Legacy path variable (deprecated, use MODULE_PATH) | Auto-detected |
 | `RUST_LOG` | Log level (trace/debug/info/warn/error) | info |
 | `PORT` | HTTP server port | 8081 |
 
@@ -63,9 +61,8 @@ import { EventPoller } from '../src/events/event-poller.js';
 import { HandlerRegistry } from '../src/handler/registry.js';
 import { StepExecutionSubscriber } from '../src/subscriber/step-execution-subscriber.js';
 
-// Create runtime for current environment (Bun/Node/Deno)
+// Create runtime (loads napi-rs native module automatically)
 const runtime = createRuntime();
-await runtime.load(libraryPath);
 
 // Bootstrap Rust worker foundation
 const result = runtime.bootstrapWorker({ namespace: 'my-app' });
@@ -111,7 +108,6 @@ import { EventEmitter, EventPoller, HandlerRegistry, StepExecutionSubscriber } f
 
 // Bootstrap worker (headless mode via TOML: web.enabled = false)
 const runtime = createRuntime();
-await runtime.load('/path/to/libtasker_ts.dylib');
 runtime.bootstrapWorker({ namespace: 'my-app' });
 
 // Register handlers
@@ -127,18 +123,18 @@ const poller = new EventPoller(runtime, emitter);
 poller.start();
 ```
 
-### FFI Bridge
+### Native Addon Bridge
 
-TypeScript communicates with the Rust foundation via FFI polling:
+TypeScript communicates with the Rust foundation via napi-rs native addons:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                  TYPESCRIPT FFI BRIDGE                          │
+│                  TYPESCRIPT NAPI-RS BRIDGE                      │
 └────────────────────────────────────────────────────────────────┘
 
    Rust Worker System
           │
-          │ FFI (pollStepEvents)
+          │ Node-API (pollStepEvents)
           ▼
    ┌─────────────────────┐
    │    EventPoller      │
@@ -158,18 +154,17 @@ TypeScript communicates with the Rust foundation via FFI polling:
    │  Handler Execution  │
    └─────────────────────┘
           │
-          │ FFI (completeStepEvent)
+          │ Node-API (completeStepEvent)
           ▼
    Rust Completion Channel
 ```
 
-### Multi-Runtime Support
+### Runtime Support
 
-| Runtime | FFI Library | Status |
-|---------|-------------|--------|
-| **Bun** | koffi | Production |
-| **Node.js** | koffi | Production |
-| **Deno** | Deno.dlopen | Production |
+| Runtime | Native Module | Status |
+|---------|---------------|--------|
+| **Bun** | napi-rs `.node` | Production (Primary) |
+| **Node.js** | napi-rs `.node` | Production |
 
 ---
 
@@ -974,12 +969,10 @@ workers/typescript/
 │   │   └── bootstrap.ts        # Worker initialization
 │   ├── events/
 │   │   ├── event-emitter.ts    # Event pub/sub
-│   │   ├── event-poller.ts     # FFI polling
+│   │   ├── event-poller.ts     # Native module polling
 │   │   └── event-system.ts     # Combined event system
 │   ├── ffi/
-│   │   ├── bun-runtime.ts      # Bun FFI adapter
-│   │   ├── node-runtime.ts     # Node.js FFI adapter
-│   │   ├── deno-runtime.ts     # Deno FFI adapter
+│   │   ├── index.ts            # Native module loader
 │   │   ├── runtime-interface.ts # Common interface
 │   │   └── types.ts            # FFI types
 │   ├── handler/
@@ -1171,13 +1164,13 @@ WORKDIR /app
 # Copy built artifacts
 COPY workers/typescript/dist/ ./dist/
 COPY workers/typescript/package.json ./
-COPY target/release/libtasker_ts.dylib ./lib/
+COPY workers/typescript-napi/*.node ./lib/
 
 # Install production dependencies
 RUN bun install --production
 
 # Set environment
-ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_ts.dylib
+ENV TASKER_FFI_MODULE_PATH=/app/lib/tasker-napi.node
 ENV PORT=8081
 
 EXPOSE 8081

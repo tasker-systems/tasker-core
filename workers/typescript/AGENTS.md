@@ -1,6 +1,6 @@
 # AGENTS.md - TypeScript Worker
 
-**Status**: TAS-100/TAS-101 In Progress | 122 coherence tests | Bun + Node.js + Deno support
+**Status**: TAS-100/TAS-290 | 808+ tests | Bun (napi-rs FFI)
 
 ---
 
@@ -9,21 +9,22 @@
 ### Build Commands
 ```bash
 # Full build (Rust FFI + TypeScript)
-make build
+cargo make build
 
 # Individual targets
-make build-ffi      # Rust cdylib only (release)
-make build-ffi-debug # Rust cdylib (debug, faster)
-make build-ts       # TypeScript only
+cargo make build-ffi        # Rust napi-rs module (debug)
+cargo make build-ffi-release # Rust napi-rs module (release)
+cargo make build-ts          # TypeScript only
 
 # Testing
-make test           # Run all tests
-make check          # lint + typecheck + test
-bun test            # Direct test run
+cargo make test           # Run all tests
+cargo make check          # lint + typecheck + test
+cargo make test-ffi       # napi-rs FFI integration tests
+bun test                  # Direct test run
 
 # Linting
-make lint           # Biome lint
-make typecheck      # TypeScript type check
+cargo make lint           # Biome lint
+cargo make typecheck      # TypeScript type check
 ```
 
 ### Build Output Location
@@ -34,8 +35,8 @@ Build artifacts go to `$CARGO_TARGET_DIR` if set, otherwise `../../target/`:
 # Check your current target directory
 echo ${CARGO_TARGET_DIR:-../../target}
 
-# FFI library location
-ls ${CARGO_TARGET_DIR:-../../target}/release/libtasker_ts.*
+# FFI library location (napi-rs produces standard cdylib naming)
+ls ${CARGO_TARGET_DIR:-../../target}/debug/libtasker_ts.*
 ```
 
 **Local Development Note**: If using external cache (see `~/bin/development_cache_init.sh`),
@@ -49,70 +50,83 @@ This keeps large build caches off the main drive.
 ### Directory Structure
 ```
 workers/typescript/
-├── Cargo.toml          # Rust cdylib crate definition
-├── Makefile            # Unified build system
+├── Cargo.toml          # Rust cdylib crate definition (napi-rs)
+├── build.rs            # napi-build setup
+├── Makefile.toml       # cargo-make task definitions
 ├── package.json        # TypeScript package (Bun/npm)
 ├── src-rust/           # Rust FFI implementation
-│   ├── lib.rs          # FFI exports (#[no_mangle] extern "C")
-│   ├── bridge.rs       # TypeScriptBridgeHandle, global state
-│   ├── conversions.rs  # JSON type conversions
+│   ├── lib.rs          # #[napi] exports
+│   ├── bridge.rs       # Worker lifecycle, global state
+│   ├── client_ffi.rs   # Client API FFI functions
+│   ├── conversions.rs  # Type conversions
 │   ├── error.rs        # Error types
 │   └── ffi_logging.rs  # Structured logging FFI
 ├── src/                # TypeScript source
-│   ├── ffi/            # Runtime detection, FFI types
+│   ├── ffi/            # FfiLayer, types
 │   ├── events/         # Event emitter, poller
+│   ├── client/         # Client API wrapper
+│   ├── handler/        # Handler dispatch
+│   ├── registry/       # Handler registry
+│   ├── server/         # WorkerServer
 │   └── index.ts        # Package entry point
 ├── tests/              # Test suites
-│   └── unit/           # Coherence tests (no FFI mocking)
+│   ├── unit/           # Unit tests (no FFI required)
+│   └── integration/    # FFI integration tests
 └── dist/               # Built TypeScript output
 ```
 
 ### Runtime Support
 
-The TypeScript worker supports three runtimes with a unified API:
+napi-rs produces a native Node-API module (`.node` file) that works with any
+Node-API compatible runtime:
 
-| Runtime | FFI Method | Status |
-|---------|------------|--------|
-| Bun | koffi (Node-API) | Primary |
-| Node.js | koffi (Node-API) | Supported |
-| Deno | `Deno.dlopen` | Supported |
+| Runtime | Loading Method | Status |
+|---------|---------------|--------|
+| Bun | `require()` via napi-rs | Primary |
+| Node.js | `require()` via napi-rs | Supported |
 
-Runtime detection happens automatically via `src/ffi/runtime.ts`.
+### FFI Module
 
-### FFI Library
-
-The Rust cdylib (`libtasker_ts.{dylib,so,dll}`) exports:
+The Rust napi-rs module (`libtasker_ts.{dylib,so}`) exports functions via `#[napi]`:
 
 - `get_version()` / `get_rust_version()` - Version info
 - `health_check()` - Library health
-- `bootstrap_worker(config_json)` - Start worker
+- `bootstrap_worker(config)` - Start worker
 - `stop_worker()` / `get_worker_status()` - Lifecycle
 - `poll_step_events()` - Pull events from dispatch channel
-- `complete_step_event(event_id, result_json)` - Return results
+- `complete_step_event(event_id, result)` - Return results
 - `get_ffi_dispatch_metrics()` - Queue metrics
 - `log_error/warn/info/debug/trace()` - Structured logging
+- `client_create_task()` / `client_get_task()` etc. - Client API
+
+napi-rs auto-converts snake_case to camelCase at the FFI boundary and handles
+JSON serialization via serde — no manual C FFI or JSON string passing needed.
 
 ---
 
 ## Testing Strategy
 
-### Coherence Tests (Current - TAS-101)
-Unit tests that verify TypeScript logic without FFI:
+### Unit Tests
+Tests that verify TypeScript logic without FFI:
 - Type coherence and JSON serialization
 - Event emitter functionality
-- Runtime detection
-- Event poller with mock runtime
+- Handler registry and dispatch
+- WorkerServer lifecycle
 
 ```bash
 bun test                    # Run all tests
-bun test tests/unit/ffi/    # FFI type tests only
+bun test tests/unit/        # Unit tests only
 ```
 
-### Integration Tests (Future - TAS-105)
-FFI integration tests that load the actual Rust library:
-- Bun FFI compatibility
-- Node.js FFI compatibility
-- Deno FFI compatibility
+### FFI Integration Tests
+Tests that load the actual napi-rs Rust module:
+- Bootstrap and lifecycle
+- Step event polling and completion
+- Client API operations
+
+```bash
+cargo make test-ffi         # Build FFI + run integration tests
+```
 
 ---
 
@@ -120,8 +134,8 @@ FFI integration tests that load the actual Rust library:
 
 The TypeScript worker is part of the CI pipeline:
 
-1. **build-workers.yml**: `make build` compiles Rust FFI + TypeScript
-2. **test-typescript-framework.yml**: Runs `bun test` for coherence tests
+1. **build-workers.yml**: `cargo make build` compiles napi-rs FFI + TypeScript
+2. **test-typescript-framework.yml**: Unit tests, FFI integration tests, client API tests
 3. Artifacts uploaded: `dist/`, `libtasker_ts.{so,dylib}`
 
 ---
@@ -130,11 +144,10 @@ The TypeScript worker is part of the CI pipeline:
 
 ### Adding a New FFI Function
 
-1. Add `#[no_mangle] pub extern "C" fn` in `src-rust/lib.rs`
-2. Add type definition in `src/ffi/types.ts`
-3. Add runtime binding in `src/ffi/node-runtime.ts` (and deno)
-4. Add to `TaskerRuntime` interface in `src/ffi/runtime-interface.ts`
-5. Add coherence test in `tests/unit/ffi/`
+1. Add `#[napi]` function in `src-rust/` (bridge.rs or client_ffi.rs)
+2. Add TypeScript type in `src/ffi/types.ts`
+3. Add to `NapiModule` interface in `src/ffi/ffi-layer.ts`
+4. Add test in `tests/unit/` or `tests/integration/ffi/`
 
 ### Adding a New Event
 
@@ -147,13 +160,16 @@ The TypeScript worker is part of the CI pipeline:
 
 ## Troubleshooting
 
-### "Library not found" errors
+### "napi-rs native module not found" errors
 ```bash
 # Check library exists
-ls ${CARGO_TARGET_DIR:-../../target}/release/libtasker_ts.*
+ls ${CARGO_TARGET_DIR:-../../target}/debug/libtasker_ts.*
 
 # Rebuild if missing
-make build-ffi
+cargo make build-ffi
+
+# Or set explicit path
+export TASKER_FFI_MODULE_PATH=$(pwd)/../../target/debug/libtasker_ts.dylib
 ```
 
 ### "Lockfile had changes" in CI
@@ -166,6 +182,6 @@ git add bun.lock
 ### Type errors after FFI changes
 ```bash
 # Regenerate types and rebuild
-make clean-ts
-make build-ts
+cargo make clean-ts
+cargo make build-ts
 ```
