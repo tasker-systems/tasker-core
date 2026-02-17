@@ -22,7 +22,7 @@ The tasker-core workspace provides four worker implementations for executing wor
 | [Rust Worker](rust.md) | Native Rust implementation |
 | [Ruby Worker](ruby.md) | Ruby gem for Rails integration |
 | [Python Worker](python.md) | Python package for data pipelines |
-| [TypeScript Worker](typescript.md) | TypeScript/JS for Bun/Node/Deno |
+| [TypeScript Worker](typescript.md) | TypeScript/JS for Bun/Node.js |
 
 ---
 
@@ -57,7 +57,7 @@ All workers share the same Rust core (`tasker-worker` crate) for orchestration, 
     │  Worker   │   │  Worker   │   │  Worker   │   │   Worker    │
     │───────────│   │───────────│   │───────────│   │─────────────│
     │ Native    │   │ FFI Bridge│   │ FFI Bridge│   │ FFI Bridge  │
-    │ Handlers  │   │ + Gem     │   │ + Package │   │ Bun/Node/Deno│
+    │ Handlers  │   │ + Gem     │   │ + Package │   │ Bun/Node.js  │
     └───────────┘   └───────────┘   └───────────┘   └─────────────┘
 ```
 
@@ -71,7 +71,7 @@ All workers share the same Rust core (`tasker-worker` crate) for orchestration, 
 | **Concurrency** | Tokio async | Thread + FFI poll | Thread + FFI poll | Event loop + native addon |
 | **Deployment** | Binary | Gem + Server | Package + Server | Package + Server |
 | **Headless Mode** | N/A | Library embed | Library embed | Library embed |
-| **Runtimes** | - | MRI | CPython | Bun, Node.js |
+| **Runtimes** | - | MRI | CPython | Bun (primary), Node.js |
 
 ### When to Use Each
 
@@ -191,23 +191,15 @@ registry.register("my_handler", MyHandler)
 **TypeScript (in application)**:
 
 ```typescript
-import { createRuntime, HandlerRegistry, EventEmitter, EventPoller, StepExecutionSubscriber } from '@tasker-systems/tasker';
+import { WorkerServer } from '@tasker-systems/tasker';
 
 // Bootstrap worker (web server disabled via TOML config)
-const runtime = createRuntime();  // Loads napi-rs module automatically
-runtime.bootstrapWorker({ namespace: 'my-app' });
+const server = new WorkerServer();
+await server.start({ namespace: 'my-app' });
 
 // Register handlers
-const registry = new HandlerRegistry();
-registry.register('my_handler', MyHandler);
-
-// Start event processing
-const emitter = new EventEmitter();
-const subscriber = new StepExecutionSubscriber(emitter, registry, runtime, {});
-subscriber.start();
-
-const poller = new EventPoller(runtime, emitter);
-poller.start();
+const handlerSystem = server.getHandlerSystem();
+handlerSystem.register('my_handler', MyHandler);
 ```
 
 ---
@@ -420,9 +412,10 @@ python bin/server.py
 
 ```bash
 # Install dependencies
-cd workers/typescript-napi
+cd workers/typescript
 bun install
-bun run build  # Builds napi-rs native module
+bun run build:napi   # Build napi-rs native addon
+bun run build        # Build TypeScript
 
 # Run server (Bun)
 bun run bin/server.ts

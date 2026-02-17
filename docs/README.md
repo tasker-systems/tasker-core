@@ -162,7 +162,6 @@ docs/
 │   ├── patterns-and-practices.md       # Common patterns
 │   ├── api-convergence-matrix.md       # Cross-language API reference
 │   ├── example-handlers.md             # Code examples
-│   ├── memory-management.md            # FFI memory patterns
 │   ├── ruby.md                         # Ruby worker
 │   ├── python.md                       # Python worker
 │   ├── typescript.md                   # TypeScript worker

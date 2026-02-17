@@ -14,9 +14,8 @@ publish = false  # Internal crate, not published to crates.io
 # TAS-145: Ignore false positives from cargo-machete
 [package.metadata.cargo-machete]
 ignored = [
-  # Used in FFI layer but not detected by analysis
-  "chrono",
-  "dotenvy",
+  "dotenvy",     # Used via dotenvy::dotenv() in bridge.rs bootstrap
+  "napi-build",  # Used in build.rs (machete doesn't detect build-dependencies)
 ]
 
 [lib]
@@ -28,14 +27,11 @@ path = "src-rust/lib.rs"
 # napi-rs core (TAS-290: replaces koffi C FFI)
 napi = { version = "3", features = ["napi9", "serde-json"] }
 napi-derive = "3"
-# Error handling
-anyhow = { workspace = true }
 # Time handling
 chrono = { workspace = true }
 # Environment variable loading
 dotenvy = { workspace = true }
-# Serialization (for internal conversions, NOT for FFI boundary)
-serde = { workspace = true }
+# Serialization (serde-json feature on napi handles FFI boundary)
 serde_json = { workspace = true }
 # Core tasker libraries
 tasker-shared = { path = "../../tasker-shared" }

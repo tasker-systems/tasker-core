@@ -14,11 +14,21 @@ import pino, { type Logger, type LoggerOptions } from 'pino';
 import type { StepExecutionReceivedPayload, TaskerEventEmitter } from '../events/event-emitter.js';
 import { StepEventNames } from '../events/event-names.js';
 import type { NapiModule } from '../ffi/ffi-layer.js';
-import type { FfiStepEvent, NapiCheckpointYieldData } from '../ffi/types.js';
+import type {
+  NapiCheckpointYieldData,
+  NapiStepEvent,
+  NapiStepExecutionMetadata,
+  NapiStepExecutionResult,
+} from '../ffi/types.js';
+
+/** @internal Alias for migration — use NapiStepEvent directly in new code */
+type FfiStepEvent = NapiStepEvent;
+
 import type { ExecutableHandler } from '../handler/base.js';
 import { logDebug, logError, logInfo, logWarn } from '../logging/index.js';
+import { ErrorType } from '../types/error-type.js';
 import { StepContext } from '../types/step-context.js';
-import type { StepHandlerResult } from '../types/step-handler-result.js';
+import { StepHandlerResult } from '../types/step-handler-result.js';
 
 // Create a pino logger for the subscriber (for debugging)
 const loggerOptions: LoggerOptions = {
@@ -325,6 +335,11 @@ export class StepExecutionSubscriber {
 
   /**
    * Process a step execution event.
+   *
+   * All paths produce a StepHandlerResult — the handler's result or a
+   * system-level failure. This mirrors Python's pattern where system errors
+   * (handler not found, timeout, uncaught exception) become
+   * StepHandlerResult.failure() with appropriate error_type and retryable.
    */
   private async processEvent(event: FfiStepEvent): Promise<void> {
     pinoLog.info({ component: 'subscriber', eventId: event.eventId }, 'processEvent() starting');
@@ -332,9 +347,40 @@ export class StepExecutionSubscriber {
     this.activeHandlers++;
     const startTime = Date.now();
 
+    const { handlerResult, handlerName, handlerWasInvoked } =
+      await this.resolveAndExecuteHandler(event);
+
+    // Single submission path — the subscriber's only job here is to wrap
+    // the handler result with execution metadata (timing, worker_id, step_uuid).
+    const executionTimeMs = Date.now() - startTime;
+    await this.submitResult(event, handlerResult, executionTimeMs);
+
+    this.emitCompletionEvents(
+      event,
+      handlerResult,
+      handlerName,
+      executionTimeMs,
+      handlerWasInvoked
+    );
+    this.activeHandlers--;
+  }
+
+  /**
+   * Resolve handler from registry and execute it, returning a StepHandlerResult.
+   *
+   * System-level failures (no handler name, handler not found, uncaught exception)
+   * are converted to StepHandlerResult.failure() with appropriate error_type and
+   * retryable — the caller always gets a result, never an exception.
+   */
+  private async resolveAndExecuteHandler(event: FfiStepEvent): Promise<{
+    handlerResult: StepHandlerResult;
+    handlerName: string | null;
+    handlerWasInvoked: boolean;
+  }> {
+    let handlerName: string | null = null;
+
     try {
-      // Extract handler name from step definition
-      const handlerName = this.extractHandlerName(event);
+      handlerName = this.extractHandlerName(event);
       pinoLog.info(
         { component: 'subscriber', eventId: event.eventId, handlerName },
         'Extracted handler name'
@@ -345,21 +391,22 @@ export class StepExecutionSubscriber {
           { component: 'subscriber', eventId: event.eventId },
           'No handler name found!'
         );
-        await this.submitErrorResult(event, 'No handler name found in step definition', startTime);
-        return;
+        return {
+          handlerResult: StepHandlerResult.failure(
+            'No handler name found in step definition',
+            ErrorType.PERMANENT_ERROR,
+            false
+          ),
+          handlerName,
+          handlerWasInvoked: false,
+        };
       }
 
       pinoLog.info(
-        {
-          component: 'subscriber',
-          eventId: event.eventId,
-          stepUuid: event.stepUuid,
-          handlerName,
-        },
+        { component: 'subscriber', eventId: event.eventId, stepUuid: event.stepUuid, handlerName },
         'Processing step event'
       );
 
-      // Emit started event
       this.emitter.emit(StepEventNames.STEP_EXECUTION_STARTED, {
         eventId: event.eventId,
         stepUuid: event.stepUuid,
@@ -377,58 +424,23 @@ export class StepExecutionSubscriber {
 
       if (!handler) {
         pinoLog.error({ component: 'subscriber', handlerName }, 'Handler not found in registry!');
-        await this.submitErrorResult(event, `Handler not found: ${handlerName}`, startTime);
-        return;
+        return {
+          handlerResult: StepHandlerResult.failure(
+            `Handler not found: ${handlerName}`,
+            'handler_not_found',
+            false
+          ),
+          handlerName,
+          handlerWasInvoked: false,
+        };
       }
 
-      // Create context from FFI event
-      pinoLog.info({ component: 'subscriber', handlerName }, 'Creating StepContext from FFI event');
-      const context = StepContext.fromFfiEvent(event, handlerName);
-      pinoLog.info(
-        { component: 'subscriber', handlerName },
-        'StepContext created, executing handler'
-      );
-
-      // Execute handler with timeout
-      const result = await this.executeWithTimeout(
-        () => handler.call(context),
-        this.handlerTimeoutMs
-      );
-
-      pinoLog.info(
-        { component: 'subscriber', handlerName, success: result.success },
-        'Handler execution completed'
-      );
-
-      const executionTimeMs = Date.now() - startTime;
-
-      // Submit result to Rust
-      await this.submitResult(event, result, executionTimeMs);
-
-      // Emit completed/failed event
-      if (result.success) {
-        this.emitter.emit(StepEventNames.STEP_EXECUTION_COMPLETED, {
-          eventId: event.eventId,
-          stepUuid: event.stepUuid,
-          handlerName,
-          executionTimeMs,
-          timestamp: new Date(),
-        });
-      } else {
-        this.emitter.emit(StepEventNames.STEP_EXECUTION_FAILED, {
-          eventId: event.eventId,
-          stepUuid: event.stepUuid,
-          handlerName,
-          error: result.errorMessage,
-          executionTimeMs,
-          timestamp: new Date(),
-        });
-      }
-
-      this.processedCount++;
+      return await this.invokeHandler(event, handler, handlerName);
     } catch (error) {
-      this.errorCount++;
+      // Uncaught exception — system-level error.
+      // Use the error class name as the error type (matches Python pattern).
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorTypeName = error instanceof Error ? error.constructor.name : 'Error';
 
       logError('Handler execution failed', {
         component: 'subscriber',
@@ -437,18 +449,86 @@ export class StepExecutionSubscriber {
         error_message: errorMessage,
       });
 
-      await this.submitErrorResult(event, errorMessage, startTime);
-
-      this.emitter.emit(StepEventNames.STEP_EXECUTION_FAILED, {
-        eventId: event.eventId,
-        stepUuid: event.stepUuid,
-        error: errorMessage,
-        executionTimeMs: Date.now() - startTime,
-        timestamp: new Date(),
-      });
-    } finally {
-      this.activeHandlers--;
+      return {
+        handlerResult: StepHandlerResult.failure(errorMessage, errorTypeName, true, {
+          traceback: error instanceof Error ? error.stack : undefined,
+        }),
+        handlerName,
+        handlerWasInvoked: false,
+      };
     }
+  }
+
+  /**
+   * Create context and invoke the handler, returning its result.
+   *
+   * handlerWasInvoked is true only if the handler returned (not threw).
+   */
+  private async invokeHandler(
+    event: FfiStepEvent,
+    handler: ExecutableHandler,
+    handlerName: string
+  ): Promise<{
+    handlerResult: StepHandlerResult;
+    handlerName: string;
+    handlerWasInvoked: boolean;
+  }> {
+    pinoLog.info({ component: 'subscriber', handlerName }, 'Creating StepContext from FFI event');
+    const context = StepContext.fromFfiEvent(event, handlerName);
+    pinoLog.info(
+      { component: 'subscriber', handlerName },
+      'StepContext created, executing handler'
+    );
+
+    const handlerResult = await this.executeWithTimeout(
+      () => handler.call(context),
+      this.handlerTimeoutMs
+    );
+
+    pinoLog.info(
+      { component: 'subscriber', handlerName, success: handlerResult.success },
+      'Handler execution completed'
+    );
+
+    return { handlerResult, handlerName, handlerWasInvoked: true };
+  }
+
+  /**
+   * Update counters and emit observability events after step completion.
+   *
+   * A handler returning failure() is still "processed" — the handler ran and
+   * gave a definitive answer. Only system-level errors (handler not found,
+   * timeout, uncaught exception) count as "errors".
+   */
+  private emitCompletionEvents(
+    event: FfiStepEvent,
+    handlerResult: StepHandlerResult,
+    handlerName: string | null,
+    executionTimeMs: number,
+    handlerWasInvoked: boolean
+  ): void {
+    const name = handlerName ?? 'unknown';
+
+    if (handlerResult.success || handlerWasInvoked) {
+      // Handler ran and gave a definitive answer (success or explicit failure)
+      this.processedCount++;
+    } else {
+      // System-level error — handler couldn't be found, timed out, or threw
+      this.errorCount++;
+    }
+
+    const eventName = handlerResult.success
+      ? StepEventNames.STEP_EXECUTION_COMPLETED
+      : StepEventNames.STEP_EXECUTION_FAILED;
+
+    this.emitter.emit(eventName, {
+      eventId: event.eventId,
+      stepUuid: event.stepUuid,
+      handlerName: name,
+      ...(handlerResult.success ? {} : { error: handlerResult.errorMessage }),
+      executionTimeMs,
+      timestamp: new Date(),
+    });
   }
 
   /**
@@ -587,93 +667,63 @@ export class StepExecutionSubscriber {
   }
 
   /**
-   * Submit an error result via FFI (for handler resolution/execution failures).
-   */
-  private async submitErrorResult(
-    event: FfiStepEvent,
-    errorMessage: string,
-    startTime: number
-  ): Promise<void> {
-    const executionTimeMs = Date.now() - startTime;
-    const serdeResult = this.buildErrorStepExecutionResult(event, errorMessage, executionTimeMs);
-    const accepted = await this.sendCompletionViaFfi(event, serdeResult, false);
-    if (accepted) {
-      this.errorCount++;
-    }
-  }
-
-  /**
-   * Build a serde-compatible StepExecutionResult from a handler result.
+   * Build a NapiStepExecutionResult from a StepHandlerResult.
    *
-   * Uses snake_case keys matching the Rust StepExecutionResult serde field names.
-   * This mirrors Python's depythonize() and Ruby's serde_magnus::deserialize() approach.
+   * The subscriber's only job here is to WRAP the handler result with
+   * execution metadata (timing, worker_id, step_uuid). All handler decisions
+   * (success, retryable, errorType, errorCode, orchestrationMetadata) are
+   * passed through faithfully — the subscriber does not re-interpret them.
+   *
+   * This mirrors Python's _submit_result() which calls
+   * StepExecutionResult.success_result() or .failure_result() passing
+   * handler fields straight through.
+   *
+   * napi-rs #[napi(object)] maps Option<T> to `?: T`. With
+   * exactOptionalPropertyTypes, optional props must be OMITTED (not null
+   * or undefined) — hence the conditional spread pattern.
    */
   private buildStepExecutionResult(
     event: FfiStepEvent,
     result: StepHandlerResult,
     executionTimeMs: number
-  ): Record<string, unknown> {
+  ): NapiStepExecutionResult {
     const now = new Date().toISOString();
-    const base: Record<string, unknown> = {
-      step_uuid: event.stepUuid,
+
+    // Execution metadata: timing + worker identity + handler-provided fields
+    const metadata: NapiStepExecutionMetadata = {
+      executionTimeMs,
+      completedAt: now,
+      ...(this.workerId != null && { workerId: this.workerId }),
+      ...(Object.keys(result.metadata).length > 0 && { custom: result.metadata }),
+      // Pass through handler's classification — subscriber doesn't interpret these
+      ...(result.retryable != null && { retryable: result.retryable }),
+      ...(result.errorType != null && { errorType: result.errorType }),
+      ...(result.errorCode != null && { errorCode: result.errorCode }),
+    };
+
+    const napiResult: NapiStepExecutionResult = {
+      stepUuid: event.stepUuid,
       success: result.success,
       result: result.result ?? {},
       status: result.success ? 'completed' : 'failed',
-      metadata: {
-        execution_time_ms: executionTimeMs,
-        worker_id: this.workerId,
-        completed_at: now,
-        custom: result.metadata ?? {},
-        retryable: result.retryable,
-        error_type: result.errorType ?? null,
-        error_code: result.errorCode ?? null,
-      },
-      orchestration_metadata: null,
+      metadata,
     };
 
+    // Error details — only present when handler reported failure.
+    // All fields come from the handler's StepHandlerResult.
     if (!result.success) {
-      base.error = {
+      napiResult.error = {
         message: result.errorMessage ?? 'Unknown error',
-        error_type: result.errorType ?? 'handler_error',
-        retryable: result.retryable ?? false,
-        status_code: null,
-        backtrace: null,
-        context: {},
+        ...(result.errorType != null && { errorType: result.errorType }),
+        ...(result.retryable != null && { retryable: result.retryable }),
       };
     }
 
-    return base;
-  }
+    if (result.orchestrationMetadata != null) {
+      napiResult.orchestrationMetadata = result.orchestrationMetadata;
+    }
 
-  /**
-   * Build an error StepExecutionResult for handler resolution/execution failures.
-   */
-  private buildErrorStepExecutionResult(
-    event: FfiStepEvent,
-    errorMessage: string,
-    executionTimeMs: number
-  ): Record<string, unknown> {
-    return {
-      step_uuid: event.stepUuid,
-      success: false,
-      result: {},
-      status: 'error',
-      metadata: {
-        execution_time_ms: executionTimeMs,
-        worker_id: this.workerId,
-        completed_at: new Date().toISOString(),
-        retryable: true,
-      },
-      error: {
-        message: errorMessage,
-        error_type: 'execution_error',
-        retryable: true,
-        status_code: null,
-        backtrace: null,
-        context: {},
-      },
-      orchestration_metadata: null,
-    };
+    return napiResult;
   }
 
   /**
@@ -683,7 +733,7 @@ export class StepExecutionSubscriber {
    */
   private async sendCompletionViaFfi(
     event: FfiStepEvent,
-    serdeResult: Record<string, unknown>,
+    napiResult: NapiStepExecutionResult,
     isSuccess: boolean
   ): Promise<boolean> {
     pinoLog.info(
@@ -691,14 +741,14 @@ export class StepExecutionSubscriber {
         component: 'subscriber',
         eventId: event.eventId,
         stepUuid: event.stepUuid,
-        success: serdeResult.success,
-        status: serdeResult.status,
+        success: napiResult.success,
+        status: napiResult.status,
       },
       'About to call module.completeStepEvent()'
     );
 
     try {
-      const ffiResult = this.module.completeStepEvent(event.eventId, serdeResult);
+      const ffiResult = this.module.completeStepEvent(event.eventId, napiResult);
 
       if (ffiResult) {
         this.handleFfiSuccess(event, isSuccess);

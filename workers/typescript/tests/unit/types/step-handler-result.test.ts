@@ -179,6 +179,7 @@ describe('StepHandlerResult', () => {
         error_code: null,
         retryable: true,
         metadata: { timing: 100 },
+        orchestration_metadata: null,
       });
     });
 
@@ -200,6 +201,7 @@ describe('StepHandlerResult', () => {
         error_code: 'INVALID_EMAIL',
         retryable: false,
         metadata: { field: 'email' },
+        orchestration_metadata: null,
       });
     });
 

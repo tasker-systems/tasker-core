@@ -57,12 +57,12 @@ export declare function clientListTaskSteps(taskUuid: string): NapiClientResult
 /**
  * Complete a step event with the handler's result.
  *
- * Accepts a serde_json::Value (JavaScript object) and deserializes it into
- * a StepExecutionResult. This mirrors the Python (depythonize) and Ruby
- * (serde_magnus::deserialize) approaches — the language side builds a full
- * serde-compatible object with snake_case keys.
+ * Accepts a typed `NapiStepExecutionResult` (auto-generated TypeScript types)
+ * and converts it to the shared `StepExecutionResult`. This mirrors the
+ * Python (depythonize) and Ruby (serde_magnus::deserialize) pattern —
+ * the language side builds a typed object and Rust converts it internally.
  */
-export declare function completeStepEvent(eventId: string, result: any): boolean
+export declare function completeStepEvent(eventId: string, result: NapiStepExecutionResult): boolean
 
 /** Get FFI dispatch metrics. */
 export declare function getFfiDispatchMetrics(): NapiDispatchMetrics
@@ -196,6 +196,63 @@ export interface NapiStepEvent {
   workflowStep: NapiWorkflowStep
   stepDefinition: NapiStepDefinition
   dependencyResults: Record<string, NapiDependencyResult>
+}
+
+/** Error details for failed step executions. */
+export interface NapiStepExecutionError {
+  /** Human-readable error message */
+  message: string
+  /** Error type/category for classification */
+  errorType?: string
+  /** Whether this error is retryable */
+  retryable?: boolean
+  /** HTTP status code if applicable */
+  statusCode?: number
+  /** Stack trace lines (for debugging) */
+  backtrace?: any
+  /** Additional error context */
+  context?: any
+}
+
+/** Execution metadata for step results. */
+export interface NapiStepExecutionMetadata {
+  /** Execution time in milliseconds */
+  executionTimeMs: number
+  /** Worker identifier */
+  workerId?: string
+  /** When the step completed (ISO 8601 string) */
+  completedAt: string
+  /** Whether the operation is retryable on failure */
+  retryable?: boolean
+  /** Error type classification (when success=false) */
+  errorType?: string
+  /** Error code for categorization (when success=false) */
+  errorCode?: string
+  /** Additional custom metadata */
+  custom?: any
+}
+
+/**
+ * Step execution result sent back from TypeScript handlers.
+ *
+ * Auto-generates TypeScript types via napi-rs `#[napi(object)]`.
+ * Convert to the shared `StepExecutionResult` via `into_rust()`.
+ */
+export interface NapiStepExecutionResult {
+  /** Step UUID (string form of Uuid) */
+  stepUuid: string
+  /** Whether the handler executed successfully */
+  success: boolean
+  /** Handler result data (may be empty `{}` for failures) */
+  result: any
+  /** Status: "completed", "failed", or "error" */
+  status: string
+  /** Execution metadata */
+  metadata: NapiStepExecutionMetadata
+  /** Error details (present when success=false) */
+  error?: NapiStepExecutionError
+  /** Orchestration metadata for workflow coordination (rarely used) */
+  orchestrationMetadata?: any
 }
 
 export interface NapiTaskInfo {

@@ -265,6 +265,7 @@ rm -rf .pytest_cache/
 rm -rf .coverage
 rm -rf htmlcov/
 rm -rf *.egg-info/
+rm -f python/tasker_core/*.so python/tasker_core/*.pyd python/tasker_core/*.dylib
 find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 echo "✓ Clean complete"
 '''

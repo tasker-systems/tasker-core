@@ -859,7 +859,7 @@ $COMPOSE_CMD -f docker/docker-compose.dual-pg.test.yml down -v
 
 [tasks.clean]
 description = "Clean all build artifacts"
-dependencies = ["clean-rust", "clean-workers"]
+dependencies = ["clean-workers", "clean-rust"]
 
 [tasks.clean-rust]
 description = "Clean Rust build artifacts"

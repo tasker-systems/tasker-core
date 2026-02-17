@@ -15,7 +15,12 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use tasker_shared::events::domain_events::{DomainEvent, DomainEventPublisher};
-use tasker_shared::messaging::StepExecutionResult as RustStepExecutionResult;
+use tasker_shared::messaging::execution_types::{
+    StepExecutionError as RustStepExecutionError,
+    StepExecutionMetadata as RustStepExecutionMetadata,
+    StepExecutionResult as RustStepExecutionResult,
+};
+use tasker_shared::messaging::message::OrchestrationMetadata;
 use tasker_shared::models::core::batch_worker::CheckpointYieldData;
 use tasker_worker::worker::{
     services::CheckpointService, DomainEventCallback, FfiDispatchChannel, FfiDispatchChannelConfig,
@@ -226,6 +231,143 @@ pub struct NapiCheckpointYieldData {
     pub cursor: serde_json::Value,
     pub items_processed: i64,
     pub accumulated_results: Option<serde_json::Value>,
+}
+
+// =============================================================================
+// Step Execution Result (TypeScript → Rust)
+//
+// These #[napi(object)] structs provide auto-generated TypeScript types,
+// keeping the Rust↔TypeScript contract in sync. napi-rs auto-converts
+// snake_case Rust fields to camelCase JavaScript properties.
+//
+// The conversion to shared `StepExecutionResult` happens in Rust,
+// mirroring Python (depythonize) and Ruby (serde_magnus::deserialize).
+// =============================================================================
+
+/// Step execution result sent back from TypeScript handlers.
+///
+/// Auto-generates TypeScript types via napi-rs `#[napi(object)]`.
+/// Convert to the shared `StepExecutionResult` via `into_rust()`.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiStepExecutionResult {
+    /// Step UUID (string form of Uuid)
+    pub step_uuid: String,
+    /// Whether the handler executed successfully
+    pub success: bool,
+    /// Handler result data (may be empty `{}` for failures)
+    pub result: serde_json::Value,
+    /// Status: "completed", "failed", or "error"
+    pub status: String,
+    /// Execution metadata
+    pub metadata: NapiStepExecutionMetadata,
+    /// Error details (present when success=false)
+    pub error: Option<NapiStepExecutionError>,
+    /// Orchestration metadata for workflow coordination (rarely used)
+    pub orchestration_metadata: Option<serde_json::Value>,
+}
+
+/// Execution metadata for step results.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiStepExecutionMetadata {
+    /// Execution time in milliseconds
+    pub execution_time_ms: f64,
+    /// Worker identifier
+    pub worker_id: Option<String>,
+    /// When the step completed (ISO 8601 string)
+    pub completed_at: String,
+    /// Whether the operation is retryable on failure
+    pub retryable: Option<bool>,
+    /// Error type classification (when success=false)
+    pub error_type: Option<String>,
+    /// Error code for categorization (when success=false)
+    pub error_code: Option<String>,
+    /// Additional custom metadata
+    pub custom: Option<serde_json::Value>,
+}
+
+/// Error details for failed step executions.
+#[napi(object)]
+#[derive(Debug)]
+pub struct NapiStepExecutionError {
+    /// Human-readable error message
+    pub message: String,
+    /// Error type/category for classification
+    pub error_type: Option<String>,
+    /// Whether this error is retryable
+    pub retryable: Option<bool>,
+    /// HTTP status code if applicable
+    pub status_code: Option<i32>,
+    /// Stack trace lines (for debugging)
+    pub backtrace: Option<serde_json::Value>,
+    /// Additional error context
+    pub context: Option<serde_json::Value>,
+}
+
+impl NapiStepExecutionResult {
+    /// Convert from the napi boundary type to the shared Rust type.
+    fn into_rust(self) -> std::result::Result<RustStepExecutionResult, NapiFfiError> {
+        let step_uuid = Uuid::parse_str(&self.step_uuid)
+            .map_err(|e| NapiFfiError::InvalidArgument(format!("Invalid step UUID: {e}")))?;
+
+        let completed_at = chrono::DateTime::parse_from_rfc3339(&self.metadata.completed_at)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|_| chrono::Utc::now());
+
+        let custom_metadata: HashMap<String, serde_json::Value> = self
+            .metadata
+            .custom
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+
+        let metadata = RustStepExecutionMetadata {
+            execution_time_ms: self.metadata.execution_time_ms as i64,
+            handler_version: None,
+            retryable: self.metadata.retryable.unwrap_or(true),
+            completed_at,
+            worker_id: self.metadata.worker_id,
+            worker_hostname: None,
+            started_at: None,
+            custom: custom_metadata,
+            error_type: self.metadata.error_type,
+            error_code: self.metadata.error_code,
+            context: HashMap::new(),
+        };
+
+        let error = self.error.map(|e| {
+            let context: HashMap<String, serde_json::Value> = e
+                .context
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let backtrace: Option<Vec<String>> =
+                e.backtrace.and_then(|v| serde_json::from_value(v).ok());
+
+            RustStepExecutionError {
+                message: e.message,
+                error_type: e.error_type,
+                backtrace,
+                retryable: e.retryable.unwrap_or(false),
+                status_code: e.status_code.map(|c| c as u16),
+                context,
+            }
+        });
+
+        let orchestration_metadata = self
+            .orchestration_metadata
+            .as_ref()
+            .and_then(OrchestrationMetadata::from_json);
+
+        Ok(RustStepExecutionResult {
+            step_uuid,
+            success: self.success,
+            result: self.result,
+            metadata,
+            status: self.status,
+            error,
+            orchestration_metadata,
+        })
+    }
 }
 
 // =============================================================================
@@ -650,12 +792,12 @@ pub fn poll_in_process_events() -> Result<Option<NapiDomainEvent>> {
 
 /// Complete a step event with the handler's result.
 ///
-/// Accepts a serde_json::Value (JavaScript object) and deserializes it into
-/// a StepExecutionResult. This mirrors the Python (depythonize) and Ruby
-/// (serde_magnus::deserialize) approaches — the language side builds a full
-/// serde-compatible object with snake_case keys.
+/// Accepts a typed `NapiStepExecutionResult` (auto-generated TypeScript types)
+/// and converts it to the shared `StepExecutionResult`. This mirrors the
+/// Python (depythonize) and Ruby (serde_magnus::deserialize) pattern —
+/// the language side builds a typed object and Rust converts it internally.
 #[napi]
-pub fn complete_step_event(event_id: String, result: serde_json::Value) -> Result<bool> {
+pub fn complete_step_event(event_id: String, result: NapiStepExecutionResult) -> Result<bool> {
     let guard = WORKER_SYSTEM
         .lock()
         .map_err(|_| napi::Error::from(NapiFfiError::LockError))?;
@@ -671,12 +813,7 @@ pub fn complete_step_event(event_id: String, result: serde_json::Value) -> Resul
         )))
     })?;
 
-    let rust_result: RustStepExecutionResult = serde_json::from_value(result).map_err(|e| {
-        napi::Error::from(NapiFfiError::InvalidArgument(format!(
-            "Failed to deserialize StepExecutionResult: {}",
-            e
-        )))
-    })?;
+    let rust_result = result.into_rust().map_err(napi::Error::from)?;
 
     Ok(handle
         .ffi_dispatch_channel

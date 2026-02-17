@@ -66,11 +66,17 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup Rust (for cargo-make)
+      - name: Setup Rust (for cargo-make + orchestration server)
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust build cache
+        uses: ./.github/actions/setup-rust-cache
 
       - name: Setup shared environment variables
         uses: ./.github/actions/setup-env
+
+      - name: Install protobuf compiler
+        uses: ./.github/actions/install-protobuf
 
       - name: Install tools
         uses: ./.github/actions/install-tools

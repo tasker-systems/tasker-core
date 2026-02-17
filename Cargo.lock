@@ -6598,13 +6598,11 @@ dependencies = [
 name = "tasker-ts"
 version = "0.1.3"
 dependencies = [
- "anyhow",
  "chrono",
  "dotenvy",
  "napi",
  "napi-build 1.2.1",
  "napi-derive",
- "serde",
  "serde_json",
  "tasker-shared",
  "tasker-worker",

@@ -243,33 +243,60 @@ describe('FFI Types (napi-rs camelCase)', () => {
     });
   });
 
-  describe('StepExecutionResult', () => {
+  describe('NapiStepExecutionResult', () => {
     it('can represent successful completion', () => {
       const result: StepExecutionResult = {
         stepUuid: 'step-123',
         success: true,
         result: { output: 'data' },
         status: 'completed',
+        metadata: {
+          executionTimeMs: 42,
+          workerId: 'worker-1',
+          completedAt: new Date().toISOString(),
+          retryable: null,
+          errorType: null,
+          errorCode: null,
+          custom: null,
+        },
+        error: null,
+        orchestrationMetadata: null,
       };
 
       expect(result.success).toBe(true);
       expect(result.status).toBe('completed');
+      expect(result.error).toBeNull();
     });
 
-    it('can represent failure with error fields', () => {
+    it('can represent failure with error details', () => {
       const result: StepExecutionResult = {
         stepUuid: 'step-123',
         success: false,
         result: {},
         status: 'failed',
-        errorMessage: 'Handler threw exception',
-        errorType: 'RuntimeError',
-        errorRetryable: true,
+        metadata: {
+          executionTimeMs: 100,
+          workerId: 'worker-1',
+          completedAt: new Date().toISOString(),
+          retryable: true,
+          errorType: 'RuntimeError',
+          errorCode: null,
+          custom: null,
+        },
+        error: {
+          message: 'Handler threw exception',
+          errorType: 'RuntimeError',
+          retryable: true,
+          statusCode: null,
+          backtrace: null,
+          context: null,
+        },
+        orchestrationMetadata: null,
       };
 
       expect(result.success).toBe(false);
       expect(result.status).toBe('failed');
-      expect(result.errorMessage).toBeDefined();
+      expect(result.error?.message).toBe('Handler threw exception');
     });
   });
 

@@ -208,6 +208,7 @@ script = '''
 echo "🧹 Cleaning build artifacts..."
 rm -rf dist/
 rm -rf node_modules/
+rm -f *.node
 cargo clean -p tasker-ts
 echo "✓ Clean complete"
 '''

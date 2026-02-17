@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-02-02
 **Status**: Production Implementation
-**Applies To**: Ruby (Magnus), Python (PyO3), TypeScript (C FFI) workers
+**Applies To**: Ruby (Magnus), Python (PyO3), TypeScript (napi-rs) workers
 
 ---
 
@@ -19,7 +19,7 @@ Host Process (Ruby / Python / Node.js)
     FFI Boundary
     ┌─────────────────────────────────────┐
     │  Language Binding Layer              │
-    │  (Magnus / PyO3 / extern "C")       │
+    │  (Magnus / PyO3 / napi-rs)          │
     │                                     │
     │  ┌─────────────────────────────┐    │
     │  │  Bridge Module              │    │
@@ -46,34 +46,9 @@ Each FFI framework provides different levels of automatic panic protection:
 |-----------|---------------|-----------|
 | **Magnus** (Ruby) | Automatic | Catches panics at FFI boundary, converts to Ruby `RuntimeError` |
 | **PyO3** (Python) | Automatic | Catches panics at `#[pyfunction]` boundary, converts to `PanicException` |
-| **C FFI** (TypeScript) | Manual | Requires explicit `std::panic::catch_unwind` wrappers |
+| **napi-rs** (TypeScript) | Automatic | Catches panics at `#[napi]` boundary, converts to JavaScript `Error` |
 
-### TypeScript C FFI: Explicit Panic Guards
-
-Because the TypeScript worker uses raw `extern "C"` functions (for compatibility with Node.js, Bun, and Deno FFI), panics unwinding through this boundary would be **undefined behavior**. All `extern "C"` functions that call into bridge internals are wrapped with `catch_unwind`:
-
-```rust
-// workers/typescript/src-rust/lib.rs
-#[no_mangle]
-pub unsafe extern "C" fn bootstrap_worker(config_json: *const c_char) -> *mut c_char {
-    // ... parse config_json ...
-
-    let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        bridge::bootstrap_worker_internal(config_str)
-    }));
-
-    match result {
-        Ok(Ok(json)) => /* return JSON */,
-        Ok(Err(e)) => json_error(&format!("Bootstrap failed: {}", e)),
-        Err(panic_info) => {
-            // Extract panic message, log it, return JSON error
-            json_error(&msg)
-        }
-    }
-}
-```
-
-**Protected functions**: `bootstrap_worker`, `stop_worker`, `get_worker_status`, `transition_to_graceful_shutdown`, `poll_step_events`, `poll_in_process_events`, `complete_step_event`, `checkpoint_yield_step_event`, `get_ffi_dispatch_metrics`, `check_starvation_warnings`, `cleanup_timeouts`.
+All three FFI frameworks now provide automatic panic safety. napi-rs (used since TAS-290) catches Rust panics at the `#[napi]` function boundary and converts them to JavaScript `Error` exceptions, matching the behavior of Magnus and PyO3. No manual `catch_unwind` wrappers are needed.
 
 ## Error Handling at FFI Boundaries
 
@@ -232,4 +207,3 @@ When implementing a new language worker:
 - [Worker Event Systems](../architecture/worker-event-systems.md) - Dispatch and completion channel architecture
 - [MPSC Channel Guidelines](../development/mpsc-channel-guidelines.md) - Channel sizing and configuration
 - [Worker Patterns & Practices](./patterns-and-practices.md) - General worker development patterns
-- [Memory Management](./memory-management.md) - FFI memory management across languages

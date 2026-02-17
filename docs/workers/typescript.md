@@ -18,7 +18,7 @@ The TypeScript worker provides a native Node-API (napi-rs) interface for integra
 ```bash
 cd workers/typescript
 bun install                     # Install dependencies
-cargo build --release -p tasker-ts  # Build FFI library
+bun run build:napi:release          # Build napi-rs native addon
 ```
 
 ### Running the Server
@@ -54,72 +54,37 @@ npx tsx bin/server.ts
 The server bootstraps the Rust foundation and manages TypeScript handler execution:
 
 ```typescript
-import { createRuntime } from '../src/ffi/index.js';
-import { EventEmitter } from '../src/events/event-emitter.js';
-import { EventPoller } from '../src/events/event-poller.js';
-import { HandlerRegistry } from '../src/handler/registry.js';
-import { StepExecutionSubscriber } from '../src/subscriber/step-execution-subscriber.js';
+import { WorkerServer } from '@tasker-systems/tasker';
 
-// Create runtime (loads napi-rs native module automatically)
-const runtime = createRuntime();
-
-// Bootstrap Rust worker foundation
-const result = runtime.bootstrapWorker({ namespace: 'my-app' });
-
-// Create event system
-const emitter = new EventEmitter();
-const registry = new HandlerRegistry();
+const server = new WorkerServer();
+await server.start({ namespace: 'my-app' });
 
 // Register handlers
-registry.register('process_order', ProcessOrderHandler);
+const handlerSystem = server.getHandlerSystem();
+handlerSystem.register('process_order', ProcessOrderHandler);
 
-// Create step execution subscriber
-const subscriber = new StepExecutionSubscriber(
-  emitter,
-  registry,
-  runtime,
-  { workerId: 'typescript-worker-001' }
-);
-subscriber.start();
-
-// Start event poller (10ms polling)
-const poller = new EventPoller(runtime, emitter, {
-  pollingIntervalMs: 10
-});
-poller.start();
-
-// Wait for shutdown signal
-await shutdownSignal;
-
-// Graceful shutdown
-poller.stop();
-await subscriber.waitForCompletion();
-runtime.stopWorker();
+// Graceful shutdown on signal
+process.on('SIGINT', () => server.shutdown());
 ```
+
+`WorkerServer` internally orchestrates the FFI layer, event system (poller + subscriber), and handler registry. For details on the internal wiring, see the [Worker Event Systems](../architecture/worker-event-systems.md) documentation.
 
 ### Headless/Embedded Mode
 
-For embedding in existing TypeScript applications:
+For embedding in existing TypeScript applications (headless mode via TOML: `web.enabled = false`):
 
 ```typescript
-import { createRuntime } from '@tasker-systems/tasker';
-import { EventEmitter, EventPoller, HandlerRegistry, StepExecutionSubscriber } from '@tasker-systems/tasker';
+import { WorkerServer } from '@tasker-systems/tasker';
 
-// Bootstrap worker (headless mode via TOML: web.enabled = false)
-const runtime = createRuntime();
-runtime.bootstrapWorker({ namespace: 'my-app' });
+// Bootstrap worker — headless when web.enabled = false in TOML config
+const server = new WorkerServer();
+await server.start({ namespace: 'my-app' });
 
 // Register handlers
-const registry = new HandlerRegistry();
-registry.register('process_data', ProcessDataHandler);
+const handlerSystem = server.getHandlerSystem();
+handlerSystem.register('process_data', ProcessDataHandler);
 
-// Start event system
-const emitter = new EventEmitter();
-const subscriber = new StepExecutionSubscriber(emitter, registry, runtime, {});
-subscriber.start();
-
-const poller = new EventPoller(runtime, emitter);
-poller.start();
+// Server is now processing tasks without an HTTP server
 ```
 
 ### Native Addon Bridge
@@ -972,7 +937,7 @@ workers/typescript/
 │   │   └── event-system.ts     # Combined event system
 │   ├── ffi/
 │   │   ├── index.ts            # Native module loader
-│   │   ├── runtime-interface.ts # Common interface
+│   │   ├── ffi-layer.ts        # FFI abstraction layer
 │   │   └── types.ts            # FFI types
 │   ├── handler/
 │   │   ├── base.ts             # Base handler class
@@ -1163,19 +1128,20 @@ WORKDIR /app
 # Copy built artifacts
 COPY workers/typescript/dist/ ./dist/
 COPY workers/typescript/package.json ./
-COPY workers/typescript-napi/*.node ./lib/
+COPY workers/typescript/*.node ./
 
 # Install production dependencies
 RUN bun install --production
 
 # Set environment
-ENV TASKER_FFI_MODULE_PATH=/app/lib/tasker-napi.node
 ENV PORT=8081
 
 EXPOSE 8081
 
 CMD ["bun", "run", "dist/bin/server.js"]
 ```
+
+The napi-rs native addon (`.node` file) is auto-detected by the module loader — no `TASKER_FFI_MODULE_PATH` needed. The `.node` file is platform-specific (e.g., `tasker_ts.darwin-arm64.node`).
 
 ### Docker Compose
 
