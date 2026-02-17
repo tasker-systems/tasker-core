@@ -81,7 +81,7 @@ RUN bun install --frozen-lockfile
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
-    npx napi build --platform --release -- --locked
+    bunx napi build --platform --release -- --locked
 
 # Build TypeScript
 RUN bun run build
