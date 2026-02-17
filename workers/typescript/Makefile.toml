@@ -65,37 +65,16 @@ alias = "install"
 # =============================================================================
 
 [tasks.build-ffi]
-description = "Build napi-rs FFI library (debug mode)"
-script = '''
-cargo build -p tasker-ts
-
-# Create .node copy — require() only recognizes .node extension as native modules.
-# Bun doesn't follow symlinks for .node files, so we hard-copy instead.
-# Remove any existing file/symlink first to avoid "identical" errors.
-TARGET_DIR="${CARGO_TARGET_DIR:-../../target}"
-rm -f "${TARGET_DIR}/debug/tasker_ts.node"
-if [ -f "${TARGET_DIR}/debug/libtasker_ts.dylib" ]; then
-    cp "${TARGET_DIR}/debug/libtasker_ts.dylib" "${TARGET_DIR}/debug/tasker_ts.node"
-elif [ -f "${TARGET_DIR}/debug/libtasker_ts.so" ]; then
-    cp "${TARGET_DIR}/debug/libtasker_ts.so" "${TARGET_DIR}/debug/tasker_ts.node"
-fi
-'''
+description = "Build napi-rs FFI module (debug) — places .node file in package root"
+dependencies = ["install"]
+command = "bun"
+args = ["run", "build:napi"]
 
 [tasks.build-ffi-release]
-description = "Build napi-rs FFI library (release, for production)"
-script = '''
-cargo build -p tasker-ts --release
-
-# Create .node copy — require() only recognizes .node extension as native modules.
-# Bun doesn't follow symlinks for .node files, so we hard-copy instead.
-TARGET_DIR="${CARGO_TARGET_DIR:-../../target}"
-rm -f "${TARGET_DIR}/release/tasker_ts.node"
-if [ -f "${TARGET_DIR}/release/libtasker_ts.dylib" ]; then
-    cp "${TARGET_DIR}/release/libtasker_ts.dylib" "${TARGET_DIR}/release/tasker_ts.node"
-elif [ -f "${TARGET_DIR}/release/libtasker_ts.so" ]; then
-    cp "${TARGET_DIR}/release/libtasker_ts.so" "${TARGET_DIR}/release/tasker_ts.node"
-fi
-'''
+description = "Build napi-rs FFI module (release) — places .node file in package root"
+dependencies = ["install"]
+command = "bun"
+args = ["run", "build:napi:release"]
 
 [tasks.build-ts]
 description = "Build TypeScript package"

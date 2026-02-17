@@ -5,6 +5,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# napi-rs build output (.node files placed by `napi build --platform`)
+*.node
+
 # Pre-built native FFI libraries (populated by CI during release)
 native/
 

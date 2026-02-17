@@ -8,13 +8,20 @@
 import { FfiLayer } from '../../../src/ffi/ffi-layer.ts';
 
 /**
- * Find the FFI library path for testing.
+ * Find the FFI module path for testing.
  *
- * Re-exports FfiLayer.findLibraryPath() for test convenience.
+ * Re-exports FfiLayer.findModulePath() for test convenience.
  * See FfiLayer for full search order documentation.
  */
+export function findModulePath(): string | null {
+  return FfiLayer.findModulePath();
+}
+
+/**
+ * @deprecated Use findModulePath() instead
+ */
 export function findLibraryPath(): string | null {
-  return FfiLayer.findLibraryPath();
+  return FfiLayer.findModulePath();
 }
 
 /**
@@ -56,7 +63,7 @@ export const SKIP_DATABASE_MESSAGE = 'Skipping: DATABASE_URL not set';
  * Skip message for tests requiring FFI library.
  */
 export const SKIP_LIBRARY_MESSAGE =
-  'Skipping: TASKER_FFI_LIBRARY_PATH not set. Set the environment variable and build with: cargo build -p tasker-ts';
+  'Skipping: No .node module found. Build with: cargo make build-ffi (in workers/typescript/)';
 
 /**
  * Check if client API integration tests should run.
@@ -113,7 +120,7 @@ export interface TestConfig {
  * @throws Error if FFI library is not found
  */
 export function initTestConfig(): TestConfig {
-  const libraryPath = findLibraryPath();
+  const libraryPath = findModulePath();
   if (!libraryPath) {
     throw new Error(SKIP_LIBRARY_MESSAGE);
   }

@@ -39,8 +39,7 @@ npx tsx bin/server.ts
 | `TASKER_ENV` | Environment (test/development/production) | development |
 | `TASKER_CONFIG_PATH` | Path to TOML configuration | Auto-detected |
 | `TASKER_TEMPLATE_PATH` | Path to task templates | Auto-detected |
-| `TASKER_FFI_MODULE_PATH` | Path to napi-rs native module (`.node`) | Auto-detected |
-| `TASKER_FFI_LIBRARY_PATH` | Legacy path variable (deprecated, use MODULE_PATH) | Auto-detected |
+| `TASKER_FFI_MODULE_PATH` | Override path to napi-rs `.node` file (optional) | Auto-detected |
 | `RUST_LOG` | Log level (trace/debug/info/warn/error) | info |
 | `PORT` | HTTP server port | 8081 |
 

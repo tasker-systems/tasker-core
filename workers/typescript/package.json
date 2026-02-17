@@ -36,7 +36,8 @@
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
     "typecheck": "tsc --noEmit",
-    "build:napi": "napi build --platform --release"
+    "build:napi": "napi build --platform",
+    "build:napi:release": "napi build --platform --release"
   },
   "keywords": [
     "tasker",
@@ -59,6 +60,17 @@
     "type": "git",
     "url": "git+https://github.com/tasker-systems/tasker-core.git",
     "directory": "workers/typescript"
+  },
+  "napi": {
+    "name": "tasker_ts",
+    "triples": {
+      "defaults": false,
+      "additional": [
+        "x86_64-unknown-linux-gnu",
+        "aarch64-apple-darwin",
+        "x86_64-apple-darwin"
+      ]
+    }
   },
   "engines": {
     "node": ">=18.0.0"

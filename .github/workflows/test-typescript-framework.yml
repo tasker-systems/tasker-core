@@ -96,7 +96,7 @@ jobs:
           path: artifacts/
         continue-on-error: true
 
-      - name: Setup FFI module path
+      - name: Restore FFI module
         run: |
           cd ../..
           if [ -d artifacts ]; then
@@ -104,13 +104,8 @@ jobs:
           else
             echo "No artifacts directory found, FFI tests may skip"
           fi
-          # Use .node symlink (created by ci-restore script) — require() needs .node extension
-          if [ -f target/debug/tasker_ts.node ]; then
-            echo "TASKER_FFI_MODULE_PATH=$(pwd)/target/debug/tasker_ts.node" >> $GITHUB_ENV
-          else
-            echo "No FFI module available - FFI tests will skip"
-          fi
-          ls -la target/debug/tasker_ts.node target/debug/libtasker_ts* 2>/dev/null || echo "No FFI library available"
+          # napi CLI places .node files in package root — FfiLayer auto-discovers them
+          ls -la workers/typescript/tasker_ts.*.node 2>/dev/null || echo "No FFI module available"
 
       # ========================================================================
       # Quality Checks and Unit Tests (no FFI required)

@@ -289,7 +289,7 @@ fn convert_step_event(event: &FfiStepEvent) -> NapiStepEvent {
             name: step.name.clone(),
             template_step_name: step.template_step_name.clone(),
             retryable: step.retryable,
-            max_attempts: step.max_attempts.unwrap_or(1),
+            max_attempts: step.max_attempts.unwrap_or(3),
             attempts: step.attempts.unwrap_or(0),
             in_process: step.in_process,
             processed: step.processed,

@@ -29,19 +29,14 @@ cargo make typecheck      # TypeScript type check
 
 ### Build Output Location
 
-Build artifacts go to `$CARGO_TARGET_DIR` if set, otherwise `../../target/`:
+`napi build --platform` places `.node` files directly in the package root (`workers/typescript/`):
 
 ```bash
-# Check your current target directory
-echo ${CARGO_TARGET_DIR:-../../target}
-
-# FFI library location (napi-rs produces standard cdylib naming)
-ls ${CARGO_TARGET_DIR:-../../target}/debug/libtasker_ts.*
+# Check built .node files
+ls workers/typescript/tasker_ts.*.node
 ```
 
-**Local Development Note**: If using external cache (see `~/bin/development_cache_init.sh`),
-`CARGO_TARGET_DIR` points to `/Volumes/Expansion/Development/Cache/cargo-targets/`.
-This keeps large build caches off the main drive.
+FfiLayer auto-discovers these files — no env vars needed for local development.
 
 ---
 
@@ -53,7 +48,8 @@ workers/typescript/
 ├── Cargo.toml          # Rust cdylib crate definition (napi-rs)
 ├── build.rs            # napi-build setup
 ├── Makefile.toml       # cargo-make task definitions
-├── package.json        # TypeScript package (Bun/npm)
+├── package.json        # TypeScript package + napi config
+├── tasker_ts.*.node    # Built napi-rs modules (git-ignored)
 ├── src-rust/           # Rust FFI implementation
 │   ├── lib.rs          # #[napi] exports
 │   ├── bridge.rs       # Worker lifecycle, global state
@@ -87,7 +83,7 @@ Node-API compatible runtime:
 
 ### FFI Module
 
-The Rust napi-rs module (`libtasker_ts.{dylib,so}`) exports functions via `#[napi]`:
+The napi-rs module (`tasker_ts.<platform>.node`) exports functions via `#[napi]`:
 
 - `get_version()` / `get_rust_version()` - Version info
 - `health_check()` - Library health
@@ -136,7 +132,7 @@ The TypeScript worker is part of the CI pipeline:
 
 1. **build-workers.yml**: `cargo make build` compiles napi-rs FFI + TypeScript
 2. **test-typescript-framework.yml**: Unit tests, FFI integration tests, client API tests
-3. Artifacts uploaded: `dist/`, `libtasker_ts.{so,dylib}`
+3. Artifacts uploaded: `dist/`, `tasker_ts.*.node`
 
 ---
 
@@ -162,14 +158,14 @@ The TypeScript worker is part of the CI pipeline:
 
 ### "napi-rs native module not found" errors
 ```bash
-# Check library exists
-ls ${CARGO_TARGET_DIR:-../../target}/debug/libtasker_ts.*
+# Check .node file exists in package root
+ls tasker_ts.*.node
 
 # Rebuild if missing
 cargo make build-ffi
 
-# Or set explicit path
-export TASKER_FFI_MODULE_PATH=$(pwd)/../../target/debug/libtasker_ts.dylib
+# Or set explicit override path (rarely needed)
+export TASKER_FFI_MODULE_PATH=/path/to/tasker_ts.darwin-arm64.node
 ```
 
 ### "Lockfile had changes" in CI

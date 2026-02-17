@@ -72,21 +72,16 @@ COPY migrations/ ./migrations/
 # Set environment for build
 ENV SQLX_OFFLINE=true
 
-# Build Rust FFI extension with cache mounts for incremental builds
-# IMPORTANT: Use --locked to ensure Cargo.lock is respected (prevents serde version conflicts)
+# Install Bun dependencies (includes @napi-rs/cli for building)
+WORKDIR /app/workers/typescript
+RUN bun install --frozen-lockfile
+
+# Build napi-rs FFI module with cache mounts for incremental builds
+# IMPORTANT: --locked ensures Cargo.lock is respected (prevents serde version conflicts)
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
-    cargo build -p tasker-ts --release --locked && \
-    # Copy the built library to a known location outside the cache
-    mkdir -p /app/lib && \
-    cp /app/target/release/libtasker_ts.so /app/lib/ 2>/dev/null || \
-    cp /app/target/release/libtasker_ts.dylib /app/lib/ 2>/dev/null || \
-    true
-
-# Install Bun dependencies
-WORKDIR /app/workers/typescript
-RUN bun install --frozen-lockfile
+    npx napi build --platform --release -- --locked
 
 # Build TypeScript
 RUN bun run build
@@ -143,8 +138,8 @@ ENV TYPESCRIPT_WORKER_ENABLED=true
 # Bun-specific environment
 ENV BUN_VERSION=1.3
 
-# FFI library path for runtime discovery
-ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_ts.so
+# napi-rs .node file — FfiLayer auto-discovers from package root
+# Set TASKER_FFI_MODULE_PATH only if .node file is in a non-standard location
 
 # Template discovery paths for TypeScript handlers
 ENV TASKER_TEMPLATE_PATH=/app/typescript_templates
