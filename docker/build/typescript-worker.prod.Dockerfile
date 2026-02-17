@@ -97,9 +97,6 @@ RUN apk add --no-cache \
 # Copy bun binary from builder (Chainguard bun image requires paid access)
 COPY --from=typescript_builder /usr/local/bin/bun /usr/local/bin/bun
 
-# Copy FFI library from builder
-COPY --from=typescript_builder /app/lib/ /app/lib/
-
 # Copy TypeScript worker from builder (NOT test handlers — those are volume-mounted)
 WORKDIR /app/typescript_worker
 COPY --from=typescript_builder /app/workers/typescript/bin ./bin
@@ -108,6 +105,9 @@ COPY --from=typescript_builder /app/workers/typescript/dist ./dist
 COPY --from=typescript_builder /app/workers/typescript/package.json ./
 COPY --from=typescript_builder /app/workers/typescript/tsconfig.json ./
 COPY --from=typescript_builder /app/workers/typescript/node_modules ./node_modules
+
+# Copy napi-rs .node FFI modules (built by `bunx napi build --platform`)
+COPY --from=typescript_builder /app/workers/typescript/tasker_ts.*.node ./
 
 # Ensure all files are readable
 RUN chmod -R 755 ./bin && \

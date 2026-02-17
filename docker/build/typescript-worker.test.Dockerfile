@@ -107,9 +107,6 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user
 RUN useradd -r -g daemon -u 999 tasker
 
-# Copy FFI library from builder
-COPY --from=typescript_builder /app/lib/ /app/lib/
-
 # Copy TypeScript worker from builder
 WORKDIR /app/typescript_worker
 COPY --from=typescript_builder /app/workers/typescript/bin ./bin
@@ -118,6 +115,9 @@ COPY --from=typescript_builder /app/workers/typescript/dist ./dist
 COPY --from=typescript_builder /app/workers/typescript/package.json ./
 COPY --from=typescript_builder /app/workers/typescript/tsconfig.json ./
 COPY --from=typescript_builder /app/workers/typescript/node_modules ./node_modules
+
+# Copy napi-rs .node FFI modules (built by `bunx napi build --platform`)
+COPY --from=typescript_builder /app/workers/typescript/tasker_ts.*.node ./
 
 # Copy test handlers for E2E testing
 COPY --from=typescript_builder /app/workers/typescript/tests/handlers ./tests/handlers
