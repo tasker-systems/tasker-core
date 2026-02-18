@@ -1,5 +1,9 @@
 # Ruby Guide
 
+> **Note**: The consumer-facing version of this guide lives in
+> [The Tasker Book](https://github.com/tasker-systems/tasker-book).
+> This file is maintained for contributor reference.
+
 This guide covers using Tasker with Ruby step handlers via the `tasker-rb` gem.
 
 ## Quick Start

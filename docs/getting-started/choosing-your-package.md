@@ -1,5 +1,9 @@
 # Choosing Your Package
 
+> **Note**: The consumer-facing version of this guide lives in
+> [The Tasker Book](https://github.com/tasker-systems/tasker-book).
+> This file is maintained for contributor reference.
+
 Tasker supports multiple languages through FFI bindings. Each language package provides the same core capabilities with idiomatic APIs.
 
 ## Language Guides

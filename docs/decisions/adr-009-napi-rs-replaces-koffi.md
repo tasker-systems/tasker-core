@@ -63,9 +63,9 @@ No "trailing input" error anywhere. The JS object crosses into Rust as a native 
 napi-rs auto-generates `index.d.ts` with:
 
 - **snake_case → camelCase**: Automatic field name conversion (`worker_id` → `workerId`)
-- **Option<T> → T | undefined**: Proper nullable types
-- **HashMap<String, T> → Record<string, T>**: Correct map types
-- **Vec<T> → Array<T>**: Correct array types
+- **Option\<T\> → T | undefined**: Proper nullable types
+- **HashMap\<String, T\> → Record\<string, T\>**: Correct map types
+- **Vec\<T\> → Array\<T\>**: Correct array types
 - **serde_json::Value → any**: JS-native any type
 - **Rust doc comments → JSDoc comments**: Documentation preserved
 

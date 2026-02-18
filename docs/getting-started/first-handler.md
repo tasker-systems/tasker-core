@@ -1,5 +1,9 @@
 # Your First Handler
 
+> **Note**: The consumer-facing version of this guide lives in
+> [The Tasker Book](https://github.com/tasker-systems/tasker-book).
+> This file is maintained for contributor reference.
+
 This guide walks you through writing your first step handler.
 
 ## What is a Handler?

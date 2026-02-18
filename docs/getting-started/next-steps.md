@@ -1,5 +1,9 @@
 # Next Steps
 
+> **Note**: The consumer-facing version of this guide lives in
+> [The Tasker Book](https://github.com/tasker-systems/tasker-book).
+> This file is maintained for contributor reference.
+
 Now that you've learned the basics, here's where to go next.
 
 ## Deep Dive by Language
