@@ -1,5 +1,9 @@
 # Installation
 
+> **Note**: The consumer-facing version of this guide lives in
+> [The Tasker Book](https://github.com/tasker-systems/tasker-book).
+> This file is maintained for contributor reference.
+
 This guide covers installing Tasker components for development.
 
 ## Prerequisites

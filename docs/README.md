@@ -255,13 +255,17 @@ Tasker Core is a high-performance workflow orchestration system built in Rust, d
 
 ---
 
+## Documentation Ownership
+
+This repo owns architecture reference, contributor guides, and internal documentation. Consumer-facing content (getting-started, tutorials) is owned by [The Tasker Book](https://github.com/tasker-systems/tasker-book). See the [Documentation Architecture](https://github.com/tasker-systems/tasker-book/blob/main/DOCUMENTATION-ARCHITECTURE.md) for the full ownership model and authoring rules.
+
 ## Contributing to Documentation
 
 Found an issue or want to improve the docs?
 
 1. **Quick fixes**: Edit the file directly and submit a PR
 2. **Larger changes**: Open an issue first to discuss the approach
-3. **New documentation**: Follow the structure above
+3. **New documentation**: Follow the [Documentation Architecture](https://github.com/tasker-systems/tasker-book/blob/main/DOCUMENTATION-ARCHITECTURE.md) to determine which repo to author in
 4. **Updates**: Keep the "Last Updated" date current
 
 ---

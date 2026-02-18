@@ -1,66 +1,63 @@
-# Getting Started
+# Getting Started — Contributing to Tasker Core
 
-Tasker is a distributed workflow orchestration system that coordinates complex, multi-step processes across services and languages. It provides:
+> **Looking for the consumer getting-started guide?** See
+> [The Tasker Book](https://github.com/tasker-systems/tasker-book) for installation,
+> tutorials, and how to build workflows with Tasker.
 
-- **Task Orchestration** — Define workflows as directed acyclic graphs (DAGs) with dependency management
-- **Multi-Language Support** — Write handlers in Rust, Ruby, Python, or TypeScript
-- **Built-in Resilience** — Automatic retries, error handling, and state persistence
-- **Event-Driven Architecture** — Pub/sub events for real-time observability
+This section covers setting up a **development environment** for contributing to tasker-core itself.
 
-## How Tasker Works
+## Prerequisites
 
+- **Rust** (stable, latest) with `cargo-make` installed
+- **Docker** and Docker Compose (for PostgreSQL, RabbitMQ, Dragonfly)
+- **protoc** (Protocol Buffers compiler for gRPC)
+
+## Quick Setup
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/tasker-systems/tasker-core.git
+cd tasker-core
+
+# 2. Start infrastructure services
+docker compose up -d postgres
+# Or for the full test stack (includes RabbitMQ, Dragonfly):
+docker compose -f docker/docker-compose.test.yml up -d
+
+# 3. Set up the database
+export DATABASE_URL=postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+cargo make db-setup
+
+# 4. Run quality checks
+cargo make check
+
+# 5. Run tests (requires services from step 2)
+cargo make test-rust-unit      # Unit tests (DB + messaging only, fastest)
+cargo make test-rust-e2e       # E2E tests (requires full test services)
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        tasker-core (Rust)                           │
-│  • REST API for task submission                                     │
-│  • Workflow orchestration                                           │
-│  • Step execution and dependency resolution                         │
-│  • PostgreSQL state persistence                                     │
-│  • Event publishing (NATS)                                          │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-                    ┌─────────────┼─────────────┐
-                    ▼             ▼             ▼
-              ┌──────────┐ ┌──────────┐ ┌──────────┐
-              │  Ruby    │ │  Python  │ │TypeScript│
-              │ Workers  │ │ Workers  │ │ Workers  │
-              └──────────┘ └──────────┘ └──────────┘
-```
 
-## Core Concepts
+## Crate Architecture
 
-| Concept | Description |
-|---------|-------------|
-| **Task** | A unit of work submitted for execution |
-| **Task Template** | YAML definition of a workflow's steps and dependencies |
-| **Step** | A single operation within a workflow |
-| **Step Handler** | Your code that executes a step's business logic |
-| **Workflow Step** | A step that starts another task (sub-workflow) |
+| Crate | Purpose |
+|-------|---------|
+| `tasker-shared` | Shared types, traits, configuration, utilities |
+| `tasker-orchestration` | Core orchestration logic, actors, API (REST + gRPC) |
+| `tasker-worker` | Step execution, handler dispatch, FFI integration |
+| `tasker-pgmq` | PGMQ wrapper with notification support |
+| `tasker-client` | API client library (REST + gRPC transport) |
+| `tasker-ctl` | CLI binary and plugin system |
+| `workers/ruby` | Ruby FFI bindings (Magnus) |
+| `workers/python` | Python FFI bindings (PyO3/maturin) |
+| `workers/typescript` | TypeScript FFI bindings (napi-rs) |
+| `workers/rust` | Rust worker implementation |
 
-## What You'll Build
+For detailed module organization, see the `AGENTS.md` files in `tasker-orchestration/` and `tasker-worker/`.
 
-With Tasker, you'll typically:
+## Key Resources
 
-1. **Define Task Templates** — YAML files describing workflow structure
-2. **Write Step Handlers** — Functions that execute business logic
-3. **Submit Tasks** — Use the client SDK to start workflows
-4. **Monitor Execution** — Observe via events or the admin dashboard
-
-## Learning Path
-
-1. **[Core Concepts](concepts.md)** — Tasks, steps, handlers, templates, and dependencies
-2. **[Installation](install.md)** — Installing packages and running infrastructure
-3. **[Using tasker-ctl](tasker-ctl.md)** — Initialize projects, generate code from templates, manage config
-4. **[Choosing Your Package](choosing-your-package.md)** — Which language package fits your needs?
-5. **[Your First Handler](first-handler.md)** — Write a step handler in your language
-6. **[Your First Workflow](first-workflow.md)** — Define a template, submit a task, watch it run
-7. **[Next Steps](next-steps.md)** — Where to go from here
-
-## Language Guides
-
-Comprehensive guides for each supported language:
-
-- **[Rust](rust.md)** — Native Rust workers with `tasker-worker`
-- **[Ruby](ruby.md)** — Ruby workers with `tasker-rb`
-- **[Python](python.md)** — Python workers with `tasker-py`
-- **[TypeScript](typescript.md)** — TypeScript workers with `@tasker-systems/tasker`
+- **[Architecture docs](../architecture/)** — System design, actors, state machines
+- **[Development tooling](../development/tooling.md)** — cargo-make tasks, build system
+- **[Testing infrastructure](../testing/)** — Test tiers, cluster testing
+- **[CLAUDE.md](../../CLAUDE.md)** — Full project context and command reference
+- **[The Tasker Book](https://github.com/tasker-systems/tasker-book)** — Consumer-facing documentation
+- **[Documentation Architecture](https://github.com/tasker-systems/tasker-book/blob/main/DOCUMENTATION-ARCHITECTURE.md)** — How documentation is organized across repos

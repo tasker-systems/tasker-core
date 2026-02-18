@@ -1,5 +1,9 @@
 # Getting Started with tasker-ctl
 
+> **Note**: The consumer-facing version of this guide lives in
+> [The Tasker Book](https://github.com/tasker-systems/tasker-book).
+> This file is maintained for contributor reference.
+
 `tasker-ctl` is the command-line tool for managing Tasker workflows, generating project scaffolding, and working with configuration. This guide covers the developer-facing features for bootstrapping new projects.
 
 ## Initialize Your Project
