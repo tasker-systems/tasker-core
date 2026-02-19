@@ -45,7 +45,7 @@ Permission-based access control using a `resource:action` vocabulary with wildca
 | Permission | Description | Endpoints |
 |------------|-------------|-----------|
 | `system:config_read` | Read system configuration | `GET /config` |
-| `system:handlers_read` | Read handler registry | `GET /v1/handlers`, `GET /v1/handlers/{namespace}`, `GET /v1/handlers/{namespace}/{name}` |
+| `system:handlers_read` | Read handler registry | `GET /v1/templates`, `GET /v1/templates/{namespace}/{name}/{version}` |
 | `system:analytics_read` | Read analytics data | `GET /v1/analytics/performance`, `GET /v1/analytics/bottlenecks` |
 
 ### Worker

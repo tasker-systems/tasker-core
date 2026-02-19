@@ -68,10 +68,13 @@ All benchmark documentation has been consolidated in the `docs/benchmarks/` dire
 **Quick Reference**:
 
 ```rust
-// Example: Recording a metric
-metrics::counter!("tasker.tasks.created").increment(1);
-metrics::histogram!("tasker.step.execution_time_ms").record(elapsed_ms);
-metrics::gauge!("tasker.workers.active").set(worker_count as f64);
+// Example: Recording a metric using typed factory functions
+use tasker_shared::metrics::orchestration::{task_requests_total, task_initialization_duration, active_tasks};
+use opentelemetry::KeyValue;
+
+task_requests_total().add(1, &[KeyValue::new("namespace", "payments")]);
+task_initialization_duration().record(elapsed_ms, &[KeyValue::new("task_type", "order")]);
+active_tasks().set(worker_count, &[KeyValue::new("state", "in_progress")]);
 ```
 
 ---
@@ -385,13 +388,16 @@ info!("Task {} in namespace {} completed in {}ms",
 
 ### 2. **Metric Naming**
 
-Use consistent, hierarchical naming:
+Use the typed factory functions from `tasker_shared::metrics`:
 
 ```rust
-metrics::counter!("tasker.tasks.created").increment(1);
-metrics::counter!("tasker.tasks.completed").increment(1);
-metrics::counter!("tasker.tasks.failed").increment(1);
-metrics::histogram!("tasker.step.execution_time_ms").record(elapsed);
+use tasker_shared::metrics::orchestration::*;
+use opentelemetry::KeyValue;
+
+task_requests_total().add(1, &[KeyValue::new("namespace", "payments")]);
+task_completions_total().add(1, &[KeyValue::new("namespace", "payments")]);
+task_failures_total().add(1, &[KeyValue::new("error_type", "timeout")]);
+task_initialization_duration().record(elapsed_ms, &[]);
 ```
 
 ### 3. **Performance Measurement**
@@ -399,12 +405,13 @@ metrics::histogram!("tasker.step.execution_time_ms").record(elapsed);
 Measure at operation boundaries:
 
 ```rust
+use tasker_shared::metrics::orchestration::task_initialization_duration;
+
 let start = Instant::now();
 let result = operation().await?;
 let elapsed = start.elapsed();
 
-metrics::histogram!("tasker.operation.duration_ms")
-    .record(elapsed.as_millis() as f64);
+task_initialization_duration().record(elapsed.as_millis() as f64, &[]);
 
 info!(
     operation = "operation_name",

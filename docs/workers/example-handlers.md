@@ -388,11 +388,13 @@ class CsvBatchWorkerHandler < TaskerCore::StepHandler::Batchable
     records = read_csv_range(file_path, batch_ctx.start_cursor, batch_ctx.batch_size)
     processed = records.map { |row| transform_row(row) }
 
-    batch_worker_complete(
-      processed_count: processed.size,
-      result_data: {
+    batch_worker_success(
+      items_processed: processed.size,
+      items_succeeded: processed.size,
+      results: processed,
+      last_cursor: batch_ctx.start_cursor + processed.size,
+      metadata: {
         batch_id: batch_ctx.batch_id,
-        records_processed: processed.size,
         summary: calculate_summary(processed)
       }
     )
@@ -422,11 +424,13 @@ class CsvBatchWorkerHandler(BatchableHandler):
         )
         processed = [self.transform_row(row) for row in records]
 
-        return self.batch_worker_complete(
-            processed_count=len(processed),
-            result_data={
+        return self.batch_worker_success(
+            items_processed=len(processed),
+            items_succeeded=len(processed),
+            results=processed,
+            last_cursor=batch_ctx.start_cursor + len(processed),
+            batch_metadata={
                 "batch_id": batch_ctx.batch_id,
-                "records_processed": len(processed),
                 "summary": self.calculate_summary(processed),
             },
         )

@@ -11,13 +11,13 @@
 
 ## Overview
 
-Tasker Core implements a sophisticated **component-based configuration system** with environment-specific overrides, runtime observability, and comprehensive validation. This document explains how to manage, validate, inspect, and deploy Tasker configurations.
+Tasker Core implements a sophisticated **role-based configuration system** with environment-specific overrides, runtime observability, and comprehensive validation. This document explains how to manage, validate, inspect, and deploy Tasker configurations.
 
 ### Key Features
 
 | Feature | Description | Benefit |
 |---------|-------------|---------|
-| **Component-Based Architecture** | 3 focused TOML files organized by common, orchestration, and worker | Easy to understand and maintain |
+| **Role-Based Architecture** | 3 focused TOML files organized by common, orchestration, and worker | Easy to understand and maintain |
 | **Environment Overrides** | Test, development, production-specific settings | Safe defaults with production scale-out |
 | **Single-File Runtime Loading** | Load from pre-merged configuration files at runtime | Deployment certainty - exact config known at build time |
 | **Runtime Observability** | `/config` API endpoints with secret redaction | Live inspection of deployed configurations |
@@ -69,9 +69,9 @@ tasker-ctl config validate \
 
 ## Part 1: Configuration Architecture
 
-### 1.1 Component-Based Structure
+### 1.1 Role-Based Structure
 
-Tasker uses a **component-based TOML architecture** where configuration is split into focused files with single responsibility:
+Tasker uses a **role-based TOML architecture** where configuration is split into focused files organized by role (orchestration vs worker) with single responsibility:
 
 ```
 config/tasker/
@@ -1040,7 +1040,7 @@ tasker-ctl config detect-unused --context orchestration --fix
 
 Tasker's configuration system provides:
 
-1. **Component-Based Architecture**: Focused TOML files with single responsibility
+1. **Role-Based Architecture**: Focused TOML files with single responsibility
 2. **Environment Scaling**: 1:5:50 pattern from test → development → production
 3. **Single-File Runtime Loading**: Deploy exact configuration known at build time via `TASKER_CONFIG_PATH`
 4. **Runtime Observability**: `/config` endpoints with comprehensive secret redaction

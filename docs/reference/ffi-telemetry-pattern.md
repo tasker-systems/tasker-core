@@ -185,6 +185,8 @@ pub fn bootstrap_worker() -> PyResult<String> {
 
 ### WASM FFI
 
+> **Note**: WASM worker support is planned but not yet implemented. The pattern below shows the intended initialization approach.
+
 **Phase 1: WASM Module Initialization**
 
 ```rust

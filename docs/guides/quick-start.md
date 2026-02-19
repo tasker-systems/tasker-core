@@ -4,9 +4,9 @@
 **Audience**: Developers
 **Status**: Active
 **Time to Complete**: 5 minutes
-**Related Docs**: [Documentation Hub](README.md) | [Use Cases](use-cases-and-patterns.md) | [Crate Architecture](crate-architecture.md)
+**Related Docs**: [Documentation Hub](index.md) | [Use Cases](use-cases-and-patterns.md) | [Crate Architecture](../architecture/crate-architecture.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 
@@ -347,9 +347,9 @@ curl http://localhost:8080/health/detailed
 
 Read about the architecture:
 
-- **[Crate Architecture](crate-architecture.md)** - How the workspace is organized
-- **[Events and Commands](events-and-commands.md)** - How orchestration and workers coordinate
-- **[States and Lifecycles](states-and-lifecycles.md)** - Task and step state machines
+- **[Crate Architecture](../architecture/crate-architecture.md)** - How the workspace is organized
+- **[Events and Commands](../architecture/events-and-commands.md)** - How orchestration and workers coordinate
+- **[States and Lifecycles](../architecture/states-and-lifecycles.md)** - Task and step state machines
 
 ### 2. **See Real-World Examples**
 
@@ -431,9 +431,9 @@ steps:
 
 Learn about deployment:
 
-- **[Deployment Patterns](deployment-patterns.md)** - Hybrid, EventDriven, PollingOnly modes
-- **[Observability](observability/README.md)** - Metrics, logging, monitoring
-- **[Benchmarks](benchmarks/README.md)** - Performance validation
+- **[Deployment Patterns](../architecture/deployment-patterns.md)** - Hybrid, EventDriven, PollingOnly modes
+- **[Observability](../observability/index.md)** - Metrics, logging, monitoring
+- **[Benchmarks](../benchmarks/index.md)** - Performance validation
 
 ### 5. **Run Tests Locally**
 
@@ -552,12 +552,12 @@ You've successfully:
 ## Getting Help
 
 - **Documentation Issues**: Open an issue on GitHub
-- **Architecture Questions**: See [Crate Architecture](crate-architecture.md)
+- **Architecture Questions**: See [Crate Architecture](../architecture/crate-architecture.md)
 - **Use Case Examples**: See [Use Cases and Patterns](use-cases-and-patterns.md)
-- **Deployment Help**: See [Deployment Patterns](deployment-patterns.md)
+- **Deployment Help**: See [Deployment Patterns](../architecture/deployment-patterns.md)
 
 ---
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
-**Next**: [Use Cases and Patterns](use-cases-and-patterns.md) | [Crate Architecture](crate-architecture.md)
+**Next**: [Use Cases and Patterns](use-cases-and-patterns.md) | [Crate Architecture](../architecture/crate-architecture.md)

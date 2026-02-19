@@ -257,7 +257,7 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
 
 **Retry Logic**:
 
-- Exponential backoff calculation: `2^attempts` seconds (max 30)
+- Exponential backoff calculation: `2^attempts` seconds (max 60, configurable)
 - Custom backoff periods from step configuration
 - Retry limit enforcement to prevent infinite loops
 - Failure tracking with temporal analysis
@@ -309,16 +309,26 @@ impl StepReadinessStatus {
         Some("invalid_state")
     }
 
-    pub fn effective_backoff_seconds(&self) -> i32 {
-        self.backoff_request_seconds.unwrap_or_else(|| {
-            if self.attempts > 0 {
-                std::cmp::min(2_i32.pow(self.attempts as u32), 30)
-            } else {
-                0
-            }
-        })
+    /// Check if this step is ready for execution.
+    pub fn is_ready(&self) -> bool {
+        self.ready_for_execution
+    }
+
+    /// Check if this step is blocked by dependencies.
+    pub fn is_blocked(&self) -> bool {
+        !self.dependencies_satisfied
+    }
+
+    /// Check if this step can be retried.
+    pub fn can_retry(&self) -> bool {
+        self.retry_eligible
     }
 }
+
+// Note: Backoff computation is handled server-side by the SQL function
+// `calculate_step_next_retry_time()`, not as a Rust method on this struct.
+// The `backoff_request_seconds` field contains the raw value from the SQL function,
+// and `next_retry_at` contains the pre-computed next retry timestamp.
 ```
 
 ## DAG Operations and Dependency Resolution
@@ -990,7 +1000,7 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
    ```
 
    - Enforces retry limits to prevent infinite loops
-   - Calculates exponential backoff: `2^attempts` seconds (max 30)
+   - Calculates exponential backoff: `2^attempts` seconds (max 60, configurable)
    - Respects custom backoff periods from step configuration
    - Considers temporal constraints for retry timing
 
@@ -1015,7 +1025,7 @@ CREATE OR REPLACE FUNCTION get_step_readiness_status(
    next_retry_at = CASE
        WHEN current_state = 'error' AND attempts > 0
        THEN last_attempted_at + INTERVAL '1 second' *
-            COALESCE(backoff_request_seconds, LEAST(POW(2, attempts), 30))
+            COALESCE(backoff_request_seconds, LEAST(POW(2, attempts), 60))
        ELSE NULL
    END
    ```

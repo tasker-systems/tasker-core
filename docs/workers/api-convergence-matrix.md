@@ -236,7 +236,7 @@ See [Handler Resolution Guide](../guides/handler-resolution.md) for complete doc
 | Operation | Ruby | Python | TypeScript |
 |-----------|------|--------|------------|
 | Get Context | `get_batch_context(context)` | `get_batch_context(context)` | `getBatchContext(context)` |
-| Complete Batch | `batch_worker_complete(processed_count:, result_data:)` | `batch_worker_complete(processed_count, result_data)` | `batchWorkerComplete(processedCount, resultData)` |
+| Complete Batch | `batch_worker_success(items_processed:, items_succeeded:, ...)` | `batch_worker_success(items_processed=, items_succeeded=, ...)` | `batchWorkerSuccess(outcome, metadata?)` |
 | Handle No-Op | `handle_no_op_worker(batch_ctx)` | `handle_no_op_worker(batch_ctx)` | `handleNoOpWorker(batchCtx)` |
 
 **Standard Batch Result Fields:**
