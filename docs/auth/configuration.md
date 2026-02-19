@@ -6,13 +6,13 @@ Complete configuration for Tasker authentication: server-side TOML, environment 
 
 ## Server-Side Configuration
 
-Auth config lives under `[web.auth]` in both orchestration and worker TOML files.
+Auth config lives under a role-prefixed `[web.auth]` section in both orchestration and worker TOML files.
 
 ### Location
 
 ```
-config/tasker/base/orchestration.toml    → [web.auth]
-config/tasker/base/worker.toml           → [web.auth]
+config/tasker/base/orchestration.toml    → [orchestration.web.auth]
+config/tasker/base/worker.toml           → [worker.web.auth]
 config/tasker/environments/{env}/...     → environment overrides
 ```
 
@@ -20,13 +20,15 @@ Configuration follows the role-based structure (see [Configuration Management](.
 
 ### Full Reference
 
+The example below uses `orchestration` as the role prefix. For worker configuration, replace `orchestration` with `worker` throughout.
+
 ```toml
-[web]
+[orchestration.web]
 # Whether the /config endpoint is registered (default: false).
 # When false, GET /config returns 404. When true, requires system:config_read permission.
 config_endpoint_enabled = false
 
-[web.auth]
+[orchestration.web.auth]
 # Master switch (default: false). When disabled, all routes are accessible without credentials.
 enabled = false
 
@@ -59,6 +61,18 @@ jwks_url = "https://auth.example.com/.well-known/jwks.json"
 # How often to refresh the key set (seconds)
 jwks_refresh_interval_seconds = 3600
 
+# Maximum staleness (seconds) for JWKS cache when a refresh fails.
+# If the cache is within this window past its refresh interval, the stale
+# cache is used with a warning. 0 = no stale cache fallback.
+jwks_max_stale_seconds = 300
+
+# Allow HTTP (non-TLS) JWKS URLs. Only enable for local testing.
+jwks_url_allow_http = false
+
+# Allowed JWT signing algorithms. Tokens signed with other algorithms
+# are rejected. Default: ["RS256"]
+jwt_allowed_algorithms = ["RS256"]
+
 # --- Permission Validation ---
 
 # JWT claim name containing the permissions array
@@ -79,12 +93,12 @@ api_key_header = "X-API-Key"
 api_keys_enabled = false
 
 # API key registry (multiple keys with individual permissions)
-[[web.auth.api_keys]]
+[[orchestration.web.auth.api_keys]]
 key = "sk-prod-monitoring-key"
 permissions = ["tasks:read", "tasks:list", "dlq:read", "dlq:stats"]
 description = "Production monitoring service"
 
-[[web.auth.api_keys]]
+[[orchestration.web.auth.api_keys]]
 key = "sk-prod-admin-key"
 permissions = ["*"]
 description = "Production admin"
@@ -123,7 +137,12 @@ The `tasker-client` library checks these in priority order and uses the first av
 ### Development (Auth Disabled)
 
 ```toml
-[web.auth]
+# In orchestration.toml:
+[orchestration.web.auth]
+enabled = false
+
+# In worker.toml:
+[worker.web.auth]
 enabled = false
 ```
 
@@ -132,7 +151,8 @@ All endpoints accessible without credentials. Default behavior.
 ### Development (Auth Enabled, Static Key)
 
 ```toml
-[web.auth]
+# In orchestration.toml:
+[orchestration.web.auth]
 enabled = true
 jwt_verification_method = "public_key"
 jwt_public_key_path = "./keys/jwt-public-key.pem"
@@ -140,7 +160,7 @@ jwt_issuer = "tasker-core"
 jwt_audience = "tasker-api"
 strict_validation = false
 
-[[web.auth.api_keys]]
+[[orchestration.web.auth.api_keys]]
 key = "dev-key"
 permissions = ["*"]
 description = "Dev superuser key"
@@ -149,7 +169,8 @@ description = "Dev superuser key"
 ### Production (JWKS + API Keys)
 
 ```toml
-[web.auth]
+# In orchestration.toml:
+[orchestration.web.auth]
 enabled = true
 jwt_verification_method = "jwks"
 jwks_url = "https://auth.company.com/.well-known/jwks.json"
@@ -161,12 +182,12 @@ log_unknown_permissions = true
 api_keys_enabled = true
 api_key_header = "X-API-Key"
 
-[[web.auth.api_keys]]
+[[orchestration.web.auth.api_keys]]
 key = "sk-monitoring-prod"
 permissions = ["tasks:read", "tasks:list", "steps:read", "dlq:read", "dlq:stats"]
 description = "Monitoring service"
 
-[[web.auth.api_keys]]
+[[orchestration.web.auth.api_keys]]
 key = "sk-submitter-prod"
 permissions = ["tasks:create", "tasks:read", "tasks:list"]
 description = "Task submission service"
@@ -175,10 +196,11 @@ description = "Task submission service"
 ### Production (Config Endpoint Enabled)
 
 ```toml
-[web]
+# In orchestration.toml:
+[orchestration.web]
 config_endpoint_enabled = true
 
-[web.auth]
+[orchestration.web.auth]
 enabled = true
 # ... auth config ...
 ```

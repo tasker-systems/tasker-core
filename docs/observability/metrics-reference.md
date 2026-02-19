@@ -853,7 +853,7 @@ rate(ffi_completion_slow_sends_total[5m]) > 10
 
 ---
 
-#### `ffi_completion_circuit_open_rejections_total`
+#### `ffi_completion_circuit_rejections_total`
 
 **Description**: FFI completion operations rejected due to open circuit breaker
 **Type**: Counter (u64)
@@ -865,10 +865,10 @@ rate(ffi_completion_slow_sends_total[5m]) > 10
 
 ```promql
 # Total rejections
-ffi_completion_circuit_open_rejections_total
+ffi_completion_circuit_rejections_total
 
 # Rejection rate
-rate(ffi_completion_circuit_open_rejections_total[5m])
+rate(ffi_completion_circuit_rejections_total[5m])
 ```
 
 ---
@@ -974,7 +974,7 @@ api_circuit_breaker_state
 ```promql
 # Panel: Multi-stat showing slow sends and rejections
 rate(ffi_completion_slow_sends_total[5m])
-rate(ffi_completion_circuit_open_rejections_total[5m])
+rate(ffi_completion_circuit_rejections_total[5m])
 ```
 
 **Channel Saturation Overview**:

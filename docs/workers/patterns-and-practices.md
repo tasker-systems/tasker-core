@@ -551,7 +551,7 @@ class CsvBatchProcessorHandler < TaskerCore::StepHandler::Batchable
     return no_op_result if no_op_result
 
     # Process records using batch_ctx.start_cursor, batch_ctx.end_cursor
-    batch_worker_complete(processed_count: batch_ctx.batch_size)
+    batch_worker_success(items_processed: batch_ctx.batch_size, items_succeeded: batch_ctx.batch_size)
   end
 end
 ```
@@ -565,7 +565,7 @@ class CsvProcessorHandler(StepHandler, Batchable):
     def call(self, context: StepContext) -> StepHandlerResult:
         batch_ctx = self.get_batch_context(context)
         # Process records using batch_ctx.start_cursor, batch_ctx.end_cursor
-        return self.batch_worker_success(processed_count=batch_ctx.batch_size)
+        return self.batch_worker_success(items_processed=batch_ctx.batch_size, items_succeeded=batch_ctx.batch_size)
 ```
 
 ---
@@ -607,7 +607,7 @@ class MyBatchWorker < TaskerCore::StepHandler::Batchable
       end
     end
 
-    batch_worker_complete(processed_count: items.size)
+    batch_worker_success(items_processed: items.size, items_succeeded: items.size)
   end
 end
 ```
@@ -633,7 +633,7 @@ class MyBatchWorker(StepHandler, Batchable):
                     accumulated_results={"partial": "data"}
                 )
 
-        return self.batch_worker_success(processed_count=len(items))
+        return self.batch_worker_success(items_processed=len(items), items_succeeded=len(items))
 ```
 
 **TypeScript**:
@@ -659,7 +659,15 @@ class MyBatchWorker extends BatchableHandler {
       }
     }
 
-    return this.batchWorkerSuccess({ processedCount: items.length });
+    return this.batchWorkerSuccess({
+      itemsProcessed: items.length,
+      itemsSucceeded: items.length,
+      itemsFailed: 0,
+      itemsSkipped: 0,
+      results: [],
+      errors: [],
+      lastCursor: null,
+    });
   }
 }
 ```

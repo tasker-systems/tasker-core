@@ -64,7 +64,7 @@ impl TaskState {
 }
 ```
 
-**Ownership-Required States**: `Initializing`, `EnqueuingSteps`, `StepsInProcess`, `EvaluatingResults`
+**Active States** (processor UUID tracked for audit): `Initializing`, `EnqueuingSteps`, `StepsInProcess`, `EvaluatingResults`
 **Processable States**: `Pending`, `WaitingForDependencies`, `WaitingForRetry`
 
 ### Task Lifecycle Flow
@@ -157,24 +157,18 @@ Task state transitions are driven by events defined in `tasker-shared/src/state_
 - `Timeout`: Operation timeout occurred
 - `ProcessorCrashed`: Processor became unavailable
 
-### Processor Ownership
+### Processor Ownership (Audit-Only Mode)
 
-The task state machine implements processor ownership for active states to prevent race conditions:
+The task state machine tracks processor UUID for audit trail and debugging purposes, but does **not** enforce processor ownership. The `requires_ownership()` method returns `false` for all states.
 
-```rust
-// Ownership validation in task_state_machine.rs
-if target_state.requires_ownership() {
-    let current_processor = self.get_current_processor().await?;
-    TransitionGuard::check_ownership(target_state, current_processor, self.processor_uuid)?;
-}
-```
+**History**: The original TAS-41 design enforced processor ownership on active states (`Initializing`, `EnqueuingSteps`, `StepsInProcess`, `EvaluatingResults`), blocking different orchestrators from taking over tasks mid-processing. TAS-54 removed this enforcement because it prevented crash recovery -- if an orchestrator crashed while processing a task, no other orchestrator could pick it up.
 
-**Ownership Rules**:
+**Current Behavior**:
 
-- States requiring ownership: `Initializing`, `EnqueuingSteps`, `StepsInProcess`, `EvaluatingResults`
-- Processor UUID stored in `tasker.task_transitions.processor_uuid` column
-- Atomic ownership claiming prevents concurrent processing
-- Ownership validated on each transition attempt
+- Processor UUID is still recorded in the `tasker.task_transitions.processor_uuid` column on each transition for audit trail and debugging
+- Any orchestrator instance can process any task regardless of which instance previously owned it
+- Idempotency is guaranteed through three mechanisms: state machine guards (which validate legal transitions), transaction atomicity (single database transaction per state change), and atomic claiming (database constraints prevent duplicate claims)
+- Crash recovery is straightforward: if an orchestrator goes down, another instance discovers and resumes its in-progress tasks without ownership conflicts
 
 ## Workflow Step State Machine Architecture
 
@@ -327,11 +321,11 @@ Both state machines implement comprehensive guard conditions in `tasker-shared/s
 - Enforces terminal state immutability
 - Supports legacy transition compatibility
 
-#### Ownership Validation
+#### Processor Tracking
 
-- Checks processor ownership for ownership-required states
-- Prevents concurrent task processing
-- Allows ownership claiming for unowned tasks
+- Records processor UUID in transitions for audit trail (TAS-54: not enforced)
+- Concurrent processing prevented by state machine guards and transaction atomicity
+- Any orchestrator can resume stuck tasks after a crash
 
 ### Step Guards
 

@@ -354,9 +354,10 @@ class CsvBatchProcessorHandler < TaskerCore::StepHandler::Batchable
     processed = records.map { |record| transform_record(record) }
 
     # Return batch completion
-    batch_worker_complete(
-      processed_count: processed.size,
-      result_data: { records: processed }
+    batch_worker_success(
+      items_processed: processed.size,
+      items_succeeded: processed.size,
+      results: processed
     )
   end
 end
@@ -366,7 +367,7 @@ end
 
 - `get_batch_context(context)` - Get batch boundaries from StepContext
 - `handle_no_op_worker(batch_ctx)` - Handle placeholder batches
-- `batch_worker_complete(processed_count:, result_data:)` - Complete batch
+- `batch_worker_success(items_processed:, items_succeeded:, ...)` - Complete batch
 - `create_cursor_configs(total_items, worker_count)` - Create 0-indexed cursor ranges
 
 **Cursor Indexing**:

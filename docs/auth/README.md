@@ -50,7 +50,7 @@ Request ──►  Middleware  │  SecurityService              │
 ### Request Flow
 
 1. **Middleware** (`conditional_auth`) runs on protected routes
-2. If auth disabled → injects `SecurityContext::disabled_context()` (all permissions)
+2. If auth disabled → injects `SecurityContext::disabled_context()` (bypasses permission checks)
 3. If auth enabled → extracts Bearer token or API key from headers
 4. **`SecurityService`** validates credentials, returns `SecurityContext`
 5. **`authorize()` wrapper** checks permission BEFORE body deserialization → 403 if denied
@@ -117,7 +117,7 @@ curl -H "Authorization: Bearer <token>" http://localhost:8080/v1/tasks
 
 ### Auth Disabled by Default
 
-Security is opt-in (`enabled = false` default). Existing deployments are unaffected. When disabled, all handlers receive a `SecurityContext` with `AuthMethod::Disabled` and `permissions: ["*"]`.
+Security is opt-in (`enabled = false` default). Existing deployments are unaffected. When disabled, all handlers receive a `SecurityContext` with `AuthMethod::Disabled` and an empty permissions list (`permissions: []`). All permission checks still pass because `has_permission()` short-circuits and returns `true` for `AuthMethod::Disabled` without inspecting the permissions list.
 
 ### Config Endpoint Opt-In
 

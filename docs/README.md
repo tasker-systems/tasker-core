@@ -35,7 +35,6 @@ The documentation is organized by cognitive function:
 | **[workers/](workers/)** | Language-specific handler development | Writing handlers |
 | **[reference/](reference/)** | Technical specifications | Precise details, edge cases |
 | **[development/](development/)** | Developer tooling | Build system, coding standards |
-| **[operations/](operations/)** | Production guidance | Deployment, monitoring |
 
 ---
 
@@ -109,9 +108,6 @@ The documentation is organized by cognitive function:
 - **[Backpressure Architecture](architecture/backpressure-architecture.md)** - Unified resilience strategy
 - **[DLQ System](guides/dlq-system.md)** - Dead letter queue investigation
 - **[Observability](observability/README.md)** - Metrics, logging, and monitoring
-- **[Backpressure Monitoring](operations/backpressure-monitoring.md)** - Alerting and incident response
-- **[Channel Tuning](operations/mpsc-channel-tuning.md)** - MPSC channel configuration
-- **[Checkpoint Operations](operations/checkpoint-operations.md)** - Monitoring and managing batch checkpoints
 - **[Benchmarks](benchmarks/README.md)** - Performance validation and targets
 
 ---
@@ -180,10 +176,6 @@ docs/
 │   ├── development-patterns.md         # Development workflows
 │   ├── mpsc-channel-guidelines.md      # Channel usage rules
 │   └── ffi-callback-safety.md          # FFI safety patterns
-│
-├── operations/                         # Production operations
-│   ├── mpsc-channel-tuning.md          # Channel configuration
-│   └── backpressure-monitoring.md      # Monitoring and alerting
 │
 ├── observability/                      # Metrics and monitoring
 │   └── README.md                       # Observability hub

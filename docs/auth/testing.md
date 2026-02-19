@@ -46,27 +46,35 @@ cargo nextest run --features test-services \
 
 ## Test Infrastructure
 
-### AuthWebTestClient
+### AuthTestServer and AuthWebTestClient
 
-A specialized HTTP client that starts an auth-enabled Axum server:
+Tests use a two-part setup: `AuthTestServer` starts an auth-enabled Axum server, and `AuthWebTestClient` provides HTTP methods to interact with it:
 
 ```rust
-use crate::web::auth::common::AuthWebTestClient;
+use crate::web::auth_test_helpers::*;
 
 #[tokio::test]
 async fn test_example() {
-    let client = AuthWebTestClient::new().await;
-    // client.base_url is http://127.0.0.1:{dynamic_port}
+    let server = AuthTestServer::start()
+        .await
+        .expect("Failed to start auth test server");
+    let mut client = AuthWebTestClient::for_server(&server);
+
+    // Use client for requests...
+    let response = client.get("/v1/tasks").await.expect("request failed");
+
+    server.shutdown().await.expect("shutdown failed");
 }
 ```
 
-`AuthWebTestClient::new()` does:
+`AuthTestServer::start()` does:
 
-1. Loads `config/tasker/generated/auth-test.toml` (auth enabled, test keys)
-2. Resolves `jwt-public-key-test.pem` via `CARGO_MANIFEST_DIR`
+1. Allocates a dynamic port (`127.0.0.1:0`)
+2. Sets `TASKER_CONFIG_PATH` and `TASKER_JWT_PUBLIC_KEY_PATH`
 3. Creates `SystemContext` + `OrchestrationCore` + `AppState`
-4. Starts Axum on a dynamically-allocated port (`127.0.0.1:0`)
-5. Provides HTTP methods: `get()`, `post_json()`, `patch_json()`, `delete()`
+4. Starts Axum with auth middleware active
+
+`AuthWebTestClient::for_server(&server)` creates an HTTP client configured with the server's base URL. It supports auth modes via builder methods: `with_jwt()`, `with_api_key()`, and `without_auth()`.
 
 ### Token Generators
 
@@ -89,10 +97,10 @@ Token generation uses the test RSA private key (`tests/fixtures/auth/jwt-private
 
 ```rust
 use crate::web::auth::common::{
-    TEST_API_KEY_FULL_ACCESS,      // permissions: ["*"]
+    TEST_API_KEY_FULL,             // permissions: ["*"]
     TEST_API_KEY_READ_ONLY,        // permissions: tasks/steps/dlq read + system read
     TEST_API_KEY_TASKS_ONLY,       // permissions: ["tasks:*"]
-    TEST_API_KEY_NO_PERMISSIONS,   // permissions: []
+    TEST_API_KEY_NO_PERMS,         // permissions: []
     INVALID_API_KEY,               // not registered
 };
 ```
@@ -147,9 +155,14 @@ These are deterministic test keys committed to the repository. They are only use
 ```rust
 #[tokio::test]
 async fn test_no_credentials_returns_401() {
-    let client = AuthWebTestClient::new().await;
-    let response = client.get("/v1/tasks").await.unwrap();
-    assert_eq!(response.status(), 401);
+    let server = AuthTestServer::start().await.expect("Failed to start");
+    let mut client = AuthWebTestClient::for_server(&server);
+    client.without_auth();
+
+    let response = client.get("/v1/tasks").await.expect("request failed");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    server.shutdown().await.expect("shutdown failed");
 }
 ```
 
@@ -158,13 +171,16 @@ async fn test_no_credentials_returns_401() {
 ```rust
 #[tokio::test]
 async fn test_jwt_with_permission_succeeds() {
-    let client = AuthWebTestClient::new().await;
+    let server = AuthTestServer::start().await.expect("Failed to start");
+    let mut client = AuthWebTestClient::for_server(&server);
+
     let token = generate_jwt(&["tasks:list"]);
-    let response = client
-        .get_with_token("/v1/tasks", &token)
-        .await
-        .unwrap();
-    assert_eq!(response.status(), 200);
+    client.with_jwt(&token);
+
+    let response = client.get("/v1/tasks").await.expect("request failed");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    server.shutdown().await.expect("shutdown failed");
 }
 ```
 
@@ -173,14 +189,17 @@ async fn test_jwt_with_permission_succeeds() {
 ```rust
 #[tokio::test]
 async fn test_jwt_without_permission_returns_403() {
-    let client = AuthWebTestClient::new().await;
+    let server = AuthTestServer::start().await.expect("Failed to start");
+    let mut client = AuthWebTestClient::for_server(&server);
+
     let token = generate_jwt(&["tasks:read"]);  // missing tasks:create
+    client.with_jwt(&token);
+
     let body = serde_json::json!({ /* ... */ });
-    let response = client
-        .post_json_with_token("/v1/tasks", &body, &token)
-        .await
-        .unwrap();
-    assert_eq!(response.status(), 403);
+    let response = client.post_json("/v1/tasks", &body).await.expect("request failed");
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    server.shutdown().await.expect("shutdown failed");
 }
 ```
 
@@ -189,12 +208,14 @@ async fn test_jwt_without_permission_returns_403() {
 ```rust
 #[tokio::test]
 async fn test_api_key_full_access() {
-    let client = AuthWebTestClient::new().await;
-    let response = client
-        .get_with_api_key("/v1/tasks", TEST_API_KEY_FULL_ACCESS)
-        .await
-        .unwrap();
-    assert_eq!(response.status(), 200);
+    let server = AuthTestServer::start().await.expect("Failed to start");
+    let mut client = AuthWebTestClient::for_server(&server);
+    client.with_api_key(TEST_API_KEY_FULL);
+
+    let response = client.get("/v1/tasks").await.expect("request failed");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    server.shutdown().await.expect("shutdown failed");
 }
 ```
 
@@ -203,9 +224,14 @@ async fn test_api_key_full_access() {
 ```rust
 #[tokio::test]
 async fn test_health_no_auth_required() {
-    let client = AuthWebTestClient::new().await;
-    let response = client.get("/health").await.unwrap();
-    assert_eq!(response.status(), 200);
+    let server = AuthTestServer::start().await.expect("Failed to start");
+    let mut client = AuthWebTestClient::for_server(&server);
+    client.without_auth();
+
+    let response = client.get("/health").await.expect("request failed");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    server.shutdown().await.expect("shutdown failed");
 }
 ```
 

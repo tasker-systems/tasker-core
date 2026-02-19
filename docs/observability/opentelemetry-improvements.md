@@ -65,7 +65,7 @@ Worker Bootstrap Sequence:
 **Phase 1: Console-Only Initialization** (FFI-Safe):
 
 ```rust
-// tasker-shared/src/logging.rs (lines 284-326)
+// tasker-shared/src/logging.rs — `init_console_only()`
 
 /// Initialize console-only logging (FFI-safe, no Tokio runtime required)
 ///
@@ -117,7 +117,7 @@ pub fn init_console_only() {
 **Phase 2: Full OpenTelemetry Initialization**:
 
 ```rust
-// tasker-shared/src/logging.rs (lines 361-449)
+// tasker-shared/src/logging.rs — `init_tracing()`
 
 /// Initialize tracing with console output and optional OpenTelemetry
 ///
@@ -181,7 +181,7 @@ pub fn init_tracing() {
 **Worker Bootstrap Integration**:
 
 ```rust
-// workers/rust/src/bootstrap.rs (lines 69-131)
+// workers/rust/src/bootstrap.rs — `bootstrap()`
 
 pub async fn bootstrap() -> Result<(WorkerSystemHandle, RustEventHandler)> {
     info!("📋 Creating native Rust step handler registry...");
@@ -250,7 +250,7 @@ export DEPLOYMENT_ENVIRONMENT=production
 export OTEL_TRACES_SAMPLER_ARG=1.0
 ```
 
-The `TelemetryConfig::default()` implementation in `tasker-shared/src/logging.rs:144-164`
+The `TelemetryConfig::default()` implementation in `tasker-shared/src/logging.rs`
 reads all values from environment variables at initialization time.
 
 ## Domain Event Metrics
@@ -271,7 +271,7 @@ Domain event observability metrics:
 Domain event metrics are emitted inline during publication:
 
 ```rust
-// tasker-shared/src/events/domain_events.rs (lines 207-219)
+// tasker-shared/src/events/domain_events.rs — metric emission in `publish_event()`
 
 // Emit OpenTelemetry metric
 let counter = opentelemetry::global::meter("tasker")
@@ -291,7 +291,7 @@ counter.add(
 Event routing statistics are tracked in the `EventRouterStats` and `InProcessEventBusStats` structures:
 
 ```rust
-// tasker-shared/src/metrics/worker.rs (lines 431-444)
+// tasker-shared/src/metrics/worker.rs — `EventRouterStats`
 
 /// Statistics for the event router
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -310,7 +310,7 @@ pub struct EventRouterStats {
     pub routing_errors: u64,
 }
 
-// tasker-shared/src/metrics/worker.rs (lines 455-467)
+// tasker-shared/src/metrics/worker.rs — `InProcessEventBusStats`
 
 /// Statistics for the in-process event bus
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -394,7 +394,7 @@ curl http://localhost:8081/metrics/events
 ### Implementation
 
 ```rust
-// tasker-worker/src/web/handlers/metrics.rs (lines 178-218)
+// tasker-worker/src/web/handlers/metrics.rs — `domain_event_stats()`
 
 /// Domain event statistics endpoint: GET /metrics/events
 ///
@@ -422,7 +422,7 @@ pub async fn domain_event_stats(
 The `DomainEventStats` structure is defined in `tasker-shared/src/types/web.rs`:
 
 ```rust
-// tasker-shared/src/types/web.rs (lines 546-555)
+// tasker-shared/src/types/web.rs — `DomainEventStats`
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DomainEventStats {
@@ -473,7 +473,7 @@ flowchart LR
 The `DomainEventPublisher::publish_event` method uses `#[instrument]` for automatic span creation:
 
 ```rust
-// tasker-shared/src/events/domain_events.rs (lines 157-231)
+// tasker-shared/src/events/domain_events.rs — `publish_event()`
 
 #[instrument(skip(self, payload, metadata), fields(
     event_name = %event_name,
