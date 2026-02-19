@@ -1,0 +1,267 @@
+# TaskTemplate Configuration - DSL Variant - Ruby Implementation
+#
+# Mixed DAG Workflow Pattern with Ruby Step Handlers via FFI
+# Demonstrates complex DAG with mixed dependency patterns: linear, parallel, and convergence
+#
+# Template: mixed_dag_workflow/complex_dag:1.0.0
+# Implementation: Ruby FFI with tasker-rb
+# Updated: 2025-09-24 (Fixed Template Format)
+#
+# Complex DAG Pattern (7 steps):
+# 1. Init: Square input (6 → 36)
+# 2. Process Left: Square init result (36 → 1,296)
+# 3. Process Right: Square init result (36 → 1,296)
+# 4. Validate: Multiply left and right, then square ((1,296 × 1,296)² → 1,679,616²)
+# 5. Transform: Square left result again (1,296² → 1,679,616)
+# 6. Analyze: Square right result again (1,296² → 1,679,616)
+# 7. Finalize: Multiply validate, transform, analyze and square
+# Final result: input^64
+#
+---
+name: complex_dag_dsl
+namespace_name: mixed_dag_workflow_dsl
+version: 1.0.0
+description: "Complex DAG workflow: mixed patterns with linear, parallel, and convergence operations (input^64)"
+metadata:
+  author: Ruby FFI Implementation
+  tags:
+    - namespace:mixed_dag_workflow_dsl
+    - pattern:complex_dag
+    - dependencies:mixed_linear_parallel_convergence
+    - implementation:ruby_ffi
+    - language:ruby
+    - type_safety:runtime
+    - parallelism:multi_path
+    - convergence:three_way
+  documentation_url:
+  created_at: "2025-09-24T00:00:00Z"
+  updated_at: "2025-09-24T00:00:00Z"
+  notes: "Ruby FFI implementation with complex mixed dependency patterns and multi-path convergence"
+task_handler:
+  callable: MixedDagWorkflow::MixedDagWorkflowHandler_dsl
+  initialization:
+    input_validation:
+      required_fields:
+        - even_number
+      even_number_constraint: must_be_even
+      value_range:
+        min: 2
+        max: 100
+    expected_results:
+      dag_init_dsl: "input²"
+      dag_process_left_dsl: "(input²)²"
+      dag_process_right_dsl: "(input²)²"
+      dag_validate_dsl: "((input²)² × (input²)²)²"
+      dag_transform_dsl: "((input²)²)²"
+      dag_analyze_dsl: "((input²)²)²"
+      dag_finalize_dsl: "(validate × transform × analyze)²"
+      final_pattern: "input^64"
+system_dependencies:
+  primary: default
+  secondary: []
+domain_events: []
+input_schema:
+  type: object
+  required:
+    - even_number
+  properties:
+    even_number:
+      type: integer
+      minimum: 2
+      maximum: 100
+      description: "Even number for complex DAG calculation"
+steps:
+  - name: dag_init_dsl
+    description: "DAG initialization: Square the input even number"
+    handler:
+      callable: MixedDagWorkflow::StepHandlers::DagInitHandler_dsl
+      initialization:
+        operation: square
+        step_type: initialization
+        description: "Initialize DAG: square the input number"
+        downstream_paths:
+          - dag_process_left_dsl
+          - dag_process_right_dsl
+    system_dependency:
+    dependencies: []
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      backoff_base_ms: 1000
+      max_backoff_ms: 30000
+    timeout_seconds: 30
+    publishes_events: []
+  - name: dag_process_left_dsl
+    description: "Left processing path: Square the init result"
+    handler:
+      callable: MixedDagWorkflow::StepHandlers::DagProcessLeftHandler_dsl
+      initialization:
+        operation: square
+        step_type: parallel_processing
+        processing_path: left
+        description: "Left path: square the init result"
+        downstream_steps:
+          - dag_validate_dsl
+          - dag_transform_dsl
+    system_dependency:
+    dependencies:
+      - dag_init_dsl
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      backoff_base_ms: 1000
+      max_backoff_ms: 30000
+    timeout_seconds: 30
+    publishes_events: []
+  - name: dag_process_right_dsl
+    description: "Right processing path: Square the init result"
+    handler:
+      callable: MixedDagWorkflow::StepHandlers::DagProcessRightHandler_dsl
+      initialization:
+        operation: square
+        step_type: parallel_processing
+        processing_path: right
+        description: "Right path: square the init result"
+        downstream_steps:
+          - dag_validate_dsl
+          - dag_analyze_dsl
+    system_dependency:
+    dependencies:
+      - dag_init_dsl
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      backoff_base_ms: 1000
+      max_backoff_ms: 30000
+    timeout_seconds: 30
+    publishes_events: []
+  - name: dag_validate_dsl
+    description: "Validation step: Multiply both processing results and square"
+    handler:
+      callable: MixedDagWorkflow::StepHandlers::DagValidateHandler_dsl
+      initialization:
+        operation: multiply_and_square
+        step_type: convergence_validation
+        description: "Validate: multiply both processing paths and square"
+        input_paths:
+          - left: dag_process_left
+          - right: dag_process_right
+        downstream_steps:
+          - dag_finalize_dsl
+    system_dependency:
+    dependencies:
+      - dag_process_left_dsl
+      - dag_process_right_dsl
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      backoff_base_ms: 1000
+      max_backoff_ms: 30000
+    timeout_seconds: 30
+    publishes_events: []
+  - name: dag_transform_dsl
+    description: "Transform step: Square the left processing result"
+    handler:
+      callable: MixedDagWorkflow::StepHandlers::DagTransformHandler_dsl
+      initialization:
+        operation: square
+        step_type: linear_transformation
+        description: "Transform: square the left processing result"
+        input_path: dag_process_left
+        downstream_steps:
+          - dag_finalize_dsl
+    system_dependency:
+    dependencies:
+      - dag_process_left_dsl
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      backoff_base_ms: 1000
+      max_backoff_ms: 30000
+    timeout_seconds: 30
+    publishes_events: []
+  - name: dag_analyze_dsl
+    description: "Analysis step: Square the right processing result"
+    handler:
+      callable: MixedDagWorkflow::StepHandlers::DagAnalyzeHandler_dsl
+      initialization:
+        operation: square
+        step_type: linear_analysis
+        description: "Analyze: square the right processing result"
+        input_path: dag_process_right
+        downstream_steps:
+          - dag_finalize_dsl
+    system_dependency:
+    dependencies:
+      - dag_process_right_dsl
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      backoff_base_ms: 1000
+      max_backoff_ms: 30000
+    timeout_seconds: 30
+    publishes_events: []
+  - name: dag_finalize_dsl
+    description: "Final convergence: Multiply validate, transform, analyze results and square"
+    handler:
+      callable: MixedDagWorkflow::StepHandlers::DagFinalizeHandler_dsl
+      initialization:
+        operation: multiply_three_and_square
+        step_type: final_convergence
+        description: "Finalize: multiply validate, transform, analyze and square"
+        input_steps:
+          - dag_validate_dsl
+          - dag_transform_dsl
+          - dag_analyze_dsl
+        convergence_pattern: "((validate × transform × analyze)²)"
+        final_result: "input^64"
+    system_dependency:
+    dependencies:
+      - dag_validate_dsl
+      - dag_transform_dsl
+      - dag_analyze_dsl
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      backoff_base_ms: 1000
+      max_backoff_ms: 30000
+    timeout_seconds: 45
+    publishes_events: []
+environments:
+  test:
+    steps:
+      - name: dag_init_dsl
+        timeout_seconds: 10
+        retry:
+          max_attempts: 2
+      - name: dag_process_left_dsl
+        timeout_seconds: 10
+        retry:
+          max_attempts: 2
+      - name: dag_process_right_dsl
+        timeout_seconds: 10
+        retry:
+          max_attempts: 2
+      - name: dag_validate_dsl
+        timeout_seconds: 15
+        retry:
+          max_attempts: 2
+      - name: dag_transform_dsl
+        timeout_seconds: 10
+        retry:
+          max_attempts: 2
+      - name: dag_analyze_dsl
+        timeout_seconds: 10
+        retry:
+          max_attempts: 2
+      - name: dag_finalize_dsl
+        timeout_seconds: 20
+        retry:
+          max_attempts: 2
