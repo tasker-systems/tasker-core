@@ -53,6 +53,7 @@
 require_relative 'mixins/api'
 require_relative 'mixins/decision'
 require_relative 'mixins/batchable'
+require_relative 'functional'
 
 module TaskerCore
   module StepHandler
