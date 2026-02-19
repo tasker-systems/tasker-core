@@ -26,9 +26,9 @@
 //!
 //! ## Output
 //!
-//! Events are logged at INFO level with structured fields:
+//! Events are logged at DEBUG level with structured fields:
 //! ```text
-//! INFO [PAYMENT] Domain event received
+//! DEBUG [PAYMENT] Domain event received
 //!   event_name: payment.processed
 //!   event_id: 550e8400-e29b-41d4-a716-446655440000
 //!   task_uuid: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
@@ -38,7 +38,7 @@
 
 use std::sync::Arc;
 use tasker_shared::events::registry::EventHandler;
-use tracing::info;
+use tracing::debug;
 
 /// Create a logging subscriber that logs all events matching a pattern
 ///
@@ -67,7 +67,7 @@ pub(crate) fn create_logging_subscriber(prefix: &str) -> EventHandler {
             // Extract step name from metadata if available
             let step_name = event.metadata.step_name.as_deref().unwrap_or("unknown");
 
-            info!(
+            debug!(
                 prefix = %prefix,
                 event_name = %event.event_name,
                 event_id = %event.event_id,
@@ -135,7 +135,7 @@ pub(crate) fn create_verbose_logging_subscriber(prefix: &str) -> EventHandler {
                 .map(|u| u.to_string())
                 .unwrap_or_else(|| "unknown".to_string());
 
-            info!(
+            debug!(
                 prefix = %prefix,
                 event_name = %event.event_name,
                 event_id = %event.event_id,

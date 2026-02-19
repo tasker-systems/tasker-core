@@ -287,7 +287,7 @@ impl WorkerQueueListener {
         );
 
         while let Some(notification) = stream.next().await {
-            info!(
+            debug!(
                 listener_id = %listener_id,
                 queue = %queue_name,
                 namespace = %namespace,
@@ -317,7 +317,7 @@ impl WorkerQueueListener {
                     let message_event =
                         MessageEvent::from_available(&notif_queue, msg_id, &namespace);
 
-                    info!(
+                    debug!(
                         listener_id = %listener_id,
                         queue = %message_event.queue_name,
                         msg_id = %message_event.message_id,
@@ -357,7 +357,7 @@ impl WorkerQueueListener {
                     // This avoids the lossy conversion to MessageEvent
                     let queue_name = queued_msg.queue_name().to_string();
 
-                    info!(
+                    debug!(
                         listener_id = %listener_id,
                         queue = %queue_name,
                         namespace = %namespace,

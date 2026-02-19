@@ -428,7 +428,7 @@ impl WorkerEventSystem {
                                         // Use map to convert QueuedMessage<Vec<u8>> to QueuedMessage<serde_json::Value>
                                         let json_message = queued_msg.map(|_| json_value);
 
-                                        info!(
+                                        debug!(
                                             queue = %json_message.queue_name(),
                                             provider = %json_message.provider_name(),
                                             "Processing RabbitMQ push message via ExecuteStepFromMessage"

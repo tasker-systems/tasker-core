@@ -44,7 +44,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::{DecisionPointOutcome, StepExecutionResult};
 use tasker_shared::types::TaskSequenceStep;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 const SMALL_AMOUNT_THRESHOLD: i64 = 1000;
 const LARGE_AMOUNT_THRESHOLD: i64 = 5000;
@@ -153,7 +153,7 @@ impl RustStepHandler for ValidateRequestHandler {
             ));
         }
 
-        info!(
+        debug!(
             "Validating approval request: {} requesting ${} for {}",
             requester, amount, purpose
         );
@@ -254,7 +254,7 @@ impl RustStepHandler for RoutingDecisionHandler {
             )
         };
 
-        info!(
+        debug!(
             "Routing decision for ${}: {} -> creating steps: {}",
             amount,
             reasoning,
@@ -322,7 +322,7 @@ impl RustStepHandler for AutoApproveHandler {
             .get_context_field("requester")
             .unwrap_or_else(|_| "unknown".to_string());
 
-        info!("Auto-approving request: {} for ${}", requester, amount);
+        debug!("Auto-approving request: {} for ${}", requester, amount);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("auto_approve"));
@@ -376,7 +376,7 @@ impl RustStepHandler for ManagerApprovalHandler {
             .get_context_field("requester")
             .unwrap_or_else(|_| "unknown".to_string());
 
-        info!("Manager approving request: {} for ${}", requester, amount);
+        debug!("Manager approving request: {} for ${}", requester, amount);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("manager_approval"));
@@ -430,7 +430,7 @@ impl RustStepHandler for FinanceReviewHandler {
             .get_context_field("requester")
             .unwrap_or_else(|_| "unknown".to_string());
 
-        info!("Finance reviewing request: {} for ${}", requester, amount);
+        debug!("Finance reviewing request: {} for ${}", requester, amount);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("finance_review"));
@@ -517,7 +517,7 @@ impl RustStepHandler for FinalizeApprovalHandler {
             }
         }
 
-        info!(
+        debug!(
             "Finalizing approval for {}: ${} - {} approval(s) received",
             requester,
             amount,
@@ -535,7 +535,7 @@ impl RustStepHandler for FinalizeApprovalHandler {
             _ => "unknown",
         };
 
-        info!(
+        debug!(
             "Approval finalized: {} for ${} via {} path",
             requester, amount, approval_path
         );

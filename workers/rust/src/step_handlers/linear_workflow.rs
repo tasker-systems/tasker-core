@@ -35,7 +35,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 /// Linear Step 1: Square the initial even number (6 -> 36)
 ///
@@ -91,7 +91,7 @@ impl RustStepHandler for LinearStep1Handler {
         // Square the even number (first step operation)
         let result = even_number * even_number;
 
-        info!("Linear Step 1: {}² = {}", even_number, result);
+        debug!("Linear Step 1: {}² = {}", even_number, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -160,7 +160,7 @@ impl RustStepHandler for LinearStep2Handler {
         // Square the previous result
         let result = previous_result * previous_result;
 
-        info!(
+        debug!(
             "Linear Step 2: {} * {} = {}",
             previous_result, previous_result, result
         );
@@ -232,7 +232,7 @@ impl RustStepHandler for LinearStep3Handler {
         // Square the previous result (single parent operation)
         let result = previous_result * previous_result;
 
-        info!("Linear Step 3: {}² = {}", previous_result, result);
+        debug!("Linear Step 3: {}² = {}", previous_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -305,7 +305,7 @@ impl RustStepHandler for LinearStep4Handler {
         // Square the previous result (single parent operation)
         let result = previous_result * previous_result;
 
-        info!("Linear Step 4 (Final): {}² = {}", previous_result, result);
+        debug!("Linear Step 4 (Final): {}² = {}", previous_result, result);
 
         // TAS-137: Use get_input_or() for task context with default value
         // This is cleaner than .unwrap_or() and matches cross-language patterns
@@ -315,11 +315,11 @@ impl RustStepHandler for LinearStep4Handler {
         let expected = original_number.pow(8);
         let matches = result == expected;
 
-        info!(
+        debug!(
             "Linear Workflow Complete: {} -> {}",
             original_number, result
         );
-        info!(
+        debug!(
             "Verification: {}^8 = {} (match: {})",
             original_number, expected, matches
         );

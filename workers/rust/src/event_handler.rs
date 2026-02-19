@@ -193,7 +193,7 @@ impl RustEventHandler {
         // Look up the handler in the registry
         match registry.get_handler(handler_name) {
             Ok(handler) => {
-                info!(
+                debug!(
                     worker_id = %worker_id,
                     handler_name = %handler_name,
                     "Found handler - executing"
@@ -268,7 +268,7 @@ impl RustEventHandler {
                 )
                 .await;
 
-                info!(
+                debug!(
                     worker_id = %worker_id,
                     handler_name = %handler_name,
                     event_id = %event.event_id,
@@ -353,7 +353,7 @@ impl RustEventHandler {
 
         // Log results
         if !result.published.is_empty() {
-            info!(
+            debug!(
                 worker_id = %worker_id,
                 step_name = %task_sequence_step.workflow_step.name,
                 published_count = result.published.len(),

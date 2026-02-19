@@ -28,7 +28,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 /// Validate Order: Validate customer info, order items, and calculate totals
 #[derive(Debug)]
@@ -268,7 +268,7 @@ impl RustStepHandler for ValidateOrderHandler {
             ));
         }
 
-        info!("🎯 VALIDATE_ORDER: Order validation complete - customer_id={}, item_count={}, total=${:.2}",
+        debug!("🎯 VALIDATE_ORDER: Order validation complete - customer_id={}, item_count={}, total=${:.2}",
               customer_id, validated_items.len(), total_amount);
 
         let mut metadata = HashMap::new();
@@ -441,7 +441,7 @@ impl RustStepHandler for ReserveInventoryHandler {
             }));
         }
 
-        info!(
+        debug!(
             "📦 RESERVE_INVENTORY: Inventory reserved - reservation_id={}, items={}, total=${:.2}",
             reservation_id,
             reservations.len(),
@@ -628,7 +628,7 @@ impl RustStepHandler for ProcessPaymentHandler {
             ));
         }
 
-        info!(
+        debug!(
             "💳 PROCESS_PAYMENT: Payment processed - payment_id={}, amount=${:.2}, method={}",
             payment_id, amount_to_charge, payment_method
         );
@@ -782,7 +782,7 @@ impl RustStepHandler for ShipOrderHandler {
         // Calculate estimated delivery
         let estimated_delivery = calculate_delivery_estimate(shipping_method);
 
-        info!(
+        debug!(
             "📦 SHIP_ORDER: Shipment created - shipment_id={}, tracking={}, carrier={}",
             shipment_id, carrier_response.tracking_number, carrier_response.carrier
         );

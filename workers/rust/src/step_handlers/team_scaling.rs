@@ -29,7 +29,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::info;
+use tracing::debug;
 use uuid::Uuid;
 
 use super::{error_result, success_result, RustStepHandler, StepHandlerConfig};
@@ -163,7 +163,7 @@ impl RustStepHandler for ValidateRefundRequestHandler {
         let payment_id = generate_id("pay");
         let now = Utc::now().to_rfc3339();
 
-        info!(
+        debug!(
             "ValidateRefundRequestHandler: Validated request - ticket_id={}, customer_tier={}",
             ticket_id, customer_tier
         );
@@ -287,7 +287,7 @@ impl RustStepHandler for CheckRefundPolicyHandler {
 
         let now = Utc::now().to_rfc3339();
 
-        info!(
+        debug!(
             "CheckRefundPolicyHandler: Policy check passed - customer_tier={}, requires_approval={}",
             customer_tier, requires_approval
         );
@@ -412,7 +412,7 @@ impl RustStepHandler for GetManagerApprovalHandler {
             let approval_id = generate_id("appr");
             let manager_id = format!("mgr_{}", (ticket_id.len() % 5) + 1);
 
-            info!(
+            debug!(
                 "GetManagerApprovalHandler: Approval obtained - approval_id={}, manager_id={}",
                 approval_id, manager_id
             );
@@ -438,7 +438,7 @@ impl RustStepHandler for GetManagerApprovalHandler {
                 ])),
             ))
         } else {
-            info!(
+            debug!(
                 "GetManagerApprovalHandler: Auto-approved for tier={}",
                 customer_tier
             );
@@ -536,7 +536,7 @@ impl RustStepHandler for ExecuteRefundWorkflowHandler {
         let task_id = format!("task_{}", Uuid::new_v4());
         let now = Utc::now().to_rfc3339();
 
-        info!(
+        debug!(
             "ExecuteRefundWorkflowHandler: Delegated to payments namespace - task_id={}, correlation_id={}",
             task_id, correlation_id
         );
@@ -643,7 +643,7 @@ impl RustStepHandler for UpdateTicketStatusHandler {
 
         let now = Utc::now().to_rfc3339();
 
-        info!(
+        debug!(
             "UpdateTicketStatusHandler: Ticket updated - ticket_id={}, status=resolved",
             ticket_id
         );
@@ -784,7 +784,7 @@ impl RustStepHandler for ValidatePaymentEligibilityHandler {
 
         let now = Utc::now().to_rfc3339();
 
-        info!(
+        debug!(
             "ValidatePaymentEligibilityHandler: Payment validated - payment_id={}",
             payment_id
         );
@@ -902,7 +902,7 @@ impl RustStepHandler for ProcessGatewayRefundHandler {
         let now = Utc::now();
         let estimated_arrival = (now + Duration::days(5)).to_rfc3339();
 
-        info!(
+        debug!(
             "ProcessGatewayRefundHandler: Refund processed - refund_id={}, payment_id={}",
             refund_id, payment_id
         );
@@ -1005,7 +1005,7 @@ impl RustStepHandler for UpdatePaymentRecordsHandler {
         let record_id = generate_id("rec");
         let now = Utc::now().to_rfc3339();
 
-        info!(
+        debug!(
             "UpdatePaymentRecordsHandler: Records updated - payment_id={}, record_id={}",
             payment_id, record_id
         );
@@ -1133,7 +1133,7 @@ impl RustStepHandler for NotifyCustomerHandler {
         let message_id = generate_id("msg");
         let now = Utc::now().to_rfc3339();
 
-        info!(
+        debug!(
             "NotifyCustomerHandler: Notification sent - customer_email={}, message_id={}",
             customer_email, message_id
         );

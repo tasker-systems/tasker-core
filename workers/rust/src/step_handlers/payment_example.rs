@@ -24,7 +24,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::info;
+use tracing::debug;
 use uuid::Uuid;
 
 /// Example handler that processes a payment
@@ -95,7 +95,7 @@ impl RustStepHandler for ProcessPaymentHandler {
         }
 
         // Business logic: process payment
-        info!("Processing payment: {} {}", amount, currency);
+        debug!("Processing payment: {} {}", amount, currency);
 
         let transaction_id = format!("TXN-{}", Uuid::new_v4());
         let timestamp = chrono::Utc::now();

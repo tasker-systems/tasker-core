@@ -273,7 +273,7 @@ impl WorkerEventSubscriber {
                     "Received step completion event from FFI handler with trace context"
                 );
 
-                event!(Level::INFO, "step.ffi_execution_completed");
+                event!(Level::DEBUG, "step.ffi_execution_completed");
 
                 stats.record_completion(completion_event.success);
 
