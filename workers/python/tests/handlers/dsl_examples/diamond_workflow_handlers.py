@@ -20,7 +20,7 @@ from tasker_core.types import StepHandlerResult
 
 @step_handler("diamond_init_dsl")
 @inputs("initial_value")
-def diamond_init(initial_value, context):
+def diamond_init(initial_value, _context):
     """Initialize the diamond workflow."""
     if initial_value is None:
         initial_value = 100
@@ -36,7 +36,7 @@ def diamond_init(initial_value, context):
 
 @step_handler("diamond_path_a_dsl")
 @depends_on(init_result="diamond_init")
-def diamond_path_a(init_result, context):
+def diamond_path_a(init_result, _context):
     """Process data via path A (multiplication)."""
     if init_result is None:
         init_result = {}
@@ -51,7 +51,7 @@ def diamond_path_a(init_result, context):
 
 @step_handler("diamond_path_b_dsl")
 @depends_on(init_result="diamond_init")
-def diamond_path_b(init_result, context):
+def diamond_path_b(init_result, _context):
     """Process data via path B (addition)."""
     if init_result is None:
         init_result = {}
@@ -66,7 +66,7 @@ def diamond_path_b(init_result, context):
 
 @step_handler("diamond_merge_dsl")
 @depends_on(path_a="diamond_path_a", path_b="diamond_path_b")
-def diamond_merge(path_a, path_b, context):
+def diamond_merge(path_a, path_b, _context):
     """Merge results from both paths."""
     if path_a is None:
         path_a = {}
@@ -102,9 +102,9 @@ def diamond_merge(path_a, path_b, context):
 # ============================================================================
 
 
-@step_handler("diamond_workflow_dsl.step_handlers.diamond_start")
+@step_handler("diamond_workflow_dsl_py.step_handlers.diamond_start")
 @inputs("even_number")
-def diamond_start(even_number, context):
+def diamond_start(even_number, _context):
     """Square the even number."""
     if even_number is None:
         return StepHandlerResult.failure(
@@ -128,24 +128,22 @@ def diamond_start(even_number, context):
     }
 
 
-@step_handler("diamond_workflow_dsl.step_handlers.diamond_branch_b")
-@depends_on(start_output="diamond_start_py")
-def diamond_branch_b(start_output, context):
+@step_handler("diamond_workflow_dsl_py.step_handlers.diamond_branch_b")
+@depends_on(start_output="diamond_start_dsl_py")
+def diamond_branch_b(start_output, _context):
     """Add 25 to the squared result."""
     if start_output is None:
         return StepHandlerResult.failure(
-            message="Missing result from diamond_start_py",
+            message="Missing result from diamond_start_dsl_py",
             error_type="dependency_error",
             retryable=True,
         )
 
-    squared_value = (
-        start_output.get("result") if isinstance(start_output, dict) else start_output
-    )
+    squared_value = start_output.get("result") if isinstance(start_output, dict) else start_output
 
     if squared_value is None:
         return StepHandlerResult.failure(
-            message="Missing 'result' field in diamond_start_py output",
+            message="Missing 'result' field in diamond_start_dsl_py output",
             error_type="dependency_error",
             retryable=True,
         )
@@ -162,24 +160,22 @@ def diamond_branch_b(start_output, context):
     }
 
 
-@step_handler("diamond_workflow_dsl.step_handlers.diamond_branch_c")
-@depends_on(start_output="diamond_start_py")
-def diamond_branch_c(start_output, context):
+@step_handler("diamond_workflow_dsl_py.step_handlers.diamond_branch_c")
+@depends_on(start_output="diamond_start_dsl_py")
+def diamond_branch_c(start_output, _context):
     """Multiply the squared result by 2."""
     if start_output is None:
         return StepHandlerResult.failure(
-            message="Missing result from diamond_start_py",
+            message="Missing result from diamond_start_dsl_py",
             error_type="dependency_error",
             retryable=True,
         )
 
-    squared_value = (
-        start_output.get("result") if isinstance(start_output, dict) else start_output
-    )
+    squared_value = start_output.get("result") if isinstance(start_output, dict) else start_output
 
     if squared_value is None:
         return StepHandlerResult.failure(
-            message="Missing 'result' field in diamond_start_py output",
+            message="Missing 'result' field in diamond_start_dsl_py output",
             error_type="dependency_error",
             retryable=True,
         )
@@ -196,33 +192,29 @@ def diamond_branch_c(start_output, context):
     }
 
 
-@step_handler("diamond_workflow_dsl.step_handlers.diamond_end")
-@depends_on(branch_b_output="diamond_branch_b_py", branch_c_output="diamond_branch_c_py")
-def diamond_end(branch_b_output, branch_c_output, context):
+@step_handler("diamond_workflow_dsl_py.step_handlers.diamond_end")
+@depends_on(branch_b_output="diamond_branch_b_dsl_py", branch_c_output="diamond_branch_c_dsl_py")
+def diamond_end(branch_b_output, branch_c_output, _context):
     """Calculate average of both branch results."""
     b_value = None
     c_value = None
 
     if branch_b_output is not None:
         b_value = (
-            branch_b_output.get("result")
-            if isinstance(branch_b_output, dict)
-            else branch_b_output
+            branch_b_output.get("result") if isinstance(branch_b_output, dict) else branch_b_output
         )
 
     if branch_c_output is not None:
         c_value = (
-            branch_c_output.get("result")
-            if isinstance(branch_c_output, dict)
-            else branch_c_output
+            branch_c_output.get("result") if isinstance(branch_c_output, dict) else branch_c_output
         )
 
     if b_value is None or c_value is None:
         missing = []
         if b_value is None:
-            missing.append("diamond_branch_b_py")
+            missing.append("diamond_branch_b_dsl_py")
         if c_value is None:
-            missing.append("diamond_branch_c_py")
+            missing.append("diamond_branch_c_dsl_py")
         return StepHandlerResult.failure(
             message=f"Missing results from: {', '.join(missing)}",
             error_type="dependency_error",

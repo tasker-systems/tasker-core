@@ -39,10 +39,10 @@ input_schema:
       type: string
       description: "Optional message to echo in the result"
 steps:
-  - name: success_step_dsl
+  - name: success_step_dsl_ts
     description: "Simple step that always succeeds"
     handler:
-      callable: TestScenarios_dsl.StepHandlers.SuccessStepHandler
+      callable: TestScenariosDsl.StepHandlers.SuccessStepDslHandler
       initialization:
         operation: echo
         expected_outcome: success
@@ -59,7 +59,7 @@ steps:
 environments:
   test:
     steps:
-      - name: success_step_dsl
+      - name: success_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 2

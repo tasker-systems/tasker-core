@@ -51,10 +51,10 @@ input_schema:
       type: string
       description: "Type of action to execute"
 steps:
-  - name: explicit_resolver_step_dsl
+  - name: explicit_resolver_step_dsl_ts
     description: "Step 1: Use explicit_mapping resolver hint"
     handler:
-      callable: ResolverTests_dsl.StepHandlers.MultiMethodHandler
+      callable: ResolverTestsDsl.StepHandlers.MultiMethodDslHandler
       resolver: explicit_mapping
       initialization:
         step_number: 1
@@ -69,10 +69,10 @@ steps:
       max_backoff_ms: 10000
     timeout_seconds: 30
     publishes_events: []
-  - name: combined_hint_step_dsl
+  - name: combined_hint_step_dsl_ts
     description: "Step 2: Use both resolver hint and method dispatch"
     handler:
-      callable: ResolverTests_dsl.StepHandlers.AlternateMethodHandler
+      callable: ResolverTestsDsl.StepHandlers.AlternateMethodExecuteActionDslHandler
       method: execute_action
       resolver: explicit_mapping
       initialization:
@@ -81,7 +81,7 @@ steps:
         method_used: execute_action
     system_dependency:
     dependencies:
-      - explicit_resolver_step_dsl
+      - explicit_resolver_step_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -90,16 +90,16 @@ steps:
       max_backoff_ms: 10000
     timeout_seconds: 30
     publishes_events: []
-  - name: chain_resolution_step_dsl
+  - name: chain_resolution_step_dsl_ts
     description: "Step 3: No resolver hint - uses resolver chain (default)"
     handler:
-      callable: ResolverTests_dsl.StepHandlers.MultiMethodHandler
+      callable: ResolverTestsDsl.StepHandlers.MultiMethodDslHandler
       initialization:
         step_number: 3
         resolver_used: chain_default
     system_dependency:
     dependencies:
-      - combined_hint_step_dsl
+      - combined_hint_step_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -111,15 +111,15 @@ steps:
 environments:
   test:
     steps:
-      - name: explicit_resolver_step_dsl
+      - name: explicit_resolver_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 1
-      - name: combined_hint_step_dsl
+      - name: combined_hint_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 1
-      - name: chain_resolution_step_dsl
+      - name: chain_resolution_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 1

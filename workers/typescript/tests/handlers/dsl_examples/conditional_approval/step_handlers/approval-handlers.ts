@@ -7,9 +7,9 @@
 
 import {
   Decision,
-  PermanentError,
   defineDecisionHandler,
   defineHandler,
+  PermanentError,
 } from '../../../../../src/handler/functional.js';
 
 /**
@@ -65,7 +65,7 @@ const LARGE_THRESHOLD = 5000;
  */
 export const RoutingDecisionDslHandler = defineDecisionHandler(
   'conditional_approval_dsl.step_handlers.RoutingDecisionDslHandler',
-  { depends: { validateResult: 'validate_request_ts' } },
+  { depends: { validateResult: 'validate_request_dsl_ts' } },
   async ({ validateResult }) => {
     const result = validateResult as Record<string, unknown> | null;
 
@@ -78,14 +78,14 @@ export const RoutingDecisionDslHandler = defineDecisionHandler(
     let routingPath: string;
 
     if (amount < SMALL_THRESHOLD) {
-      stepsToCreate.push('auto_approve_ts');
+      stepsToCreate.push('auto_approve_dsl_ts');
       routingPath = 'auto_approve';
     } else if (amount < LARGE_THRESHOLD) {
-      stepsToCreate.push('manager_approval_ts');
+      stepsToCreate.push('manager_approval_dsl_ts');
       routingPath = 'manager_approval';
     } else {
-      stepsToCreate.push('manager_approval_ts');
-      stepsToCreate.push('finance_review_ts');
+      stepsToCreate.push('manager_approval_dsl_ts');
+      stepsToCreate.push('finance_review_dsl_ts');
       routingPath = 'dual_approval';
     }
 
@@ -107,7 +107,7 @@ export const RoutingDecisionDslHandler = defineDecisionHandler(
  */
 export const AutoApproveDslHandler = defineHandler(
   'conditional_approval_dsl.step_handlers.AutoApproveDslHandler',
-  { depends: { validateResult: 'validate_request_ts' } },
+  { depends: { validateResult: 'validate_request_dsl_ts' } },
   async ({ validateResult }) => {
     const result = validateResult as Record<string, unknown> | null;
 
@@ -134,7 +134,7 @@ export const AutoApproveDslHandler = defineHandler(
  */
 export const ManagerApprovalDslHandler = defineHandler(
   'conditional_approval_dsl.step_handlers.ManagerApprovalDslHandler',
-  { depends: { validateResult: 'validate_request_ts' } },
+  { depends: { validateResult: 'validate_request_dsl_ts' } },
   async ({ validateResult }) => {
     const result = validateResult as Record<string, unknown> | null;
 
@@ -163,7 +163,7 @@ export const ManagerApprovalDslHandler = defineHandler(
  */
 export const FinanceReviewDslHandler = defineHandler(
   'conditional_approval_dsl.step_handlers.FinanceReviewDslHandler',
-  { depends: { validateResult: 'validate_request_ts' } },
+  { depends: { validateResult: 'validate_request_dsl_ts' } },
   async ({ validateResult }) => {
     const result = validateResult as Record<string, unknown> | null;
 
@@ -195,9 +195,9 @@ export const FinalizeApprovalDslHandler = defineHandler(
   'conditional_approval_dsl.step_handlers.FinalizeApprovalDslHandler',
   {
     depends: {
-      autoApproveResult: 'auto_approve_ts',
-      managerApprovalResult: 'manager_approval_ts',
-      financeReviewResult: 'finance_review_ts',
+      autoApproveResult: 'auto_approve_dsl_ts',
+      managerApprovalResult: 'manager_approval_dsl_ts',
+      financeReviewResult: 'finance_review_dsl_ts',
     },
   },
   async ({ autoApproveResult, managerApprovalResult, financeReviewResult }) => {

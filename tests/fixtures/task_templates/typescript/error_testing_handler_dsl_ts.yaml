@@ -51,10 +51,10 @@ input_schema:
       description: "Optional message to include in error"
 steps:
   # Success scenario step
-  - name: success_step_dsl
+  - name: success_step_dsl_ts
     description: "Step that always succeeds"
     handler:
-      callable: TestErrors_dsl.StepHandlers.SuccessHandler
+      callable: test_errors_dsl.step_handlers.SuccessDslHandler
       initialization:
         operation: success
     system_dependency:
@@ -69,10 +69,10 @@ steps:
     publishes_events: []
 
   # Permanent error step
-  - name: permanent_error_step_dsl
+  - name: permanent_error_step_dsl_ts
     description: "Step that always fails with permanent error"
     handler:
-      callable: TestErrors_dsl.StepHandlers.PermanentErrorHandler
+      callable: test_errors_dsl.step_handlers.PermanentErrorDslHandler
       initialization:
         operation: permanent_error
     system_dependency:
@@ -84,10 +84,10 @@ steps:
     publishes_events: []
 
   # Retryable error step
-  - name: retryable_error_step_dsl
+  - name: retryable_error_step_dsl_ts
     description: "Step that fails with retryable error until retry limit"
     handler:
-      callable: TestErrors_dsl.StepHandlers.RetryableErrorHandler
+      callable: test_errors_dsl.step_handlers.RetryableErrorDslHandler
       initialization:
         operation: retryable_error
     system_dependency:
@@ -104,16 +104,16 @@ steps:
 environments:
   test:
     steps:
-      - name: success_step_dsl
+      - name: success_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 2
-      - name: permanent_error_step_dsl
+      - name: permanent_error_step_dsl_ts
         timeout_seconds: 10
         retry:
           retryable: false
           max_attempts: 1
-      - name: retryable_error_step_dsl
+      - name: retryable_error_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 2

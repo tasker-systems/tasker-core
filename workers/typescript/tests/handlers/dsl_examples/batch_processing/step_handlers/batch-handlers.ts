@@ -11,10 +11,10 @@
  */
 
 import {
-  PermanentError,
   defineBatchAnalyzer,
   defineBatchWorker,
   defineHandler,
+  PermanentError,
 } from '../../../../../src/handler/functional.js';
 
 const DEFAULT_BATCH_SIZE = 200;
@@ -30,7 +30,7 @@ export const CsvAnalyzerDslHandler = defineBatchAnalyzer(
       csvFilePath: 'csv_file_path',
       analysisMode: 'analysis_mode',
     },
-    workerTemplate: 'process_csv_batch_ts',
+    workerTemplate: 'process_csv_batch_dsl_ts',
   },
   async ({ csvFilePath, analysisMode, context }) => {
     const filePath = csvFilePath as string | undefined;
@@ -44,10 +44,8 @@ export const CsvAnalyzerDslHandler = defineBatchAnalyzer(
     const isEmptyFile = filePath.includes('empty');
     const totalRows = isEmptyFile ? 0 : 1000;
 
-    const batchSize =
-      (context.stepConfig?.batch_size as number) ?? DEFAULT_BATCH_SIZE;
-    const maxWorkers =
-      (context.stepConfig?.max_workers as number) ?? DEFAULT_MAX_WORKERS;
+    const batchSize = (context.stepConfig?.batch_size as number) ?? DEFAULT_BATCH_SIZE;
+    const maxWorkers = (context.stepConfig?.max_workers as number) ?? DEFAULT_MAX_WORKERS;
 
     if (totalRows === 0) {
       // Return empty batch config - the factory handles no-batch differently
@@ -114,10 +112,9 @@ export const CsvResultsAggregatorDslHandler = defineHandler(
   'batch_processing_dsl.step_handlers.CsvResultsAggregatorDslHandler',
   {},
   async ({ context }) => {
-    const batchResults = context.getAllDependencyResults('process_csv_batch_ts') as Array<Record<
-      string,
-      unknown
-    > | null>;
+    const batchResults = context.getAllDependencyResults(
+      'process_csv_batch_dsl_ts'
+    ) as Array<Record<string, unknown> | null>;
 
     if (!batchResults || batchResults.length === 0) {
       throw new PermanentError('No batch worker results to aggregate');

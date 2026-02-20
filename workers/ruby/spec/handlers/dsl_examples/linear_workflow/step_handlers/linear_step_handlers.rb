@@ -10,10 +10,10 @@
 #
 # For input even_number=2: 2 -> 4 -> 16 -> 256 -> 65536
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
-LinearStep1DslHandler = step_handler('linear_workflow_dsl.step_handlers.linear_step_1',
-                                     inputs: [:even_number]) do |even_number:, context:|
+LinearStep1DslHandler = step_handler('linear_workflow_dsl_rb.step_handlers.linear_step_1',
+                                     inputs: [:even_number]) do |even_number:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Task context must contain an even number' unless even_number&.even?
 
   result = even_number * even_number
@@ -30,8 +30,8 @@ LinearStep1DslHandler = step_handler('linear_workflow_dsl.step_handlers.linear_s
   )
 end
 
-LinearStep2DslHandler = step_handler('linear_workflow_dsl.step_handlers.linear_step_2',
-                                     depends_on: { previous_result: 'linear_step_1' }) do |previous_result:, context:|
+LinearStep2DslHandler = step_handler('linear_workflow_dsl_rb.step_handlers.linear_step_2',
+                                     depends_on: { previous_result: 'linear_step_1_dsl' }) do |previous_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Previous step result not found' unless previous_result
 
   result = previous_result * previous_result
@@ -48,8 +48,8 @@ LinearStep2DslHandler = step_handler('linear_workflow_dsl.step_handlers.linear_s
   )
 end
 
-LinearStep3DslHandler = step_handler('linear_workflow_dsl.step_handlers.linear_step_3',
-                                     depends_on: { previous_result: 'linear_step_2' }) do |previous_result:, context:|
+LinearStep3DslHandler = step_handler('linear_workflow_dsl_rb.step_handlers.linear_step_3',
+                                     depends_on: { previous_result: 'linear_step_2_dsl' }) do |previous_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Previous step result not found' unless previous_result
 
   result = previous_result * previous_result
@@ -66,8 +66,8 @@ LinearStep3DslHandler = step_handler('linear_workflow_dsl.step_handlers.linear_s
   )
 end
 
-LinearStep4DslHandler = step_handler('linear_workflow_dsl.step_handlers.linear_step_4',
-                                     depends_on: { previous_result: 'linear_step_3' },
+LinearStep4DslHandler = step_handler('linear_workflow_dsl_rb.step_handlers.linear_step_4',
+                                     depends_on: { previous_result: 'linear_step_3_dsl' },
                                      inputs: [:even_number]) do |previous_result:, even_number:, context:|
   raise 'Previous step result not found' unless previous_result
 

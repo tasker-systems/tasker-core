@@ -5,7 +5,7 @@
 # Tree pattern: root -> (left, right) -> (d, e from left; f, g from right) -> final_convergence
 # 8 handlers total
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 TreeRootDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_root',
                                   inputs: [:even_number]) do |even_number:, context:|
@@ -26,7 +26,7 @@ TreeRootDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_root',
 end
 
 TreeBranchLeftDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_branch_left',
-                                        depends_on: { root_result: 'tree_root' }) do |root_result:, context:|
+                                        depends_on: { root_result: 'tree_root_dsl' }) do |root_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Tree root result not found' unless root_result
 
   result = root_result * root_result
@@ -44,7 +44,7 @@ TreeBranchLeftDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_br
 end
 
 TreeBranchRightDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_branch_right',
-                                         depends_on: { root_result: 'tree_root' }) do |root_result:, context:|
+                                         depends_on: { root_result: 'tree_root_dsl' }) do |root_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Tree root result not found' unless root_result
 
   result = root_result * root_result
@@ -62,7 +62,7 @@ TreeBranchRightDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_b
 end
 
 TreeLeafDDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_leaf_d',
-                                   depends_on: { branch_result: 'tree_branch_left' }) do |branch_result:, context:|
+                                   depends_on: { branch_result: 'tree_branch_left_dsl' }) do |branch_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Tree branch left result not found' unless branch_result
 
   result = branch_result * branch_result
@@ -78,7 +78,7 @@ TreeLeafDDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_leaf_d'
 end
 
 TreeLeafEDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_leaf_e',
-                                   depends_on: { branch_result: 'tree_branch_left' }) do |branch_result:, context:|
+                                   depends_on: { branch_result: 'tree_branch_left_dsl' }) do |branch_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Tree branch left result not found' unless branch_result
 
   result = branch_result * branch_result
@@ -94,7 +94,7 @@ TreeLeafEDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_leaf_e'
 end
 
 TreeLeafFDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_leaf_f',
-                                   depends_on: { branch_result: 'tree_branch_right' }) do |branch_result:, context:|
+                                   depends_on: { branch_result: 'tree_branch_right_dsl' }) do |branch_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Tree branch right result not found' unless branch_result
 
   result = branch_result * branch_result
@@ -110,7 +110,7 @@ TreeLeafFDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_leaf_f'
 end
 
 TreeLeafGDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_leaf_g',
-                                   depends_on: { branch_result: 'tree_branch_right' }) do |branch_result:, context:|
+                                   depends_on: { branch_result: 'tree_branch_right_dsl' }) do |branch_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Tree branch right result not found' unless branch_result
 
   result = branch_result * branch_result
@@ -126,10 +126,10 @@ TreeLeafGDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_leaf_g'
 end
 
 TreeFinalConvergenceDslHandler = step_handler('tree_workflow_dsl.step_handlers.tree_final_convergence',
-                                              depends_on: { leaf_d_result: 'tree_leaf_d',
-                                                            leaf_e_result: 'tree_leaf_e',
-                                                            leaf_f_result: 'tree_leaf_f',
-                                                            leaf_g_result: 'tree_leaf_g' },
+                                              depends_on: { leaf_d_result: 'tree_leaf_d_dsl',
+                                                            leaf_e_result: 'tree_leaf_e_dsl',
+                                                            leaf_f_result: 'tree_leaf_f_dsl',
+                                                            leaf_g_result: 'tree_leaf_g_dsl' },
                                               inputs: [:even_number]) do |leaf_d_result:, leaf_e_result:, leaf_f_result:, leaf_g_result:, even_number:, context:|
   raise 'Leaf D result not found' unless leaf_d_result
   raise 'Leaf E result not found' unless leaf_e_result

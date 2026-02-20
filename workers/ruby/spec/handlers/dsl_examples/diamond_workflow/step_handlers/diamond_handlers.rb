@@ -5,9 +5,9 @@
 # Diamond pattern: start -> (branch_b, branch_c) -> end
 # For input even_number=2: 2 -> 4 -> (16, 16) -> (16*16)^2 = 65536
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
-DiamondStartDslHandler = step_handler('diamond_workflow_dsl.step_handlers.diamond_start',
+DiamondStartDslHandler = step_handler('diamond_workflow_dsl_rb.step_handlers.diamond_start',
                                       inputs: [:even_number]) do |even_number:, context:|
   even_number ||= context.task.context['even_number']
   raise 'Task context must contain an even number' unless even_number&.even?
@@ -25,8 +25,8 @@ DiamondStartDslHandler = step_handler('diamond_workflow_dsl.step_handlers.diamon
   )
 end
 
-DiamondBranchBDslHandler = step_handler('diamond_workflow_dsl.step_handlers.diamond_branch_b',
-                                        depends_on: { start_result: 'diamond_start' }) do |start_result:, context:|
+DiamondBranchBDslHandler = step_handler('diamond_workflow_dsl_rb.step_handlers.diamond_branch_b',
+                                        depends_on: { start_result: 'diamond_start_dsl' }) do |start_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Diamond start result not found' unless start_result
 
   result = start_result * start_result
@@ -42,8 +42,8 @@ DiamondBranchBDslHandler = step_handler('diamond_workflow_dsl.step_handlers.diam
   )
 end
 
-DiamondBranchCDslHandler = step_handler('diamond_workflow_dsl.step_handlers.diamond_branch_c',
-                                        depends_on: { start_result: 'diamond_start' }) do |start_result:, context:|
+DiamondBranchCDslHandler = step_handler('diamond_workflow_dsl_rb.step_handlers.diamond_branch_c',
+                                        depends_on: { start_result: 'diamond_start_dsl' }) do |start_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Diamond start result not found' unless start_result
 
   result = start_result * start_result
@@ -59,9 +59,9 @@ DiamondBranchCDslHandler = step_handler('diamond_workflow_dsl.step_handlers.diam
   )
 end
 
-DiamondEndDslHandler = step_handler('diamond_workflow_dsl.step_handlers.diamond_end',
-                                    depends_on: { branch_b_result: 'diamond_branch_b',
-                                                  branch_c_result: 'diamond_branch_c' },
+DiamondEndDslHandler = step_handler('diamond_workflow_dsl_rb.step_handlers.diamond_end',
+                                    depends_on: { branch_b_result: 'diamond_branch_b_dsl',
+                                                  branch_c_result: 'diamond_branch_c_dsl' },
                                     inputs: [:even_number]) do |branch_b_result:, branch_c_result:, even_number:, context:|
   raise 'Branch B result not found' unless branch_b_result
   raise 'Branch C result not found' unless branch_c_result

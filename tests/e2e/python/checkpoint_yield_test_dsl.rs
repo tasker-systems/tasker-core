@@ -134,11 +134,11 @@ async fn test_python_checkpoint_yield_happy_path_dsl() -> Result<()> {
     // Verify expected steps
     let step_names: Vec<String> = steps.iter().map(|s| s.name.clone()).collect();
     assert!(
-        step_names.contains(&"analyze_items_dsl".to_string()),
+        step_names.contains(&"analyze_items_dsl_py".to_string()),
         "Should have analyze_items step"
     );
     assert!(
-        step_names.contains(&"aggregate_results_dsl".to_string()),
+        step_names.contains(&"aggregate_results_dsl_py".to_string()),
         "Should have aggregate_results step"
     );
 
@@ -156,7 +156,7 @@ async fn test_python_checkpoint_yield_happy_path_dsl() -> Result<()> {
     // Get the aggregate_results step to verify final output
     let aggregate_step = steps
         .iter()
-        .find(|s| s.name == "aggregate_results_dsl")
+        .find(|s| s.name == "aggregate_results_dsl_py")
         .expect("Should have aggregate_results step");
 
     println!("\n📊 Aggregate Results:");
@@ -278,7 +278,7 @@ async fn test_python_checkpoint_yield_transient_failure_resume_dsl() -> Result<(
     // Find the batch worker step
     let batch_worker = steps
         .iter()
-        .find(|s| s.name.starts_with("checkpoint_yield_batch_dsl"))
+        .find(|s| s.name.starts_with("checkpoint_yield_batch_dsl_py"))
         .expect("Should have batch worker step");
 
     println!("\n📊 Batch Worker Step:");
@@ -303,7 +303,7 @@ async fn test_python_checkpoint_yield_transient_failure_resume_dsl() -> Result<(
     // Verify aggregate results
     let aggregate_step = steps
         .iter()
-        .find(|s| s.name == "aggregate_results_dsl")
+        .find(|s| s.name == "aggregate_results_dsl_py")
         .expect("Should have aggregate_results step");
 
     let results = aggregate_step
@@ -419,7 +419,7 @@ async fn test_python_checkpoint_yield_permanent_failure_dsl() -> Result<()> {
 
     let batch_worker = steps
         .iter()
-        .find(|s| s.name.starts_with("checkpoint_yield_batch_dsl"));
+        .find(|s| s.name.starts_with("checkpoint_yield_batch_dsl_py"));
 
     if let Some(worker) = batch_worker {
         println!("\n📊 Batch Worker Step:");
@@ -497,7 +497,7 @@ async fn test_python_checkpoint_yield_frequent_checkpoints_dsl() -> Result<()> {
 
     let aggregate_step = steps
         .iter()
-        .find(|s| s.name == "aggregate_results_dsl")
+        .find(|s| s.name == "aggregate_results_dsl_py")
         .expect("Should have aggregate_results step");
 
     let results = aggregate_step
@@ -596,7 +596,7 @@ async fn test_python_checkpoint_yield_zero_items_dsl() -> Result<()> {
 
     let aggregate_step = steps
         .iter()
-        .find(|s| s.name == "aggregate_results_dsl")
+        .find(|s| s.name == "aggregate_results_dsl_py")
         .expect("Should have aggregate_results step");
 
     let results = aggregate_step
@@ -698,7 +698,7 @@ async fn test_python_checkpoint_yield_single_batch_dsl() -> Result<()> {
     // Verify batch worker completed in single attempt (no re-dispatches)
     let batch_worker = steps
         .iter()
-        .find(|s| s.name.starts_with("checkpoint_yield_batch_dsl"))
+        .find(|s| s.name.starts_with("checkpoint_yield_batch_dsl_py"))
         .expect("Should have batch worker step");
 
     println!("\n📊 Batch Worker Step:");
@@ -713,7 +713,7 @@ async fn test_python_checkpoint_yield_single_batch_dsl() -> Result<()> {
 
     let aggregate_step = steps
         .iter()
-        .find(|s| s.name == "aggregate_results_dsl")
+        .find(|s| s.name == "aggregate_results_dsl_py")
         .expect("Should have aggregate_results step");
 
     let results = aggregate_step

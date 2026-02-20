@@ -318,7 +318,9 @@ impl StepExecutionError {
 pub struct StepExecutionMetadata {
     /// Execution time in milliseconds for performance monitoring
     pub execution_time_ms: i64,
-    /// Handler version for compatibility tracking
+    /// Handler version for compatibility tracking.
+    /// Currently a no-op — FFI bridges do not yet populate this field from
+    /// handler class attributes. Reserved for future observability wiring.
     pub handler_version: Option<String>,
     /// Whether this operation should be retried on failure
     pub retryable: bool,

@@ -20,7 +20,7 @@ fn create_approval_request_dsl(
     purpose: &str,
 ) -> tasker_shared::models::core::task_request::TaskRequest {
     create_task_request(
-        "conditional_approval_dsl",
+        "conditional_approval_dsl_rb",
         "approval_routing_dsl",
         json!({
             "amount": amount,

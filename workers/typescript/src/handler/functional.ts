@@ -29,10 +29,10 @@
  * @module handler/functional
  */
 
-import { ErrorType } from '../types/error-type.js';
 import type { BatchWorkerContext } from '../types/batch.js';
 import { createBatches as createBatchesOutcome } from '../types/batch.js';
-import { StepContext } from '../types/step-context.js';
+import { ErrorType } from '../types/error-type.js';
+import type { StepContext } from '../types/step-context.js';
 import { StepHandlerResult } from '../types/step-handler-result.js';
 import { StepHandler } from './base.js';
 import { BatchableMixin, type RustCursorConfig } from './batchable.js';
@@ -114,7 +114,7 @@ export type HandlerArgs = Record<string, unknown> & {
  */
 export type HandlerFn = (
   args: HandlerArgs
-) => Promise<Record<string, unknown> | StepHandlerResult | void>;
+) => Promise<Record<string, unknown> | StepHandlerResult | undefined>;
 
 /**
  * Helper for decision handler return values.
@@ -142,20 +142,14 @@ export class Decision {
   /**
    * Route to the specified steps.
    */
-  static route(
-    steps: string[],
-    routingContext?: Record<string, unknown>
-  ): Decision {
+  static route(steps: string[], routingContext?: Record<string, unknown>): Decision {
     return new Decision('create_steps', steps, undefined, routingContext ?? {});
   }
 
   /**
    * Skip all branches.
    */
-  static skip(
-    reason: string,
-    routingContext?: Record<string, unknown>
-  ): Decision {
+  static skip(reason: string, routingContext?: Record<string, unknown>): Decision {
     return new Decision('no_branches', [], reason, routingContext ?? {});
   }
 }
@@ -345,7 +339,7 @@ export function defineDecisionHandler(
           if (rawResult.type === 'create_steps') {
             return mixin.decisionSuccess(rawResult.steps, rawResult.routingContext);
           }
-          return mixin.skipBranches(rawResult.reason!, rawResult.routingContext);
+          return mixin.skipBranches(rawResult.reason ?? '', rawResult.routingContext);
         }
 
         return wrapResult(rawResult);
@@ -450,7 +444,7 @@ export function defineBatchWorker(
   options: HandlerOptions,
   fn: (
     args: HandlerArgs & { batchContext: BatchWorkerContext | null }
-  ) => Promise<Record<string, unknown> | StepHandlerResult | void>
+  ) => Promise<Record<string, unknown> | StepHandlerResult | undefined>
 ): typeof StepHandler & { new (): StepHandler } {
   const depends = options.depends ?? {};
   const inputs = options.inputs ?? {};

@@ -17,26 +17,81 @@ import type { FfiStepEvent } from '../../../src/ffi/types.js';
 import { StepHandler } from '../../../src/handler/base.js';
 import { StepContext } from '../../../src/types/step-context.js';
 import type { StepHandlerResult } from '../../../src/types/step-handler-result.js';
-
-// Verbose handlers
-import { LinearStep1Handler, LinearStep2Handler, LinearStep3Handler, LinearStep4Handler } from '../../handlers/examples/linear_workflow/index.js';
-import { DiamondStartHandler, DiamondBranchBHandler, DiamondBranchCHandler, DiamondEndHandler } from '../../handlers/examples/diamond_workflow/index.js';
-import { SuccessStepHandler } from '../../handlers/examples/test_scenarios/index.js';
-import { SuccessHandler, PermanentErrorHandler, RetryableErrorHandler } from '../../handlers/examples/test_errors/index.js';
-import { ValidateRequestHandler, AutoApproveHandler, ManagerApprovalHandler, FinanceReviewHandler, FinalizeApprovalHandler } from '../../handlers/examples/conditional_approval/index.js';
-import { ValidateOrderHandler, ProcessPaymentHandler, UpdateInventoryHandler, SendNotificationHandler } from '../../handlers/examples/domain_events/index.js';
-import { MultiMethodHandler, AlternateMethodHandler } from '../../handlers/examples/resolver_tests/index.js';
-import { ExtractSalesDataHandler, ExtractInventoryDataHandler, ExtractCustomerDataHandler } from '../../handlers/examples/blog_examples/post_02_data_pipeline/index.js';
-
+import {
+  ExtractCustomerDataDslHandler,
+  ExtractInventoryDataDslHandler,
+  ExtractSalesDataDslHandler,
+} from '../../handlers/dsl_examples/blog_examples/post_02_data_pipeline/index.js';
+import {
+  AutoApproveDslHandler,
+  FinalizeApprovalDslHandler,
+  FinanceReviewDslHandler,
+  ManagerApprovalDslHandler,
+  ValidateRequestDslHandler,
+} from '../../handlers/dsl_examples/conditional_approval/index.js';
+import {
+  DiamondBranchBDslHandler,
+  DiamondBranchCDslHandler,
+  DiamondEndDslHandler,
+  DiamondStartDslHandler,
+} from '../../handlers/dsl_examples/diamond_workflow/index.js';
+import { ValidateOrderDslHandler } from '../../handlers/dsl_examples/domain_events/index.js';
 // DSL handlers
-import { LinearStep1DslHandler, LinearStep2DslHandler, LinearStep3DslHandler, LinearStep4DslHandler } from '../../handlers/dsl_examples/linear_workflow/index.js';
-import { DiamondStartDslHandler, DiamondBranchBDslHandler, DiamondBranchCDslHandler, DiamondEndDslHandler } from '../../handlers/dsl_examples/diamond_workflow/index.js';
+import {
+  LinearStep1DslHandler,
+  LinearStep2DslHandler,
+  LinearStep3DslHandler,
+  LinearStep4DslHandler,
+} from '../../handlers/dsl_examples/linear_workflow/index.js';
+import {
+  AlternateMethodDslHandler,
+  MultiMethodDslHandler,
+  MultiMethodProcessDslHandler,
+  MultiMethodRefundDslHandler,
+  MultiMethodValidateDslHandler,
+} from '../../handlers/dsl_examples/resolver_tests/index.js';
+import {
+  PermanentErrorDslHandler,
+  RetryableErrorDslHandler,
+  SuccessDslHandler,
+} from '../../handlers/dsl_examples/test_errors/index.js';
 import { SuccessStepDslHandler } from '../../handlers/dsl_examples/test_scenarios/index.js';
-import { SuccessDslHandler, PermanentErrorDslHandler, RetryableErrorDslHandler } from '../../handlers/dsl_examples/test_errors/index.js';
-import { ValidateRequestDslHandler, AutoApproveDslHandler, ManagerApprovalDslHandler, FinanceReviewDslHandler, FinalizeApprovalDslHandler } from '../../handlers/dsl_examples/conditional_approval/index.js';
-import { ValidateOrderDslHandler, ProcessPaymentDslHandler as DomainProcessPaymentDslHandler, UpdateInventoryDslHandler as DomainUpdateInventoryDslHandler, SendNotificationDslHandler } from '../../handlers/dsl_examples/domain_events/index.js';
-import { MultiMethodDslHandler, MultiMethodValidateDslHandler, MultiMethodProcessDslHandler, MultiMethodRefundDslHandler, AlternateMethodDslHandler } from '../../handlers/dsl_examples/resolver_tests/index.js';
-import { ExtractSalesDataDslHandler, ExtractInventoryDataDslHandler, ExtractCustomerDataDslHandler } from '../../handlers/dsl_examples/blog_examples/post_02_data_pipeline/index.js';
+import {
+  ExtractCustomerDataHandler,
+  ExtractInventoryDataHandler,
+  ExtractSalesDataHandler,
+} from '../../handlers/examples/blog_examples/post_02_data_pipeline/index.js';
+import {
+  AutoApproveHandler,
+  FinalizeApprovalHandler,
+  FinanceReviewHandler,
+  ManagerApprovalHandler,
+  ValidateRequestHandler,
+} from '../../handlers/examples/conditional_approval/index.js';
+import {
+  DiamondBranchBHandler,
+  DiamondBranchCHandler,
+  DiamondEndHandler,
+  DiamondStartHandler,
+} from '../../handlers/examples/diamond_workflow/index.js';
+import { ValidateOrderHandler } from '../../handlers/examples/domain_events/index.js';
+// Verbose handlers
+import {
+  LinearStep1Handler,
+  LinearStep2Handler,
+  LinearStep3Handler,
+  LinearStep4Handler,
+} from '../../handlers/examples/linear_workflow/index.js';
+import {
+  AlternateMethodHandler,
+  MultiMethodHandler,
+} from '../../handlers/examples/resolver_tests/index.js';
+import {
+  PermanentErrorHandler,
+  RetryableErrorHandler,
+  SuccessHandler,
+} from '../../handlers/examples/test_errors/index.js';
+import { SuccessStepHandler } from '../../handlers/examples/test_scenarios/index.js';
 
 // ============================================================================
 // Test Helpers
@@ -104,13 +159,15 @@ function createFfiEvent(): FfiStepEvent {
   } as unknown as FfiStepEvent;
 }
 
-function makeContext(overrides: {
-  inputData?: Record<string, unknown>;
-  dependencyResults?: Record<string, unknown>;
-  stepConfig?: Record<string, unknown>;
-  stepInputs?: Record<string, unknown>;
-  retryCount?: number;
-} = {}): StepContext {
+function makeContext(
+  overrides: {
+    inputData?: Record<string, unknown>;
+    dependencyResults?: Record<string, unknown>;
+    stepConfig?: Record<string, unknown>;
+    stepInputs?: Record<string, unknown>;
+    retryCount?: number;
+  } = {}
+): StepContext {
   const event = createFfiEvent();
   return new StepContext({
     event,
@@ -241,7 +298,9 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
     it('Step4: divides for final result', async () => {
       const ctx = makeContext({
         dependencyResults: {
-          linear_step_3: { result: { multiplied_value: 78, operation: 'multiply', factor: 3, input: 26 } },
+          linear_step_3: {
+            result: { multiplied_value: 78, operation: 'multiply', factor: 3, input: 26 },
+          },
         },
       });
       const verbose = await runHandler(LinearStep4Handler, ctx);
@@ -285,8 +344,12 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
     it('End: averages branches', async () => {
       const ctx = makeContext({
         dependencyResults: {
-          diamond_branch_b_ts: { result: { branch_b_value: 61, operation: 'add', constant: 25, input: 36 } },
-          diamond_branch_c_ts: { result: { branch_c_value: 72, operation: 'multiply', factor: 2, input: 36 } },
+          diamond_branch_b_ts: {
+            result: { branch_b_value: 61, operation: 'add', constant: 25, input: 36 },
+          },
+          diamond_branch_c_ts: {
+            result: { branch_c_value: 72, operation: 'multiply', factor: 2, input: 36 },
+          },
         },
       });
       const verbose = await runHandler(DiamondEndHandler, ctx);
@@ -379,7 +442,12 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
       const ctx = makeContext({
         dependencyResults: {
           validate_request_ts: {
-            result: { validated: true, amount: 500, requester: 'test@example.com', purpose: 'Test' },
+            result: {
+              validated: true,
+              amount: 500,
+              requester: 'test@example.com',
+              purpose: 'Test',
+            },
           },
         },
       });
@@ -396,7 +464,12 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
       const ctx = makeContext({
         dependencyResults: {
           validate_request_ts: {
-            result: { validated: true, amount: 2000, requester: 'test@example.com', purpose: 'Test' },
+            result: {
+              validated: true,
+              amount: 2000,
+              requester: 'test@example.com',
+              purpose: 'Test',
+            },
           },
         },
       });
@@ -413,7 +486,12 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
       const ctx = makeContext({
         dependencyResults: {
           validate_request_ts: {
-            result: { validated: true, amount: 6000, requester: 'test@example.com', purpose: 'Test' },
+            result: {
+              validated: true,
+              amount: 6000,
+              requester: 'test@example.com',
+              purpose: 'Test',
+            },
           },
         },
       });

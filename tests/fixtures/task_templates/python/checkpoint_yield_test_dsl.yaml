@@ -35,7 +35,7 @@ metadata:
   updated_at: "2025-01-03T00:00:00Z"
   notes: "Validates TAS-125 checkpoint_yield() with FFI persistence and re-dispatch"
 task_handler:
-  callable: tasker_core_dsl.handlers.TaskHandler
+  callable: python_ffi_handler_dsl
   initialization:
     test_type: checkpoint_yield
 system_dependencies:
@@ -66,13 +66,13 @@ input_schema:
       description: "If true, fail with non-retryable error"
 steps:
   # BATCHABLE STEP: Creates a single batch for testing
-  - name: analyze_items_dsl
+  - name: analyze_items_dsl_py
     type: batchable
     description: "Analyzes item count and creates 1 batch for checkpoint testing"
     handler:
-      callable: CheckpointYield_dsl.StepHandlers.CheckpointYieldAnalyzerHandler
+      callable: checkpoint_yield_dsl_py.step_handlers.checkpoint_yield_analyzer
       initialization:
-        worker_template_name: "checkpoint_yield_batch_dsl"
+        worker_template_name: "checkpoint_yield_batch_dsl_py"
     system_dependency:
     dependencies: []
     retry:
@@ -85,17 +85,17 @@ steps:
     publishes_events: []
 
   # BATCH WORKER TEMPLATE: Processes items with checkpoint yielding
-  - name: checkpoint_yield_batch_dsl
+  - name: checkpoint_yield_batch_dsl_py
     type: batch_worker
     description: "Processes batch with TAS-125 checkpoint yields"
     handler:
-      callable: CheckpointYield_dsl.StepHandlers.CheckpointYieldWorkerHandler
+      callable: checkpoint_yield_dsl_py.step_handlers.checkpoint_yield_worker
       initialization:
         # These can be overridden by task context
         items_per_checkpoint: 25
     system_dependency:
     dependencies:
-      - analyze_items_dsl
+      - analyze_items_dsl_py
     retry:
       retryable: true
       max_attempts: 3
@@ -108,19 +108,19 @@ steps:
       batch_size: 100
       parallelism: 1
       cursor_field: "id"
-      worker_template: "checkpoint_yield_batch_dsl"
+      worker_template: "checkpoint_yield_batch_dsl_py"
       failure_strategy: "fail_fast"
 
   # DEFERRED CONVERGENCE: Aggregates results from batch worker
-  - name: aggregate_results_dsl
+  - name: aggregate_results_dsl_py
     type: deferred_convergence
     description: "Aggregates checkpoint yield test results"
     handler:
-      callable: CheckpointYield_dsl.StepHandlers.CheckpointYieldAggregatorHandler
+      callable: checkpoint_yield_dsl_py.step_handlers.checkpoint_yield_aggregator
       initialization: {}
     system_dependency:
     dependencies:
-      - checkpoint_yield_batch_dsl
+      - checkpoint_yield_batch_dsl_py
     retry:
       retryable: true
       max_attempts: 3
@@ -133,19 +133,19 @@ steps:
 environments:
   test:
     steps:
-      - name: analyze_items_dsl
+      - name: analyze_items_dsl_py
         timeout_seconds: 10
         retry:
           max_attempts: 3
           backoff_base_ms: 50
           max_backoff_ms: 200
-      - name: checkpoint_yield_batch_dsl
+      - name: checkpoint_yield_batch_dsl_py
         timeout_seconds: 30
         retry:
           max_attempts: 3
           backoff_base_ms: 50
           max_backoff_ms: 200
-      - name: aggregate_results_dsl
+      - name: aggregate_results_dsl_py
         timeout_seconds: 10
         retry:
           max_attempts: 3

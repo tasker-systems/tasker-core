@@ -32,7 +32,7 @@ metadata:
     - cross_namespace:payments_dsl
     - implementation:ruby_ffi
 task_handler:
-  callable: CustomerSuccess::ProcessRefundHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     timeout_seconds: 90
     max_retries: 3
@@ -77,7 +77,7 @@ steps:
   - name: validate_refund_request_dsl
     description: "Validate customer refund request details"
     handler:
-      callable: CustomerSuccess::StepHandlers::ValidateRefundRequestHandler_dsl
+      callable: customer_success_dsl.step_handlers.validate_refund_request
     dependencies: []
     retry:
       retryable: true
@@ -89,7 +89,7 @@ steps:
   - name: check_refund_policy_dsl
     description: "Verify request complies with refund policies"
     handler:
-      callable: CustomerSuccess::StepHandlers::CheckRefundPolicyHandler_dsl
+      callable: customer_success_dsl.step_handlers.check_refund_policy
     dependencies:
       - validate_refund_request_dsl
     retry:
@@ -102,7 +102,7 @@ steps:
   - name: get_manager_approval_dsl
     description: "Route to manager for approval if needed"
     handler:
-      callable: CustomerSuccess::StepHandlers::GetManagerApprovalHandler_dsl
+      callable: customer_success_dsl.step_handlers.get_manager_approval
     dependencies:
       - check_refund_policy_dsl
     retry:
@@ -114,7 +114,7 @@ steps:
   - name: execute_refund_workflow_dsl
     description: "Call payments team refund workflow"
     handler:
-      callable: CustomerSuccess::StepHandlers::ExecuteRefundWorkflowHandler_dsl
+      callable: customer_success_dsl.step_handlers.execute_refund_workflow
     dependencies:
       - get_manager_approval_dsl
     retry:
@@ -127,7 +127,7 @@ steps:
   - name: update_ticket_status_dsl
     description: "Update customer support ticket"
     handler:
-      callable: CustomerSuccess::StepHandlers::UpdateTicketStatusHandler_dsl
+      callable: customer_success_dsl.step_handlers.update_ticket_status
     dependencies:
       - execute_refund_workflow_dsl
     retry:

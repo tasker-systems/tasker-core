@@ -73,19 +73,19 @@ async fn test_typescript_method_dispatch_validate_dsl() -> Result<()> {
     // Verify step names match expected pattern
     let step_names: Vec<&str> = steps.iter().map(|s| s.name.as_str()).collect();
     assert!(
-        step_names.contains(&"validate_step_dsl"),
+        step_names.contains(&"validate_step_dsl_ts"),
         "Should have validate_step"
     );
     assert!(
-        step_names.contains(&"process_step_dsl"),
+        step_names.contains(&"process_step_dsl_ts"),
         "Should have process_step"
     );
     assert!(
-        step_names.contains(&"refund_step_dsl"),
+        step_names.contains(&"refund_step_dsl_ts"),
         "Should have refund_step"
     );
     assert!(
-        step_names.contains(&"default_call_step_dsl"),
+        step_names.contains(&"default_call_step_dsl_ts"),
         "Should have default_call_step"
     );
 
@@ -152,10 +152,10 @@ async fn test_typescript_method_dispatch_multiple_methods_dsl() -> Result<()> {
 
     for step in &steps {
         match step.name.as_str() {
-            "validate_step_dsl" => validate_found = true,
-            "process_step_dsl" => process_found = true,
-            "refund_step_dsl" => refund_found = true,
-            "default_call_step_dsl" => default_found = true,
+            "validate_step_dsl_ts" => validate_found = true,
+            "process_step_dsl_ts" => process_found = true,
+            "refund_step_dsl_ts" => refund_found = true,
+            "default_call_step_dsl_ts" => default_found = true,
             _ => {}
         }
     }
@@ -272,7 +272,7 @@ async fn test_typescript_resolver_hints_with_method_dsl() -> Result<()> {
     // Find the combined_hint_step which uses both resolver and method
     let combined_step = steps
         .iter()
-        .find(|s| s.name == "combined_hint_step_dsl")
+        .find(|s| s.name == "combined_hint_step_dsl_ts")
         .expect("Should have combined_hint_step");
 
     assert!(
@@ -382,7 +382,7 @@ async fn test_typescript_explicit_call_method_dsl() -> Result<()> {
     // Find the default_call_step which doesn't specify a method
     let default_step = steps
         .iter()
-        .find(|s| s.name == "default_call_step_dsl")
+        .find(|s| s.name == "default_call_step_dsl_ts")
         .expect("Should have default_call_step");
 
     assert!(

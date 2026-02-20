@@ -32,7 +32,7 @@ fn create_user_registration_request(
     plan: &str,
 ) -> tasker_shared::models::core::task_request::TaskRequest {
     create_task_request(
-        "microservices_dsl",
+        "microservices_dsl_rb",
         "user_registration_dsl",
         json!({
             "user_info": {

@@ -30,7 +30,7 @@ async fn test_ruby_method_dispatch_dsl() -> Result<()> {
 
     // Create task that uses method dispatch
     let task_request = create_task_request(
-        "resolver_tests_dsl",
+        "resolver_tests_dsl_rb",
         "method_dispatch_dsl",
         json!({
             "data": {
@@ -118,7 +118,7 @@ async fn test_ruby_backward_compatibility_dsl() -> Result<()> {
 
     // Use existing linear workflow template (no method/resolver fields)
     let task_request = create_task_request(
-        "linear_workflow_dsl",
+        "linear_workflow_dsl_rb",
         "mathematical_sequence_dsl",
         json!({ "even_number": 6 }),
     );

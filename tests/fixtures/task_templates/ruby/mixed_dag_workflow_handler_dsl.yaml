@@ -38,7 +38,7 @@ metadata:
   updated_at: "2025-09-24T00:00:00Z"
   notes: "Ruby FFI implementation with complex mixed dependency patterns and multi-path convergence"
 task_handler:
-  callable: MixedDagWorkflow::MixedDagWorkflowHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     input_validation:
       required_fields:
@@ -74,7 +74,7 @@ steps:
   - name: dag_init_dsl
     description: "DAG initialization: Square the input even number"
     handler:
-      callable: MixedDagWorkflow::StepHandlers::DagInitHandler_dsl
+      callable: mixed_dag_workflow_dsl.step_handlers.dag_init
       initialization:
         operation: square
         step_type: initialization
@@ -95,7 +95,7 @@ steps:
   - name: dag_process_left_dsl
     description: "Left processing path: Square the init result"
     handler:
-      callable: MixedDagWorkflow::StepHandlers::DagProcessLeftHandler_dsl
+      callable: mixed_dag_workflow_dsl.step_handlers.dag_process_left
       initialization:
         operation: square
         step_type: parallel_processing
@@ -118,7 +118,7 @@ steps:
   - name: dag_process_right_dsl
     description: "Right processing path: Square the init result"
     handler:
-      callable: MixedDagWorkflow::StepHandlers::DagProcessRightHandler_dsl
+      callable: mixed_dag_workflow_dsl.step_handlers.dag_process_right
       initialization:
         operation: square
         step_type: parallel_processing
@@ -141,7 +141,7 @@ steps:
   - name: dag_validate_dsl
     description: "Validation step: Multiply both processing results and square"
     handler:
-      callable: MixedDagWorkflow::StepHandlers::DagValidateHandler_dsl
+      callable: mixed_dag_workflow_dsl.step_handlers.dag_validate
       initialization:
         operation: multiply_and_square
         step_type: convergence_validation
@@ -166,7 +166,7 @@ steps:
   - name: dag_transform_dsl
     description: "Transform step: Square the left processing result"
     handler:
-      callable: MixedDagWorkflow::StepHandlers::DagTransformHandler_dsl
+      callable: mixed_dag_workflow_dsl.step_handlers.dag_transform
       initialization:
         operation: square
         step_type: linear_transformation
@@ -188,7 +188,7 @@ steps:
   - name: dag_analyze_dsl
     description: "Analysis step: Square the right processing result"
     handler:
-      callable: MixedDagWorkflow::StepHandlers::DagAnalyzeHandler_dsl
+      callable: mixed_dag_workflow_dsl.step_handlers.dag_analyze
       initialization:
         operation: square
         step_type: linear_analysis
@@ -210,7 +210,7 @@ steps:
   - name: dag_finalize_dsl
     description: "Final convergence: Multiply validate, transform, analyze results and square"
     handler:
-      callable: MixedDagWorkflow::StepHandlers::DagFinalizeHandler_dsl
+      callable: mixed_dag_workflow_dsl.step_handlers.dag_finalize
       initialization:
         operation: multiply_three_and_square
         step_type: final_convergence

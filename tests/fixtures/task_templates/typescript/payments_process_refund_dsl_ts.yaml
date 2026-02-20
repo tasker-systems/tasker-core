@@ -72,10 +72,10 @@ input_schema:
       type: string
       description: "Correlation ID for tracking across systems"
 steps:
-  - name: validate_payment_eligibility_dsl
+  - name: validate_payment_eligibility_dsl_ts
     description: "Check if payment can be refunded via gateway"
     handler:
-      callable: TeamScaling_dsl.Payments.StepHandlers.ValidatePaymentEligibilityHandler
+      callable: TeamScalingDsl.Payments.StepHandlers.ValidatePaymentEligibilityDslHandler
       initialization:
         scenario: payments_refund
     dependencies: []
@@ -87,14 +87,14 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 10
 
-  - name: process_gateway_refund_dsl
+  - name: process_gateway_refund_dsl_ts
     description: "Execute refund through payment processor"
     handler:
-      callable: TeamScaling_dsl.Payments.StepHandlers.ProcessGatewayRefundHandler
+      callable: TeamScalingDsl.Payments.StepHandlers.ProcessGatewayRefundDslHandler
       initialization:
         scenario: payments_refund
     dependencies:
-      - validate_payment_eligibility_dsl
+      - validate_payment_eligibility_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -103,14 +103,14 @@ steps:
       max_backoff_ms: 60000
     timeout_seconds: 10
 
-  - name: update_payment_records_dsl
+  - name: update_payment_records_dsl_ts
     description: "Update internal payment status and history"
     handler:
-      callable: TeamScaling_dsl.Payments.StepHandlers.UpdatePaymentRecordsHandler
+      callable: TeamScalingDsl.Payments.StepHandlers.UpdatePaymentRecordsDslHandler
       initialization:
         scenario: payments_refund
     dependencies:
-      - process_gateway_refund_dsl
+      - process_gateway_refund_dsl_ts
     retry:
       retryable: true
       max_attempts: 3
@@ -119,14 +119,14 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 10
 
-  - name: notify_customer_dsl
+  - name: notify_customer_dsl_ts
     description: "Send refund confirmation to customer"
     handler:
-      callable: TeamScaling_dsl.Payments.StepHandlers.NotifyCustomerHandler
+      callable: TeamScalingDsl.Payments.StepHandlers.NotifyCustomerDslHandler
       initialization:
         scenario: payments_refund
     dependencies:
-      - update_payment_records_dsl
+      - update_payment_records_dsl_ts
     retry:
       retryable: true
       max_attempts: 5
@@ -138,11 +138,11 @@ steps:
 environments:
   test:
     steps:
-      - name: validate_payment_eligibility_dsl
+      - name: validate_payment_eligibility_dsl_ts
         timeout_seconds: 10
-      - name: process_gateway_refund_dsl
+      - name: process_gateway_refund_dsl_ts
         timeout_seconds: 10
-      - name: update_payment_records_dsl
+      - name: update_payment_records_dsl_ts
         timeout_seconds: 10
-      - name: notify_customer_dsl
+      - name: notify_customer_dsl_ts
         timeout_seconds: 10

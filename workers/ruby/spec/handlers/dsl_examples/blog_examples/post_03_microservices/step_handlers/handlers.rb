@@ -8,7 +8,7 @@
 # NOTE: Non-deterministic fields (random IDs, timestamps) differ between runs.
 # Parity testing focuses on deterministic fields, structure, and error classification.
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 EXISTING_USERS_DSL = {
   'existing@example.com' => {
@@ -44,10 +44,10 @@ DEFAULT_PREFERENCES_DSL = {
 }.freeze
 
 MicroCreateUserAccountDslHandler = step_handler(
-  'microservices_dsl.step_handlers.create_user_account',
+  'microservices_dsl_rb.step_handlers.create_user_account',
   inputs: [:user_info]
 ) do |user_info:, context:|
-  deep_sym = ->(obj) {
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -57,7 +57,9 @@ MicroCreateUserAccountDslHandler = step_handler(
 
   user_info = deep_sym.call(user_info || context.task.context['user_info'] || {})
 
-  raise TaskerCore::Errors::PermanentError.new('Email is required', error_code: 'MISSING_EMAIL') unless user_info[:email]
+  unless user_info[:email]
+    raise TaskerCore::Errors::PermanentError.new('Email is required', error_code: 'MISSING_EMAIL')
+  end
   raise TaskerCore::Errors::PermanentError.new('Name is required', error_code: 'MISSING_NAME') unless user_info[:name]
   unless user_info[:email].match?(/\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i)
     raise TaskerCore::Errors::PermanentError.new("Invalid email format: #{user_info[:email]}", error_code: 'INVALID_EMAIL_FORMAT')
@@ -91,9 +93,9 @@ MicroCreateUserAccountDslHandler = step_handler(
 end
 
 MicroSetupBillingDslHandler = step_handler(
-  'microservices_dsl.step_handlers.setup_billing_profile',
-  depends_on: { user_data: 'create_user_account' }
-) do |user_data:, context:|
+  'microservices_dsl_rb.step_handlers.setup_billing_profile',
+  depends_on: { user_data: 'create_user_account_dsl' }
+) do |user_data:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise TaskerCore::Errors::PermanentError.new('User data not found', error_code: 'MISSING_USER_DATA') unless user_data
 
   user_id = user_data['user_id'] || user_data[:user_id]
@@ -120,13 +122,13 @@ MicroSetupBillingDslHandler = step_handler(
 end
 
 MicroInitializePreferencesDslHandler = step_handler(
-  'microservices_dsl.step_handlers.initialize_preferences',
-  depends_on: { user_data: 'create_user_account' },
+  'microservices_dsl_rb.step_handlers.initialize_preferences',
+  depends_on: { user_data: 'create_user_account_dsl' },
   inputs: [:user_info]
 ) do |user_data:, user_info:, context:|
   raise TaskerCore::Errors::PermanentError.new('User data not found', error_code: 'MISSING_USER_DATA') unless user_data
 
-  deep_sym = ->(obj) {
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -158,17 +160,21 @@ MicroInitializePreferencesDslHandler = step_handler(
 end
 
 MicroSendWelcomeSequenceDslHandler = step_handler(
-  'microservices_dsl.step_handlers.send_welcome_sequence',
-  depends_on: { user_data: 'create_user_account',
-                billing_data: 'setup_billing_profile',
-                preferences_data: 'initialize_preferences' }
-) do |user_data:, billing_data:, preferences_data:, context:|
+  'microservices_dsl_rb.step_handlers.send_welcome_sequence',
+  depends_on: { user_data: 'create_user_account_dsl',
+                billing_data: 'setup_billing_profile_dsl',
+                preferences_data: 'initialize_preferences_dsl' }
+) do |user_data:, billing_data:, preferences_data:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise TaskerCore::Errors::PermanentError.new('User data not found', error_code: 'MISSING_USER_DATA') unless user_data
-  raise TaskerCore::Errors::PermanentError.new('Billing data not found', error_code: 'MISSING_BILLING_DATA') unless billing_data
-  raise TaskerCore::Errors::PermanentError.new('Preferences data not found', error_code: 'MISSING_PREFERENCES_DATA') unless preferences_data
+  unless billing_data
+    raise TaskerCore::Errors::PermanentError.new('Billing data not found', error_code: 'MISSING_BILLING_DATA')
+  end
+  unless preferences_data
+    raise TaskerCore::Errors::PermanentError.new('Preferences data not found', error_code: 'MISSING_PREFERENCES_DATA')
+  end
 
   user_id = user_data['user_id'] || user_data[:user_id]
-  email = user_data['email'] || user_data[:email]
+  user_data['email'] || user_data[:email]
   plan = user_data['plan'] || user_data[:plan] || 'free'
 
   prefs = preferences_data['preferences'] || preferences_data[:preferences] || {}
@@ -202,12 +208,12 @@ MicroSendWelcomeSequenceDslHandler = step_handler(
 end
 
 MicroUpdateUserStatusDslHandler = step_handler(
-  'microservices_dsl.step_handlers.update_user_status',
-  depends_on: { user_data: 'create_user_account',
-                billing_data: 'setup_billing_profile',
-                preferences_data: 'initialize_preferences',
-                welcome_data: 'send_welcome_sequence' }
-) do |user_data:, billing_data:, preferences_data:, welcome_data:, context:|
+  'microservices_dsl_rb.step_handlers.update_user_status',
+  depends_on: { user_data: 'create_user_account_dsl',
+                billing_data: 'setup_billing_profile_dsl',
+                preferences_data: 'initialize_preferences_dsl',
+                welcome_data: 'send_welcome_sequence_dsl' }
+) do |user_data:, billing_data:, preferences_data:, welcome_data:, context:| # rubocop:disable Lint/UnusedBlockArgument
   missing = []
   missing << 'create_user_account' unless user_data
   missing << 'setup_billing_profile' unless billing_data

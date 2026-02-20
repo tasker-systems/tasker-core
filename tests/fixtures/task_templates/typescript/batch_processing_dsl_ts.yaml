@@ -58,10 +58,11 @@ steps:
     type: batchable
     description: "Analyze CSV file and create batch worker configurations"
     handler:
-      callable: batch_processing_dsl.step_handlers.csv_analyzer
+      callable: batch_processing_dsl.step_handlers.CsvAnalyzerDslHandler
       initialization:
         batch_size: 200
         max_workers: 5
+        worker_template_name: process_csv_batch_dsl_ts
         csv_parser_options:
           has_header: true
           delimiter: ","
@@ -81,7 +82,7 @@ steps:
     type: batch_worker
     description: "Process a batch of CSV rows using cursor range"
     handler:
-      callable: batch_processing_dsl.step_handlers.csv_batch_processor
+      callable: batch_processing_dsl.step_handlers.CsvBatchProcessorDslHandler
       initialization:
         processing_mode: inventory_analysis
     system_dependency:
@@ -111,7 +112,7 @@ steps:
     type: deferred_convergence
     description: "Aggregate results from all batch worker instances"
     handler:
-      callable: batch_processing_dsl.step_handlers.csv_results_aggregator
+      callable: batch_processing_dsl.step_handlers.CsvResultsAggregatorDslHandler
       initialization:
         aggregation_type: inventory_metrics
         metrics_to_collect:

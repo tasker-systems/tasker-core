@@ -8,7 +8,7 @@
 # but non-deterministic fields (random IDs, timestamps) differ between runs.
 # Parity testing focuses on deterministic fields and error classification.
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 ECOMMERCE_PRODUCTS_DSL = {
   1 => { id: 1, name: 'Widget A', price: 29.99, stock: 100, active: true },
@@ -19,7 +19,7 @@ ECOMMERCE_PRODUCTS_DSL = {
 }.freeze
 
 EcommerceValidateCartDslHandler = step_handler(
-  'ecommerce_dsl.step_handlers.validate_cart',
+  'ecommerce_dsl_rb.step_handlers.validate_cart',
   inputs: [:cart_items]
 ) do |cart_items:, context:|
   cart_items ||= context.get_input('cart_items')
@@ -31,7 +31,7 @@ EcommerceValidateCartDslHandler = step_handler(
     )
   end
 
-  deep_sym = ->(obj) {
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -48,12 +48,12 @@ EcommerceValidateCartDslHandler = step_handler(
         error_code: 'MISSING_PRODUCT_ID'
       )
     end
-    unless item[:quantity]&.positive?
-      raise TaskerCore::Errors::PermanentError.new(
-        "Valid quantity is required for cart item #{index + 1}",
-        error_code: 'INVALID_QUANTITY'
-      )
-    end
+    next if item[:quantity]&.positive?
+
+    raise TaskerCore::Errors::PermanentError.new(
+      "Valid quantity is required for cart item #{index + 1}",
+      error_code: 'INVALID_QUANTITY'
+    )
   end
 
   validated_items = normalized.map do |item|
@@ -132,11 +132,11 @@ EcommerceValidateCartDslHandler = step_handler(
 end
 
 EcommerceProcessPaymentDslHandler = step_handler(
-  'ecommerce_dsl.step_handlers.process_payment',
-  depends_on: { validate_cart: 'validate_cart' },
+  'ecommerce_dsl_rb.step_handlers.process_payment',
+  depends_on: { validate_cart: 'validate_cart_dsl' },
   inputs: [:payment_info]
-) do |validate_cart:, payment_info:, context:|
-  deep_sym = ->(obj) {
+) do |validate_cart:, payment_info:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -151,9 +151,15 @@ EcommerceProcessPaymentDslHandler = step_handler(
   payment_token = payment_info&.dig(:token)
   amount_to_charge = validate_cart&.dig(:total)
 
-  raise TaskerCore::Errors::PermanentError.new('Payment method is required', error_code: 'MISSING_PAYMENT_METHOD') unless payment_method
-  raise TaskerCore::Errors::PermanentError.new('Payment token is required', error_code: 'MISSING_PAYMENT_TOKEN') unless payment_token
-  raise TaskerCore::Errors::PermanentError.new('Cart total is required', error_code: 'MISSING_CART_TOTAL') unless amount_to_charge
+  unless payment_method
+    raise TaskerCore::Errors::PermanentError.new('Payment method is required', error_code: 'MISSING_PAYMENT_METHOD')
+  end
+  unless payment_token
+    raise TaskerCore::Errors::PermanentError.new('Payment token is required', error_code: 'MISSING_PAYMENT_TOKEN')
+  end
+  unless amount_to_charge
+    raise TaskerCore::Errors::PermanentError.new('Cart total is required', error_code: 'MISSING_CART_TOTAL')
+  end
 
   payment_id = "pay_#{SecureRandom.hex(12)}"
   transaction_id = "txn_#{SecureRandom.hex(12)}"
@@ -171,7 +177,7 @@ EcommerceProcessPaymentDslHandler = step_handler(
     metadata: {
       operation: 'process_payment',
       input_refs: {
-        amount: 'context.get_dependency_field("validate_cart", "total")',
+        amount: 'context.get_dependency_field("validate_cart_dsl", "total")',
         payment_info: 'context.get_input("payment_info")'
       }
     }
@@ -179,11 +185,11 @@ EcommerceProcessPaymentDslHandler = step_handler(
 end
 
 EcommerceUpdateInventoryDslHandler = step_handler(
-  'ecommerce_dsl.step_handlers.update_inventory',
-  depends_on: { validate_cart: 'validate_cart' },
+  'ecommerce_dsl_rb.step_handlers.update_inventory',
+  depends_on: { validate_cart: 'validate_cart_dsl' },
   inputs: [:customer_info]
-) do |validate_cart:, customer_info:, context:|
-  deep_sym = ->(obj) {
+) do |validate_cart:, customer_info:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -235,7 +241,7 @@ EcommerceUpdateInventoryDslHandler = step_handler(
     metadata: {
       operation: 'update_inventory',
       input_refs: {
-        validated_items: 'context.get_dependency_field("validate_cart", "validated_items")',
+        validated_items: 'context.get_dependency_field("validate_cart_dsl", "validated_items")',
         customer_info: 'context.get_input("customer_info")'
       }
     }
@@ -243,11 +249,11 @@ EcommerceUpdateInventoryDslHandler = step_handler(
 end
 
 EcommerceCreateOrderDslHandler = step_handler(
-  'ecommerce_dsl.step_handlers.create_order',
-  depends_on: { validate_cart: 'validate_cart', process_payment: 'process_payment', update_inventory: 'update_inventory' },
+  'ecommerce_dsl_rb.step_handlers.create_order',
+  depends_on: { validate_cart: 'validate_cart_dsl', process_payment: 'process_payment_dsl', update_inventory: 'update_inventory_dsl' },
   inputs: [:customer_info]
-) do |validate_cart:, process_payment:, update_inventory:, customer_info:, context:|
-  deep_sym = ->(obj) {
+) do |validate_cart:, process_payment:, update_inventory:, customer_info:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -260,7 +266,9 @@ EcommerceCreateOrderDslHandler = step_handler(
   process_payment = deep_sym.call(process_payment) if process_payment
   update_inventory = deep_sym.call(update_inventory) if update_inventory
 
-  raise TaskerCore::Errors::PermanentError.new('Customer information is required', error_code: 'MISSING_CUSTOMER_INFO') unless customer_info
+  unless customer_info
+    raise TaskerCore::Errors::PermanentError.new('Customer information is required', error_code: 'MISSING_CUSTOMER_INFO')
+  end
   unless validate_cart&.dig(:validated_items)&.any?
     raise TaskerCore::Errors::PermanentError.new('Cart validation results are required', error_code: 'MISSING_CART_VALIDATION')
   end
@@ -288,20 +296,20 @@ EcommerceCreateOrderDslHandler = step_handler(
       operation: 'create_order',
       input_refs: {
         customer_info: 'context.get_input("customer_info")',
-        cart_validation: 'context.get_dependency_result("validate_cart")',
-        payment_result: 'context.get_dependency_result("process_payment")',
-        inventory_result: 'context.get_dependency_result("update_inventory")'
+        cart_validation: 'context.get_dependency_result("validate_cart_dsl")',
+        payment_result: 'context.get_dependency_result("process_payment_dsl")',
+        inventory_result: 'context.get_dependency_result("update_inventory_dsl")'
       }
     }
   )
 end
 
 EcommerceSendConfirmationDslHandler = step_handler(
-  'ecommerce_dsl.step_handlers.send_confirmation',
-  depends_on: { create_order: 'create_order', validate_cart: 'validate_cart' },
+  'ecommerce_dsl_rb.step_handlers.send_confirmation',
+  depends_on: { create_order: 'create_order_dsl', validate_cart: 'validate_cart_dsl' },
   inputs: [:customer_info]
-) do |create_order:, validate_cart:, customer_info:, context:|
-  deep_sym = ->(obj) {
+) do |create_order:, validate_cart:, customer_info:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -335,8 +343,8 @@ EcommerceSendConfirmationDslHandler = step_handler(
       operation: 'send_confirmation_email',
       input_refs: {
         customer_info: 'context.get_input("customer_info")',
-        order_result: 'context.get_dependency_result("create_order")',
-        cart_validation: 'context.get_dependency_result("validate_cart")'
+        order_result: 'context.get_dependency_result("create_order_dsl")',
+        cart_validation: 'context.get_dependency_result("validate_cart_dsl")'
       }
     }
   )

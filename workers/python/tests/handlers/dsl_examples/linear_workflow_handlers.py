@@ -20,9 +20,9 @@ from tasker_core.step_handler.functional import (
 from tasker_core.types import StepHandlerResult
 
 
-@step_handler("linear_workflow_dsl.step_handlers.linear_step_1")
+@step_handler("linear_workflow_dsl_py.step_handlers.linear_step_1")
 @inputs("even_number")
-def linear_step_1(even_number, context):
+def linear_step_1(even_number, _context):
     """Square the even number."""
     if even_number is None:
         return StepHandlerResult.failure(
@@ -48,13 +48,13 @@ def linear_step_1(even_number, context):
     }
 
 
-@step_handler("linear_workflow_dsl.step_handlers.linear_step_2")
-@depends_on(step1_output="linear_step_1_py")
-def linear_step_2(step1_output, context):
+@step_handler("linear_workflow_dsl_py.step_handlers.linear_step_2")
+@depends_on(step1_output="linear_step_1_dsl_py")
+def linear_step_2(step1_output, _context):
     """Add 10 to the squared result."""
     if step1_output is None:
         return StepHandlerResult.failure(
-            message="Missing result from linear_step_1_py",
+            message="Missing result from linear_step_1_dsl_py",
             error_type="dependency_error",
             retryable=True,
         )
@@ -63,7 +63,7 @@ def linear_step_2(step1_output, context):
 
     if squared_value is None:
         return StepHandlerResult.failure(
-            message="Missing 'result' field in linear_step_1_py output",
+            message="Missing 'result' field in linear_step_1_dsl_py output",
             error_type="dependency_error",
             retryable=True,
         )
@@ -79,13 +79,13 @@ def linear_step_2(step1_output, context):
     }
 
 
-@step_handler("linear_workflow_dsl.step_handlers.linear_step_3")
-@depends_on(step2_output="linear_step_2_py")
-def linear_step_3(step2_output, context):
+@step_handler("linear_workflow_dsl_py.step_handlers.linear_step_3")
+@depends_on(step2_output="linear_step_2_dsl_py")
+def linear_step_3(step2_output, _context):
     """Multiply by 3."""
     if step2_output is None:
         return StepHandlerResult.failure(
-            message="Missing result from linear_step_2_py",
+            message="Missing result from linear_step_2_dsl_py",
             error_type="dependency_error",
             retryable=True,
         )
@@ -94,7 +94,7 @@ def linear_step_3(step2_output, context):
 
     if added_value is None:
         return StepHandlerResult.failure(
-            message="Missing 'result' field in linear_step_2_py output",
+            message="Missing 'result' field in linear_step_2_dsl_py output",
             error_type="dependency_error",
             retryable=True,
         )
@@ -110,13 +110,13 @@ def linear_step_3(step2_output, context):
     }
 
 
-@step_handler("linear_workflow_dsl.step_handlers.linear_step_4")
-@depends_on(step3_output="linear_step_3_py")
-def linear_step_4(step3_output, context):
+@step_handler("linear_workflow_dsl_py.step_handlers.linear_step_4")
+@depends_on(step3_output="linear_step_3_dsl_py")
+def linear_step_4(step3_output, _context):
     """Divide by 2 for final result."""
     if step3_output is None:
         return StepHandlerResult.failure(
-            message="Missing result from linear_step_3_py",
+            message="Missing result from linear_step_3_dsl_py",
             error_type="dependency_error",
             retryable=True,
         )
@@ -127,7 +127,7 @@ def linear_step_4(step3_output, context):
 
     if multiplied_value is None:
         return StepHandlerResult.failure(
-            message="Missing 'result' field in linear_step_3_py output",
+            message="Missing 'result' field in linear_step_3_dsl_py output",
             error_type="dependency_error",
             retryable=True,
         )

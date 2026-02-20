@@ -5,10 +5,7 @@
  * Produces identical output for parity testing.
  */
 
-import {
-  PermanentError,
-  defineHandler,
-} from '../../../../../src/handler/functional.js';
+import { defineHandler, PermanentError } from '../../../../../src/handler/functional.js';
 
 /**
  * Validate order details.
@@ -57,14 +54,12 @@ export const ValidateOrderDslHandler = defineHandler(
  */
 export const ProcessPaymentDslHandler = defineHandler(
   'domain_events_dsl.step_handlers.ProcessPaymentDslHandler',
-  { depends: { validateResult: 'domain_events_ts_validate_order' } },
+  { depends: { validateResult: 'domain_events_ts_validate_order_dsl' } },
   async ({ validateResult }) => {
     const result = validateResult as Record<string, unknown> | null;
 
     if (!result) {
-      throw new PermanentError(
-        'Missing dependency result from domain_events_ts_validate_order'
-      );
+      throw new PermanentError('Missing dependency result from domain_events_ts_validate_order');
     }
 
     const orderId = result.order_id as string;
@@ -89,8 +84,8 @@ export const UpdateInventoryDslHandler = defineHandler(
   'domain_events_dsl.step_handlers.UpdateInventoryDslHandler',
   {
     depends: {
-      validateResult: 'domain_events_ts_validate_order',
-      paymentResult: 'domain_events_ts_process_payment',
+      validateResult: 'domain_events_ts_validate_order_dsl',
+      paymentResult: 'domain_events_ts_process_payment_dsl',
     },
   },
   async ({ validateResult, paymentResult }) => {
@@ -98,15 +93,11 @@ export const UpdateInventoryDslHandler = defineHandler(
     const payResult = paymentResult as Record<string, unknown> | null;
 
     if (!valResult) {
-      throw new PermanentError(
-        'Missing dependency result from domain_events_ts_validate_order'
-      );
+      throw new PermanentError('Missing dependency result from domain_events_ts_validate_order');
     }
 
     if (!payResult) {
-      throw new PermanentError(
-        'Missing dependency result from domain_events_ts_process_payment'
-      );
+      throw new PermanentError('Missing dependency result from domain_events_ts_process_payment');
     }
 
     const orderId = valResult.order_id as string;
@@ -128,9 +119,9 @@ export const SendNotificationDslHandler = defineHandler(
   'domain_events_dsl.step_handlers.SendNotificationDslHandler',
   {
     depends: {
-      validateResult: 'domain_events_ts_validate_order',
-      paymentResult: 'domain_events_ts_process_payment',
-      inventoryResult: 'domain_events_ts_update_inventory',
+      validateResult: 'domain_events_ts_validate_order_dsl',
+      paymentResult: 'domain_events_ts_process_payment_dsl',
+      inventoryResult: 'domain_events_ts_update_inventory_dsl',
     },
   },
   async ({ validateResult, paymentResult, inventoryResult }) => {
@@ -139,21 +130,15 @@ export const SendNotificationDslHandler = defineHandler(
     const invResult = inventoryResult as Record<string, unknown> | null;
 
     if (!valResult) {
-      throw new PermanentError(
-        'Missing dependency result from domain_events_ts_validate_order'
-      );
+      throw new PermanentError('Missing dependency result from domain_events_ts_validate_order');
     }
 
     if (!payResult) {
-      throw new PermanentError(
-        'Missing dependency result from domain_events_ts_process_payment'
-      );
+      throw new PermanentError('Missing dependency result from domain_events_ts_process_payment');
     }
 
     if (!invResult) {
-      throw new PermanentError(
-        'Missing dependency result from domain_events_ts_update_inventory'
-      );
+      throw new PermanentError('Missing dependency result from domain_events_ts_update_inventory');
     }
 
     const orderId = valResult.order_id as string;

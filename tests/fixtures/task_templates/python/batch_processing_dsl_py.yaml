@@ -57,10 +57,11 @@ steps:
     description: "Analyze CSV file and create batch worker configurations"
     dependencies: []
     handler:
-      callable: batch_processing_dsl.step_handlers.csv_analyzer
+      callable: batch_processing_dsl_py.step_handlers.csv_analyzer
       initialization:
         batch_size: 200
         max_workers: 5
+        worker_template_name: "process_csv_batch_dsl_py"
     retry:
       retryable: true
       max_attempts: 3
@@ -82,7 +83,7 @@ steps:
       max_retries: 3
       backoff_multiplier: 2.0
     handler:
-      callable: batch_processing_dsl.step_handlers.csv_batch_processor
+      callable: batch_processing_dsl_py.step_handlers.csv_batch_processor
       initialization:
         operation: "inventory_analysis"
     batch_config:
@@ -105,9 +106,9 @@ steps:
     type: deferred_convergence
     description: "Aggregate results from all batch workers"
     dependencies:
-      - process_csv_batch_py  # Template dependency - resolves to all worker instances
+      - process_csv_batch_dsl_py  # Template dependency - resolves to all worker instances
     handler:
-      callable: batch_processing_dsl.step_handlers.csv_results_aggregator
+      callable: batch_processing_dsl_py.step_handlers.csv_results_aggregator
       initialization:
         aggregation_type: "inventory_metrics"
     retry:

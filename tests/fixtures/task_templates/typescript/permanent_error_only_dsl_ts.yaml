@@ -39,7 +39,7 @@ steps:
   - name: permanent_error_step_dsl_ts
     description: "A step that returns a permanent (non-retryable) error"
     handler:
-      callable: test_errors_dsl.step_handlers.permanent_error
+      callable: test_errors_dsl.step_handlers.PermanentErrorDslHandler
       initialization:
         expected_outcome: permanent_error
     system_dependency:

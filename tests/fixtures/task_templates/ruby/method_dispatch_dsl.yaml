@@ -15,13 +15,13 @@
 #
 ---
 name: method_dispatch_dsl
-namespace_name: resolver_tests_dsl
+namespace_name: resolver_tests_dsl_rb
 version: 1.0.0
 description: "TAS-93: Method dispatch E2E test - invokes different methods on same handler (Ruby)"
 metadata:
   author: TAS-93 Phase 5 Implementation
   tags:
-    - namespace:resolver_tests_dsl
+    - namespace:resolver_tests_dsl_rb
     - pattern:linear
     - feature:method_dispatch
     - implementation:ruby_ffi
@@ -32,7 +32,7 @@ metadata:
   updated_at: "2026-01-07T00:00:00Z"
   notes: "Tests method dispatch feature where handler.method() is called instead of handler.call()"
 task_handler:
-  callable: ResolverTests::TaskHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     test_type: method_dispatch
     expected_methods:
@@ -62,8 +62,7 @@ steps:
   - name: validate_step_dsl
     description: "Step 1: Invoke validate method on MultiMethodHandler"
     handler:
-      callable: ResolverTests::StepHandlers::MultiMethodHandler_dsl
-      method: validate
+      callable: resolver_tests_dsl_rb.step_handlers.multi_method_validate
       initialization:
         step_number: 1
         expected_method: validate
@@ -80,8 +79,7 @@ steps:
   - name: process_step_dsl
     description: "Step 2: Invoke process method on MultiMethodHandler"
     handler:
-      callable: ResolverTests::StepHandlers::MultiMethodHandler_dsl
-      method: process
+      callable: resolver_tests_dsl_rb.step_handlers.multi_method_process
       initialization:
         step_number: 2
         expected_method: process
@@ -99,8 +97,7 @@ steps:
   - name: refund_step_dsl
     description: "Step 3: Invoke refund method on MultiMethodHandler"
     handler:
-      callable: ResolverTests::StepHandlers::MultiMethodHandler_dsl
-      method: refund
+      callable: resolver_tests_dsl_rb.step_handlers.multi_method_refund
       initialization:
         step_number: 3
         expected_method: refund
@@ -118,7 +115,7 @@ steps:
   - name: default_call_step_dsl
     description: "Step 4: Invoke default call method (no method specified)"
     handler:
-      callable: ResolverTests::StepHandlers::MultiMethodHandler_dsl
+      callable: resolver_tests_dsl_rb.step_handlers.multi_method_call
       initialization:
         step_number: 4
         expected_method: call

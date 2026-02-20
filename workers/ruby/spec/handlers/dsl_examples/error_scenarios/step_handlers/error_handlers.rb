@@ -4,7 +4,7 @@
 #
 # 3 handlers: success, permanent_error, retryable_error
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 ErrorSuccessDslHandler = step_handler('error_scenarios_dsl.step_handlers.success') do |context:|
   TaskerCore::Types::StepHandlerCallResult.success(
@@ -20,7 +20,7 @@ ErrorSuccessDslHandler = step_handler('error_scenarios_dsl.step_handlers.success
   )
 end
 
-ErrorPermanentDslHandler = step_handler('error_scenarios_dsl.step_handlers.permanent_error') do |context:|
+ErrorPermanentDslHandler = step_handler('error_scenarios_dsl.step_handlers.permanent_error') do |context:| # rubocop:disable Lint/UnusedBlockArgument
   raise TaskerCore::Errors::PermanentError.new(
     'Invalid payment method: test_invalid_card',
     context: {

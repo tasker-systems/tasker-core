@@ -38,7 +38,7 @@ metadata:
   updated_at: "2026-01-12T00:00:00Z"
   notes: "Python FFI implementation demonstrating namespace isolation from Blog Post 04"
 task_handler:
-  callable: team_scaling_dsl.customer_success.task_handlers.ProcessRefundHandler
+  callable: team_scaling_dsl_py.customer_success.task_handlers.ProcessRefundHandler
   initialization:
     timeout_seconds: 90
     max_retries: 3
@@ -80,10 +80,10 @@ input_schema:
       type: string
       description: "Payment ID for cross-team workflow coordination"
 steps:
-  - name: validate_refund_request_dsl
+  - name: validate_refund_request_dsl_py
     description: "Validate customer refund request details"
     handler:
-      callable: team_scaling_dsl.customer_success_dsl.step_handlers.validate_refund_request
+      callable: team_scaling_dsl_py.customer_success.step_handlers.validate_refund_request
       initialization:
         scenario: customer_success_refund
     dependencies: []
@@ -95,14 +95,14 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 10
 
-  - name: check_refund_policy_dsl
+  - name: check_refund_policy_dsl_py
     description: "Verify request complies with refund policies"
     handler:
-      callable: team_scaling_dsl.customer_success_dsl.step_handlers.check_refund_policy
+      callable: team_scaling_dsl_py.customer_success.step_handlers.check_refund_policy
       initialization:
         scenario: customer_success_refund
     dependencies:
-      - validate_refund_request_dsl
+      - validate_refund_request_dsl_py
     retry:
       retryable: true
       max_attempts: 2
@@ -111,14 +111,14 @@ steps:
       max_backoff_ms: 20000
     timeout_seconds: 10
 
-  - name: get_manager_approval_dsl
+  - name: get_manager_approval_dsl_py
     description: "Route to manager for approval if needed"
     handler:
-      callable: team_scaling_dsl.customer_success_dsl.step_handlers.get_manager_approval
+      callable: team_scaling_dsl_py.customer_success.step_handlers.get_manager_approval
       initialization:
         scenario: customer_success_refund
     dependencies:
-      - check_refund_policy_dsl
+      - check_refund_policy_dsl_py
     retry:
       retryable: true
       max_attempts: 1
@@ -127,14 +127,14 @@ steps:
       max_backoff_ms: 60000
     timeout_seconds: 10
 
-  - name: execute_refund_workflow_dsl
+  - name: execute_refund_workflow_dsl_py
     description: "Call payments team refund workflow"
     handler:
-      callable: team_scaling_dsl.customer_success_dsl.step_handlers.execute_refund_workflow
+      callable: team_scaling_dsl_py.customer_success.step_handlers.execute_refund_workflow
       initialization:
         scenario: customer_success_refund
     dependencies:
-      - get_manager_approval_dsl
+      - get_manager_approval_dsl_py
     retry:
       retryable: true
       max_attempts: 3
@@ -143,14 +143,14 @@ steps:
       max_backoff_ms: 60000
     timeout_seconds: 10
 
-  - name: update_ticket_status_dsl
+  - name: update_ticket_status_dsl_py
     description: "Update customer support ticket"
     handler:
-      callable: team_scaling_dsl.customer_success_dsl.step_handlers.update_ticket_status
+      callable: team_scaling_dsl_py.customer_success.step_handlers.update_ticket_status
       initialization:
         scenario: customer_success_refund
     dependencies:
-      - execute_refund_workflow_dsl
+      - execute_refund_workflow_dsl_py
     retry:
       retryable: true
       max_attempts: 3
@@ -162,13 +162,13 @@ steps:
 environments:
   test:
     steps:
-      - name: validate_refund_request_dsl
+      - name: validate_refund_request_dsl_py
         timeout_seconds: 10
-      - name: check_refund_policy_dsl
+      - name: check_refund_policy_dsl_py
         timeout_seconds: 10
-      - name: get_manager_approval_dsl
+      - name: get_manager_approval_dsl_py
         timeout_seconds: 10
-      - name: execute_refund_workflow_dsl
+      - name: execute_refund_workflow_dsl_py
         timeout_seconds: 10
-      - name: update_ticket_status_dsl
+      - name: update_ticket_status_dsl_py
         timeout_seconds: 10

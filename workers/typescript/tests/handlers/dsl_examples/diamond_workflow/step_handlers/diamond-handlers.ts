@@ -5,10 +5,7 @@
  * Produces identical output for parity testing.
  */
 
-import {
-  PermanentError,
-  defineHandler,
-} from '../../../../../src/handler/functional.js';
+import { defineHandler, PermanentError } from '../../../../../src/handler/functional.js';
 
 /**
  * Diamond Start: Square the initial even number.
@@ -42,7 +39,7 @@ export const DiamondStartDslHandler = defineHandler(
  */
 export const DiamondBranchBDslHandler = defineHandler(
   'diamond_workflow_dsl.step_handlers.DiamondBranchBDslHandler',
-  { depends: { startResult: 'diamond_start_ts' } },
+  { depends: { startResult: 'diamond_start_dsl_ts' } },
   async ({ startResult }) => {
     const result = startResult as Record<string, unknown> | null;
 
@@ -68,7 +65,7 @@ export const DiamondBranchBDslHandler = defineHandler(
  */
 export const DiamondBranchCDslHandler = defineHandler(
   'diamond_workflow_dsl.step_handlers.DiamondBranchCDslHandler',
-  { depends: { startResult: 'diamond_start_ts' } },
+  { depends: { startResult: 'diamond_start_dsl_ts' } },
   async ({ startResult }) => {
     const result = startResult as Record<string, unknown> | null;
 
@@ -96,8 +93,8 @@ export const DiamondEndDslHandler = defineHandler(
   'diamond_workflow_dsl.step_handlers.DiamondEndDslHandler',
   {
     depends: {
-      branchBResult: 'diamond_branch_b_ts',
-      branchCResult: 'diamond_branch_c_ts',
+      branchBResult: 'diamond_branch_b_dsl_ts',
+      branchCResult: 'diamond_branch_c_dsl_ts',
     },
   },
   async ({ branchBResult, branchCResult }) => {

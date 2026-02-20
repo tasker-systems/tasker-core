@@ -29,8 +29,9 @@ from __future__ import annotations
 import asyncio
 import inspect
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 from tasker_core.errors import PermanentError, RetryableError, TaskerError
 from tasker_core.step_handler.base import StepHandler
@@ -48,6 +49,25 @@ if TYPE_CHECKING:
 # ============================================================================
 # Helper Types
 # ============================================================================
+
+
+@runtime_checkable
+class FunctionalHandler(Protocol):
+    """Protocol for decorated handler functions.
+
+    All ``@step_handler``, ``@decision_handler``, ``@batch_analyzer``, and
+    ``@batch_worker`` decorated functions expose a ``_handler_class`` attribute
+    containing the generated ``StepHandler`` subclass.
+    """
+
+    _handler_class: type[StepHandler]
+    __name__: str
+    __call__: Callable[..., Any]
+
+
+#: Type alias for the decorator return — a callable that is also a
+#: :class:`FunctionalHandler` (i.e. has ``_handler_class``).
+HandlerDecorator = Callable[[Callable[..., Any]], FunctionalHandler]
 
 
 @dataclass(frozen=True)
@@ -196,8 +216,17 @@ def _inject_args(
     sig = inspect.signature(fn)
     if "context" in sig.parameters:
         kwargs["context"] = context
+    elif "_context" in sig.parameters:
+        kwargs["_context"] = context
 
     return kwargs
+
+
+def _copy_fn_metadata(cls: type, fn: Callable[..., Any]) -> None:
+    """Copy function metadata to a generated handler class."""
+    cls.__name__ = getattr(fn, "__name__", cls.__name__)
+    cls.__qualname__ = getattr(fn, "__qualname__", cls.__qualname__)
+    cls.__doc__ = getattr(fn, "__doc__", cls.__doc__)
 
 
 def _make_handler_class(
@@ -235,9 +264,7 @@ def _make_handler_class(
                 except Exception as exc:
                     return _wrap_exception(exc)
 
-        AsyncFunctionalHandler.__name__ = fn.__name__
-        AsyncFunctionalHandler.__qualname__ = fn.__qualname__
-        AsyncFunctionalHandler.__doc__ = fn.__doc__
+        _copy_fn_metadata(AsyncFunctionalHandler, fn)
         return AsyncFunctionalHandler
     else:
 
@@ -255,9 +282,7 @@ def _make_handler_class(
                 except Exception as exc:
                     return _wrap_exception(exc)
 
-        SyncFunctionalHandler.__name__ = fn.__name__
-        SyncFunctionalHandler.__qualname__ = fn.__qualname__
-        SyncFunctionalHandler.__doc__ = fn.__doc__
+        _copy_fn_metadata(SyncFunctionalHandler, fn)
         return SyncFunctionalHandler
 
 
@@ -269,7 +294,7 @@ def _make_handler_class(
 def step_handler(
     name: str,
     version: str = "1.0.0",
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> HandlerDecorator:
     """Decorator that wraps a function as a StepHandler subclass.
 
     The decorated function receives injected dependencies, inputs, and context
@@ -297,13 +322,13 @@ def step_handler(
         >>> registry.register(process_payment._handler_class)
     """
 
-    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(fn: Callable[..., Any]) -> FunctionalHandler:
         dep_map: dict[str, str] = getattr(fn, "_depends_on", {})
         input_keys: list[str] = getattr(fn, "_inputs", [])
 
         handler_cls = _make_handler_class(fn, name, version, dep_map, input_keys)
         fn._handler_class = handler_cls  # type: ignore[attr-defined]
-        return fn
+        return cast(FunctionalHandler, fn)
 
     return decorator
 
@@ -367,7 +392,7 @@ def inputs(*keys: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
 def decision_handler(
     name: str,
     version: str = "1.0.0",
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> HandlerDecorator:
     """Decorator for decision point handlers.
 
     The decorated function should return a ``Decision.route(...)`` or
@@ -388,7 +413,7 @@ def decision_handler(
         ...     return Decision.route(["process_standard"])
     """
 
-    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(fn: Callable[..., Any]) -> FunctionalHandler:
         dep_map: dict[str, str] = getattr(fn, "_depends_on", {})
         input_keys: list[str] = getattr(fn, "_inputs", [])
         is_async = asyncio.iscoroutinefunction(fn)
@@ -423,9 +448,7 @@ def decision_handler(
                     except Exception as exc:
                         return _wrap_exception(exc)
 
-            AsyncDecisionHandler.__name__ = fn.__name__
-            AsyncDecisionHandler.__qualname__ = fn.__qualname__
-            AsyncDecisionHandler.__doc__ = fn.__doc__
+            _copy_fn_metadata(AsyncDecisionHandler, fn)
             fn._handler_class = AsyncDecisionHandler  # type: ignore[attr-defined]
         else:
 
@@ -455,12 +478,10 @@ def decision_handler(
                     except Exception as exc:
                         return _wrap_exception(exc)
 
-            SyncDecisionHandler.__name__ = fn.__name__
-            SyncDecisionHandler.__qualname__ = fn.__qualname__
-            SyncDecisionHandler.__doc__ = fn.__doc__
+            _copy_fn_metadata(SyncDecisionHandler, fn)
             fn._handler_class = SyncDecisionHandler  # type: ignore[attr-defined]
 
-        return fn
+        return cast(FunctionalHandler, fn)
 
     return decorator
 
@@ -469,7 +490,7 @@ def batch_analyzer(
     name: str,
     worker_template: str,
     version: str = "1.0.0",
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> HandlerDecorator:
     """Decorator for batch analyzer handlers.
 
     The decorated function should return a ``BatchConfig`` with
@@ -489,7 +510,7 @@ def batch_analyzer(
         ...     return BatchConfig(total_items=row_count, batch_size=1000)
     """
 
-    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(fn: Callable[..., Any]) -> FunctionalHandler:
         dep_map: dict[str, str] = getattr(fn, "_depends_on", {})
         input_keys: list[str] = getattr(fn, "_inputs", [])
         is_async = asyncio.iscoroutinefunction(fn)
@@ -512,19 +533,17 @@ def batch_analyzer(
                             outcome = self.create_batch_outcome(
                                 total_items=raw_result.total_items,
                                 batch_size=raw_result.batch_size,
+                                batch_metadata=raw_result.metadata or {},
                             )
                             return self.batch_analyzer_success(
                                 outcome,
                                 worker_template_name=worker_template,
-                                metadata=raw_result.metadata or None,
                             )
                         return _wrap_result(raw_result)
                     except Exception as exc:
                         return _wrap_exception(exc)
 
-            AsyncBatchAnalyzerHandler.__name__ = fn.__name__
-            AsyncBatchAnalyzerHandler.__qualname__ = fn.__qualname__
-            AsyncBatchAnalyzerHandler.__doc__ = fn.__doc__
+            _copy_fn_metadata(AsyncBatchAnalyzerHandler, fn)
             fn._handler_class = AsyncBatchAnalyzerHandler  # type: ignore[attr-defined]
         else:
 
@@ -542,22 +561,20 @@ def batch_analyzer(
                             outcome = self.create_batch_outcome(
                                 total_items=raw_result.total_items,
                                 batch_size=raw_result.batch_size,
+                                batch_metadata=raw_result.metadata or {},
                             )
                             return self.batch_analyzer_success(
                                 outcome,
                                 worker_template_name=worker_template,
-                                metadata=raw_result.metadata or None,
                             )
                         return _wrap_result(raw_result)
                     except Exception as exc:
                         return _wrap_exception(exc)
 
-            SyncBatchAnalyzerHandler.__name__ = fn.__name__
-            SyncBatchAnalyzerHandler.__qualname__ = fn.__qualname__
-            SyncBatchAnalyzerHandler.__doc__ = fn.__doc__
+            _copy_fn_metadata(SyncBatchAnalyzerHandler, fn)
             fn._handler_class = SyncBatchAnalyzerHandler  # type: ignore[attr-defined]
 
-        return fn
+        return cast(FunctionalHandler, fn)
 
     return decorator
 
@@ -565,7 +582,7 @@ def batch_analyzer(
 def batch_worker(
     name: str,
     version: str = "1.0.0",
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> HandlerDecorator:
     """Decorator for batch worker handlers.
 
     The decorated function receives a ``batch_context`` parameter
@@ -586,7 +603,7 @@ def batch_worker(
         ...     return {"items_processed": len(rows)}
     """
 
-    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(fn: Callable[..., Any]) -> FunctionalHandler:
         dep_map: dict[str, str] = getattr(fn, "_depends_on", {})
         input_keys: list[str] = getattr(fn, "_inputs", [])
         is_async = asyncio.iscoroutinefunction(fn)
@@ -609,9 +626,7 @@ def batch_worker(
                     except Exception as exc:
                         return _wrap_exception(exc)
 
-            AsyncBatchHandler.__name__ = fn.__name__
-            AsyncBatchHandler.__qualname__ = fn.__qualname__
-            AsyncBatchHandler.__doc__ = fn.__doc__
+            _copy_fn_metadata(AsyncBatchHandler, fn)
             fn._handler_class = AsyncBatchHandler  # type: ignore[attr-defined]
         else:
 
@@ -628,12 +643,10 @@ def batch_worker(
                     except Exception as exc:
                         return _wrap_exception(exc)
 
-            SyncBatchHandler.__name__ = fn.__name__
-            SyncBatchHandler.__qualname__ = fn.__qualname__
-            SyncBatchHandler.__doc__ = fn.__doc__
+            _copy_fn_metadata(SyncBatchHandler, fn)
             fn._handler_class = SyncBatchHandler  # type: ignore[attr-defined]
 
-        return fn
+        return cast(FunctionalHandler, fn)
 
     return decorator
 
@@ -641,6 +654,8 @@ def batch_worker(
 __all__ = [
     "BatchConfig",
     "Decision",
+    "FunctionalHandler",
+    "HandlerDecorator",
     "batch_analyzer",
     "batch_worker",
     "decision_handler",

@@ -80,10 +80,10 @@ input_schema:
       type: string
       description: "Payment ID for cross-team workflow coordination"
 steps:
-  - name: validate_refund_request_dsl
+  - name: validate_refund_request_dsl_ts
     description: "Validate customer refund request details"
     handler:
-      callable: TeamScaling_dsl.CustomerSuccess.StepHandlers.ValidateRefundRequestHandler
+      callable: TeamScalingDsl.CustomerSuccess.StepHandlers.ValidateRefundRequestDslHandler
       initialization:
         scenario: customer_success_refund
     dependencies: []
@@ -95,14 +95,14 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 10
 
-  - name: check_refund_policy_dsl
+  - name: check_refund_policy_dsl_ts
     description: "Verify request complies with refund policies"
     handler:
-      callable: TeamScaling_dsl.CustomerSuccess.StepHandlers.CheckRefundPolicyHandler
+      callable: TeamScalingDsl.CustomerSuccess.StepHandlers.CheckRefundPolicyDslHandler
       initialization:
         scenario: customer_success_refund
     dependencies:
-      - validate_refund_request_dsl
+      - validate_refund_request_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -111,14 +111,14 @@ steps:
       max_backoff_ms: 20000
     timeout_seconds: 10
 
-  - name: get_manager_approval_dsl
+  - name: get_manager_approval_dsl_ts
     description: "Route to manager for approval if needed"
     handler:
-      callable: TeamScaling_dsl.CustomerSuccess.StepHandlers.GetManagerApprovalHandler
+      callable: TeamScalingDsl.CustomerSuccess.StepHandlers.GetManagerApprovalDslHandler
       initialization:
         scenario: customer_success_refund
     dependencies:
-      - check_refund_policy_dsl
+      - check_refund_policy_dsl_ts
     retry:
       retryable: true
       max_attempts: 1
@@ -127,14 +127,14 @@ steps:
       max_backoff_ms: 60000
     timeout_seconds: 10
 
-  - name: execute_refund_workflow_dsl
+  - name: execute_refund_workflow_dsl_ts
     description: "Call payments team refund workflow"
     handler:
-      callable: TeamScaling_dsl.CustomerSuccess.StepHandlers.ExecuteRefundWorkflowHandler
+      callable: TeamScalingDsl.CustomerSuccess.StepHandlers.ExecuteRefundWorkflowDslHandler
       initialization:
         scenario: customer_success_refund
     dependencies:
-      - get_manager_approval_dsl
+      - get_manager_approval_dsl_ts
     retry:
       retryable: true
       max_attempts: 3
@@ -143,14 +143,14 @@ steps:
       max_backoff_ms: 60000
     timeout_seconds: 10
 
-  - name: update_ticket_status_dsl
+  - name: update_ticket_status_dsl_ts
     description: "Update customer support ticket"
     handler:
-      callable: TeamScaling_dsl.CustomerSuccess.StepHandlers.UpdateTicketStatusHandler
+      callable: TeamScalingDsl.CustomerSuccess.StepHandlers.UpdateTicketStatusDslHandler
       initialization:
         scenario: customer_success_refund
     dependencies:
-      - execute_refund_workflow_dsl
+      - execute_refund_workflow_dsl_ts
     retry:
       retryable: true
       max_attempts: 3
@@ -162,13 +162,13 @@ steps:
 environments:
   test:
     steps:
-      - name: validate_refund_request_dsl
+      - name: validate_refund_request_dsl_ts
         timeout_seconds: 10
-      - name: check_refund_policy_dsl
+      - name: check_refund_policy_dsl_ts
         timeout_seconds: 10
-      - name: get_manager_approval_dsl
+      - name: get_manager_approval_dsl_ts
         timeout_seconds: 10
-      - name: execute_refund_workflow_dsl
+      - name: execute_refund_workflow_dsl_ts
         timeout_seconds: 10
-      - name: update_ticket_status_dsl
+      - name: update_ticket_status_dsl_ts
         timeout_seconds: 10

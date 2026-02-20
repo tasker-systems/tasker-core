@@ -22,7 +22,7 @@ metadata:
   created_at: "2025-12-13T00:00:00Z"
   updated_at: "2025-12-13T00:00:00Z"
 task_handler:
-  callable: test_scenarios_dsl.PermanentErrorHandler
+  callable: test_scenarios_dsl_py.PermanentErrorHandler
   initialization: {}
 system_dependencies:
   primary: default
@@ -38,7 +38,7 @@ steps:
   - name: permanent_error_step_dsl_py
     description: "A step that returns a permanent (non-retryable) error"
     handler:
-      callable: test_scenarios_dsl.step_handlers.permanent_error_step
+      callable: test_scenarios_dsl_py.step_handlers.permanent_error_step
       initialization:
         expected_outcome: permanent_error
     system_dependency:

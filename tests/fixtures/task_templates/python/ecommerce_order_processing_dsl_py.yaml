@@ -39,7 +39,7 @@ metadata:
   updated_at: "2026-01-11T00:00:00Z"
   notes: "Python FFI implementation demonstrating e-commerce checkout workflow from Blog Post 01"
 task_handler:
-  callable: ecommerce_dsl.task_handlers.OrderProcessingHandler
+  callable: ecommerce_dsl_py.task_handlers.OrderProcessingHandler
   initialization:
     input_validation:
       required_fields:
@@ -53,11 +53,11 @@ task_handler:
         - order_creation: transaction_safe
         - email_notification: async_delivery
     expected_results:
-      validate_cart_dsl: "validated cart with totals"
-      process_payment_dsl: "payment confirmation"
-      update_inventory_dsl: "inventory reservations"
-      create_order_dsl: "order created"
-      send_confirmation_dsl: "email sent"
+      validate_cart_dsl_py: "validated cart with totals"
+      process_payment_dsl_py: "payment confirmation"
+      update_inventory_dsl_py: "inventory reservations"
+      create_order_dsl_py: "order created"
+      send_confirmation_dsl_py: "email sent"
 system_dependencies:
   primary: default
   secondary: []
@@ -116,10 +116,10 @@ input_schema:
           type: number
           description: "Payment amount"
 steps:
-  - name: validate_cart_dsl
+  - name: validate_cart_dsl_py
     description: "Validate cart items, check availability, calculate totals (subtotal, tax, shipping)"
     handler:
-      callable: ecommerce_dsl.step_handlers.validate_cart
+      callable: ecommerce_dsl_py.step_handlers.validate_cart
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
@@ -133,15 +133,15 @@ steps:
     timeout_seconds: 10
     publishes_events: []
 
-  - name: process_payment_dsl
+  - name: process_payment_dsl_py
     description: "Process customer payment using mock payment service"
     handler:
-      callable: ecommerce_dsl.step_handlers.process_payment
+      callable: ecommerce_dsl_py.step_handlers.process_payment
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
     dependencies:
-      - validate_cart_dsl
+      - validate_cart_dsl_py
     retry:
       retryable: true
       max_attempts: 2
@@ -151,15 +151,15 @@ steps:
     timeout_seconds: 10
     publishes_events: []
 
-  - name: update_inventory_dsl
+  - name: update_inventory_dsl_py
     description: "Reserve inventory for order items using mock inventory service"
     handler:
-      callable: ecommerce_dsl.step_handlers.update_inventory
+      callable: ecommerce_dsl_py.step_handlers.update_inventory
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
     dependencies:
-      - process_payment_dsl
+      - process_payment_dsl_py
     retry:
       retryable: true
       max_attempts: 2
@@ -169,15 +169,15 @@ steps:
     timeout_seconds: 10
     publishes_events: []
 
-  - name: create_order_dsl
+  - name: create_order_dsl_py
     description: "Create order record with customer, payment, and inventory details"
     handler:
-      callable: ecommerce_dsl.step_handlers.create_order
+      callable: ecommerce_dsl_py.step_handlers.create_order
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
     dependencies:
-      - update_inventory_dsl
+      - update_inventory_dsl_py
     retry:
       retryable: true
       max_attempts: 2
@@ -187,15 +187,15 @@ steps:
     timeout_seconds: 10
     publishes_events: []
 
-  - name: send_confirmation_dsl
+  - name: send_confirmation_dsl_py
     description: "Send order confirmation email to customer using mock email service"
     handler:
-      callable: ecommerce_dsl.step_handlers.send_confirmation
+      callable: ecommerce_dsl_py.step_handlers.send_confirmation
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
     dependencies:
-      - create_order_dsl
+      - create_order_dsl_py
     retry:
       retryable: true
       max_attempts: 2
@@ -208,13 +208,13 @@ steps:
 environments:
   test:
     steps:
-      - name: validate_cart_dsl
+      - name: validate_cart_dsl_py
         timeout_seconds: 10
-      - name: process_payment_dsl
+      - name: process_payment_dsl_py
         timeout_seconds: 10
-      - name: update_inventory_dsl
+      - name: update_inventory_dsl_py
         timeout_seconds: 10
-      - name: create_order_dsl
+      - name: create_order_dsl_py
         timeout_seconds: 10
-      - name: send_confirmation_dsl
+      - name: send_confirmation_dsl_py
         timeout_seconds: 10

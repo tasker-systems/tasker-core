@@ -167,19 +167,19 @@ async fn test_typescript_linear_workflow_ordering_dsl() -> Result<()> {
     let step_names: Vec<&str> = steps.iter().map(|s| s.name.as_str()).collect();
 
     assert!(
-        step_names.contains(&"linear_step_1_dsl"),
+        step_names.contains(&"linear_step_1_dsl_ts"),
         "Should have linear_step_1"
     );
     assert!(
-        step_names.contains(&"linear_step_2_dsl"),
+        step_names.contains(&"linear_step_2_dsl_ts"),
         "Should have linear_step_2"
     );
     assert!(
-        step_names.contains(&"linear_step_3_dsl"),
+        step_names.contains(&"linear_step_3_dsl_ts"),
         "Should have linear_step_3"
     );
     assert!(
-        step_names.contains(&"linear_step_4_dsl"),
+        step_names.contains(&"linear_step_4_dsl_ts"),
         "Should have linear_step_4"
     );
 

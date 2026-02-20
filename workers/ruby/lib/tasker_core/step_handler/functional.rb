@@ -115,7 +115,7 @@ module TaskerCore
         when nil
           Types::StepHandlerCallResult.success(result: {})
         else
-          Types::StepHandlerCallResult.success(result: result)
+          Types::StepHandlerCallResult.success(result: result.respond_to?(:to_h) ? result.to_h : {})
         end
       end
 
@@ -173,7 +173,7 @@ module TaskerCore
         handler_inputs = inputs
         handler_block = block
 
-        handler_class = Class.new(Base) do
+        Class.new(Base) do
           const_set(:VERSION, version)
 
           define_method(:handler_name) { name }
@@ -186,8 +186,6 @@ module TaskerCore
             Functional._wrap_exception(e)
           end
         end
-
-        handler_class
       end
 
       # Define a decision handler from a block.
@@ -217,7 +215,7 @@ module TaskerCore
         handler_inputs = inputs
         handler_block = block
 
-        handler_class = Class.new(Base) do
+        Class.new(Base) do
           include Mixins::Decision
 
           const_set(:VERSION, version)
@@ -233,12 +231,11 @@ module TaskerCore
                  Types::StepHandlerCallResult::Error
               raw_result
             when Decision
+              result_data = {}
               if raw_result.type == 'create_steps'
-                result_data = {}
                 result_data[:routing_context] = raw_result.routing_context unless raw_result.routing_context.empty?
                 decision_success(steps: raw_result.steps, result_data: result_data)
               else
-                result_data = {}
                 result_data[:reason] = raw_result.reason if raw_result.reason
                 result_data[:routing_context] = raw_result.routing_context unless raw_result.routing_context.empty?
                 decision_no_branches(result_data: result_data)
@@ -250,8 +247,6 @@ module TaskerCore
             Functional._wrap_exception(e)
           end
         end
-
-        handler_class
       end
 
       # Define a batch analyzer handler.
@@ -280,7 +275,7 @@ module TaskerCore
         handler_block = block
         handler_worker_template = worker_template
 
-        handler_class = Class.new(Base) do
+        Class.new(Base) do
           include Mixins::Batchable
 
           const_set(:VERSION, version)
@@ -315,8 +310,6 @@ module TaskerCore
             Functional._wrap_exception(e)
           end
         end
-
-        handler_class
       end
 
       # Define a batch worker handler.
@@ -344,7 +337,7 @@ module TaskerCore
         handler_inputs = inputs
         handler_block = block
 
-        handler_class = Class.new(Base) do
+        Class.new(Base) do
           include Mixins::Batchable
 
           const_set(:VERSION, version)
@@ -363,8 +356,6 @@ module TaskerCore
             Functional._wrap_exception(e)
           end
         end
-
-        handler_class
       end
     end
   end

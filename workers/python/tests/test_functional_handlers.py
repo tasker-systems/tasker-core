@@ -15,9 +15,8 @@ Tests:
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 from uuid import uuid4
-
-import pytest
 
 from tasker_core.errors import PermanentError, RetryableError
 from tasker_core.step_handler.functional import (
@@ -39,6 +38,16 @@ from tasker_core.types import (
 # ============================================================================
 # Test Helpers
 # ============================================================================
+
+
+def _call_sync(handler, ctx: StepContext) -> StepHandlerResult:
+    """Call a sync handler and cast the result to StepHandlerResult.
+
+    StepHandler.call() returns StepHandlerCallResult (sync | async union).
+    In sync tests the result is always StepHandlerResult; this helper
+    makes that explicit so basedpyright resolves attributes correctly.
+    """
+    return cast(StepHandlerResult, handler.call(ctx))
 
 
 def _make_context(
@@ -83,7 +92,7 @@ class TestStepHandlerDecorator:
         """Dict return is auto-wrapped as success."""
 
         @step_handler("my_handler")
-        def my_handler(context):
+        def my_handler(_context):
             return {"processed": True}
 
         assert hasattr(my_handler, "_handler_class")
@@ -92,7 +101,7 @@ class TestStepHandlerDecorator:
         assert handler.handler_version == "1.0.0"
 
         ctx = _make_context("my_handler")
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
         assert result.result == {"processed": True}
 
@@ -100,7 +109,7 @@ class TestStepHandlerDecorator:
         """Custom version is set on the handler class."""
 
         @step_handler("versioned", version="2.0.0")
-        def versioned(context):
+        def versioned(_context):
             return {}
 
         handler = versioned._handler_class()
@@ -114,7 +123,7 @@ class TestStepHandlerDecorator:
             pass
 
         handler = no_return._handler_class()
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is True
         assert result.result == {}
 
@@ -122,11 +131,11 @@ class TestStepHandlerDecorator:
         """Returning StepHandlerResult directly is not double-wrapped."""
 
         @step_handler("passthrough")
-        def passthrough(context):
+        def passthrough(_context):
             return StepHandlerResult.success({"direct": True})
 
         handler = passthrough._handler_class()
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is True
         assert result.result == {"direct": True}
 
@@ -144,7 +153,7 @@ class TestDependsOn:
 
         @step_handler("with_deps")
         @depends_on(cart="validate_cart")
-        def with_deps(cart, context):
+        def with_deps(cart, _context):
             return {"total": cart["total"]}
 
         handler = with_deps._handler_class()
@@ -152,7 +161,7 @@ class TestDependsOn:
             "with_deps",
             dependency_results={"validate_cart": {"result": {"total": 99.99}}},
         )
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
         assert result.result == {"total": 99.99}
 
@@ -161,12 +170,12 @@ class TestDependsOn:
 
         @step_handler("missing_dep")
         @depends_on(cart="validate_cart")
-        def missing_dep(cart, context):
+        def missing_dep(cart, _context):
             return {"cart_is_none": cart is None}
 
         handler = missing_dep._handler_class()
         ctx = _make_context("missing_dep", dependency_results={})
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
         assert result.result == {"cart_is_none": True}
 
@@ -175,7 +184,7 @@ class TestDependsOn:
 
         @step_handler("multi_deps")
         @depends_on(cart="validate_cart", user="fetch_user")
-        def multi_deps(cart, user, context):
+        def multi_deps(cart, user, _context):
             return {"cart": cart, "user": user}
 
         handler = multi_deps._handler_class()
@@ -186,8 +195,9 @@ class TestDependsOn:
                 "fetch_user": {"result": {"name": "Alice"}},
             },
         )
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["cart"] == {"total": 50}
         assert result.result["user"] == {"name": "Alice"}
 
@@ -205,7 +215,7 @@ class TestInputs:
 
         @step_handler("with_inputs")
         @inputs("payment_info")
-        def with_inputs(payment_info, context):
+        def with_inputs(payment_info, _context):
             return {"payment": payment_info}
 
         handler = with_inputs._handler_class()
@@ -213,7 +223,7 @@ class TestInputs:
             "with_inputs",
             input_data={"payment_info": {"card": "1234"}},
         )
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
         assert result.result == {"payment": {"card": "1234"}}
 
@@ -222,11 +232,11 @@ class TestInputs:
 
         @step_handler("missing_input")
         @inputs("nonexistent")
-        def missing_input(nonexistent, context):
+        def missing_input(nonexistent, _context):
             return {"is_none": nonexistent is None}
 
         handler = missing_input._handler_class()
-        result = handler.call(_make_context("missing_input"))
+        result = _call_sync(handler, _make_context("missing_input"))
         assert result.is_success is True
         assert result.result == {"is_none": True}
 
@@ -243,39 +253,42 @@ class TestErrorClassification:
         """PermanentError → failure(retryable=False)."""
 
         @step_handler("perm_err")
-        def perm_err(context):
+        def perm_err(_context):
             raise PermanentError("Invalid input")
 
         handler = perm_err._handler_class()
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is False
         assert result.retryable is False
+        assert result.error_message is not None
         assert "Invalid input" in result.error_message
 
     def test_retryable_error(self):
         """RetryableError → failure(retryable=True)."""
 
         @step_handler("retry_err")
-        def retry_err(context):
+        def retry_err(_context):
             raise RetryableError("Service unavailable")
 
         handler = retry_err._handler_class()
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is False
         assert result.retryable is True
+        assert result.error_message is not None
         assert "Service unavailable" in result.error_message
 
     def test_generic_exception(self):
         """Generic exception → failure(retryable=True) (safe default)."""
 
         @step_handler("generic_err")
-        def generic_err(context):
+        def generic_err(_context):
             raise ValueError("Something went wrong")
 
         handler = generic_err._handler_class()
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is False
         assert result.retryable is True
+        assert result.error_message is not None
         assert "Something went wrong" in result.error_message
 
 
@@ -291,12 +304,13 @@ class TestDecisionHandler:
         """Decision.route() creates a create_steps outcome via DecisionMixin."""
 
         @decision_handler("route_order")
-        def route_order(context):
+        def route_order(_context):
             return Decision.route(["process_premium"], tier="premium")
 
         handler = route_order._handler_class()
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is True
+        assert result.result is not None
         # DecisionMixin format: type/step_names in outcome, routing_context at result level
         outcome = result.result["decision_point_outcome"]
         assert outcome["type"] == "create_steps"
@@ -310,12 +324,13 @@ class TestDecisionHandler:
         """Decision.skip() creates a no_branches outcome via DecisionMixin."""
 
         @decision_handler("skip_handler")
-        def skip_handler(context):
+        def skip_handler(_context):
             return Decision.skip("No items to process")
 
         handler = skip_handler._handler_class()
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is True
+        assert result.result is not None
         outcome = result.result["decision_point_outcome"]
         assert outcome["type"] == "no_branches"
         # reason is at result level in DecisionMixin format
@@ -326,7 +341,7 @@ class TestDecisionHandler:
 
         @decision_handler("route_with_deps")
         @depends_on(order="validate_order")
-        def route_with_deps(order, context):
+        def route_with_deps(order, _context):
             if order and order.get("tier") == "premium":
                 return Decision.route(["process_premium"])
             return Decision.route(["process_standard"])
@@ -336,8 +351,9 @@ class TestDecisionHandler:
             "route_with_deps",
             dependency_results={"validate_order": {"result": {"tier": "premium"}}},
         )
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
+        assert result.result is not None
         outcome = result.result["decision_point_outcome"]
         assert outcome["step_names"] == ["process_premium"]
 
@@ -354,12 +370,13 @@ class TestBatchAnalyzer:
         """BatchConfig return auto-generates cursor configs via Batchable mixin."""
 
         @batch_analyzer("analyze", worker_template="process_batch")
-        def analyze(context):
+        def analyze(_context):
             return BatchConfig(total_items=250, batch_size=100)
 
         handler = analyze._handler_class()
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is True
+        assert result.result is not None
 
         # Batchable mixin adds these at result level
         assert result.result["worker_count"] == 3
@@ -395,7 +412,7 @@ class TestBatchWorker:
         """Batch worker handler receives batch_context parameter."""
 
         @batch_worker("process_batch")
-        def process_batch(batch_context, context):
+        def process_batch(batch_context, _context):
             # batch_context may be None if no batch data in step_config
             if batch_context is None:
                 return {"no_batch": True}
@@ -406,7 +423,7 @@ class TestBatchWorker:
 
         handler = process_batch._handler_class()
         # Without batch context in step_config, batch_context is None
-        result = handler.call(_make_context())
+        result = _call_sync(handler, _make_context())
         assert result.is_success is True
         assert result.result == {"no_batch": True}
 
@@ -414,7 +431,7 @@ class TestBatchWorker:
         """Batch worker extracts batch context from step_config."""
 
         @batch_worker("process_batch")
-        def process_batch(batch_context, context):
+        def process_batch(batch_context, _context):
             return {
                 "start": batch_context.start_cursor,
                 "end": batch_context.end_cursor,
@@ -437,8 +454,9 @@ class TestBatchWorker:
                 }
             },
         )
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["start"] == 100
         assert result.result["end"] == 200
         assert result.result["batch_id"] == "batch_001"
@@ -456,13 +474,13 @@ class TestAsyncHandlers:
         """Async handler is awaited properly."""
 
         @step_handler("async_handler")
-        async def async_handler(context):
+        async def async_handler(_context):
             await asyncio.sleep(0)
             return {"async": True}
 
         handler = async_handler._handler_class()
         ctx = _make_context()
-        result = asyncio.get_event_loop().run_until_complete(handler.call(ctx))
+        result = asyncio.run(handler.call(ctx))
         assert result.is_success is True
         assert result.result == {"async": True}
 
@@ -470,13 +488,13 @@ class TestAsyncHandlers:
         """Async handler errors are caught and classified."""
 
         @step_handler("async_error")
-        async def async_error(context):
+        async def async_error(_context):
             await asyncio.sleep(0)
             raise PermanentError("Async permanent error")
 
         handler = async_error._handler_class()
         ctx = _make_context()
-        result = asyncio.get_event_loop().run_until_complete(handler.call(ctx))
+        result = asyncio.run(handler.call(ctx))
         assert result.is_success is False
         assert result.retryable is False
 
@@ -486,7 +504,7 @@ class TestAsyncHandlers:
         @step_handler("async_full")
         @depends_on(data="fetch_data")
         @inputs("query")
-        async def async_full(data, query, context):
+        async def async_full(data, query, _context):
             await asyncio.sleep(0)
             return {"data": data, "query": query}
 
@@ -496,8 +514,9 @@ class TestAsyncHandlers:
             input_data={"query": "search_term"},
             dependency_results={"fetch_data": {"result": {"items": [1, 2, 3]}}},
         )
-        result = asyncio.get_event_loop().run_until_complete(handler.call(ctx))
+        result = asyncio.run(handler.call(ctx))
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["data"] == {"items": [1, 2, 3]}
         assert result.result["query"] == "search_term"
 
@@ -515,7 +534,7 @@ class TestHandlerClassCompatibility:
         from tasker_core.step_handler.base import StepHandler as BaseStepHandler
 
         @step_handler("compat_test")
-        def compat_test(context):
+        def compat_test(_context):
             return {}
 
         assert issubclass(compat_test._handler_class, BaseStepHandler)
@@ -524,7 +543,7 @@ class TestHandlerClassCompatibility:
         """Generated class can be instantiated."""
 
         @step_handler("instantiate_test")
-        def instantiate_test(context):
+        def instantiate_test(_context):
             return {}
 
         handler = instantiate_test._handler_class()
@@ -542,7 +561,7 @@ class TestHandlerClassCompatibility:
 
         handler = no_ctx._handler_class()
         ctx = _make_context("no_ctx", input_data={"value": 42})
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
         assert result.result == {"value": 42}
 
@@ -552,7 +571,7 @@ class TestHandlerClassCompatibility:
         @step_handler("combined")
         @depends_on(prev="step_1")
         @inputs("config_key")
-        def combined(prev, config_key, context):
+        def combined(prev, config_key, _context):
             return {"prev": prev, "config": config_key}
 
         handler = combined._handler_class()
@@ -561,7 +580,8 @@ class TestHandlerClassCompatibility:
             input_data={"config_key": "abc"},
             dependency_results={"step_1": {"result": {"count": 5}}},
         )
-        result = handler.call(ctx)
+        result = _call_sync(handler, ctx)
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["prev"] == {"count": 5}
         assert result.result["config"] == "abc"

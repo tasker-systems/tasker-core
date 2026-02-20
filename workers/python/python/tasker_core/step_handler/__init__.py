@@ -60,6 +60,8 @@ from tasker_core.step_handler.decision import DecisionHandler
 from tasker_core.step_handler.functional import (
     BatchConfig,
     Decision,
+    FunctionalHandler,
+    HandlerDecorator,
     batch_analyzer,
     batch_worker,
     decision_handler,
@@ -83,4 +85,6 @@ __all__ = [
     "batch_worker",
     "Decision",
     "BatchConfig",
+    "FunctionalHandler",
+    "HandlerDecorator",
 ]

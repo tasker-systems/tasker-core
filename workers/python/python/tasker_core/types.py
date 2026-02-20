@@ -954,10 +954,12 @@ class StepHandlerResult(BaseModel):
     """
 
     # Note: Field is named `is_success` in Python to avoid conflict with the `success()`
-    # classmethod. The alias="success" ensures JSON serialization uses "success" for compatibility.
-    # populate_by_name=True allows using either "is_success" or "success" when creating instances.
+    # classmethod. The validation_alias="success" allows deserialization from JSON with
+    # "success" key, while serialization_alias="success" ensures JSON output uses "success".
+    # This avoids the alias= form which conflicts with the classmethod in type checkers.
     is_success: bool = Field(
-        alias="success",
+        validation_alias="success",
+        serialization_alias="success",
         description="Whether the handler executed successfully.",
     )
     result: dict[str, Any] | None = Field(

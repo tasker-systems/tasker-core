@@ -73,7 +73,7 @@ steps:
     type: batchable
     description: "Analyze items and create batch worker configurations"
     handler:
-      callable: checkpoint_yield_dsl.step_handlers.checkpoint_yield_analyzer
+      callable: checkpoint_yield_dsl.step_handlers.CheckpointYieldAnalyzerDslHandler
       initialization:
         worker_template_name: checkpoint_yield_batch_dsl_ts
     system_dependency:
@@ -92,7 +92,7 @@ steps:
     type: batch_worker
     description: "Process items with checkpoint yielding"
     handler:
-      callable: checkpoint_yield_dsl.step_handlers.checkpoint_yield_worker
+      callable: checkpoint_yield_dsl.step_handlers.CheckpointYieldWorkerDslHandler
       initialization:
         items_per_checkpoint: 25
     system_dependency:
@@ -122,7 +122,7 @@ steps:
     type: deferred_convergence
     description: "Aggregate results from batch workers"
     handler:
-      callable: checkpoint_yield_dsl.step_handlers.checkpoint_yield_aggregator
+      callable: checkpoint_yield_dsl.step_handlers.CheckpointYieldAggregatorDslHandler
       initialization: {}
     system_dependency:
     dependencies:

@@ -18,13 +18,13 @@
 #
 ---
 name: ecommerce_order_processing_dsl
-namespace_name: ecommerce_dsl
+namespace_name: ecommerce_dsl_rb
 version: 1.0.0
 description: "Complete e-commerce order processing: validate → payment → inventory → order → confirmation"
 metadata:
   author: Ruby FFI Implementation
   tags:
-    - namespace:ecommerce_dsl
+    - namespace:ecommerce_dsl_rb
     - pattern:order_processing
     - dependencies:linear_with_validation
     - implementation:ruby_ffi
@@ -38,7 +38,7 @@ metadata:
   updated_at: "2025-11-19T00:00:00Z"
   notes: "Ruby FFI implementation demonstrating e-commerce checkout workflow from Blog Post 01"
 task_handler:
-  callable: Ecommerce::OrderProcessingHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     input_validation:
       required_fields:
@@ -118,7 +118,7 @@ steps:
   - name: validate_cart_dsl
     description: "Validate cart items, check availability, calculate totals (subtotal, tax, shipping)"
     handler:
-      callable: Ecommerce::StepHandlers::ValidateCartHandler_dsl
+      callable: ecommerce_dsl_rb.step_handlers.validate_cart
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
@@ -135,7 +135,7 @@ steps:
   - name: process_payment_dsl
     description: "Process customer payment using mock payment service"
     handler:
-      callable: Ecommerce::StepHandlers::ProcessPaymentHandler_dsl
+      callable: ecommerce_dsl_rb.step_handlers.process_payment
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
@@ -153,7 +153,7 @@ steps:
   - name: update_inventory_dsl
     description: "Reserve inventory for order items using mock inventory service"
     handler:
-      callable: Ecommerce::StepHandlers::UpdateInventoryHandler_dsl
+      callable: ecommerce_dsl_rb.step_handlers.update_inventory
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
@@ -171,7 +171,7 @@ steps:
   - name: create_order_dsl
     description: "Create order record with customer, payment, and inventory details"
     handler:
-      callable: Ecommerce::StepHandlers::CreateOrderHandler_dsl
+      callable: ecommerce_dsl_rb.step_handlers.create_order
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
@@ -189,7 +189,7 @@ steps:
   - name: send_confirmation_dsl
     description: "Send order confirmation email to customer using mock email service"
     handler:
-      callable: Ecommerce::StepHandlers::SendConfirmationHandler_dsl
+      callable: ecommerce_dsl_rb.step_handlers.send_confirmation
       initialization:
         scenario: ecommerce_checkout
     system_dependency:

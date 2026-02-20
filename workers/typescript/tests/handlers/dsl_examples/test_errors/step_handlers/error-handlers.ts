@@ -9,9 +9,9 @@
  * we return StepHandlerResult directly to match their exact output format.
  */
 
+import { defineHandler } from '../../../../../src/handler/functional.js';
 import { ErrorType } from '../../../../../src/types/error-type.js';
 import { StepHandlerResult } from '../../../../../src/types/step-handler-result.js';
-import { defineHandler } from '../../../../../src/handler/functional.js';
 
 /**
  * Handler that always succeeds.
@@ -41,16 +41,11 @@ export const PermanentErrorDslHandler = defineHandler(
   async ({ message }) => {
     const msg = (message as string) ?? 'Permanent error - no retry allowed';
 
-    return StepHandlerResult.failure(
-      msg,
-      ErrorType.PERMANENT_ERROR,
-      false,
-      {
-        scenario: 'permanent_error',
-        handler: 'PermanentErrorHandler',
-        timestamp: new Date().toISOString(),
-      }
-    );
+    return StepHandlerResult.failure(msg, ErrorType.PERMANENT_ERROR, false, {
+      scenario: 'permanent_error',
+      handler: 'PermanentErrorHandler',
+      timestamp: new Date().toISOString(),
+    });
   }
 );
 
@@ -63,16 +58,11 @@ export const RetryableErrorDslHandler = defineHandler(
   async ({ message, context }) => {
     const msg = (message as string) ?? 'Retryable error - will be retried';
 
-    return StepHandlerResult.failure(
-      msg,
-      ErrorType.RETRYABLE_ERROR,
-      true,
-      {
-        scenario: 'retryable_error',
-        handler: 'RetryableErrorHandler',
-        timestamp: new Date().toISOString(),
-        attempt: context.retryCount,
-      }
-    );
+    return StepHandlerResult.failure(msg, ErrorType.RETRYABLE_ERROR, true, {
+      scenario: 'retryable_error',
+      handler: 'RetryableErrorHandler',
+      timestamp: new Date().toISOString(),
+      attempt: context.retryCount,
+    });
   }
 );

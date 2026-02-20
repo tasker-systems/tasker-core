@@ -5,7 +5,7 @@
 # Mixed DAG: A -> (B, C) -> D(B+C), E(B), F(C) -> G(D+E+F)
 # 7 handlers total
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 DagInitDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_init',
                                  inputs: [:even_number]) do |even_number:, context:|
@@ -26,7 +26,7 @@ DagInitDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_init'
 end
 
 DagProcessLeftDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_process_left',
-                                        depends_on: { init_result: 'dag_init' }) do |init_result:, context:|
+                                        depends_on: { init_result: 'dag_init_dsl' }) do |init_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Init result not found' unless init_result
 
   result = init_result * init_result
@@ -44,7 +44,7 @@ DagProcessLeftDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.da
 end
 
 DagProcessRightDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_process_right',
-                                         depends_on: { init_result: 'dag_init' }) do |init_result:, context:|
+                                         depends_on: { init_result: 'dag_init_dsl' }) do |init_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Init result not found' unless init_result
 
   result = init_result * init_result
@@ -62,8 +62,8 @@ DagProcessRightDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.d
 end
 
 DagValidateDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_validate',
-                                     depends_on: { left_result: 'dag_process_left',
-                                                   right_result: 'dag_process_right' }) do |left_result:, right_result:, context:|
+                                     depends_on: { left_result: 'dag_process_left_dsl',
+                                                   right_result: 'dag_process_right_dsl' }) do |left_result:, right_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Process left result not found' unless left_result
   raise 'Process right result not found' unless right_result
 
@@ -86,7 +86,7 @@ DagValidateDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_v
 end
 
 DagTransformDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_transform',
-                                      depends_on: { left_result: 'dag_process_left' }) do |left_result:, context:|
+                                      depends_on: { left_result: 'dag_process_left_dsl' }) do |left_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Process left result not found' unless left_result
 
   result = left_result * left_result
@@ -103,7 +103,7 @@ DagTransformDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_
 end
 
 DagAnalyzeDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_analyze',
-                                    depends_on: { right_result: 'dag_process_right' }) do |right_result:, context:|
+                                    depends_on: { right_result: 'dag_process_right_dsl' }) do |right_result:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise 'Process right result not found' unless right_result
 
   result = right_result * right_result
@@ -120,9 +120,9 @@ DagAnalyzeDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_an
 end
 
 DagFinalizeDslHandler = step_handler('mixed_dag_workflow_dsl.step_handlers.dag_finalize',
-                                     depends_on: { validate_result: 'dag_validate',
-                                                   transform_result: 'dag_transform',
-                                                   analyze_result: 'dag_analyze' },
+                                     depends_on: { validate_result: 'dag_validate_dsl',
+                                                   transform_result: 'dag_transform_dsl',
+                                                   analyze_result: 'dag_analyze_dsl' },
                                      inputs: [:even_number]) do |validate_result:, transform_result:, analyze_result:, even_number:, context:|
   raise 'Validate result (D) not found' unless validate_result
   raise 'Transform result (E) not found' unless transform_result

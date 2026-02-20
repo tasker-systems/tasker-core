@@ -7,10 +7,10 @@
 #
 # Also includes AlternateMethodHandler mirrors: call, execute_action.
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 MultiMethodCallDslHandler = step_handler(
-  'resolver_tests_dsl.step_handlers.multi_method_call'
+  'resolver_tests_dsl_rb.step_handlers.multi_method_call'
 ) do |context:|
   input = context.task.context['data'] || {}
 
@@ -26,7 +26,7 @@ MultiMethodCallDslHandler = step_handler(
 end
 
 MultiMethodValidateDslHandler = step_handler(
-  'resolver_tests_dsl.step_handlers.multi_method_validate'
+  'resolver_tests_dsl_rb.step_handlers.multi_method_validate'
 ) do |context:|
   input = context.task.context['data'] || {}
 
@@ -53,7 +53,7 @@ MultiMethodValidateDslHandler = step_handler(
 end
 
 MultiMethodProcessDslHandler = step_handler(
-  'resolver_tests_dsl.step_handlers.multi_method_process'
+  'resolver_tests_dsl_rb.step_handlers.multi_method_process'
 ) do |context:|
   input = context.task.context['data'] || {}
   amount = input['amount'] || 0
@@ -74,7 +74,7 @@ MultiMethodProcessDslHandler = step_handler(
 end
 
 MultiMethodRefundDslHandler = step_handler(
-  'resolver_tests_dsl.step_handlers.multi_method_refund'
+  'resolver_tests_dsl_rb.step_handlers.multi_method_refund'
 ) do |context:|
   input = context.task.context['data'] || {}
   amount = input['amount'] || 0
@@ -94,7 +94,7 @@ MultiMethodRefundDslHandler = step_handler(
 end
 
 AlternateMethodCallDslHandler = step_handler(
-  'resolver_tests_dsl.step_handlers.alternate_method_call'
+  'resolver_tests_dsl_rb.step_handlers.alternate_method_call'
 ) do |context:|
   TaskerCore::Types::StepHandlerCallResult.success(
     result: {
@@ -107,7 +107,7 @@ AlternateMethodCallDslHandler = step_handler(
 end
 
 AlternateMethodExecuteActionDslHandler = step_handler(
-  'resolver_tests_dsl.step_handlers.alternate_method_execute_action'
+  'resolver_tests_dsl_rb.step_handlers.alternate_method_execute_action'
 ) do |context:|
   action = context.task.context['action_type'] || 'default_action'
 

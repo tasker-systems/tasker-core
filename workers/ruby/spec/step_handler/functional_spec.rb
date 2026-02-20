@@ -32,12 +32,12 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     step_def_handler = double('handler', callable: 'test_handler', initialization: step_config.transform_keys(&:to_s))
     step_def = double('step_definition', handler: step_def_handler)
 
-    step_data = double('step_data',
-                        is_a?: false,
-                        task: task_wrapper,
-                        workflow_step: workflow_step,
-                        dependency_results: dep_wrapper,
-                        step_definition: step_def)
+    double('step_data',
+           is_a?: false,
+           task: task_wrapper,
+           workflow_step: workflow_step,
+           dependency_results: dep_wrapper,
+           step_definition: step_def)
 
     # Build a context that uses our doubles directly
     ctx = TaskerCore::Types::StepContext.allocate
@@ -55,7 +55,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
   describe '#step_handler' do
     it 'wraps hash return as success' do
-      handler_class = step_handler('my_handler') do |context:|
+      handler_class = step_handler('my_handler') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         { processed: true }
       end
 
@@ -68,16 +68,16 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'sets custom version' do
-      handler_class = step_handler('versioned', version: '2.0.0') do |context:|
+      handler_class = step_handler('versioned', version: '2.0.0') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         {}
       end
 
-      handler = handler_class.new
+      handler_class.new
       expect(handler_class::VERSION).to eq('2.0.0')
     end
 
     it 'wraps nil return as empty success' do
-      handler_class = step_handler('nil_handler') do |context:|
+      handler_class = step_handler('nil_handler') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         nil
       end
 
@@ -88,7 +88,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'passes through StepHandlerCallResult without double-wrapping' do
-      handler_class = step_handler('passthrough') do |context:|
+      handler_class = step_handler('passthrough') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         TaskerCore::Types::StepHandlerCallResult.success(result: { direct: true })
       end
 
@@ -99,7 +99,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'is a StepHandler::Base subclass' do
-      handler_class = step_handler('compat') do |context:|
+      handler_class = step_handler('compat') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         {}
       end
 
@@ -118,7 +118,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
   describe 'dependency injection' do
     it 'injects dependencies from context' do
       handler_class = step_handler('with_deps',
-                                   depends_on: { cart: 'validate_cart' }) do |cart:, context:|
+                                   depends_on: { cart: 'validate_cart' }) do |cart:, context:| # rubocop:disable Lint/UnusedBlockArgument
         { total: cart['total'] }
       end
 
@@ -133,7 +133,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
     it 'injects nil for missing dependencies' do
       handler_class = step_handler('missing_dep',
-                                   depends_on: { cart: 'validate_cart' }) do |cart:, context:|
+                                   depends_on: { cart: 'validate_cart' }) do |cart:, context:| # rubocop:disable Lint/UnusedBlockArgument
         { cart_is_nil: cart.nil? }
       end
 
@@ -145,7 +145,8 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
     it 'injects multiple dependencies' do
       handler_class = step_handler('multi_deps',
-                                   depends_on: { cart: 'validate_cart', user: 'fetch_user' }) do |cart:, user:, context:|
+                                   depends_on: { cart: 'validate_cart',
+                                                 user: 'fetch_user' }) do |cart:, user:, context:| # rubocop:disable Lint/UnusedBlockArgument
         { cart: cart, user: user }
       end
 
@@ -168,7 +169,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
   describe 'input injection' do
     it 'injects inputs from task context' do
       handler_class = step_handler('with_inputs',
-                                   inputs: [:payment_info]) do |payment_info:, context:|
+                                   inputs: [:payment_info]) do |payment_info:, context:| # rubocop:disable Lint/UnusedBlockArgument
         { payment: payment_info }
       end
 
@@ -181,7 +182,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
     it 'injects nil for missing inputs' do
       handler_class = step_handler('missing_input',
-                                   inputs: [:nonexistent]) do |nonexistent:, context:|
+                                   inputs: [:nonexistent]) do |nonexistent:, context:| # rubocop:disable Lint/UnusedBlockArgument
         { is_nil: nonexistent.nil? }
       end
 
@@ -198,7 +199,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
   describe 'error classification' do
     it 'PermanentError -> failure(retryable=false)' do
-      handler_class = step_handler('perm_err') do |context:|
+      handler_class = step_handler('perm_err') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         raise TaskerCore::Errors::PermanentError, 'Invalid input'
       end
 
@@ -210,7 +211,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'RetryableError -> failure(retryable=true)' do
-      handler_class = step_handler('retry_err') do |context:|
+      handler_class = step_handler('retry_err') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         raise TaskerCore::Errors::RetryableError, 'Service unavailable'
       end
 
@@ -222,7 +223,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'generic error -> failure(retryable=true)' do
-      handler_class = step_handler('generic_err') do |context:|
+      handler_class = step_handler('generic_err') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         raise TypeError, 'Something went wrong'
       end
 
@@ -240,7 +241,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
   describe '#decision_handler' do
     it 'Decision.route creates create_steps outcome' do
-      handler_class = decision_handler('route_order') do |context:|
+      handler_class = decision_handler('route_order') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         TaskerCore::StepHandler::Functional::Decision.route(['process_premium'], tier: 'premium')
       end
 
@@ -254,7 +255,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'Decision.skip creates no_branches outcome' do
-      handler_class = decision_handler('skip_handler') do |context:|
+      handler_class = decision_handler('skip_handler') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         TaskerCore::StepHandler::Functional::Decision.skip('No items to process')
       end
 
@@ -267,7 +268,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'has decision capabilities via Mixins::Decision' do
-      handler_class = decision_handler('test_decision') do |context:|
+      handler_class = decision_handler('test_decision') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         TaskerCore::StepHandler::Functional::Decision.route(['step_a'])
       end
 
@@ -278,8 +279,8 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'includes decision metadata' do
-      handler_class = decision_handler('meta_decision') do |context:|
-        TaskerCore::StepHandler::Functional::Decision.route(['step_a', 'step_b'])
+      handler_class = decision_handler('meta_decision') do |context:| # rubocop:disable Lint/UnusedBlockArgument
+        TaskerCore::StepHandler::Functional::Decision.route(%w[step_a step_b])
       end
 
       handler = handler_class.new
@@ -293,7 +294,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
     it 'injects dependencies in decision handler' do
       handler_class = decision_handler('route_with_deps',
-                                       depends_on: { order: 'validate_order' }) do |order:, context:|
+                                       depends_on: { order: 'validate_order' }) do |order:, context:| # rubocop:disable Lint/UnusedBlockArgument
         if order&.dig('tier') == 'premium'
           TaskerCore::StepHandler::Functional::Decision.route(['process_premium'])
         else
@@ -318,7 +319,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
   describe '#batch_analyzer' do
     it 'auto-generates cursor configs from BatchConfig via Batchable mixin' do
-      handler_class = batch_analyzer('analyze', worker_template: 'process_batch') do |context:|
+      handler_class = batch_analyzer('analyze', worker_template: 'process_batch') do |context:| # rubocop:disable Lint/UnusedBlockArgument
         TaskerCore::StepHandler::Functional::BatchConfig.new(total_items: 250, batch_size: 100)
       end
 
@@ -349,7 +350,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
 
   describe '#batch_worker' do
     it 'extracts batch context as BatchWorkerContext from workflow step inputs' do
-      handler_class = batch_worker('process_batch') do |batch_context:, context:|
+      handler_class = batch_worker('process_batch') do |batch_context:, context:| # rubocop:disable Lint/UnusedBlockArgument
         {
           start: batch_context.start_cursor,
           end_pos: batch_context.end_cursor,
@@ -375,7 +376,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
 
     it 'returns BatchWorkerContext object with accessor methods' do
-      handler_class = batch_worker('process_batch') do |batch_context:, context:|
+      handler_class = batch_worker('process_batch') do |batch_context:, context:| # rubocop:disable Lint/UnusedBlockArgument
         {
           is_batch_context: batch_context.is_a?(TaskerCore::BatchProcessing::BatchWorkerContext),
           no_op: batch_context.no_op?
@@ -405,7 +406,7 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     it 'works together' do
       handler_class = step_handler('combined',
                                    depends_on: { prev: 'step_1' },
-                                   inputs: [:config_key]) do |prev:, config_key:, context:|
+                                   inputs: [:config_key]) do |prev:, config_key:, context:| # rubocop:disable Lint/UnusedBlockArgument
         { prev: prev, config: config_key }
       end
 

@@ -66,7 +66,7 @@ steps:
   - name: diamond_start_dsl_ts
     description: "Square the even number (initial step)"
     handler:
-      callable: diamond_workflow_dsl.step_handlers.diamond_start
+      callable: diamond_workflow_dsl.step_handlers.DiamondStartDslHandler
       initialization:
         operation: square
         description: "Square the input number (n**2)"
@@ -83,7 +83,7 @@ steps:
   - name: diamond_branch_b_dsl_ts
     description: "Add constant (parallel branch B)"
     handler:
-      callable: diamond_workflow_dsl.step_handlers.diamond_branch_b
+      callable: diamond_workflow_dsl.step_handlers.DiamondBranchBDslHandler
       initialization:
         operation: add
         constant: 25
@@ -102,7 +102,7 @@ steps:
   - name: diamond_branch_c_dsl_ts
     description: "Multiply by factor (parallel branch C)"
     handler:
-      callable: diamond_workflow_dsl.step_handlers.diamond_branch_c
+      callable: diamond_workflow_dsl.step_handlers.DiamondBranchCDslHandler
       initialization:
         operation: multiply
         factor: 2
@@ -121,7 +121,7 @@ steps:
   - name: diamond_end_dsl_ts
     description: "Average results from both branches (convergence)"
     handler:
-      callable: diamond_workflow_dsl.step_handlers.diamond_end
+      callable: diamond_workflow_dsl.step_handlers.DiamondEndDslHandler
       initialization:
         operation: average
         description: "Calculate average of both branch results"

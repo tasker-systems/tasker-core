@@ -53,11 +53,11 @@ task_handler:
         - order_creation: transaction_safe
         - email_notification: async_delivery
     expected_results:
-      validate_cart_dsl: "validated cart with totals"
-      process_payment_dsl: "payment confirmation"
-      update_inventory_dsl: "inventory reservations"
-      create_order_dsl: "order created"
-      send_confirmation_dsl: "email sent"
+      validate_cart_dsl_ts: "validated cart with totals"
+      process_payment_dsl_ts: "payment confirmation"
+      update_inventory_dsl_ts: "inventory reservations"
+      create_order_dsl_ts: "order created"
+      send_confirmation_dsl_ts: "email sent"
 system_dependencies:
   primary: default
   secondary: []
@@ -116,10 +116,10 @@ input_schema:
           type: number
           description: "Payment amount"
 steps:
-  - name: validate_cart_dsl
+  - name: validate_cart_dsl_ts
     description: "Validate cart items, check availability, calculate totals (subtotal, tax, shipping)"
     handler:
-      callable: Ecommerce_dsl.StepHandlers.ValidateCartHandler
+      callable: EcommerceDsl.StepHandlers.ValidateCartDslHandler
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
@@ -133,15 +133,15 @@ steps:
     timeout_seconds: 10
     publishes_events: []
 
-  - name: process_payment_dsl
+  - name: process_payment_dsl_ts
     description: "Process customer payment using mock payment service"
     handler:
-      callable: Ecommerce_dsl.StepHandlers.ProcessPaymentHandler
+      callable: EcommerceDsl.StepHandlers.ProcessPaymentDslHandler
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
     dependencies:
-      - validate_cart_dsl
+      - validate_cart_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -151,15 +151,15 @@ steps:
     timeout_seconds: 10
     publishes_events: []
 
-  - name: update_inventory_dsl
+  - name: update_inventory_dsl_ts
     description: "Reserve inventory for order items using mock inventory service"
     handler:
-      callable: Ecommerce_dsl.StepHandlers.UpdateInventoryHandler
+      callable: EcommerceDsl.StepHandlers.UpdateInventoryDslHandler
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
     dependencies:
-      - process_payment_dsl
+      - process_payment_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -169,15 +169,15 @@ steps:
     timeout_seconds: 10
     publishes_events: []
 
-  - name: create_order_dsl
+  - name: create_order_dsl_ts
     description: "Create order record with customer, payment, and inventory details"
     handler:
-      callable: Ecommerce_dsl.StepHandlers.CreateOrderHandler
+      callable: EcommerceDsl.StepHandlers.CreateOrderDslHandler
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
     dependencies:
-      - update_inventory_dsl
+      - update_inventory_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -187,15 +187,15 @@ steps:
     timeout_seconds: 10
     publishes_events: []
 
-  - name: send_confirmation_dsl
+  - name: send_confirmation_dsl_ts
     description: "Send order confirmation email to customer using mock email service"
     handler:
-      callable: Ecommerce_dsl.StepHandlers.SendConfirmationHandler
+      callable: EcommerceDsl.StepHandlers.SendConfirmationDslHandler
       initialization:
         scenario: ecommerce_checkout
     system_dependency:
     dependencies:
-      - create_order_dsl
+      - create_order_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -208,13 +208,13 @@ steps:
 environments:
   test:
     steps:
-      - name: validate_cart_dsl
+      - name: validate_cart_dsl_ts
         timeout_seconds: 10
-      - name: process_payment_dsl
+      - name: process_payment_dsl_ts
         timeout_seconds: 10
-      - name: update_inventory_dsl
+      - name: update_inventory_dsl_ts
         timeout_seconds: 10
-      - name: create_order_dsl
+      - name: create_order_dsl_ts
         timeout_seconds: 10
-      - name: send_confirmation_dsl
+      - name: send_confirmation_dsl_ts
         timeout_seconds: 10

@@ -23,9 +23,9 @@ SMALL_THRESHOLD = 1000.0
 LARGE_THRESHOLD = 5000.0
 
 
-@step_handler("conditional_approval_dsl.step_handlers.validate_request")
+@step_handler("conditional_approval_dsl_py.step_handlers.validate_request")
 @inputs("amount", "requester", "purpose")
-def validate_request(amount, requester, purpose, context):
+def validate_request(amount, requester, purpose, _context):
     """Validate the approval request."""
     errors: list[str] = []
 
@@ -55,13 +55,13 @@ def validate_request(amount, requester, purpose, context):
     }
 
 
-@decision_handler("conditional_approval_dsl.step_handlers.routing_decision")
-@depends_on(validate_result="validate_request_py")
-def routing_decision(validate_result, context):
+@decision_handler("conditional_approval_dsl_py.step_handlers.routing_decision")
+@depends_on(validate_result="validate_request_dsl_py")
+def routing_decision(validate_result, _context):
     """Determine the approval routing based on amount."""
     if validate_result is None:
         return StepHandlerResult.failure(
-            message="Missing validation result from validate_request_py",
+            message="Missing validation result from validate_request_dsl_py",
             error_type="dependency_error",
             retryable=True,
         )
@@ -76,30 +76,30 @@ def routing_decision(validate_result, context):
 
     if amount < SMALL_THRESHOLD:
         return Decision.route(
-            ["auto_approve_py"],
+            ["auto_approve_dsl_py"],
             approval_path="auto",
             amount=amount,
             threshold_used="small",
         )
     elif amount < LARGE_THRESHOLD:
         return Decision.route(
-            ["manager_approval_py"],
+            ["manager_approval_dsl_py"],
             approval_path="manager",
             amount=amount,
             threshold_used="medium",
         )
     else:
         return Decision.route(
-            ["manager_approval_py", "finance_review_py"],
+            ["manager_approval_dsl_py", "finance_review_dsl_py"],
             approval_path="dual",
             amount=amount,
             threshold_used="large",
         )
 
 
-@step_handler("conditional_approval_dsl.step_handlers.auto_approve")
-@depends_on(routing_result="routing_decision_py")
-def auto_approve(routing_result, context):
+@step_handler("conditional_approval_dsl_py.step_handlers.auto_approve")
+@depends_on(routing_result="routing_decision_dsl_py")
+def auto_approve(routing_result, _context):
     """Auto-approve the request."""
     if routing_result is None:
         return StepHandlerResult.failure(
@@ -120,9 +120,9 @@ def auto_approve(routing_result, context):
     }
 
 
-@step_handler("conditional_approval_dsl.step_handlers.manager_approval")
-@depends_on(routing_result="routing_decision_py")
-def manager_approval(routing_result, context):
+@step_handler("conditional_approval_dsl_py.step_handlers.manager_approval")
+@depends_on(routing_result="routing_decision_dsl_py")
+def manager_approval(routing_result, _context):
     """Process manager approval."""
     if routing_result is None:
         return StepHandlerResult.failure(
@@ -143,9 +143,9 @@ def manager_approval(routing_result, context):
     }
 
 
-@step_handler("conditional_approval_dsl.step_handlers.finance_review")
-@depends_on(routing_result="routing_decision_py")
-def finance_review(routing_result, context):
+@step_handler("conditional_approval_dsl_py.step_handlers.finance_review")
+@depends_on(routing_result="routing_decision_dsl_py")
+def finance_review(routing_result, _context):
     """Process finance review."""
     if routing_result is None:
         return StepHandlerResult.failure(
@@ -167,13 +167,13 @@ def finance_review(routing_result, context):
     }
 
 
-@step_handler("conditional_approval_dsl.step_handlers.finalize_approval")
+@step_handler("conditional_approval_dsl_py.step_handlers.finalize_approval")
 @depends_on(
-    auto_result="auto_approve_py",
-    manager_result="manager_approval_py",
-    finance_result="finance_review_py",
+    auto_result="auto_approve_dsl_py",
+    manager_result="manager_approval_dsl_py",
+    finance_result="finance_review_dsl_py",
 )
-def finalize_approval(auto_result, manager_result, finance_result, context):
+def finalize_approval(auto_result, manager_result, finance_result, _context):
     """Finalize the approval process."""
     approvals: list[dict[str, Any]] = []
 

@@ -5,13 +5,9 @@
  * Produces identical output for parity testing.
  */
 
+import { defineHandler } from '../../../../../../src/handler/functional.js';
 import { ErrorType } from '../../../../../../src/types/error-type.js';
 import { StepHandlerResult } from '../../../../../../src/types/step-handler-result.js';
-import {
-  PermanentError,
-  RetryableError,
-  defineHandler,
-} from '../../../../../../src/handler/functional.js';
 
 // =============================================================================
 // Types (same as verbose)
@@ -167,11 +163,11 @@ export const ProcessPaymentDslHandler = defineHandler(
   'EcommerceDsl.StepHandlers.ProcessPaymentDslHandler',
   {
     inputs: { paymentInfo: 'payment_info' },
-    depends: { cartResult: 'validate_cart' },
+    depends: { cartResult: 'validate_cart_dsl_ts' },
   },
   async ({ paymentInfo, context }) => {
     const payment = paymentInfo as PaymentInfo | undefined;
-    const cartTotal = context.getDependencyField('validate_cart', 'total') as number | null;
+    const cartTotal = context.getDependencyField('validate_cart_dsl_ts', 'total') as number | null;
 
     if (!payment) {
       return StepHandlerResult.failure(
@@ -236,7 +232,7 @@ export const ProcessPaymentDslHandler = defineHandler(
  */
 export const UpdateInventoryDslHandler = defineHandler(
   'EcommerceDsl.StepHandlers.UpdateInventoryDslHandler',
-  { depends: { cartValidation: 'validate_cart' } },
+  { depends: { cartValidation: 'validate_cart_dsl_ts' } },
   async ({ cartValidation }) => {
     const result = cartValidation as Record<string, unknown> | null;
 
@@ -314,9 +310,9 @@ export const CreateOrderDslHandler = defineHandler(
   {
     inputs: { customerInfo: 'customer_info' },
     depends: {
-      cartValidation: 'validate_cart',
-      paymentResult: 'process_payment',
-      inventoryResult: 'update_inventory',
+      cartValidation: 'validate_cart_dsl_ts',
+      paymentResult: 'process_payment_dsl_ts',
+      inventoryResult: 'update_inventory_dsl_ts',
     },
   },
   async ({ customerInfo, cartValidation, paymentResult, inventoryResult }) => {
@@ -397,18 +393,23 @@ export const SendConfirmationDslHandler = defineHandler(
   {
     inputs: { customerInfo: 'customer_info' },
     depends: {
-      cartResult: 'validate_cart',
-      orderResult: 'create_order',
+      cartResult: 'validate_cart_dsl_ts',
+      orderResult: 'create_order_dsl_ts',
     },
   },
   async ({ customerInfo, context }) => {
     const customer = customerInfo as CustomerInfo | undefined;
-    const orderNumber = context.getDependencyField('create_order', 'order_number') as string | null;
-    const totalAmount = context.getDependencyField('create_order', 'total_amount') as number | null;
-    const estimatedDelivery = context.getDependencyField('create_order', 'estimated_delivery') as
+    const orderNumber = context.getDependencyField('create_order_dsl_ts', 'order_number') as
       | string
       | null;
-    const validatedItems = context.getDependencyField('validate_cart', 'validated_items') as
+    const totalAmount = context.getDependencyField('create_order_dsl_ts', 'total_amount') as
+      | number
+      | null;
+    const estimatedDelivery = context.getDependencyField(
+      'create_order_dsl_ts',
+      'estimated_delivery'
+    ) as string | null;
+    const validatedItems = context.getDependencyField('validate_cart_dsl_ts', 'validated_items') as
       | ValidatedItem[]
       | null;
 

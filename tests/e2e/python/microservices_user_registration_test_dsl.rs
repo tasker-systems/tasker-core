@@ -135,29 +135,29 @@ async fn test_successful_user_registration_py_dsl() -> Result<()> {
 
     // Sequential phase (1 step - root)
     assert!(
-        step_names.contains(&"create_user_account_dsl".to_string()),
+        step_names.contains(&"create_user_account_dsl_py".to_string()),
         "Should have create_user_account step"
     );
 
     // Parallel phase (2 steps)
     assert!(
-        step_names.contains(&"setup_billing_profile_dsl".to_string()),
+        step_names.contains(&"setup_billing_profile_dsl_py".to_string()),
         "Should have setup_billing_profile step"
     );
     assert!(
-        step_names.contains(&"initialize_preferences_dsl".to_string()),
+        step_names.contains(&"initialize_preferences_dsl_py".to_string()),
         "Should have initialize_preferences step"
     );
 
     // Coordination phase (1 step - convergence)
     assert!(
-        step_names.contains(&"send_welcome_sequence_dsl".to_string()),
+        step_names.contains(&"send_welcome_sequence_dsl_py".to_string()),
         "Should have send_welcome_sequence step (convergence)"
     );
 
     // Completion phase (1 step - final)
     assert!(
-        step_names.contains(&"update_user_status_dsl".to_string()),
+        step_names.contains(&"update_user_status_dsl_py".to_string()),
         "Should have update_user_status step (final)"
     );
 

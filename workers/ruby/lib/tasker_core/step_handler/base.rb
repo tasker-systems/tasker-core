@@ -80,7 +80,10 @@ module TaskerCore
         class_name.gsub(/([A-Z])/, '_\1').downcase.sub(/^_/, '')
       end
 
-      # Get handler metadata for monitoring and introspection
+      # Get handler metadata for monitoring and introspection.
+      # Note: VERSION is currently a no-op — not yet wired through FFI bridges
+      # to StepExecutionMetadata. Reserved for future observability and
+      # compatibility tracking.
       # @return [Hash] Handler metadata
       def metadata
         {

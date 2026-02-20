@@ -31,7 +31,7 @@ metadata:
   updated_at: "2025-11-28T00:00:00Z"
   notes: "Tests domain event publishing with TAS-65 event declaration architecture"
 task_handler:
-  callable: DomainEvents::DomainEventTestHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     test_scenario: event_publishing
     validate_events: true
@@ -65,7 +65,7 @@ steps:
   - name: domain_events_validate_order_dsl
     description: "Validate order data and publish order.validated event on success"
     handler:
-      callable: DomainEvents::StepHandlers::ValidateOrderHandler_dsl
+      callable: domain_events_dsl.step_handlers.validate_order
       initialization:
         validation_mode: strict
     system_dependency:
@@ -102,7 +102,7 @@ steps:
   - name: domain_events_process_payment_dsl
     description: "Process payment and publish events for both success and failure scenarios"
     handler:
-      callable: DomainEvents::StepHandlers::ProcessPaymentHandler_dsl
+      callable: domain_events_dsl.step_handlers.process_payment
       initialization:
         payment_provider: mock
     system_dependency:
@@ -162,7 +162,7 @@ steps:
   - name: domain_events_update_inventory_dsl
     description: "Update inventory and publish event regardless of outcome"
     handler:
-      callable: DomainEvents::StepHandlers::UpdateInventoryHandler_dsl
+      callable: domain_events_dsl.step_handlers.update_inventory
       initialization:
         inventory_source: mock
     system_dependency:
@@ -208,7 +208,7 @@ steps:
   - name: domain_events_send_notification_dsl
     description: "Send customer notification with fast delivery event and custom publisher"
     handler:
-      callable: DomainEvents::StepHandlers::SendNotificationHandler_dsl
+      callable: domain_events_dsl.step_handlers.send_notification
       initialization:
         notification_type: email
     system_dependency:

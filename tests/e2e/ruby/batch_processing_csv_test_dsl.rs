@@ -304,7 +304,7 @@ async fn test_no_batches_scenario_dsl() -> Result<()> {
     // The workflow should still have analyze_csv (which discovers 0 batches)
     assert!(
         step_names.contains(&"analyze_csv_dsl".to_string()),
-        "Should have analyze_csv step"
+        "Should have analyze_csv_dsl step"
     );
 
     println!("\n🎉 NoBatches Scenario Test PASSED!");

@@ -77,10 +77,10 @@ input_schema:
           format: date
 steps:
   # EXTRACT PHASE - 3 parallel steps (no dependencies)
-  - name: extract_sales_data_dsl
+  - name: extract_sales_data_dsl_ts
     description: "Extract sales records from database"
     handler:
-      callable: DataPipeline_dsl.StepHandlers.ExtractSalesDataHandler
+      callable: DataPipelineDsl.StepHandlers.ExtractSalesDataDslHandler
       initialization:
         scenario: analytics_pipeline
     system_dependency:
@@ -94,10 +94,10 @@ steps:
     timeout_seconds: 30
     publishes_events: []
 
-  - name: extract_inventory_data_dsl
+  - name: extract_inventory_data_dsl_ts
     description: "Extract inventory records from warehouse system"
     handler:
-      callable: DataPipeline_dsl.StepHandlers.ExtractInventoryDataHandler
+      callable: DataPipelineDsl.StepHandlers.ExtractInventoryDataDslHandler
       initialization:
         scenario: analytics_pipeline
     system_dependency:
@@ -111,10 +111,10 @@ steps:
     timeout_seconds: 30
     publishes_events: []
 
-  - name: extract_customer_data_dsl
+  - name: extract_customer_data_dsl_ts
     description: "Extract customer records from CRM"
     handler:
-      callable: DataPipeline_dsl.StepHandlers.ExtractCustomerDataHandler
+      callable: DataPipelineDsl.StepHandlers.ExtractCustomerDataDslHandler
       initialization:
         scenario: analytics_pipeline
     system_dependency:
@@ -129,15 +129,15 @@ steps:
     publishes_events: []
 
   # TRANSFORM PHASE - 3 sequential steps (each depends on its extract)
-  - name: transform_sales_dsl
+  - name: transform_sales_dsl_ts
     description: "Transform sales data for analytics"
     handler:
-      callable: DataPipeline_dsl.StepHandlers.TransformSalesHandler
+      callable: DataPipelineDsl.StepHandlers.TransformSalesDslHandler
       initialization:
         scenario: analytics_pipeline
     system_dependency:
     dependencies:
-      - extract_sales_data_dsl
+      - extract_sales_data_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -147,15 +147,15 @@ steps:
     timeout_seconds: 20
     publishes_events: []
 
-  - name: transform_inventory_dsl
+  - name: transform_inventory_dsl_ts
     description: "Transform inventory data for analytics"
     handler:
-      callable: DataPipeline_dsl.StepHandlers.TransformInventoryHandler
+      callable: DataPipelineDsl.StepHandlers.TransformInventoryDslHandler
       initialization:
         scenario: analytics_pipeline
     system_dependency:
     dependencies:
-      - extract_inventory_data_dsl
+      - extract_inventory_data_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -165,15 +165,15 @@ steps:
     timeout_seconds: 20
     publishes_events: []
 
-  - name: transform_customers_dsl
+  - name: transform_customers_dsl_ts
     description: "Transform customer data for analytics"
     handler:
-      callable: DataPipeline_dsl.StepHandlers.TransformCustomersHandler
+      callable: DataPipelineDsl.StepHandlers.TransformCustomersDslHandler
       initialization:
         scenario: analytics_pipeline
     system_dependency:
     dependencies:
-      - extract_customer_data_dsl
+      - extract_customer_data_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -184,17 +184,17 @@ steps:
     publishes_events: []
 
   # AGGREGATE PHASE - 1 step (depends on all 3 transforms - DAG convergence)
-  - name: aggregate_metrics_dsl
+  - name: aggregate_metrics_dsl_ts
     description: "Aggregate metrics from all transformed sources"
     handler:
-      callable: DataPipeline_dsl.StepHandlers.AggregateMetricsHandler
+      callable: DataPipelineDsl.StepHandlers.AggregateMetricsDslHandler
       initialization:
         scenario: analytics_pipeline
     system_dependency:
     dependencies:
-      - transform_sales_dsl
-      - transform_inventory_dsl
-      - transform_customers_dsl
+      - transform_sales_dsl_ts
+      - transform_inventory_dsl_ts
+      - transform_customers_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -205,15 +205,15 @@ steps:
     publishes_events: []
 
   # INSIGHTS PHASE - 1 step (depends on aggregation)
-  - name: generate_insights_dsl
+  - name: generate_insights_dsl_ts
     description: "Generate business insights from aggregated data"
     handler:
-      callable: DataPipeline_dsl.StepHandlers.GenerateInsightsHandler
+      callable: DataPipelineDsl.StepHandlers.GenerateInsightsDslHandler
       initialization:
         scenario: analytics_pipeline
     system_dependency:
     dependencies:
-      - aggregate_metrics_dsl
+      - aggregate_metrics_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -226,19 +226,19 @@ steps:
 environments:
   test:
     steps:
-      - name: extract_sales_data_dsl
+      - name: extract_sales_data_dsl_ts
         timeout_seconds: 30
-      - name: extract_inventory_data_dsl
+      - name: extract_inventory_data_dsl_ts
         timeout_seconds: 30
-      - name: extract_customer_data_dsl
+      - name: extract_customer_data_dsl_ts
         timeout_seconds: 30
-      - name: transform_sales_dsl
+      - name: transform_sales_dsl_ts
         timeout_seconds: 20
-      - name: transform_inventory_dsl
+      - name: transform_inventory_dsl_ts
         timeout_seconds: 20
-      - name: transform_customers_dsl
+      - name: transform_customers_dsl_ts
         timeout_seconds: 20
-      - name: aggregate_metrics_dsl
+      - name: aggregate_metrics_dsl_ts
         timeout_seconds: 30
-      - name: generate_insights_dsl
+      - name: generate_insights_dsl_ts
         timeout_seconds: 20

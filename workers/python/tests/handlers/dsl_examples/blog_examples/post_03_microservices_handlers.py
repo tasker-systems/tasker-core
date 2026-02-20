@@ -27,20 +27,61 @@ EXISTING_USERS = {
 
 BILLING_TIERS = {
     "free": {"price": 0, "features": ["basic_features"], "billing_required": False},
-    "pro": {"price": 29.99, "features": ["basic_features", "advanced_analytics"], "billing_required": True},
-    "enterprise": {"price": 299.99, "features": ["basic_features", "advanced_analytics", "priority_support", "custom_integrations"], "billing_required": True},
+    "pro": {
+        "price": 29.99,
+        "features": ["basic_features", "advanced_analytics"],
+        "billing_required": True,
+    },
+    "enterprise": {
+        "price": 299.99,
+        "features": [
+            "basic_features",
+            "advanced_analytics",
+            "priority_support",
+            "custom_integrations",
+        ],
+        "billing_required": True,
+    },
 }
 
 DEFAULT_PREFERENCES = {
-    "free": {"email_notifications": True, "marketing_emails": False, "product_updates": True, "weekly_digest": False, "theme": "light", "language": "en", "timezone": "UTC"},
-    "pro": {"email_notifications": True, "marketing_emails": True, "product_updates": True, "weekly_digest": True, "theme": "dark", "language": "en", "timezone": "UTC", "api_notifications": True},
-    "enterprise": {"email_notifications": True, "marketing_emails": True, "product_updates": True, "weekly_digest": True, "theme": "dark", "language": "en", "timezone": "UTC", "api_notifications": True, "audit_logs": True, "advanced_reports": True},
+    "free": {
+        "email_notifications": True,
+        "marketing_emails": False,
+        "product_updates": True,
+        "weekly_digest": False,
+        "theme": "light",
+        "language": "en",
+        "timezone": "UTC",
+    },
+    "pro": {
+        "email_notifications": True,
+        "marketing_emails": True,
+        "product_updates": True,
+        "weekly_digest": True,
+        "theme": "dark",
+        "language": "en",
+        "timezone": "UTC",
+        "api_notifications": True,
+    },
+    "enterprise": {
+        "email_notifications": True,
+        "marketing_emails": True,
+        "product_updates": True,
+        "weekly_digest": True,
+        "theme": "dark",
+        "language": "en",
+        "timezone": "UTC",
+        "api_notifications": True,
+        "audit_logs": True,
+        "advanced_reports": True,
+    },
 }
 
 
-@step_handler("microservices_dsl.step_handlers.create_user_account")
+@step_handler("microservices_dsl_py.step_handlers.create_user_account")
 @inputs("user_info")
-def create_user_account(user_info, context):
+def create_user_account(user_info, _context):
     """Create user account with idempotency handling."""
     if user_info is None:
         user_info = {}
@@ -49,13 +90,25 @@ def create_user_account(user_info, context):
     name = user_info.get("name")
 
     if not email:
-        return StepHandlerResult.failure(message="Email is required but was not provided", error_type="MISSING_EMAIL", retryable=False)
+        return StepHandlerResult.failure(
+            message="Email is required but was not provided",
+            error_type="MISSING_EMAIL",
+            retryable=False,
+        )
     if not name:
-        return StepHandlerResult.failure(message="Name is required but was not provided", error_type="MISSING_NAME", retryable=False)
+        return StepHandlerResult.failure(
+            message="Name is required but was not provided",
+            error_type="MISSING_NAME",
+            retryable=False,
+        )
 
     email_pattern = r"^[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+$"
     if not re.match(email_pattern, email, re.IGNORECASE):
-        return StepHandlerResult.failure(message=f"Invalid email format: {email}", error_type="INVALID_EMAIL_FORMAT", retryable=False)
+        return StepHandlerResult.failure(
+            message=f"Invalid email format: {email}",
+            error_type="INVALID_EMAIL_FORMAT",
+            retryable=False,
+        )
 
     plan = user_info.get("plan", "free")
     phone = user_info.get("phone")
@@ -63,7 +116,11 @@ def create_user_account(user_info, context):
 
     if email in EXISTING_USERS:
         existing_user = EXISTING_USERS[email]
-        if existing_user["email"] == email and existing_user["name"] == name and existing_user["plan"] == plan:
+        if (
+            existing_user["email"] == email
+            and existing_user["name"] == name
+            and existing_user["plan"] == plan
+        ):
             return {
                 "user_id": existing_user["id"],
                 "email": existing_user["email"],
@@ -72,7 +129,11 @@ def create_user_account(user_info, context):
                 "created_at": existing_user["created_at"],
             }
         else:
-            return StepHandlerResult.failure(message=f"User with email {email} already exists with different data", error_type="USER_CONFLICT", retryable=False)
+            return StepHandlerResult.failure(
+                message=f"User with email {email} already exists with different data",
+                error_type="USER_CONFLICT",
+                retryable=False,
+            )
 
     now = datetime.now(timezone.utc).isoformat()
     user_id = f"user_{uuid.uuid4().hex[:12]}"
@@ -89,12 +150,16 @@ def create_user_account(user_info, context):
     }
 
 
-@step_handler("microservices_dsl.step_handlers.setup_billing_profile")
-@depends_on(user_data="create_user_account")
-def setup_billing_profile(user_data, context):
+@step_handler("microservices_dsl_py.step_handlers.setup_billing_profile")
+@depends_on(user_data="create_user_account_dsl_py")
+def setup_billing_profile(user_data, _context):
     """Setup billing profile with graceful degradation for free plans."""
     if not user_data:
-        return StepHandlerResult.failure(message="User data not found from create_user_account step", error_type="MISSING_USER_DATA", retryable=False)
+        return StepHandlerResult.failure(
+            message="User data not found from create_user_account step",
+            error_type="MISSING_USER_DATA",
+            retryable=False,
+        )
 
     user_id = user_data.get("user_id")
     plan = user_data.get("plan", "free")
@@ -127,13 +192,17 @@ def setup_billing_profile(user_data, context):
         }
 
 
-@step_handler("microservices_dsl.step_handlers.initialize_preferences")
-@depends_on(user_data="create_user_account")
+@step_handler("microservices_dsl_py.step_handlers.initialize_preferences")
+@depends_on(user_data="create_user_account_dsl_py")
 @inputs("user_info")
-def initialize_preferences(user_data, user_info, context):
+def initialize_preferences(user_data, user_info, _context):
     """Initialize user preferences with plan-based defaults."""
     if not user_data:
-        return StepHandlerResult.failure(message="User data not found from create_user_account step", error_type="MISSING_USER_DATA", retryable=False)
+        return StepHandlerResult.failure(
+            message="User data not found from create_user_account step",
+            error_type="MISSING_USER_DATA",
+            retryable=False,
+        )
 
     user_id = user_data.get("user_id")
     plan = user_data.get("plan", "free")
@@ -161,13 +230,13 @@ def initialize_preferences(user_data, user_info, context):
     }
 
 
-@step_handler("microservices_dsl.step_handlers.send_welcome_sequence")
+@step_handler("microservices_dsl_py.step_handlers.send_welcome_sequence")
 @depends_on(
-    user_data="create_user_account",
-    billing_data="setup_billing_profile",
-    preferences_data="initialize_preferences",
+    user_data="create_user_account_dsl_py",
+    billing_data="setup_billing_profile_dsl_py",
+    preferences_data="initialize_preferences_dsl_py",
 )
-def send_welcome_sequence(user_data, billing_data, preferences_data, context):
+def send_welcome_sequence(user_data, billing_data, preferences_data, _context):
     """Send welcome sequence via multiple notification channels."""
     missing = []
     if not user_data:
@@ -178,7 +247,11 @@ def send_welcome_sequence(user_data, billing_data, preferences_data, context):
         missing.append("initialize_preferences")
 
     if missing:
-        return StepHandlerResult.failure(message=f"Missing results from steps: {', '.join(missing)}", error_type="MISSING_DEPENDENCY_DATA", retryable=False)
+        return StepHandlerResult.failure(
+            message=f"Missing results from steps: {', '.join(missing)}",
+            error_type="MISSING_DEPENDENCY_DATA",
+            retryable=False,
+        )
 
     user_id = user_data.get("user_id")
     plan = user_data.get("plan", "free")
@@ -212,14 +285,14 @@ def send_welcome_sequence(user_data, billing_data, preferences_data, context):
     }
 
 
-@step_handler("microservices_dsl.step_handlers.update_user_status")
+@step_handler("microservices_dsl_py.step_handlers.update_user_status")
 @depends_on(
-    user_data="create_user_account",
-    billing_data="setup_billing_profile",
-    preferences_data="initialize_preferences",
-    welcome_data="send_welcome_sequence",
+    user_data="create_user_account_dsl_py",
+    billing_data="setup_billing_profile_dsl_py",
+    preferences_data="initialize_preferences_dsl_py",
+    welcome_data="send_welcome_sequence_dsl_py",
 )
-def update_user_status(user_data, billing_data, preferences_data, welcome_data, context):
+def update_user_status(user_data, billing_data, preferences_data, welcome_data, _context):
     """Update user status to active after workflow completion."""
     missing = []
     if not user_data:

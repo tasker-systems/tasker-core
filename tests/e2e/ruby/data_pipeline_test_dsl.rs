@@ -28,7 +28,7 @@ use crate::common::integration_test_utils::{create_task_request, wait_for_task_c
 /// Helper function to create analytics pipeline task request
 fn create_analytics_pipeline_request() -> tasker_shared::models::core::task_request::TaskRequest {
     create_task_request(
-        "data_pipeline_dsl",
+        "data_pipeline_dsl_rb",
         "analytics_pipeline_dsl",
         json!({
             "pipeline_id": format!("pipeline_{}", Uuid::now_v7()),

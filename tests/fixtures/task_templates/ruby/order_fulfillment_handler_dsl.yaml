@@ -36,7 +36,7 @@ metadata:
   updated_at: "2025-09-24T00:00:00Z"
   notes: "Ruby FFI implementation with sophisticated business logic and external service integration"
 task_handler:
-  callable: OrderFulfillment::OrderFulfillmentHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     input_validation:
       required_fields:
@@ -133,7 +133,7 @@ steps:
   - name: validate_order_dsl
     description: "Validate customer information, order items, and calculate totals"
     handler:
-      callable: OrderFulfillment::StepHandlers::ValidateOrderHandler_dsl
+      callable: order_fulfillment_dsl.step_handlers.validate_order
       initialization:
         validation_rules:
           customer_validation: strict
@@ -161,7 +161,7 @@ steps:
   - name: reserve_inventory_dsl
     description: "Check inventory availability and create reservations"
     handler:
-      callable: OrderFulfillment::StepHandlers::ReserveInventoryHandler_dsl
+      callable: order_fulfillment_dsl.step_handlers.reserve_inventory
       initialization:
         inventory_rules:
           availability_check: real_time
@@ -188,7 +188,7 @@ steps:
   - name: process_payment_dsl
     description: "Process payment using customer payment information"
     handler:
-      callable: OrderFulfillment::StepHandlers::ProcessPaymentHandler_dsl
+      callable: order_fulfillment_dsl.step_handlers.process_payment
       initialization:
         payment_processing:
           gateway_integration: simulated
@@ -217,7 +217,7 @@ steps:
   - name: ship_order_dsl
     description: "Create shipment and schedule delivery"
     handler:
-      callable: OrderFulfillment::StepHandlers::ShipOrderHandler_dsl
+      callable: order_fulfillment_dsl.step_handlers.ship_order
       initialization:
         shipping_configuration:
           carrier_integration: simulated

@@ -5,12 +5,9 @@
  * Produces identical output for parity testing.
  */
 
+import { defineHandler } from '../../../../../../src/handler/functional.js';
 import { ErrorType } from '../../../../../../src/types/error-type.js';
 import { StepHandlerResult } from '../../../../../../src/types/step-handler-result.js';
-import {
-  PermanentError,
-  defineHandler,
-} from '../../../../../../src/handler/functional.js';
 
 // =============================================================================
 // Types (same as verbose)
@@ -102,19 +99,79 @@ const SAMPLE_SALES_DATA: SalesRecord[] = [
 ];
 
 const SAMPLE_INVENTORY_DATA: InventoryRecord[] = [
-  { product_id: 'PROD-A', sku: 'SKU-A-001', warehouse: 'WH-01', quantity_on_hand: 150, reorder_point: 50 },
-  { product_id: 'PROD-B', sku: 'SKU-B-002', warehouse: 'WH-01', quantity_on_hand: 75, reorder_point: 25 },
-  { product_id: 'PROD-C', sku: 'SKU-C-003', warehouse: 'WH-02', quantity_on_hand: 200, reorder_point: 100 },
-  { product_id: 'PROD-A', sku: 'SKU-A-001', warehouse: 'WH-02', quantity_on_hand: 100, reorder_point: 50 },
-  { product_id: 'PROD-B', sku: 'SKU-B-002', warehouse: 'WH-03', quantity_on_hand: 50, reorder_point: 25 },
+  {
+    product_id: 'PROD-A',
+    sku: 'SKU-A-001',
+    warehouse: 'WH-01',
+    quantity_on_hand: 150,
+    reorder_point: 50,
+  },
+  {
+    product_id: 'PROD-B',
+    sku: 'SKU-B-002',
+    warehouse: 'WH-01',
+    quantity_on_hand: 75,
+    reorder_point: 25,
+  },
+  {
+    product_id: 'PROD-C',
+    sku: 'SKU-C-003',
+    warehouse: 'WH-02',
+    quantity_on_hand: 200,
+    reorder_point: 100,
+  },
+  {
+    product_id: 'PROD-A',
+    sku: 'SKU-A-001',
+    warehouse: 'WH-02',
+    quantity_on_hand: 100,
+    reorder_point: 50,
+  },
+  {
+    product_id: 'PROD-B',
+    sku: 'SKU-B-002',
+    warehouse: 'WH-03',
+    quantity_on_hand: 50,
+    reorder_point: 25,
+  },
 ];
 
 const SAMPLE_CUSTOMER_DATA: CustomerRecord[] = [
-  { customer_id: 'CUST-001', name: 'Alice Johnson', tier: 'gold', lifetime_value: 5000.0, join_date: '2024-01-15' },
-  { customer_id: 'CUST-002', name: 'Bob Smith', tier: 'silver', lifetime_value: 2500.0, join_date: '2024-03-20' },
-  { customer_id: 'CUST-003', name: 'Carol White', tier: 'premium', lifetime_value: 15000.0, join_date: '2023-11-10' },
-  { customer_id: 'CUST-004', name: 'David Brown', tier: 'standard', lifetime_value: 500.0, join_date: '2025-01-05' },
-  { customer_id: 'CUST-005', name: 'Eve Davis', tier: 'gold', lifetime_value: 7500.0, join_date: '2024-06-12' },
+  {
+    customer_id: 'CUST-001',
+    name: 'Alice Johnson',
+    tier: 'gold',
+    lifetime_value: 5000.0,
+    join_date: '2024-01-15',
+  },
+  {
+    customer_id: 'CUST-002',
+    name: 'Bob Smith',
+    tier: 'silver',
+    lifetime_value: 2500.0,
+    join_date: '2024-03-20',
+  },
+  {
+    customer_id: 'CUST-003',
+    name: 'Carol White',
+    tier: 'premium',
+    lifetime_value: 15000.0,
+    join_date: '2023-11-10',
+  },
+  {
+    customer_id: 'CUST-004',
+    name: 'David Brown',
+    tier: 'standard',
+    lifetime_value: 500.0,
+    join_date: '2025-01-05',
+  },
+  {
+    customer_id: 'CUST-005',
+    name: 'Eve Davis',
+    tier: 'gold',
+    lifetime_value: 7500.0,
+    join_date: '2024-06-12',
+  },
 ];
 
 // =============================================================================
@@ -189,12 +246,16 @@ export const ExtractCustomerDataDslHandler = defineHandler(
 
 export const TransformSalesDslHandler = defineHandler(
   'DataPipelineDsl.StepHandlers.TransformSalesDslHandler',
-  { depends: { extractResults: 'extract_sales_data' } },
+  { depends: { extractResults: 'extract_sales_data_dsl_ts' } },
   async ({ extractResults }) => {
     const results = extractResults as Record<string, unknown> | null;
 
     if (!results) {
-      return StepHandlerResult.failure('Sales extraction results not found', ErrorType.PERMANENT_ERROR, false);
+      return StepHandlerResult.failure(
+        'Sales extraction results not found',
+        ErrorType.PERMANENT_ERROR,
+        false
+      );
     }
 
     const rawRecords = (results.records || []) as SalesRecord[];
@@ -247,12 +308,16 @@ export const TransformSalesDslHandler = defineHandler(
 
 export const TransformInventoryDslHandler = defineHandler(
   'DataPipelineDsl.StepHandlers.TransformInventoryDslHandler',
-  { depends: { extractResults: 'extract_inventory_data' } },
+  { depends: { extractResults: 'extract_inventory_data_dsl_ts' } },
   async ({ extractResults }) => {
     const results = extractResults as Record<string, unknown> | null;
 
     if (!results) {
-      return StepHandlerResult.failure('Inventory extraction results not found', ErrorType.PERMANENT_ERROR, false);
+      return StepHandlerResult.failure(
+        'Inventory extraction results not found',
+        ErrorType.PERMANENT_ERROR,
+        false
+      );
     }
 
     const rawRecords = (results.records || []) as InventoryRecord[];
@@ -293,7 +358,9 @@ export const TransformInventoryDslHandler = defineHandler(
     }
 
     const totalOnHand = rawRecords.reduce((sum, r) => sum + r.quantity_on_hand, 0);
-    const reorderAlerts = Object.values(productInventory).filter((data) => data.needs_reorder).length;
+    const reorderAlerts = Object.values(productInventory).filter(
+      (data) => data.needs_reorder
+    ).length;
 
     return {
       record_count: rawRecords.length,
@@ -309,12 +376,16 @@ export const TransformInventoryDslHandler = defineHandler(
 
 export const TransformCustomersDslHandler = defineHandler(
   'DataPipelineDsl.StepHandlers.TransformCustomersDslHandler',
-  { depends: { extractResults: 'extract_customer_data' } },
+  { depends: { extractResults: 'extract_customer_data_dsl_ts' } },
   async ({ extractResults }) => {
     const results = extractResults as Record<string, unknown> | null;
 
     if (!results) {
-      return StepHandlerResult.failure('Customer extraction results not found', ErrorType.PERMANENT_ERROR, false);
+      return StepHandlerResult.failure(
+        'Customer extraction results not found',
+        ErrorType.PERMANENT_ERROR,
+        false
+      );
     }
 
     const rawRecords = (results.records || []) as CustomerRecord[];
@@ -338,7 +409,8 @@ export const TransformCustomersDslHandler = defineHandler(
 
     const valueSegments: ValueSegments = {
       high_value: rawRecords.filter((r) => r.lifetime_value >= 10000).length,
-      medium_value: rawRecords.filter((r) => r.lifetime_value >= 1000 && r.lifetime_value < 10000).length,
+      medium_value: rawRecords.filter((r) => r.lifetime_value >= 1000 && r.lifetime_value < 10000)
+        .length,
       low_value: rawRecords.filter((r) => r.lifetime_value < 1000).length,
     };
 
@@ -364,9 +436,9 @@ export const AggregateMetricsDslHandler = defineHandler(
   'DataPipelineDsl.StepHandlers.AggregateMetricsDslHandler',
   {
     depends: {
-      salesData: 'transform_sales',
-      inventoryData: 'transform_inventory',
-      customerData: 'transform_customers',
+      salesData: 'transform_sales_dsl_ts',
+      inventoryData: 'transform_inventory_dsl_ts',
+      customerData: 'transform_customers_dsl_ts',
     },
   },
   async ({ salesData, inventoryData, customerData }) => {
@@ -375,9 +447,9 @@ export const AggregateMetricsDslHandler = defineHandler(
     const customers = customerData as Record<string, unknown> | null;
 
     const missing: string[] = [];
-    if (!sales) missing.push('transform_sales');
-    if (!inventory) missing.push('transform_inventory');
-    if (!customers) missing.push('transform_customers');
+    if (!sales) missing.push('transform_sales_dsl_ts');
+    if (!inventory) missing.push('transform_inventory_dsl_ts');
+    if (!customers) missing.push('transform_customers_dsl_ts');
 
     if (missing.length > 0) {
       return StepHandlerResult.failure(
@@ -437,12 +509,16 @@ function calculateHealthScore(
 
 export const GenerateInsightsDslHandler = defineHandler(
   'DataPipelineDsl.StepHandlers.GenerateInsightsDslHandler',
-  { depends: { metrics: 'aggregate_metrics' } },
+  { depends: { metrics: 'aggregate_metrics_dsl_ts' } },
   async ({ metrics: metricsInput }) => {
     const metrics = metricsInput as Record<string, unknown> | null;
 
     if (!metrics) {
-      return StepHandlerResult.failure('Aggregated metrics not found', ErrorType.PERMANENT_ERROR, false);
+      return StepHandlerResult.failure(
+        'Aggregated metrics not found',
+        ErrorType.PERMANENT_ERROR,
+        false
+      );
     }
 
     const insights: Insight[] = [];

@@ -25,39 +25,47 @@ from tasker_core.types import (
     StepHandlerResult,
 )
 
-# ============================================================================
-# Verbose handler imports
-# ============================================================================
-from tests.handlers.examples.linear_workflow_handlers import (
-    LinearStep1Handler,
-    LinearStep2Handler,
-    LinearStep3Handler,
-    LinearStep4Handler,
+# Blog examples - Post 01: E-commerce
+from tests.handlers.dsl_examples.blog_examples.post_01_ecommerce_handlers import (
+    validate_cart as dsl_validate_cart,
 )
-from tests.handlers.examples.diamond_handlers import (
-    DiamondInitHandler,
-    DiamondPathAHandler,
-    DiamondPathBHandler,
-    DiamondMergeHandler,
+from tests.handlers.dsl_examples.blog_examples.post_02_data_pipeline_handlers import (
+    extract_customer_data as dsl_extract_customers,
 )
-from tests.handlers.examples.diamond_workflow_handlers import (
-    DiamondStartHandler,
-    DiamondBranchBHandler,
-    DiamondBranchCHandler,
-    DiamondEndHandler,
+from tests.handlers.dsl_examples.blog_examples.post_02_data_pipeline_handlers import (
+    extract_inventory_data as dsl_extract_inventory,
 )
-from tests.handlers.examples.test_scenarios_handlers import (
-    SuccessStepHandler,
-    RetryableErrorStepHandler,
-    PermanentErrorStepHandler,
+
+# Blog examples - Post 02: Data Pipeline
+from tests.handlers.dsl_examples.blog_examples.post_02_data_pipeline_handlers import (
+    extract_sales_data as dsl_extract_sales,
 )
-from tests.handlers.examples.conditional_approval_handlers import (
-    ValidateRequestHandler,
-    RoutingDecisionHandler,
-    AutoApproveHandler,
-    ManagerApprovalHandler,
-    FinanceReviewHandler,
-    FinalizeApprovalHandler,
+
+# Blog examples - Post 03: Microservices
+from tests.handlers.dsl_examples.blog_examples.post_03_microservices_handlers import (
+    create_user_account as dsl_create_user_account,
+)
+from tests.handlers.dsl_examples.conditional_approval_handlers import (
+    auto_approve,
+    finalize_approval,
+    routing_decision,
+    validate_request,
+)
+from tests.handlers.dsl_examples.diamond_workflow_handlers import (
+    diamond_branch_b,
+    diamond_branch_c,
+    diamond_end,
+    diamond_init,
+    diamond_merge,
+    diamond_path_a,
+    diamond_path_b,
+    diamond_start,
+)
+from tests.handlers.dsl_examples.domain_event_handlers import (
+    process_payment as dsl_process_payment,
+)
+from tests.handlers.dsl_examples.domain_event_handlers import (
+    validate_order,
 )
 
 # ============================================================================
@@ -69,125 +77,120 @@ from tests.handlers.dsl_examples.linear_workflow_handlers import (
     linear_step_3,
     linear_step_4,
 )
-from tests.handlers.dsl_examples.diamond_workflow_handlers import (
-    diamond_init,
-    diamond_path_a,
-    diamond_path_b,
-    diamond_merge,
-    diamond_start,
-    diamond_branch_b,
-    diamond_branch_c,
-    diamond_end,
+from tests.handlers.dsl_examples.resolver_tests_handlers import (
+    alternate_method,
+    multi_method,
 )
 from tests.handlers.dsl_examples.test_scenarios_handlers import (
-    success_step,
-    retryable_error_step,
     permanent_error_step,
-)
-from tests.handlers.dsl_examples.conditional_approval_handlers import (
-    validate_request,
-    routing_decision,
-    auto_approve,
-    manager_approval,
-    finance_review,
-    finalize_approval,
-)
-from tests.handlers.dsl_examples.domain_event_handlers import (
-    validate_order,
-    process_payment as dsl_process_payment,
-    update_inventory as dsl_update_inventory,
-    send_notification as dsl_send_notification,
-)
-from tests.handlers.examples.domain_event_handlers import (
-    ValidateOrderHandler,
-    ProcessPaymentHandler,
-    UpdateInventoryHandler,
-    SendNotificationHandler,
-)
-from tests.handlers.dsl_examples.resolver_tests_handlers import (
-    multi_method,
-    alternate_method,
-)
-from tests.handlers.examples.resolver_tests_handlers import (
-    MultiMethodHandler,
-    AlternateMethodHandler,
-)
-
-# Blog examples - Post 01: E-commerce
-from tests.handlers.dsl_examples.blog_examples.post_01_ecommerce_handlers import (
-    validate_cart as dsl_validate_cart,
+    retryable_error_step,
+    success_step,
 )
 from tests.handlers.examples.blog_examples.post_01_ecommerce import (
     ValidateCartHandler as EcommerceValidateCartHandler,
 )
-
-# Blog examples - Post 02: Data Pipeline
-from tests.handlers.dsl_examples.blog_examples.post_02_data_pipeline_handlers import (
-    extract_sales_data as dsl_extract_sales,
-    extract_inventory_data as dsl_extract_inventory,
-    extract_customer_data as dsl_extract_customers,
+from tests.handlers.examples.blog_examples.post_02_data_pipeline import (
+    ExtractCustomerDataHandler as DataPipelineExtractCustomerHandler,
+)
+from tests.handlers.examples.blog_examples.post_02_data_pipeline import (
+    ExtractInventoryDataHandler as DataPipelineExtractInventoryHandler,
 )
 from tests.handlers.examples.blog_examples.post_02_data_pipeline import (
     ExtractSalesDataHandler as DataPipelineExtractSalesHandler,
-    ExtractInventoryDataHandler as DataPipelineExtractInventoryHandler,
-    ExtractCustomerDataHandler as DataPipelineExtractCustomerHandler,
-)
-
-# Blog examples - Post 03: Microservices
-from tests.handlers.dsl_examples.blog_examples.post_03_microservices_handlers import (
-    create_user_account as dsl_create_user_account,
 )
 from tests.handlers.examples.blog_examples.post_03_microservices import (
     CreateUserAccountHandler as MicroservicesCreateUserAccountHandler,
 )
+from tests.handlers.examples.conditional_approval_handlers import (
+    AutoApproveHandler,
+    FinalizeApprovalHandler,
+    RoutingDecisionHandler,
+    ValidateRequestHandler,
+)
+from tests.handlers.examples.diamond_handlers import (
+    DiamondInitHandler,
+    DiamondMergeHandler,
+    DiamondPathAHandler,
+    DiamondPathBHandler,
+)
+from tests.handlers.examples.diamond_workflow_handlers import (
+    DiamondBranchBHandler,
+    DiamondBranchCHandler,
+    DiamondEndHandler,
+    DiamondStartHandler,
+)
+from tests.handlers.examples.domain_event_handlers import (
+    ProcessPaymentHandler,
+    ValidateOrderHandler,
+)
 
+# ============================================================================
+# Verbose handler imports
+# ============================================================================
+from tests.handlers.examples.linear_workflow_handlers import (
+    LinearStep1Handler,
+    LinearStep2Handler,
+    LinearStep3Handler,
+    LinearStep4Handler,
+)
+from tests.handlers.examples.resolver_tests_handlers import (
+    AlternateMethodHandler,
+    MultiMethodHandler,
+)
+from tests.handlers.examples.test_scenarios_handlers import (
+    PermanentErrorStepHandler,
+    RetryableErrorStepHandler,
+    SuccessStepHandler,
+)
 
 # ============================================================================
 # Helpers
 # ============================================================================
 
 # Keys known to contain non-deterministic values (UUIDs, timestamps, random IDs)
-NON_DETERMINISTIC_KEYS = frozenset({
-    "timestamp",
-    "validated_at",
-    "processed_at",
-    "sent_at",
-    "created_at",
-    "updated_at",
-    "extracted_at",
-    "generated_at",
-    "activation_timestamp",
-    "validation_timestamp",
-    "policy_checked_at",
-    "approved_at",
-    "delegation_timestamp",
-    "estimated_delivery",
-    "next_billing_date",
-    "original_purchase_date",
-    "order_id",
-    "order_number",
-    "payment_id",
-    "transaction_id",
-    "billing_id",
-    "preferences_id",
-    "welcome_sequence_id",
-    "message_id",
-    "notification_id",
-    "reservation_id",
-    "inventory_log_id",
-    "approval_id",
-    "manager_id",
-    "delegated_task_id",
-    "correlation_id",
-    "record_id",
-    "refund_id",
-    "gateway_transaction_id",
-    "estimated_arrival",
-    "user_id",
-    "step_uuid",
-    "user_created_at",
-    "registration_completed_at",
-})
+NON_DETERMINISTIC_KEYS = frozenset(
+    {
+        "timestamp",
+        "validated_at",
+        "processed_at",
+        "sent_at",
+        "created_at",
+        "updated_at",
+        "extracted_at",
+        "generated_at",
+        "activation_timestamp",
+        "validation_timestamp",
+        "policy_checked_at",
+        "approved_at",
+        "delegation_timestamp",
+        "estimated_delivery",
+        "next_billing_date",
+        "original_purchase_date",
+        "order_id",
+        "order_number",
+        "payment_id",
+        "transaction_id",
+        "billing_id",
+        "preferences_id",
+        "welcome_sequence_id",
+        "message_id",
+        "notification_id",
+        "reservation_id",
+        "inventory_log_id",
+        "approval_id",
+        "manager_id",
+        "delegated_task_id",
+        "correlation_id",
+        "record_id",
+        "refund_id",
+        "gateway_transaction_id",
+        "estimated_arrival",
+        "user_id",
+        "step_uuid",
+        "user_created_at",
+        "registration_completed_at",
+    }
+)
 
 
 def _make_context(
@@ -273,9 +276,7 @@ def _assert_result_parity(
         _assert_dict_parity(v_data, d_data, description)
     else:
         assert v_data == d_data, (
-            f"[{description}] result_data mismatch:\n"
-            f"verbose={v_data}\n"
-            f"dsl={d_data}"
+            f"[{description}] result_data mismatch:\nverbose={v_data}\ndsl={d_data}"
         )
 
 
@@ -298,7 +299,7 @@ def _assert_dict_parity(verbose_dict: dict, dsl_dict: dict, description: str, pa
 
         if key in NON_DETERMINISTIC_KEYS:
             # Just check same type (both present and same general type)
-            assert type(v_val) == type(d_val), (
+            assert type(v_val) is type(d_val), (
                 f"[{description}] type mismatch for non-deterministic key '{full_key}': "
                 f"verbose={type(v_val).__name__}, dsl={type(d_val).__name__}"
             )
@@ -311,7 +312,7 @@ def _assert_dict_parity(verbose_dict: dict, dsl_dict: dict, description: str, pa
                 f"[{description}] list length mismatch at '{full_key}': "
                 f"verbose={len(v_val)}, dsl={len(d_val)}"
             )
-            for i, (v_item, d_item) in enumerate(zip(v_val, d_val)):
+            for i, (v_item, d_item) in enumerate(zip(v_val, d_val, strict=True)):
                 if isinstance(v_item, dict) and isinstance(d_item, dict):
                     _assert_dict_parity(v_item, d_item, description, f"{full_key}[{i}]")
                 else:
@@ -321,8 +322,7 @@ def _assert_dict_parity(verbose_dict: dict, dsl_dict: dict, description: str, pa
                     )
         else:
             assert v_val == d_val, (
-                f"[{description}] value mismatch at '{full_key}': "
-                f"verbose={v_val!r}, dsl={d_val!r}"
+                f"[{description}] value mismatch at '{full_key}': verbose={v_val!r}, dsl={d_val!r}"
             )
 
 
@@ -484,6 +484,8 @@ class TestLinearWorkflowParity:
         _assert_result_parity(r4_v, r4_d, "chain_step_4")
 
         # Verify final value
+        assert r4_v.result is not None
+        assert r4_d.result is not None
         assert r4_v.result["result"] == 39.0
         assert r4_d.result["result"] == 39.0
 
@@ -520,7 +522,11 @@ class TestDiamondUnitParity:
         # calls get_dependency_result() and unwraps {"result": ...}.
         # So we need dependency_results WITHOUT the {"result": ...} wrapper for verbose,
         # but WITH it for DSL.
-        init_output = {"initialized": True, "value": 100, "metadata": {"workflow": "diamond", "init_timestamp": "2025-01-01T00:00:00Z"}}
+        init_output = {
+            "initialized": True,
+            "value": 100,
+            "metadata": {"workflow": "diamond", "init_timestamp": "2025-01-01T00:00:00Z"},
+        }
 
         # Verbose: accesses context.dependency_results.get("diamond_init", {}) -> gets raw dict
         verbose_deps = {"diamond_init": init_output}
@@ -543,7 +549,11 @@ class TestDiamondUnitParity:
 
     def test_diamond_path_b(self):
         """Path B: 100 + 50 = 150."""
-        init_output = {"initialized": True, "value": 100, "metadata": {"workflow": "diamond", "init_timestamp": "2025-01-01T00:00:00Z"}}
+        init_output = {
+            "initialized": True,
+            "value": 100,
+            "metadata": {"workflow": "diamond", "init_timestamp": "2025-01-01T00:00:00Z"},
+        }
 
         verbose_deps = {"diamond_init": init_output}
         ctx = _make_context(
@@ -575,7 +585,10 @@ class TestDiamondUnitParity:
         verbose_result = _run_verbose(DiamondMergeHandler, ctx)
 
         # DSL uses get_dependency_result() via @depends_on
-        dsl_deps = {"diamond_path_a": {"result": path_a_output}, "diamond_path_b": {"result": path_b_output}}
+        dsl_deps = {
+            "diamond_path_a": {"result": path_a_output},
+            "diamond_path_b": {"result": path_b_output},
+        }
         dsl_ctx = _make_context(
             handler_name="diamond_merge_dsl",
             dependency_results=dsl_deps,
@@ -611,7 +624,11 @@ class TestDiamondE2EParity:
 
     def test_diamond_branch_b(self):
         """Branch B: 16 + 25 = 41."""
-        deps = {"diamond_start_py": {"result": {"result": 16, "operation": "square", "step_type": "initial"}}}
+        deps = {
+            "diamond_start_py": {
+                "result": {"result": 16, "operation": "square", "step_type": "initial"}
+            }
+        }
         ctx = _make_context(
             handler_name="diamond_workflow.step_handlers.DiamondBranchBHandler",
             dependency_results=deps,
@@ -628,7 +645,11 @@ class TestDiamondE2EParity:
 
     def test_diamond_branch_c(self):
         """Branch C: 16 * 2 = 32."""
-        deps = {"diamond_start_py": {"result": {"result": 16, "operation": "square", "step_type": "initial"}}}
+        deps = {
+            "diamond_start_py": {
+                "result": {"result": 16, "operation": "square", "step_type": "initial"}
+            }
+        }
         ctx = _make_context(
             handler_name="diamond_workflow.step_handlers.DiamondBranchCHandler",
             dependency_results=deps,
@@ -647,7 +668,9 @@ class TestDiamondE2EParity:
         """End: (41 + 32) / 2 = 36.5."""
         deps = {
             "diamond_branch_b_py": {"result": {"result": 41, "operation": "add", "branch": "B"}},
-            "diamond_branch_c_py": {"result": {"result": 32, "operation": "multiply", "branch": "C"}},
+            "diamond_branch_c_py": {
+                "result": {"result": 32, "operation": "multiply", "branch": "C"}
+            },
         }
         ctx = _make_context(
             handler_name="diamond_workflow.step_handlers.DiamondEndHandler",
@@ -662,6 +685,7 @@ class TestDiamondE2EParity:
         dsl_result = _run_dsl(diamond_end, dsl_ctx)
 
         _assert_result_parity(verbose_result, dsl_result, "diamond_end")
+        assert verbose_result.result is not None
         assert verbose_result.result["result"] == 36.5
 
 
@@ -776,7 +800,12 @@ class TestConditionalApprovalParity:
 
     def test_routing_decision_auto_approve(self):
         """Route small amount to auto_approve."""
-        validate_output = {"validated": True, "amount": 500, "requester": "alice", "purpose": "office supplies"}
+        validate_output = {
+            "validated": True,
+            "amount": 500,
+            "requester": "alice",
+            "purpose": "office supplies",
+        }
         deps = {"validate_request_py": {"result": validate_output}}
 
         ctx = _make_context(
@@ -796,6 +825,8 @@ class TestConditionalApprovalParity:
         assert dsl_result.is_success
 
         # Check the decision output has matching routing
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         v_data = verbose_result.result
         d_data = dsl_result.result
 
@@ -808,7 +839,12 @@ class TestConditionalApprovalParity:
 
     def test_routing_decision_manager(self):
         """Route medium amount to manager_approval."""
-        validate_output = {"validated": True, "amount": 2000, "requester": "bob", "purpose": "new equipment"}
+        validate_output = {
+            "validated": True,
+            "amount": 2000,
+            "requester": "bob",
+            "purpose": "new equipment",
+        }
         deps = {"validate_request_py": {"result": validate_output}}
 
         ctx = _make_context(
@@ -825,6 +861,8 @@ class TestConditionalApprovalParity:
 
         assert verbose_result.is_success
         assert dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
 
         v_outcome = verbose_result.result.get("decision_point_outcome", {})
         d_outcome = dsl_result.result.get("decision_point_outcome", {})
@@ -832,7 +870,12 @@ class TestConditionalApprovalParity:
 
     def test_routing_decision_dual_approval(self):
         """Route large amount to manager + finance."""
-        validate_output = {"validated": True, "amount": 10000, "requester": "carol", "purpose": "server farm"}
+        validate_output = {
+            "validated": True,
+            "amount": 10000,
+            "requester": "carol",
+            "purpose": "server farm",
+        }
         deps = {"validate_request_py": {"result": validate_output}}
 
         ctx = _make_context(
@@ -849,6 +892,8 @@ class TestConditionalApprovalParity:
 
         assert verbose_result.is_success
         assert dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
 
         v_outcome = verbose_result.result.get("decision_point_outcome", {})
         d_outcome = dsl_result.result.get("decision_point_outcome", {})
@@ -878,7 +923,13 @@ class TestConditionalApprovalParity:
 
     def test_finalize_approval_auto(self):
         """Finalize with auto-approval result."""
-        auto_output = {"approved": True, "approval_type": "auto", "approved_amount": 500, "approver": "system", "notes": "Auto-approved for amounts under $1,000"}
+        auto_output = {
+            "approved": True,
+            "approval_type": "auto",
+            "approved_amount": 500,
+            "approver": "system",
+            "notes": "Auto-approved for amounts under $1,000",
+        }
         deps = {
             "auto_approve_py": {"result": auto_output},
             "manager_approval_py": {"result": None},
@@ -925,6 +976,8 @@ class TestDomainEventParity:
 
         # Both succeed with same structure
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         assert set(verbose_result.result.keys()) == set(dsl_result.result.keys())
 
     def test_process_payment(self):
@@ -943,6 +996,8 @@ class TestDomainEventParity:
         dsl_result = _run_dsl(dsl_process_payment, dsl_ctx)
 
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         assert set(verbose_result.result.keys()) == set(dsl_result.result.keys())
 
     def test_process_payment_failure(self):
@@ -990,6 +1045,8 @@ class TestResolverParity:
 
         # Both should succeed
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
 
         # Check deterministic fields match
         v_data = verbose_result.result
@@ -1010,6 +1067,8 @@ class TestResolverParity:
         dsl_result = _run_dsl(alternate_method, dsl_ctx)
 
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         v_data = verbose_result.result
         d_data = dsl_result.result
         assert v_data["invoked_method"] == d_data["invoked_method"]
@@ -1094,6 +1153,8 @@ class TestBlogDataPipelineParity:
         dsl_result = _run_dsl(dsl_extract_sales, dsl_ctx)
 
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         # Structural parity: same keys, same records
         v_data = verbose_result.result
         d_data = dsl_result.result
@@ -1114,6 +1175,8 @@ class TestBlogDataPipelineParity:
         dsl_result = _run_dsl(dsl_extract_inventory, dsl_ctx)
 
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         v_data = verbose_result.result
         d_data = dsl_result.result
         assert set(v_data.keys()) == set(d_data.keys())
@@ -1132,6 +1195,8 @@ class TestBlogDataPipelineParity:
         dsl_result = _run_dsl(dsl_extract_customers, dsl_ctx)
 
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         v_data = verbose_result.result
         d_data = dsl_result.result
         assert set(v_data.keys()) == set(d_data.keys())
@@ -1169,6 +1234,8 @@ class TestBlogMicroservicesParity:
 
         # Both should succeed
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         # Check deterministic fields
         v_data = verbose_result.result
         d_data = dsl_result.result
@@ -1218,6 +1285,8 @@ class TestBlogMicroservicesParity:
         dsl_result = _run_dsl(dsl_create_user_account, dsl_ctx)
 
         assert verbose_result.is_success == dsl_result.is_success
+        assert verbose_result.result is not None
+        assert dsl_result.result is not None
         v_data = verbose_result.result
         d_data = dsl_result.result
         assert v_data["status"] == d_data["status"]

@@ -8,7 +8,7 @@
 # NOTE: These handlers replicate the core validation and output structure.
 # Non-deterministic fields differ between runs.
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 CS_REFUND_POLICIES_DSL = {
   standard: { window_days: 30, requires_approval: true, max_amount: 10_000 },
@@ -19,7 +19,7 @@ CS_REFUND_POLICIES_DSL = {
 CsValidateRefundRequestDslHandler = step_handler(
   'customer_success_dsl.step_handlers.validate_refund_request',
   inputs: %i[ticket_id customer_id refund_amount refund_reason]
-) do |ticket_id:, customer_id:, refund_amount:, refund_reason:, context:|
+) do |ticket_id:, customer_id:, refund_amount:, refund_reason:, context:| # rubocop:disable Lint/UnusedBlockArgument
   ticket_id ||= context.get_input('ticket_id')
   customer_id ||= context.get_input('customer_id')
   refund_amount ||= context.get_input('refund_amount')
@@ -37,11 +37,12 @@ CsValidateRefundRequestDslHandler = step_handler(
   end
 
   # Ticket status simulation
-  if ticket_id.to_s.match?(/ticket_closed/)
+  case ticket_id.to_s
+  when /ticket_closed/
     raise TaskerCore::Errors::PermanentError.new('Cannot process refund for closed ticket', error_code: 'TICKET_CLOSED')
-  elsif ticket_id.to_s.match?(/ticket_cancelled/)
+  when /ticket_cancelled/
     raise TaskerCore::Errors::PermanentError.new('Cannot process refund for cancelled ticket', error_code: 'TICKET_CANCELLED')
-  elsif ticket_id.to_s.match?(/ticket_duplicate/)
+  when /ticket_duplicate/
     raise TaskerCore::Errors::PermanentError.new('Cannot process refund for duplicate ticket', error_code: 'TICKET_DUPLICATE')
   end
 
@@ -77,10 +78,10 @@ end
 
 CsCheckRefundPolicyDslHandler = step_handler(
   'customer_success_dsl.step_handlers.check_refund_policy',
-  depends_on: { validation: 'validate_refund_request' },
+  depends_on: { validation: 'validate_refund_request_dsl' },
   inputs: %i[refund_amount refund_reason]
-) do |validation:, refund_amount:, refund_reason:, context:|
-  deep_sym = ->(obj) {
+) do |validation:, refund_amount:, refund_reason:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -113,7 +114,7 @@ CsCheckRefundPolicyDslHandler = step_handler(
 
   unless within_amount_limit
     raise TaskerCore::Errors::PermanentError.new(
-      "Refund amount exceeds policy limit",
+      'Refund amount exceeds policy limit',
       error_code: 'EXCEEDS_AMOUNT_LIMIT'
     )
   end
@@ -137,10 +138,10 @@ end
 
 CsGetManagerApprovalDslHandler = step_handler(
   'customer_success_dsl.step_handlers.get_manager_approval',
-  depends_on: { policy: 'check_refund_policy', validation: 'validate_refund_request' },
+  depends_on: { policy: 'check_refund_policy_dsl', validation: 'validate_refund_request_dsl' },
   inputs: %i[refund_amount refund_reason]
-) do |policy:, validation:, refund_amount:, refund_reason:, context:|
-  deep_sym = ->(obj) {
+) do |policy:, validation:, refund_amount:, refund_reason:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -156,7 +157,6 @@ CsGetManagerApprovalDslHandler = step_handler(
   end
 
   requires_approval = policy[:requires_approval]
-  customer_tier = policy[:customer_tier]
 
   if requires_approval
     approval_id = "appr_#{SecureRandom.hex(8)}"
@@ -193,10 +193,10 @@ end
 
 CsExecuteRefundWorkflowDslHandler = step_handler(
   'customer_success_dsl.step_handlers.execute_refund_workflow',
-  depends_on: { approval: 'get_manager_approval', validation: 'validate_refund_request' },
+  depends_on: { approval: 'get_manager_approval_dsl', validation: 'validate_refund_request_dsl' },
   inputs: %i[refund_amount refund_reason customer_email ticket_id correlation_id]
-) do |approval:, validation:, refund_amount:, refund_reason:, customer_email:, ticket_id:, correlation_id:, context:|
-  deep_sym = ->(obj) {
+) do |approval:, validation:, refund_amount:, refund_reason:, customer_email:, ticket_id:, correlation_id:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -236,10 +236,10 @@ end
 
 CsUpdateTicketStatusDslHandler = step_handler(
   'customer_success_dsl.step_handlers.update_ticket_status',
-  depends_on: { delegation: 'execute_refund_workflow', validation: 'validate_refund_request' },
+  depends_on: { delegation: 'execute_refund_workflow_dsl', validation: 'validate_refund_request_dsl' },
   inputs: %i[refund_amount refund_reason]
-) do |delegation:, validation:, refund_amount:, refund_reason:, context:|
-  deep_sym = ->(obj) {
+) do |delegation:, validation:, refund_amount:, refund_reason:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -266,8 +266,8 @@ CsUpdateTicketStatusDslHandler = step_handler(
       previous_status: 'in_progress',
       new_status: 'resolved',
       resolution_note: "Refund of $#{format('%.2f', (refund_amount || 0) / 100.0)} processed successfully. " \
-                        "Delegated task ID: #{delegated_task_id}. " \
-                        "Correlation ID: #{correlation_id}",
+                       "Delegated task ID: #{delegated_task_id}. " \
+                       "Correlation ID: #{correlation_id}",
       updated_at: Time.now.utc.iso8601,
       refund_completed: true,
       delegated_task_id: delegated_task_id,

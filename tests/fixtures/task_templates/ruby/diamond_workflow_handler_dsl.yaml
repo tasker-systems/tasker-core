@@ -15,13 +15,13 @@
 #
 ---
 name: parallel_computation_dsl
-namespace_name: diamond_workflow_dsl
+namespace_name: diamond_workflow_dsl_rb
 version: 1.0.0
 description: "Diamond pattern with parallel branches: square -> (add, multiply) -> average"
 metadata:
   author: Ruby FFI Implementation
   tags:
-    - namespace:diamond_workflow_dsl
+    - namespace:diamond_workflow_dsl_rb
     - pattern:diamond
     - dependencies:parallel_convergence
     - implementation:ruby_ffi
@@ -33,7 +33,7 @@ metadata:
   updated_at: "2025-09-24T00:00:00Z"
   notes: "Ruby FFI implementation with parallel branch processing and convergence logic"
 task_handler:
-  callable: DiamondWorkflow::DiamondWorkflowHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     input_validation:
       required_fields:
@@ -65,7 +65,7 @@ steps:
   - name: diamond_start_dsl
     description: "Square the even number (initial step)"
     handler:
-      callable: DiamondWorkflow::StepHandlers::DiamondStartHandler_dsl
+      callable: diamond_workflow_dsl_rb.step_handlers.diamond_start
       initialization:
         operation: square
         description: "Square the input number (n²)"
@@ -82,7 +82,7 @@ steps:
   - name: diamond_branch_b_dsl
     description: "Add constant (parallel branch B)"
     handler:
-      callable: DiamondWorkflow::StepHandlers::DiamondBranchBHandler_dsl
+      callable: diamond_workflow_dsl_rb.step_handlers.diamond_branch_b
       initialization:
         operation: add
         constant: 25
@@ -101,7 +101,7 @@ steps:
   - name: diamond_branch_c_dsl
     description: "Multiply by factor (parallel branch C)"
     handler:
-      callable: DiamondWorkflow::StepHandlers::DiamondBranchCHandler_dsl
+      callable: diamond_workflow_dsl_rb.step_handlers.diamond_branch_c
       initialization:
         operation: multiply
         factor: 2
@@ -120,7 +120,7 @@ steps:
   - name: diamond_end_dsl
     description: "Average results from both branches (convergence)"
     handler:
-      callable: DiamondWorkflow::StepHandlers::DiamondEndHandler_dsl
+      callable: diamond_workflow_dsl_rb.step_handlers.diamond_end
       initialization:
         operation: average
         description: "Calculate average of both branch results"

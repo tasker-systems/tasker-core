@@ -35,7 +35,7 @@ metadata:
   updated_at: "2026-01-12T00:00:00Z"
   notes: "Python FFI implementation demonstrating namespace isolation from Blog Post 04"
 task_handler:
-  callable: team_scaling_dsl.payments.task_handlers.ProcessRefundHandler
+  callable: team_scaling_dsl_py.payments.task_handlers.ProcessRefundHandler
   initialization:
     timeout_seconds: 60
     max_retries: 3
@@ -72,10 +72,10 @@ input_schema:
       type: string
       description: "Correlation ID for tracking across systems"
 steps:
-  - name: validate_payment_eligibility_dsl
+  - name: validate_payment_eligibility_dsl_py
     description: "Check if payment can be refunded via gateway"
     handler:
-      callable: team_scaling_dsl.payments_dsl.step_handlers.validate_payment_eligibility
+      callable: team_scaling_dsl_py.payments.step_handlers.validate_payment_eligibility
       initialization:
         scenario: payments_refund
     dependencies: []
@@ -87,14 +87,14 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 10
 
-  - name: process_gateway_refund_dsl
+  - name: process_gateway_refund_dsl_py
     description: "Execute refund through payment processor"
     handler:
-      callable: team_scaling_dsl.payments_dsl.step_handlers.process_gateway_refund
+      callable: team_scaling_dsl_py.payments.step_handlers.process_gateway_refund
       initialization:
         scenario: payments_refund
     dependencies:
-      - validate_payment_eligibility_dsl
+      - validate_payment_eligibility_dsl_py
     retry:
       retryable: true
       max_attempts: 2
@@ -103,14 +103,14 @@ steps:
       max_backoff_ms: 60000
     timeout_seconds: 10
 
-  - name: update_payment_records_dsl
+  - name: update_payment_records_dsl_py
     description: "Update internal payment status and history"
     handler:
-      callable: team_scaling_dsl.payments_dsl.step_handlers.update_payment_records
+      callable: team_scaling_dsl_py.payments.step_handlers.update_payment_records
       initialization:
         scenario: payments_refund
     dependencies:
-      - process_gateway_refund_dsl
+      - process_gateway_refund_dsl_py
     retry:
       retryable: true
       max_attempts: 3
@@ -119,14 +119,14 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 10
 
-  - name: notify_customer_dsl
+  - name: notify_customer_dsl_py
     description: "Send refund confirmation to customer"
     handler:
-      callable: team_scaling_dsl.payments_dsl.step_handlers.notify_customer
+      callable: team_scaling_dsl_py.payments.step_handlers.notify_customer
       initialization:
         scenario: payments_refund
     dependencies:
-      - update_payment_records_dsl
+      - update_payment_records_dsl_py
     retry:
       retryable: true
       max_attempts: 5
@@ -138,11 +138,11 @@ steps:
 environments:
   test:
     steps:
-      - name: validate_payment_eligibility_dsl
+      - name: validate_payment_eligibility_dsl_py
         timeout_seconds: 10
-      - name: process_gateway_refund_dsl
+      - name: process_gateway_refund_dsl_py
         timeout_seconds: 10
-      - name: update_payment_records_dsl
+      - name: update_payment_records_dsl_py
         timeout_seconds: 10
-      - name: notify_customer_dsl
+      - name: notify_customer_dsl_py
         timeout_seconds: 10

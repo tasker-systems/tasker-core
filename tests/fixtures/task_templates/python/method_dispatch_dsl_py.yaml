@@ -32,7 +32,7 @@ metadata:
   updated_at: "2026-01-07T00:00:00Z"
   notes: "Tests method dispatch feature where handler.method() is called instead of handler.call()"
 task_handler:
-  callable: resolver_tests_dsl.TaskHandler
+  callable: resolver_tests_dsl_py.TaskHandler
   initialization:
     test_type: method_dispatch
     expected_methods:
@@ -62,7 +62,7 @@ steps:
   - name: validate_step_dsl_py
     description: "Step 1: Invoke validate method on MultiMethodHandler"
     handler:
-      callable: resolver_tests_dsl.step_handlers.multi_method
+      callable: resolver_tests_dsl_py.step_handlers.multi_method
       method: validate
       initialization:
         step_number: 1
@@ -80,7 +80,7 @@ steps:
   - name: process_step_dsl_py
     description: "Step 2: Invoke process method on MultiMethodHandler"
     handler:
-      callable: resolver_tests_dsl.step_handlers.multi_method
+      callable: resolver_tests_dsl_py.step_handlers.multi_method
       method: process
       initialization:
         step_number: 2
@@ -99,7 +99,7 @@ steps:
   - name: refund_step_dsl_py
     description: "Step 3: Invoke refund method on MultiMethodHandler"
     handler:
-      callable: resolver_tests_dsl.step_handlers.multi_method
+      callable: resolver_tests_dsl_py.step_handlers.multi_method
       method: refund
       initialization:
         step_number: 3
@@ -118,7 +118,7 @@ steps:
   - name: default_call_step_dsl_py
     description: "Step 4: Invoke default call method (no method specified)"
     handler:
-      callable: resolver_tests_dsl.step_handlers.multi_method
+      callable: resolver_tests_dsl_py.step_handlers.multi_method
       initialization:
         step_number: 4
         expected_method: call

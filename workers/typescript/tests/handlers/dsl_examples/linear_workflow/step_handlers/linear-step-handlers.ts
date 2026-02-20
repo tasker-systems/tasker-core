@@ -5,10 +5,7 @@
  * Produces identical output for parity testing.
  */
 
-import {
-  PermanentError,
-  defineHandler,
-} from '../../../../../src/handler/functional.js';
+import { defineHandler, PermanentError } from '../../../../../src/handler/functional.js';
 
 /**
  * Step 1: Square the initial even number.
@@ -42,14 +39,14 @@ export const LinearStep1DslHandler = defineHandler(
  */
 export const LinearStep2DslHandler = defineHandler(
   'LinearWorkflowDsl.StepHandlers.LinearStep2DslHandler',
-  { depends: { step1Result: 'linear_step_1' } },
-  async ({ step1Result, context }) => {
-    const squaredValue = context.getDependencyField('linear_step_1', 'squared_value') as
+  { depends: { step1Result: 'linear_step_1_dsl_ts' } },
+  async ({ step1Result: _step1Result, context }) => {
+    const squaredValue = context.getDependencyField('linear_step_1_dsl_ts', 'squared_value') as
       | number
       | null;
 
     if (squaredValue === null || squaredValue === undefined) {
-      throw new PermanentError('Missing dependency result from linear_step_1');
+      throw new PermanentError('Missing dependency result from linear_step_1_dsl_ts');
     }
 
     const constant = 10;
@@ -69,12 +66,14 @@ export const LinearStep2DslHandler = defineHandler(
  */
 export const LinearStep3DslHandler = defineHandler(
   'LinearWorkflowDsl.StepHandlers.LinearStep3DslHandler',
-  { depends: { step2Result: 'linear_step_2' } },
+  { depends: { step2Result: 'linear_step_2_dsl_ts' } },
   async ({ context }) => {
-    const addedValue = context.getDependencyField('linear_step_2', 'added_value') as number | null;
+    const addedValue = context.getDependencyField('linear_step_2_dsl_ts', 'added_value') as
+      | number
+      | null;
 
     if (addedValue === null || addedValue === undefined) {
-      throw new PermanentError('Missing dependency result from linear_step_2');
+      throw new PermanentError('Missing dependency result from linear_step_2_dsl_ts');
     }
 
     const factor = 3;
@@ -94,14 +93,15 @@ export const LinearStep3DslHandler = defineHandler(
  */
 export const LinearStep4DslHandler = defineHandler(
   'LinearWorkflowDsl.StepHandlers.LinearStep4DslHandler',
-  { depends: { step3Result: 'linear_step_3' } },
+  { depends: { step3Result: 'linear_step_3_dsl_ts' } },
   async ({ context }) => {
-    const multipliedValue = context.getDependencyField('linear_step_3', 'multiplied_value') as
-      | number
-      | null;
+    const multipliedValue = context.getDependencyField(
+      'linear_step_3_dsl_ts',
+      'multiplied_value'
+    ) as number | null;
 
     if (multipliedValue === null || multipliedValue === undefined) {
-      throw new PermanentError('Missing dependency result from linear_step_3');
+      throw new PermanentError('Missing dependency result from linear_step_3_dsl_ts');
     }
 
     const divisor = 2;

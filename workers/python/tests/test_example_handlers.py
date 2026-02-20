@@ -67,6 +67,7 @@ class TestLinearWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["source"] == "default"
         assert len(result.result["items"]) == 3
         assert "fetch_timestamp" in result.result
@@ -82,6 +83,7 @@ class TestLinearWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["source"] == "external_api"
 
     def test_fetch_data_handler_properties(self):
@@ -110,6 +112,7 @@ class TestLinearWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert len(result.result["transformed_items"]) == 2
         assert result.result["transform_count"] == 2
         # Check transformation was applied
@@ -138,6 +141,7 @@ class TestLinearWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is False
+        assert result.error_message is not None
         assert "No items to transform" in result.error_message
 
     def test_store_data_handler_success(self):
@@ -158,6 +162,7 @@ class TestLinearWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["stored_count"] == 2
         assert result.result["stored_ids"] == [1, 2]
         assert result.result["storage_location"] == "database"
@@ -200,6 +205,7 @@ class TestLinearWorkflowHandlers:
         )
         store_result = store_handler.call(store_context)
         assert store_result.is_success
+        assert store_result.result is not None
 
         # Verify final results
         assert store_result.result["stored_count"] == 3
@@ -217,6 +223,7 @@ class TestDiamondWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["initialized"] is True
         assert result.result["value"] == 100
         assert result.result["metadata"]["workflow"] == "diamond"
@@ -232,6 +239,7 @@ class TestDiamondWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["value"] == 200
 
     def test_diamond_path_a_handler(self):
@@ -247,6 +255,7 @@ class TestDiamondWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["path_a_result"] == 200  # 100 * 2
         assert result.result["operation"] == "multiply_by_2"
         assert result.result["input_value"] == 100
@@ -264,6 +273,7 @@ class TestDiamondWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["path_b_result"] == 150  # 100 + 50
         assert result.result["operation"] == "add_50"
         assert result.result["input_value"] == 100
@@ -289,6 +299,7 @@ class TestDiamondWorkflowHandlers:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["merged_result"] == 350  # 200 + 150
         assert result.result["path_a_value"] == 200
         assert result.result["path_b_value"] == 150
@@ -345,6 +356,7 @@ class TestDiamondWorkflowHandlers:
         )
         merge_result = merge_handler.call(merge_context)
         assert merge_result.is_success
+        assert merge_result.result is not None
 
         # With initial_value=100:
         # Path A: 100 * 2 = 200
@@ -412,4 +424,5 @@ class TestHandlerRegistration:
         result = handler.call(context)
 
         assert result.is_success is True
+        assert result.result is not None
         assert "items" in result.result

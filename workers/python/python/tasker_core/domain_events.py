@@ -343,14 +343,14 @@ class BasePublisher(ABC):
 
     def additional_metadata(
         self,
-        _ctx: StepEventContext,
+        ctx: StepEventContext,  # noqa: ARG002
     ) -> dict[str, Any]:
         """Add custom metadata to the event.
 
         Override to add custom metadata fields to every published event.
 
         Args:
-            _ctx: The step event context.
+            ctx: The step event context.
 
         Returns:
             Additional metadata to merge into event metadata.
@@ -360,8 +360,8 @@ class BasePublisher(ABC):
     def before_publish(
         self,
         event_name: str,
-        _payload: dict[str, Any],
-        _metadata: dict[str, Any],
+        payload: dict[str, Any],  # noqa: ARG002
+        metadata: dict[str, Any],  # noqa: ARG002
     ) -> bool:
         """Hook called before publishing.
 
@@ -370,8 +370,8 @@ class BasePublisher(ABC):
 
         Args:
             event_name: The event name.
-            _payload: The transformed payload.
-            _metadata: The event metadata.
+            payload: The transformed payload.
+            metadata: The event metadata.
 
         Returns:
             True to continue publishing, False to abort.
@@ -382,8 +382,8 @@ class BasePublisher(ABC):
     def after_publish(
         self,
         event_name: str,
-        _payload: dict[str, Any],
-        _metadata: dict[str, Any],
+        payload: dict[str, Any],  # noqa: ARG002
+        metadata: dict[str, Any],  # noqa: ARG002
     ) -> None:
         """Hook called after successful publishing.
 
@@ -391,8 +391,8 @@ class BasePublisher(ABC):
 
         Args:
             event_name: The event name.
-            _payload: The transformed payload.
-            _metadata: The event metadata.
+            payload: The transformed payload.
+            metadata: The event metadata.
         """
         log_debug(f"Event published: {event_name}")
 
@@ -400,7 +400,7 @@ class BasePublisher(ABC):
         self,
         event_name: str,
         error: Exception,
-        _payload: dict[str, Any],
+        payload: dict[str, Any],  # noqa: ARG002
     ) -> None:
         """Hook called if publishing fails.
 
@@ -409,7 +409,7 @@ class BasePublisher(ABC):
         Args:
             event_name: The event name.
             error: The error that occurred.
-            _payload: The transformed payload.
+            payload: The transformed payload.
         """
         log_error(f"Failed to publish event {event_name}: {error}")
 

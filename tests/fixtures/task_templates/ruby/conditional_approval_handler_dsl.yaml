@@ -22,13 +22,13 @@
 #
 ---
 name: approval_routing_dsl
-namespace_name: conditional_approval_dsl
+namespace_name: conditional_approval_dsl_rb
 version: 1.0.0
 description: "Decision point workflow with conditional routing: amount-based approval paths"
 metadata:
   author: TAS-53 Decision Point Implementation
   tags:
-    - namespace:conditional_approval_dsl
+    - namespace:conditional_approval_dsl_rb
     - pattern:decision_point
     - feature:dynamic_workflows
     - implementation:ruby_ffi
@@ -39,7 +39,7 @@ metadata:
   updated_at: "2025-10-26T00:00:00Z"
   notes: "Demonstrates TAS-53 decision point functionality with dynamic step creation"
 task_handler:
-  callable: ConditionalApproval::ConditionalApprovalHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     input_validation:
       required_fields:
@@ -83,7 +83,7 @@ steps:
   - name: validate_request_dsl
     description: "Validate approval request data (initial step)"
     handler:
-      callable: ConditionalApproval::StepHandlers::ValidateRequestHandler_dsl
+      callable: conditional_approval_dsl_rb.step_handlers.validate_request
       initialization:
         operation: validate
         description: "Validate request fields and constraints"
@@ -102,7 +102,7 @@ steps:
   - name: routing_decision_dsl
     description: "DECISION POINT: Route to appropriate approval path based on amount"
     handler:
-      callable: ConditionalApproval::StepHandlers::RoutingDecisionHandler_dsl
+      callable: conditional_approval_dsl_rb.step_handlers.routing_decision
       initialization:
         operation: routing
         description: "Determine approval path based on amount thresholds"
@@ -125,7 +125,7 @@ steps:
   - name: finalize_approval_dsl
     description: "Finalize approval after all required approvals received (convergence)"
     handler:
-      callable: ConditionalApproval::StepHandlers::FinalizeApprovalHandler_dsl
+      callable: conditional_approval_dsl_rb.step_handlers.finalize_approval
       initialization:
         operation: finalize
         description: "Process and record final approval decision"
@@ -167,13 +167,13 @@ steps:
   - name: auto_approve_dsl
     description: "Automatic approval for small amounts (< $1,000)"
     handler:
-      callable: ConditionalApproval::StepHandlers::AutoApproveHandler_dsl
+      callable: conditional_approval_dsl_rb.step_handlers.auto_approve
       initialization:
         operation: auto_approve
         description: "Automatically approve small requests"
     system_dependency:
     dependencies:
-      - routing_decision # Created as child of decision point
+      - routing_decision_dsl # Created as child of decision point
     type: standard # Dynamically created standard step
     retry:
       retryable: true
@@ -187,13 +187,13 @@ steps:
   - name: manager_approval_dsl
     description: "Manager approval for medium amounts ($1,000-$4,999)"
     handler:
-      callable: ConditionalApproval::StepHandlers::ManagerApprovalHandler_dsl
+      callable: conditional_approval_dsl_rb.step_handlers.manager_approval
       initialization:
         operation: manager_approval
         description: "Route to manager for approval"
     system_dependency:
     dependencies:
-      - routing_decision # Created as child of decision point
+      - routing_decision_dsl # Created as child of decision point
     type: standard # Dynamically created standard step
     retry:
       retryable: true
@@ -207,13 +207,13 @@ steps:
   - name: finance_review_dsl
     description: "Finance review for large amounts (>= $5,000)"
     handler:
-      callable: ConditionalApproval::StepHandlers::FinanceReviewHandler_dsl
+      callable: conditional_approval_dsl_rb.step_handlers.finance_review
       initialization:
         operation: finance_review
         description: "Route to finance for additional review"
     system_dependency:
     dependencies:
-      - routing_decision # Created as child of decision point
+      - routing_decision_dsl # Created as child of decision point
     type: standard # Dynamically created standard step
     retry:
       retryable: true

@@ -33,7 +33,7 @@ metadata:
   updated_at: "2025-12-13T00:00:00Z"
   notes: "Python FFI implementation with parallel branch processing and convergence logic"
 task_handler:
-  callable: diamond_workflow_dsl.DiamondWorkflowHandler
+  callable: diamond_workflow_dsl_py.DiamondWorkflowHandler
   initialization:
     input_validation:
       required_fields:
@@ -65,7 +65,7 @@ steps:
   - name: diamond_start_dsl_py
     description: "Square the even number (initial step)"
     handler:
-      callable: diamond_workflow_dsl.step_handlers.diamond_start
+      callable: diamond_workflow_dsl_py.step_handlers.diamond_start
       initialization:
         operation: square
         description: "Square the input number (n**2)"
@@ -82,7 +82,7 @@ steps:
   - name: diamond_branch_b_dsl_py
     description: "Add constant (parallel branch B)"
     handler:
-      callable: diamond_workflow_dsl.step_handlers.diamond_branch_b
+      callable: diamond_workflow_dsl_py.step_handlers.diamond_branch_b
       initialization:
         operation: add
         constant: 25
@@ -101,7 +101,7 @@ steps:
   - name: diamond_branch_c_dsl_py
     description: "Multiply by factor (parallel branch C)"
     handler:
-      callable: diamond_workflow_dsl.step_handlers.diamond_branch_c
+      callable: diamond_workflow_dsl_py.step_handlers.diamond_branch_c
       initialization:
         operation: multiply
         factor: 2
@@ -120,7 +120,7 @@ steps:
   - name: diamond_end_dsl_py
     description: "Average results from both branches (convergence)"
     handler:
-      callable: diamond_workflow_dsl.step_handlers.diamond_end
+      callable: diamond_workflow_dsl_py.step_handlers.diamond_end
       initialization:
         operation: average
         description: "Calculate average of both branch results"

@@ -176,6 +176,14 @@ module TaskerCore
         handler_files = Dir.glob("#{@example_handlers_path}/**/*_handler.rb")
         log_debug("🔍 Found #{handler_files.count} example handler files")
 
+        # TAS-294: Also load DSL example handlers (functional API mirrors)
+        dsl_examples_path = @example_handlers_path.sub(%r{/examples$}, '/dsl_examples')
+        if Dir.exist?(dsl_examples_path)
+          dsl_files = Dir.glob("#{dsl_examples_path}/**/*.rb")
+          log_debug("🔍 Found #{dsl_files.count} DSL example handler files")
+          handler_files += dsl_files
+        end
+
         loaded_count = 0
         handler_files.each do |handler_file|
           # Use require instead of require_relative to avoid duplicate loading

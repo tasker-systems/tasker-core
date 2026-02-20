@@ -9,10 +9,7 @@
  * corresponding method on the verbose MultiMethodHandler.
  */
 
-import {
-  PermanentError,
-  defineHandler,
-} from '../../../../../src/handler/functional.js';
+import { defineHandler, PermanentError } from '../../../../../src/handler/functional.js';
 
 /**
  * Multi-method handler: default call method.

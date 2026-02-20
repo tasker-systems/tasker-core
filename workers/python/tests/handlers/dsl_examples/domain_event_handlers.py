@@ -56,7 +56,7 @@ def validate_order(order_id, customer_id, amount, context):
 
 @step_handler("domain_events_dsl_py.step_handlers.process_payment")
 @inputs("order_id", "amount", "simulate_failure")
-def process_payment(order_id, amount, simulate_failure, context):
+def process_payment(order_id, amount, simulate_failure, _context):
     """Process the payment."""
     if order_id is None:
         order_id = "unknown"
@@ -91,7 +91,7 @@ def process_payment(order_id, amount, simulate_failure, context):
 
 @step_handler("domain_events_dsl_py.step_handlers.update_inventory")
 @inputs("order_id")
-def update_inventory(order_id, context):
+def update_inventory(order_id, _context):
     """Update inventory for the order."""
     if order_id is None:
         order_id = "unknown"

@@ -59,10 +59,10 @@ input_schema:
           type: string
           description: "Reason for refund"
 steps:
-  - name: validate_step_dsl
+  - name: validate_step_dsl_ts
     description: "Step 1: Invoke validate() method on MultiMethodHandler"
     handler:
-      callable: ResolverTests_dsl.StepHandlers.MultiMethodHandler
+      callable: ResolverTestsDsl.StepHandlers.MultiMethodValidateDslHandler
       method: validate
       initialization:
         step_number: 1
@@ -77,17 +77,17 @@ steps:
       max_backoff_ms: 10000
     timeout_seconds: 30
     publishes_events: []
-  - name: process_step_dsl
+  - name: process_step_dsl_ts
     description: "Step 2: Invoke process() method on MultiMethodHandler"
     handler:
-      callable: ResolverTests_dsl.StepHandlers.MultiMethodHandler
+      callable: ResolverTestsDsl.StepHandlers.MultiMethodProcessDslHandler
       method: process
       initialization:
         step_number: 2
         expected_method: process
     system_dependency:
     dependencies:
-      - validate_step_dsl
+      - validate_step_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -96,17 +96,17 @@ steps:
       max_backoff_ms: 10000
     timeout_seconds: 30
     publishes_events: []
-  - name: refund_step_dsl
+  - name: refund_step_dsl_ts
     description: "Step 3: Invoke refund() method on MultiMethodHandler"
     handler:
-      callable: ResolverTests_dsl.StepHandlers.MultiMethodHandler
+      callable: ResolverTestsDsl.StepHandlers.MultiMethodRefundDslHandler
       method: refund
       initialization:
         step_number: 3
         expected_method: refund
     system_dependency:
     dependencies:
-      - process_step_dsl
+      - process_step_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -115,16 +115,16 @@ steps:
       max_backoff_ms: 10000
     timeout_seconds: 30
     publishes_events: []
-  - name: default_call_step_dsl
+  - name: default_call_step_dsl_ts
     description: "Step 4: Invoke default call() method (no method specified)"
     handler:
-      callable: ResolverTests_dsl.StepHandlers.MultiMethodHandler
+      callable: ResolverTestsDsl.StepHandlers.MultiMethodDslHandler
       initialization:
         step_number: 4
         expected_method: call
     system_dependency:
     dependencies:
-      - refund_step_dsl
+      - refund_step_dsl_ts
     retry:
       retryable: true
       max_attempts: 2
@@ -136,19 +136,19 @@ steps:
 environments:
   test:
     steps:
-      - name: validate_step_dsl
+      - name: validate_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 1
-      - name: process_step_dsl
+      - name: process_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 1
-      - name: refund_step_dsl
+      - name: refund_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 1
-      - name: default_call_step_dsl
+      - name: default_call_step_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 1

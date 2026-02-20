@@ -20,12 +20,12 @@ import { StepHandler } from '../../../src/handler/base.js';
 import {
   type BatchConfig,
   Decision,
-  PermanentError,
-  RetryableError,
   defineBatchAnalyzer,
   defineBatchWorker,
   defineDecisionHandler,
   defineHandler,
+  PermanentError,
+  RetryableError,
 } from '../../../src/handler/functional.js';
 import { StepContext } from '../../../src/types/step-context.js';
 import { StepHandlerResult } from '../../../src/types/step-handler-result.js';
@@ -96,11 +96,13 @@ function createFfiEvent(): FfiStepEvent {
   } as unknown as FfiStepEvent;
 }
 
-function makeContext(overrides: {
-  inputData?: Record<string, unknown>;
-  dependencyResults?: Record<string, unknown>;
-  stepConfig?: Record<string, unknown>;
-} = {}): StepContext {
+function makeContext(
+  overrides: {
+    inputData?: Record<string, unknown>;
+    dependencyResults?: Record<string, unknown>;
+    stepConfig?: Record<string, unknown>;
+  } = {}
+): StepContext {
   const event = createFfiEvent();
   return new StepContext({
     event,
@@ -137,11 +139,7 @@ describe('defineHandler', () => {
   });
 
   it('sets custom version', async () => {
-    const Handler = defineHandler(
-      'versioned',
-      { version: '2.0.0' },
-      async () => ({})
-    );
+    const Handler = defineHandler('versioned', { version: '2.0.0' }, async () => ({}));
 
     const handler = new Handler();
     expect(handler.version).toBe('2.0.0');
@@ -231,8 +229,8 @@ describe('dependency injection', () => {
     });
     const result = await handler.call(ctx);
     expect(result.success).toBe(true);
-    expect(result.result!.cart).toEqual({ total: 50 });
-    expect(result.result!.user).toEqual({ name: 'Alice' });
+    expect(result.result?.cart).toEqual({ total: 50 });
+    expect(result.result?.user).toEqual({ name: 'Alice' });
   });
 });
 
@@ -330,11 +328,11 @@ describe('defineDecisionHandler', () => {
     const handler = new Handler();
     const result = await handler.call(makeContext());
     expect(result.success).toBe(true);
-    const outcome = result.result!.decision_point_outcome as Record<string, unknown>;
+    const outcome = result.result?.decision_point_outcome as Record<string, unknown>;
     expect(outcome.type).toBe('create_steps');
     expect(outcome.step_names).toEqual(['process_premium']);
     // routing_context is at result level (mixin format)
-    expect((result.result!.routing_context as Record<string, unknown>).tier).toBe('premium');
+    expect((result.result?.routing_context as Record<string, unknown>).tier).toBe('premium');
   });
 
   it('Decision.skip() creates no_branches outcome', async () => {
@@ -345,10 +343,10 @@ describe('defineDecisionHandler', () => {
     const handler = new Handler();
     const result = await handler.call(makeContext());
     expect(result.success).toBe(true);
-    const outcome = result.result!.decision_point_outcome as Record<string, unknown>;
+    const outcome = result.result?.decision_point_outcome as Record<string, unknown>;
     expect(outcome.type).toBe('no_branches');
     // reason is at result level (mixin format)
-    expect(result.result!.reason).toBe('No items to process');
+    expect(result.result?.reason).toBe('No items to process');
   });
 
   it('has decision capabilities', () => {
@@ -380,7 +378,7 @@ describe('defineDecisionHandler', () => {
     });
     const result = await handler.call(ctx);
     expect(result.success).toBe(true);
-    const outcome = result.result!.decision_point_outcome as Record<string, unknown>;
+    const outcome = result.result?.decision_point_outcome as Record<string, unknown>;
     expect(outcome.step_names).toEqual(['process_premium']);
   });
 });
@@ -403,7 +401,7 @@ describe('defineBatchAnalyzer', () => {
     const result = await handler.call(makeContext());
     expect(result.success).toBe(true);
 
-    const outcome = result.result!.batch_processing_outcome as Record<string, unknown>;
+    const outcome = result.result?.batch_processing_outcome as Record<string, unknown>;
     expect(outcome.type).toBe('create_batches');
     expect(outcome.worker_template_name).toBe('process_batch');
     expect(outcome.total_items).toBe(250);
@@ -411,12 +409,12 @@ describe('defineBatchAnalyzer', () => {
 
     const configs = outcome.cursor_configs as Record<string, unknown>[];
     expect(configs).toHaveLength(3);
-    expect(configs[0]!.start_cursor).toBe(0);
-    expect(configs[0]!.end_cursor).toBe(100);
-    expect(configs[1]!.start_cursor).toBe(100);
-    expect(configs[1]!.end_cursor).toBe(200);
-    expect(configs[2]!.start_cursor).toBe(200);
-    expect(configs[2]!.end_cursor).toBe(250);
+    expect(configs[0]?.start_cursor).toBe(0);
+    expect(configs[0]?.end_cursor).toBe(100);
+    expect(configs[1]?.start_cursor).toBe(100);
+    expect(configs[1]?.end_cursor).toBe(200);
+    expect(configs[2]?.start_cursor).toBe(200);
+    expect(configs[2]?.end_cursor).toBe(250);
   });
 });
 
@@ -438,7 +436,7 @@ describe('defineBatchWorker', () => {
 
   it('extracts batch context from step config', async () => {
     const Handler = defineBatchWorker('process_batch', {}, async ({ batchContext }) => {
-      const bc = batchContext!;
+      const bc = batchContext ?? { startCursor: '', endCursor: '', batchId: '' };
       return {
         start: bc.startCursor,
         end: bc.endCursor,
@@ -491,8 +489,8 @@ describe('combined dependencies and inputs', () => {
     });
     const result = await handler.call(ctx);
     expect(result.success).toBe(true);
-    expect(result.result!.prev).toEqual({ count: 5 });
-    expect(result.result!.config).toBe('abc');
+    expect(result.result?.prev).toEqual({ count: 5 });
+    expect(result.result?.config).toBe('abc');
   });
 });
 

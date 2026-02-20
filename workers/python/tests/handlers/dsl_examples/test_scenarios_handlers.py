@@ -9,14 +9,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from tasker_core.errors import PermanentError, RetryableError
 from tasker_core.step_handler.functional import inputs, step_handler
 from tasker_core.types import StepHandlerResult
 
 
-@step_handler("test_scenarios_dsl.step_handlers.success_step")
+@step_handler("test_scenarios_dsl_py.step_handlers.success_step")
 @inputs("message")
-def success_step(message, context):
+def success_step(message, _context):
     """Execute successfully."""
     if message is None:
         message = "Step completed successfully"
@@ -29,9 +28,9 @@ def success_step(message, context):
     }
 
 
-@step_handler("test_scenarios_dsl.step_handlers.retryable_error_step")
+@step_handler("test_scenarios_dsl_py.step_handlers.retryable_error_step")
 @inputs("error_message")
-def retryable_error_step(error_message, context):
+def retryable_error_step(error_message, _context):
     """Return a retryable error."""
     if error_message is None:
         error_message = "Temporary failure - please retry"
@@ -47,9 +46,9 @@ def retryable_error_step(error_message, context):
     )
 
 
-@step_handler("test_scenarios_dsl.step_handlers.permanent_error_step")
+@step_handler("test_scenarios_dsl_py.step_handlers.permanent_error_step")
 @inputs("error_message")
-def permanent_error_step(error_message, context):
+def permanent_error_step(error_message, _context):
     """Return a permanent error."""
     if error_message is None:
         error_message = "Permanent failure - do not retry"

@@ -9,14 +9,14 @@
 # publishing (which is handled by the worker's post-execution callback
 # system) is outside the handler's concern.
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 DomainEventValidateOrderDslHandler = step_handler(
   'domain_events_dsl.step_handlers.validate_order'
 ) do |context:|
   ctx = context.task.context || {}
   order_id = ctx['order_id'] || SecureRandom.uuid
-  customer_id = ctx['customer_id'] || 'unknown'
+  ctx['customer_id'] || 'unknown'
   amount = ctx['amount'] || 0
 
   validation_checks = %w[order_id_present customer_id_present]

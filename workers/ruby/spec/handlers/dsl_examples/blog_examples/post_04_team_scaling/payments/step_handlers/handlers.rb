@@ -7,12 +7,12 @@
 #
 # NOTE: Non-deterministic fields differ between runs.
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 PaymentsValidateEligibilityDslHandler = step_handler(
   'payments_dsl.step_handlers.validate_payment_eligibility',
   inputs: %i[payment_id refund_amount refund_reason]
-) do |payment_id:, refund_amount:, refund_reason:, context:|
+) do |payment_id:, refund_amount:, refund_reason:, context:| # rubocop:disable Lint/UnusedBlockArgument
   payment_id ||= context.get_input('payment_id')
   refund_amount ||= context.get_input('refund_amount')
 
@@ -59,10 +59,10 @@ end
 
 PaymentsProcessGatewayRefundDslHandler = step_handler(
   'payments_dsl.step_handlers.process_gateway_refund',
-  depends_on: { validation: 'validate_payment_eligibility' },
+  depends_on: { validation: 'validate_payment_eligibility_dsl' },
   inputs: %i[refund_reason]
-) do |validation:, refund_reason:, context:|
-  deep_sym = ->(obj) {
+) do |validation:, refund_reason:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -100,10 +100,10 @@ end
 
 PaymentsUpdateRecordsDslHandler = step_handler(
   'payments_dsl.step_handlers.update_payment_records',
-  depends_on: { refund: 'process_gateway_refund', validation: 'validate_payment_eligibility' },
+  depends_on: { refund: 'process_gateway_refund_dsl', validation: 'validate_payment_eligibility_dsl' },
   inputs: [:refund_reason]
-) do |refund:, validation:, refund_reason:, context:|
-  deep_sym = ->(obj) {
+) do |refund:, validation:, refund_reason:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -139,10 +139,10 @@ end
 
 PaymentsNotifyCustomerDslHandler = step_handler(
   'payments_dsl.step_handlers.notify_customer',
-  depends_on: { refund: 'process_gateway_refund' },
+  depends_on: { refund: 'process_gateway_refund_dsl' },
   inputs: %i[customer_email refund_reason]
-) do |refund:, customer_email:, refund_reason:, context:|
-  deep_sym = ->(obj) {
+) do |refund:, customer_email:, refund_reason:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }

@@ -39,7 +39,7 @@ steps:
   - name: retryable_error_step_dsl_ts
     description: "A step that returns a retryable error"
     handler:
-      callable: test_errors_dsl.step_handlers.retryable_error
+      callable: test_errors_dsl.step_handlers.RetryableErrorDslHandler
       initialization:
         expected_outcome: retryable_error
     system_dependency:

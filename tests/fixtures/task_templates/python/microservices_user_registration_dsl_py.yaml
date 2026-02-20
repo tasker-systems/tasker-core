@@ -48,7 +48,7 @@ metadata:
   updated_at: "2026-01-12T00:00:00Z"
   notes: "Python FFI implementation demonstrating microservices coordination from Blog Post 03"
 task_handler:
-  callable: Microservices_dsl.TaskHandlers.UserRegistrationHandler
+  callable: Microservices_dsl_py.TaskHandlers.UserRegistrationHandler
   initialization:
     timeout_seconds: 120
     max_retries: 2
@@ -79,10 +79,10 @@ input_schema:
         - name
 steps:
   # SEQUENTIAL PHASE - User creation must complete first
-  - name: create_user_account_dsl
+  - name: create_user_account_dsl_py
     description: "Create user account in user service with idempotency"
     handler:
-      callable: microservices_dsl.step_handlers.create_user_account
+      callable: microservices_dsl_py.step_handlers.create_user_account
       initialization:
         scenario: user_registration
     system_dependency:
@@ -97,15 +97,15 @@ steps:
     publishes_events: []
 
   # PARALLEL PHASE - Billing and preferences run concurrently after user creation
-  - name: setup_billing_profile_dsl
+  - name: setup_billing_profile_dsl_py
     description: "Setup billing profile in billing service"
     handler:
-      callable: microservices_dsl.step_handlers.setup_billing_profile
+      callable: microservices_dsl_py.step_handlers.setup_billing_profile
       initialization:
         scenario: user_registration
     system_dependency:
     dependencies:
-      - create_user_account_dsl
+      - create_user_account_dsl_py
     retry:
       retryable: true
       max_attempts: 3
@@ -115,15 +115,15 @@ steps:
     timeout_seconds: 30
     publishes_events: []
 
-  - name: initialize_preferences_dsl
+  - name: initialize_preferences_dsl_py
     description: "Initialize user preferences in preferences service"
     handler:
-      callable: microservices_dsl.step_handlers.initialize_preferences
+      callable: microservices_dsl_py.step_handlers.initialize_preferences
       initialization:
         scenario: user_registration
     system_dependency:
     dependencies:
-      - create_user_account_dsl
+      - create_user_account_dsl_py
     retry:
       retryable: true
       max_attempts: 3
@@ -134,16 +134,16 @@ steps:
     publishes_events: []
 
   # COORDINATION PHASE - Welcome sequence waits for both billing and preferences
-  - name: send_welcome_sequence_dsl
+  - name: send_welcome_sequence_dsl_py
     description: "Send welcome emails via notification service"
     handler:
-      callable: microservices_dsl.step_handlers.send_welcome_sequence
+      callable: microservices_dsl_py.step_handlers.send_welcome_sequence
       initialization:
         scenario: user_registration
     system_dependency:
     dependencies:
-      - setup_billing_profile_dsl
-      - initialize_preferences_dsl
+      - setup_billing_profile_dsl_py
+      - initialize_preferences_dsl_py
     retry:
       retryable: true
       max_attempts: 2
@@ -154,15 +154,15 @@ steps:
     publishes_events: []
 
   # COMPLETION PHASE - Final status update after welcome sequence
-  - name: update_user_status_dsl
+  - name: update_user_status_dsl_py
     description: "Update user status to active in user service"
     handler:
-      callable: microservices_dsl.step_handlers.update_user_status
+      callable: microservices_dsl_py.step_handlers.update_user_status
       initialization:
         scenario: user_registration
     system_dependency:
     dependencies:
-      - send_welcome_sequence_dsl
+      - send_welcome_sequence_dsl_py
     retry:
       retryable: true
       max_attempts: 2
@@ -175,13 +175,13 @@ steps:
 environments:
   test:
     steps:
-      - name: create_user_account_dsl
+      - name: create_user_account_dsl_py
         timeout_seconds: 30
-      - name: setup_billing_profile_dsl
+      - name: setup_billing_profile_dsl_py
         timeout_seconds: 30
-      - name: initialize_preferences_dsl
+      - name: initialize_preferences_dsl_py
         timeout_seconds: 30
-      - name: send_welcome_sequence_dsl
+      - name: send_welcome_sequence_dsl_py
         timeout_seconds: 20
-      - name: update_user_status_dsl
+      - name: update_user_status_dsl_py
         timeout_seconds: 20

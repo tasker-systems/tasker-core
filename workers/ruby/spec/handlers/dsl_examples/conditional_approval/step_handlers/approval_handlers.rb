@@ -8,10 +8,10 @@
 # NOTE: routing_decision uses decision_handler DSL.
 # finalize_approval accesses dependency_results directly for dynamic convergence.
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 ApprovalValidateRequestDslHandler = step_handler(
-  'conditional_approval_dsl.step_handlers.validate_request',
+  'conditional_approval_dsl_rb.step_handlers.validate_request',
   inputs: %i[amount requester purpose]
 ) do |amount:, requester:, purpose:, context:|
   amount ||= context.task.context['amount']
@@ -42,33 +42,32 @@ SMALL_AMOUNT_THRESHOLD_DSL = 1_000
 LARGE_AMOUNT_THRESHOLD_DSL = 5_000
 
 ApprovalRoutingDecisionDslHandler = decision_handler(
-  'conditional_approval_dsl.step_handlers.routing_decision',
+  'conditional_approval_dsl_rb.step_handlers.routing_decision',
   inputs: [:amount]
 ) do |amount:, context:|
   amount ||= context.task.context['amount']
   raise 'Amount is required for routing decision' unless amount
 
   if amount < SMALL_AMOUNT_THRESHOLD_DSL
-    Decision.route(['auto_approve'],
+    Decision.route(['auto_approve_dsl'],
                    route_type: 'auto_approval',
                    reasoning: "Amount $#{amount} below $#{SMALL_AMOUNT_THRESHOLD_DSL} threshold - auto-approval")
   elsif amount < LARGE_AMOUNT_THRESHOLD_DSL
-    Decision.route(['manager_approval'],
+    Decision.route(['manager_approval_dsl'],
                    route_type: 'manager_only',
                    reasoning: "Amount $#{amount} requires manager approval (between $#{SMALL_AMOUNT_THRESHOLD_DSL} and $#{LARGE_AMOUNT_THRESHOLD_DSL})")
   else
-    Decision.route(%w[manager_approval finance_review],
+    Decision.route(%w[manager_approval_dsl finance_review_dsl],
                    route_type: 'dual_approval',
                    reasoning: "Amount $#{amount} >= $#{LARGE_AMOUNT_THRESHOLD_DSL} - requires both manager and finance approval")
   end
 end
 
 ApprovalAutoApproveDslHandler = step_handler(
-  'conditional_approval_dsl.step_handlers.auto_approve',
+  'conditional_approval_dsl_rb.step_handlers.auto_approve',
   inputs: %i[amount requester]
-) do |amount:, requester:, context:|
+) do |amount:, requester:, context:| # rubocop:disable Lint/UnusedBlockArgument
   amount ||= context.task.context['amount']
-  requester ||= context.task.context['requester']
 
   TaskerCore::Types::StepHandlerCallResult.success(
     result: {
@@ -88,12 +87,10 @@ ApprovalAutoApproveDslHandler = step_handler(
 end
 
 ApprovalManagerApprovalDslHandler = step_handler(
-  'conditional_approval_dsl.step_handlers.manager_approval',
+  'conditional_approval_dsl_rb.step_handlers.manager_approval',
   inputs: %i[amount requester purpose]
-) do |amount:, requester:, purpose:, context:|
+) do |amount:, requester:, purpose:, context:| # rubocop:disable Lint/UnusedBlockArgument
   amount ||= context.task.context['amount']
-  requester ||= context.task.context['requester']
-  purpose ||= context.task.context['purpose']
 
   approved = amount <= 10_000
 
@@ -124,11 +121,10 @@ ApprovalManagerApprovalDslHandler = step_handler(
 end
 
 ApprovalFinanceReviewDslHandler = step_handler(
-  'conditional_approval_dsl.step_handlers.finance_review',
+  'conditional_approval_dsl_rb.step_handlers.finance_review',
   inputs: %i[amount requester purpose]
-) do |amount:, requester:, purpose:, context:|
+) do |amount:, requester:, purpose:, context:| # rubocop:disable Lint/UnusedBlockArgument
   amount ||= context.task.context['amount']
-  requester ||= context.task.context['requester']
   purpose ||= context.task.context['purpose']
 
   budget_available = amount <= 25_000
@@ -163,7 +159,7 @@ ApprovalFinanceReviewDslHandler = step_handler(
 end
 
 ApprovalFinalizeApprovalDslHandler = step_handler(
-  'conditional_approval_dsl.step_handlers.finalize_approval',
+  'conditional_approval_dsl_rb.step_handlers.finalize_approval',
   inputs: %i[amount requester purpose]
 ) do |amount:, requester:, purpose:, context:|
   amount ||= context.task.context['amount']
@@ -171,7 +167,7 @@ ApprovalFinalizeApprovalDslHandler = step_handler(
   purpose ||= context.task.context['purpose']
 
   # Collect approval results from dynamic dependencies
-  approval_steps = %w[auto_approve manager_approval finance_review]
+  approval_steps = %w[auto_approve_dsl manager_approval_dsl finance_review_dsl]
   approvals = approval_steps.filter_map do |step_name|
     result_data = context.get_dependency_result(step_name)
     next unless result_data.is_a?(Hash) && (result_data['approved'] == true || result_data[:approved] == true)

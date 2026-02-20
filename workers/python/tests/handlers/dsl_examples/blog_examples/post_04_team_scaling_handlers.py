@@ -31,9 +31,9 @@ REFUND_POLICIES = {
 # ============================================================================
 
 
-@step_handler("team_scaling_dsl.customer_success.step_handlers.validate_refund_request")
+@step_handler("team_scaling_dsl_py.customer_success.step_handlers.validate_refund_request")
 @inputs("ticket_id", "customer_id", "refund_amount", "refund_reason")
-def cs_validate_refund_request(ticket_id, customer_id, refund_amount, refund_reason, context):
+def cs_validate_refund_request(ticket_id, customer_id, refund_amount, _refund_reason, _context):
     """Validate customer refund request details."""
     missing_fields = []
     if not ticket_id:
@@ -52,9 +52,17 @@ def cs_validate_refund_request(ticket_id, customer_id, refund_amount, refund_rea
 
     # Simulate validation
     if "ticket_closed" in ticket_id:
-        return StepHandlerResult.failure(message="Cannot process refund for closed ticket", error_type="TICKET_CLOSED", retryable=False)
+        return StepHandlerResult.failure(
+            message="Cannot process refund for closed ticket",
+            error_type="TICKET_CLOSED",
+            retryable=False,
+        )
     if "ticket_cancelled" in ticket_id:
-        return StepHandlerResult.failure(message="Cannot process refund for cancelled ticket", error_type="TICKET_CANCELLED", retryable=False)
+        return StepHandlerResult.failure(
+            message="Cannot process refund for cancelled ticket",
+            error_type="TICKET_CANCELLED",
+            retryable=False,
+        )
 
     # Determine customer tier
     if "vip" in customer_id.lower() or "premium" in customer_id.lower():
@@ -79,13 +87,17 @@ def cs_validate_refund_request(ticket_id, customer_id, refund_amount, refund_rea
     }
 
 
-@step_handler("team_scaling_dsl.customer_success.step_handlers.check_refund_policy")
-@depends_on(validation_result="validate_refund_request")
+@step_handler("team_scaling_dsl_py.customer_success.step_handlers.check_refund_policy")
+@depends_on(validation_result="validate_refund_request_dsl_py")
 @inputs("refund_amount", "refund_reason")
-def cs_check_refund_policy(validation_result, refund_amount, refund_reason, context):
+def cs_check_refund_policy(validation_result, refund_amount, _refund_reason, _context):
     """Check if refund request complies with policy rules."""
     if not validation_result or not validation_result.get("request_validated"):
-        return StepHandlerResult.failure(message="Request validation must be completed before policy check", error_type="MISSING_VALIDATION", retryable=False)
+        return StepHandlerResult.failure(
+            message="Request validation must be completed before policy check",
+            error_type="MISSING_VALIDATION",
+            retryable=False,
+        )
 
     customer_tier = validation_result.get("customer_tier", "standard")
     purchase_date_str = validation_result.get("original_purchase_date")
@@ -126,13 +138,19 @@ def cs_check_refund_policy(validation_result, refund_amount, refund_reason, cont
     }
 
 
-@step_handler("team_scaling_dsl.customer_success.step_handlers.get_manager_approval")
-@depends_on(policy_result="check_refund_policy", validation_result="validate_refund_request")
+@step_handler("team_scaling_dsl_py.customer_success.step_handlers.get_manager_approval")
+@depends_on(policy_result="check_refund_policy_dsl_py", validation_result="validate_refund_request_dsl_py")
 @inputs("refund_amount", "refund_reason")
-def cs_get_manager_approval(policy_result, validation_result, refund_amount, refund_reason, context):
+def cs_get_manager_approval(
+    policy_result, validation_result, _refund_amount, _refund_reason, _context
+):
     """Get manager approval for refund if required."""
     if not policy_result or not policy_result.get("policy_checked"):
-        return StepHandlerResult.failure(message="Policy check must be completed before approval", error_type="MISSING_POLICY_CHECK", retryable=False)
+        return StepHandlerResult.failure(
+            message="Policy check must be completed before approval",
+            error_type="MISSING_POLICY_CHECK",
+            retryable=False,
+        )
 
     requires_approval = policy_result.get("requires_approval")
     customer_tier = policy_result.get("customer_tier")
@@ -143,7 +161,11 @@ def cs_get_manager_approval(policy_result, validation_result, refund_amount, ref
         customer_id = validation_result.get("customer_id", "") if validation_result else ""
 
         if "ticket_denied" in ticket_id:
-            return StepHandlerResult.failure(message="Manager denied refund request: Manager denied refund request", error_type="APPROVAL_DENIED", retryable=False)
+            return StepHandlerResult.failure(
+                message="Manager denied refund request: Manager denied refund request",
+                error_type="APPROVAL_DENIED",
+                retryable=False,
+            )
 
         approval_id = f"appr_{uuid.uuid4().hex[:16]}"
         manager_id = f"mgr_{(hash(ticket_id) % 5) + 1}"
@@ -171,19 +193,36 @@ def cs_get_manager_approval(policy_result, validation_result, refund_amount, ref
         }
 
 
-@step_handler("team_scaling_dsl.customer_success.step_handlers.execute_refund_workflow")
-@depends_on(approval_result="get_manager_approval", validation_result="validate_refund_request")
+@step_handler("team_scaling_dsl_py.customer_success.step_handlers.execute_refund_workflow")
+@depends_on(approval_result="get_manager_approval_dsl_py", validation_result="validate_refund_request_dsl_py")
 @inputs("refund_amount", "refund_reason", "customer_email", "ticket_id", "correlation_id")
-def cs_execute_refund_workflow(approval_result, validation_result, refund_amount, refund_reason, customer_email, ticket_id, correlation_id, context):
+def cs_execute_refund_workflow(
+    approval_result,
+    validation_result,
+    _refund_amount,
+    refund_reason,
+    customer_email,
+    _ticket_id,
+    correlation_id,
+    _context,
+):
     """Execute cross-namespace refund workflow delegation."""
     if not approval_result or not approval_result.get("approval_obtained"):
-        return StepHandlerResult.failure(message="Manager approval must be obtained before executing refund", error_type="MISSING_APPROVAL", retryable=False)
+        return StepHandlerResult.failure(
+            message="Manager approval must be obtained before executing refund",
+            error_type="MISSING_APPROVAL",
+            retryable=False,
+        )
 
     payment_id = validation_result.get("payment_id") if validation_result else None
     if not payment_id:
-        return StepHandlerResult.failure(message="Payment ID not found in validation results", error_type="MISSING_PAYMENT_ID", retryable=False)
+        return StepHandlerResult.failure(
+            message="Payment ID not found in validation results",
+            error_type="MISSING_PAYMENT_ID",
+            retryable=False,
+        )
 
-    approval_id = approval_result.get("approval_id")
+    _approval_id = approval_result.get("approval_id")
     if refund_reason is None:
         refund_reason = "customer_request"
     if customer_email is None:
@@ -206,13 +245,21 @@ def cs_execute_refund_workflow(approval_result, validation_result, refund_amount
     }
 
 
-@step_handler("team_scaling_dsl.customer_success.step_handlers.update_ticket_status")
-@depends_on(delegation_result="execute_refund_workflow", validation_result="validate_refund_request")
+@step_handler("team_scaling_dsl_py.customer_success.step_handlers.update_ticket_status")
+@depends_on(
+    delegation_result="execute_refund_workflow_dsl_py", validation_result="validate_refund_request_dsl_py"
+)
 @inputs("refund_amount", "refund_reason")
-def cs_update_ticket_status(delegation_result, validation_result, refund_amount, refund_reason, context):
+def cs_update_ticket_status(
+    delegation_result, validation_result, refund_amount, _refund_reason, _context
+):
     """Update customer support ticket status."""
     if not delegation_result or not delegation_result.get("task_delegated"):
-        return StepHandlerResult.failure(message="Refund workflow must be executed before updating ticket", error_type="MISSING_DELEGATION", retryable=False)
+        return StepHandlerResult.failure(
+            message="Refund workflow must be executed before updating ticket",
+            error_type="MISSING_DELEGATION",
+            retryable=False,
+        )
 
     ticket_id = validation_result.get("ticket_id") if validation_result else None
     delegated_task_id = delegation_result.get("delegated_task_id")
@@ -220,7 +267,11 @@ def cs_update_ticket_status(delegation_result, validation_result, refund_amount,
     now = datetime.now(timezone.utc).isoformat()
 
     if ticket_id and "ticket_locked" in ticket_id:
-        return StepHandlerResult.failure(message="Ticket locked by another agent, will retry", error_type="TICKET_LOCKED", retryable=True)
+        return StepHandlerResult.failure(
+            message="Ticket locked by another agent, will retry",
+            error_type="TICKET_LOCKED",
+            retryable=True,
+        )
 
     resolution_note = (
         f"Refund of ${refund_amount / 100:.2f} processed successfully. "
@@ -246,9 +297,11 @@ def cs_update_ticket_status(delegation_result, validation_result, refund_amount,
 # ============================================================================
 
 
-@step_handler("team_scaling_dsl.payments.step_handlers.validate_payment_eligibility")
+@step_handler("team_scaling_dsl_py.payments.step_handlers.validate_payment_eligibility")
 @inputs("payment_id", "refund_amount", "refund_reason", "partial_refund")
-def pay_validate_payment_eligibility(payment_id, refund_amount, refund_reason, partial_refund, context):
+def pay_validate_payment_eligibility(
+    payment_id, refund_amount, _refund_reason, partial_refund, _context
+):
     """Validate payment eligibility for refund."""
     if partial_refund is None:
         partial_refund = False
@@ -260,18 +313,38 @@ def pay_validate_payment_eligibility(payment_id, refund_amount, refund_reason, p
         missing_fields.append("refund_amount")
 
     if missing_fields:
-        return StepHandlerResult.failure(message=f"Missing required fields for payment validation: {', '.join(missing_fields)}", error_type="MISSING_REQUIRED_FIELDS", retryable=False)
+        return StepHandlerResult.failure(
+            message=f"Missing required fields for payment validation: {', '.join(missing_fields)}",
+            error_type="MISSING_REQUIRED_FIELDS",
+            retryable=False,
+        )
 
     if refund_amount <= 0:
-        return StepHandlerResult.failure(message=f"Refund amount must be positive, got: {refund_amount}", error_type="INVALID_REFUND_AMOUNT", retryable=False)
+        return StepHandlerResult.failure(
+            message=f"Refund amount must be positive, got: {refund_amount}",
+            error_type="INVALID_REFUND_AMOUNT",
+            retryable=False,
+        )
 
     if not re.match(r"^pay_[a-zA-Z0-9_]+$", payment_id):
-        return StepHandlerResult.failure(message=f"Invalid payment ID format: {payment_id}", error_type="INVALID_PAYMENT_ID", retryable=False)
+        return StepHandlerResult.failure(
+            message=f"Invalid payment ID format: {payment_id}",
+            error_type="INVALID_PAYMENT_ID",
+            retryable=False,
+        )
 
     if "pay_test_insufficient" in payment_id:
-        return StepHandlerResult.failure(message="Insufficient funds available for refund", error_type="INSUFFICIENT_FUNDS", retryable=False)
+        return StepHandlerResult.failure(
+            message="Insufficient funds available for refund",
+            error_type="INSUFFICIENT_FUNDS",
+            retryable=False,
+        )
     if "pay_test_ineligible" in payment_id:
-        return StepHandlerResult.failure(message="Payment is not eligible for refund: Payment is past refund window", error_type="PAYMENT_INELIGIBLE", retryable=False)
+        return StepHandlerResult.failure(
+            message="Payment is not eligible for refund: Payment is past refund window",
+            error_type="PAYMENT_INELIGIBLE",
+            retryable=False,
+        )
 
     return {
         "payment_validated": True,
@@ -286,13 +359,17 @@ def pay_validate_payment_eligibility(payment_id, refund_amount, refund_reason, p
     }
 
 
-@step_handler("team_scaling_dsl.payments.step_handlers.process_gateway_refund")
-@depends_on(validation_result="validate_payment_eligibility")
+@step_handler("team_scaling_dsl_py.payments.step_handlers.process_gateway_refund")
+@depends_on(validation_result="validate_payment_eligibility_dsl_py")
 @inputs("refund_reason", "partial_refund")
-def pay_process_gateway_refund(validation_result, refund_reason, partial_refund, context):
+def pay_process_gateway_refund(validation_result, refund_reason, _partial_refund, _context):
     """Process refund through payment gateway."""
     if not validation_result or not validation_result.get("payment_validated"):
-        return StepHandlerResult.failure(message="Payment validation must be completed before processing refund", error_type="MISSING_VALIDATION", retryable=False)
+        return StepHandlerResult.failure(
+            message="Payment validation must be completed before processing refund",
+            error_type="MISSING_VALIDATION",
+            retryable=False,
+        )
 
     payment_id = validation_result.get("payment_id")
     refund_amount = validation_result.get("refund_amount")
@@ -300,9 +377,15 @@ def pay_process_gateway_refund(validation_result, refund_reason, partial_refund,
         refund_reason = "customer_request"
 
     if payment_id and "pay_test_gateway_timeout" in payment_id:
-        return StepHandlerResult.failure(message="Gateway timeout, will retry", error_type="GATEWAY_TIMEOUT", retryable=True)
+        return StepHandlerResult.failure(
+            message="Gateway timeout, will retry", error_type="GATEWAY_TIMEOUT", retryable=True
+        )
     if payment_id and "pay_test_gateway_error" in payment_id:
-        return StepHandlerResult.failure(message="Gateway refund failed: Gateway error", error_type="GATEWAY_REFUND_FAILED", retryable=False)
+        return StepHandlerResult.failure(
+            message="Gateway refund failed: Gateway error",
+            error_type="GATEWAY_REFUND_FAILED",
+            retryable=False,
+        )
 
     now = datetime.now(timezone.utc)
 
@@ -320,13 +403,19 @@ def pay_process_gateway_refund(validation_result, refund_reason, partial_refund,
     }
 
 
-@step_handler("team_scaling_dsl.payments.step_handlers.update_payment_records")
-@depends_on(refund_result="process_gateway_refund", validation_result="validate_payment_eligibility")
+@step_handler("team_scaling_dsl_py.payments.step_handlers.update_payment_records")
+@depends_on(
+    refund_result="process_gateway_refund_dsl_py", validation_result="validate_payment_eligibility_dsl_py"
+)
 @inputs("refund_reason")
-def pay_update_payment_records(refund_result, validation_result, refund_reason, context):
+def pay_update_payment_records(refund_result, _validation_result, refund_reason, _context):
     """Update internal payment records after refund."""
     if not refund_result or not refund_result.get("refund_processed"):
-        return StepHandlerResult.failure(message="Gateway refund must be completed before updating records", error_type="MISSING_REFUND", retryable=False)
+        return StepHandlerResult.failure(
+            message="Gateway refund must be completed before updating records",
+            error_type="MISSING_REFUND",
+            retryable=False,
+        )
 
     payment_id = refund_result.get("payment_id")
     refund_id = refund_result.get("refund_id")
@@ -334,7 +423,9 @@ def pay_update_payment_records(refund_result, validation_result, refund_reason, 
         refund_reason = "customer_request"
 
     if payment_id and "pay_test_record_lock" in payment_id:
-        return StepHandlerResult.failure(message="Payment record locked, will retry", error_type="RECORD_LOCKED", retryable=True)
+        return StepHandlerResult.failure(
+            message="Payment record locked, will retry", error_type="RECORD_LOCKED", retryable=True
+        )
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -351,19 +442,31 @@ def pay_update_payment_records(refund_result, validation_result, refund_reason, 
     }
 
 
-@step_handler("team_scaling_dsl.payments.step_handlers.notify_customer")
-@depends_on(refund_result="process_gateway_refund")
+@step_handler("team_scaling_dsl_py.payments.step_handlers.notify_customer")
+@depends_on(refund_result="process_gateway_refund_dsl_py")
 @inputs("customer_email", "refund_reason")
-def pay_notify_customer(refund_result, customer_email, refund_reason, context):
+def pay_notify_customer(refund_result, customer_email, _refund_reason, _context):
     """Send refund confirmation notification to customer."""
     if not refund_result or not refund_result.get("refund_processed"):
-        return StepHandlerResult.failure(message="Refund must be processed before sending notification", error_type="MISSING_REFUND", retryable=False)
+        return StepHandlerResult.failure(
+            message="Refund must be processed before sending notification",
+            error_type="MISSING_REFUND",
+            retryable=False,
+        )
 
     if not customer_email:
-        return StepHandlerResult.failure(message="Customer email is required for notification", error_type="MISSING_CUSTOMER_EMAIL", retryable=False)
+        return StepHandlerResult.failure(
+            message="Customer email is required for notification",
+            error_type="MISSING_CUSTOMER_EMAIL",
+            retryable=False,
+        )
 
     if not re.match(r"^[^@\s]+@[^@\s]+$", customer_email):
-        return StepHandlerResult.failure(message=f"Invalid customer email format: {customer_email}", error_type="INVALID_EMAIL_FORMAT", retryable=False)
+        return StepHandlerResult.failure(
+            message=f"Invalid customer email format: {customer_email}",
+            error_type="INVALID_EMAIL_FORMAT",
+            retryable=False,
+        )
 
     refund_id = refund_result.get("refund_id")
     refund_amount = refund_result.get("refund_amount")

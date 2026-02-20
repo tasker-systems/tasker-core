@@ -32,9 +32,9 @@ PRODUCTS: dict[int, dict[str, Any]] = {
 }
 
 
-@step_handler("ecommerce_dsl.step_handlers.validate_cart")
+@step_handler("ecommerce_dsl_py.step_handlers.validate_cart")
 @inputs("cart_items")
-def validate_cart(cart_items, context):
+def validate_cart(cart_items, _context):
     """Validate cart and calculate totals."""
     if not cart_items:
         raise PermanentError(
@@ -119,10 +119,10 @@ def validate_cart(cart_items, context):
     }
 
 
-@step_handler("ecommerce_dsl.step_handlers.process_payment")
+@step_handler("ecommerce_dsl_py.step_handlers.process_payment")
 @inputs("payment_info")
-@depends_on(cart_validation="validate_cart")
-def process_payment(payment_info, cart_validation, context):
+@depends_on(cart_validation="validate_cart_dsl_py")
+def process_payment(payment_info, cart_validation, _context):
     """Process the payment."""
     amount_to_charge = cart_validation.get("total") if cart_validation else None
 
@@ -159,9 +159,13 @@ def process_payment(payment_info, cart_validation, context):
 
     token = payment_info["token"]
     if token == "tok_test_declined":
-        raise PermanentError(message="Payment declined: Card was declined by issuer", error_code="PAYMENT_DECLINED")
+        raise PermanentError(
+            message="Payment declined: Card was declined by issuer", error_code="PAYMENT_DECLINED"
+        )
     if token == "tok_test_insufficient_funds":
-        raise PermanentError(message="Payment declined: Insufficient funds", error_code="PAYMENT_DECLINED")
+        raise PermanentError(
+            message="Payment declined: Insufficient funds", error_code="PAYMENT_DECLINED"
+        )
     if token == "tok_test_network_error":
         raise RetryableError(message="Payment service temporarily unavailable", retry_after=15)
 
@@ -179,10 +183,10 @@ def process_payment(payment_info, cart_validation, context):
     }
 
 
-@step_handler("ecommerce_dsl.step_handlers.update_inventory")
+@step_handler("ecommerce_dsl_py.step_handlers.update_inventory")
 @inputs("customer_info")
-@depends_on(cart_validation="validate_cart")
-def ecommerce_update_inventory(customer_info, cart_validation, context):
+@depends_on(cart_validation="validate_cart_dsl_py")
+def ecommerce_update_inventory(customer_info, cart_validation, _context):
     """Update inventory for cart items."""
     if not cart_validation or not cart_validation.get("validated_items"):
         raise PermanentError(
@@ -205,7 +209,9 @@ def ecommerce_update_inventory(customer_info, cart_validation, context):
         product = PRODUCTS.get(product_id)
 
         if not product:
-            raise PermanentError(message=f"Product {product_id} not found", error_code="PRODUCT_NOT_FOUND")
+            raise PermanentError(
+                message=f"Product {product_id} not found", error_code="PRODUCT_NOT_FOUND"
+            )
 
         stock_level = product["stock"]
         if stock_level < quantity:
@@ -248,23 +254,35 @@ def ecommerce_update_inventory(customer_info, cart_validation, context):
     }
 
 
-@step_handler("ecommerce_dsl.step_handlers.create_order")
+@step_handler("ecommerce_dsl_py.step_handlers.create_order")
 @inputs("customer_info")
 @depends_on(
-    cart_validation="validate_cart",
-    payment_result="process_payment",
-    inventory_result="update_inventory",
+    cart_validation="validate_cart_dsl_py",
+    payment_result="process_payment_dsl_py",
+    inventory_result="update_inventory_dsl_py",
 )
-def create_order(customer_info, cart_validation, payment_result, inventory_result, context):
+def create_order(customer_info, cart_validation, payment_result, inventory_result, _context):
     """Create the order record."""
     if not customer_info:
-        raise PermanentError(message="Customer information is required but was not provided", error_code="MISSING_CUSTOMER_INFO")
+        raise PermanentError(
+            message="Customer information is required but was not provided",
+            error_code="MISSING_CUSTOMER_INFO",
+        )
     if not cart_validation or not cart_validation.get("validated_items"):
-        raise PermanentError(message="Cart validation results are required but were not found from validate_cart step", error_code="MISSING_CART_VALIDATION")
+        raise PermanentError(
+            message="Cart validation results are required but were not found from validate_cart step",
+            error_code="MISSING_CART_VALIDATION",
+        )
     if not payment_result or not payment_result.get("payment_id"):
-        raise PermanentError(message="Payment results are required but were not found from process_payment step", error_code="MISSING_PAYMENT_RESULT")
+        raise PermanentError(
+            message="Payment results are required but were not found from process_payment step",
+            error_code="MISSING_PAYMENT_RESULT",
+        )
     if not inventory_result or not inventory_result.get("updated_products"):
-        raise PermanentError(message="Inventory results are required but were not found from update_inventory step", error_code="MISSING_INVENTORY_RESULT")
+        raise PermanentError(
+            message="Inventory results are required but were not found from update_inventory step",
+            error_code="MISSING_INVENTORY_RESULT",
+        )
 
     order_id = random.randint(1000, 9999)
     today = datetime.now(timezone.utc).strftime("%Y%m%d")
@@ -283,17 +301,26 @@ def create_order(customer_info, cart_validation, payment_result, inventory_resul
     }
 
 
-@step_handler("ecommerce_dsl.step_handlers.send_confirmation")
+@step_handler("ecommerce_dsl_py.step_handlers.send_confirmation")
 @inputs("customer_info")
-@depends_on(order_result="create_order", cart_validation="validate_cart")
-def send_confirmation(customer_info, order_result, cart_validation, context):
+@depends_on(order_result="create_order_dsl_py", cart_validation="validate_cart_dsl_py")
+def send_confirmation(customer_info, order_result, cart_validation, _context):
     """Send the confirmation email."""
     if not customer_info or not customer_info.get("email"):
-        raise PermanentError(message="Customer email is required but was not provided", error_code="MISSING_CUSTOMER_EMAIL")
+        raise PermanentError(
+            message="Customer email is required but was not provided",
+            error_code="MISSING_CUSTOMER_EMAIL",
+        )
     if not order_result or not order_result.get("order_id"):
-        raise PermanentError(message="Order results are required but were not found from create_order step", error_code="MISSING_ORDER_RESULT")
+        raise PermanentError(
+            message="Order results are required but were not found from create_order step",
+            error_code="MISSING_ORDER_RESULT",
+        )
     if not cart_validation or not cart_validation.get("validated_items"):
-        raise PermanentError(message="Cart validation results are required but were not found from validate_cart step", error_code="MISSING_CART_VALIDATION")
+        raise PermanentError(
+            message="Cart validation results are required but were not found from validate_cart step",
+            error_code="MISSING_CART_VALIDATION",
+        )
 
     customer_email = customer_info.get("email")
 

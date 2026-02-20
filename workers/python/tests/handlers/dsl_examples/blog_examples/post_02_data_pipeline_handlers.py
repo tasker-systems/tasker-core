@@ -19,32 +19,122 @@ logger = logging.getLogger(__name__)
 
 # Same sample data as verbose version
 SAMPLE_SALES_DATA: list[dict[str, Any]] = [
-    {"order_id": "ORD-001", "date": "2025-11-01", "product_id": "PROD-A", "quantity": 5, "amount": 499.95},
-    {"order_id": "ORD-002", "date": "2025-11-05", "product_id": "PROD-B", "quantity": 3, "amount": 299.97},
-    {"order_id": "ORD-003", "date": "2025-11-10", "product_id": "PROD-A", "quantity": 2, "amount": 199.98},
-    {"order_id": "ORD-004", "date": "2025-11-15", "product_id": "PROD-C", "quantity": 10, "amount": 1499.90},
-    {"order_id": "ORD-005", "date": "2025-11-18", "product_id": "PROD-B", "quantity": 7, "amount": 699.93},
+    {
+        "order_id": "ORD-001",
+        "date": "2025-11-01",
+        "product_id": "PROD-A",
+        "quantity": 5,
+        "amount": 499.95,
+    },
+    {
+        "order_id": "ORD-002",
+        "date": "2025-11-05",
+        "product_id": "PROD-B",
+        "quantity": 3,
+        "amount": 299.97,
+    },
+    {
+        "order_id": "ORD-003",
+        "date": "2025-11-10",
+        "product_id": "PROD-A",
+        "quantity": 2,
+        "amount": 199.98,
+    },
+    {
+        "order_id": "ORD-004",
+        "date": "2025-11-15",
+        "product_id": "PROD-C",
+        "quantity": 10,
+        "amount": 1499.90,
+    },
+    {
+        "order_id": "ORD-005",
+        "date": "2025-11-18",
+        "product_id": "PROD-B",
+        "quantity": 7,
+        "amount": 699.93,
+    },
 ]
 
 SAMPLE_INVENTORY_DATA: list[dict[str, Any]] = [
-    {"product_id": "PROD-A", "sku": "SKU-A-001", "warehouse": "WH-01", "quantity_on_hand": 150, "reorder_point": 50},
-    {"product_id": "PROD-B", "sku": "SKU-B-002", "warehouse": "WH-01", "quantity_on_hand": 75, "reorder_point": 25},
-    {"product_id": "PROD-C", "sku": "SKU-C-003", "warehouse": "WH-02", "quantity_on_hand": 200, "reorder_point": 100},
-    {"product_id": "PROD-A", "sku": "SKU-A-001", "warehouse": "WH-02", "quantity_on_hand": 100, "reorder_point": 50},
-    {"product_id": "PROD-B", "sku": "SKU-B-002", "warehouse": "WH-03", "quantity_on_hand": 50, "reorder_point": 25},
+    {
+        "product_id": "PROD-A",
+        "sku": "SKU-A-001",
+        "warehouse": "WH-01",
+        "quantity_on_hand": 150,
+        "reorder_point": 50,
+    },
+    {
+        "product_id": "PROD-B",
+        "sku": "SKU-B-002",
+        "warehouse": "WH-01",
+        "quantity_on_hand": 75,
+        "reorder_point": 25,
+    },
+    {
+        "product_id": "PROD-C",
+        "sku": "SKU-C-003",
+        "warehouse": "WH-02",
+        "quantity_on_hand": 200,
+        "reorder_point": 100,
+    },
+    {
+        "product_id": "PROD-A",
+        "sku": "SKU-A-001",
+        "warehouse": "WH-02",
+        "quantity_on_hand": 100,
+        "reorder_point": 50,
+    },
+    {
+        "product_id": "PROD-B",
+        "sku": "SKU-B-002",
+        "warehouse": "WH-03",
+        "quantity_on_hand": 50,
+        "reorder_point": 25,
+    },
 ]
 
 SAMPLE_CUSTOMER_DATA: list[dict[str, Any]] = [
-    {"customer_id": "CUST-001", "name": "Alice Johnson", "tier": "gold", "lifetime_value": 5000.00, "join_date": "2024-01-15"},
-    {"customer_id": "CUST-002", "name": "Bob Smith", "tier": "silver", "lifetime_value": 2500.00, "join_date": "2024-03-20"},
-    {"customer_id": "CUST-003", "name": "Carol White", "tier": "premium", "lifetime_value": 15000.00, "join_date": "2023-11-10"},
-    {"customer_id": "CUST-004", "name": "David Brown", "tier": "standard", "lifetime_value": 500.00, "join_date": "2025-01-05"},
-    {"customer_id": "CUST-005", "name": "Eve Davis", "tier": "gold", "lifetime_value": 7500.00, "join_date": "2024-06-12"},
+    {
+        "customer_id": "CUST-001",
+        "name": "Alice Johnson",
+        "tier": "gold",
+        "lifetime_value": 5000.00,
+        "join_date": "2024-01-15",
+    },
+    {
+        "customer_id": "CUST-002",
+        "name": "Bob Smith",
+        "tier": "silver",
+        "lifetime_value": 2500.00,
+        "join_date": "2024-03-20",
+    },
+    {
+        "customer_id": "CUST-003",
+        "name": "Carol White",
+        "tier": "premium",
+        "lifetime_value": 15000.00,
+        "join_date": "2023-11-10",
+    },
+    {
+        "customer_id": "CUST-004",
+        "name": "David Brown",
+        "tier": "standard",
+        "lifetime_value": 500.00,
+        "join_date": "2025-01-05",
+    },
+    {
+        "customer_id": "CUST-005",
+        "name": "Eve Davis",
+        "tier": "gold",
+        "lifetime_value": 7500.00,
+        "join_date": "2024-06-12",
+    },
 ]
 
 
-@step_handler("data_pipeline_dsl.step_handlers.extract_sales_data")
-def extract_sales_data(context):
+@step_handler("data_pipeline_dsl_py.step_handlers.extract_sales_data")
+def extract_sales_data(_context):
     """Extract sales data from simulated database."""
     dates = [r["date"] for r in SAMPLE_SALES_DATA]
     return {
@@ -56,8 +146,8 @@ def extract_sales_data(context):
     }
 
 
-@step_handler("data_pipeline_dsl.step_handlers.extract_inventory_data")
-def extract_inventory_data(context):
+@step_handler("data_pipeline_dsl_py.step_handlers.extract_inventory_data")
+def extract_inventory_data(_context):
     """Extract inventory data from simulated warehouse system."""
     warehouses = list({r["warehouse"] for r in SAMPLE_INVENTORY_DATA})
     return {
@@ -70,8 +160,8 @@ def extract_inventory_data(context):
     }
 
 
-@step_handler("data_pipeline_dsl.step_handlers.extract_customer_data")
-def extract_customer_data(context):
+@step_handler("data_pipeline_dsl_py.step_handlers.extract_customer_data")
+def extract_customer_data(_context):
     """Extract customer data from simulated CRM."""
     tier_breakdown: dict[str, int] = {}
     for customer in SAMPLE_CUSTOMER_DATA:
@@ -90,12 +180,14 @@ def extract_customer_data(context):
     }
 
 
-@step_handler("data_pipeline_dsl.step_handlers.transform_sales")
-@depends_on(extract_results="extract_sales_data")
-def transform_sales(extract_results, context):
+@step_handler("data_pipeline_dsl_py.step_handlers.transform_sales")
+@depends_on(extract_results="extract_sales_data_dsl_py")
+def transform_sales(extract_results, _context):
     """Transform extracted sales data for analytics."""
     if not extract_results:
-        raise PermanentError(message="Sales extraction results not found", error_code="MISSING_EXTRACT_RESULTS")
+        raise PermanentError(
+            message="Sales extraction results not found", error_code="MISSING_EXTRACT_RESULTS"
+        )
 
     raw_records = extract_results.get("records", [])
 
@@ -136,12 +228,14 @@ def transform_sales(extract_results, context):
     }
 
 
-@step_handler("data_pipeline_dsl.step_handlers.transform_inventory")
-@depends_on(extract_results="extract_inventory_data")
-def transform_inventory(extract_results, context):
+@step_handler("data_pipeline_dsl_py.step_handlers.transform_inventory")
+@depends_on(extract_results="extract_inventory_data_dsl_py")
+def transform_inventory(extract_results, _context):
     """Transform extracted inventory data for analytics."""
     if not extract_results:
-        raise PermanentError(message="Inventory extraction results not found", error_code="MISSING_EXTRACT_RESULTS")
+        raise PermanentError(
+            message="Inventory extraction results not found", error_code="MISSING_EXTRACT_RESULTS"
+        )
 
     raw_records = extract_results.get("records", [])
 
@@ -186,12 +280,14 @@ def transform_inventory(extract_results, context):
     }
 
 
-@step_handler("data_pipeline_dsl.step_handlers.transform_customers")
-@depends_on(extract_results="extract_customer_data")
-def transform_customers(extract_results, context):
+@step_handler("data_pipeline_dsl_py.step_handlers.transform_customers")
+@depends_on(extract_results="extract_customer_data_dsl_py")
+def transform_customers(extract_results, _context):
     """Transform extracted customer data for analytics."""
     if not extract_results:
-        raise PermanentError(message="Customer extraction results not found", error_code="MISSING_EXTRACT_RESULTS")
+        raise PermanentError(
+            message="Customer extraction results not found", error_code="MISSING_EXTRACT_RESULTS"
+        )
 
     raw_records = extract_results.get("records", [])
 
@@ -227,13 +323,13 @@ def transform_customers(extract_results, context):
     }
 
 
-@step_handler("data_pipeline_dsl.step_handlers.aggregate_metrics")
+@step_handler("data_pipeline_dsl_py.step_handlers.aggregate_metrics")
 @depends_on(
-    sales_data="transform_sales",
-    inventory_data="transform_inventory",
-    customer_data="transform_customers",
+    sales_data="transform_sales_dsl_py",
+    inventory_data="transform_inventory_dsl_py",
+    customer_data="transform_customers_dsl_py",
 )
-def aggregate_metrics(sales_data, inventory_data, customer_data, context):
+def aggregate_metrics(sales_data, inventory_data, customer_data, _context):
     """Aggregate metrics from all transform steps."""
     missing = []
     if not sales_data:
@@ -273,12 +369,14 @@ def aggregate_metrics(sales_data, inventory_data, customer_data, context):
     }
 
 
-@step_handler("data_pipeline_dsl.step_handlers.generate_insights")
-@depends_on(metrics="aggregate_metrics")
-def generate_insights(metrics, context):
+@step_handler("data_pipeline_dsl_py.step_handlers.generate_insights")
+@depends_on(metrics="aggregate_metrics_dsl_py")
+def generate_insights(metrics, _context):
     """Generate business insights from aggregated metrics."""
     if not metrics:
-        raise PermanentError(message="Aggregated metrics not found", error_code="MISSING_AGGREGATE_RESULTS")
+        raise PermanentError(
+            message="Aggregated metrics not found", error_code="MISSING_AGGREGATE_RESULTS"
+        )
 
     insights = []
     revenue = metrics.get("total_revenue", 0)
@@ -286,39 +384,53 @@ def generate_insights(metrics, context):
     revenue_per_customer = metrics.get("revenue_per_customer", 0)
 
     if revenue > 0:
-        recommendation = "Consider upselling strategies" if revenue_per_customer < 500 else "Customer spend is healthy"
-        insights.append({
-            "category": "Revenue",
-            "finding": f"Total revenue of ${revenue} with {customers} customers",
-            "metric": revenue_per_customer,
-            "recommendation": recommendation,
-        })
+        recommendation = (
+            "Consider upselling strategies"
+            if revenue_per_customer < 500
+            else "Customer spend is healthy"
+        )
+        insights.append(
+            {
+                "category": "Revenue",
+                "finding": f"Total revenue of ${revenue} with {customers} customers",
+                "metric": revenue_per_customer,
+                "recommendation": recommendation,
+            }
+        )
 
     inventory_alerts = metrics.get("inventory_reorder_alerts", 0)
     if inventory_alerts > 0:
-        insights.append({
-            "category": "Inventory",
-            "finding": f"{inventory_alerts} products need reordering",
-            "metric": inventory_alerts,
-            "recommendation": "Review reorder points and place purchase orders",
-        })
+        insights.append(
+            {
+                "category": "Inventory",
+                "finding": f"{inventory_alerts} products need reordering",
+                "metric": inventory_alerts,
+                "recommendation": "Review reorder points and place purchase orders",
+            }
+        )
     else:
-        insights.append({
-            "category": "Inventory",
-            "finding": "All products above reorder points",
-            "metric": 0,
-            "recommendation": "Inventory levels are healthy",
-        })
+        insights.append(
+            {
+                "category": "Inventory",
+                "finding": "All products above reorder points",
+                "metric": 0,
+                "recommendation": "Inventory levels are healthy",
+            }
+        )
 
     total_ltv = metrics.get("total_customer_lifetime_value", 0)
     avg_ltv = total_ltv / customers if customers > 0 else 0
-    recommendation = "Focus on retention programs" if avg_ltv > 3000 else "Increase customer engagement"
-    insights.append({
-        "category": "Customer Value",
-        "finding": f"Average customer lifetime value: ${avg_ltv:.2f}",
-        "metric": avg_ltv,
-        "recommendation": recommendation,
-    })
+    recommendation = (
+        "Focus on retention programs" if avg_ltv > 3000 else "Increase customer engagement"
+    )
+    insights.append(
+        {
+            "category": "Customer Value",
+            "finding": f"Average customer lifetime value: ${avg_ltv:.2f}",
+            "metric": avg_ltv,
+            "recommendation": recommendation,
+        }
+    )
 
     # Health score
     score = 0

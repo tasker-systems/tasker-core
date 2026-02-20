@@ -11,7 +11,7 @@ metadata:
     - implementation:ruby_ffi
     - language:ruby
 task_handler:
-  callable: ErrorScenarios::PermanentErrorOnlyHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     error_tracking_enabled: true
 system_dependencies:
@@ -28,7 +28,7 @@ steps:
   - name: permanent_error_step_dsl
     description: "Permanent error that should not be retried"
     handler:
-      callable: ErrorScenarios::PermanentErrorHandler_dsl
+      callable: error_scenarios_dsl.step_handlers.permanent_error
       initialization:
         error_type: permanent
     system_dependency:

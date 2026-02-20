@@ -287,20 +287,23 @@ async fn test_python_no_batches_scenario_dsl() -> Result<()> {
         .await?;
     println!("✅ Retrieved {} workflow steps", steps.len());
 
-    // Verify NO batch workers were created
+    // Verify the orchestrator created exactly 1 no-op placeholder worker.
+    // The batch processing service always creates a placeholder worker (batch_id "000")
+    // in the NoBatches scenario so the convergence step can resolve its dependencies.
     let batch_workers: Vec<_> = steps
         .iter()
         .filter(|s| s.name.starts_with("process_csv_batch_"))
         .collect();
 
     println!(
-        "   ✅ Batch worker count: {} (expected 0)",
+        "   ✅ Batch worker count: {} (expected 1 no-op placeholder)",
         batch_workers.len()
     );
 
-    assert!(
-        batch_workers.is_empty(),
-        "Should have no batch workers in NoBatches scenario"
+    assert_eq!(
+        batch_workers.len(),
+        1,
+        "NoBatches scenario should have exactly 1 no-op placeholder worker"
     );
 
     // Verify we still have the main workflow steps
@@ -314,12 +317,20 @@ async fn test_python_no_batches_scenario_dsl() -> Result<()> {
     // The workflow should still have analyze_csv_py (which discovers 0 batches)
     assert!(
         step_names.contains(&"analyze_csv_dsl_py".to_string()),
-        "Should have analyze_csv_py step"
+        "Should have analyze_csv_dsl_py step"
+    );
+
+    // All steps should be complete
+    assert!(
+        steps
+            .iter()
+            .all(|s| s.current_state.to_uppercase() == "COMPLETE"),
+        "All steps should be complete in NoBatches scenario"
     );
 
     println!("\n🎉 NoBatches Scenario Test with Python Handlers PASSED!");
     println!("✅ Empty CSV detection: Working");
-    println!("✅ No batch workers created: Correct");
+    println!("✅ No-op placeholder worker created: Correct");
     println!("✅ Graceful handling of zero batches: Working");
     println!("✅ Python Batchable logic: Working");
 

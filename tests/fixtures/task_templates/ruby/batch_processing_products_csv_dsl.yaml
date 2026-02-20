@@ -13,8 +13,9 @@ steps:
     type: batchable
     dependencies: []
     handler:
-      callable: TaskerCore::BatchProcessing::StepHandlers::CsvAnalyzerHandler_dsl
+      callable: csv_processing_dsl.step_handlers.analyze_csv
       initialization:
+        worker_template_name: "process_csv_batch_dsl"
         batch_size: 200
         max_workers: 5
 
@@ -29,7 +30,7 @@ steps:
       max_retries: 3
       backoff_multiplier: 2.0
     handler:
-      callable: TaskerCore::BatchProcessing::StepHandlers::CsvBatchProcessorHandler_dsl
+      callable: csv_processing_dsl.step_handlers.process_csv_batch
       initialization:
         operation: "inventory_analysis"
     batch_config:
@@ -43,8 +44,8 @@ steps:
   - name: aggregate_csv_results_dsl
     type: deferred_convergence
     dependencies:
-      - process_csv_batch  # Template dependency - resolves to all worker instances
+      - process_csv_batch_dsl  # Template dependency - resolves to all worker instances
     handler:
-      callable: TaskerCore::BatchProcessing::StepHandlers::CsvResultsAggregatorHandler_dsl
+      callable: csv_processing_dsl.step_handlers.aggregate_csv_results
       initialization:
         aggregation_type: "inventory_metrics"

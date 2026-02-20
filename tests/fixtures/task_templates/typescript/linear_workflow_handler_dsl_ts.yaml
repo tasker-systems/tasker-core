@@ -41,10 +41,10 @@ task_handler:
         min: 2
         max: 100
     expected_results:
-      linear_step_1_dsl: "input²"
-      linear_step_2_dsl: "(input² + 10)"
-      linear_step_3_dsl: "(input² + 10) × 3"
-      linear_step_4_dsl: "((input² + 10) × 3) ÷ 2"
+      linear_step_1_dsl_ts: "input²"
+      linear_step_2_dsl_ts: "(input² + 10)"
+      linear_step_3_dsl_ts: "(input² + 10) × 3"
+      linear_step_4_dsl_ts: "((input² + 10) × 3) ÷ 2"
 system_dependencies:
   primary: default
   secondary: []
@@ -60,10 +60,10 @@ input_schema:
       maximum: 100
       description: "Even number for mathematical sequence"
 steps:
-  - name: linear_step_1_dsl
+  - name: linear_step_1_dsl_ts
     description: "Square the initial even number (Step 1: n → n²)"
     handler:
-      callable: LinearWorkflow_dsl.StepHandlers.LinearStep1Handler
+      callable: LinearWorkflowDsl.StepHandlers.LinearStep1DslHandler
       initialization:
         operation: square
         step_number: 1
@@ -78,10 +78,10 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 30
     publishes_events: []
-  - name: linear_step_2_dsl
+  - name: linear_step_2_dsl_ts
     description: "Add constant to squared result (Step 2: n² → n² + 10)"
     handler:
-      callable: LinearWorkflow_dsl.StepHandlers.LinearStep2Handler
+      callable: LinearWorkflowDsl.StepHandlers.LinearStep2DslHandler
       initialization:
         operation: add
         constant: 10
@@ -89,7 +89,7 @@ steps:
         description: "Add 10 to the squared result"
     system_dependency:
     dependencies:
-      - linear_step_1_dsl
+      - linear_step_1_dsl_ts
     retry:
       retryable: true
       max_attempts: 3
@@ -98,10 +98,10 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 30
     publishes_events: []
-  - name: linear_step_3_dsl
+  - name: linear_step_3_dsl_ts
     description: "Multiply by factor (Step 3: (n² + 10) → (n² + 10) × 3)"
     handler:
-      callable: LinearWorkflow_dsl.StepHandlers.LinearStep3Handler
+      callable: LinearWorkflowDsl.StepHandlers.LinearStep3DslHandler
       initialization:
         operation: multiply
         factor: 3
@@ -109,7 +109,7 @@ steps:
         description: "Multiply by 3"
     system_dependency:
     dependencies:
-      - linear_step_2_dsl
+      - linear_step_2_dsl_ts
     retry:
       retryable: true
       max_attempts: 3
@@ -118,10 +118,10 @@ steps:
       max_backoff_ms: 30000
     timeout_seconds: 30
     publishes_events: []
-  - name: linear_step_4_dsl
+  - name: linear_step_4_dsl_ts
     description: "Divide for final result (Step 4: ((n² + 10) × 3) → ((n² + 10) × 3) ÷ 2)"
     handler:
-      callable: LinearWorkflow_dsl.StepHandlers.LinearStep4Handler
+      callable: LinearWorkflowDsl.StepHandlers.LinearStep4DslHandler
       initialization:
         operation: divide
         divisor: 2
@@ -129,7 +129,7 @@ steps:
         description: "Divide by 2 for final result"
     system_dependency:
     dependencies:
-      - linear_step_3_dsl
+      - linear_step_3_dsl_ts
     retry:
       retryable: true
       max_attempts: 3
@@ -141,19 +141,19 @@ steps:
 environments:
   test:
     steps:
-      - name: linear_step_1_dsl
+      - name: linear_step_1_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 2
-      - name: linear_step_2_dsl
+      - name: linear_step_2_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 2
-      - name: linear_step_3_dsl
+      - name: linear_step_3_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 2
-      - name: linear_step_4_dsl
+      - name: linear_step_4_dsl_ts
         timeout_seconds: 10
         retry:
           max_attempts: 2

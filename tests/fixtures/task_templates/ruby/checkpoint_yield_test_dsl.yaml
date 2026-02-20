@@ -35,7 +35,7 @@ metadata:
   updated_at: "2025-01-03T00:00:00Z"
   notes: "Validates TAS-125 checkpoint_yield() with FFI persistence and re-dispatch"
 task_handler:
-  callable: TaskerCore::Handlers::TaskHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     test_type: checkpoint_yield
 system_dependencies:
@@ -70,7 +70,7 @@ steps:
     type: batchable
     description: "Analyzes item count and creates 1 batch for checkpoint testing"
     handler:
-      callable: TaskerCore::Examples::CheckpointYield::AnalyzerHandler_dsl
+      callable: checkpoint_yield_dsl.step_handlers.analyze_items
       initialization:
         worker_template_name: "checkpoint_yield_batch_dsl"
     system_dependency:
@@ -89,7 +89,7 @@ steps:
     type: batch_worker
     description: "Processes batch with TAS-125 checkpoint yields"
     handler:
-      callable: TaskerCore::Examples::CheckpointYield::WorkerHandler_dsl
+      callable: checkpoint_yield_dsl.step_handlers.checkpoint_yield_batch
       initialization:
         # These can be overridden by task context
         items_per_checkpoint: 25
@@ -116,7 +116,7 @@ steps:
     type: deferred_convergence
     description: "Aggregates checkpoint yield test results"
     handler:
-      callable: TaskerCore::Examples::CheckpointYield::AggregatorHandler_dsl
+      callable: checkpoint_yield_dsl.step_handlers.aggregate_results
       initialization: {}
     system_dependency:
     dependencies:

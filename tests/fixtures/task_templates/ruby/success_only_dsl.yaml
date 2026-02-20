@@ -11,7 +11,7 @@ metadata:
     - implementation:ruby_ffi
     - language:ruby
 task_handler:
-  callable: ErrorScenarios::SuccessOnlyHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     error_tracking_enabled: true
 system_dependencies:
@@ -28,7 +28,7 @@ steps:
   - name: success_step_dsl
     description: "Always succeeds - validates happy path execution"
     handler:
-      callable: ErrorScenarios::SuccessHandler_dsl
+      callable: error_scenarios_dsl.step_handlers.success
       initialization:
         scenario: success
     system_dependency:

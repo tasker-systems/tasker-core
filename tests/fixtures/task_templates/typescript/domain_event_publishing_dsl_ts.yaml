@@ -66,7 +66,7 @@ steps:
   - name: domain_events_ts_validate_order_dsl
     description: "Validate the order details"
     handler:
-      callable: domain_events_dsl.step_handlers.validate_order
+      callable: domain_events_dsl.step_handlers.ValidateOrderDslHandler
       initialization:
         validation_rules:
           - order_id_present
@@ -98,7 +98,7 @@ steps:
   - name: domain_events_ts_process_payment_dsl
     description: "Process payment for the order"
     handler:
-      callable: domain_events_dsl.step_handlers.process_payment
+      callable: domain_events_dsl.step_handlers.ProcessPaymentDslHandler
       initialization:
         payment_processor: stripe
     system_dependency:
@@ -146,7 +146,7 @@ steps:
   - name: domain_events_ts_update_inventory_dsl
     description: "Update inventory for order items"
     handler:
-      callable: domain_events_dsl.step_handlers.update_inventory
+      callable: domain_events_dsl.step_handlers.UpdateInventoryDslHandler
       initialization:
         inventory_system: default
     system_dependency:
@@ -178,7 +178,7 @@ steps:
   - name: domain_events_ts_send_notification_dsl
     description: "Send order confirmation notification"
     handler:
-      callable: domain_events_dsl.step_handlers.send_notification
+      callable: domain_events_dsl.step_handlers.SendNotificationDslHandler
       initialization:
         notification_channels:
           - email

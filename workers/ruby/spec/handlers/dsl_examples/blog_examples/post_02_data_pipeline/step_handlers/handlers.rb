@@ -6,7 +6,7 @@
 #             transform_sales, transform_customers, transform_inventory,
 #             aggregate_metrics, generate_insights
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 SAMPLE_SALES_DSL = [
   { order_id: 'ORD-001', date: '2025-11-01', product_id: 'PROD-A', quantity: 5, amount: 499.95 },
@@ -33,8 +33,8 @@ SAMPLE_INVENTORY_DSL = [
 ].freeze
 
 PipelineExtractSalesDslHandler = step_handler(
-  'data_pipeline_dsl.step_handlers.extract_sales_data'
-) do |context:|
+  'data_pipeline_dsl_rb.step_handlers.extract_sales_data'
+) do |context:| # rubocop:disable Lint/UnusedBlockArgument
   TaskerCore::Types::StepHandlerCallResult.success(
     result: {
       records: SAMPLE_SALES_DSL,
@@ -55,8 +55,8 @@ PipelineExtractSalesDslHandler = step_handler(
 end
 
 PipelineExtractCustomersDslHandler = step_handler(
-  'data_pipeline_dsl.step_handlers.extract_customer_data'
-) do |context:|
+  'data_pipeline_dsl_rb.step_handlers.extract_customer_data'
+) do |context:| # rubocop:disable Lint/UnusedBlockArgument
   tier_breakdown = SAMPLE_CUSTOMERS_DSL.group_by { |c| c[:tier] }.transform_values(&:count)
 
   TaskerCore::Types::StepHandlerCallResult.success(
@@ -79,8 +79,8 @@ PipelineExtractCustomersDslHandler = step_handler(
 end
 
 PipelineExtractInventoryDslHandler = step_handler(
-  'data_pipeline_dsl.step_handlers.extract_inventory_data'
-) do |context:|
+  'data_pipeline_dsl_rb.step_handlers.extract_inventory_data'
+) do |context:| # rubocop:disable Lint/UnusedBlockArgument
   TaskerCore::Types::StepHandlerCallResult.success(
     result: {
       records: SAMPLE_INVENTORY_DSL,
@@ -100,29 +100,31 @@ PipelineExtractInventoryDslHandler = step_handler(
 end
 
 PipelineTransformSalesDslHandler = step_handler(
-  'data_pipeline_dsl.step_handlers.transform_sales',
-  depends_on: { extract_results: 'extract_sales_data' }
-) do |extract_results:, context:|
-  raise TaskerCore::Errors::PermanentError.new('Sales extraction results not found', error_code: 'MISSING_EXTRACT_RESULTS') unless extract_results
+  'data_pipeline_dsl_rb.step_handlers.transform_sales',
+  depends_on: { extract_results: 'extract_sales_data_dsl' }
+) do |extract_results:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  unless extract_results
+    raise TaskerCore::Errors::PermanentError.new('Sales extraction results not found', error_code: 'MISSING_EXTRACT_RESULTS')
+  end
 
   raw_records = extract_results['records'] || extract_results[:records]
 
   daily_sales = raw_records.group_by { |r| r[:date] || r['date'] }
                            .transform_values do |day_records|
-    {
-      total_amount: day_records.sum { |r| r[:amount] || r['amount'] || 0 },
-      order_count: day_records.count,
-      avg_order_value: day_records.sum { |r| r[:amount] || r['amount'] || 0 } / day_records.count.to_f
-    }
+                             {
+                               total_amount: day_records.sum { |r| r[:amount] || r['amount'] || 0 },
+                               order_count: day_records.count,
+                               avg_order_value: day_records.sum { |r| r[:amount] || r['amount'] || 0 } / day_records.count.to_f
+                             }
   end
 
   product_sales = raw_records.group_by { |r| r[:product_id] || r['product_id'] }
                              .transform_values do |product_records|
-    {
-      total_quantity: product_records.sum { |r| r[:quantity] || r['quantity'] || 0 },
-      total_revenue: product_records.sum { |r| r[:amount] || r['amount'] || 0 },
-      order_count: product_records.count
-    }
+                               {
+                                 total_quantity: product_records.sum { |r| r[:quantity] || r['quantity'] || 0 },
+                                 total_revenue: product_records.sum { |r| r[:amount] || r['amount'] || 0 },
+                                 order_count: product_records.count
+                               }
   end
 
   TaskerCore::Types::StepHandlerCallResult.success(
@@ -144,20 +146,22 @@ PipelineTransformSalesDslHandler = step_handler(
 end
 
 PipelineTransformCustomersDslHandler = step_handler(
-  'data_pipeline_dsl.step_handlers.transform_customers',
-  depends_on: { extract_results: 'extract_customer_data' }
-) do |extract_results:, context:|
-  raise TaskerCore::Errors::PermanentError.new('Customer extraction results not found', error_code: 'MISSING_EXTRACT_RESULTS') unless extract_results
+  'data_pipeline_dsl_rb.step_handlers.transform_customers',
+  depends_on: { extract_results: 'extract_customer_data_dsl' }
+) do |extract_results:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  unless extract_results
+    raise TaskerCore::Errors::PermanentError.new('Customer extraction results not found', error_code: 'MISSING_EXTRACT_RESULTS')
+  end
 
   raw_records = extract_results['records'] || extract_results[:records]
 
   tier_analysis = raw_records.group_by { |r| r[:tier] || r['tier'] }
                              .transform_values do |tier_records|
-    {
-      count: tier_records.count,
-      total_value: tier_records.sum { |r| r[:lifetime_value] || r['lifetime_value'] || 0 },
-      avg_value: tier_records.sum { |r| r[:lifetime_value] || r['lifetime_value'] || 0 } / tier_records.count.to_f
-    }
+                               {
+                                 count: tier_records.count,
+                                 total_value: tier_records.sum { |r| r[:lifetime_value] || r['lifetime_value'] || 0 },
+                                 avg_value: tier_records.sum { |r| r[:lifetime_value] || r['lifetime_value'] || 0 } / tier_records.count.to_f
+                               }
   end
 
   TaskerCore::Types::StepHandlerCallResult.success(
@@ -177,20 +181,22 @@ PipelineTransformCustomersDslHandler = step_handler(
 end
 
 PipelineTransformInventoryDslHandler = step_handler(
-  'data_pipeline_dsl.step_handlers.transform_inventory',
-  depends_on: { extract_results: 'extract_inventory_data' }
-) do |extract_results:, context:|
-  raise TaskerCore::Errors::PermanentError.new('Inventory extraction results not found', error_code: 'MISSING_EXTRACT_RESULTS') unless extract_results
+  'data_pipeline_dsl_rb.step_handlers.transform_inventory',
+  depends_on: { extract_results: 'extract_inventory_data_dsl' }
+) do |extract_results:, context:| # rubocop:disable Lint/UnusedBlockArgument
+  unless extract_results
+    raise TaskerCore::Errors::PermanentError.new('Inventory extraction results not found', error_code: 'MISSING_EXTRACT_RESULTS')
+  end
 
   raw_records = extract_results['records'] || extract_results[:records]
 
   warehouse_analysis = raw_records.group_by { |r| r[:warehouse] || r['warehouse'] }
                                   .transform_values do |wh_records|
-    {
-      total_quantity: wh_records.sum { |r| r[:quantity_on_hand] || r['quantity_on_hand'] || 0 },
-      product_count: wh_records.count,
-      below_reorder: wh_records.count { |r| (r[:quantity_on_hand] || r['quantity_on_hand'] || 0) < (r[:reorder_point] || r['reorder_point'] || 0) }
-    }
+                                    {
+                                      total_quantity: wh_records.sum { |r| r[:quantity_on_hand] || r['quantity_on_hand'] || 0 },
+                                      product_count: wh_records.count,
+                                      below_reorder: wh_records.count { |r| (r[:quantity_on_hand] || r['quantity_on_hand'] || 0) < (r[:reorder_point] || r['reorder_point'] || 0) }
+                                    }
   end
 
   TaskerCore::Types::StepHandlerCallResult.success(
@@ -210,13 +216,13 @@ PipelineTransformInventoryDslHandler = step_handler(
 end
 
 PipelineAggregateMetricsDslHandler = step_handler(
-  'data_pipeline_dsl.step_handlers.aggregate_metrics',
+  'data_pipeline_dsl_rb.step_handlers.aggregate_metrics',
   depends_on: {
-    sales_data: 'transform_sales',
-    customer_data: 'transform_customers',
-    inventory_data: 'transform_inventory'
+    sales_data: 'transform_sales_dsl',
+    customer_data: 'transform_customers_dsl',
+    inventory_data: 'transform_inventory_dsl'
   }
-) do |sales_data:, customer_data:, inventory_data:, context:|
+) do |sales_data:, customer_data:, inventory_data:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise TaskerCore::Errors::PermanentError, 'Sales transform results not found' unless sales_data
   raise TaskerCore::Errors::PermanentError, 'Customer transform results not found' unless customer_data
   raise TaskerCore::Errors::PermanentError, 'Inventory transform results not found' unless inventory_data
@@ -243,9 +249,9 @@ PipelineAggregateMetricsDslHandler = step_handler(
 end
 
 PipelineGenerateInsightsDslHandler = step_handler(
-  'data_pipeline_dsl.step_handlers.generate_insights',
-  depends_on: { metrics: 'aggregate_metrics' }
-) do |metrics:, context:|
+  'data_pipeline_dsl_rb.step_handlers.generate_insights',
+  depends_on: { metrics: 'aggregate_metrics_dsl' }
+) do |metrics:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise TaskerCore::Errors::PermanentError, 'Aggregated metrics not found' unless metrics
 
   TaskerCore::Types::StepHandlerCallResult.success(

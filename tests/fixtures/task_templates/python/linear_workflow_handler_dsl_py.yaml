@@ -32,7 +32,7 @@ metadata:
   updated_at: "2025-12-13T00:00:00Z"
   notes: "Python FFI implementation with sequential mathematical operations"
 task_handler:
-  callable: linear_workflow_dsl.LinearWorkflowHandler
+  callable: linear_workflow_dsl_py.LinearWorkflowHandler
   initialization:
     input_validation:
       required_fields:
@@ -64,7 +64,7 @@ steps:
   - name: linear_step_1_dsl_py
     description: "Square the initial even number (Step 1: n -> n**2)"
     handler:
-      callable: linear_workflow_dsl.step_handlers.linear_step1
+      callable: linear_workflow_dsl_py.step_handlers.linear_step_1
       initialization:
         operation: square
         step_number: 1
@@ -82,7 +82,7 @@ steps:
   - name: linear_step_2_dsl_py
     description: "Add constant to squared result (Step 2: n**2 -> n**2 + 10)"
     handler:
-      callable: linear_workflow_dsl.step_handlers.linear_step2
+      callable: linear_workflow_dsl_py.step_handlers.linear_step_2
       initialization:
         operation: add
         constant: 10
@@ -102,7 +102,7 @@ steps:
   - name: linear_step_3_dsl_py
     description: "Multiply by factor (Step 3: (n**2 + 10) -> (n**2 + 10) * 3)"
     handler:
-      callable: linear_workflow_dsl.step_handlers.linear_step3
+      callable: linear_workflow_dsl_py.step_handlers.linear_step_3
       initialization:
         operation: multiply
         factor: 3
@@ -122,7 +122,7 @@ steps:
   - name: linear_step_4_dsl_py
     description: "Divide for final result (Step 4: ((n**2 + 10) * 3) -> ((n**2 + 10) * 3) / 2)"
     handler:
-      callable: linear_workflow_dsl.step_handlers.linear_step4
+      callable: linear_workflow_dsl_py.step_handlers.linear_step_4
       initialization:
         operation: divide
         divisor: 2

@@ -3,11 +3,11 @@
 require 'spec_helper'
 
 # Load DSL handler files explicitly (they are NOT auto-loaded by TestEnvironment)
-Dir.glob(File.expand_path('../handlers/dsl_examples/**/*.rb', __dir__)).sort.each do |f|
+Dir.glob(File.expand_path('../handlers/dsl_examples/**/*.rb', __dir__)).each do |f|
   load f
 end
 
-RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do
+RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable RSpec/DescribeClass
   include TaskerCore::StepHandler::Functional
 
   # ============================================================================
@@ -358,7 +358,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do
       expect(result.success?).to be true
       expect(result.result[:customer_validated]).to be true
       expect(result.result[:validated_items].length).to eq(2)
-      expect(result.result[:order_total]).to eq(29.99 * 2 + 49.99)
+      expect(result.result[:order_total]).to eq((29.99 * 2) + 49.99)
     end
 
     it 'validate_order rejects missing customer' do
@@ -477,7 +477,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do
       result = handler.call(ctx)
       expect(result.success?).to be true
       expect(result.result[:item_count]).to eq(2)
-      expect(result.result[:subtotal]).to eq(29.99 * 2 + 49.99)
+      expect(result.result[:subtotal]).to eq((29.99 * 2) + 49.99)
       expect(result.result[:tax]).to be > 0
       expect(result.result[:total]).to be > result.result[:subtotal]
     end

@@ -28,20 +28,20 @@
 #
 ---
 name: user_registration_dsl
-namespace_name: microservices_dsl
+namespace_name: microservices_dsl_rb
 version: 1.0.0
 description: "User registration workflow with microservices coordination - Post 03 Microservices"
 metadata:
   author: Platform Team
   blog_post: post_03
   tags:
-    - namespace:microservices_dsl
+    - namespace:microservices_dsl_rb
     - pattern:parallel_execution
     - pattern:circuit_breaker
     - dependencies:multi_service
     - implementation:ruby_ffi
 task_handler:
-  callable: Microservices::Handlers::UserRegistrationHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     timeout_seconds: 120
     max_retries: 2
@@ -71,7 +71,7 @@ steps:
   - name: create_user_account_dsl
     description: "Create user account in user service with idempotency"
     handler:
-      callable: Microservices::StepHandlers::CreateUserAccountHandler_dsl
+      callable: microservices_dsl_rb.step_handlers.create_user_account
     dependencies: []
     retry:
       retryable: true
@@ -84,7 +84,7 @@ steps:
   - name: setup_billing_profile_dsl
     description: "Setup billing profile in billing service"
     handler:
-      callable: Microservices::StepHandlers::SetupBillingProfileHandler_dsl
+      callable: microservices_dsl_rb.step_handlers.setup_billing_profile
     dependencies:
       - create_user_account_dsl
     retry:
@@ -97,7 +97,7 @@ steps:
   - name: initialize_preferences_dsl
     description: "Initialize user preferences in preferences service"
     handler:
-      callable: Microservices::StepHandlers::InitializePreferencesHandler_dsl
+      callable: microservices_dsl_rb.step_handlers.initialize_preferences
     dependencies:
       - create_user_account_dsl
     retry:
@@ -111,7 +111,7 @@ steps:
   - name: send_welcome_sequence_dsl
     description: "Send welcome emails via notification service"
     handler:
-      callable: Microservices::StepHandlers::SendWelcomeSequenceHandler_dsl
+      callable: microservices_dsl_rb.step_handlers.send_welcome_sequence
     dependencies:
       - setup_billing_profile_dsl
       - initialize_preferences_dsl
@@ -126,7 +126,7 @@ steps:
   - name: update_user_status_dsl
     description: "Update user status to active in user service"
     handler:
-      callable: Microservices::StepHandlers::UpdateUserStatusHandler_dsl
+      callable: microservices_dsl_rb.step_handlers.update_user_status
     dependencies:
       - send_welcome_sequence_dsl
     retry:

@@ -39,7 +39,7 @@ metadata:
   updated_at: "2025-09-24T00:00:00Z"
   notes: "Ruby FFI implementation with complex hierarchical dependency resolution"
 task_handler:
-  callable: TreeWorkflow::TreeWorkflowHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     input_validation:
       required_fields:
@@ -76,7 +76,7 @@ steps:
   - name: tree_root_dsl
     description: "Tree root: Square the input even number"
     handler:
-      callable: TreeWorkflow::StepHandlers::TreeRootHandler_dsl
+      callable: tree_workflow_dsl.step_handlers.tree_root
       initialization:
         operation: square
         step_type: root
@@ -97,7 +97,7 @@ steps:
   - name: tree_branch_left_dsl
     description: "Left branch: Square the root result"
     handler:
-      callable: TreeWorkflow::StepHandlers::TreeBranchLeftHandler_dsl
+      callable: tree_workflow_dsl.step_handlers.tree_branch_left
       initialization:
         operation: square
         step_type: branch
@@ -120,7 +120,7 @@ steps:
   - name: tree_branch_right_dsl
     description: "Right branch: Square the root result"
     handler:
-      callable: TreeWorkflow::StepHandlers::TreeBranchRightHandler_dsl
+      callable: tree_workflow_dsl.step_handlers.tree_branch_right
       initialization:
         operation: square
         step_type: branch
@@ -143,7 +143,7 @@ steps:
   - name: tree_leaf_d_dsl
     description: "Leaf D: Square the left branch result"
     handler:
-      callable: TreeWorkflow::StepHandlers::TreeLeafDHandler_dsl
+      callable: tree_workflow_dsl.step_handlers.tree_leaf_d
       initialization:
         operation: square
         step_type: leaf
@@ -164,7 +164,7 @@ steps:
   - name: tree_leaf_e_dsl
     description: "Leaf E: Square the left branch result"
     handler:
-      callable: TreeWorkflow::StepHandlers::TreeLeafEHandler_dsl
+      callable: tree_workflow_dsl.step_handlers.tree_leaf_e
       initialization:
         operation: square
         step_type: leaf
@@ -185,7 +185,7 @@ steps:
   - name: tree_leaf_f_dsl
     description: "Leaf F: Square the right branch result"
     handler:
-      callable: TreeWorkflow::StepHandlers::TreeLeafFHandler_dsl
+      callable: tree_workflow_dsl.step_handlers.tree_leaf_f
       initialization:
         operation: square
         step_type: leaf
@@ -206,7 +206,7 @@ steps:
   - name: tree_leaf_g_dsl
     description: "Leaf G: Square the right branch result"
     handler:
-      callable: TreeWorkflow::StepHandlers::TreeLeafGHandler_dsl
+      callable: tree_workflow_dsl.step_handlers.tree_leaf_g
       initialization:
         operation: square
         step_type: leaf
@@ -227,7 +227,7 @@ steps:
   - name: tree_final_convergence_dsl
     description: "Final convergence: Multiply all 4 leaf results and square"
     handler:
-      callable: TreeWorkflow::StepHandlers::TreeFinalConvergenceHandler_dsl
+      callable: tree_workflow_dsl.step_handlers.tree_final_convergence
       initialization:
         operation: multiply_all_and_square
         step_type: final_convergence

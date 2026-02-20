@@ -37,7 +37,7 @@ fn create_ecommerce_order_request(
     payment_info: serde_json::Value,
 ) -> tasker_shared::models::core::task_request::TaskRequest {
     create_task_request(
-        "ecommerce_dsl",
+        "ecommerce_dsl_rb",
         "ecommerce_order_processing_dsl",
         json!({
             "cart_items": cart_items,

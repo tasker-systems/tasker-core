@@ -10,7 +10,7 @@ from __future__ import annotations
 from tasker_core.step_handler.functional import inputs, step_handler
 
 
-@step_handler("resolver_tests_dsl.step_handlers.multi_method")
+@step_handler("resolver_tests_dsl_py.step_handlers.multi_method")
 @inputs("data")
 def multi_method(data, context):
     """Default entry point - standard processing."""
@@ -26,7 +26,7 @@ def multi_method(data, context):
     }
 
 
-@step_handler("resolver_tests_dsl.step_handlers.alternate_method")
+@step_handler("resolver_tests_dsl_py.step_handlers.alternate_method")
 def alternate_method(context):
     """Default entry point for alternate handler."""
     return {

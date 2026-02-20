@@ -31,20 +31,20 @@
 #
 ---
 name: analytics_pipeline_dsl
-namespace_name: data_pipeline_dsl
+namespace_name: data_pipeline_dsl_rb
 version: 1.0.0
 description: "Analytics ETL pipeline with parallel extraction and aggregation - Post 02 Data Pipeline"
 metadata:
   author: Data Team
   blog_post: post_02
   tags:
-    - namespace:data_pipeline_dsl
+    - namespace:data_pipeline_dsl_rb
     - pattern:dag_workflow
     - pattern:parallel_execution
     - dependencies:aggregate_convergence
     - implementation:ruby_ffi
 task_handler:
-  callable: DataPipeline::Handlers::AnalyticsPipelineHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     timeout_seconds: 120
     max_retries: 2
@@ -68,7 +68,7 @@ steps:
   - name: extract_sales_data_dsl
     description: "Extract sales records from database"
     handler:
-      callable: DataPipeline::StepHandlers::ExtractSalesDataHandler_dsl
+      callable: data_pipeline_dsl_rb.step_handlers.extract_sales_data
     dependencies: []
     retry:
       retryable: true
@@ -80,7 +80,7 @@ steps:
   - name: extract_inventory_data_dsl
     description: "Extract inventory records from warehouse system"
     handler:
-      callable: DataPipeline::StepHandlers::ExtractInventoryDataHandler_dsl
+      callable: data_pipeline_dsl_rb.step_handlers.extract_inventory_data
     dependencies: []
     retry:
       retryable: true
@@ -92,7 +92,7 @@ steps:
   - name: extract_customer_data_dsl
     description: "Extract customer records from CRM"
     handler:
-      callable: DataPipeline::StepHandlers::ExtractCustomerDataHandler_dsl
+      callable: data_pipeline_dsl_rb.step_handlers.extract_customer_data
     dependencies: []
     retry:
       retryable: true
@@ -105,7 +105,7 @@ steps:
   - name: transform_sales_dsl
     description: "Transform sales data for analytics"
     handler:
-      callable: DataPipeline::StepHandlers::TransformSalesHandler_dsl
+      callable: data_pipeline_dsl_rb.step_handlers.transform_sales
     dependencies:
       - extract_sales_data_dsl
     retry:
@@ -118,7 +118,7 @@ steps:
   - name: transform_inventory_dsl
     description: "Transform inventory data for analytics"
     handler:
-      callable: DataPipeline::StepHandlers::TransformInventoryHandler_dsl
+      callable: data_pipeline_dsl_rb.step_handlers.transform_inventory
     dependencies:
       - extract_inventory_data_dsl
     retry:
@@ -131,7 +131,7 @@ steps:
   - name: transform_customers_dsl
     description: "Transform customer data for analytics"
     handler:
-      callable: DataPipeline::StepHandlers::TransformCustomersHandler_dsl
+      callable: data_pipeline_dsl_rb.step_handlers.transform_customers
     dependencies:
       - extract_customer_data_dsl
     retry:
@@ -145,7 +145,7 @@ steps:
   - name: aggregate_metrics_dsl
     description: "Aggregate metrics from all transformed sources"
     handler:
-      callable: DataPipeline::StepHandlers::AggregateMetricsHandler_dsl
+      callable: data_pipeline_dsl_rb.step_handlers.aggregate_metrics
     dependencies:
       - transform_sales_dsl
       - transform_inventory_dsl
@@ -161,7 +161,7 @@ steps:
   - name: generate_insights_dsl
     description: "Generate business insights from aggregated data"
     handler:
-      callable: DataPipeline::StepHandlers::GenerateInsightsHandler_dsl
+      callable: data_pipeline_dsl_rb.step_handlers.generate_insights
     dependencies:
       - aggregate_metrics_dsl
     retry:

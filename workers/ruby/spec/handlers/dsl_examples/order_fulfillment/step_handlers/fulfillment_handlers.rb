@@ -8,7 +8,7 @@
 # DSL handlers reproduce the same validation and core output structure
 # but deterministic fields only are tested for parity.
 
-include TaskerCore::StepHandler::Functional
+include TaskerCore::StepHandler::Functional # rubocop:disable Style/MixinUsage
 
 OrderValidateOrderDslHandler = step_handler('order_fulfillment_dsl.step_handlers.validate_order') do |context:|
   task_context = context.task.context
@@ -16,7 +16,7 @@ OrderValidateOrderDslHandler = step_handler('order_fulfillment_dsl.step_handlers
   order_items = task_context['order_items']
 
   # Deep symbolize keys helper
-  deep_sym = ->(obj) {
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -41,8 +41,8 @@ OrderValidateOrderDslHandler = step_handler('order_fulfillment_dsl.step_handlers
     unless item[:product_id] && item[:quantity] && item[:price]
       raise TaskerCore::Errors::PermanentError, "Invalid order item at position #{index + 1}: missing required fields"
     end
-    raise TaskerCore::Errors::PermanentError, "Invalid quantity" if item[:quantity] <= 0
-    raise TaskerCore::Errors::PermanentError, "Invalid price" if item[:price] < 0
+    raise TaskerCore::Errors::PermanentError, 'Invalid quantity' if item[:quantity] <= 0
+    raise TaskerCore::Errors::PermanentError, 'Invalid price' if item[:price] < 0
 
     product = products[item[:product_id]]
     raise TaskerCore::Errors::PermanentError, "Product #{item[:product_id]} not found" unless product
@@ -56,7 +56,7 @@ OrderValidateOrderDslHandler = step_handler('order_fulfillment_dsl.step_handlers
   end
 
   total_amount = validated_items.sum { |i| i[:line_total] }
-  raise TaskerCore::Errors::PermanentError, "Order total exceeds maximum" if total_amount > 50_000.00
+  raise TaskerCore::Errors::PermanentError, 'Order total exceeds maximum' if total_amount > 50_000.00
 
   TaskerCore::Types::StepHandlerCallResult.success(
     result: {
@@ -75,10 +75,10 @@ OrderValidateOrderDslHandler = step_handler('order_fulfillment_dsl.step_handlers
 end
 
 OrderReserveInventoryDslHandler = step_handler('order_fulfillment_dsl.step_handlers.reserve_inventory',
-                                               depends_on: { validate_order: 'validate_order' }) do |validate_order:, context:|
+                                               depends_on: { validate_order: 'validate_order_dsl' }) do |validate_order:, context:| # rubocop:disable Lint/UnusedBlockArgument
   raise TaskerCore::Errors::PermanentError, 'validate_order step results not found' unless validate_order
 
-  deep_sym = ->(obj) {
+  deep_sym = lambda { |obj|
     case obj
     when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = deep_sym.call(v) }
     when Array then obj.map { |i| deep_sym.call(i) }
@@ -86,7 +86,7 @@ OrderReserveInventoryDslHandler = step_handler('order_fulfillment_dsl.step_handl
     end
   }
 
-  validated_items = (validate_order[:validated_items] || validate_order['validated_items'])
+  validated_items = validate_order[:validated_items] || validate_order['validated_items']
   raise TaskerCore::Errors::PermanentError, 'No validated items found' unless validated_items&.any?
 
   validated_items = validated_items.map { |i| deep_sym.call(i) }
@@ -120,16 +120,20 @@ OrderReserveInventoryDslHandler = step_handler('order_fulfillment_dsl.step_handl
 end
 
 OrderProcessPaymentDslHandler = step_handler('order_fulfillment_dsl.step_handlers.process_payment',
-                                             depends_on: { validate_order: 'validate_order',
-                                                           reserve_inventory: 'reserve_inventory' }) do |validate_order:, reserve_inventory:, context:|
+                                             depends_on: { validate_order: 'validate_order_dsl',
+                                                           reserve_inventory: 'reserve_inventory_dsl' }) do |validate_order:, reserve_inventory:, context:|
   raise TaskerCore::Errors::PermanentError, 'validate_order results not found' unless validate_order
   raise TaskerCore::Errors::PermanentError, 'reserve_inventory results not found' unless reserve_inventory
 
   task_ctx = context.task.context
   payment_info = task_ctx['payment_info']
   raise TaskerCore::Errors::PermanentError, 'Payment information is required' unless payment_info
-  raise TaskerCore::Errors::PermanentError, 'Payment method is required' unless payment_info['method'] || payment_info[:method]
-  raise TaskerCore::Errors::PermanentError, 'Payment token is required' unless payment_info['token'] || payment_info[:token]
+  unless payment_info['method'] || payment_info[:method]
+    raise TaskerCore::Errors::PermanentError, 'Payment method is required'
+  end
+  unless payment_info['token'] || payment_info[:token]
+    raise TaskerCore::Errors::PermanentError, 'Payment token is required'
+  end
 
   order_total = validate_order[:order_total] || validate_order['order_total']
   payment_id = "PAY-#{Time.now.to_i}-#{SecureRandom.hex(6).upcase}"
@@ -151,9 +155,9 @@ OrderProcessPaymentDslHandler = step_handler('order_fulfillment_dsl.step_handler
 end
 
 OrderShipOrderDslHandler = step_handler('order_fulfillment_dsl.step_handlers.ship_order',
-                                        depends_on: { validate_order: 'validate_order',
-                                                      reserve_inventory: 'reserve_inventory',
-                                                      process_payment: 'process_payment' }) do |validate_order:, reserve_inventory:, process_payment:, context:|
+                                        depends_on: { validate_order: 'validate_order_dsl',
+                                                      reserve_inventory: 'reserve_inventory_dsl',
+                                                      process_payment: 'process_payment_dsl' }) do |validate_order:, reserve_inventory:, process_payment:, context:|
   raise TaskerCore::Errors::PermanentError, 'validate_order results not found' unless validate_order
   raise TaskerCore::Errors::PermanentError, 'reserve_inventory results not found' unless reserve_inventory
   raise TaskerCore::Errors::PermanentError, 'process_payment results not found' unless process_payment

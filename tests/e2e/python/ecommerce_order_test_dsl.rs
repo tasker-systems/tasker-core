@@ -146,23 +146,23 @@ async fn test_successful_order_processing_py_dsl() -> Result<()> {
     // Verify step execution order
     let step_names: Vec<String> = steps.iter().map(|s| s.name.clone()).collect();
     assert!(
-        step_names.contains(&"validate_cart_dsl".to_string()),
+        step_names.contains(&"validate_cart_dsl_py".to_string()),
         "Should have validate_cart step"
     );
     assert!(
-        step_names.contains(&"process_payment_dsl".to_string()),
+        step_names.contains(&"process_payment_dsl_py".to_string()),
         "Should have process_payment step"
     );
     assert!(
-        step_names.contains(&"update_inventory_dsl".to_string()),
+        step_names.contains(&"update_inventory_dsl_py".to_string()),
         "Should have update_inventory step"
     );
     assert!(
-        step_names.contains(&"create_order_dsl".to_string()),
+        step_names.contains(&"create_order_dsl_py".to_string()),
         "Should have create_order step"
     );
     assert!(
-        step_names.contains(&"send_confirmation_dsl".to_string()),
+        step_names.contains(&"send_confirmation_dsl_py".to_string()),
         "Should have send_confirmation step"
     );
 

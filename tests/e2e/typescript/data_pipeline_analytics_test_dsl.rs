@@ -137,41 +137,41 @@ async fn test_successful_analytics_pipeline_ts_dsl() -> Result<()> {
 
     // Extract phase (3 parallel steps)
     assert!(
-        step_names.contains(&"extract_sales_data_dsl".to_string()),
+        step_names.contains(&"extract_sales_data_dsl_ts".to_string()),
         "Should have extract_sales_data step"
     );
     assert!(
-        step_names.contains(&"extract_inventory_data_dsl".to_string()),
+        step_names.contains(&"extract_inventory_data_dsl_ts".to_string()),
         "Should have extract_inventory_data step"
     );
     assert!(
-        step_names.contains(&"extract_customer_data_dsl".to_string()),
+        step_names.contains(&"extract_customer_data_dsl_ts".to_string()),
         "Should have extract_customer_data step"
     );
 
     // Transform phase (3 sequential steps)
     assert!(
-        step_names.contains(&"transform_sales_dsl".to_string()),
+        step_names.contains(&"transform_sales_dsl_ts".to_string()),
         "Should have transform_sales step"
     );
     assert!(
-        step_names.contains(&"transform_inventory_dsl".to_string()),
+        step_names.contains(&"transform_inventory_dsl_ts".to_string()),
         "Should have transform_inventory step"
     );
     assert!(
-        step_names.contains(&"transform_customers_dsl".to_string()),
+        step_names.contains(&"transform_customers_dsl_ts".to_string()),
         "Should have transform_customers step"
     );
 
     // Aggregate phase (1 step - DAG convergence)
     assert!(
-        step_names.contains(&"aggregate_metrics_dsl".to_string()),
+        step_names.contains(&"aggregate_metrics_dsl_ts".to_string()),
         "Should have aggregate_metrics step (DAG convergence)"
     );
 
     // Insights phase (1 step)
     assert!(
-        step_names.contains(&"generate_insights_dsl".to_string()),
+        step_names.contains(&"generate_insights_dsl_ts".to_string()),
         "Should have generate_insights step"
     );
 

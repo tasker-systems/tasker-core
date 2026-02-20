@@ -29,7 +29,7 @@ metadata:
     - dependencies:linear
     - implementation:ruby_ffi
 task_handler:
-  callable: Payments::ProcessRefundHandler_dsl
+  callable: ruby_ffi_handler_dsl
   initialization:
     timeout_seconds: 60
     max_retries: 3
@@ -69,7 +69,7 @@ steps:
   - name: validate_payment_eligibility_dsl
     description: "Check if payment can be refunded via gateway"
     handler:
-      callable: Payments::StepHandlers::ValidatePaymentEligibilityHandler_dsl
+      callable: payments_dsl.step_handlers.validate_payment_eligibility
     dependencies: []
     retry:
       retryable: true
@@ -81,7 +81,7 @@ steps:
   - name: process_gateway_refund_dsl
     description: "Execute refund through payment processor"
     handler:
-      callable: Payments::StepHandlers::ProcessGatewayRefundHandler_dsl
+      callable: payments_dsl.step_handlers.process_gateway_refund
     dependencies:
       - validate_payment_eligibility_dsl
     retry:
@@ -94,7 +94,7 @@ steps:
   - name: update_payment_records_dsl
     description: "Update internal payment status and history"
     handler:
-      callable: Payments::StepHandlers::UpdatePaymentRecordsHandler_dsl
+      callable: payments_dsl.step_handlers.update_payment_records
     dependencies:
       - process_gateway_refund_dsl
     retry:
@@ -107,7 +107,7 @@ steps:
   - name: notify_customer_dsl
     description: "Send refund confirmation to customer"
     handler:
-      callable: Payments::StepHandlers::NotifyCustomerHandler_dsl
+      callable: payments_dsl.step_handlers.notify_customer
     dependencies:
       - update_payment_records_dsl
     retry:
