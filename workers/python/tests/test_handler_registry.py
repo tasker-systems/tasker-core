@@ -45,7 +45,7 @@ class TestHandlerRegistry:
         class TestHandler(StepHandler):
             handler_name = "test_handler"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         registry.register("test_handler", TestHandler)
@@ -67,7 +67,7 @@ class TestHandlerRegistry:
         class TestHandler(StepHandler):
             handler_name = "test_handler"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         assert not registry.is_registered("test_handler")
@@ -81,13 +81,13 @@ class TestHandlerRegistry:
         class Handler1(StepHandler):
             handler_name = "handler1"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         class Handler2(StepHandler):
             handler_name = "handler2"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         registry.register("handler1", Handler1)
@@ -103,7 +103,7 @@ class TestHandlerRegistry:
         class TestHandler(StepHandler):
             handler_name = "test_handler"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         registry.register("test_handler", TestHandler)
@@ -127,7 +127,7 @@ class TestHandlerRegistry:
         class TestHandler(StepHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         registry.register("test", TestHandler)
@@ -140,7 +140,7 @@ class TestHandlerRegistry:
         class TestHandler(StepHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         registry.register("test", TestHandler)
@@ -157,7 +157,7 @@ class TestHandlerRegistry:
             handler_name = "test"
             handler_version = "2.0.0"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         registry.register("test", TestHandler)
@@ -174,20 +174,21 @@ class TestHandlerRegistry:
             handler_name = "test"
             handler_version = "1.0.0"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         class Handler2(StepHandler):
             handler_name = "test"
             handler_version = "2.0.0"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         registry.register("test", Handler1)
         registry.register("test", Handler2)
 
         handler = registry.resolve("test")
+        assert handler is not None
         assert handler.version == "2.0.0"
 
     def test_register_invalid_class_raises(self):
@@ -198,4 +199,4 @@ class TestHandlerRegistry:
             pass
 
         with pytest.raises(ValueError):
-            registry.register("test", NotAHandler)
+            registry.register("test", NotAHandler)  # type: ignore[arg-type]

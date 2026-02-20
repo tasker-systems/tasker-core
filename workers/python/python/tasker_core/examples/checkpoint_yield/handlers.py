@@ -6,7 +6,7 @@ functionality. These handlers demonstrate and test the checkpoint_yield() mechan
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from tasker_core.batch_processing import Batchable
 from tasker_core.step_handler import StepHandler
@@ -167,7 +167,7 @@ class CheckpointYieldWorkerHandler(StepHandler, Batchable):
             # Process one item
             item_result = self._process_item(current_cursor)
             accumulated["running_total"] += item_result["value"]
-            accumulated["item_ids"].append(item_result["id"])
+            cast(list[str], accumulated["item_ids"]).append(item_result["id"])
 
             current_cursor += 1
             items_in_chunk += 1

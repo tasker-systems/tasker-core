@@ -57,7 +57,7 @@ class TestBootstrapModels:
         from tasker_core import BootstrapConfig
 
         with pytest.raises(ValidationError):
-            BootstrapConfig(unknown_field="value")
+            BootstrapConfig(unknown_field="value")  # type: ignore[call-arg]
 
     def test_bootstrap_result_model(self):
         """Test BootstrapResult model."""
@@ -198,6 +198,7 @@ class TestEventDispatchModels:
         assert result.success is True
         assert result.status == "completed"
         assert result.execution_time_ms == 150
+        assert result.result is not None
         assert result.result["processed"] == 100
         assert result.error is None
 
@@ -217,6 +218,7 @@ class TestEventDispatchModels:
         )
         assert result.success is True
         assert result.status == "completed"
+        assert result.result is not None
         assert result.result["data"] == "test"
         assert result.worker_id == "test-worker"
 

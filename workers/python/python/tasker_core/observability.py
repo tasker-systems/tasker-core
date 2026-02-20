@@ -22,13 +22,13 @@ Example:
 
 from __future__ import annotations
 
-from tasker_core._tasker_core import (  # type: ignore[attr-defined]
+from tasker_core._tasker_core import (
     get_health_check as _get_health_check,
 )
-from tasker_core._tasker_core import (  # type: ignore[attr-defined]
+from tasker_core._tasker_core import (
     get_metrics as _get_metrics,
 )
-from tasker_core._tasker_core import (  # type: ignore[attr-defined]
+from tasker_core._tasker_core import (
     get_worker_config as _get_worker_config,
 )
 

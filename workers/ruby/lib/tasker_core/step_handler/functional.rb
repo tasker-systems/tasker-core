@@ -128,12 +128,33 @@ module TaskerCore
       def _inject_args(context, depends_on, inputs)
         args = { context: context }
 
-        depends_on.each do |param_name, step_name|
-          args[param_name.to_sym] = context.get_dependency_result(step_name.to_s)
+        depends_on.each do |param_name, value|
+          if value.is_a?(Array) && value.length == 2
+            step_name, model_cls = value
+            raw = context.get_dependency_result(step_name.to_s)
+            args[param_name.to_sym] = if raw.is_a?(Hash)
+                                        symbolized = raw.transform_keys(&:to_sym)
+                                        known = model_cls.attribute_names
+                                        model_cls.new(**symbolized.slice(*known))
+                                      else
+                                        raw
+                                      end
+          else
+            args[param_name.to_sym] = context.get_dependency_result(value.to_s)
+          end
         end
 
-        inputs.each do |input_key|
-          args[input_key.to_sym] = context.get_input(input_key.to_s)
+        if inputs.is_a?(Class)
+          model_data = {}
+          inputs.attribute_names.each do |attr_name|
+            model_data[attr_name] = context.get_input(attr_name.to_s)
+          end
+          args[:inputs] = inputs.new(**model_data.compact)
+          args[:inputs].validate! if args[:inputs].respond_to?(:validate!)
+        else
+          Array(inputs).each do |input_key|
+            args[input_key.to_sym] = context.get_input(input_key.to_s)
+          end
         end
 
         args

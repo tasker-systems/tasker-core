@@ -410,6 +410,7 @@ class TestHandlerRegistration:
 
         # Verify resolution returns correct handlers
         init = registry.resolve("diamond_init")
+        assert init is not None
         assert init.name == "diamond_init"
 
     def test_execute_registered_handler(self):

@@ -28,7 +28,7 @@ class TestApiHandler:
             handler_name = "test_api_handler"
             base_url = "https://api.example.com"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.success({"data": "test"})
 
         handler = TestApiHandler()
@@ -45,7 +45,7 @@ class TestApiHandler:
             handler_name = "test"
             base_url = "https://test.com"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.success({})
 
         handler = TestHandler()
@@ -132,7 +132,7 @@ class TestApiHandlerFailureClassification:
         class TestHandler(ApiHandler):
             handler_name = "test_api"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.success({})
 
         handler = TestHandler()
@@ -193,7 +193,7 @@ class TestApiHandlerFailureClassification:
         class TestHandler(ApiHandler):
             handler_name = "test_api"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.success({})
 
         handler = TestHandler()
@@ -242,7 +242,7 @@ class TestApiHandlerFailureClassification:
         class TestHandler(ApiHandler):
             handler_name = "test_api"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.success({})
 
         handler = TestHandler()
@@ -328,7 +328,7 @@ class TestAPIMixinHTTPMethods:
             handler_name = "test_http"
             base_url = "https://test.example.com"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.success({})
 
         handler = TestHTTPHandler()
@@ -392,7 +392,7 @@ class TestAPIMixinErrorHelpers:
         class TestErrorHandler(ApiHandler):
             handler_name = "test_errors"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.success({})
 
         return TestErrorHandler()

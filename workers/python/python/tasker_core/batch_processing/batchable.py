@@ -960,7 +960,7 @@ class Batchable:
 
     def checkpoint_yield(
         self,
-        cursor: int | str | dict[str, Any],
+        cursor: int | str | dict[str, Any] | None,
         items_processed: int,
         accumulated_results: dict[str, Any] | None = None,
     ) -> StepHandlerResult:

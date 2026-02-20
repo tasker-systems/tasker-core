@@ -311,7 +311,7 @@ class TestBatchableWithStepHandler:
         class TestAnalyzer(StepHandler, Batchable):
             handler_name = "test_analyzer"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 outcome = self.create_batch_outcome(total_items=100, batch_size=25)
                 return self.batch_analyzer_success(outcome)
 
@@ -335,7 +335,7 @@ class TestBatchableWithStepHandler:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 outcome = self.create_worker_outcome(
                     items_processed=25,
                     items_succeeded=24,
@@ -475,7 +475,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -497,7 +497,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -519,7 +519,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -544,7 +544,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -582,7 +582,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -617,7 +617,7 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -638,7 +638,7 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -659,7 +659,7 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -681,7 +681,7 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -703,7 +703,7 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -724,7 +724,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -743,7 +743,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -761,7 +761,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -778,7 +778,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -795,7 +795,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -814,7 +814,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -850,7 +850,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -1062,7 +1062,7 @@ class TestBatchableKeywordArgs:
         class TestAnalyzer(StepHandler, Batchable):
             handler_name = "test_analyzer_kwargs"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAnalyzer()
@@ -1088,7 +1088,7 @@ class TestBatchableKeywordArgs:
         class TestAnalyzer(StepHandler, Batchable):
             handler_name = "test_analyzer_empty"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAnalyzer()
@@ -1104,7 +1104,7 @@ class TestBatchableKeywordArgs:
         class TestAnalyzer(StepHandler, Batchable):
             handler_name = "test_analyzer_noargs"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAnalyzer()
@@ -1122,7 +1122,7 @@ class TestBatchableKeywordArgs:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_worker_kwargs"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -1144,7 +1144,7 @@ class TestBatchableKeywordArgs:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_worker_noargs"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -1158,7 +1158,7 @@ class TestBatchableKeywordArgs:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_worker_partial"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()

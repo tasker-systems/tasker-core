@@ -33,7 +33,7 @@ class TestStepHandler:
         """Test handler name defaults to class name if not set."""
 
         class NoNameHandler(StepHandler):
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         handler = NoNameHandler()
@@ -45,7 +45,7 @@ class TestStepHandler:
         class CustomHandler(StepHandler):
             handler_name = "custom_handler"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         handler = CustomHandler()
@@ -57,7 +57,7 @@ class TestStepHandler:
         class TestHandler(StepHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         handler = TestHandler()
@@ -70,7 +70,7 @@ class TestStepHandler:
             handler_name = "test"
             handler_version = "2.5.0"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         handler = TestHandler()
@@ -82,7 +82,7 @@ class TestStepHandler:
         class TestHandler(StepHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         handler = TestHandler()
@@ -94,7 +94,7 @@ class TestStepHandler:
         class TestHandler(StepHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         handler = TestHandler()
@@ -107,7 +107,7 @@ class TestStepHandler:
             handler_name = "test"
             handler_version = "1.0.0"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         handler = TestHandler()
@@ -620,7 +620,7 @@ class TestHandlerIntegration:
         class TestHandler(StepHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         # Simulate handler registration notification

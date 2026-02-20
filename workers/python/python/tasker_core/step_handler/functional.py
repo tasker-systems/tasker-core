@@ -148,12 +148,16 @@ def _wrap_result(result: Any) -> StepHandlerResult:
 
     - StepHandlerResult -> pass through
     - dict -> success
+    - BaseModel -> serialize via model_dump() then success
     - None -> success with empty dict
     """
     if isinstance(result, StepHandlerResult):
         return result
     if isinstance(result, dict):
         return StepHandlerResult.success(result)
+    # Pydantic BaseModel — serialize to dict for FFI boundary
+    if hasattr(result, "model_dump"):
+        return StepHandlerResult.success(result.model_dump(mode="json"))
     if result is None:
         return StepHandlerResult.success({})
     # Fallback: wrap in a dict
@@ -201,16 +205,30 @@ def _inject_args(
     """Build keyword arguments for a functional handler.
 
     Injects dependency results, input values, and context.
+    Supports model-based injection for both dependencies and inputs.
     """
     kwargs: dict[str, Any] = {}
 
-    # Inject dependency results
+    # Inject dependency results (with optional model construction)
+    dep_models: dict[str, type] = getattr(fn, "_dep_models", {})
     for param_name, step_name in dep_map.items():
-        kwargs[param_name] = context.get_dependency_result(step_name)
+        raw = context.get_dependency_result(step_name)
+        model_cls = dep_models.get(param_name)
+        if model_cls is not None and isinstance(raw, dict):
+            kwargs[param_name] = model_cls.model_construct(**raw)  # type: ignore[attr-defined]
+        else:
+            kwargs[param_name] = raw
 
-    # Inject input values
-    for key in input_keys:
-        kwargs[key] = context.get_input(key)
+    # Inject inputs (model-based or string-based)
+    input_model: type | None = getattr(fn, "_input_model", None)
+    if input_model is not None:
+        model_data = {}
+        for field_name in input_model.model_fields:  # type: ignore[attr-defined]
+            model_data[field_name] = context.get_input(field_name)
+        kwargs["inputs"] = input_model(**model_data)
+    else:
+        for key in input_keys:
+            kwargs[key] = context.get_input(key)
 
     # Always provide context if the function accepts it
     sig = inspect.signature(fn)
@@ -333,39 +351,65 @@ def step_handler(
     return decorator
 
 
-def depends_on(**deps: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def depends_on(
+    **deps: str | tuple[str, type],
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Declare dependency step results to inject as named parameters.
 
-    Each keyword argument maps a parameter name to a step name.
-    The dependency result is fetched via ``context.get_dependency_result(step_name)``
-    and injected as the named parameter. Missing dependencies inject ``None``.
+    Each keyword argument maps a parameter name to either:
+    - A step name string: the raw dependency result dict is injected.
+    - A ``(step_name, ModelClass)`` tuple: the result dict is used to construct
+      a model instance which is injected as a typed parameter.
 
     Args:
-        **deps: Mapping of parameter_name="step_name".
+        **deps: Mapping of parameter_name="step_name" or
+            parameter_name=("step_name", ModelClass).
 
     Example:
         >>> @step_handler("process_order")
         ... @depends_on(cart="validate_cart", user="fetch_user")
         ... def process_order(cart, user, context):
         ...     return {"order": f"for {user['name']}", "total": cart["total"]}
+        >>>
+        >>> # With model-based injection:
+        >>> @step_handler("execute_refund")
+        ... @depends_on(approval=("get_manager_approval", ApproveRefundResult))
+        ... def execute_refund(approval: ApproveRefundResult, context):
+        ...     return {"approved": approval.approved}
     """
 
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         existing = getattr(fn, "_depends_on", {})
-        fn._depends_on = {**existing, **deps}  # type: ignore[attr-defined]
+        existing_models = getattr(fn, "_dep_models", {})
+        dep_map: dict[str, str] = {}
+        dep_models: dict[str, type] = {}
+        for param_name, value in deps.items():
+            if isinstance(value, tuple) and len(value) == 2:
+                step_name, model_cls = value
+                dep_map[param_name] = step_name
+                dep_models[param_name] = model_cls
+            else:
+                dep_map[param_name] = value
+        fn._depends_on = {**existing, **dep_map}  # type: ignore[attr-defined]
+        fn._dep_models = {**existing_models, **dep_models}  # type: ignore[attr-defined]
         return fn
 
     return decorator
 
 
-def inputs(*keys: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def inputs(*keys_or_model: str | type) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Declare task context inputs to inject as named parameters.
 
-    Each key is looked up via ``context.get_input(key)`` and injected
-    as a parameter with the same name. Missing inputs inject ``None``.
+    Accepts either string key names or a single model class:
+
+    - **String keys**: Each key is looked up via ``context.get_input(key)``
+      and injected as an individual keyword argument.
+    - **Model class**: A single class (e.g. a Pydantic ``BaseModel`` subclass)
+      whose fields are looked up from ``context.get_input()`` and injected
+      as a single ``inputs`` keyword argument containing the constructed model.
 
     Args:
-        *keys: Input key names to inject.
+        *keys_or_model: Input key names to inject, or a single model class.
 
     Example:
         >>> @step_handler("validate_payment")
@@ -374,11 +418,20 @@ def inputs(*keys: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         ...     if not payment_info:
         ...         raise PermanentError("Payment info required")
         ...     return {"valid": True}
+        >>>
+        >>> # With model-based injection:
+        >>> @step_handler("validate_refund")
+        ... @inputs(ValidateRefundInput)
+        ... def validate_refund(inputs: ValidateRefundInput, context):
+        ...     return {"ticket": inputs.ticket_id}
     """
 
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
-        existing = getattr(fn, "_inputs", [])
-        fn._inputs = [*existing, *keys]  # type: ignore[attr-defined]
+        if len(keys_or_model) == 1 and isinstance(keys_or_model[0], type):
+            fn._input_model = keys_or_model[0]  # type: ignore[attr-defined]
+        else:
+            existing = getattr(fn, "_inputs", [])
+            fn._inputs = [*existing, *keys_or_model]  # type: ignore[attr-defined]
         return fn
 
     return decorator

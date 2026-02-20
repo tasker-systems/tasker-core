@@ -441,4 +441,306 @@ RSpec.describe TaskerCore::StepHandler::Functional do
       expect(result.result).to eq({ has_context: true, task_uuid: 'task-456' })
     end
   end
+
+  # ============================================================================
+  # Test Structs for Model-Based Injection
+  # ============================================================================
+
+  module TestTypes
+    include Dry.Types()
+
+    class RefundInput < Dry::Struct
+      attribute :ticket_id, TestTypes::String
+      attribute :customer_id, TestTypes::String
+      attribute :refund_amount, TestTypes::Float
+    end
+
+    class ApprovalResult < Dry::Struct
+      attribute :approved, TestTypes::Bool
+      attribute :approval_id, TestTypes::String
+    end
+  end
+
+  # ============================================================================
+  # Tests: Struct-Based inputs:
+  # ============================================================================
+
+  describe 'struct-based inputs:' do
+    it 'injects a single typed inputs param from struct class' do
+      handler_class = step_handler('struct_inputs',
+                                   inputs: TestTypes::RefundInput) do |inputs:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        {
+          ticket: inputs.ticket_id,
+          customer: inputs.customer_id,
+          amount: inputs.refund_amount
+        }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(input_data: {
+                           ticket_id: 'TKT-001',
+                           customer_id: 'CUST-42',
+                           refund_amount: 99.99
+                         })
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({
+                                    ticket: 'TKT-001',
+                                    customer: 'CUST-42',
+                                    amount: 99.99
+                                  })
+    end
+
+    it 'symbol array inputs: still works (backward compatible)' do
+      handler_class = step_handler('symbol_inputs',
+                                   inputs: %i[ticket_id customer_id]) do |ticket_id:, customer_id:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        { ticket: ticket_id, customer: customer_id }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(input_data: { ticket_id: 'TKT-002', customer_id: 'CUST-43' })
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({ ticket: 'TKT-002', customer: 'CUST-43' })
+    end
+  end
+
+  # ============================================================================
+  # Tests: Array-Pair depends_on:
+  # ============================================================================
+
+  describe 'array-pair depends_on:' do
+    it 'injects typed model from [step_name, StructClass] pair' do
+      handler_class = step_handler('struct_dep',
+                                   depends_on: {
+                                     approval: ['get_approval', TestTypes::ApprovalResult]
+                                   }) do |approval:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        {
+          approved: approval.approved,
+          id: approval.approval_id
+        }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(dependency_results: {
+                           'get_approval' => { result: { 'approved' => true, 'approval_id' => 'APR-001' } }
+                         })
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({ approved: true, id: 'APR-001' })
+    end
+
+    it 'mixes typed and untyped deps' do
+      handler_class = step_handler('mixed_deps',
+                                   depends_on: {
+                                     approval: ['get_approval', TestTypes::ApprovalResult],
+                                     validation: 'validate_request'
+                                   }) do |approval:, validation:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        {
+          approved: approval.approved,
+          valid: validation&.dig('is_valid')
+        }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(dependency_results: {
+                           'get_approval' => { result: { 'approved' => true, 'approval_id' => 'APR-002' } },
+                           'validate_request' => { result: { 'is_valid' => true } }
+                         })
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({ approved: true, valid: true })
+    end
+
+    it 'plain string depends_on: still works (backward compatible)' do
+      handler_class = step_handler('string_dep',
+                                   depends_on: { cart: 'validate_cart' }) do |cart:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        { total: cart['total'] }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(dependency_results: {
+                           'validate_cart' => { result: { 'total' => 42.0 } }
+                         })
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({ total: 42.0 })
+    end
+  end
+
+  # ============================================================================
+  # Tests: Mixed Mode (Struct Inputs + Struct Deps)
+  # ============================================================================
+
+  # ============================================================================
+  # Test Structs with validate! for Model-Level Validation
+  # ============================================================================
+
+  module TestTypes
+    class ValidatedRefundInput < Dry::Struct
+      transform_types do |type|
+        if type.default?
+          type
+        else
+          type.optional.meta(omittable: true)
+        end
+      end
+
+      attribute :ticket_id, TestTypes::String
+      attribute :customer_id, TestTypes::String
+      attribute :refund_amount, TestTypes::Float
+
+      def validate!
+        missing = []
+        missing << 'ticket_id' if ticket_id.blank?
+        missing << 'customer_id' if customer_id.blank?
+        missing << 'refund_amount' if refund_amount.nil?
+        return if missing.empty?
+
+        raise TaskerCore::Errors::PermanentError.new(
+          "Missing required fields: #{missing.join(', ')}",
+          error_code: 'MISSING_FIELDS'
+        )
+      end
+    end
+  end
+
+  # ============================================================================
+  # Tests: Model-Level Input Validation
+  # ============================================================================
+
+  describe 'model-level input validation via validate!' do
+    it 'raises PermanentError on missing required fields' do
+      handler_class = step_handler('validated_handler',
+                                   inputs: TestTypes::ValidatedRefundInput) do |inputs:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        { ticket: inputs.ticket_id }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(input_data: { ticket_id: 'TKT-001' }) # missing customer_id, refund_amount
+      result = handler.call(ctx)
+      expect(result.success?).to be false
+      expect(result.retryable).to be false
+      expect(result.message).to include('customer_id')
+      expect(result.message).to include('refund_amount')
+    end
+
+    it 'passes when all required fields are present' do
+      handler_class = step_handler('validated_ok',
+                                   inputs: TestTypes::ValidatedRefundInput) do |inputs:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        {
+          ticket: inputs.ticket_id,
+          customer: inputs.customer_id,
+          amount: inputs.refund_amount
+        }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(input_data: {
+                           ticket_id: 'TKT-001',
+                           customer_id: 'CUST-42',
+                           refund_amount: 99.99
+                         })
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({
+                                    ticket: 'TKT-001',
+                                    customer: 'CUST-42',
+                                    amount: 99.99
+                                  })
+    end
+
+    it 'skips validation for structs without validate!' do
+      handler_class = step_handler('no_validate',
+                                   inputs: TestTypes::RefundInput) do |inputs:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        { ticket: inputs.ticket_id }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(input_data: {
+                           ticket_id: 'TKT-001',
+                           customer_id: 'CUST-42',
+                           refund_amount: 99.99
+                         })
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+    end
+  end
+
+  describe 'mixed struct inputs and deps' do
+    it 'struct inputs: and array-pair depends_on: work together' do
+      handler_class = step_handler('full_struct',
+                                   depends_on: { approval: ['get_approval', TestTypes::ApprovalResult] },
+                                   inputs: TestTypes::RefundInput) do |approval:, inputs:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        {
+          ticket: inputs.ticket_id,
+          approved: approval.approved
+        }
+      end
+
+      handler = handler_class.new
+      ctx = make_context(
+        input_data: {
+          ticket_id: 'TKT-100',
+          customer_id: 'CUST-99',
+          refund_amount: 200.0
+        },
+        dependency_results: {
+          'get_approval' => { result: { 'approved' => true, 'approval_id' => 'APR-100' } }
+        }
+      )
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({ ticket: 'TKT-100', approved: true })
+    end
+  end
+
+  # ============================================================================
+  # Tests: Dry::Struct Result Serialization
+  # ============================================================================
+
+  module TestTypes
+    class RefundResultStruct < Dry::Struct
+      attribute :request_validated, TestTypes::Bool
+      attribute :ticket_id, TestTypes::String
+      attribute :customer_id, TestTypes::String
+      attribute :amount, TestTypes::Float
+    end
+  end
+
+  describe 'Dry::Struct result serialization via _wrap_result' do
+    it 'serializes a Dry::Struct return value to a hash' do
+      handler_class = step_handler('struct_result') do |context:| # rubocop:disable Lint/UnusedBlockArgument
+        TestTypes::RefundResultStruct.new(
+          request_validated: true,
+          ticket_id: 'TKT-001',
+          customer_id: 'CUST-42',
+          amount: 99.99
+        )
+      end
+
+      handler = handler_class.new
+      ctx = make_context
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({
+                                    request_validated: true,
+                                    ticket_id: 'TKT-001',
+                                    customer_id: 'CUST-42',
+                                    amount: 99.99
+                                  })
+    end
+
+    it 'plain hash return continues to work' do
+      handler_class = step_handler('hash_result') do |context:| # rubocop:disable Lint/UnusedBlockArgument
+        { ticket_id: 'TKT-001', amount: 50.0 }
+      end
+
+      handler = handler_class.new
+      ctx = make_context
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({ ticket_id: 'TKT-001', amount: 50.0 })
+    end
+  end
 end

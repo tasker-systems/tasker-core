@@ -36,7 +36,7 @@ class TestAsyncHandlerDetection:
         class SyncHandler(StepHandler):
             handler_name = "sync_test"
 
-            def call(self, _context: StepContext) -> StepHandlerResult:
+            def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 return StepHandlerResult.success({"sync": True})
 
         handler = SyncHandler()
@@ -48,7 +48,7 @@ class TestAsyncHandlerDetection:
         class AsyncHandler(StepHandler):
             handler_name = "async_test"
 
-            async def call(self, _context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 await asyncio.sleep(0)
                 return StepHandlerResult.success({"async": True})
 
@@ -75,7 +75,7 @@ class TestSyncHandlerExecution:
         class SyncHandler(StepHandler):
             handler_name = "sync_processor"
 
-            def call(self, context: StepContext) -> StepHandlerResult:
+            def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 value = context.input_data.get("value", 0)
                 return StepHandlerResult.success({"processed_value": value * 2})
 
@@ -98,7 +98,7 @@ class TestSyncHandlerExecution:
         class FailingSyncHandler(StepHandler):
             handler_name = "failing_sync"
 
-            def call(self, _context: StepContext) -> StepHandlerResult:
+            def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 return StepHandlerResult.failure(
                     message="Sync failure",
                     error_type="test_error",
@@ -109,6 +109,7 @@ class TestSyncHandlerExecution:
         registry.register("failing_sync", FailingSyncHandler)
 
         handler = registry.resolve("failing_sync")
+        assert handler is not None
         event = self._create_test_event({})
         context = StepContext.from_ffi_event(event, "failing_sync")
 
@@ -151,7 +152,7 @@ class TestAsyncHandlerExecution:
         class AsyncHandler(StepHandler):
             handler_name = "async_processor"
 
-            async def call(self, context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 await asyncio.sleep(0.01)
                 value = context.input_data.get("value", 0)
                 return StepHandlerResult.success({"processed_value": value * 2})
@@ -181,7 +182,7 @@ class TestAsyncHandlerExecution:
         class AsyncIOHandler(StepHandler):
             handler_name = "async_io_handler"
 
-            async def call(self, _context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 # Simulate async I/O (e.g., database query, HTTP request)
                 results = []
                 for i in range(3):
@@ -195,6 +196,7 @@ class TestAsyncHandlerExecution:
 
         result = await handler.call(context)
         assert result.is_success
+        assert result.result is not None
         assert result.result["results"] == [0, 2, 4]
 
     @pytest.mark.asyncio
@@ -204,7 +206,7 @@ class TestAsyncHandlerExecution:
         class FailingAsyncHandler(StepHandler):
             handler_name = "failing_async"
 
-            async def call(self, _context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 await asyncio.sleep(0.01)
                 return StepHandlerResult.failure(
                     message="Async failure",
@@ -228,7 +230,7 @@ class TestAsyncHandlerExecution:
         class ExceptionAsyncHandler(StepHandler):
             handler_name = "exception_async"
 
-            async def call(self, _context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 await asyncio.sleep(0.01)
                 raise ValueError("Async exception test")
 
@@ -273,7 +275,7 @@ class TestSubscriberAsyncHandling:
             handler_name = "sync_sub_test"
             executed = False
 
-            def call(self, _context: StepContext) -> StepHandlerResult:
+            def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 SyncHandler.executed = True
                 return StepHandlerResult.success({"sync": True})
 
@@ -287,6 +289,7 @@ class TestSubscriberAsyncHandling:
 
         # Use the subscriber's internal method to test execution
         handler = registry.resolve("sync_sub_test")
+        assert handler is not None
         event = self._create_test_event("sync_sub_test")
 
         result = subscriber._execute_handler(event, handler)
@@ -302,7 +305,7 @@ class TestSubscriberAsyncHandling:
             handler_name = "async_sub_test"
             executed = False
 
-            async def call(self, _context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 await asyncio.sleep(0.01)
                 AsyncHandler.executed = True
                 return StepHandlerResult.success({"async": True})
@@ -316,6 +319,7 @@ class TestSubscriberAsyncHandling:
         subscriber = StepExecutionSubscriber(bridge, registry, "worker-test")
 
         handler = registry.resolve("async_sub_test")
+        assert handler is not None
         event = self._create_test_event("async_sub_test")
 
         # The subscriber should detect the async handler and run it properly
@@ -331,7 +335,7 @@ class TestSubscriberAsyncHandling:
         class FailingAsyncHandler(StepHandler):
             handler_name = "failing_async_sub"
 
-            async def call(self, _context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 await asyncio.sleep(0.01)
                 raise RuntimeError("Async handler failed")
 
@@ -342,6 +346,7 @@ class TestSubscriberAsyncHandling:
         subscriber = StepExecutionSubscriber(bridge, registry, "worker-test")
 
         handler = registry.resolve("failing_async_sub")
+        assert handler is not None
         event = self._create_test_event("failing_async_sub")
 
         # The subscriber should propagate the exception
@@ -382,13 +387,13 @@ class TestMixedHandlerScenarios:
         class SyncHandler(StepHandler):
             handler_name = "mixed_sync"
 
-            def call(self, _context: StepContext) -> StepHandlerResult:
+            def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 return StepHandlerResult.success({"type": "sync"})
 
         class AsyncHandler(StepHandler):
             handler_name = "mixed_async"
 
-            async def call(self, _context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 return StepHandlerResult.success({"type": "async"})
 
         registry = HandlerRegistry.instance()
@@ -410,7 +415,7 @@ class TestMixedHandlerScenarios:
             handler_name = "route_sync"
             call_count = 0
 
-            def call(self, _context: StepContext) -> StepHandlerResult:
+            def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 SyncHandler.call_count += 1
                 return StepHandlerResult.success({"handler": "sync"})
 
@@ -418,7 +423,7 @@ class TestMixedHandlerScenarios:
             handler_name = "route_async"
             call_count = 0
 
-            async def call(self, _context: StepContext) -> StepHandlerResult:
+            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
                 await asyncio.sleep(0.01)
                 AsyncHandler.call_count += 1
                 return StepHandlerResult.success({"handler": "async"})
@@ -435,11 +440,13 @@ class TestMixedHandlerScenarios:
 
         # Execute sync handler
         sync_handler = registry.resolve("route_sync")
+        assert sync_handler is not None
         sync_event = self._create_test_event("route_sync")
         sync_result = subscriber._execute_handler(sync_event, sync_handler)
 
         # Execute async handler
         async_handler = registry.resolve("route_async")
+        assert async_handler is not None
         async_event = self._create_test_event("route_async")
         async_result = subscriber._execute_handler(async_event, async_handler)
 

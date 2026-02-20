@@ -71,7 +71,7 @@ class TestDecisionHandler:
         class TestDecisionHandler(DecisionHandler):
             handler_name = "test_decision"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 outcome = DecisionPointOutcome.create_steps(["next_step"])
                 return self.decision_success_with_outcome(outcome)
 
@@ -87,7 +87,7 @@ class TestDecisionHandler:
         class TestDecisionHandler(DecisionHandler):
             handler_name = "test_decision"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 # Use simplified cross-language API
                 return self.decision_success(
                     ["step_a", "step_b"],
@@ -97,6 +97,7 @@ class TestDecisionHandler:
         handler = TestDecisionHandler()
         result = handler.decision_success(["next_step"], routing_context={"x": 1})
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["decision_point_outcome"]["step_names"] == ["next_step"]
         assert result.result["decision_point_outcome"]["type"] == "create_steps"
 
@@ -107,7 +108,7 @@ class TestDecisionHandler:
         class TestHandler(DecisionHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.route_to_steps(
                     ["step_a", "step_b"],
                     routing_context={"reason": "test"},
@@ -118,6 +119,7 @@ class TestDecisionHandler:
         result = handler.route_to_steps(["step_a"], routing_context={"x": 1})
         assert result.is_success is True
         # Result now uses decision_point_outcome wrapper (matches Rust expectations)
+        assert result.result is not None
         assert result.result["decision_point_outcome"]["step_names"] == ["step_a"]
         assert result.result["decision_point_outcome"]["type"] == "create_steps"
 
@@ -128,13 +130,14 @@ class TestDecisionHandler:
         class TestHandler(DecisionHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.skip_branches(reason="No items")
 
         handler = TestHandler()
         result = handler.skip_branches(reason="Nothing to do")
         assert result.is_success is True
         # Result now uses decision_point_outcome wrapper (matches Rust expectations)
+        assert result.result is not None
         assert result.result["decision_point_outcome"]["type"] == "no_branches"
         assert result.result["reason"] == "Nothing to do"
 
@@ -145,7 +148,7 @@ class TestDecisionHandler:
         class TestHandler(DecisionHandler):
             handler_name = "test"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return self.decision_failure(
                     message="Missing required field",
                     error_type="validation_error",

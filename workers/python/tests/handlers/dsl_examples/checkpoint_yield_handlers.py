@@ -8,7 +8,7 @@ detect_aggregation_scenario, etc.).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from tasker_core.batch_processing import Batchable
 from tasker_core.step_handler import StepHandler
@@ -110,7 +110,7 @@ class CheckpointYieldWorkerDslHandler(StepHandler, Batchable):
             item_id = f"item_{current_cursor:04d}"
             value = current_cursor + 1
             accumulated["running_total"] += value
-            accumulated["item_ids"].append(item_id)
+            cast(list[str], accumulated["item_ids"]).append(item_id)
 
             current_cursor += 1
             items_in_chunk += 1

@@ -236,3 +236,145 @@ def checkpoint_yield_step_event(event_id: str, checkpoint_data: dict[str, Any]) 
         RuntimeError: If worker system is not running.
     """
     ...
+
+# Phase 5: In-process domain events
+
+def poll_in_process_events() -> dict[str, Any] | None:
+    """Poll for in-process domain events from the broadcast channel.
+
+    Returns:
+        Dict representing domain event, or None if no events available.
+
+    Raises:
+        RuntimeError: If worker system is not running.
+    """
+    ...
+
+# Phase 5: Observability functions
+
+def get_health_check() -> dict[str, Any]:
+    """Get comprehensive health check status.
+
+    Returns:
+        Dict with health status of all worker components.
+
+    Raises:
+        RuntimeError: If worker system is not running.
+    """
+    ...
+
+def get_metrics() -> dict[str, Any]:
+    """Get worker performance metrics.
+
+    Returns:
+        Dict with worker metrics data.
+
+    Raises:
+        RuntimeError: If worker system is not running.
+    """
+    ...
+
+def get_worker_config() -> dict[str, Any]:
+    """Get current worker configuration.
+
+    Returns:
+        Dict with worker configuration data.
+
+    Raises:
+        RuntimeError: If worker system is not running.
+    """
+    ...
+
+# Client API functions (TAS-231)
+
+def client_health_check() -> dict[str, Any]:
+    """Check orchestration API health.
+
+    Returns:
+        Dict with health status information.
+    """
+    ...
+
+def client_create_task(request: dict[str, Any]) -> dict[str, Any]:
+    """Create a task via the orchestration API.
+
+    Args:
+        request: Task creation request dict.
+
+    Returns:
+        Dict with created task data.
+    """
+    ...
+
+def client_get_task(task_uuid: str) -> dict[str, Any]:
+    """Get a task by UUID.
+
+    Args:
+        task_uuid: The task UUID.
+
+    Returns:
+        Dict with task data.
+    """
+    ...
+
+def client_list_tasks(
+    limit: int, offset: int, namespace: str | None, status: str | None
+) -> dict[str, Any]:
+    """List tasks with optional filtering and pagination.
+
+    Args:
+        limit: Maximum number of tasks to return.
+        offset: Offset for pagination.
+        namespace: Optional namespace filter.
+        status: Optional status filter.
+
+    Returns:
+        Dict with task list and pagination info.
+    """
+    ...
+
+def client_cancel_task(task_uuid: str) -> dict[str, Any]:
+    """Cancel a task by UUID.
+
+    Args:
+        task_uuid: The task UUID.
+
+    Returns:
+        Dict with cancellation result.
+    """
+    ...
+
+def client_list_task_steps(task_uuid: str) -> list[dict[str, Any]]:
+    """List workflow steps for a task.
+
+    Args:
+        task_uuid: The task UUID.
+
+    Returns:
+        List of step dicts.
+    """
+    ...
+
+def client_get_step(task_uuid: str, step_uuid: str) -> dict[str, Any]:
+    """Get a specific workflow step.
+
+    Args:
+        task_uuid: The task UUID.
+        step_uuid: The step UUID.
+
+    Returns:
+        Dict with step data.
+    """
+    ...
+
+def client_get_step_audit_history(task_uuid: str, step_uuid: str) -> list[dict[str, Any]]:
+    """Get audit history for a workflow step.
+
+    Args:
+        task_uuid: The task UUID.
+        step_uuid: The step UUID.
+
+    Returns:
+        List of audit entry dicts.
+    """
+    ...

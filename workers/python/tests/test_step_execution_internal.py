@@ -174,7 +174,7 @@ class TestExecuteHandler:
         class SuccessHandler(StepHandler):
             handler_name = "success_handler"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({"success": True})
 
         bridge = EventBridge.instance()
@@ -195,7 +195,7 @@ class TestExecuteHandler:
         class DataHandler(StepHandler):
             handler_name = "data_handler"
 
-            def call(self, context):
+            def call(self, context):  # noqa: ARG002
                 value = context.input_data.get("value", 0)
                 return StepHandlerResult.success({"doubled": value * 2})
 
@@ -235,6 +235,7 @@ class TestCreateErrorResults:
 
         assert result.is_success is False
         assert result.error_type == "handler_not_found"
+        assert result.error_message is not None
         assert "missing_handler" in result.error_message
         assert result.retryable is False
 
@@ -249,6 +250,7 @@ class TestCreateErrorResults:
 
         assert result.is_success is False
         assert result.error_type == "ValueError"
+        assert result.error_message is not None
         assert "Something went wrong" in result.error_message
         assert result.retryable is True
         assert "traceback" in result.metadata
@@ -275,7 +277,7 @@ class TestHandleExecutionEvent:
         class TestHandler(StepHandler):
             handler_name = "test_handler"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({"processed": True})
 
         bridge = EventBridge.instance()
@@ -323,7 +325,7 @@ class TestHandleExecutionEvent:
         class FailingHandler(StepHandler):
             handler_name = "failing_handler"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 raise RuntimeError("Handler crashed")
 
         bridge = EventBridge.instance()

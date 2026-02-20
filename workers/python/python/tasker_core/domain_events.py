@@ -73,7 +73,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from tasker_core._tasker_core import (  # type: ignore[attr-defined]
+from tasker_core._tasker_core import (
     poll_in_process_events as _poll_in_process_events,
 )
 
@@ -581,13 +581,13 @@ class BaseSubscriber(ABC):
         """
         return True
 
-    def after_handle(self, _event: dict[str, Any]) -> None:  # noqa: B027
+    def after_handle(self, event: dict[str, Any]) -> None:  # noqa: ARG002, B027
         """Hook called after successful handling.
 
         Override for post-processing, metrics, or cleanup.
 
         Args:
-            _event: The event data dictionary.
+            event: The event data dictionary.
         """
         pass
 
