@@ -74,20 +74,20 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
 
       # Step2: 4^2 = 16
       step2 = LinearStep2DslHandler.new
-      ctx2 = make_context(dependency_results: { 'linear_step_1' => { result: r1.result } })
+      ctx2 = make_context(dependency_results: { 'linear_step_1_dsl' => { result: r1.result } })
       r2 = step2.call(ctx2)
       expect(r2.result).to eq(16)
 
       # Step3: 16^2 = 256
       step3 = LinearStep3DslHandler.new
-      ctx3 = make_context(dependency_results: { 'linear_step_2' => { result: r2.result } })
+      ctx3 = make_context(dependency_results: { 'linear_step_2_dsl' => { result: r2.result } })
       r3 = step3.call(ctx3)
       expect(r3.result).to eq(256)
 
       # Step4: 256^2 = 65536 = 2^16 (but we square 4 times so 2^(2^4) = 2^16 = 65536)
       step4 = LinearStep4DslHandler.new
       ctx4 = make_context(
-        dependency_results: { 'linear_step_3' => { result: r3.result } },
+        dependency_results: { 'linear_step_3_dsl' => { result: r3.result } },
         input_data: { even_number: even_number }
       )
       r4 = step4.call(ctx4)
@@ -113,18 +113,18 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
       expect(rs.result).to eq(4) # 2^2
 
       branch_b = DiamondBranchBDslHandler.new
-      rb = branch_b.call(make_context(dependency_results: { 'diamond_start' => { result: rs.result } }))
+      rb = branch_b.call(make_context(dependency_results: { 'diamond_start_dsl' => { result: rs.result } }))
       expect(rb.result).to eq(16) # 4^2
 
       branch_c = DiamondBranchCDslHandler.new
-      rc = branch_c.call(make_context(dependency_results: { 'diamond_start' => { result: rs.result } }))
+      rc = branch_c.call(make_context(dependency_results: { 'diamond_start_dsl' => { result: rs.result } }))
       expect(rc.result).to eq(16) # 4^2
 
       diamond_end = DiamondEndDslHandler.new
       re = diamond_end.call(make_context(
                               dependency_results: {
-                                'diamond_branch_b' => { result: rb.result },
-                                'diamond_branch_c' => { result: rc.result }
+                                'diamond_branch_b_dsl' => { result: rb.result },
+                                'diamond_branch_c_dsl' => { result: rc.result }
                               },
                               input_data: { even_number: even_number }
                             ))
@@ -146,36 +146,36 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
       expect(rr.result).to eq(4)
 
       left = TreeBranchLeftDslHandler.new
-      rl = left.call(make_context(dependency_results: { 'tree_root' => { result: rr.result } }))
+      rl = left.call(make_context(dependency_results: { 'tree_root_dsl' => { result: rr.result } }))
       expect(rl.result).to eq(16)
 
       right = TreeBranchRightDslHandler.new
-      rri = right.call(make_context(dependency_results: { 'tree_root' => { result: rr.result } }))
+      rri = right.call(make_context(dependency_results: { 'tree_root_dsl' => { result: rr.result } }))
       expect(rri.result).to eq(16)
 
       leaf_d = TreeLeafDDslHandler.new
-      rd = leaf_d.call(make_context(dependency_results: { 'tree_branch_left' => { result: rl.result } }))
+      rd = leaf_d.call(make_context(dependency_results: { 'tree_branch_left_dsl' => { result: rl.result } }))
       expect(rd.result).to eq(256)
 
       leaf_e = TreeLeafEDslHandler.new
-      re = leaf_e.call(make_context(dependency_results: { 'tree_branch_left' => { result: rl.result } }))
+      re = leaf_e.call(make_context(dependency_results: { 'tree_branch_left_dsl' => { result: rl.result } }))
       expect(re.result).to eq(256)
 
       leaf_f = TreeLeafFDslHandler.new
-      rf = leaf_f.call(make_context(dependency_results: { 'tree_branch_right' => { result: rri.result } }))
+      rf = leaf_f.call(make_context(dependency_results: { 'tree_branch_right_dsl' => { result: rri.result } }))
       expect(rf.result).to eq(256)
 
       leaf_g = TreeLeafGDslHandler.new
-      rg = leaf_g.call(make_context(dependency_results: { 'tree_branch_right' => { result: rri.result } }))
+      rg = leaf_g.call(make_context(dependency_results: { 'tree_branch_right_dsl' => { result: rri.result } }))
       expect(rg.result).to eq(256)
 
       final = TreeFinalConvergenceDslHandler.new
       rfinal = final.call(make_context(
                             dependency_results: {
-                              'tree_leaf_d' => { result: rd.result },
-                              'tree_leaf_e' => { result: re.result },
-                              'tree_leaf_f' => { result: rf.result },
-                              'tree_leaf_g' => { result: rg.result }
+                              'tree_leaf_d_dsl' => { result: rd.result },
+                              'tree_leaf_e_dsl' => { result: re.result },
+                              'tree_leaf_f_dsl' => { result: rf.result },
+                              'tree_leaf_g_dsl' => { result: rg.result }
                             },
                             input_data: { even_number: even_number }
                           ))
@@ -198,34 +198,34 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
       expect(ri.result).to eq(4)
 
       left = DagProcessLeftDslHandler.new
-      rl = left.call(make_context(dependency_results: { 'dag_init' => { result: ri.result } }))
+      rl = left.call(make_context(dependency_results: { 'dag_init_dsl' => { result: ri.result } }))
       expect(rl.result).to eq(16)
 
       right = DagProcessRightDslHandler.new
-      rr = right.call(make_context(dependency_results: { 'dag_init' => { result: ri.result } }))
+      rr = right.call(make_context(dependency_results: { 'dag_init_dsl' => { result: ri.result } }))
       expect(rr.result).to eq(16)
 
       validate = DagValidateDslHandler.new
       rv = validate.call(make_context(dependency_results: {
-                                        'dag_process_left' => { result: rl.result },
-                                        'dag_process_right' => { result: rr.result }
+                                        'dag_process_left_dsl' => { result: rl.result },
+                                        'dag_process_right_dsl' => { result: rr.result }
                                       }))
       expect(rv.result).to eq((16 * 16)**2)
 
       transform = DagTransformDslHandler.new
-      rt = transform.call(make_context(dependency_results: { 'dag_process_left' => { result: rl.result } }))
+      rt = transform.call(make_context(dependency_results: { 'dag_process_left_dsl' => { result: rl.result } }))
       expect(rt.result).to eq(16**2)
 
       analyze = DagAnalyzeDslHandler.new
-      ra = analyze.call(make_context(dependency_results: { 'dag_process_right' => { result: rr.result } }))
+      ra = analyze.call(make_context(dependency_results: { 'dag_process_right_dsl' => { result: rr.result } }))
       expect(ra.result).to eq(16**2)
 
       finalize = DagFinalizeDslHandler.new
       rf = finalize.call(make_context(
                            dependency_results: {
-                             'dag_validate' => { result: rv.result },
-                             'dag_transform' => { result: rt.result },
-                             'dag_analyze' => { result: ra.result }
+                             'dag_validate_dsl' => { result: rv.result },
+                             'dag_transform_dsl' => { result: rt.result },
+                             'dag_analyze_dsl' => { result: ra.result }
                            },
                            input_data: { even_number: even_number }
                          ))
@@ -285,7 +285,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
       expect(result.success?).to be true
       outcome = result.result[:decision_point_outcome]
       expect(outcome[:type]).to eq('create_steps')
-      expect(outcome[:step_names]).to eq(['auto_approve'])
+      expect(outcome[:step_names]).to eq(['auto_approve_dsl'])
     end
 
     it 'routes medium amounts to manager_approval' do
@@ -294,7 +294,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
       result = handler.call(ctx)
       expect(result.success?).to be true
       outcome = result.result[:decision_point_outcome]
-      expect(outcome[:step_names]).to eq(['manager_approval'])
+      expect(outcome[:step_names]).to eq(['manager_approval_dsl'])
     end
 
     it 'routes large amounts to dual approval' do
@@ -303,7 +303,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
       result = handler.call(ctx)
       expect(result.success?).to be true
       outcome = result.result[:decision_point_outcome]
-      expect(outcome[:step_names]).to eq(%w[manager_approval finance_review])
+      expect(outcome[:step_names]).to eq(%w[manager_approval_dsl finance_review_dsl])
     end
 
     it 'auto_approve returns correct structure' do
@@ -377,7 +377,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
 
       # Then reserve
       handler = OrderReserveInventoryDslHandler.new
-      ctx = make_context(dependency_results: { 'validate_order' => { result: v_result.result } })
+      ctx = make_context(dependency_results: { 'validate_order_dsl' => { result: v_result.result } })
       result = handler.call(ctx)
       expect(result.success?).to be true
       expect(result.result[:reservation_status]).to eq('confirmed')
@@ -527,7 +527,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
 
       handler = PipelineTransformSalesDslHandler.new
       ctx = make_context(dependency_results: {
-                           'extract_sales_data' => { result: extract_result.result }
+                           'extract_sales_data_dsl' => { result: extract_result.result }
                          })
       result = handler.call(ctx)
       expect(result.success?).to be true
@@ -566,7 +566,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
     it 'setup_billing skips for free plan' do
       user_result = { user_id: 'user_abc', email: 'test@example.com', plan: 'free' }
       handler = MicroSetupBillingDslHandler.new
-      ctx = make_context(dependency_results: { 'create_user_account' => { result: user_result } })
+      ctx = make_context(dependency_results: { 'create_user_account_dsl' => { result: user_result } })
       result = handler.call(ctx)
       expect(result.success?).to be true
       expect(result.result[:status]).to eq('skipped_free_plan')
@@ -575,7 +575,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
     it 'setup_billing creates profile for pro plan' do
       user_result = { user_id: 'user_abc', email: 'test@example.com', plan: 'pro' }
       handler = MicroSetupBillingDslHandler.new
-      ctx = make_context(dependency_results: { 'create_user_account' => { result: user_result } })
+      ctx = make_context(dependency_results: { 'create_user_account_dsl' => { result: user_result } })
       result = handler.call(ctx)
       expect(result.success?).to be true
       expect(result.result[:status]).to eq('active')
@@ -612,7 +612,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
       }
       handler = PaymentsProcessGatewayRefundDslHandler.new
       ctx = make_context(
-        dependency_results: { 'validate_payment_eligibility' => { result: validation } },
+        dependency_results: { 'validate_payment_eligibility_dsl' => { result: validation } },
         input_data: { refund_reason: 'customer_request' }
       )
       result = handler.call(ctx)
@@ -628,7 +628,7 @@ RSpec.describe 'DSL Handler Parity Tests (TAS-294 Phase 2)' do # rubocop:disable
       }
       handler = PaymentsNotifyCustomerDslHandler.new
       ctx = make_context(
-        dependency_results: { 'process_gateway_refund' => { result: refund_result } },
+        dependency_results: { 'process_gateway_refund_dsl' => { result: refund_result } },
         input_data: { customer_email: 'alice@example.com', refund_reason: 'customer_request' }
       )
       result = handler.call(ctx)

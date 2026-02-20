@@ -480,7 +480,9 @@ class TestAsyncHandlers:
 
         handler = async_handler._handler_class()
         ctx = _make_context()
-        result = asyncio.run(handler.call(ctx))
+        coro = handler.call(ctx)
+        assert asyncio.iscoroutine(coro)
+        result = asyncio.run(coro)
         assert result.is_success is True
         assert result.result == {"async": True}
 
@@ -494,7 +496,9 @@ class TestAsyncHandlers:
 
         handler = async_error._handler_class()
         ctx = _make_context()
-        result = asyncio.run(handler.call(ctx))
+        coro = handler.call(ctx)
+        assert asyncio.iscoroutine(coro)
+        result = asyncio.run(coro)
         assert result.is_success is False
         assert result.retryable is False
 
@@ -514,7 +518,9 @@ class TestAsyncHandlers:
             input_data={"query": "search_term"},
             dependency_results={"fetch_data": {"result": {"items": [1, 2, 3]}}},
         )
-        result = asyncio.run(handler.call(ctx))
+        coro = handler.call(ctx)
+        assert asyncio.iscoroutine(coro)
+        result = asyncio.run(coro)
         assert result.is_success is True
         assert result.result is not None
         assert result.result["data"] == {"items": [1, 2, 3]}

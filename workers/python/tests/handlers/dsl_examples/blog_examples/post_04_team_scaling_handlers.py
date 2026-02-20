@@ -139,7 +139,9 @@ def cs_check_refund_policy(validation_result, refund_amount, _refund_reason, _co
 
 
 @step_handler("team_scaling_dsl_py.customer_success.step_handlers.get_manager_approval")
-@depends_on(policy_result="check_refund_policy_dsl_py", validation_result="validate_refund_request_dsl_py")
+@depends_on(
+    policy_result="check_refund_policy_dsl_py", validation_result="validate_refund_request_dsl_py"
+)
 @inputs("refund_amount", "refund_reason")
 def cs_get_manager_approval(
     policy_result, validation_result, _refund_amount, _refund_reason, _context
@@ -194,7 +196,10 @@ def cs_get_manager_approval(
 
 
 @step_handler("team_scaling_dsl_py.customer_success.step_handlers.execute_refund_workflow")
-@depends_on(approval_result="get_manager_approval_dsl_py", validation_result="validate_refund_request_dsl_py")
+@depends_on(
+    approval_result="get_manager_approval_dsl_py",
+    validation_result="validate_refund_request_dsl_py",
+)
 @inputs("refund_amount", "refund_reason", "customer_email", "ticket_id", "correlation_id")
 def cs_execute_refund_workflow(
     approval_result,
@@ -247,7 +252,8 @@ def cs_execute_refund_workflow(
 
 @step_handler("team_scaling_dsl_py.customer_success.step_handlers.update_ticket_status")
 @depends_on(
-    delegation_result="execute_refund_workflow_dsl_py", validation_result="validate_refund_request_dsl_py"
+    delegation_result="execute_refund_workflow_dsl_py",
+    validation_result="validate_refund_request_dsl_py",
 )
 @inputs("refund_amount", "refund_reason")
 def cs_update_ticket_status(
@@ -405,7 +411,8 @@ def pay_process_gateway_refund(validation_result, refund_reason, _partial_refund
 
 @step_handler("team_scaling_dsl_py.payments.step_handlers.update_payment_records")
 @depends_on(
-    refund_result="process_gateway_refund_dsl_py", validation_result="validate_payment_eligibility_dsl_py"
+    refund_result="process_gateway_refund_dsl_py",
+    validation_result="validate_payment_eligibility_dsl_py",
 )
 @inputs("refund_reason")
 def pay_update_payment_records(refund_result, _validation_result, refund_reason, _context):

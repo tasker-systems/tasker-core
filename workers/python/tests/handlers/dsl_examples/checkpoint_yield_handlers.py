@@ -104,9 +104,7 @@ class CheckpointYieldWorkerDslHandler(StepHandler, Batchable):
                 and total_processed >= fail_after_items
                 and current_attempt == fail_on_attempt
             ):
-                return self._inject_failure(
-                    total_processed, current_cursor, permanent_failure
-                )
+                return self._inject_failure(total_processed, current_cursor, permanent_failure)
 
             # Process one item
             item_id = f"item_{current_cursor:04d}"
@@ -171,9 +169,7 @@ class CheckpointYieldAggregatorDslHandler(StepHandler, Batchable):
     Class-based for detect_aggregation_scenario() and no_batches_aggregation_result().
     """
 
-    handler_name = (
-        "checkpoint_yield_dsl_py.step_handlers.checkpoint_yield_aggregator"
-    )
+    handler_name = "checkpoint_yield_dsl_py.step_handlers.checkpoint_yield_aggregator"
 
     def call(self, context: StepContext) -> StepHandlerResult:
         """Aggregate batch worker results."""

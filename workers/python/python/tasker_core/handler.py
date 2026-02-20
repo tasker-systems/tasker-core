@@ -453,9 +453,9 @@ class HandlerRegistry:
             elif callable(obj) and hasattr(obj, "_handler_class"):
                 handler_cls = obj._handler_class
                 if isinstance(handler_cls, type) and issubclass(handler_cls, base):
-                    handler_name = getattr(handler_cls, "handler_name", None)
-                    if handler_name:
-                        self.register(handler_name, handler_cls)
+                    dsl_name = getattr(handler_cls, "handler_name", None)
+                    if dsl_name:
+                        self.register(dsl_name, handler_cls)
                         discovered += 1
 
         return discovered

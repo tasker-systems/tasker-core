@@ -19,6 +19,7 @@ from uuid import uuid4
 
 import pytest
 
+from tasker_core.errors import PermanentError
 from tasker_core.types import (
     FfiStepEvent,
     StepContext,
@@ -381,9 +382,10 @@ class TestLinearWorkflowParity:
         )
         verbose_result = _run_verbose(LinearStep2Handler, ctx)
 
+        dsl_deps = {"linear_step_1_dsl_py": {"result": {"result": 16, "operation": "square"}}}
         dsl_ctx = _make_context(
             handler_name="linear_workflow_dsl.step_handlers.linear_step_2",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(linear_step_2, dsl_ctx)
 
@@ -398,9 +400,10 @@ class TestLinearWorkflowParity:
         )
         verbose_result = _run_verbose(LinearStep3Handler, ctx)
 
+        dsl_deps = {"linear_step_2_dsl_py": {"result": {"result": 26, "operation": "add"}}}
         dsl_ctx = _make_context(
             handler_name="linear_workflow_dsl.step_handlers.linear_step_3",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(linear_step_3, dsl_ctx)
 
@@ -415,9 +418,10 @@ class TestLinearWorkflowParity:
         )
         verbose_result = _run_verbose(LinearStep4Handler, ctx)
 
+        dsl_deps = {"linear_step_3_dsl_py": {"result": {"result": 78, "operation": "multiply"}}}
         dsl_ctx = _make_context(
             handler_name="linear_workflow_dsl.step_handlers.linear_step_4",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(linear_step_4, dsl_ctx)
 
@@ -440,14 +444,15 @@ class TestLinearWorkflowParity:
 
         # Step 2: add
         step1_output = r1_v.result
-        deps2 = {"linear_step_1_py": {"result": step1_output}}
+        deps2_v = {"linear_step_1_py": {"result": step1_output}}
+        deps2_d = {"linear_step_1_dsl_py": {"result": step1_output}}
         ctx2_v = _make_context(
             handler_name="linear_workflow.step_handlers.LinearStep2Handler",
-            dependency_results=deps2,
+            dependency_results=deps2_v,
         )
         ctx2_d = _make_context(
             handler_name="linear_workflow_dsl.step_handlers.linear_step_2",
-            dependency_results=deps2,
+            dependency_results=deps2_d,
         )
         r2_v = _run_verbose(LinearStep2Handler, ctx2_v)
         r2_d = _run_dsl(linear_step_2, ctx2_d)
@@ -455,14 +460,15 @@ class TestLinearWorkflowParity:
 
         # Step 3: multiply
         step2_output = r2_v.result
-        deps3 = {"linear_step_2_py": {"result": step2_output}}
+        deps3_v = {"linear_step_2_py": {"result": step2_output}}
+        deps3_d = {"linear_step_2_dsl_py": {"result": step2_output}}
         ctx3_v = _make_context(
             handler_name="linear_workflow.step_handlers.LinearStep3Handler",
-            dependency_results=deps3,
+            dependency_results=deps3_v,
         )
         ctx3_d = _make_context(
             handler_name="linear_workflow_dsl.step_handlers.linear_step_3",
-            dependency_results=deps3,
+            dependency_results=deps3_d,
         )
         r3_v = _run_verbose(LinearStep3Handler, ctx3_v)
         r3_d = _run_dsl(linear_step_3, ctx3_d)
@@ -470,14 +476,15 @@ class TestLinearWorkflowParity:
 
         # Step 4: divide
         step3_output = r3_v.result
-        deps4 = {"linear_step_3_py": {"result": step3_output}}
+        deps4_v = {"linear_step_3_py": {"result": step3_output}}
+        deps4_d = {"linear_step_3_dsl_py": {"result": step3_output}}
         ctx4_v = _make_context(
             handler_name="linear_workflow.step_handlers.LinearStep4Handler",
-            dependency_results=deps4,
+            dependency_results=deps4_v,
         )
         ctx4_d = _make_context(
             handler_name="linear_workflow_dsl.step_handlers.linear_step_4",
-            dependency_results=deps4,
+            dependency_results=deps4_d,
         )
         r4_v = _run_verbose(LinearStep4Handler, ctx4_v)
         r4_d = _run_dsl(linear_step_4, ctx4_d)
@@ -624,20 +631,18 @@ class TestDiamondE2EParity:
 
     def test_diamond_branch_b(self):
         """Branch B: 16 + 25 = 41."""
-        deps = {
-            "diamond_start_py": {
-                "result": {"result": 16, "operation": "square", "step_type": "initial"}
-            }
-        }
+        start_output = {"result": 16, "operation": "square", "step_type": "initial"}
+        deps = {"diamond_start_py": {"result": start_output}}
         ctx = _make_context(
             handler_name="diamond_workflow.step_handlers.DiamondBranchBHandler",
             dependency_results=deps,
         )
         verbose_result = _run_verbose(DiamondBranchBHandler, ctx)
 
+        dsl_deps = {"diamond_start_dsl_py": {"result": start_output}}
         dsl_ctx = _make_context(
             handler_name="diamond_workflow_dsl.step_handlers.diamond_branch_b",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(diamond_branch_b, dsl_ctx)
 
@@ -645,20 +650,18 @@ class TestDiamondE2EParity:
 
     def test_diamond_branch_c(self):
         """Branch C: 16 * 2 = 32."""
-        deps = {
-            "diamond_start_py": {
-                "result": {"result": 16, "operation": "square", "step_type": "initial"}
-            }
-        }
+        start_output = {"result": 16, "operation": "square", "step_type": "initial"}
+        deps = {"diamond_start_py": {"result": start_output}}
         ctx = _make_context(
             handler_name="diamond_workflow.step_handlers.DiamondBranchCHandler",
             dependency_results=deps,
         )
         verbose_result = _run_verbose(DiamondBranchCHandler, ctx)
 
+        dsl_deps = {"diamond_start_dsl_py": {"result": start_output}}
         dsl_ctx = _make_context(
             handler_name="diamond_workflow_dsl.step_handlers.diamond_branch_c",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(diamond_branch_c, dsl_ctx)
 
@@ -678,9 +681,17 @@ class TestDiamondE2EParity:
         )
         verbose_result = _run_verbose(DiamondEndHandler, ctx)
 
+        dsl_deps = {
+            "diamond_branch_b_dsl_py": {
+                "result": {"result": 41, "operation": "add", "branch": "B"}
+            },
+            "diamond_branch_c_dsl_py": {
+                "result": {"result": 32, "operation": "multiply", "branch": "C"}
+            },
+        }
         dsl_ctx = _make_context(
             handler_name="diamond_workflow_dsl.step_handlers.diamond_end",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(diamond_end, dsl_ctx)
 
@@ -814,9 +825,10 @@ class TestConditionalApprovalParity:
         )
         verbose_result = _run_verbose(RoutingDecisionHandler, ctx)
 
+        dsl_deps = {"validate_request_dsl_py": {"result": validate_output}}
         dsl_ctx = _make_context(
             handler_name="conditional_approval_dsl.step_handlers.routing_decision",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(routing_decision, dsl_ctx)
 
@@ -831,11 +843,13 @@ class TestConditionalApprovalParity:
         d_data = dsl_result.result
 
         # The decision handler returns a decision_point_outcome structure
-        # Both should route to ["auto_approve_py"]
+        # Verbose routes to ["auto_approve_py"], DSL routes to ["auto_approve_dsl_py"]
+        # Both should have the same routing structure (different suffixes)
         v_outcome = v_data.get("decision_point_outcome", {})
         d_outcome = d_data.get("decision_point_outcome", {})
 
-        assert v_outcome.get("step_names") == d_outcome.get("step_names")
+        assert v_outcome.get("type") == d_outcome.get("type")
+        assert len(v_outcome.get("step_names", [])) == len(d_outcome.get("step_names", []))
 
     def test_routing_decision_manager(self):
         """Route medium amount to manager_approval."""
@@ -853,9 +867,10 @@ class TestConditionalApprovalParity:
         )
         verbose_result = _run_verbose(RoutingDecisionHandler, ctx)
 
+        dsl_deps = {"validate_request_dsl_py": {"result": validate_output}}
         dsl_ctx = _make_context(
             handler_name="conditional_approval_dsl.step_handlers.routing_decision",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(routing_decision, dsl_ctx)
 
@@ -866,7 +881,8 @@ class TestConditionalApprovalParity:
 
         v_outcome = verbose_result.result.get("decision_point_outcome", {})
         d_outcome = dsl_result.result.get("decision_point_outcome", {})
-        assert v_outcome.get("step_names") == d_outcome.get("step_names")
+        assert v_outcome.get("type") == d_outcome.get("type")
+        assert len(v_outcome.get("step_names", [])) == len(d_outcome.get("step_names", []))
 
     def test_routing_decision_dual_approval(self):
         """Route large amount to manager + finance."""
@@ -884,9 +900,10 @@ class TestConditionalApprovalParity:
         )
         verbose_result = _run_verbose(RoutingDecisionHandler, ctx)
 
+        dsl_deps = {"validate_request_dsl_py": {"result": validate_output}}
         dsl_ctx = _make_context(
             handler_name="conditional_approval_dsl.step_handlers.routing_decision",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(routing_decision, dsl_ctx)
 
@@ -897,7 +914,8 @@ class TestConditionalApprovalParity:
 
         v_outcome = verbose_result.result.get("decision_point_outcome", {})
         d_outcome = dsl_result.result.get("decision_point_outcome", {})
-        assert v_outcome.get("step_names") == d_outcome.get("step_names")
+        assert v_outcome.get("type") == d_outcome.get("type")
+        assert len(v_outcome.get("step_names", [])) == len(d_outcome.get("step_names", []))
 
     def test_auto_approve(self):
         """Auto-approve step."""
@@ -913,9 +931,14 @@ class TestConditionalApprovalParity:
         )
         verbose_result = _run_verbose(AutoApproveHandler, ctx)
 
+        dsl_routing_output = {
+            "routing_context": {"approval_path": "auto", "amount": 500, "threshold_used": "small"},
+            "decision_point_outcome": {"type": "route", "step_names": ["auto_approve_dsl_py"]},
+        }
+        dsl_deps = {"routing_decision_dsl_py": {"result": dsl_routing_output}}
         dsl_ctx = _make_context(
             handler_name="conditional_approval_dsl.step_handlers.auto_approve",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(auto_approve, dsl_ctx)
 
@@ -942,9 +965,14 @@ class TestConditionalApprovalParity:
         )
         verbose_result = _run_verbose(FinalizeApprovalHandler, ctx)
 
+        dsl_deps = {
+            "auto_approve_dsl_py": {"result": auto_output},
+            "manager_approval_dsl_py": {"result": None},
+            "finance_review_dsl_py": {"result": None},
+        }
         dsl_ctx = _make_context(
             handler_name="conditional_approval_dsl.step_handlers.finalize_approval",
-            dependency_results=deps,
+            dependency_results=dsl_deps,
         )
         dsl_result = _run_dsl(finalize_approval, dsl_ctx)
 
@@ -1106,24 +1134,23 @@ class TestBlogEcommerceParity:
         _assert_result_parity(verbose_result, dsl_result, "ecommerce_validate_cart")
 
     def test_validate_cart_empty(self):
-        """Validate cart with empty items -> both handlers error.
+        """Validate cart with empty items -> both handlers raise PermanentError.
 
-        Note: Both verbose and DSL handlers raise PermanentError(error_code=...)
-        but PermanentError does not accept error_code kwarg (pre-existing bug).
-        The verbose handler propagates the TypeError, while the DSL decorator
+        Both verbose and DSL handlers raise PermanentError(error_code=...).
+        The verbose handler propagates the PermanentError, while the DSL decorator
         auto-catches it and returns a failure result. We verify both error.
         """
         input_data = {"cart_items": []}
 
-        # Verbose handler raises TypeError (uncaught by class-based pattern)
+        # Verbose handler raises PermanentError (uncaught by class-based pattern)
         ctx = _make_context(
             handler_name="ecommerce.step_handlers.ValidateCartHandler",
             input_data=input_data,
         )
-        with pytest.raises(TypeError):
+        with pytest.raises(PermanentError):
             _run_verbose(EcommerceValidateCartHandler, ctx)
 
-        # DSL handler catches the TypeError and returns failure
+        # DSL handler catches the PermanentError and returns failure
         dsl_ctx = _make_context(
             handler_name="ecommerce_dsl.step_handlers.validate_cart",
             input_data=input_data,

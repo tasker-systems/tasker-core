@@ -270,41 +270,49 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
     });
 
     it('Step2: adds constant', async () => {
-      const ctx = makeContext({
-        dependencyResults: {
-          linear_step_1: { result: { squared_value: 16, operation: 'square', input: 4 } },
-        },
+      const step1Result = { result: { squared_value: 16, operation: 'square', input: 4 } };
+      const verboseCtx = makeContext({
+        dependencyResults: { linear_step_1: step1Result },
       });
-      const verbose = await runHandler(LinearStep2Handler, ctx);
-      const dsl = await runHandler(LinearStep2DslHandler, ctx);
+      const dslCtx = makeContext({
+        dependencyResults: { linear_step_1_dsl_ts: step1Result },
+      });
+      const verbose = await runHandler(LinearStep2Handler, verboseCtx);
+      const dsl = await runHandler(LinearStep2DslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       expect(dsl.result).toEqual(verbose.result);
     });
 
     it('Step3: multiplies by factor', async () => {
-      const ctx = makeContext({
-        dependencyResults: {
-          linear_step_2: { result: { added_value: 26, operation: 'add', constant: 10, input: 16 } },
-        },
+      const step2Result = {
+        result: { added_value: 26, operation: 'add', constant: 10, input: 16 },
+      };
+      const verboseCtx = makeContext({
+        dependencyResults: { linear_step_2: step2Result },
       });
-      const verbose = await runHandler(LinearStep3Handler, ctx);
-      const dsl = await runHandler(LinearStep3DslHandler, ctx);
+      const dslCtx = makeContext({
+        dependencyResults: { linear_step_2_dsl_ts: step2Result },
+      });
+      const verbose = await runHandler(LinearStep3Handler, verboseCtx);
+      const dsl = await runHandler(LinearStep3DslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       expect(dsl.result).toEqual(verbose.result);
     });
 
     it('Step4: divides for final result', async () => {
-      const ctx = makeContext({
-        dependencyResults: {
-          linear_step_3: {
-            result: { multiplied_value: 78, operation: 'multiply', factor: 3, input: 26 },
-          },
-        },
+      const step3Result = {
+        result: { multiplied_value: 78, operation: 'multiply', factor: 3, input: 26 },
+      };
+      const verboseCtx = makeContext({
+        dependencyResults: { linear_step_3: step3Result },
       });
-      const verbose = await runHandler(LinearStep4Handler, ctx);
-      const dsl = await runHandler(LinearStep4DslHandler, ctx);
+      const dslCtx = makeContext({
+        dependencyResults: { linear_step_3_dsl_ts: step3Result },
+      });
+      const verbose = await runHandler(LinearStep4Handler, verboseCtx);
+      const dsl = await runHandler(LinearStep4DslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       expect(dsl.result).toEqual(verbose.result);
@@ -324,36 +332,54 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
     });
 
     it('BranchB: adds constant', async () => {
-      const ctx = makeContext({ dependencyResults: { diamond_start_ts: squaredResult } });
-      const verbose = await runHandler(DiamondBranchBHandler, ctx);
-      const dsl = await runHandler(DiamondBranchBDslHandler, ctx);
+      const verboseCtx = makeContext({
+        dependencyResults: { diamond_start_ts: squaredResult },
+      });
+      const dslCtx = makeContext({
+        dependencyResults: { diamond_start_dsl_ts: squaredResult },
+      });
+      const verbose = await runHandler(DiamondBranchBHandler, verboseCtx);
+      const dsl = await runHandler(DiamondBranchBDslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       expect(dsl.result).toEqual(verbose.result);
     });
 
     it('BranchC: multiplies by factor', async () => {
-      const ctx = makeContext({ dependencyResults: { diamond_start_ts: squaredResult } });
-      const verbose = await runHandler(DiamondBranchCHandler, ctx);
-      const dsl = await runHandler(DiamondBranchCDslHandler, ctx);
+      const verboseCtx = makeContext({
+        dependencyResults: { diamond_start_ts: squaredResult },
+      });
+      const dslCtx = makeContext({
+        dependencyResults: { diamond_start_dsl_ts: squaredResult },
+      });
+      const verbose = await runHandler(DiamondBranchCHandler, verboseCtx);
+      const dsl = await runHandler(DiamondBranchCDslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       expect(dsl.result).toEqual(verbose.result);
     });
 
     it('End: averages branches', async () => {
-      const ctx = makeContext({
+      const branchBResult = {
+        result: { branch_b_value: 61, operation: 'add', constant: 25, input: 36 },
+      };
+      const branchCResult = {
+        result: { branch_c_value: 72, operation: 'multiply', factor: 2, input: 36 },
+      };
+      const verboseCtx = makeContext({
         dependencyResults: {
-          diamond_branch_b_ts: {
-            result: { branch_b_value: 61, operation: 'add', constant: 25, input: 36 },
-          },
-          diamond_branch_c_ts: {
-            result: { branch_c_value: 72, operation: 'multiply', factor: 2, input: 36 },
-          },
+          diamond_branch_b_ts: branchBResult,
+          diamond_branch_c_ts: branchCResult,
         },
       });
-      const verbose = await runHandler(DiamondEndHandler, ctx);
-      const dsl = await runHandler(DiamondEndDslHandler, ctx);
+      const dslCtx = makeContext({
+        dependencyResults: {
+          diamond_branch_b_dsl_ts: branchBResult,
+          diamond_branch_c_dsl_ts: branchCResult,
+        },
+      });
+      const verbose = await runHandler(DiamondEndHandler, verboseCtx);
+      const dsl = await runHandler(DiamondEndDslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       expect(dsl.result).toEqual(verbose.result);
@@ -439,20 +465,22 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
     });
 
     it('AutoApprove matches', async () => {
-      const ctx = makeContext({
-        dependencyResults: {
-          validate_request_ts: {
-            result: {
-              validated: true,
-              amount: 500,
-              requester: 'test@example.com',
-              purpose: 'Test',
-            },
-          },
+      const validateResult = {
+        result: {
+          validated: true,
+          amount: 500,
+          requester: 'test@example.com',
+          purpose: 'Test',
         },
+      };
+      const verboseCtx = makeContext({
+        dependencyResults: { validate_request_ts: validateResult },
       });
-      const verbose = await runHandler(AutoApproveHandler, ctx);
-      const dsl = await runHandler(AutoApproveDslHandler, ctx);
+      const dslCtx = makeContext({
+        dependencyResults: { validate_request_dsl_ts: validateResult },
+      });
+      const verbose = await runHandler(AutoApproveHandler, verboseCtx);
+      const dsl = await runHandler(AutoApproveDslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       const vResult = stripVolatileFields(verbose.result);
@@ -461,20 +489,22 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
     });
 
     it('ManagerApproval matches', async () => {
-      const ctx = makeContext({
-        dependencyResults: {
-          validate_request_ts: {
-            result: {
-              validated: true,
-              amount: 2000,
-              requester: 'test@example.com',
-              purpose: 'Test',
-            },
-          },
+      const validateResult = {
+        result: {
+          validated: true,
+          amount: 2000,
+          requester: 'test@example.com',
+          purpose: 'Test',
         },
+      };
+      const verboseCtx = makeContext({
+        dependencyResults: { validate_request_ts: validateResult },
       });
-      const verbose = await runHandler(ManagerApprovalHandler, ctx);
-      const dsl = await runHandler(ManagerApprovalDslHandler, ctx);
+      const dslCtx = makeContext({
+        dependencyResults: { validate_request_dsl_ts: validateResult },
+      });
+      const verbose = await runHandler(ManagerApprovalHandler, verboseCtx);
+      const dsl = await runHandler(ManagerApprovalDslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       const vResult = stripVolatileFields(verbose.result);
@@ -483,20 +513,22 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
     });
 
     it('FinanceReview matches', async () => {
-      const ctx = makeContext({
-        dependencyResults: {
-          validate_request_ts: {
-            result: {
-              validated: true,
-              amount: 6000,
-              requester: 'test@example.com',
-              purpose: 'Test',
-            },
-          },
+      const validateResult = {
+        result: {
+          validated: true,
+          amount: 6000,
+          requester: 'test@example.com',
+          purpose: 'Test',
         },
+      };
+      const verboseCtx = makeContext({
+        dependencyResults: { validate_request_ts: validateResult },
       });
-      const verbose = await runHandler(FinanceReviewHandler, ctx);
-      const dsl = await runHandler(FinanceReviewDslHandler, ctx);
+      const dslCtx = makeContext({
+        dependencyResults: { validate_request_dsl_ts: validateResult },
+      });
+      const verbose = await runHandler(FinanceReviewHandler, verboseCtx);
+      const dsl = await runHandler(FinanceReviewDslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       const vResult = stripVolatileFields(verbose.result);
@@ -505,15 +537,23 @@ describe('TAS-294 Verbose vs DSL Parity', () => {
     });
 
     it('FinalizeApproval matches with auto-approve', async () => {
-      const ctx = makeContext({
+      const autoApproveResult = { result: { approved: true, approval_type: 'automatic' } };
+      const verboseCtx = makeContext({
         dependencyResults: {
-          auto_approve_ts: { result: { approved: true, approval_type: 'automatic' } },
+          auto_approve_ts: autoApproveResult,
           manager_approval_ts: null,
           finance_review_ts: null,
         },
       });
-      const verbose = await runHandler(FinalizeApprovalHandler, ctx);
-      const dsl = await runHandler(FinalizeApprovalDslHandler, ctx);
+      const dslCtx = makeContext({
+        dependencyResults: {
+          auto_approve_dsl_ts: autoApproveResult,
+          manager_approval_dsl_ts: null,
+          finance_review_dsl_ts: null,
+        },
+      });
+      const verbose = await runHandler(FinalizeApprovalHandler, verboseCtx);
+      const dsl = await runHandler(FinalizeApprovalDslHandler, dslCtx);
 
       expect(dsl.success).toBe(verbose.success);
       const vResult = stripVolatileFields(verbose.result);

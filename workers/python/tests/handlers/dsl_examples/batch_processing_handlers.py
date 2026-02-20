@@ -192,9 +192,7 @@ class CsvResultsAggregatorDslHandler(StepHandler, Batchable):
     Class-based for aggregate_worker_results() from Batchable.
     """
 
-    handler_name = (
-        "batch_processing_dsl_py.step_handlers.csv_results_aggregator"
-    )
+    handler_name = "batch_processing_dsl_py.step_handlers.csv_results_aggregator"
 
     def call(self, context: StepContext) -> StepHandlerResult:
         """Aggregate results from all batch workers."""
