@@ -36,7 +36,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 /// Tree Root: Initial step that squares the even number (6 -> 36)
 #[derive(Debug)]
@@ -88,7 +88,7 @@ impl RustStepHandler for TreeRootHandler {
         // Square the even number (first step operation)
         let result = even_number * even_number;
 
-        info!("Tree Root: {}² = {}", even_number, result);
+        debug!("Tree Root: {}² = {}", even_number, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -160,7 +160,7 @@ impl RustStepHandler for TreeBranchLeftHandler {
         // Square the root result (single parent operation)
         let result = root_result * root_result;
 
-        info!("Tree Branch Left: {}² = {}", root_result, result);
+        debug!("Tree Branch Left: {}² = {}", root_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -233,7 +233,7 @@ impl RustStepHandler for TreeBranchRightHandler {
         // Square the root result (single parent operation)
         let result = root_result * root_result;
 
-        info!("Tree Branch Right: {}² = {}", root_result, result);
+        debug!("Tree Branch Right: {}² = {}", root_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -307,7 +307,7 @@ impl RustStepHandler for TreeLeafDHandler {
         // Square the branch result (single parent operation)
         let result = branch_result * branch_result;
 
-        info!("Tree Leaf D: {}² = {}", branch_result, result);
+        debug!("Tree Leaf D: {}² = {}", branch_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -378,7 +378,7 @@ impl RustStepHandler for TreeLeafEHandler {
         // Square the branch result (single parent operation)
         let result = branch_result * branch_result;
 
-        info!("Tree Leaf E: {}² = {}", branch_result, result);
+        debug!("Tree Leaf E: {}² = {}", branch_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -449,7 +449,7 @@ impl RustStepHandler for TreeLeafFHandler {
         // Square the branch result (single parent operation)
         let result = branch_result * branch_result;
 
-        info!("Tree Leaf F: {}² = {}", branch_result, result);
+        debug!("Tree Leaf F: {}² = {}", branch_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -520,7 +520,7 @@ impl RustStepHandler for TreeLeafGHandler {
         // Square the branch result (single parent operation)
         let result = branch_result * branch_result;
 
-        info!("Tree Leaf G: {}² = {}", branch_result, result);
+        debug!("Tree Leaf G: {}² = {}", branch_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -656,7 +656,7 @@ impl RustStepHandler for TreeFinalConvergenceHandler {
             * leaf_g_result.to_biguint().unwrap();
         let result: BigUint = multiplied.clone() * multiplied.clone();
 
-        info!(
+        debug!(
             "Tree Final Convergence: ({} × {} × {} × {})² = {}² = {}",
             leaf_d_result, leaf_e_result, leaf_f_result, leaf_g_result, multiplied, result
         );
@@ -670,8 +670,8 @@ impl RustStepHandler for TreeFinalConvergenceHandler {
         let expected: u128 = (original_number as u128).pow(32);
         let matches = result == expected.into();
 
-        info!("Tree Workflow Complete: {} -> {}", original_number, result);
-        info!(
+        debug!("Tree Workflow Complete: {} -> {}", original_number, result);
+        debug!(
             "Verification: {}^32 = {} (match: {})",
             original_number, expected, matches
         );

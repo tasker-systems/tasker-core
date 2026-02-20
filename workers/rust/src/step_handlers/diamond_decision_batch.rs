@@ -68,7 +68,7 @@ impl RustStepHandler for DiamondStartHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "🔷 DiamondStartHandler: Validating numbers array"
         );
@@ -102,7 +102,7 @@ impl RustStepHandler for DiamondStartHandler {
         metadata.insert("handler".to_string(), json!("DiamondStartHandler"));
         metadata.insert("count".to_string(), json!(numbers_vec.len()));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             count = numbers_vec.len(),
             "✅ DiamondStartHandler: Validated {} numbers",
@@ -141,7 +141,7 @@ impl RustStepHandler for BranchEvensHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "🔷 BranchEvensHandler: Filtering even numbers"
         );
@@ -166,7 +166,7 @@ impl RustStepHandler for BranchEvensHandler {
         metadata.insert("handler".to_string(), json!("BranchEvensHandler"));
         metadata.insert("even_count".to_string(), json!(count));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             count = count,
             "✅ BranchEvensHandler: Found {} even numbers",
@@ -205,7 +205,7 @@ impl RustStepHandler for BranchOddsHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "🔷 BranchOddsHandler: Filtering odd numbers"
         );
@@ -230,7 +230,7 @@ impl RustStepHandler for BranchOddsHandler {
         metadata.insert("handler".to_string(), json!("BranchOddsHandler"));
         metadata.insert("odd_count".to_string(), json!(count));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             count = count,
             "✅ BranchOddsHandler: Found {} odd numbers",
@@ -280,7 +280,7 @@ impl RustStepHandler for RoutingDecisionHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "🔀 RoutingDecisionHandler: Determining batch routing"
         );
@@ -300,7 +300,7 @@ impl RustStepHandler for RoutingDecisionHandler {
             .and_then(|v| v.as_i64())
             .ok_or_else(|| anyhow::anyhow!("Missing count from branch_odds"))?;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             even_count = even_count,
             odd_count = odd_count,
@@ -339,7 +339,7 @@ impl RustStepHandler for RoutingDecisionHandler {
         metadata.insert("route_type".to_string(), json!(route_type));
         metadata.insert("created_step".to_string(), json!(step_name));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             route_type = route_type,
             created_step = step_name,
@@ -388,7 +388,7 @@ impl RustStepHandler for EvenBatchAnalyzerHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "📦 EvenBatchAnalyzerHandler: Analyzing even numbers for batching"
         );
@@ -468,7 +468,7 @@ impl RustStepHandler for EvenBatchAnalyzerHandler {
         metadata.insert("worker_count".to_string(), json!(worker_count));
         metadata.insert("dataset_size".to_string(), json!(dataset_size));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             dataset_size = dataset_size,
             worker_count = worker_count,
@@ -512,7 +512,7 @@ impl RustStepHandler for ProcessEvenBatchHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "⚙️ ProcessEvenBatchHandler: Processing even number batch"
         );
@@ -545,7 +545,7 @@ impl RustStepHandler for ProcessEvenBatchHandler {
         metadata.insert("batch_size".to_string(), json!(processed_count));
         metadata.insert("batch_sum".to_string(), json!(batch_sum));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             start_idx = start_idx,
             end_idx = end_idx,
@@ -591,7 +591,7 @@ impl RustStepHandler for AggregateEvenResultsHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "📊 AggregateEvenResultsHandler: Aggregating even batch results"
         );
@@ -607,7 +607,7 @@ impl RustStepHandler for AggregateEvenResultsHandler {
         let (total_processed, total_sum, batch_count) = match scenario {
             tasker_worker::BatchAggregationScenario::NoBatches { .. } => {
                 // NoBatches scenario: Get dataset_size and calculate sum from even_numbers
-                tracing::info!("Detected NoBatches scenario - no batch workers found");
+                tracing::debug!("Detected NoBatches scenario - no batch workers found");
 
                 // Get even numbers directly from branch_evens dependency
                 let even_numbers: Vec<i64> = step_data
@@ -671,7 +671,7 @@ impl RustStepHandler for AggregateEvenResultsHandler {
         metadata.insert("batch_count".to_string(), json!(batch_count));
         metadata.insert("total_processed".to_string(), json!(total_processed));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             batch_count = batch_count,
             total_processed = total_processed,
@@ -720,7 +720,7 @@ impl RustStepHandler for OddBatchAnalyzerHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "📦 OddBatchAnalyzerHandler: Analyzing odd numbers for batching"
         );
@@ -800,7 +800,7 @@ impl RustStepHandler for OddBatchAnalyzerHandler {
         metadata.insert("worker_count".to_string(), json!(worker_count));
         metadata.insert("dataset_size".to_string(), json!(dataset_size));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             dataset_size = dataset_size,
             worker_count = worker_count,
@@ -844,7 +844,7 @@ impl RustStepHandler for ProcessOddBatchHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "⚙️ ProcessOddBatchHandler: Processing odd number batch"
         );
@@ -877,7 +877,7 @@ impl RustStepHandler for ProcessOddBatchHandler {
         metadata.insert("batch_size".to_string(), json!(processed_count));
         metadata.insert("batch_sum".to_string(), json!(batch_sum));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             start_idx = start_idx,
             end_idx = end_idx,
@@ -923,7 +923,7 @@ impl RustStepHandler for AggregateOddResultsHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "📊 AggregateOddResultsHandler: Aggregating odd batch results"
         );
@@ -939,7 +939,7 @@ impl RustStepHandler for AggregateOddResultsHandler {
         let (total_processed, total_sum, batch_count) = match scenario {
             tasker_worker::BatchAggregationScenario::NoBatches { .. } => {
                 // NoBatches scenario: Get dataset_size and calculate sum from odd_numbers
-                tracing::info!("Detected NoBatches scenario - no batch workers found");
+                tracing::debug!("Detected NoBatches scenario - no batch workers found");
 
                 // Get odd numbers directly from branch_odds dependency
                 let odd_numbers: Vec<i64> = step_data
@@ -1003,7 +1003,7 @@ impl RustStepHandler for AggregateOddResultsHandler {
         metadata.insert("batch_count".to_string(), json!(batch_count));
         metadata.insert("total_processed".to_string(), json!(total_processed));
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             batch_count = batch_count,
             total_processed = total_processed,

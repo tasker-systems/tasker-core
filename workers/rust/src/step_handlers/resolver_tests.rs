@@ -25,7 +25,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::info;
+use tracing::debug;
 
 /// Multi-method handler demonstrating method dispatch.
 ///
@@ -57,7 +57,7 @@ impl RustStepHandler for MultiMethodHandler {
             .as_deref()
             .unwrap_or("call");
 
-        info!(
+        debug!(
             "MultiMethodHandler dispatching to method: {} for step: {}",
             method, step_name
         );
@@ -261,7 +261,7 @@ impl RustStepHandler for AlternateMethodHandler {
             .as_deref()
             .unwrap_or("call");
 
-        info!(
+        debug!(
             "AlternateMethodHandler dispatching to method: {} for step: {}",
             method, step_name
         );

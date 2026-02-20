@@ -80,7 +80,7 @@ impl RustStepHandler for CheckpointAndFailHandler {
         let current_attempt = step_data.workflow_step.attempts.unwrap_or(1);
 
         // DEBUG: Log what's in results at the start of attempt
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             current_attempt = current_attempt,
             results = ?step_data.workflow_step.results,
@@ -92,7 +92,7 @@ impl RustStepHandler for CheckpointAndFailHandler {
 
         // Check for no-op worker
         if context.is_no_op() {
-            tracing::info!(
+            tracing::debug!(
                 step_uuid = %step_uuid,
                 batch_id = %context.batch_id(),
                 "CheckpointAndFailHandler: No-op worker, returning success"
@@ -124,7 +124,7 @@ impl RustStepHandler for CheckpointAndFailHandler {
             context.start_position()
         };
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             batch_id = %context.batch_id(),
             start_position = context.start_position(),
@@ -198,7 +198,7 @@ impl RustStepHandler for CheckpointAndFailHandler {
         // Success - processed all items
         let elapsed_ms = start_time.elapsed().as_millis() as i64;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             total_processed = processed_count,
             resumed_from = resume_from,

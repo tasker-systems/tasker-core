@@ -26,7 +26,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::info;
+use tracing::debug;
 use uuid::Uuid;
 
 // =============================================================================
@@ -70,7 +70,7 @@ impl RustStepHandler for ValidateOrderHandler {
             .get_string("validation_mode")
             .unwrap_or_else(|| "standard".to_string());
 
-        info!(
+        debug!(
             order_id = %order_id,
             customer_id = %customer_id,
             amount = %amount,
@@ -171,7 +171,7 @@ impl RustStepHandler for ProcessPaymentHandler {
             .get_string("payment_provider")
             .unwrap_or_else(|| "mock".to_string());
 
-        info!(
+        debug!(
             order_id = %order_id,
             amount = %amount,
             provider = %payment_provider,
@@ -263,7 +263,7 @@ impl RustStepHandler for UpdateInventoryHandler {
             .get_string("inventory_source")
             .unwrap_or_else(|| "mock".to_string());
 
-        info!(
+        debug!(
             order_id = %order_id,
             source = %inventory_source,
             "Updating inventory"
@@ -339,7 +339,7 @@ impl RustStepHandler for SendNotificationHandler {
             .get_string("notification_type")
             .unwrap_or_else(|| "email".to_string());
 
-        info!(
+        debug!(
             customer_id = %customer_id,
             notification_type = %notification_type,
             "Sending notification"

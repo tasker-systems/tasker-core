@@ -110,7 +110,7 @@ impl RustStepHandler for CsvAnalyzerHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "📊 CsvAnalyzerHandler: Analyzing CSV file for batch processing"
         );
@@ -146,7 +146,7 @@ impl RustStepHandler for CsvAnalyzerHandler {
         let reader = BufReader::new(file);
         let total_rows = reader.lines().count().saturating_sub(1) as u64; // Subtract header row
 
-        tracing::info!(
+        tracing::debug!(
             csv_file_path = %csv_file_path,
             total_rows = total_rows,
             "Counted CSV rows (excluding header)"
@@ -154,7 +154,7 @@ impl RustStepHandler for CsvAnalyzerHandler {
 
         // Check if dataset is too small for batching
         if total_rows < batch_size {
-            tracing::info!(
+            tracing::debug!(
                 total_rows = total_rows,
                 batch_size = batch_size,
                 "Dataset too small for batching, returning NoBatches"
@@ -182,7 +182,7 @@ impl RustStepHandler for CsvAnalyzerHandler {
         let worker_count = ideal_workers.min(max_workers);
         let actual_batch_size = ((total_rows as f64) / (worker_count as f64)).ceil() as u64;
 
-        tracing::info!(
+        tracing::debug!(
             ideal_workers = ideal_workers,
             worker_count = worker_count,
             actual_batch_size = actual_batch_size,
@@ -221,7 +221,7 @@ impl RustStepHandler for CsvAnalyzerHandler {
             total_rows,
         );
 
-        tracing::info!(
+        tracing::debug!(
             worker_count = worker_count,
             total_rows = total_rows,
             "Successfully created CSV batch processing outcome"
@@ -283,7 +283,7 @@ impl RustStepHandler for CsvBatchProcessorHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "⚙️ CsvBatchProcessorHandler: Processing CSV batch"
         );
@@ -293,7 +293,7 @@ impl RustStepHandler for CsvBatchProcessorHandler {
 
         // Check if this is a no-op worker
         if context.is_no_op() {
-            tracing::info!(
+            tracing::debug!(
                 batch_id = %context.batch_id(),
                 "Detected no-op worker - returning success immediately"
             );
@@ -381,7 +381,7 @@ impl RustStepHandler for CsvBatchProcessorHandler {
             0.0
         };
 
-        tracing::info!(
+        tracing::debug!(
             batch_id = %context.batch_id(),
             processed_count = processed_count,
             total_inventory_value = format!("${:.2}", total_inventory_value),
@@ -442,7 +442,7 @@ impl RustStepHandler for CsvResultsAggregatorHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "📊 CsvResultsAggregatorHandler: Aggregating CSV batch results"
         );
@@ -465,7 +465,7 @@ impl RustStepHandler for CsvResultsAggregatorHandler {
             worker_count,
         ) = match scenario {
             tasker_worker::BatchAggregationScenario::NoBatches { batchable_result } => {
-                tracing::info!("Detected NoBatches scenario - no CSV processing occurred");
+                tracing::debug!("Detected NoBatches scenario - no CSV processing occurred");
 
                 let total_rows = batchable_result
                     .result
@@ -571,7 +571,7 @@ impl RustStepHandler for CsvResultsAggregatorHandler {
             }
         };
 
-        tracing::info!(
+        tracing::debug!(
             total_processed = total_processed,
             total_inventory_value = format!("${:.2}", total_inventory_value),
             max_price = format!("${:.2}", max_price),

@@ -121,7 +121,7 @@ impl WorkerEventPublisher {
             .await
         {
             Ok(()) => {
-                info!(
+                debug!(
                     worker_id = %self.worker_id,
                     event_id = %event_id,
                     step_name = %task_sequence_step.step_definition.name,
@@ -175,7 +175,7 @@ impl WorkerEventPublisher {
             .await
         {
             Ok(()) => {
-                info!(
+                debug!(
                     worker_id = %self.worker_id,
                     correlation_id = %correlation_id,
                     step_name = %task_sequence_step.step_definition.name,
@@ -237,7 +237,7 @@ impl WorkerEventPublisher {
             .await
         {
             Ok(()) => {
-                info!(
+                debug!(
                     worker_id = %self.worker_id,
                     event_id = %event_id,
                     step_name = %task_sequence_step.step_definition.name,

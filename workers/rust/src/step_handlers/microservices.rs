@@ -22,7 +22,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::{error, info};
+use tracing::{debug, error};
 use uuid::Uuid;
 
 use super::{error_result, success_result, RustStepHandler, StepHandlerConfig};
@@ -241,7 +241,7 @@ impl RustStepHandler for CreateUserAccountHandler {
         // In a real system, this would be a database lookup
         if user_info.email == "existing@example.com" {
             // Simulated idempotent success
-            info!(
+            debug!(
                 "User {} already exists - returning idempotent success",
                 user_info.email
             );
@@ -281,7 +281,7 @@ impl RustStepHandler for CreateUserAccountHandler {
             result["phone"] = json!(phone);
         }
 
-        info!(
+        debug!(
             "User created: {} ({}) with plan {}",
             user_info.email, user_id, plan
         );
@@ -359,7 +359,7 @@ impl RustStepHandler for SetupBillingProfileHandler {
             let next_billing = (now + Duration::days(30)).to_rfc3339();
             let billing_id = generate_id("billing");
 
-            info!(
+            debug!(
                 "Billing profile created for user {}: ${:.2}/month",
                 user_id, price
             );
@@ -388,7 +388,7 @@ impl RustStepHandler for SetupBillingProfileHandler {
             ))
         } else {
             // Free plan - graceful degradation
-            info!("Billing skipped for user {} (free plan)", user_id);
+            debug!("Billing skipped for user {} (free plan)", user_id);
 
             Ok(success_result(
                 step_uuid,
@@ -486,7 +486,7 @@ impl RustStepHandler for InitializePreferencesHandler {
         let now = Utc::now().to_rfc3339();
         let preferences_id = generate_id("prefs");
 
-        info!(
+        debug!(
             "Preferences initialized for user {}: {} defaults + {} customizations",
             user_id,
             final_prefs.len(),
@@ -625,7 +625,7 @@ impl RustStepHandler for SendWelcomeSequenceHandler {
 
         let welcome_sequence_id = generate_id("welcome");
 
-        info!(
+        debug!(
             "Welcome sequence sent to user {}: {} channels",
             user_id,
             channels_used.len()
@@ -764,7 +764,7 @@ impl RustStepHandler for UpdateUserStatusHandler {
         let now = Utc::now().to_rfc3339();
         summary["registration_completed_at"] = json!(now);
 
-        info!(
+        debug!(
             "User registration completed: {} ({}) - {} plan",
             email, user_id, plan
         );

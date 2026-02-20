@@ -28,7 +28,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 /// Diamond Start: Square the initial even number (6 -> 36)
 #[derive(Debug)]
@@ -80,7 +80,7 @@ impl RustStepHandler for DiamondStartHandler {
         // Square the even number (first step operation)
         let result = even_number * even_number;
 
-        info!("Diamond Start: {}² = {}", even_number, result);
+        debug!("Diamond Start: {}² = {}", even_number, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -153,7 +153,7 @@ impl RustStepHandler for DiamondBranchBHandler {
         // Square the start result (single parent operation)
         let result = start_result * start_result;
 
-        info!("Diamond Branch B: {}² = {}", start_result, result);
+        debug!("Diamond Branch B: {}² = {}", start_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -223,7 +223,7 @@ impl RustStepHandler for DiamondBranchCHandler {
         // Square the start result (single parent operation)
         let result = start_result * start_result;
 
-        info!("Diamond Branch C: {}² = {}", start_result, result);
+        debug!("Diamond Branch C: {}² = {}", start_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -314,7 +314,7 @@ impl RustStepHandler for DiamondEndHandler {
         let multiplied = branch_b_result * branch_c_result;
         let result = multiplied * multiplied;
 
-        info!(
+        debug!(
             "Diamond End: ({} × {})² = {}² = {}",
             branch_b_result, branch_c_result, multiplied, result
         );
@@ -327,11 +327,11 @@ impl RustStepHandler for DiamondEndHandler {
         let expected = original_number.pow(16);
         let matches = result == expected;
 
-        info!(
+        debug!(
             "Diamond Workflow Complete: {} -> {}",
             original_number, result
         );
-        info!(
+        debug!(
             "Verification: {}^16 = {} (match: {})",
             original_number, expected, matches
         );

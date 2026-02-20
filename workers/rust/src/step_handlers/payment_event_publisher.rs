@@ -54,7 +54,7 @@ use tasker_worker::worker::step_event_publisher::{
     PublishResult, StepEventContext, StepEventPublisher,
 };
 use tasker_worker::worker::EventRouter;
-use tracing::{debug, info};
+use tracing::debug;
 
 /// Custom event publisher for payment processing steps
 ///
@@ -260,7 +260,7 @@ impl StepEventPublisher for PaymentEventPublisher {
                     .await
                 {
                     Ok(event_id) => {
-                        info!(
+                        debug!(
                             event_id = %event_id,
                             "Published payment.processed event"
                         );
@@ -290,7 +290,7 @@ impl StepEventPublisher for PaymentEventPublisher {
                     .await
                 {
                     Ok(event_id) => {
-                        info!(
+                        debug!(
                             event_id = %event_id,
                             "Published payment.failed event"
                         );

@@ -148,7 +148,7 @@ impl RustStepHandler for DatasetAnalyzerHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "Starting dataset analysis for batch processing"
         );
@@ -196,7 +196,7 @@ impl RustStepHandler for DatasetAnalyzerHandler {
 
         // Check if dataset is too small for batching
         if dataset_size < batch_size {
-            tracing::info!(
+            tracing::debug!(
                 dataset_size = dataset_size,
                 batch_size = batch_size,
                 "Dataset too small for batching, returning NoBatches"
@@ -224,7 +224,7 @@ impl RustStepHandler for DatasetAnalyzerHandler {
         let worker_count = ideal_workers.min(max_workers);
         let actual_batch_size = ((dataset_size as f64) / (worker_count as f64)).ceil() as u64;
 
-        tracing::info!(
+        tracing::debug!(
             ideal_workers = ideal_workers,
             worker_count = worker_count,
             actual_batch_size = actual_batch_size,
@@ -265,7 +265,7 @@ impl RustStepHandler for DatasetAnalyzerHandler {
             dataset_size,
         );
 
-        tracing::info!(
+        tracing::debug!(
             worker_count = worker_count,
             total_items = dataset_size,
             "Successfully created batch processing outcome"
@@ -352,7 +352,7 @@ impl RustStepHandler for BatchWorkerHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "Starting batch worker execution"
         );
@@ -362,7 +362,7 @@ impl RustStepHandler for BatchWorkerHandler {
 
         // Check if this is a no-op/placeholder worker (NoBatches scenario)
         if context.is_no_op() {
-            tracing::info!(
+            tracing::debug!(
                 batch_id = %context.batch_id(),
                 start_position = context.start_position(),
                 end_position = context.end_position(),
@@ -423,7 +423,7 @@ impl RustStepHandler for BatchWorkerHandler {
             checkpoint_count += 1;
 
             // Simulate checkpoint update
-            tracing::info!(
+            tracing::debug!(
                 checkpoint_progress = current_position,
                 processed_count = processed_count,
                 checkpoint_count = checkpoint_count,
@@ -431,7 +431,7 @@ impl RustStepHandler for BatchWorkerHandler {
             );
         }
 
-        tracing::info!(
+        tracing::debug!(
             processed_count = processed_count,
             checkpoint_count = checkpoint_count,
             "Batch worker completed successfully"
@@ -526,7 +526,7 @@ impl RustStepHandler for ResultsAggregatorHandler {
         let start_time = std::time::Instant::now();
         let step_uuid = step_data.workflow_step.workflow_step_uuid;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             "Starting results aggregation"
         );
@@ -556,7 +556,7 @@ impl RustStepHandler for ResultsAggregatorHandler {
         let (total_processed, total_checkpoints, worker_count) = match scenario {
             tasker_worker::BatchAggregationScenario::NoBatches { batchable_result } => {
                 // NoBatches scenario: Use dataset_size from the batchable step result
-                tracing::info!(
+                tracing::debug!(
                     "Detected NoBatches scenario - using dataset size from batchable step"
                 );
 
@@ -637,7 +637,7 @@ impl RustStepHandler for ResultsAggregatorHandler {
             }
         }
 
-        tracing::info!(
+        tracing::debug!(
             total_processed = total_processed,
             worker_count = worker_count,
             total_checkpoints = total_checkpoints,

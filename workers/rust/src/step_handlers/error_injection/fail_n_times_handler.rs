@@ -58,7 +58,7 @@ impl RustStepHandler for FailNTimesHandler {
 
         let elapsed_ms = start_time.elapsed().as_millis() as i64;
 
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             current_attempt = current_attempt,
             fail_count = fail_count,
@@ -97,7 +97,7 @@ impl RustStepHandler for FailNTimesHandler {
         }
 
         // Success: we've failed enough times (current_attempt > fail_count)
-        tracing::info!(
+        tracing::debug!(
             step_uuid = %step_uuid,
             total_attempts = current_attempt,
             "FailNTimesHandler: Succeeded after simulated failures"

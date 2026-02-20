@@ -36,7 +36,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 /// DAG Init: Initial step that squares the even number for mixed DAG (6 -> 36)
 #[derive(Debug)]
@@ -88,7 +88,7 @@ impl RustStepHandler for DagInitHandler {
         // Square the even number (first step operation)
         let result = even_number * even_number;
 
-        info!("DAG Init: {}² = {}", even_number, result);
+        debug!("DAG Init: {}² = {}", even_number, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -160,7 +160,7 @@ impl RustStepHandler for DagProcessLeftHandler {
         // Square the init result (single parent operation)
         let result = init_result * init_result;
 
-        info!("DAG Process Left: {}² = {}", init_result, result);
+        debug!("DAG Process Left: {}² = {}", init_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -233,7 +233,7 @@ impl RustStepHandler for DagProcessRightHandler {
         // Square the init result (single parent operation)
         let result = init_result * init_result;
 
-        info!("DAG Process Right: {}² = {}", init_result, result);
+        debug!("DAG Process Right: {}² = {}", init_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -328,7 +328,7 @@ impl RustStepHandler for DagValidateHandler {
         let multiplied = left_result * right_result;
         let result = multiplied * multiplied;
 
-        info!(
+        debug!(
             "DAG Validate: ({} × {})² = {}² = {}",
             left_result, right_result, multiplied, result
         );
@@ -403,7 +403,7 @@ impl RustStepHandler for DagTransformHandler {
         // Square the left result (single parent operation)
         let result = left_result * left_result;
 
-        info!("DAG Transform: {}² = {}", left_result, result);
+        debug!("DAG Transform: {}² = {}", left_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -473,7 +473,7 @@ impl RustStepHandler for DagAnalyzeHandler {
         // Square the right result (single parent operation)
         let result = right_result * right_result;
 
-        info!("DAG Analyze: {}² = {}", right_result, result);
+        debug!("DAG Analyze: {}² = {}", right_result, result);
 
         let mut metadata = HashMap::new();
         metadata.insert("operation".to_string(), json!("square"));
@@ -598,7 +598,7 @@ impl RustStepHandler for DagFinalizeHandler {
             u128::MAX // Use max value as fallback
         });
 
-        info!(
+        debug!(
             "DAG Finalize: ({} × {} × {})² = {}² = {}",
             validate_result, transform_result, analyze_result, multiplied, result
         );
@@ -618,11 +618,11 @@ impl RustStepHandler for DagFinalizeHandler {
         };
         let matches = result == expected;
 
-        info!(
+        debug!(
             "Mixed DAG Workflow Complete: {} -> {}",
             original_number, result
         );
-        info!(
+        debug!(
             "Verification: {}^64 = {} (match: {})",
             original_number, expected, matches
         );

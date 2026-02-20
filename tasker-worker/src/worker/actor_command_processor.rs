@@ -324,7 +324,7 @@ impl ActorCommandProcessor {
                     .dispatch_domain_events(step_result.step_uuid, &step_result, None)
                     .await;
 
-                info!(
+                debug!(
                     worker_id = %self.worker_id,
                     step_uuid = %step_result.step_uuid,
                     "Step completion forwarded to orchestration successfully"

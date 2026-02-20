@@ -49,7 +49,7 @@ use tasker_shared::events::domain_events::DomainEventPublisher;
 use tasker_worker::worker::step_event_publisher::{
     PublishResult, StepEventContext, StepEventPublisher,
 };
-use tracing::{debug, info};
+use tracing::debug;
 
 /// Custom event publisher for notification steps
 ///
@@ -169,7 +169,7 @@ impl StepEventPublisher for NotificationEventPublisher {
                 // Uses trait's default publish_event impl
                 match self.publish_event(ctx, "notification.sent", payload).await {
                     Ok(event_id) => {
-                        info!(
+                        debug!(
                             event_id = %event_id,
                             channel = ?ctx.execution_result.result.get("channel"),
                             "Published notification.sent event (fast + custom publisher)"

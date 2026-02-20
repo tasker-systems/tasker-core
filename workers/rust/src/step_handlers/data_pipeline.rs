@@ -41,7 +41,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::info;
+use tracing::debug;
 
 // ============================================================================
 // Data Types
@@ -228,7 +228,7 @@ impl RustStepHandler for ExtractSalesDataHandler {
         let dates: Vec<&str> = sales_data.iter().map(|r| r.date.as_str()).collect();
         let total_amount: f64 = sales_data.iter().map(|r| r.amount).sum();
 
-        info!(
+        debug!(
             "ExtractSalesDataHandler: Extracted {} sales records",
             sales_data.len()
         );
@@ -296,7 +296,7 @@ impl RustStepHandler for ExtractInventoryDataHandler {
             .collect::<std::collections::HashSet<_>>()
             .len();
 
-        info!(
+        debug!(
             "ExtractInventoryDataHandler: Extracted {} inventory records",
             inventory_data.len()
         );
@@ -359,7 +359,7 @@ impl RustStepHandler for ExtractCustomerDataHandler {
         let total_ltv: f64 = customer_data.iter().map(|r| r.lifetime_value).sum();
         let avg_ltv = total_ltv / customer_data.len() as f64;
 
-        info!(
+        debug!(
             "ExtractCustomerDataHandler: Extracted {} customer records",
             customer_data.len()
         );
@@ -480,7 +480,7 @@ impl RustStepHandler for TransformSalesHandler {
 
         let total_revenue: f64 = records.iter().map(|r| r.amount).sum();
 
-        info!(
+        debug!(
             "TransformSalesHandler: Transformed {} sales records",
             records.len()
         );
@@ -613,7 +613,7 @@ impl RustStepHandler for TransformInventoryHandler {
             .filter(|v| v["needs_reorder"].as_bool().unwrap_or(false))
             .count();
 
-        info!(
+        debug!(
             "TransformInventoryHandler: Transformed {} inventory records",
             records.len()
         );
@@ -723,7 +723,7 @@ impl RustStepHandler for TransformCustomersHandler {
             0.0
         };
 
-        info!(
+        debug!(
             "TransformCustomersHandler: Transformed {} customer records",
             records.len()
         );
@@ -863,7 +863,7 @@ impl RustStepHandler for AggregateMetricsHandler {
             0.0
         };
 
-        info!(
+        debug!(
             "AggregateMetricsHandler: Aggregated metrics from 3 sources - revenue=${:.2}, inventory={}, customers={}",
             total_revenue, total_inventory, total_customers
         );
@@ -1039,7 +1039,7 @@ impl RustStepHandler for GenerateInsightsHandler {
             "rating": rating
         });
 
-        info!(
+        debug!(
             "GenerateInsightsHandler: Generated {} business insights",
             insights.len()
         );

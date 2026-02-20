@@ -31,7 +31,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use tasker_shared::messaging::StepExecutionResult;
 use tasker_shared::types::TaskSequenceStep;
-use tracing::{error, info};
+use tracing::{debug, error};
 use uuid::Uuid;
 
 // ============================================================================
@@ -217,7 +217,7 @@ impl RustStepHandler for ValidateCartHandler {
         let shipping = 5.99;
         let total = ((subtotal + tax + shipping) * 100.0).round() / 100.0;
 
-        info!(
+        debug!(
             "Cart validated: {} items, subtotal=${:.2}, tax=${:.2}, shipping=${:.2}, total=${:.2}",
             item_count, subtotal, tax, shipping, total
         );
@@ -342,7 +342,7 @@ impl RustStepHandler for ProcessPaymentHandler {
         // Successful payment
         let transaction_id = format!("txn_{}", &Uuid::new_v4().to_string().replace('-', "")[..12]);
 
-        info!(
+        debug!(
             "Payment processed: ${:.2} via {} (txn: {})",
             cart_total, payment_info.method, transaction_id
         );
@@ -433,7 +433,7 @@ impl RustStepHandler for UpdateInventoryHandler {
             total_reserved += quantity;
         }
 
-        info!(
+        debug!(
             "Inventory reserved: {} items across {} products",
             total_reserved,
             reservations.len()
@@ -570,7 +570,7 @@ impl RustStepHandler for CreateOrderHandler {
             Uuid::new_v4().to_string().replace('-', "")[..8].to_uppercase()
         );
 
-        info!("Order created: {} for {}", order_id, customer_info.email);
+        debug!("Order created: {} for {}", order_id, customer_info.email);
 
         Ok(success_result(
             step_uuid,
@@ -681,7 +681,7 @@ impl RustStepHandler for SendConfirmationHandler {
             &Uuid::new_v4().to_string().replace('-', "")[..12]
         );
 
-        info!(
+        debug!(
             "Confirmation email sent: {} to {} for order {}",
             email_id, customer_info.email, order_id
         );
