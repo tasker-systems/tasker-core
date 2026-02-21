@@ -107,7 +107,7 @@ redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 moka = { version = "0.12", features = ["future"] }
 # Memcached async client (TAS-171)
 async-memcached = "0.6"
-regex = "1.0"
+regex = "1.12"
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "rustls-tls"
