@@ -28,9 +28,6 @@
     "metadata": {
       "$ref": "#/definitions/TemplateMetadata"
     },
-    "task_handler": {
-      "$ref": "#/definitions/HandlerDefinition"
-    },
     "system_dependencies": {
       "$ref": "#/definitions/SystemDependencies"
     },
@@ -232,12 +229,6 @@
       "type": "object",
       "description": "Environment-specific configuration overrides",
       "properties": {
-        "task_handler": {
-          "anyOf": [
-            { "$ref": "#/definitions/HandlerOverride" },
-            { "type": "null" }
-          ]
-        },
         "steps": {
           "type": "array",
           "items": {

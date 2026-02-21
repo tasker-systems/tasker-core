@@ -51,11 +51,6 @@ metadata:
   created_at: "2026-01-12T00:00:00Z"
   updated_at: "2026-01-12T00:00:00Z"
   notes: "Python FFI implementation demonstrating DAG analytics pipeline from Blog Post 02"
-task_handler:
-  callable: data_pipeline.task_handlers.AnalyticsPipelineHandler
-  initialization:
-    timeout_seconds: 120
-    max_retries: 2
 system_dependencies:
   primary: default
   secondary: []

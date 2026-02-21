@@ -2840,10 +2840,6 @@ name: csv_product_inventory_analyzer
 namespace_name: csv_processing
 version: "1.0.0"
 description: "Process CSV product data in parallel batches"
-task_handler:
-  callable: rust_handler
-  initialization: {}
-
 steps:
   # BATCHABLE STEP: CSV Analysis and Batch Planning
   - name: analyze_csv

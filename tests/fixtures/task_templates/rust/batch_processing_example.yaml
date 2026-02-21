@@ -17,9 +17,6 @@ name: large_dataset_processor
 namespace_name: data_processing
 version: "1.0.0"
 description: "Process large datasets in parallel batches with cursor-based resumability"
-task_handler:
-  callable: tasker_worker_rust::step_handlers::RustStepHandler
-  initialization: {}
 
 steps:
   #

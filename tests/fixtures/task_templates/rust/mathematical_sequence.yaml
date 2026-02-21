@@ -30,26 +30,6 @@ metadata:
   created_at: "2025-08-29T00:00:00Z"
   updated_at: "2025-08-29T00:00:00Z"
   notes: "Native Rust implementation providing compile-time type safety and zero-overhead abstractions"
-task_handler:
-  callable: tasker_worker_rust::step_handlers::RustStepHandler
-  initialization:
-    input_validation:
-      required_fields:
-        - even_number
-      even_number_constraint: must_be_even
-      value_range:
-        min: 2
-        max: 100
-    expected_results:
-      linear_step_1: "input²"
-      linear_step_2: "(input²)²" 
-      linear_step_3: "((input²)²)²"
-      linear_step_4: "(((input²)²)²)²"
-      final_pattern: "input^8"
-    performance_notes:
-      - "Native Rust execution with zero-overhead abstractions"
-      - "Compile-time type checking eliminates runtime errors"
-      - "Memory safety without garbage collection overhead"
 system_dependencies:
   primary: default
   secondary: []

@@ -23,13 +23,6 @@ metadata:
   created_at: "2025-12-23T00:00:00Z"
   updated_at: "2025-12-23T00:00:00Z"
   notes: "TypeScript FFI implementation for error scenario testing"
-task_handler:
-  callable: TestErrors.ErrorTestingHandler
-  initialization:
-    expected_scenarios:
-      - success
-      - permanent_error
-      - retryable_error
 system_dependencies:
   primary: default
   secondary: []

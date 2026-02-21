@@ -139,7 +139,6 @@ module TaskerCore
 
     # Environment-specific overrides
     class EnvironmentOverride < Dry::Struct
-      attribute :task_handler, HandlerOverride.optional.default(nil)
       attribute :steps, Types::Array.of(StepOverride).default([].freeze)
     end
 
@@ -156,7 +155,6 @@ module TaskerCore
       # Self-describing structure
       attribute :description, Types::String.optional.default(nil)
       attribute :metadata, TemplateMetadata.optional.default(nil)
-      attribute :task_handler, HandlerDefinition.optional.default(nil)
       attribute(:system_dependencies, SystemDependencies.default { SystemDependencies.new })
       attribute :domain_events, Types::Array.of(DomainEventDefinition).default([].freeze)
       attribute :input_schema, Types::Hash.optional.default(nil) # JSON Schema
@@ -174,7 +172,6 @@ module TaskerCore
       # Extract all callable references
       def all_callables
         callables = []
-        callables << task_handler.callable if task_handler
         steps.each { |step| callables << step.handler.callable }
         callables
       end
@@ -196,11 +193,6 @@ module TaskerCore
 
         if environments[environment_name]
           env_override = environments[environment_name]
-
-          # Apply task handler overrides
-          if env_override.task_handler && resolved_template.task_handler && env_override.task_handler.initialization
-            resolved_template.task_handler.initialization.merge!(env_override.task_handler.initialization)
-          end
 
           # Apply step overrides
           env_override.steps.each do |step_override|

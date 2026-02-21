@@ -25,9 +25,6 @@ metadata:
   documentation_url:
   created_at: "2025-08-17T20:18:41Z"
   updated_at: "2025-08-17T20:18:41Z"
-task_handler:
-  callable: CreditCardPaymentHandler
-  initialization: {}
 system_dependencies:
   primary: payment_gateway
   secondary: []
@@ -162,7 +159,6 @@ steps:
     publishes_events: []
 environments:
   development:
-    task_handler:
     steps:
       - name: check_fraud
         handler:
@@ -195,7 +191,6 @@ environments:
         timeout_seconds:
         retry:
   staging:
-    task_handler:
     steps:
       - name: check_fraud
         handler:
@@ -223,7 +218,6 @@ environments:
         timeout_seconds:
         retry:
   production:
-    task_handler:
     steps:
       - name: check_fraud
         handler:

@@ -665,11 +665,9 @@ impl TaskHandlerRegistry {
             })
         });
         let handler_class = named_task.configuration.as_ref().and_then(|config| {
-            config.get("handler_class").and_then(|v| {
-                v.as_str()
-                    .map(|s| s.to_string())
-                    .or(Some("TaskerCore::TaskHandler::Base".to_string()))
-            })
+            config
+                .get("handler_class")
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
         });
         // Debug configuration before validation
         debug!(
@@ -711,7 +709,7 @@ impl TaskHandlerRegistry {
             name: name.to_string(),
             version: version.to_string(),
             default_dependent_system,
-            handler_class: handler_class.unwrap_or("TaskerCore::TaskHandler::Base".to_string()),
+            handler_class: handler_class.unwrap_or_default(),
             config_schema: named_task.configuration,
             registered_at: Utc::now(),
         };

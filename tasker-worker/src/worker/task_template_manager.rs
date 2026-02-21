@@ -757,12 +757,6 @@ mod tests {
             version: "1.0.0".to_string(),
             description: Some("Test task template".to_string()),
             metadata: None,
-            task_handler: Some(HandlerDefinition {
-                callable: "TestHandler".to_string(),
-                method: None,
-                resolver: None,
-                initialization: HashMap::new(),
-            }),
             system_dependencies: Default::default(),
             domain_events: Vec::new(),
             input_schema: None,

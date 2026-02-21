@@ -170,12 +170,6 @@ Each workflow has a YAML configuration defining structure and retry policies:
 :version: 1.0.0
 :description: Complete order fulfillment workflow
 
-:task_handler:
-  :callable: Ecommerce::OrderProcessingHandler
-  :initialization:
-    timeout: 300
-    retries: 3
-
 :input_schema:
   type: object
   required: [customer_info, cart_items, payment_info]

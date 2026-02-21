@@ -226,8 +226,7 @@ class TemplatePath:
 class TemplateParser:
     """Parses YAML templates to extract handler information.
 
-    Extracts handler callable names from task template files, supporting
-    both task-level handlers and step-level handlers.
+    Extracts step handler callable names from task template files.
 
     Example:
         >>> template_file = Path("config/tasks/workflow.yaml")
@@ -252,7 +251,6 @@ class TemplateParser:
         Notes
         -----
         Extracts from:
-        - task_handler.callable
         - steps[].handler.callable
         """
         try:
@@ -282,13 +280,6 @@ class TemplateParser:
             List of handler callable strings.
         """
         handlers: list[str] = []
-
-        # Extract task_handler.callable
-        task_handler = template_data.get("task_handler", {})
-        if isinstance(task_handler, dict):
-            callable_name = task_handler.get("callable")
-            if callable_name and isinstance(callable_name, str):
-                handlers.append(callable_name)
 
         # Extract steps[].handler.callable
         steps = template_data.get("steps", [])

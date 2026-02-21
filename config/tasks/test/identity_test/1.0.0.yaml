@@ -37,9 +37,6 @@ metadata:
   documentation_url:
   created_at: "2025-08-17T20:18:41Z"
   updated_at: "2025-08-17T20:18:41Z"
-task_handler:
-  callable: IdentityTestHandler
-  initialization: {}
 system_dependencies:
   primary: test_system
   secondary: []
@@ -70,7 +67,6 @@ steps:
     publishes_events: []
 environments:
   test:
-    task_handler:
     steps:
       - name: identity_step
         handler:

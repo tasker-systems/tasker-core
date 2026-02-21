@@ -37,7 +37,7 @@ Files sorted by coverage percentage (ascending), excluding 0% above:
 | File | Coverage | Lines Covered | Lines Total | Uncovered |
 |------|----------|---------------|-------------|-----------|
 | `subscriber.rb` | 18.46% | 12/65 | 53 |
-| `task_handler/base.rb` | 22.89% | 19/83 | 64 |
+| `task_handler/base.rb` | 22.89% | 19/83 | 64 | *(removed — vestigial)* |
 | `step_handler/mixins/api.rb` | 23.36% | 32/137 | 105 |
 | `template_discovery.rb` | 25.64% | 20/78 | 58 |
 | `worker/event_poller.rb` | 26.67% | 16/60 | 44 |
@@ -86,29 +86,9 @@ These files have functional runtime importance and very low coverage. Failures h
 - Test checkpoint yield path for batch processing
 - Test trace context propagation (trace_id, span_id)
 
-#### 2. `lib/tasker_core/task_handler/base.rb` -- 22.89% (64 uncovered lines)
+#### 2. `lib/tasker_core/task_handler/base.rb` -- 22.89% (64 uncovered lines) *(REMOVED)*
 
-**What it does**: `TaskHandler::Base` is the main task processing entry point. It supports two orchestration modes (embedded FFI and distributed pgmq), validates task UUIDs, initializes tasks via pgmq messaging, and provides status/readiness checks.
-
-**Why it matters**: This is the top-level task handler that routes to embedded or distributed orchestration. Untested mode switching or validation could lead to silent failures.
-
-**What is uncovered**:
-
-- `handle(task_uuid)` method with mode switching (embedded/distributed)
-- `initialize_task(task_request)` -- pgmq message construction and sending
-- `orchestration_ready?` and `status` methods
-- Error handling for orchestration and standard errors
-- Private helpers: `handle_embedded_mode`, `handle_distributed_mode`, `orchestration_mode`, `load_task_config_from_path`
-
-**Recommended tests**:
-
-- Unit tests with mocked `TaskerCore.embedded_orchestrator` and `TaskerCore::Messaging::PgmqClient`
-- Test handle in embedded mode (running and not-running orchestrator)
-- Test handle in distributed mode
-- Test handle with invalid task_uuid (not integer)
-- Test initialize_task with valid and invalid request data
-- Test status method in both modes
-- Test error recovery paths
+> **Note**: This file has been removed. The `task_handler` concept was vestigial from the Ruby era -- the task-level handler callable was never actually invoked by any code path. Only step handlers are invoked.
 
 ### High Priority
 
@@ -393,7 +373,7 @@ These tests can be written without FFI or database dependencies, using pure Ruby
 
 1. **`step_handler/mixins/api.rb`** -- WebMock/Faraday test adapter for HTTP tests
 2. **`registry/handler_registry.rb`** -- Mock-based bootstrap and resolution tests
-3. **`task_handler/base.rb`** -- Mock orchestrator and pgmq client
+3. ~~`task_handler/base.rb`~~ -- *(Removed: vestigial task_handler concept)*
 
 ### Phase 4: Runtime Infrastructure (estimated +100 lines)
 

@@ -39,25 +39,6 @@
   :documentation_url:
   :created_at: "2025-08-17T19:32:47Z"
   :updated_at: "2025-08-17T19:32:47Z"
-:task_handler:
-  :callable: TreeWorkflow::TreeWorkflowHandler
-  :initialization:
-    input_validation:
-      required_fields:
-        - even_number
-      even_number_constraint: must_be_even
-      value_range:
-        min: 2
-        max: 20
-    expected_results:
-      tree_root: n²
-      tree_branch_left: "(n²)²"
-      tree_branch_right: "(n²)²"
-      tree_leaf_d: "((n²)²)²"
-      tree_leaf_e: "((n²)²)²"
-      tree_leaf_f: "((n²)²)²"
-      tree_leaf_g: "((n²)²)²"
-      tree_final_convergence: "(((n²)²)² × ((n²)²)² × ((n²)²)² × ((n²)²)²)² = n³²"
 :system_dependencies:
   :primary: default
   :secondary: []
@@ -212,7 +193,6 @@
     :publishes_events: []
 :environments:
   test:
-    :task_handler:
     :steps:
       - :name: tree_root
         :handler:

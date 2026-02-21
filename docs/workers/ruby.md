@@ -612,8 +612,6 @@ workers/ruby/
 │       │   ├── api.rb       # API handler
 │       │   ├── decision.rb  # Decision handler
 │       │   └── batchable.rb # Batch handler
-│       ├── task_handler/
-│       │   └── base.rb      # Task orchestration
 │       ├── types/           # Type definitions
 │       └── version.rb
 ├── spec/

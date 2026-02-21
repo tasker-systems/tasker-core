@@ -39,10 +39,6 @@ async fn test_load_task_template_from_file() {
         task_template["namespace_name"].as_str().unwrap(), // New format: namespace_name
         "payments"
     );
-    assert_eq!(
-        task_template["task_handler"]["callable"].as_str().unwrap(), // New format: task_handler.callable
-        "CreditCardPaymentHandler"
-    );
     assert_eq!(task_template["version"].as_str().unwrap(), "1.0.0");
     assert!(task_template["description"].is_string());
 
@@ -135,7 +131,6 @@ async fn test_environment_variable_interpolation() {
 
     let yaml_content = r#"
 name: test_payment
-task_handler_class: TestHandler
 namespace_name: test_namespace
 version: "1.0.0"
 named_steps:
@@ -187,7 +182,6 @@ async fn test_task_template_validation() {
 
     // Basic validation checks for new TaskTemplate format
     assert!(template["name"].is_string());
-    assert!(template["task_handler"]["callable"].is_string()); // New format: task_handler.callable
     assert!(template["namespace_name"].is_string());
     assert!(template["version"].is_string());
     assert!(template["steps"].is_sequence()); // New format: steps instead of step_templates

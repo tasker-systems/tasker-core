@@ -8,8 +8,6 @@ metadata:
   tags:
     - namespace:test_sql
     - pattern:boundary_testing
-task_handler:
-  callable: TestHandlers::BoundaryTestHandler
 system_dependencies:
   primary: test_system
   secondary: []

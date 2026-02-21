@@ -1,27 +1,8 @@
 # frozen_string_literal: true
 
-require_relative '../../../../../lib/tasker_core/task_handler/base'
-
 module MixedDagWorkflow
-  # Mixed DAG Workflow Handler
-  # Implements complex DAG: A -> B, A -> C, B -> D, C -> D, B -> E, C -> F, (D,E,F) -> G
-  class MixedDagWorkflowHandler < TaskerCore::TaskHandler::Base
-    def handle(task, _sequence, step)
-      {
-        status: 'success',
-        message: "Mixed DAG workflow step #{step.step_name} completed",
-        metadata: {
-          workflow_type: 'mixed_dag',
-          step_name: step.step_name,
-          task_uuid: task.task_uuid
-        }
-      }
-    end
-
-    private
-
-    def workflow_description
-      'Complex mixed DAG workflow demonstrating multiple convergence patterns and dependency types'
-    end
+  # Mixed DAG Workflow Handler (vestigial - task handlers removed from architecture)
+  # Step orchestration is handled entirely by Rust.
+  class MixedDagWorkflowHandler
   end
 end

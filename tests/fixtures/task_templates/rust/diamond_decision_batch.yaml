@@ -33,9 +33,6 @@ name: diamond_decision_batch_processor
 namespace_name: combined_workflow_test
 version: "1.0.0"
 description: "Combined workflow demonstrating diamond pattern, decision points, and batch processing"
-task_handler:
-  callable: tasker_worker_rust::step_handlers::RustStepHandler
-  initialization: {}
 
 steps:
   # ============================================================================

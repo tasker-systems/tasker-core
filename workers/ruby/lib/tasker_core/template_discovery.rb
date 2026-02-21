@@ -94,11 +94,6 @@ module TaskerCore
         def extract_handlers_from_template(template_data)
           handlers = []
 
-          # Add task handler if present
-          if template_data['task_handler'] && template_data['task_handler']['callable']
-            handlers << template_data['task_handler']['callable']
-          end
-
           # Add step handlers
           if template_data['steps'].is_a?(Array)
             template_data['steps'].each do |step|

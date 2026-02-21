@@ -37,25 +37,6 @@ metadata:
   created_at: "2025-09-24T00:00:00Z"
   updated_at: "2025-09-24T00:00:00Z"
   notes: "Ruby FFI implementation with complex mixed dependency patterns and multi-path convergence"
-task_handler:
-  callable: MixedDagWorkflow::MixedDagWorkflowHandler
-  initialization:
-    input_validation:
-      required_fields:
-        - even_number
-      even_number_constraint: must_be_even
-      value_range:
-        min: 2
-        max: 100
-    expected_results:
-      dag_init: "input²"
-      dag_process_left: "(input²)²"
-      dag_process_right: "(input²)²"
-      dag_validate: "((input²)² × (input²)²)²"
-      dag_transform: "((input²)²)²"
-      dag_analyze: "((input²)²)²"
-      dag_finalize: "(validate × transform × analyze)²"
-      final_pattern: "input^64"
 system_dependencies:
   primary: default
   secondary: []

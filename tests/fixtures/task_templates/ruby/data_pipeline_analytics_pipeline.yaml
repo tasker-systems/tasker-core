@@ -43,11 +43,6 @@ metadata:
     - pattern:parallel_execution
     - dependencies:aggregate_convergence
     - implementation:ruby_ffi
-task_handler:
-  callable: DataPipeline::Handlers::AnalyticsPipelineHandler
-  initialization:
-    timeout_seconds: 120
-    max_retries: 2
 input_schema:
   type: object
   properties:

@@ -578,8 +578,6 @@ The Rust worker uses YAML configuration files located in `config/tasks/`. Each w
 :namespace_name: linear_workflow
 :version: 1.0.0
 :description: "Sequential mathematical operations using native Rust handlers"
-:task_handler:
-  :callable: tasker_worker_rust::step_handlers::RustStepHandler
 :steps:
   - :name: linear_step_1
     :handler:

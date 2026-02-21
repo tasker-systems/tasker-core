@@ -40,11 +40,6 @@ metadata:
     - pattern:circuit_breaker
     - dependencies:multi_service
     - implementation:ruby_ffi
-task_handler:
-  callable: Microservices::Handlers::UserRegistrationHandler
-  initialization:
-    timeout_seconds: 120
-    max_retries: 2
 input_schema:
   type: object
   properties:

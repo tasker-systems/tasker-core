@@ -31,21 +31,6 @@ metadata:
   created_at: "2025-12-13T00:00:00Z"
   updated_at: "2025-12-13T00:00:00Z"
   notes: "Python FFI implementation with sequential mathematical operations"
-task_handler:
-  callable: linear_workflow.LinearWorkflowHandler
-  initialization:
-    input_validation:
-      required_fields:
-        - even_number
-      even_number_constraint: must_be_even
-      value_range:
-        min: 2
-        max: 100
-    expected_results:
-      linear_step_1_py: "input**2"
-      linear_step_2_py: "(input**2 + 10)"
-      linear_step_3_py: "(input**2 + 10) * 3"
-      linear_step_4_py: "((input**2 + 10) * 3) / 2"
 system_dependencies:
   primary: default
   secondary: []
