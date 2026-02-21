@@ -1,6 +1,6 @@
 [package]
 name = "tasker-core"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 description = "High-performance Rust core for workflow orchestration"
 readme = "README.md"
@@ -100,7 +100,7 @@ opentelemetry_sdk = { version = "0.31", features = [
 opentelemetry-semantic-conventions = "0.31"
 # Message queue management
 pgmq = "0.31.2"
-tasker-pgmq = { path = "tasker-pgmq", version = "=0.1.4" }
+tasker-pgmq = { path = "tasker-pgmq", version = "=0.1.5" }
 rand = "0.9.1"
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 # In-process cache with TTL support (TAS-168)
