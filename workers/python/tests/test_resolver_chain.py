@@ -36,7 +36,7 @@ class TestHandler(StepHandler):
 
     handler_name = "test_handler"
 
-    def call(self, _context: StepContext) -> StepHandlerResult:
+    def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
         return StepHandlerResult.success({"from": "call"})
 
 
@@ -45,13 +45,13 @@ class MultiMethodHandler(StepHandler):
 
     handler_name = "multi_method_handler"
 
-    def call(self, _context: StepContext) -> StepHandlerResult:
+    def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
         return StepHandlerResult.success({"method": "call"})
 
-    def process(self, _context: StepContext) -> StepHandlerResult:
+    def process(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
         return StepHandlerResult.success({"method": "process"})
 
-    def refund(self, _context: StepContext) -> StepHandlerResult:
+    def refund(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
         return StepHandlerResult.success({"method": "refund"})
 
 
@@ -70,10 +70,10 @@ class CustomResolver(BaseResolver):
     def priority(self) -> int:
         return self._priority
 
-    def can_resolve(self, definition: HandlerDefinition, _config=None) -> bool:
+    def can_resolve(self, definition: HandlerDefinition, config=None) -> bool:  # noqa: ARG002
         return definition.callable.startswith("custom:")
 
-    def resolve(self, definition: HandlerDefinition, _config=None):
+    def resolve(self, definition: HandlerDefinition, config=None):  # noqa: ARG002
         if not self.can_resolve(definition):
             return None
         return TestHandler()
@@ -389,6 +389,7 @@ class TestResolverChain:
         """Test resolution through the chain."""
         chain = ResolverChain.default()
         explicit = chain.get_resolver("explicit_mapping")
+        assert isinstance(explicit, ExplicitMappingResolver)
         explicit.register("test_handler", TestHandler)
 
         definition = HandlerDefinition(callable="test_handler")
@@ -404,6 +405,7 @@ class TestResolverChain:
         chain.add_resolver(CustomResolver(name="custom"))
 
         explicit = chain.get_resolver("explicit_mapping")
+        assert isinstance(explicit, ExplicitMappingResolver)
         explicit.register("test_handler", TestHandler)
 
         # With resolver hint, should go directly to specified resolver
@@ -457,7 +459,7 @@ class TestResolverChain:
         chain = ResolverChain.default()
 
         explicit = chain.get_resolver("explicit_mapping")
-        assert explicit is not None
+        assert isinstance(explicit, ExplicitMappingResolver)
         assert explicit.name == "explicit_mapping"
 
         class_lookup = chain.get_resolver("class_lookup")
@@ -496,6 +498,7 @@ class TestResolverChainIntegration:
 
         # Register handler
         explicit = chain.get_resolver("explicit_mapping")
+        assert isinstance(explicit, ExplicitMappingResolver)
         explicit.register("payment_handler", MultiMethodHandler)
 
         # Create definition with method dispatch
@@ -543,6 +546,7 @@ class TestResolverChainExtended:
         """Test _resolve_with_hint returns handler from named resolver."""
         chain = ResolverChain.default()
         explicit = chain.get_resolver("explicit_mapping")
+        assert isinstance(explicit, ExplicitMappingResolver)
         explicit.register("test_handler", TestHandler)
 
         definition = HandlerDefinition(callable="test_handler", resolver="explicit_mapping")
@@ -562,6 +566,7 @@ class TestResolverChainExtended:
         """Test can_resolve checks all resolvers in chain."""
         chain = ResolverChain.default()
         explicit = chain.get_resolver("explicit_mapping")
+        assert isinstance(explicit, ExplicitMappingResolver)
         explicit.register("test_handler", TestHandler)
 
         assert chain.can_resolve(HandlerDefinition(callable="test_handler")) is True
@@ -571,6 +576,7 @@ class TestResolverChainExtended:
         """Test can_resolve with resolver hint delegates to named resolver."""
         chain = ResolverChain.default()
         explicit = chain.get_resolver("explicit_mapping")
+        assert isinstance(explicit, ExplicitMappingResolver)
         explicit.register("test_handler", TestHandler)
 
         # With hint pointing to explicit_mapping
@@ -658,6 +664,7 @@ class TestResolverChainExtended:
         """Test registered_callables aggregates across resolvers."""
         chain = ResolverChain.default()
         explicit = chain.get_resolver("explicit_mapping")
+        assert isinstance(explicit, ExplicitMappingResolver)
         explicit.register("handler_a", TestHandler)
         explicit.register("handler_b", MultiMethodHandler)
 

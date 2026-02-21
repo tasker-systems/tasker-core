@@ -118,10 +118,22 @@ export class HandlerSystem {
     log.info(`Loading handlers from: ${path}`, { operation: 'load_from_path' });
 
     try {
+      let totalCount = 0;
+
       // Try to find and import an index file first
       const indexResult = await this.tryImportIndexFile(path);
       if (indexResult.module) {
-        return this.registerHandlersFromModule(indexResult.module, indexResult.path);
+        totalCount += this.registerHandlersFromModule(indexResult.module, indexResult.path);
+      }
+
+      // TAS-294: Also try dsl_examples/ directory for DSL handler mirrors
+      const dslResult = await this.tryImportDslExamplesIndex(path);
+      if (dslResult.module) {
+        totalCount += this.registerHandlersFromModule(dslResult.module, dslResult.path);
+      }
+
+      if (totalCount > 0) {
+        return totalCount;
       }
 
       // Fallback: scan for handler files
@@ -338,6 +350,29 @@ export class HandlerSystem {
   }
 
   /**
+   * TAS-294: Try to import the dsl_examples index file.
+   * This is separate from tryImportIndexFile because dsl_examples/ is a sibling
+   * directory to examples/, and both need to be loaded.
+   */
+  private async tryImportDslExamplesIndex(
+    handlerPath: string
+  ): Promise<{ module: Record<string, unknown> | null; path: string | null }> {
+    const dslPaths = [
+      join(handlerPath, 'dsl_examples', 'index.js'),
+      join(handlerPath, 'dsl_examples', 'index.ts'),
+    ];
+
+    for (const indexPath of dslPaths) {
+      if (existsSync(indexPath)) {
+        const module = (await import(`file://${indexPath}`)) as Record<string, unknown>;
+        return { module, path: indexPath };
+      }
+    }
+
+    return { module: null, path: null };
+  }
+
+  /**
    * Register handlers from a module's exports.
    */
   private registerHandlersFromModule(
@@ -347,8 +382,18 @@ export class HandlerSystem {
     log.info(`Loaded handler module from: ${importPath}`, { operation: 'import_handlers' });
 
     // Check for ALL_EXAMPLE_HANDLERS array (preferred pattern)
+    let count = 0;
     if (Array.isArray(module.ALL_EXAMPLE_HANDLERS)) {
-      return this.registerFromHandlerArray(module.ALL_EXAMPLE_HANDLERS);
+      count += this.registerFromHandlerArray(module.ALL_EXAMPLE_HANDLERS, 'ALL_EXAMPLE_HANDLERS');
+    }
+
+    // Also check for ALL_DSL_HANDLERS array (TAS-294 DSL examples)
+    if (Array.isArray(module.ALL_DSL_HANDLERS)) {
+      count += this.registerFromHandlerArray(module.ALL_DSL_HANDLERS, 'ALL_DSL_HANDLERS');
+    }
+
+    if (count > 0) {
+      return count;
     }
 
     // Fallback: scan module exports for handler classes
@@ -356,9 +401,12 @@ export class HandlerSystem {
   }
 
   /**
-   * Register handlers from ALL_EXAMPLE_HANDLERS array.
+   * Register handlers from a named handler array.
    */
-  private registerFromHandlerArray(handlers: unknown[]): number {
+  private registerFromHandlerArray(
+    handlers: unknown[],
+    arrayName = 'ALL_EXAMPLE_HANDLERS'
+  ): number {
     let count = 0;
     for (const handlerClass of handlers) {
       if (this.isValidHandlerClass(handlerClass)) {
@@ -366,7 +414,7 @@ export class HandlerSystem {
         count++;
       }
     }
-    log.info(`Registered ${count} handlers from ALL_EXAMPLE_HANDLERS`, {
+    log.info(`Registered ${count} handlers from ${arrayName}`, {
       operation: 'import_handlers',
     });
     return count;

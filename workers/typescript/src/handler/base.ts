@@ -91,6 +91,10 @@ export abstract class StepHandler {
   /**
    * Version string for the handler.
    * Default: "1.0.0"
+   *
+   * Currently a no-op — not yet wired through FFI bridges to
+   * StepExecutionMetadata. Reserved for future observability
+   * and compatibility tracking.
    */
   static handlerVersion = '1.0.0';
 

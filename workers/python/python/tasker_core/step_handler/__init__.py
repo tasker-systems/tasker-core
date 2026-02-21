@@ -56,10 +56,37 @@ from tasker_core.step_handler.api import ApiHandler, ApiResponse
 from tasker_core.step_handler.base import StepHandler
 from tasker_core.step_handler.decision import DecisionHandler
 
+# TAS-294: Functional/decorator API
+from tasker_core.step_handler.functional import (
+    BatchConfig,
+    Decision,
+    FunctionalHandler,
+    HandlerDecorator,
+    api_handler,
+    batch_analyzer,
+    batch_worker,
+    decision_handler,
+    depends_on,
+    inputs,
+    step_handler,
+)
+
 __all__ = [
     "StepHandler",
     "ApiHandler",
     "ApiResponse",
     "DecisionHandler",
     "mixins",
+    # TAS-294: Functional API
+    "api_handler",
+    "step_handler",
+    "depends_on",
+    "inputs",
+    "decision_handler",
+    "batch_analyzer",
+    "batch_worker",
+    "Decision",
+    "BatchConfig",
+    "FunctionalHandler",
+    "HandlerDecorator",
 ]

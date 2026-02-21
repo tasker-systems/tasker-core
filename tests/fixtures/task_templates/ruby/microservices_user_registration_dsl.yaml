@@ -1,0 +1,137 @@
+# TaskTemplate Configuration - DSL Variant - Ruby Implementation
+#
+# Microservices Namespace: User Registration Workflow
+# Demonstrates microservices coordination with parallel execution
+#
+# Template: microservices/user_registration:1.0.0
+# Implementation: Ruby FFI with tasker-rb
+# Blog Post: Post 03 - Microservices Coordination
+#
+# Business Workflow Pattern (5 steps):
+# Microservices Coordination - Sequential + Parallel Execution
+#
+# Sequential Phase (1 step):
+# 1. Create User Account: Create user in user service (with idempotency)
+#
+# Parallel Phase (2 steps):
+# 2. Setup Billing Profile: Create billing profile in billing service
+# 3. Initialize Preferences: Set user preferences in preferences service
+#
+# Coordination Phase (1 step):
+# 4. Send Welcome Sequence: Send welcome emails via notification service (depends on billing + preferences)
+#
+# Completion Phase (1 step):
+# 5. Update User Status: Mark user as active in user service (final step)
+#
+# This demonstrates parallel execution, dependency resolution, and multi-service coordination
+# using Tasker's built-in retry system as a circuit breaker pattern.
+#
+---
+name: user_registration_dsl
+namespace_name: microservices_dsl_rb
+version: 1.0.0
+description: "User registration workflow with microservices coordination - Post 03 Microservices"
+metadata:
+  author: Platform Team
+  blog_post: post_03
+  tags:
+    - namespace:microservices_dsl_rb
+    - pattern:parallel_execution
+    - pattern:circuit_breaker
+    - dependencies:multi_service
+    - implementation:ruby_ffi
+task_handler:
+  callable: ruby_ffi_handler_dsl
+  initialization:
+    timeout_seconds: 120
+    max_retries: 2
+input_schema:
+  type: object
+  properties:
+    user_info:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        plan:
+          type: string
+          enum: [free, pro, enterprise]
+        phone:
+          type: string
+        source:
+          type: string
+      required:
+        - email
+        - name
+steps:
+  # SEQUENTIAL PHASE - User creation must complete first
+  - name: create_user_account_dsl
+    description: "Create user account in user service with idempotency"
+    handler:
+      callable: microservices_dsl_rb.step_handlers.create_user_account
+    dependencies: []
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      initial_delay: 2
+      max_delay: 30
+
+  # PARALLEL PHASE - Billing and preferences run concurrently after user creation
+  - name: setup_billing_profile_dsl
+    description: "Setup billing profile in billing service"
+    handler:
+      callable: microservices_dsl_rb.step_handlers.setup_billing_profile
+    dependencies:
+      - create_user_account_dsl
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      initial_delay: 2
+      max_delay: 30
+
+  - name: initialize_preferences_dsl
+    description: "Initialize user preferences in preferences service"
+    handler:
+      callable: microservices_dsl_rb.step_handlers.initialize_preferences
+    dependencies:
+      - create_user_account_dsl
+    retry:
+      retryable: true
+      max_attempts: 3
+      backoff: exponential
+      initial_delay: 2
+      max_delay: 30
+
+  # COORDINATION PHASE - Welcome sequence waits for both billing and preferences
+  - name: send_welcome_sequence_dsl
+    description: "Send welcome emails via notification service"
+    handler:
+      callable: microservices_dsl_rb.step_handlers.send_welcome_sequence
+    dependencies:
+      - setup_billing_profile_dsl
+      - initialize_preferences_dsl
+    retry:
+      retryable: true
+      max_attempts: 2
+      backoff: exponential
+      initial_delay: 2
+      max_delay: 20
+
+  # COMPLETION PHASE - Final status update after welcome sequence
+  - name: update_user_status_dsl
+    description: "Update user status to active in user service"
+    handler:
+      callable: microservices_dsl_rb.step_handlers.update_user_status
+    dependencies:
+      - send_welcome_sequence_dsl
+    retry:
+      retryable: true
+      max_attempts: 2
+      backoff: exponential
+      initial_delay: 2
+      max_delay: 20

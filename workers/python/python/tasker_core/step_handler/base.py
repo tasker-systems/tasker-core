@@ -53,6 +53,9 @@ class StepHandler(ABC):
     Class Attributes:
         handler_name: Unique identifier for this handler. Must be set by subclasses.
         handler_version: Version string for the handler (default: "1.0.0").
+            Currently a no-op — not yet wired through FFI bridges to
+            StepExecutionMetadata. Reserved for future observability
+            and compatibility tracking.
 
     Example:
         >>> class ProcessOrderHandler(StepHandler):

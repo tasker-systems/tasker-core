@@ -39,7 +39,7 @@ Example:
 from __future__ import annotations
 
 # Import from the internal FFI module (Phase 1, Phase 3, Phase 5)
-from tasker_core._tasker_core import (  # type: ignore[attr-defined]
+from tasker_core._tasker_core import (
     __version__,
     check_starvation_warnings,
     cleanup_timeouts,

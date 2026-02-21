@@ -589,7 +589,42 @@ export class APIMixin implements APICapable {
 export function applyAPI<T extends object>(target: T): T & APICapable {
   const mixin = new APIMixin();
 
-  // Bind all API methods
+  // Override the mixin's property getters to read config from the target's
+  // constructor statics (e.g. HandlerClass.baseUrl), so HTTP methods use
+  // the handler's configuration.
+  Object.defineProperty(mixin, 'baseUrl', {
+    get: () => {
+      const ctor = target.constructor as typeof APIMixin;
+      return ctor.baseUrl || '';
+    },
+  });
+  Object.defineProperty(mixin, 'timeout', {
+    get: () => {
+      const ctor = target.constructor as typeof APIMixin;
+      return ctor.defaultTimeout || 30000;
+    },
+  });
+  Object.defineProperty(mixin, 'defaultHeaders', {
+    get: () => {
+      const ctor = target.constructor as typeof APIMixin;
+      return ctor.defaultHeaders || {};
+    },
+  });
+
+  // Bind HTTP methods to the mixin (so private helpers like buildUrl/fetch
+  // resolve correctly), and expose them on the target for ergonomic access.
+  (target as T & APICapable).get = mixin.get.bind(mixin);
+  (target as T & APICapable).post = mixin.post.bind(mixin);
+  (target as T & APICapable).put = mixin.put.bind(mixin);
+  (target as T & APICapable).patch = mixin.patch.bind(mixin);
+  (target as T & APICapable).delete = mixin.delete.bind(mixin);
+  (target as T & APICapable).request = mixin.request.bind(mixin);
+  (target as T & APICapable).apiSuccess = mixin.apiSuccess.bind(mixin);
+  (target as T & APICapable).apiFailure = mixin.apiFailure.bind(mixin);
+  (target as T & APICapable).connectionError = mixin.connectionError.bind(mixin);
+  (target as T & APICapable).timeoutError = mixin.timeoutError.bind(mixin);
+
+  // Also expose config getters on target for direct access
   Object.defineProperty(target, 'baseUrl', {
     get: () => {
       const ctor = target.constructor as typeof APIMixin;
@@ -608,17 +643,6 @@ export function applyAPI<T extends object>(target: T): T & APICapable {
       return ctor.defaultHeaders || {};
     },
   });
-
-  (target as T & APICapable).get = mixin.get.bind(target);
-  (target as T & APICapable).post = mixin.post.bind(target);
-  (target as T & APICapable).put = mixin.put.bind(target);
-  (target as T & APICapable).patch = mixin.patch.bind(target);
-  (target as T & APICapable).delete = mixin.delete.bind(target);
-  (target as T & APICapable).request = mixin.request.bind(target);
-  (target as T & APICapable).apiSuccess = mixin.apiSuccess.bind(target);
-  (target as T & APICapable).apiFailure = mixin.apiFailure.bind(target);
-  (target as T & APICapable).connectionError = mixin.connectionError.bind(target);
-  (target as T & APICapable).timeoutError = mixin.timeoutError.bind(target);
 
   return target as T & APICapable;
 }

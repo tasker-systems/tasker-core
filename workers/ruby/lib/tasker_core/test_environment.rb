@@ -16,8 +16,13 @@ module TaskerCore
         @template_fixtures_path = File.expand_path('../../spec/fixtures/templates', __dir__)
       end
 
-      # Check if we should load test environment components
+      # Check if we should load test environment components.
+      # Apps using tasker-rb via a local path: dependency can set
+      # TASKER_SKIP_EXAMPLE_HANDLERS=true to prevent the gem's spec
+      # handlers from shadowing the app's own handlers.
       def should_load_test_environment?
+        return false if ENV['TASKER_SKIP_EXAMPLE_HANDLERS'] == 'true'
+
         test_env = ENV['TASKER_ENV']&.downcase == 'test'
         rails_test_env = ENV['RAILS_ENV']&.downcase == 'test'
         force_examples = ENV['TASKER_FORCE_EXAMPLE_HANDLERS'] == 'true'
@@ -175,6 +180,14 @@ module TaskerCore
 
         handler_files = Dir.glob("#{@example_handlers_path}/**/*_handler.rb")
         log_debug("🔍 Found #{handler_files.count} example handler files")
+
+        # TAS-294: Also load DSL example handlers (functional API mirrors)
+        dsl_examples_path = @example_handlers_path.sub(%r{/examples$}, '/dsl_examples')
+        if Dir.exist?(dsl_examples_path)
+          dsl_files = Dir.glob("#{dsl_examples_path}/**/*.rb")
+          log_debug("🔍 Found #{dsl_files.count} DSL example handler files")
+          handler_files += dsl_files
+        end
 
         loaded_count = 0
         handler_files.each do |handler_file|

@@ -292,7 +292,7 @@ class TaskerClient:
         Returns:
             Typed task response.
         """
-        from tasker_core._tasker_core import client_create_task  # type: ignore[attr-defined]
+        from tasker_core._tasker_core import client_create_task
 
         request: dict[str, Any] = {
             "name": name,
@@ -310,7 +310,7 @@ class TaskerClient:
 
     def get_task(self, task_uuid: str) -> TaskResponse:
         """Get a task by UUID."""
-        from tasker_core._tasker_core import client_get_task  # type: ignore[attr-defined]
+        from tasker_core._tasker_core import client_get_task
 
         result = client_get_task(task_uuid)
         return TaskResponse.from_dict(result) if isinstance(result, dict) else result
@@ -324,47 +324,47 @@ class TaskerClient:
         status: str | None = None,
     ) -> TaskListResponse:
         """List tasks with optional filtering and pagination."""
-        from tasker_core._tasker_core import client_list_tasks  # type: ignore[attr-defined]
+        from tasker_core._tasker_core import client_list_tasks
 
         result = client_list_tasks(limit, offset, namespace, status)
         return TaskListResponse.from_dict(result) if isinstance(result, dict) else result
 
     def cancel_task(self, task_uuid: str) -> dict[str, Any]:
         """Cancel a task by UUID."""
-        from tasker_core._tasker_core import client_cancel_task  # type: ignore[attr-defined]
+        from tasker_core._tasker_core import client_cancel_task
 
-        return client_cancel_task(task_uuid)  # type: ignore[no-any-return]
+        return client_cancel_task(task_uuid)
 
     def list_task_steps(self, task_uuid: str) -> list[StepResponse]:
         """List workflow steps for a task."""
-        from tasker_core._tasker_core import client_list_task_steps  # type: ignore[attr-defined]
+        from tasker_core._tasker_core import client_list_task_steps
 
         result = client_list_task_steps(task_uuid)
         if isinstance(result, list):
             return [StepResponse.from_dict(s) if isinstance(s, dict) else s for s in result]
-        return result  # type: ignore[no-any-return]
+        return result
 
     def get_step(self, task_uuid: str, step_uuid: str) -> StepResponse:
         """Get a specific workflow step."""
-        from tasker_core._tasker_core import client_get_step  # type: ignore[attr-defined]
+        from tasker_core._tasker_core import client_get_step
 
         result = client_get_step(task_uuid, step_uuid)
         return StepResponse.from_dict(result) if isinstance(result, dict) else result
 
     def get_step_audit_history(self, task_uuid: str, step_uuid: str) -> list[StepAuditResponse]:
         """Get audit history for a workflow step."""
-        from tasker_core._tasker_core import (  # type: ignore[attr-defined]
+        from tasker_core._tasker_core import (
             client_get_step_audit_history,
         )
 
         result = client_get_step_audit_history(task_uuid, step_uuid)
         if isinstance(result, list):
             return [StepAuditResponse.from_dict(e) if isinstance(e, dict) else e for e in result]
-        return result  # type: ignore[no-any-return]
+        return result
 
     def health_check(self) -> HealthResponse:
         """Check orchestration API health."""
-        from tasker_core._tasker_core import client_health_check  # type: ignore[attr-defined]
+        from tasker_core._tasker_core import client_health_check
 
         result = client_health_check()
         return HealthResponse.from_dict(result) if isinstance(result, dict) else result

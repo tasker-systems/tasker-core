@@ -53,6 +53,23 @@ export {
   SubscriberRegistry,
   type SubscriberStats,
 } from './domain-events';
+// TAS-294: Functional/factory API
+export {
+  type ApiHandlerArgs,
+  type ApiHandlerOptions,
+  type BatchConfig,
+  Decision,
+  defineApiHandler,
+  defineBatchAnalyzer,
+  defineBatchWorker,
+  defineDecisionHandler,
+  defineHandler,
+  type HandlerArgs,
+  type HandlerFn,
+  type HandlerOptions,
+  PermanentError,
+  RetryableError,
+} from './functional.js';
 // Handler system (TAS-92)
 export { HandlerSystem } from './handler-system.js';
 // TAS-112: Composition pattern mixins

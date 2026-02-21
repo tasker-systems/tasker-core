@@ -31,7 +31,7 @@ class TestHandlerInstantiationErrors:
             def __init__(self):
                 raise RuntimeError("Handler initialization failed")
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         registry = HandlerRegistry.instance()
@@ -96,7 +96,7 @@ class TestHandlerDiscovery:
         class CustomBaseHandler(StepHandler):
             handler_name = "custom_base"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         # Discover with custom base - should find nothing
@@ -141,17 +141,17 @@ class TestModuleScanning:
         class HandlerWithName(StepHandler):
             handler_name = "named_handler"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
         class HandlerWithoutName(StepHandler):
             # No handler_name set!
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 return StepHandlerResult.success({})
 
-        FakeModule.HandlerWithName = HandlerWithName
-        FakeModule.HandlerWithoutName = HandlerWithoutName
+        FakeModule.HandlerWithName = HandlerWithName  # type: ignore[unresolved-attribute]
+        FakeModule.HandlerWithoutName = HandlerWithoutName  # type: ignore[unresolved-attribute]
 
         registry = HandlerRegistry.instance()
         count = registry._scan_module_for_handlers(FakeModule, StepHandler)
@@ -166,7 +166,7 @@ class TestModuleScanning:
         class FakeModule:
             pass
 
-        FakeModule.StepHandler = StepHandler
+        FakeModule.StepHandler = StepHandler  # type: ignore[unresolved-attribute]
 
         registry = HandlerRegistry.instance()
         count = registry._scan_module_for_handlers(FakeModule, StepHandler)

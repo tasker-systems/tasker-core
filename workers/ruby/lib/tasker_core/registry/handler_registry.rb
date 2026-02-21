@@ -298,7 +298,8 @@ module TaskerCore
         return ENV['TASKER_TEMPLATE_PATH'] if ENV['TASKER_TEMPLATE_PATH']
 
         # 2. Test environment: default to spec/fixtures/templates
-        if test_environment?
+        #    (skip when TASKER_SKIP_EXAMPLE_HANDLERS is set — the app provides its own templates)
+        if test_environment? && ENV['TASKER_SKIP_EXAMPLE_HANDLERS'] != 'true'
           fixtures_path = File.expand_path('../../../spec/fixtures/templates', __dir__)
           return fixtures_path if Dir.exist?(fixtures_path)
         end
@@ -375,7 +376,8 @@ module TaskerCore
         end
 
         # In test environment, add spec/handlers/examples for test fixtures
-        if test_environment?
+        # (skip when TASKER_SKIP_EXAMPLE_HANDLERS is set — the app provides its own handlers)
+        if test_environment? && ENV['TASKER_SKIP_EXAMPLE_HANDLERS'] != 'true'
           spec_dir = File.expand_path('../../../spec/handlers/examples', __dir__)
           Dir.glob("#{spec_dir}/**/").each { |dir| paths << dir } if Dir.exist?(spec_dir)
         end
@@ -423,6 +425,26 @@ module TaskerCore
             # Register with FULL class name so templates can reference it properly
             register_handler(handler_class_name, handler_class)
             registered_count += 1
+
+            # TAS-294: Also register under the DSL handler_name if it differs from the class name.
+            # DSL handlers created via step_handler('dot.notation.name') { ... } have a handler_name
+            # instance method that returns the dot-notation callable (e.g., 'linear_workflow_dsl.step_handlers.linear_step_1')
+            # but are registered above under their Ruby class name (e.g., 'LinearStep1DslHandler').
+            # Templates reference the dot-notation name, so we need both keys in the registry.
+            begin
+              instance = handler_class.new
+              if instance.respond_to?(:handler_name)
+                dsl_name = instance.handler_name
+                if dsl_name && dsl_name != handler_class_name
+                  register_handler(dsl_name, handler_class)
+                  registered_count += 1
+                  logger.debug("✅ Registered DSL handler alias: #{dsl_name}")
+                end
+              end
+            rescue StandardError
+              # Some handlers require config args - skip DSL name registration for those
+            end
+
             logger.debug("✅ Registered preloaded test handler: #{handler_class_name}")
           else
             logger.debug("⚠️ Preloaded handler class not found: #{handler_class_name}")

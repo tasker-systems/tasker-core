@@ -311,7 +311,7 @@ class TestBatchableWithStepHandler:
         class TestAnalyzer(StepHandler, Batchable):
             handler_name = "test_analyzer"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 outcome = self.create_batch_outcome(total_items=100, batch_size=25)
                 return self.batch_analyzer_success(outcome)
 
@@ -320,6 +320,7 @@ class TestBatchableWithStepHandler:
         result = handler.batch_analyzer_success(outcome)
 
         assert result.is_success is True
+        assert result.result is not None
         # Result now uses batch_processing_outcome wrapper (matches Rust expectations)
         assert result.result["worker_count"] == 4
         assert result.result["total_items"] == 100
@@ -334,7 +335,7 @@ class TestBatchableWithStepHandler:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 outcome = self.create_worker_outcome(
                     items_processed=25,
                     items_succeeded=24,
@@ -351,6 +352,7 @@ class TestBatchableWithStepHandler:
         result = handler.batch_worker_success(outcome)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["items_processed"] == 25
         assert result.result["items_succeeded"] == 24
         assert result.result["items_failed"] == 1
@@ -473,7 +475,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -495,7 +497,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -504,6 +506,7 @@ class TestBatchableAggregationHelpers:
         )
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["worker_count"] == 0
         assert result.result["scenario"] == "no_batches"
         assert result.result["total_processed"] == 0
@@ -516,7 +519,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -529,6 +532,7 @@ class TestBatchableAggregationHelpers:
         result = handler.aggregate_batch_worker_results(scenario, zero_metrics={"total": 0})
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["worker_count"] == 0
         assert result.result["scenario"] == "no_batches"
         assert result.result["total"] == 0
@@ -540,7 +544,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -566,6 +570,7 @@ class TestBatchableAggregationHelpers:
         )
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["worker_count"] == 3
         assert result.result["scenario"] == "with_batches"
         assert result.result["total_processed"] == 250
@@ -577,7 +582,7 @@ class TestBatchableAggregationHelpers:
         class TestAggregator(StepHandler, Batchable):
             handler_name = "test_aggregator"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAggregator()
@@ -594,6 +599,7 @@ class TestBatchableAggregationHelpers:
         result = handler.aggregate_batch_worker_results(scenario)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["worker_count"] == 2
         assert result.result["scenario"] == "with_batches"
         # Default aggregation passes through batch_results
@@ -611,13 +617,14 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
         result = handler.checkpoint_yield(cursor=5000, items_processed=5000)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["type"] == "checkpoint_yield"
         assert result.result["cursor"] == 5000
         assert result.result["items_processed"] == 5000
@@ -631,7 +638,7 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -641,6 +648,7 @@ class TestCheckpointYield:
         )
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["cursor"] == "eyJsYXN0X2lkIjoiOTk5In0="
         assert result.result["items_processed"] == 100
 
@@ -651,7 +659,7 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -662,6 +670,7 @@ class TestCheckpointYield:
         )
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["cursor"] == complex_cursor
         assert result.result["cursor"]["page"] == 5
 
@@ -672,7 +681,7 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -683,6 +692,7 @@ class TestCheckpointYield:
         )
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["accumulated_results"]["running_total"] == 375000.50
         assert result.result["accumulated_results"]["processed_count"] == 7500
 
@@ -693,13 +703,14 @@ class TestCheckpointYield:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
         result = handler.checkpoint_yield(cursor=1000, items_processed=1000)
 
         assert result.is_success is True
+        assert result.result is not None
         assert "accumulated_results" not in result.result
 
 
@@ -713,7 +724,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -721,6 +732,7 @@ class TestCheckpointYieldErrorScenarios:
         result = handler.checkpoint_yield(cursor=0, items_processed=0)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["items_processed"] == 0
         assert result.result["cursor"] == 0
 
@@ -731,7 +743,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -739,6 +751,7 @@ class TestCheckpointYieldErrorScenarios:
         result = handler.checkpoint_yield(cursor=None, items_processed=0)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["cursor"] is None
 
     def test_checkpoint_yield_with_empty_dict_cursor(self):
@@ -748,13 +761,14 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
         result = handler.checkpoint_yield(cursor={}, items_processed=100)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["cursor"] == {}
 
     def test_checkpoint_yield_with_empty_string_cursor(self):
@@ -764,13 +778,14 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
         result = handler.checkpoint_yield(cursor="", items_processed=0)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["cursor"] == ""
 
     def test_checkpoint_yield_with_large_items_processed(self):
@@ -780,7 +795,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -789,6 +804,7 @@ class TestCheckpointYieldErrorScenarios:
         result = handler.checkpoint_yield(cursor=large_count, items_processed=large_count)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["items_processed"] == large_count
 
     def test_checkpoint_yield_with_deeply_nested_accumulated_results(self):
@@ -798,7 +814,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -821,6 +837,7 @@ class TestCheckpointYieldErrorScenarios:
         )
 
         assert result.is_success is True
+        assert result.result is not None
         assert (
             result.result["accumulated_results"]["level1"]["level2"]["level3"]["level4"]["value"]
             == 12345
@@ -833,7 +850,7 @@ class TestCheckpointYieldErrorScenarios:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_checkpoint_worker"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -842,6 +859,7 @@ class TestCheckpointYieldErrorScenarios:
         result = handler.checkpoint_yield(cursor=special_cursor, items_processed=100)
 
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["cursor"] == special_cursor
 
 
@@ -1044,7 +1062,7 @@ class TestBatchableKeywordArgs:
         class TestAnalyzer(StepHandler, Batchable):
             handler_name = "test_analyzer_kwargs"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAnalyzer()
@@ -1058,6 +1076,7 @@ class TestBatchableKeywordArgs:
             batch_metadata={"source": "test"},
         )
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["worker_count"] == 2
         assert result.result["total_items"] == 100
         assert result.result["batch_metadata"] == {"source": "test"}
@@ -1069,12 +1088,13 @@ class TestBatchableKeywordArgs:
         class TestAnalyzer(StepHandler, Batchable):
             handler_name = "test_analyzer_empty"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAnalyzer()
         result = handler.batch_analyzer_success(cursor_configs=[])
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["batch_processing_outcome"]["type"] == "no_batches"
 
     def test_batch_analyzer_success_no_args(self):
@@ -1084,12 +1104,13 @@ class TestBatchableKeywordArgs:
         class TestAnalyzer(StepHandler, Batchable):
             handler_name = "test_analyzer_noargs"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestAnalyzer()
         result = handler.batch_analyzer_success()
         assert result.is_success is True
+        assert result.result is not None
         assert "no_batches" in str(
             result.result.get("batch_processing_outcome", {}).get("type", "")
         )
@@ -1101,7 +1122,7 @@ class TestBatchableKeywordArgs:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_worker_kwargs"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -1111,6 +1132,7 @@ class TestBatchableKeywordArgs:
             items_failed=2,
         )
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["items_processed"] == 50
         assert result.result["items_succeeded"] == 48
         assert result.result["items_failed"] == 2
@@ -1122,7 +1144,7 @@ class TestBatchableKeywordArgs:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_worker_noargs"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -1136,7 +1158,7 @@ class TestBatchableKeywordArgs:
         class TestWorker(StepHandler, Batchable):
             handler_name = "test_worker_partial"
 
-            def call(self, _context):
+            def call(self, context):  # noqa: ARG002
                 pass
 
         handler = TestWorker()
@@ -1149,6 +1171,7 @@ class TestBatchableKeywordArgs:
         )
         result = handler.batch_worker_partial_failure(outcome, message="10 items failed")
         assert result.is_success is True
+        assert result.result is not None
         assert result.result["partial_failure"] is True
         assert result.result["partial_failure_message"] == "10 items failed"
         assert result.metadata["had_failures"] is True

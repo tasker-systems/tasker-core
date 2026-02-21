@@ -17,8 +17,9 @@ Test patterns adapted from:
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -71,7 +72,7 @@ class MockEventPublisher(BasePublisher):
     def publisher_name(self) -> str:
         return self._name
 
-    def should_publish(self, _ctx: StepEventContext) -> bool:
+    def should_publish(self, ctx: StepEventContext) -> bool:  # noqa: ARG002
         self.should_publish_called = True
         return True
 
@@ -79,7 +80,7 @@ class MockEventPublisher(BasePublisher):
         self.transform_payload_called = True
         return ctx.result or {}
 
-    def additional_metadata(self, _ctx: StepEventContext) -> dict[str, Any]:
+    def additional_metadata(self, ctx: StepEventContext) -> dict[str, Any]:  # noqa: ARG002
         self.additional_metadata_called = True
         return {"mock_publisher": True}
 
@@ -108,17 +109,17 @@ class MockEventPublisher(BasePublisher):
 
     def after_publish(
         self,
-        _event_name: str,
-        _payload: dict[str, Any],
-        _metadata: dict[str, Any],
+        event_name: str,  # noqa: ARG002
+        payload: dict[str, Any],  # noqa: ARG002
+        metadata: dict[str, Any],  # noqa: ARG002
     ) -> None:
         self.after_publish_called = True
 
     def on_publish_error(
         self,
-        _event_name: str,
-        _error: Exception,
-        _payload: dict[str, Any],
+        event_name: str,  # noqa: ARG002
+        error: Exception,  # noqa: ARG002
+        payload: dict[str, Any],  # noqa: ARG002
     ) -> None:
         self.on_publish_error_called = True
 
@@ -151,7 +152,7 @@ class SkippingPublisher(BasePublisher):
     def publisher_name(self) -> str:
         return "SkippingPublisher"
 
-    def should_publish(self, _ctx: StepEventContext) -> bool:
+    def should_publish(self, ctx: StepEventContext) -> bool:  # noqa: ARG002
         return False
 
 
@@ -166,17 +167,17 @@ class FailingBeforePublishPublisher(BasePublisher):
 
     def before_publish(
         self,
-        _event_name: str,
-        _payload: dict[str, Any],
-        _metadata: dict[str, Any],
+        event_name: str,  # noqa: ARG002
+        payload: dict[str, Any],  # noqa: ARG002
+        metadata: dict[str, Any],  # noqa: ARG002
     ) -> bool:
         raise ValueError("Pre-publish validation failed")
 
     def on_publish_error(
         self,
-        _event_name: str,
-        _error: Exception,
-        _payload: dict[str, Any],
+        event_name: str,  # noqa: ARG002
+        error: Exception,  # noqa: ARG002
+        payload: dict[str, Any],  # noqa: ARG002
     ) -> None:
         self.error_handled = True
 
@@ -193,18 +194,18 @@ class AbortingPublisher(BasePublisher):
 
     def before_publish(
         self,
-        _event_name: str,
-        _payload: dict[str, Any],
-        _metadata: dict[str, Any],
+        event_name: str,  # noqa: ARG002
+        payload: dict[str, Any],  # noqa: ARG002
+        metadata: dict[str, Any],  # noqa: ARG002
     ) -> bool:
         self.before_publish_called = True
         return False  # Abort publishing
 
     def after_publish(
         self,
-        _event_name: str,
-        _payload: dict[str, Any],
-        _metadata: dict[str, Any],
+        event_name: str,  # noqa: ARG002
+        payload: dict[str, Any],  # noqa: ARG002
+        metadata: dict[str, Any],  # noqa: ARG002
     ) -> None:
         self.after_publish_called = True
 
@@ -254,14 +255,14 @@ class MockSubscriber(BaseSubscriber):
             raise ValueError("Simulated handler error")
         self.handled_events.append(event)
 
-    def before_handle(self, _event: dict[str, Any]) -> bool:
+    def before_handle(self, event: dict[str, Any]) -> bool:  # noqa: ARG002
         self.before_handle_called = True
         return not self.should_skip
 
-    def after_handle(self, _event: dict[str, Any]) -> None:
+    def after_handle(self, event: dict[str, Any]) -> None:  # noqa: ARG002
         self.after_handle_called = True
 
-    def on_handle_error(self, _event: dict[str, Any], _error: Exception) -> None:
+    def on_handle_error(self, event: dict[str, Any], error: Exception) -> None:  # noqa: ARG002
         self.on_handle_error_called = True
 
     def clear(self) -> None:
@@ -331,8 +332,9 @@ def create_step_result(
 
 def create_event_declaration(
     name: str = "test.event",
-    condition: str | None = "success",
-    delivery_mode: str | None = "fast",
+    condition: Literal["success", "failure", "retryable_failure", "permanent_failure", "always"]
+    | None = "success",
+    delivery_mode: Literal["durable", "fast", "broadcast"] | None = "fast",
     publisher: str | None = None,
 ) -> EventDeclaration:
     """Create an EventDeclaration for testing."""
@@ -374,7 +376,7 @@ class TestBasePublisher:
         """publisher_name must be implemented by subclasses."""
         # Cannot instantiate abstract class directly
         with pytest.raises(TypeError):
-            BasePublisher()  # type: ignore[abstract]
+            BasePublisher()
 
     def test_default_publisher_has_name(self) -> None:
         """DefaultPublisher provides a name."""
@@ -441,6 +443,7 @@ class TestPublisherLifecycleHooks:
         assert publisher.before_publish_called is True
         assert publisher.last_event_name == "payment.processed"
         assert publisher.last_payload == {"amount": 100}
+        assert publisher.last_metadata is not None
         assert "publisher" in publisher.last_metadata
         assert publisher.last_metadata["mock_publisher"] is True
 
@@ -470,15 +473,15 @@ class TestPublisherLifecycleHooks:
             def publisher_name(self) -> str:
                 return "OrderTrackingPublisher"
 
-            def should_publish(self, _ctx: StepEventContext) -> bool:
+            def should_publish(self, ctx: StepEventContext) -> bool:  # noqa: ARG002
                 call_order.append("should_publish")
                 return True
 
-            def transform_payload(self, _ctx: StepEventContext) -> dict[str, Any]:
+            def transform_payload(self, ctx: StepEventContext) -> dict[str, Any]:  # noqa: ARG002
                 call_order.append("transform_payload")
                 return {}
 
-            def additional_metadata(self, _ctx: StepEventContext) -> dict[str, Any]:
+            def additional_metadata(self, ctx: StepEventContext) -> dict[str, Any]:  # noqa: ARG002
                 call_order.append("additional_metadata")
                 return {}
 
@@ -781,7 +784,7 @@ class TestPublisherRegistry:
     """Tests for PublisherRegistry operations."""
 
     @pytest.fixture(autouse=True)
-    def reset_registry(self) -> None:
+    def reset_registry(self) -> Generator[None, None, None]:
         """Reset registry before each test."""
         PublisherRegistry.reset()
         yield
@@ -894,7 +897,7 @@ class TestSubscriberRegistry:
     """Tests for SubscriberRegistry operations."""
 
     @pytest.fixture(autouse=True)
-    def reset_registry(self) -> None:
+    def reset_registry(self) -> Generator[None, None, None]:
         """Reset registry before each test."""
         SubscriberRegistry.reset()
         yield
@@ -1003,7 +1006,7 @@ class TestPublisherSubscriberIntegration:
     """Integration tests for publisher-subscriber flows."""
 
     @pytest.fixture(autouse=True)
-    def reset_registries(self) -> None:
+    def reset_registries(self) -> Generator[None, None, None]:
         """Reset registries before each test."""
         PublisherRegistry.reset()
         SubscriberRegistry.reset()
@@ -1180,7 +1183,7 @@ class TestPublisherRegistryEdgeCases:
     """Tests for PublisherRegistry edge cases."""
 
     @pytest.fixture(autouse=True)
-    def reset_registry(self) -> None:
+    def reset_registry(self) -> Generator[None, None, None]:
         """Reset registry before each test."""
         PublisherRegistry.reset()
         yield
@@ -1231,7 +1234,7 @@ class TestSubscriberRegistryEdgeCases:
     """Tests for SubscriberRegistry edge cases."""
 
     @pytest.fixture(autouse=True)
-    def reset_registry(self) -> None:
+    def reset_registry(self) -> Generator[None, None, None]:
         """Reset registry before each test."""
         SubscriberRegistry.reset()
         yield
@@ -1316,7 +1319,7 @@ class TestEventDeclarationStepResult:
             condition="success",
             delivery_mode="broadcast",
             publisher="CustomPublisher",
-            schema={"type": "object"},
+            schema_={"type": "object"},
         )
 
         assert decl.name == "order.completed"
@@ -1373,5 +1376,6 @@ class TestEventDeclarationStepResult:
 
         assert ctx.event_name == "item.created"
         assert ctx.step_result.success is True
+        assert ctx.event_declaration is not None
         assert ctx.event_declaration.name == "item.created"
         assert ctx.step_context is not None

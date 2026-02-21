@@ -39,6 +39,9 @@ class TaskerError(Exception):
         *,
         retryable: bool | None = None,
         metadata: dict[str, Any] | None = None,
+        error_code: str | None = None,
+        retry_after: int | float | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the error.
 
@@ -46,12 +49,23 @@ class TaskerError(Exception):
             message: Error message
             retryable: Override default retryability
             metadata: Additional context
+            error_code: Machine-readable error code (e.g., "PAYMENT_DECLINED")
+            retry_after: Suggested retry delay in seconds
+            context: Additional error context (merged into metadata)
         """
         super().__init__(message)
         self.message = message
         if retryable is not None:
             self.retryable = retryable
         self.metadata = metadata or {}
+        self.error_code = error_code
+        self.retry_after = retry_after
+        if error_code is not None:
+            self.metadata["error_code"] = error_code
+        if retry_after is not None:
+            self.metadata["retry_after"] = retry_after
+        if context is not None:
+            self.metadata.update(context)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for FFI serialization.

@@ -73,7 +73,7 @@ class RegistryResolver(BaseResolver):
     def can_resolve(
         self,
         definition: HandlerDefinition,
-        _config: dict[str, Any] | None = None,
+        config: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> bool:
         """Check if this resolver can handle the definition.
 

@@ -45,7 +45,7 @@ import os
 import pkgutil
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from .logging import log_debug, log_error, log_info, log_warn
 from .models import HandlerWrapper
@@ -55,7 +55,7 @@ from .registry import HandlerDefinition, ResolverChain
 from .step_handler.base import StepHandler
 
 if TYPE_CHECKING:
-    pass
+    from .registry.resolvers.explicit_mapping import ExplicitMappingResolver
 
 # Type alias for handler specification
 HandlerSpec = str | HandlerDefinition | HandlerWrapper
@@ -178,7 +178,7 @@ class HandlerRegistry:
         # TAS-93: Also register with explicit mapping resolver
         explicit_resolver = self._resolver_chain.get_resolver("explicit_mapping")
         if explicit_resolver is not None and hasattr(explicit_resolver, "register"):
-            explicit_resolver.register(name, handler_class)
+            cast("ExplicitMappingResolver", explicit_resolver).register(name, handler_class)
 
         log_info(f"Registered handler: {name} -> {handler_class.__name__}")
 
@@ -201,7 +201,7 @@ class HandlerRegistry:
             # TAS-93: Also unregister from explicit mapping resolver
             explicit_resolver = self._resolver_chain.get_resolver("explicit_mapping")
             if explicit_resolver is not None and hasattr(explicit_resolver, "unregister"):
-                explicit_resolver.unregister(name)
+                cast("ExplicitMappingResolver", explicit_resolver).unregister(name)
 
             log_debug(f"Unregistered handler: {name}")
             return True
@@ -416,6 +416,10 @@ class HandlerRegistry:
     ) -> int:
         """Scan a module for StepHandler subclasses.
 
+        Discovers both class-based handlers (direct StepHandler subclasses)
+        and functional DSL handlers (functions decorated with @step_handler
+        etc. that have a _handler_class attribute).
+
         Args:
             module: The module to scan.
             base: Base class to filter by.
@@ -428,26 +432,31 @@ class HandlerRegistry:
         for name in dir(module):
             obj = getattr(module, name)
 
-            # Check if it's a StepHandler subclass
-            if not isinstance(obj, type):
-                continue
-
-            try:
-                if not issubclass(obj, base):
+            # Check if it's a StepHandler subclass (class-based handlers)
+            if isinstance(obj, type):
+                try:
+                    if not issubclass(obj, base):
+                        continue
+                except TypeError:
                     continue
-            except TypeError:
-                continue
 
-            if obj is base:
-                continue
+                if obj is base:
+                    continue
 
-            # Must have handler_name set
-            if not getattr(obj, "handler_name", None):
-                continue
+                if not getattr(obj, "handler_name", None):
+                    continue
 
-            handler_name = obj.handler_name
-            self.register(handler_name, obj)
-            discovered += 1
+                handler_name = obj.handler_name
+                self.register(handler_name, obj)
+                discovered += 1
+            # Check for functional DSL handlers (decorated functions with _handler_class)
+            elif callable(obj) and hasattr(obj, "_handler_class"):
+                handler_cls = obj._handler_class
+                if isinstance(handler_cls, type) and issubclass(handler_cls, base):
+                    dsl_name = getattr(handler_cls, "handler_name", None)
+                    if dsl_name:
+                        self.register(dsl_name, handler_cls)
+                        discovered += 1
 
         return discovered
 

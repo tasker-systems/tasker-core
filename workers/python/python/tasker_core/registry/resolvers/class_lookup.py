@@ -56,13 +56,13 @@ class ClassLookupResolver(BaseResolver):
     def can_resolve(
         self,
         definition: HandlerDefinition,
-        _config: dict[str, Any] | None = None,
+        config: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> bool:
         """Check if callable looks like a class path.
 
         Args:
             definition: Handler configuration.
-            _config: Additional context (unused, part of interface).
+            config: Additional context (unused, part of interface).
 
         Returns:
             True if callable matches class path pattern.
