@@ -77,7 +77,7 @@ use tasker_shared::TaskerResult;
 /// ## Handler Resolution
 ///
 /// The `get` method resolves handlers using step metadata:
-/// - `step.step_definition.handler_class`: Primary lookup key
+/// - `step.step_definition.handler.callable`: Primary lookup key
 /// - `step.workflow_step.name`: Fallback for dynamic handlers
 /// - `step.task.task.namespace`: Namespace scoping
 #[async_trait]
@@ -85,7 +85,7 @@ pub trait StepHandlerRegistry: Send + Sync + 'static {
     /// Resolve a handler for the given step
     ///
     /// Returns `None` if no handler is registered for this step type.
-    /// The implementation should use `step.step_definition.handler_class`
+    /// The implementation should use `step.step_definition.handler.callable`
     /// as the primary lookup key.
     ///
     /// # Arguments

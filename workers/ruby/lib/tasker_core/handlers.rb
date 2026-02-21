@@ -4,8 +4,7 @@ module TaskerCore
   # Clean Handlers Domain API
   #
   # This module provides the primary public interface for working with TaskerCore handlers.
-  # It's organized into two main namespaces: Steps and Tasks, mirroring the Rails engine
-  # architecture while providing a clean Ruby interface with enhanced type safety.
+  # It provides a clean Ruby interface with enhanced type safety for step handlers.
   #
   # The Handlers namespace serves as the recommended entry point for handler operations,
   # abstracting the underlying implementation details while preserving method signatures
@@ -60,14 +59,8 @@ module TaskerCore
   #     end
   #   end
   #
-  # @example Task-level handler for workflow coordination
-  #   # Task handlers coordinate multiple steps
-  #   result = TaskerCore::Handlers::Tasks.handle(task_uuid: "123-456")
-  #   # => Orchestrates all steps for the task
-  #
   # Architecture:
   # - **Steps**: Individual business logic units (payment processing, API calls, etc.)
-  # - **Tasks**: Workflow orchestration and step coordination
   # - **API**: Specialized step handlers for HTTP operations with automatic retry
   #
   # Method Signature:
@@ -78,7 +71,6 @@ module TaskerCore
   # - `context.dependency_results` - Results from parent steps
   #
   # @see TaskerCore::Handlers::Steps For step-level business logic
-  # @see TaskerCore::Handlers::Tasks For task-level orchestration
   # @see TaskerCore::StepHandler::Base For low-level step handler implementation
   # @see TaskerCore::StepHandler::Api For HTTP-based handlers
   module Handlers
@@ -128,30 +120,6 @@ module TaskerCore
             optional_implemented: present_optional,
             handler_class: handler_class.name
           }
-        end
-      end
-    end
-
-    # Task Handler API
-    module Tasks
-      require_relative 'task_handler/base'
-
-      # Re-export with clean namespace
-      Base = TaskHandler
-
-      class << self
-        # Handle task with preserved signature
-        # @param task_uuid [Integer] Task ID to handle
-        # @return [Object] Task handle result
-        def handle(task_uuid)
-          Base.new.handle(task_uuid)
-        end
-
-        # Create task handler instance
-        # @param config [Hash] Handler configuration
-        # @return [TaskHandler] Handler instance
-        def create(config: {})
-          Base.new(config: config)
         end
       end
     end

@@ -37,11 +37,6 @@ metadata:
   created_at: "2026-01-12T00:00:00Z"
   updated_at: "2026-01-12T00:00:00Z"
   notes: "TypeScript FFI implementation demonstrating namespace isolation from Blog Post 04"
-task_handler:
-  callable: TeamScaling.CustomerSuccess.TaskHandlers.ProcessRefundHandler
-  initialization:
-    timeout_seconds: 90
-    max_retries: 3
 input_schema:
   type: object
   required:

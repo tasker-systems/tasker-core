@@ -791,10 +791,6 @@ namespace_name: resolver_tests
 version: 1.0.0
 description: Tests method dispatch via resolver pattern
 
-task_handler:
-  callable: resolver_tests
-  initialization: {}
-
 steps:
   - name: validate_with_method
     description: Tests explicit method dispatch

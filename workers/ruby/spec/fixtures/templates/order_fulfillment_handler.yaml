@@ -35,25 +35,6 @@ metadata:
   created_at: "2025-09-24T00:00:00Z"
   updated_at: "2025-09-24T00:00:00Z"
   notes: "Ruby FFI implementation with sophisticated business logic and external service integration"
-task_handler:
-  callable: OrderFulfillment::OrderFulfillmentHandler
-  initialization:
-    input_validation:
-      required_fields:
-        - customer
-        - items
-        - payment
-        - shipping
-      business_rules:
-        - customer_validation: required
-        - item_availability: check_inventory
-        - payment_processing: external_gateway
-        - shipping_validation: carrier_integration
-    expected_results:
-      validate_order: "validated customer and items with totals"
-      reserve_inventory: "inventory reservations with confirmation"
-      process_payment: "payment confirmation with transaction ID"
-      ship_order: "shipment created with tracking information"
 system_dependencies:
   primary: default
   secondary: []

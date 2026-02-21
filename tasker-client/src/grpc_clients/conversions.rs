@@ -845,7 +845,6 @@ pub fn proto_worker_template_to_domain(
         version: proto_template.version.clone(),
         description: proto_template.description,
         metadata: None,
-        task_handler: None,
         system_dependencies: SystemDependencies::default(),
         domain_events: vec![],
         input_schema: None,

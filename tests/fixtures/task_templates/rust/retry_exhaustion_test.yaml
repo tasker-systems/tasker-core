@@ -26,10 +26,6 @@ metadata:
   created_at: "2025-11-20T00:00:00Z"
   updated_at: "2025-11-20T00:00:00Z"
   notes: "Validates that max_attempts exhaustion correctly transitions to error state"
-task_handler:
-  callable: tasker_worker_rust::step_handlers::RustStepHandler
-  initialization:
-    test_type: retry_exhaustion
 system_dependencies:
   primary: default
   secondary: []

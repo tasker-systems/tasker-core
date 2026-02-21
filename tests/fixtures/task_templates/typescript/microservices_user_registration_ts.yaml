@@ -47,11 +47,6 @@ metadata:
   created_at: "2026-01-12T00:00:00Z"
   updated_at: "2026-01-12T00:00:00Z"
   notes: "TypeScript FFI implementation demonstrating microservices coordination from Blog Post 03"
-task_handler:
-  callable: Microservices.TaskHandlers.UserRegistrationHandler
-  initialization:
-    timeout_seconds: 120
-    max_retries: 2
 system_dependencies:
   primary: default
   secondary: []

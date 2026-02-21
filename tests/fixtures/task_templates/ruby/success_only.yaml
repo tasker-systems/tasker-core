@@ -10,10 +10,6 @@ metadata:
     - pattern:success_scenario
     - implementation:ruby_ffi
     - language:ruby
-task_handler:
-  callable: ErrorScenarios::SuccessOnlyHandler
-  initialization:
-    error_tracking_enabled: true
 system_dependencies:
   primary: test_system
   secondary: []

@@ -23,13 +23,6 @@ metadata:
   created_at: "2025-11-01T00:00:00Z"
   updated_at: "2025-11-01T00:00:00Z"
   notes: "Test-only template with 2-minute staleness thresholds for fast lifecycle testing"
-task_handler:
-  callable: tasker_worker_rust::step_handlers::RustStepHandler
-  initialization:
-    test_mode: true
-    expected_results:
-      dlq_step_1: "test_input"
-      dlq_step_2: "test_input"
 system_dependencies:
   primary: default
   secondary: []

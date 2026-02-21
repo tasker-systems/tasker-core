@@ -31,11 +31,6 @@ metadata:
     - dependencies:linear_with_approval
     - cross_namespace:payments
     - implementation:ruby_ffi
-task_handler:
-  callable: CustomerSuccess::ProcessRefundHandler
-  initialization:
-    timeout_seconds: 90
-    max_retries: 3
 input_schema:
   type: object
   required:

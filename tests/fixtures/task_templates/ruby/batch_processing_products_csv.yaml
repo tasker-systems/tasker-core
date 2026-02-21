@@ -3,9 +3,6 @@ name: csv_product_inventory_analyzer_ruby
 namespace_name: csv_processing
 version: "1.0.0"
 description: "Process CSV product data in parallel batches (Ruby implementation)"
-task_handler:
-  callable: ruby_ffi_handler
-  initialization: {}
 
 steps:
   # BATCHABLE STEP: CSV Analysis and Batch Planning

@@ -37,24 +37,6 @@
   :documentation_url:
   :created_at: "2025-08-17T19:32:47Z"
   :updated_at: "2025-08-17T19:32:47Z"
-:task_handler:
-  :callable: MixedDagWorkflow::MixedDagWorkflowHandler
-  :initialization:
-    input_validation:
-      required_fields:
-        - even_number
-      even_number_constraint: must_be_even
-      value_range:
-        min: 2
-        max: 10
-    expected_results:
-      dag_init: n²
-      dag_process_left: "(n²)²"
-      dag_process_right: "(n²)²"
-      dag_validate: "((n²)² × (n²)²)² = (n²)⁸"
-      dag_transform: "((n²)²)² = (n²)⁸"
-      dag_analyze: "((n²)²)² = (n²)⁸"
-      dag_finalize: "(n¹⁶ × n⁸ × n⁸)² = (n³²)² = n⁶⁴"
 :system_dependencies:
   :primary: default
   :secondary: []
@@ -193,7 +175,6 @@
     :publishes_events: []
 :environments:
   test:
-    :task_handler:
     :steps:
       - :name: dag_init
         :handler:

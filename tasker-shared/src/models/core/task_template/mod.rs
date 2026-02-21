@@ -62,9 +62,6 @@ pub struct TaskTemplate {
     /// Template metadata for documentation
     pub metadata: Option<TemplateMetadata>,
 
-    /// Task-level handler configuration
-    pub task_handler: Option<HandlerDefinition>,
-
     /// External system dependencies
     #[serde(default)]
     #[builder(default)]
@@ -726,7 +723,6 @@ pub enum FailureStrategy {
 /// Environment-specific overrides
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate, Builder)]
 pub struct EnvironmentOverride {
-    pub task_handler: Option<HandlerOverride>,
     #[serde(default)]
     #[builder(default)]
     #[validate(nested)]
@@ -881,15 +877,6 @@ impl TaskTemplate {
         let mut resolved = self.clone();
 
         if let Some(env_override) = self.environments.get(environment) {
-            // Apply task handler overrides
-            if let Some(handler_override) = &env_override.task_handler {
-                if let Some(task_handler) = &mut resolved.task_handler {
-                    if let Some(init_override) = &handler_override.initialization {
-                        task_handler.initialization.extend(init_override.clone());
-                    }
-                }
-            }
-
             // Apply step overrides
             for step_override in &env_override.steps {
                 if step_override.name == "ALL" {
@@ -917,19 +904,12 @@ impl TaskTemplate {
         }
     }
 
-    /// Extract all callable references
+    /// Extract all callable references from step handlers
     pub fn all_callables(&self) -> Vec<String> {
-        let mut callables = Vec::new();
-
-        if let Some(handler) = &self.task_handler {
-            callables.push(handler.callable.clone());
-        }
-
-        for step in &self.steps {
-            callables.push(step.handler.callable.clone());
-        }
-
-        callables
+        self.steps
+            .iter()
+            .map(|step| step.handler.callable.clone())
+            .collect()
     }
 
     /// Get all decision point steps in this template
@@ -1403,12 +1383,6 @@ metadata:
   author: "payments-team"
   tags: ["payment", "critical", "financial"]
 
-task_handler:
-  callable: "PaymentProcessing::CreditCardPaymentHandler"
-  initialization:
-    timeout_ms: 30000
-    retry_strategy: "exponential_backoff"
-
 system_dependencies:
   primary: "payment_gateway"
   secondary: ["fraud_detection_api", "customer_database"]
@@ -1442,9 +1416,6 @@ steps:
 
 environments:
   development:
-    task_handler:
-      initialization:
-        debug_mode: true
     steps:
       - name: validate_payment
         timeout_seconds: 60
@@ -1469,11 +1440,6 @@ name: test_task
 namespace_name: test
 version: "1.0.0"
 
-task_handler:
-  callable: "TestHandler"
-  initialization:
-    timeout_ms: 5000
-
 steps:
   - name: step1
     handler:
@@ -1484,10 +1450,6 @@ steps:
 
 environments:
   development:
-    task_handler:
-      initialization:
-        debug_mode: true
-        timeout_ms: 10000
     steps:
       - name: step1
         handler:
@@ -1498,20 +1460,6 @@ environments:
 
         let template = TaskTemplate::from_yaml(yaml_content).expect("Should parse YAML");
         let resolved = template.resolve_for_environment("development");
-
-        let task_handler = resolved
-            .template
-            .task_handler
-            .as_ref()
-            .expect("Should have task handler");
-        assert_eq!(
-            task_handler.initialization.get("debug_mode").unwrap(),
-            &serde_json::Value::Bool(true)
-        );
-        assert_eq!(
-            task_handler.initialization.get("timeout_ms").unwrap(),
-            &serde_json::Value::Number(10000.into())
-        );
 
         let step1 = &resolved.template.steps[0];
         assert_eq!(
@@ -1558,9 +1506,6 @@ name: test_task
 namespace_name: test
 version: "1.0.0"
 
-task_handler:
-  callable: "MainHandler"
-
 steps:
   - name: step1
     handler:
@@ -1573,8 +1518,7 @@ steps:
         let template = TaskTemplate::from_yaml(yaml_content).expect("Should parse YAML");
         let callables = template.all_callables();
 
-        assert_eq!(callables.len(), 3);
-        assert!(callables.contains(&"MainHandler".to_string()));
+        assert_eq!(callables.len(), 2);
         assert!(callables.contains(&"Step1Handler".to_string()));
         assert!(callables.contains(&"Step2Handler".to_string()));
     }

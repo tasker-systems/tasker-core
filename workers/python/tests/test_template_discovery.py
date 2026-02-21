@@ -85,19 +85,6 @@ class TestTemplatePath:
 class TestTemplateParser:
     """Tests for TemplateParser class."""
 
-    def test_extract_handler_callables_task_handler(self, tmp_path: Path):
-        """Test extracting handler callable from task_handler."""
-        template_file = tmp_path / "workflow.yaml"
-        template_file.write_text("""
-name: test_workflow
-task_handler:
-  callable: myapp.handlers.TaskHandler
-steps: []
-""")
-
-        handlers = TemplateParser.extract_handler_callables(template_file)
-        assert "myapp.handlers.TaskHandler" in handlers
-
     def test_extract_handler_callables_steps(self, tmp_path: Path):
         """Test extracting handler callables from steps."""
         template_file = tmp_path / "workflow.yaml"
@@ -117,13 +104,11 @@ steps:
         assert "myapp.handlers.Step1Handler" in handlers
         assert "myapp.handlers.Step2Handler" in handlers
 
-    def test_extract_handler_callables_mixed(self, tmp_path: Path):
-        """Test extracting both task_handler and step handlers."""
+    def test_extract_handler_callables_multiple_steps(self, tmp_path: Path):
+        """Test extracting multiple step handlers."""
         template_file = tmp_path / "workflow.yaml"
         template_file.write_text("""
 name: test_workflow
-task_handler:
-  callable: myapp.TaskHandler
 steps:
   - name: step1
     handler:
@@ -134,8 +119,7 @@ steps:
 """)
 
         handlers = TemplateParser.extract_handler_callables(template_file)
-        assert len(handlers) == 3
-        assert "myapp.TaskHandler" in handlers
+        assert len(handlers) == 2
         assert "myapp.Step1Handler" in handlers
         assert "myapp.Step2Handler" in handlers
 
@@ -178,8 +162,6 @@ name: my_workflow
 namespace_name: my_namespace
 version: 1.0.0
 description: My workflow description
-task_handler:
-  callable: myapp.TaskHandler
 steps:
   - name: step1
     handler:
@@ -193,7 +175,7 @@ steps:
         assert metadata["version"] == "1.0.0"
         assert metadata["description"] == "My workflow description"
         assert metadata["file_path"] == str(template_file)
-        assert len(metadata["handlers"]) == 2
+        assert len(metadata["handlers"]) == 1
 
     def test_extract_template_metadata_minimal(self, tmp_path: Path):
         """Test extracting metadata from minimal template."""
@@ -215,16 +197,12 @@ class TestHandlerDiscovery:
     def test_discover_all_handlers(self, tmp_path: Path):
         """Test discovering all handlers from multiple templates."""
         (tmp_path / "workflow1.yaml").write_text("""
-task_handler:
-  callable: myapp.Handler1
 steps:
   - name: step1
     handler:
       callable: myapp.Step1Handler
 """)
         (tmp_path / "workflow2.yaml").write_text("""
-task_handler:
-  callable: myapp.Handler2
 steps:
   - name: step2
     handler:
@@ -233,9 +211,7 @@ steps:
 
         handlers = HandlerDiscovery.discover_all_handlers(tmp_path)
 
-        assert len(handlers) == 4
-        assert "myapp.Handler1" in handlers
-        assert "myapp.Handler2" in handlers
+        assert len(handlers) == 2
         assert "myapp.Step1Handler" in handlers
         assert "myapp.Step2Handler" in handlers
 
@@ -369,8 +345,8 @@ class TestTemplateDiscoveryIntegration:
 
         handlers = TemplateParser.extract_handler_callables(template_file)
 
-        # Should find task handler and step handlers
-        assert len(handlers) >= 4  # task_handler + 4 steps
+        # Should find step handlers (4 steps in the linear workflow)
+        assert len(handlers) >= 4
 
     def test_template_metadata_extraction(self, fixture_path: Path):
         """Test extracting metadata from real templates."""
@@ -507,17 +483,11 @@ class TestTemplateParserEdgeCases:
         )
         assert handlers == []
 
-    def test_extract_handlers_from_template_non_dict_task_handler(self):
-        """extract_handlers_from_template handles non-dict task_handler."""
-        handlers = TemplateParser.extract_handlers_from_template({"task_handler": "not_a_dict"})
-        assert handlers == []
-
     def test_extract_handlers_from_template_non_string_callable(self):
         """extract_handlers_from_template skips non-string callables."""
         handlers = TemplateParser.extract_handlers_from_template(
             {
-                "task_handler": {"callable": 42},
-                "steps": [{"handler": {"callable": None}}],
+                "steps": [{"handler": {"callable": None}}, {"handler": {"callable": 42}}],
             }
         )
         assert handlers == []

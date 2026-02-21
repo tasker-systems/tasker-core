@@ -5,9 +5,6 @@ version: 1.0.0
 description: >
   Rust implementation of conditional approval workflow demonstrating TAS-53 dynamic decision points.
   Routes approval requests through different paths based on amount thresholds using native Rust handlers.
-task_handler:
-  callable: tasker_worker_rust::step_handlers::RustStepHandler
-  initialization: {}
 steps:
   - name: validate_request
     type: standard

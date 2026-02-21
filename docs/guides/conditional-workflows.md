@@ -235,9 +235,6 @@ version: 1.0.0
 description: >
   Ruby implementation of conditional approval workflow demonstrating dynamic decision points.
   Routes approval requests through different paths based on amount thresholds.
-task_handler:
-  callable: tasker_worker_ruby::TaskHandler
-  initialization: {}
 steps:
   - name: validate_request
     type: standard

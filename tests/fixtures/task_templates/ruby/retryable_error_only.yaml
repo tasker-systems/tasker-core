@@ -10,10 +10,6 @@ metadata:
     - pattern:retryable_error
     - implementation:ruby_ffi
     - language:ruby
-task_handler:
-  callable: ErrorScenarios::RetryableErrorOnlyHandler
-  initialization:
-    error_tracking_enabled: true
 system_dependencies:
   primary: test_system
   secondary: []

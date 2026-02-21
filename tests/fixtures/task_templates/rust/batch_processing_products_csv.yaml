@@ -17,9 +17,6 @@ name: csv_product_inventory_analyzer
 namespace_name: csv_processing_rust
 version: "1.0.0"
 description: "Process CSV product data in parallel batches with real file I/O"
-task_handler:
-  callable: tasker_worker_rust::step_handlers::RustStepHandler
-  initialization: {}
 
 steps:
   #
