@@ -215,7 +215,7 @@ def _inject_args(
         raw = context.get_dependency_result(step_name)
         model_cls = dep_models.get(param_name)
         if model_cls is not None and isinstance(raw, dict):
-            kwargs[param_name] = model_cls.model_construct(**raw)  # type: ignore[attr-defined]
+            kwargs[param_name] = model_cls.model_construct(**raw)  # type: ignore[attr-defined]  # Pydantic BaseModel
         else:
             kwargs[param_name] = raw
 
@@ -223,7 +223,7 @@ def _inject_args(
     input_model: type | None = getattr(fn, "_input_model", None)
     if input_model is not None:
         model_data = {}
-        for field_name in input_model.model_fields:  # type: ignore[attr-defined]
+        for field_name in input_model.model_fields:  # type: ignore[attr-defined]  # Pydantic BaseModel
             model_data[field_name] = context.get_input(field_name)
         kwargs["inputs"] = input_model(**model_data)
     else:
@@ -704,11 +704,104 @@ def batch_worker(
     return decorator
 
 
+def api_handler(
+    name: str,
+    base_url: str,
+    version: str = "1.0.0",
+    timeout: float = 30.0,
+    default_headers: dict[str, str] | None = None,
+) -> HandlerDecorator:
+    """Decorator for API handlers with HTTP client functionality.
+
+    The decorated function receives injected dependencies, inputs, context,
+    and an ``api`` object providing pre-configured HTTP methods and result
+    helpers from the APIMixin.
+
+    The ``api`` object exposes:
+    - HTTP methods: ``get``, ``post``, ``put``, ``patch``, ``delete``, ``request``
+    - Result helpers: ``api_success``, ``api_failure``, ``connection_error``, ``timeout_error``
+
+    Args:
+        name: Handler name (must match step definition).
+        base_url: Base URL for API calls.
+        version: Handler version (default: "1.0.0").
+        timeout: Default request timeout in seconds (default: 30.0).
+        default_headers: Default headers to include in all requests.
+
+    Example:
+        >>> @api_handler("fetch_user", base_url="https://api.example.com")
+        ... @depends_on(user_id="validate_user")
+        ... def fetch_user(user_id, api, context):
+        ...     response = api.get(f"/users/{user_id}")
+        ...     if response.ok:
+        ...         return api.api_success(response)
+        ...     return api.api_failure(response)
+    """
+
+    def decorator(fn: Callable[..., Any]) -> FunctionalHandler:
+        dep_map: dict[str, str] = getattr(fn, "_depends_on", {})
+        input_keys: list[str] = getattr(fn, "_inputs", [])
+        is_async = inspect.iscoroutinefunction(fn)
+        headers = default_headers or {}
+
+        from tasker_core.step_handler.mixins.api import APIMixin
+
+        if is_async:
+
+            class AsyncApiHandler(APIMixin, StepHandler):
+                handler_name = name
+                handler_version = version
+
+                async def call(self, context: StepContext) -> StepHandlerResult:
+                    try:
+                        kwargs = _inject_args(fn, context, dep_map, input_keys)
+                        kwargs["api"] = self
+                        raw_result = await fn(**kwargs)
+                        return _wrap_result(raw_result)
+                    except (PermanentError, RetryableError, TaskerError) as exc:
+                        return _wrap_exception(exc)
+                    except Exception as exc:
+                        return _wrap_exception(exc)
+
+            AsyncApiHandler.base_url = base_url
+            AsyncApiHandler.default_timeout = timeout
+            AsyncApiHandler.default_headers = headers
+            _copy_fn_metadata(AsyncApiHandler, fn)
+            fn._handler_class = AsyncApiHandler  # type: ignore[attr-defined]
+        else:
+
+            class SyncApiHandler(APIMixin, StepHandler):
+                handler_name = name
+                handler_version = version
+
+                def call(self, context: StepContext) -> StepHandlerResult:
+                    try:
+                        kwargs = _inject_args(fn, context, dep_map, input_keys)
+                        kwargs["api"] = self
+                        raw_result = fn(**kwargs)
+                        return _wrap_result(raw_result)
+                    except (PermanentError, RetryableError, TaskerError) as exc:
+                        return _wrap_exception(exc)
+                    except Exception as exc:
+                        return _wrap_exception(exc)
+
+            SyncApiHandler.base_url = base_url
+            SyncApiHandler.default_timeout = timeout
+            SyncApiHandler.default_headers = headers
+            _copy_fn_metadata(SyncApiHandler, fn)
+            fn._handler_class = SyncApiHandler  # type: ignore[attr-defined]
+
+        return cast(FunctionalHandler, fn)
+
+    return decorator
+
+
 __all__ = [
     "BatchConfig",
     "Decision",
     "FunctionalHandler",
     "HandlerDecorator",
+    "api_handler",
     "batch_analyzer",
     "batch_worker",
     "decision_handler",

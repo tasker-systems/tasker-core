@@ -36,6 +36,7 @@ import type { StepContext } from '../types/step-context.js';
 import { StepHandlerResult } from '../types/step-handler-result.js';
 import { StepHandler } from './base.js';
 import { BatchableMixin, type RustCursorConfig } from './batchable.js';
+import { type APICapable, applyAPI } from './mixins/api.js';
 import { DecisionMixin } from './mixins/decision.js';
 
 // ============================================================================
@@ -464,6 +465,107 @@ export function defineBatchWorker(
         const batchMixin = new BatchableMixin();
         args.batchContext = batchMixin.getBatchContext(context);
 
+        const rawResult = await fn(args);
+        return wrapResult(rawResult);
+      } catch (error: unknown) {
+        return wrapError(error);
+      }
+    }
+  };
+
+  Object.defineProperty(HandlerClass, 'name', { value: name });
+  return HandlerClass as typeof StepHandler & { new (): StepHandler };
+}
+
+// ============================================================================
+// API Handler Options
+// ============================================================================
+
+/**
+ * Options for defineApiHandler.
+ */
+export interface ApiHandlerOptions extends HandlerOptions {
+  /** Base URL for API calls */
+  baseUrl: string;
+  /** Default request timeout in milliseconds (default: 30000) */
+  defaultTimeout?: number;
+  /** Default headers to include in all requests */
+  defaultHeaders?: Record<string, string>;
+}
+
+/**
+ * The injected arguments for API handlers, including the `api` object
+ * with pre-configured HTTP methods and result helpers.
+ *
+ * `api` is the handler instance itself with API methods applied (matching
+ * the Python/Ruby pattern where `api=self`).
+ */
+export type ApiHandlerArgs = HandlerArgs & {
+  api: APICapable;
+};
+
+// ============================================================================
+// API Handler Factory
+// ============================================================================
+
+/**
+ * Define an API handler with HTTP client functionality.
+ *
+ * The function receives an `api` object providing pre-configured HTTP methods
+ * (get, post, put, patch, delete, request) and result helpers (apiSuccess,
+ * apiFailure, connectionError, timeoutError) from the APIMixin.
+ *
+ * @param name - Handler name (must match step definition)
+ * @param options - Dependencies, inputs, version, and API configuration
+ * @param fn - Handler function receiving api and other injected args
+ * @returns StepHandler subclass
+ *
+ * @example
+ * ```typescript
+ * const FetchUser = defineApiHandler('fetch_user', {
+ *   baseUrl: 'https://api.example.com',
+ *   depends: { userId: 'validate_user' },
+ * }, async ({ userId, api }) => {
+ *   const response = await api.get(`/users/${userId}`);
+ *   if (response.ok) {
+ *     return api.apiSuccess(response);
+ *   }
+ *   return api.apiFailure(response);
+ * });
+ * ```
+ */
+export function defineApiHandler(
+  name: string,
+  options: ApiHandlerOptions,
+  fn: (args: ApiHandlerArgs) => Promise<Record<string, unknown> | StepHandlerResult | undefined>
+): typeof StepHandler & { new (): StepHandler } {
+  const depends = options.depends ?? {};
+  const inputs = options.inputs ?? {};
+  const version = options.version ?? '1.0.0';
+  const apiBaseUrl = options.baseUrl;
+  const apiTimeout = options.defaultTimeout ?? 30000;
+  const apiHeaders = options.defaultHeaders ?? {};
+
+  const HandlerClass = class extends StepHandler {
+    static override handlerName = name;
+    static override handlerVersion = version;
+    static baseUrl = apiBaseUrl;
+    static defaultTimeout = apiTimeout;
+    static defaultHeaders = apiHeaders;
+
+    constructor() {
+      super();
+      // Apply HTTP methods (get, post, put, patch, delete, request) and
+      // result helpers (apiSuccess, apiFailure, connectionError, timeoutError)
+      // directly onto this instance — matching the Python/Ruby pattern
+      // where api=self.
+      applyAPI(this);
+    }
+
+    async call(context: StepContext): Promise<StepHandlerResult> {
+      try {
+        const args = injectArgs(context, depends, inputs) as ApiHandlerArgs;
+        args.api = this as unknown as APICapable;
         const rawResult = await fn(args);
         return wrapResult(rawResult);
       } catch (error: unknown) {

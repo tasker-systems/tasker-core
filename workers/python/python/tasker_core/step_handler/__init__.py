@@ -62,6 +62,7 @@ from tasker_core.step_handler.functional import (
     Decision,
     FunctionalHandler,
     HandlerDecorator,
+    api_handler,
     batch_analyzer,
     batch_worker,
     decision_handler,
@@ -77,6 +78,7 @@ __all__ = [
     "DecisionHandler",
     "mixins",
     # TAS-294: Functional API
+    "api_handler",
     "step_handler",
     "depends_on",
     "inputs",

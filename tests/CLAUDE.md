@@ -15,4 +15,10 @@
 | #10033 | 8:31 PM | 🔄 | Add type guard assertions to batch worker test for strict type checking | ~352 |
 | #10011 | 8:21 PM | 🔵 | basedpyright reveals multiple type annotation issues in functional DSL decorators | ~416 |
 | #10009 | 8:12 PM | ✅ | Python Functional Handler Tests Pass Successfully | ~346 |
+
+### Feb 21, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #10350 | 7:31 AM | 🔴 | Python 3.13 async event loop compatibility issue in functional API handler tests | ~431 |
 </claude-mem-context>

@@ -55,8 +55,11 @@ export {
 } from './domain-events';
 // TAS-294: Functional/factory API
 export {
+  type ApiHandlerArgs,
+  type ApiHandlerOptions,
   type BatchConfig,
   Decision,
+  defineApiHandler,
   defineBatchAnalyzer,
   defineBatchWorker,
   defineDecisionHandler,

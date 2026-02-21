@@ -133,10 +133,10 @@ module TaskerCore
             step_name, model_cls = value
             raw = context.get_dependency_result(step_name.to_s)
             args[param_name.to_sym] = if raw.is_a?(Hash)
-                                        # Build a plain Hash with symbol keys. ActiveSupport::HashWithIndifferentAccess
+                                        # Convert to plain Hash first — ActiveSupport::HashWithIndifferentAccess
                                         # stores keys as strings internally even after transform_keys(&:to_sym),
                                         # which causes Dry::Struct to silently ignore all attributes.
-                                        symbolized = raw.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
+                                        symbolized = Hash(raw).transform_keys(&:to_sym)
                                         known = model_cls.attribute_names
                                         model_cls.new(**symbolized.slice(*known))
                                       else
@@ -374,6 +374,72 @@ module TaskerCore
             # Delegate batch context extraction to Batchable mixin
             args[:batch_context] = get_batch_context(context)
 
+            result = handler_block.call(**args)
+            Functional._wrap_result(result)
+          rescue StandardError => e
+            Functional._wrap_exception(e)
+          end
+        end
+      end
+
+      # Define an API handler from a block.
+      #
+      # The block receives an `api` keyword argument that provides pre-configured
+      # HTTP methods (get, post, put, delete) and result helpers (api_success,
+      # api_failure) from the API mixin, in addition to any declared dependencies,
+      # inputs, and context.
+      #
+      # @param name [String] Handler name (must match step definition)
+      # @param base_url [String] Base URL for API calls
+      # @param depends_on [Hash] Mapping of parameter names to dependency step names
+      # @param inputs [Array<Symbol, String>] Task context input keys to inject
+      # @param version [String] Handler version (default: "1.0.0")
+      # @param timeout [Integer, nil] Request timeout in seconds
+      # @param open_timeout [Integer, nil] Connection open timeout in seconds
+      # @param headers [Hash] Default headers for all requests
+      # @yield [**args] Block receiving api, dependencies, inputs, and context as keyword args
+      # @return [Class] StepHandler::Base subclass with API capabilities
+      #
+      # @example
+      #   FetchUser = api_handler "fetch_user",
+      #     base_url: "https://api.example.com",
+      #     depends_on: { user_id: "validate_user" } do |user_id:, api:, context:|
+      #
+      #     response = api.get("/users/#{user_id}")
+      #     body = JSON.parse(response.body)
+      #     api.api_success(data: body, status: response.status)
+      #   end
+      def api_handler(name, base_url:, depends_on: {}, inputs: [], version: '1.0.0',
+                      timeout: nil, open_timeout: nil, headers: {}, &block)
+        raise ArgumentError, 'block required' unless block
+
+        handler_depends = depends_on
+        handler_inputs = inputs
+        handler_block = block
+        handler_base_url = base_url
+        handler_timeout = timeout
+        handler_open_timeout = open_timeout
+        handler_headers = headers
+
+        Class.new(Base) do
+          include Mixins::API
+
+          const_set(:VERSION, version)
+
+          define_method(:handler_name) { name }
+
+          define_method(:initialize) do
+            super(config: {
+              url: handler_base_url,
+              timeout: handler_timeout,
+              open_timeout: handler_open_timeout,
+              headers: handler_headers
+            }.compact)
+          end
+
+          define_method(:call) do |context|
+            args = Functional._inject_args(context, handler_depends, handler_inputs)
+            args[:api] = self
             result = handler_block.call(**args)
             Functional._wrap_result(result)
           rescue StandardError => e
