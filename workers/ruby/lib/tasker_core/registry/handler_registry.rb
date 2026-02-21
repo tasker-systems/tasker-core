@@ -298,7 +298,8 @@ module TaskerCore
         return ENV['TASKER_TEMPLATE_PATH'] if ENV['TASKER_TEMPLATE_PATH']
 
         # 2. Test environment: default to spec/fixtures/templates
-        if test_environment?
+        #    (skip when TASKER_SKIP_EXAMPLE_HANDLERS is set — the app provides its own templates)
+        if test_environment? && ENV['TASKER_SKIP_EXAMPLE_HANDLERS'] != 'true'
           fixtures_path = File.expand_path('../../../spec/fixtures/templates', __dir__)
           return fixtures_path if Dir.exist?(fixtures_path)
         end
@@ -375,7 +376,8 @@ module TaskerCore
         end
 
         # In test environment, add spec/handlers/examples for test fixtures
-        if test_environment?
+        # (skip when TASKER_SKIP_EXAMPLE_HANDLERS is set — the app provides its own handlers)
+        if test_environment? && ENV['TASKER_SKIP_EXAMPLE_HANDLERS'] != 'true'
           spec_dir = File.expand_path('../../../spec/handlers/examples', __dir__)
           Dir.glob("#{spec_dir}/**/").each { |dir| paths << dir } if Dir.exist?(spec_dir)
         end

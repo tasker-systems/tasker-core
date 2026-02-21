@@ -133,7 +133,10 @@ module TaskerCore
             step_name, model_cls = value
             raw = context.get_dependency_result(step_name.to_s)
             args[param_name.to_sym] = if raw.is_a?(Hash)
-                                        symbolized = raw.transform_keys(&:to_sym)
+                                        # Build a plain Hash with symbol keys. ActiveSupport::HashWithIndifferentAccess
+                                        # stores keys as strings internally even after transform_keys(&:to_sym),
+                                        # which causes Dry::Struct to silently ignore all attributes.
+                                        symbolized = raw.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
                                         known = model_cls.attribute_names
                                         model_cls.new(**symbolized.slice(*known))
                                       else

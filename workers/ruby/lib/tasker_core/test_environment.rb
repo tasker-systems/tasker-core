@@ -16,8 +16,13 @@ module TaskerCore
         @template_fixtures_path = File.expand_path('../../spec/fixtures/templates', __dir__)
       end
 
-      # Check if we should load test environment components
+      # Check if we should load test environment components.
+      # Apps using tasker-rb via a local path: dependency can set
+      # TASKER_SKIP_EXAMPLE_HANDLERS=true to prevent the gem's spec
+      # handlers from shadowing the app's own handlers.
       def should_load_test_environment?
+        return false if ENV['TASKER_SKIP_EXAMPLE_HANDLERS'] == 'true'
+
         test_env = ENV['TASKER_ENV']&.downcase == 'test'
         rails_test_env = ENV['RAILS_ENV']&.downcase == 'test'
         force_examples = ENV['TASKER_FORCE_EXAMPLE_HANDLERS'] == 'true'
