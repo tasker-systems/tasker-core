@@ -20,7 +20,7 @@
 #   - permanent_failure: If true, fail with non-retryable error (default: false)
 ---
 name: checkpoint_yield_test_dsl
-namespace_name: ruby_e2e_checkpoint_yield_dsl
+namespace_name: ruby_e2e_checkpoint_yield
 version: 1.0.0
 description: "E2E test proving TAS-125 handler-driven checkpoint yielding works (Ruby)"
 metadata:

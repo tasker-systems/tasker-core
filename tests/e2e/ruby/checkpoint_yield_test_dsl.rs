@@ -52,7 +52,7 @@ fn create_checkpoint_yield_request_dsl(
     }
 
     create_task_request(
-        "ruby_e2e_checkpoint_yield_dsl",
+        "ruby_e2e_checkpoint_yield",
         "checkpoint_yield_test_dsl",
         context,
     )
