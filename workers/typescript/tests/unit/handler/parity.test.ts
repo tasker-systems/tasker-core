@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import type { FfiStepEvent } from '../../../src/ffi/types.js';
-import { StepHandler } from '../../../src/handler/base.js';
+import { StepHandler, type StepHandlerClass } from '../../../src/handler/base.js';
 import { StepContext } from '../../../src/types/step-context.js';
 import type { StepHandlerResult } from '../../../src/types/step-handler-result.js';
 import {
@@ -229,7 +229,7 @@ function stripVolatileFields(obj: unknown): unknown {
 }
 
 async function runHandler(
-  HandlerClass: typeof StepHandler & { new (): StepHandler },
+  HandlerClass: StepHandlerClass,
   context: StepContext
 ): Promise<StepHandlerResult> {
   const handler = new HandlerClass();

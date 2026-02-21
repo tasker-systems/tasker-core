@@ -34,7 +34,7 @@ import { createBatches as createBatchesOutcome } from '../types/batch.js';
 import { ErrorType } from '../types/error-type.js';
 import type { StepContext } from '../types/step-context.js';
 import { StepHandlerResult } from '../types/step-handler-result.js';
-import { StepHandler } from './base.js';
+import { StepHandler, type StepHandlerClass } from './base.js';
 import { BatchableMixin, type RustCursorConfig } from './batchable.js';
 import { type APICapable, applyAPI } from './mixins/api.js';
 import { DecisionMixin } from './mixins/decision.js';
@@ -258,7 +258,7 @@ export function defineHandler(
   name: string,
   options: HandlerOptions,
   fn: HandlerFn
-): typeof StepHandler & { new (): StepHandler } {
+): StepHandlerClass {
   const depends = options.depends ?? {};
   const inputs = options.inputs ?? {};
   const version = options.version ?? '1.0.0';
@@ -279,7 +279,7 @@ export function defineHandler(
   };
 
   Object.defineProperty(HandlerClass, 'name', { value: name });
-  return HandlerClass as typeof StepHandler & { new (): StepHandler };
+  return HandlerClass as unknown as StepHandlerClass;
 }
 
 /**
@@ -308,7 +308,7 @@ export function defineDecisionHandler(
   name: string,
   options: HandlerOptions,
   fn: (args: HandlerArgs) => Promise<Decision | StepHandlerResult>
-): typeof StepHandler & { new (): StepHandler } {
+): StepHandlerClass {
   const depends = options.depends ?? {};
   const inputs = options.inputs ?? {};
   const version = options.version ?? '1.0.0';
@@ -351,7 +351,7 @@ export function defineDecisionHandler(
   };
 
   Object.defineProperty(HandlerClass, 'name', { value: name });
-  return HandlerClass as typeof StepHandler & { new (): StepHandler };
+  return HandlerClass as unknown as StepHandlerClass;
 }
 
 /**
@@ -369,7 +369,7 @@ export function defineBatchAnalyzer(
   name: string,
   options: HandlerOptions & { workerTemplate: string },
   fn: (args: HandlerArgs) => Promise<BatchConfig | StepHandlerResult>
-): typeof StepHandler & { new (): StepHandler } {
+): StepHandlerClass {
   const depends = options.depends ?? {};
   const inputs = options.inputs ?? {};
   const version = options.version ?? '1.0.0';
@@ -426,7 +426,7 @@ export function defineBatchAnalyzer(
   };
 
   Object.defineProperty(HandlerClass, 'name', { value: name });
-  return HandlerClass as typeof StepHandler & { new (): StepHandler };
+  return HandlerClass as unknown as StepHandlerClass;
 }
 
 /**
@@ -446,7 +446,7 @@ export function defineBatchWorker(
   fn: (
     args: HandlerArgs & { batchContext: BatchWorkerContext | null }
   ) => Promise<Record<string, unknown> | StepHandlerResult | undefined>
-): typeof StepHandler & { new (): StepHandler } {
+): StepHandlerClass {
   const depends = options.depends ?? {};
   const inputs = options.inputs ?? {};
   const version = options.version ?? '1.0.0';
@@ -474,7 +474,7 @@ export function defineBatchWorker(
   };
 
   Object.defineProperty(HandlerClass, 'name', { value: name });
-  return HandlerClass as typeof StepHandler & { new (): StepHandler };
+  return HandlerClass as unknown as StepHandlerClass;
 }
 
 // ============================================================================
@@ -538,7 +538,7 @@ export function defineApiHandler(
   name: string,
   options: ApiHandlerOptions,
   fn: (args: ApiHandlerArgs) => Promise<Record<string, unknown> | StepHandlerResult | undefined>
-): typeof StepHandler & { new (): StepHandler } {
+): StepHandlerClass {
   const depends = options.depends ?? {};
   const inputs = options.inputs ?? {};
   const version = options.version ?? '1.0.0';
@@ -575,5 +575,5 @@ export function defineApiHandler(
   };
 
   Object.defineProperty(HandlerClass, 'name', { value: name });
-  return HandlerClass as typeof StepHandler & { new (): StepHandler };
+  return HandlerClass as unknown as StepHandlerClass;
 }
