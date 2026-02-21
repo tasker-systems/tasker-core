@@ -128,6 +128,13 @@ from YAML — but only to discover which classes/modules to import/require, not 
 2. `tasker-client/src/grpc_clients/conversions.rs`
    - Remove `task_handler: None` from TaskTemplate construction (line 848)
 
+### Phase 1b: Remove `task_handler` from JSON Schema
+
+**File to modify:**
+1. `schemas/task-template.json`
+   - Remove `task_handler` property from root schema (references `HandlerDefinition`)
+   - Remove `task_handler` property from `EnvironmentOverride` definition
+
 ### Phase 2: Remove `task_handler` from YAML Templates
 
 **~104 YAML files across:**
