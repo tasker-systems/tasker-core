@@ -1,6 +1,5 @@
 # Tasker Configuration Documentation Index
 
-
 > **Coverage:** 246/246 parameters documented (100%)
 
 ---
@@ -71,7 +70,6 @@
 - **web** (`worker.web`) — 17 params (17 documented)
 - auth (`worker.web.auth`) — 9 params
 - database_pools (`worker.web.database_pools`) — 5 params
-
 
 ---
 

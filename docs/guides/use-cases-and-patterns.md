@@ -3,9 +3,9 @@
 **Last Updated**: 2025-10-10
 **Audience**: Developers, Architects, Product Managers
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Quick Start](quick-start.md) | [Crate Architecture](crate-architecture.md)
+**Related Docs**: [Documentation Hub](index.md) | [Quick Start](quick-start.md) | [Crate Architecture](crate-architecture.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 
@@ -194,6 +194,24 @@ class ProcessPaymentHandler < TaskerCore::StepHandler::Base
   rescue PaymentGateway::CardDeclined => e
     # Permanent failure, don't retry
     raise TaskerCore::Errors::PermanentError.new(e.message, error_code: 'CARD_DECLINED')
+  end
+end
+```
+
+**Ruby Handler Alternative (DSL)**:
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+ProcessPaymentHandler = step_handler(
+  'ProcessPaymentHandler',
+  inputs: [:order_id, :amount]
+) do |order_id:, amount:, context:|
+  result = PaymentGateway.charge(amount: amount, idempotency_key: context.step_uuid)
+  if result.success?
+    { transaction_id: result.transaction_id }
+  else
+    raise TaskerCore::Errors::RetryableError.new(result.error)
   end
 end
 ```
@@ -847,6 +865,26 @@ class RoutingDecisionHandler < TaskerCore::StepHandler::Decision
 end
 ```
 
+**DSL Alternative**:
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+RoutingDecisionHandler = decision_handler(
+  'RoutingDecisionHandler',
+  inputs: [:amount]
+) do |amount:, context:|
+  steps = if amount.to_f < 1_000
+    ['auto_approve']
+  elsif amount.to_f < 5_000
+    ['manager_approval']
+  else
+    ['manager_approval', 'finance_review']
+  end
+  Decision.route(steps, route_type: determine_route_type(amount), amount: amount)
+end
+```
+
 ### Real-World Scenarios
 
 **1. E-Commerce Returns Processing**
@@ -988,4 +1026,4 @@ Task: fetch_user_data
 
 ---
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)

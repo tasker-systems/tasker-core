@@ -3,9 +3,9 @@
 **Last Updated**: 2026-01-15
 **Audience**: Developers, Architects
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Actor-Based Architecture](actors.md) | [Events and Commands](events-and-commands.md) | [Quick Start](quick-start.md)
+**Related Docs**: [Documentation Hub](index.md) | [Actor-Based Architecture](actors.md) | [Events and Commands](events-and-commands.md) | [Quick Start](quick-start.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 
@@ -838,4 +838,4 @@ Don't create a new crate when:
 
 ---
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)

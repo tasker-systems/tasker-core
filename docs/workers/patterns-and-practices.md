@@ -3,13 +3,13 @@
 **Last Updated**: 2026-01-06
 **Audience**: Developers, Architects
 **Status**: Active
-**Related Docs**: [Worker Event Systems](../worker-event-systems.md) | [Worker Actors](../worker-actors.md)
+**Related Docs**: [Worker Event Systems](../architecture/worker-event-systems.md) | [Worker Actors](../architecture/worker-actors.md)
 
-<- Back to [Worker Crates Overview](README.md)
+<- Back to [Worker Crates Overview](index.md)
 
 ---
 
-This document describes the common patterns and practices shared across all three worker implementations (Rust, Ruby, Python). Understanding these patterns helps developers write consistent handlers regardless of the language.
+This document describes the common patterns and practices shared across all four worker implementations (Rust, Ruby, Python, TypeScript). Understanding these patterns helps developers write consistent handlers regardless of the language.
 
 ## Table of Contents
 
@@ -81,49 +81,66 @@ All workers implement a dual-channel architecture for non-blocking step executio
 All implementations follow the same registration pattern:
 
 ```
-1. Define handler class/struct
-2. Set handler_name identifier
-3. Register with HandlerRegistry
+1. Define handler (DSL declaration or class/struct)
+2. Set handler name identifier
+3. Register with HandlerRegistry (automatic for DSL and class-based handlers)
 4. Handler ready for resolution
 ```
 
-**Ruby Example**:
+> Both **DSL handlers** and **class-based handlers** are discovered automatically at runtime. DSL handlers auto-register their callable name when the handler module is loaded. Class-based handlers are found by the auto-resolver, which scans for any class derived from the base step handler classes. Explicit registration is only needed for edge cases. See [Handler Resolution](../guides/handler-resolution.md) for the full resolver chain and [Class-Based Handlers](../reference/class-based-handlers.md) for the class-based pattern.
 
-```ruby
-class ProcessOrderHandler < TaskerCore::StepHandler::Base
-  def call(context)
-    # Access data via cross-language standard methods
-    order_id = context.get_task_field('order_id')
-
-    # Business logic here...
-
-    # Return result using base class helper (keyword args required)
-    success(result: { order_id: order_id, status: 'processed' })
-  end
-end
-
-# Registration
-registry = TaskerCore::Registry::HandlerRegistry.instance
-registry.register_handler('ProcessOrderHandler', ProcessOrderHandler)
-```
-
-**Python Example**:
+**Python (DSL)**:
 
 ```python
-from tasker_core import StepHandler, StepHandlerResult, HandlerRegistry
+from tasker_core.step_handler.functional import step_handler, inputs
+from app.services.types import OrderInput
+from app.services import orders as svc
 
-class ProcessOrderHandler(StepHandler):
-    handler_name = "process_order"
+@step_handler("process_order")
+@inputs(OrderInput)
+def process_order(inputs: OrderInput, context):
+    return svc.process_order(order_id=inputs.order_id, amount=inputs.amount)
+```
 
-    def call(self, context):
-        order_id = context.input_data.get("order_id")
-        return StepHandlerResult.success_handler_result(
-            {"order_id": order_id, "status": "processed"}
-        )
+**Ruby (DSL)**:
 
-# Registration
-registry = HandlerRegistry.instance()
-registry.register("process_order", ProcessOrderHandler)
+```ruby
+module Orders
+  module StepHandlers
+    extend TaskerCore::StepHandler::Functional
+
+    ProcessOrderHandler = step_handler(
+      'Orders::StepHandlers::ProcessOrderHandler',
+      inputs: Types::Orders::OrderInput
+    ) do |inputs:, context:|
+      Orders::Service.process_order(order_id: inputs.order_id, amount: inputs.amount)
+    end
+  end
+end
+```
+
+**TypeScript (DSL)**:
+
+```typescript
+import { defineHandler } from '@tasker-systems/tasker';
+import * as svc from '../services/orders';
+
+export const ProcessOrderHandler = defineHandler(
+  'Orders.StepHandlers.ProcessOrderHandler',
+  { inputs: { orderId: 'order_id', amount: 'amount' } },
+  async ({ orderId, amount }) =>
+    svc.processOrder(orderId as string, amount as number),
+);
+```
+
+**Rust** (explicit registration required — no DSL):
+
+```rust
+use tasker_worker::worker::handlers::StepHandlerRegistry;
+
+let registry = StepHandlerRegistry::new();
+registry.register_fn("process_order",
+    Box::new(|ctx, _deps| handlers::orders::process_order(ctx)));
 ```
 
 ### Handler Resolution Flow
@@ -138,7 +155,9 @@ registry.register("process_order", ProcessOrderHandler)
 
 ### Handler Context
 
-All handlers receive a context object containing:
+**DSL handlers** receive their inputs and dependency results as **typed function parameters** — the DSL extracts and validates these from the raw context automatically. Handlers also receive a `context` parameter for accessing additional task metadata.
+
+**Class-based handlers** receive a context object containing:
 
 | Field | Description |
 |-------|-------------|
@@ -178,7 +197,7 @@ TaskerCore::Types::StepHandlerCallResult.error(
 )
 ```
 
-**Python** - Uses positional/keyword arguments and a single result type:
+**Python** - Uses keyword arguments and a single result type:
 
 ```python
 # Via base handler shortcuts
@@ -186,19 +205,21 @@ self.success(result={"key": "value"}, metadata={"duration_ms": 150})
 
 self.failure(
     message="Something went wrong",
-    error_type="ValidationError",  # Python has error_type only (no error_code)
+    error_type="ValidationError",
+    error_code="VALIDATION_ERROR",
     retryable=False,
     metadata={"field": "email"}
 )
 
 # Or via class factory methods
-StepHandlerResult.success_handler_result(
-    {"key": "value"},             # First positional arg is result
-    {"duration_ms": 150}          # Second positional arg is metadata
+StepHandlerResult.success(
+    result={"key": "value"},
+    metadata={"duration_ms": 150}
 )
-StepHandlerResult.failure_handler_result(
+StepHandlerResult.failure(
     message="Something went wrong",
     error_type="ValidationError",
+    error_code="VALIDATION_ERROR",
     retryable=False,
     metadata={"field": "email"}
 )
@@ -208,10 +229,10 @@ StepHandlerResult.failure_handler_result(
 
 | Aspect | Ruby | Python |
 |--------|------|--------|
-| Factory method names | `.success()`, `.error()` | `.success_handler_result()`, `.failure_handler_result()` |
+| Factory method names | `.success()`, `.error()` | `.success()`, `.failure()` |
 | Result type | `Success` / `Error` structs | Single `StepHandlerResult` class |
-| Error code field | `error_code` (freeform) | Not present |
-| Argument style | Keyword required (`result:`) | Positional allowed |
+| Error code field | `error_code` (freeform) | `error_code` (optional) |
+| Argument style | Keyword required (`result:`) | Keyword arguments |
 
 ---
 
@@ -246,16 +267,32 @@ TaskerCore::Error                  # Base class
 └── TaskerCore::ConfigurationError # Configuration issues
 ```
 
-**Python**:
+**Python** (two modules — FFI/bootstrap errors and execution errors):
 
 ```python
+# tasker_core.exceptions (FFI / bootstrap)
 TaskerError                        # Base class
 ├── WorkerNotInitializedError      # Worker not bootstrapped
 ├── WorkerBootstrapError           # Bootstrap failed
 ├── WorkerAlreadyRunningError      # Double initialization
 ├── FFIError                       # FFI bridge errors
-├── ConversionError                # Type conversion errors
-└── StepExecutionError             # Handler execution errors
+└── ConversionError                # Type conversion errors
+
+# tasker_core.errors (execution — used in handlers)
+TaskerError                        # Base class
+├── RetryableError                 # Transient failures (retry with backoff)
+│   ├── TimeoutError               # Request/connection timeouts
+│   ├── NetworkError               # Network connectivity issues
+│   ├── RateLimitError             # Rate limiting (429)
+│   ├── ServiceUnavailableError    # Service unavailable (503)
+│   └── ResourceContentionError    # Lock/resource conflicts
+├── PermanentError                 # Unrecoverable failures
+│   ├── ValidationError            # Input validation failures
+│   ├── NotFoundError              # Resource not found
+│   ├── AuthenticationError        # Authentication failures
+│   ├── AuthorizationError         # Permission denied
+│   └── BusinessLogicError         # Business rule violations
+└── ConfigurationError             # Configuration issues
 ```
 
 ### Error Context Propagation
@@ -263,7 +300,7 @@ TaskerError                        # Base class
 All errors should include context for debugging:
 
 ```python
-StepHandlerResult.failure_handler_result(
+StepHandlerResult.failure(
     message="Payment gateway timeout",
     error_type="gateway_timeout",
     retryable=True,
@@ -486,86 +523,96 @@ log_info("Processing order", context)
 
 ## Specialized Handlers
 
+All handler types — including API, Decision, and Batchable — support both DSL and class-based patterns. The DSL approach is recommended for new projects. See [Example Handlers](example-handlers.md) for full cross-language examples and [Class-Based Handlers](../reference/class-based-handlers.md) for the class-based alternative.
+
 ### Handler Type Hierarchy
 
-**Ruby** (all are subclasses):
+**Ruby** (class hierarchy / DSL factories):
 
 ```
 TaskerCore::StepHandler::Base
 ├── TaskerCore::StepHandler::Api        # HTTP/REST API integration
 ├── TaskerCore::StepHandler::Decision   # Dynamic workflow decisions
 └── TaskerCore::StepHandler::Batchable  # Batch processing support
+
+TaskerCore::StepHandler::Functional     # DSL module
+├── step_handler()                      # Standard step
+├── decision_handler()                  # Decision routing
+├── api_handler()                       # HTTP API integration
+├── batch_analyzer()                    # Batch analysis
+└── batch_worker()                      # Batch processing
 ```
 
-**Python** (Batchable is a mixin):
+**Python** (class hierarchy / DSL decorators):
 
 ```
 StepHandler (ABC)
-├── ApiHandler         # HTTP/REST API integration (subclass)
-├── DecisionHandler    # Dynamic workflow decisions (subclass)
-└── + Batchable        # Batch processing (mixin via multiple inheritance)
+├── ApiHandler         # HTTP/REST API integration
+├── DecisionHandler    # Dynamic workflow decisions
+└── + Batchable        # Batch processing (mixin)
+
+Decorators (tasker_core.step_handler.functional)
+├── @step_handler      # Standard step
+├── @decision_handler  # Decision routing
+├── @api_handler       # HTTP API integration
+├── @batch_analyzer    # Batch analysis
+└── @batch_worker      # Batch processing
 ```
 
-### ApiHandler
+**TypeScript** (factory functions):
 
-For HTTP API integration with automatic error classification:
+```
+defineHandler()          # Standard step
+defineDecisionHandler()  # Decision routing
+defineApiHandler()       # HTTP API integration
+defineBatchAnalyzer()    # Batch analysis
+defineBatchWorker()      # Batch processing
+```
+
+**Rust** (trait composition — no DSL):
+
+```
+StepHandler (trait)
++ APICapable           # HTTP client methods
++ DecisionCapable      # Workflow routing
++ BatchableCapable     # Cursor-based batch processing
+```
+
+### Quick DSL Examples
+
+**Decision** — returns `Decision.route(steps)` or `Decision.skip(reason)`:
 
 ```python
-class FetchUserHandler(ApiHandler):
-    handler_name = "fetch_user"
-
-    def call(self, context):
-        response = self.get(f"/users/{context.input_data['user_id']}")
-        return self.success(result=response.json())
+@decision_handler("routing_decision")
+@inputs('amount')
+def routing_decision(amount, context):
+    if float(amount or 0) < 1000:
+        return Decision.route(['auto_approve'], route_type='automatic')
+    return Decision.route(['manager_approval', 'finance_review'], route_type='dual')
 ```
 
-### DecisionHandler
-
-For dynamic workflow routing:
-
-```ruby
-class RoutingDecisionHandler < TaskerCore::StepHandler::Decision
-  def call(context)
-    amount = context.get_task_field('amount')
-
-    if amount < 1000
-      decision_success(steps: ['auto_approve'], result_data: { route: 'auto' })
-    else
-      decision_success(steps: ['manager_approval', 'finance_review'])
-    end
-  end
-end
-```
-
-### Batchable
-
-For processing large datasets in chunks. **Note**: Ruby uses subclass inheritance, Python uses mixin.
-
-**Ruby** (subclass):
-
-```ruby
-class CsvBatchProcessorHandler < TaskerCore::StepHandler::Batchable
-  def call(context)
-    batch_ctx = get_batch_context(context)
-    no_op_result = handle_no_op_worker(batch_ctx)
-    return no_op_result if no_op_result
-
-    # Process records using batch_ctx.start_cursor, batch_ctx.end_cursor
-    batch_worker_success(items_processed: batch_ctx.batch_size, items_succeeded: batch_ctx.batch_size)
-  end
-end
-```
-
-**Python** (mixin):
+**API** — receives `api` with HTTP methods and automatic error classification:
 
 ```python
-class CsvProcessorHandler(StepHandler, Batchable):
-    handler_name = "csv_processor"
+@api_handler("fetch_user", base_url="https://api.example.com")
+@inputs('user_id')
+def fetch_user(user_id, api, context):
+    response = api.get(f"/users/{user_id}")
+    return api.api_success(result={"user_id": user_id, "email": response["email"]})
+```
 
-    def call(self, context: StepContext) -> StepHandlerResult:
-        batch_ctx = self.get_batch_context(context)
-        # Process records using batch_ctx.start_cursor, batch_ctx.end_cursor
-        return self.batch_worker_success(items_processed=batch_ctx.batch_size, items_succeeded=batch_ctx.batch_size)
+**Batch** — analyzer returns `BatchConfig`, workers receive `batch_context`:
+
+```python
+@batch_analyzer("analyze_csv", worker_template="process_csv_batch")
+@inputs('csv_file_path')
+def analyze_csv(csv_file_path, context):
+    return BatchConfig(total_items=count_csv_rows(csv_file_path), batch_size=100)
+
+@batch_worker("process_csv_batch")
+def process_csv_batch(batch_context, context):
+    records = read_csv_range(batch_context.start_cursor, batch_context.batch_size)
+    return {"items_processed": len(records), "items_succeeded": len(records)}
 ```
 
 ---
@@ -724,7 +771,7 @@ raise Exception("API error")
 ### 3. Include Context in Errors
 
 ```python
-return StepHandlerResult.failure_handler_result(
+return StepHandlerResult.failure(
     message="Database connection failed",
     error_type="database_error",
     retryable=True,
@@ -760,9 +807,9 @@ def setup_method(self):
 
 ## See Also
 
-- [Worker Crates Overview](README.md) - High-level introduction
+- [Worker Crates Overview](index.md) - High-level introduction
 - [Rust Worker](rust.md) - Native Rust implementation
 - [Ruby Worker](ruby.md) - Ruby gem documentation
 - [Python Worker](python.md) - Python package documentation
-- [Worker Event Systems](../worker-event-systems.md) - Detailed architecture
-- [Worker Actors](../worker-actors.md) - Actor pattern documentation
+- [Worker Event Systems](../architecture/worker-event-systems.md) - Detailed architecture
+- [Worker Actors](../architecture/worker-actors.md) - Actor pattern documentation

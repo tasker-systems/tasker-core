@@ -1455,13 +1455,13 @@ async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult
 ```ruby
 module BatchProcessing
   class CsvAnalyzerHandler < TaskerCore::StepHandler::Batchable
-    def call(task, _sequence, step)
-      csv_file_path = task.context['csv_file_path']
+    def call(context)
+      csv_file_path = context.get_task_field('csv_file_path')
       total_rows = count_csv_rows(csv_file_path)
 
       # Get batch configuration
-      batch_size = step_definition_initialization['batch_size'] || 200
-      max_workers = step_definition_initialization['max_workers'] || 5
+      batch_size = context.step_config['batch_size'] || 200
+      max_workers = context.step_config['max_workers'] || 5
 
       # Calculate worker count
       worker_count = [(total_rows.to_f / batch_size).ceil, max_workers].min
@@ -1566,10 +1566,10 @@ end
 ```ruby
 module BatchProcessing
   class CsvResultsAggregatorHandler < TaskerCore::StepHandler::Batchable
-    def call(_task, sequence, _step)
+    def call(context)
       # Detect scenario using helper
       scenario = detect_aggregation_scenario(
-        sequence,
+        context,
         batchable_step_name: 'analyze_csv',
         batch_worker_prefix: 'process_csv_batch_'
       )
@@ -2564,8 +2564,8 @@ module BatchProcessing
   module StepHandlers
     # CSV Analyzer - Batchable Step
     class CsvAnalyzerHandler < TaskerCore::StepHandler::Batchable
-      def call(task, _sequence, step)
-        csv_file_path = task.context['csv_file_path']
+      def call(context)
+        csv_file_path = context.get_task_field('csv_file_path')
         raise ArgumentError, 'Missing csv_file_path in task context' unless csv_file_path
 
         # Count CSV rows (excluding header)
@@ -2574,8 +2574,8 @@ module BatchProcessing
         Rails.logger.info("CSV Analysis: #{total_rows} rows in #{csv_file_path}")
 
         # Get batch configuration from handler initialization
-        batch_size = step_definition_initialization['batch_size'] || 200
-        max_workers = step_definition_initialization['max_workers'] || 5
+        batch_size = context.step_config['batch_size'] || 200
+        max_workers = context.step_config['max_workers'] || 5
 
         # Calculate worker count
         worker_count = [(total_rows.to_f / batch_size).ceil, max_workers].min
@@ -2754,10 +2754,10 @@ module BatchProcessing
   module StepHandlers
     # CSV Results Aggregator - Deferred Convergence Step
     class CsvResultsAggregatorHandler < TaskerCore::StepHandler::Batchable
-      def call(_task, sequence, _step)
+      def call(context)
         # Detect scenario using helper
         scenario = detect_aggregation_scenario(
-          sequence,
+          context,
           batchable_step_name: 'analyze_csv',
           batch_worker_prefix: 'process_csv_batch_'
         )

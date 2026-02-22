@@ -5,7 +5,7 @@
 **Status**: Active
 **Related Docs**: [Worker Actors](worker-actors.md) | [Events and Commands](events-and-commands.md) | [Messaging Abstraction](messaging-abstraction.md)
 
-<- Back to [Documentation Hub](README.md)
+<- Back to [Documentation Hub](index.md)
 
 ---
 
@@ -702,4 +702,4 @@ end
 
 ---
 
-<- Back to [Documentation Hub](README.md)
+<- Back to [Documentation Hub](index.md)

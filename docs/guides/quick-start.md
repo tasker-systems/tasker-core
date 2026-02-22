@@ -407,6 +407,20 @@ class MyHandler < TaskerCore::StepHandler::Base
 end
 ```
 
+#### Option C: Ruby Handler (DSL)
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+MyHandler = step_handler(
+  'MyHandler',
+  inputs: [:input]
+) do |input:, context:|
+  result = process_data(input)
+  { output: result }
+end
+```
+
 #### Define Your Workflow Template
 
 ```yaml

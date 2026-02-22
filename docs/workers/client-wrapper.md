@@ -3,9 +3,9 @@
 **Last Updated**: 2026-02-13
 **Audience**: Developers
 **Status**: Active
-**Related Docs**: [API Convergence Matrix](api-convergence-matrix.md) | [Workers Overview](README.md)
+**Related Docs**: [API Convergence Matrix](api-convergence-matrix.md) | [Workers Overview](index.md)
 
-<- Back to [Workers Overview](README.md)
+<- Back to [Workers Overview](index.md)
 
 ---
 

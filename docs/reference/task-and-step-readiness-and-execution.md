@@ -3,9 +3,9 @@
 **Last Updated**: 2026-01-10
 **Audience**: Developers, Architects
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [States and Lifecycles](states-and-lifecycles.md) | [Events and Commands](events-and-commands.md)
+**Related Docs**: [Documentation Hub](index.md) | [States and Lifecycles](states-and-lifecycles.md) | [Events and Commands](events-and-commands.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 

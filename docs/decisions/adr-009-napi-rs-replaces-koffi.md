@@ -52,6 +52,7 @@ lib.clientCreateTask({
 ```
 
 With orchestration running, the request completed the full round-trip:
+
 - `clientCreateTask({...})` → 404 "Task template not found" (expected — template doesn't exist)
 - `clientListTasks({ limit: 5 })` → Returns 489 tasks with full pagination and typed objects
 - `clientHealthCheck()` → `{ success: true, data: { healthy: true } }`
@@ -70,6 +71,7 @@ napi-rs auto-generates `index.d.ts` with:
 - **Rust doc comments → JSDoc comments**: Documentation preserved
 
 Sample generated types:
+
 ```typescript
 export interface NapiStepEvent {
   eventId: string
@@ -103,6 +105,7 @@ export declare function completeStepEvent(eventId: string, result: NapiStepResul
 #### Removed Dependencies (vs koffi approach)
 
 The napi-rs approach eliminates the need for:
+
 - `koffi` npm package (JavaScript side)
 - Manual `free_rust_string()` calls
 - JSON `{success, error}` envelope pattern
@@ -203,6 +206,7 @@ TypeScript Public API (WorkerServer, StepHandler, TaskerClient)
 ```
 
 **Runtime detection** (`src/ffi/runtime.ts`) inspects globals at startup:
+
 - `'Bun' in globalThis` → Bun
 - `'Deno' in globalThis` → Deno
 - `process.versions.node` → Node.js
@@ -229,6 +233,7 @@ TypeScript Public API (WorkerServer, StepHandler, TaskerClient)
 ```
 
 **What gets deleted**:
+
 - `src/ffi/runtime.ts` — Runtime detection (no longer needed)
 - `src/ffi/ffi-layer.ts` — Runtime dispatch abstraction (no longer needed)
 - `src/ffi/node-runtime.ts` — koffi wrapper (~250 lines of manual FFI function definitions)
@@ -241,6 +246,7 @@ TypeScript Public API (WorkerServer, StepHandler, TaskerClient)
 - The `ts-rs` dev-dependency and `export_bindings` test (napi-rs generates types automatically)
 
 **What stays unchanged**:
+
 - `src/index.ts` — Public API exports
 - `src/worker-server.ts` — WorkerServer class
 - `src/handlers/` — StepHandler base class, handler registry
@@ -248,6 +254,7 @@ TypeScript Public API (WorkerServer, StepHandler, TaskerClient)
 - `src/events/` — Event system
 
 **What gets simplified**:
+
 - `src/ffi/index.ts` — Thin re-export of the `.node` module's auto-generated types
 - Loading: `const native = require('./tasker-ts-napi.<platform>.node')` or napi-rs's built-in loader
 
@@ -256,11 +263,13 @@ TypeScript Public API (WorkerServer, StepHandler, TaskerClient)
 **Current state**: Deno support via `DenoRuntime` uses `Deno.dlopen` with the same `.dylib/.so` as koffi. This is a completely separate code path from Bun/Node.
 
 **With napi-rs**: Deno's N-API support has matured significantly:
+
 - Deno 2.x supports N-API natively via `--unstable-node-api` or when importing `npm:` packages
 - The `@napi-rs/cli` toolchain generates `.node` files that Deno can load
 - However, Deno's N-API is still marked unstable for direct `.node` loading
 
 **Recommendation**: **Drop the dedicated `DenoRuntime` adapter.** Deno users can:
+
 1. Use Deno's `npm:` specifier to import `@tasker-systems/tasker` (N-API works transparently)
 2. Use `--unstable-node-api` flag for direct `.node` loading
 3. The current `DenoRuntime` with `Deno.dlopen` has the same C FFI problems as koffi anyway
@@ -270,11 +279,13 @@ This is a net simplification — one code path instead of two, no runtime intros
 #### Type Generation Consolidation
 
 Currently, TypeScript types are generated via a two-step process:
+
 1. Rust DTOs in `src-rust/dto.rs` with `#[cfg_attr(test, derive(TS))]`
 2. `cargo test export_bindings --package tasker-ts` generates `.ts` files to `src/ffi/generated/`
 3. `src/ffi/types.ts` manually re-exports with API-friendly names
 
 With napi-rs, this entire pipeline is replaced:
+
 1. `#[napi(object)]` structs in Rust are the single source of truth
 2. `npx napi build` auto-generates `index.d.ts` with all types
 3. No manual re-export step, no separate `generated/` directory
@@ -299,6 +310,7 @@ release.yml: publish-typescript job
 ```
 
 Key files:
+
 - `.github/workflows/build-ffi-libraries.yml` — Cross-platform matrix builds
 - `.github/workflows/release.yml` (lines 419-497) — npm publish job
 - `scripts/ffi-build/build-typescript.sh` — `cargo build -p tasker-ts --release`
@@ -320,6 +332,7 @@ Key files:
 #### Workflow Changes Required
 
 **`build-ffi-libraries.yml`**:
+
 ```diff
 # Build script change
 - cargo build -p tasker-ts --release --locked
@@ -329,6 +342,7 @@ Key files:
 The matrix (linux-x64, darwin-arm64) stays the same. Output artifacts change from `.so/.dylib` to `.node`.
 
 **`release.yml` publish-typescript job**:
+
 ```diff
 # Bundle step — same pattern, different file names
 - mkdir -p workers/typescript/native
@@ -343,17 +357,20 @@ The matrix (linux-x64, darwin-arm64) stays the same. Output artifacts change fro
 No changes to OIDC, npm environment, or publish command — still `npm publish` of a single `@tasker-systems/tasker` package.
 
 **`test-typescript-framework.yml`**:
+
 - Remove Node.js and Deno FFI test steps (single runtime path)
 - Simplify to: `bun test` (one command, one runtime)
 - Client API tests unchanged
 
 **`build-workers.yml` TypeScript job**:
+
 ```diff
 - cargo make build-ffi  # cargo build -p tasker-ts
 + cd workers/typescript-napi && npx napi build --platform  # debug build for tests
 ```
 
 **Docker production build** (`typescript-worker.prod.Dockerfile`):
+
 ```diff
 - cargo build -p tasker-ts --release --locked
 - ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_ts.so
@@ -364,6 +381,7 @@ No changes to OIDC, npm environment, or publish command — still `npm publish` 
 #### npm Distribution: Single Package with Bundled Binaries
 
 napi-rs supports two distribution models:
+
 1. **Platform packages** (separate `@org/pkg-linux-x64-gnu`, etc. as `optionalDependencies`)
 2. **Single package** with `.node` files bundled alongside `index.js`
 
@@ -398,12 +416,14 @@ Since the `.node` files are co-located in the package directory, the loader find
 ```
 
 **What changes vs current approach**:
+
 - The `native/` directory goes away — `.node` files live at package root (napi-rs convention)
 - Platform resolution moves from our hand-written `FfiLayer.discoverLibraryPath()` to napi-rs's generated `index.js`
 - The `TASKER_FFI_LIBRARY_PATH` environment variable override is no longer needed (napi-rs loader handles it)
 - Same OIDC setup, same single `npm publish`, same `release.yml` — no new packages to configure
 
 **Release artifact flow** stays parallel to what we have:
+
 ```
 build-ffi-libraries.yml (matrix: linux-x64, darwin-arm64)
   ├── Docker: npx napi build --release --platform --target x86_64-unknown-linux-gnu
@@ -434,6 +454,7 @@ release.yml: publish-typescript job
 The migration is a direct replacement, not incremental. The koffi FFI layer is broken (TAS-283) and the public TypeScript API (`WorkerServer`, `StepHandler`, `TaskerClient`) doesn't change — only the internal FFI plumbing.
 
 **Phase 1: Replace FFI crate** (Rust side)
+
 1. Rename/replace `workers/typescript/src-rust/` with napi-rs implementation
 2. Update `Cargo.toml`: remove `cdylib` C FFI, add napi dependencies
 3. Port all functions from C FFI signatures to `#[napi]` functions
@@ -441,6 +462,7 @@ The migration is a direct replacement, not incremental. The koffi FFI layer is b
 5. Delete `dto.rs` — replaced by `#[napi(object)]` structs that auto-generate TypeScript types
 
 **Phase 2: Simplify TypeScript layer**
+
 1. Delete `src/ffi/runtime.ts`, `ffi-layer.ts`, `node-runtime.ts`, `deno-runtime.ts`
 2. Delete `src/ffi/generated/` directory and `ts-rs` binding generation
 3. Add napi-rs module loader (one line: `const native = require('./index.node')` or use `@napi-rs/cli` generated loader)
@@ -450,12 +472,14 @@ The migration is a direct replacement, not incremental. The koffi FFI layer is b
 7. Remove `koffi` from `optionalDependencies`
 
 **Phase 3: Update CI and release**
+
 1. Update `build-ffi-libraries.yml` to use `npx napi build`
 2. Update `release.yml` to use napi-rs platform package publishing
 3. Simplify `test-typescript-framework.yml` to single-runtime tests
 4. Update Docker builds
 
 **Phase 4: Cleanup**
+
 1. Remove `workers/typescript-napi/` spike directory
 2. Update documentation
 

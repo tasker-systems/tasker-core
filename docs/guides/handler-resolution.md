@@ -5,7 +5,7 @@
 **Status**: Active
 **Related Docs**: [Worker Event Systems](../architecture/worker-event-systems.md) | [API Convergence Matrix](../workers/api-convergence-matrix.md)
 
-<- Back to [Guides](README.md)
+<- Back to [Guides](index.md)
 
 ---
 
@@ -165,26 +165,48 @@ HandlerDefinition
 
 ### ExplicitMappingResolver (Priority 10)
 
-The **primary resolver** for all workers. Handlers are registered with string keys at startup:
+The **primary resolver** for all workers. Handlers are registered with string keys at startup.
+
+#### DSL Auto-Registration
+
+DSL handlers automatically register with the ExplicitMappingResolver when the handler module is loaded — no manual registration needed:
+
+```python
+@step_handler("ecommerce_validate_cart")  # Registers as "ecommerce_validate_cart"
+@inputs(EcommerceOrderInput)
+def validate_cart(inputs: EcommerceOrderInput, context):
+    return svc.validate_cart_items(...)
+```
+
+```ruby
+ValidateCartHandler = step_handler(
+  'Ecommerce::StepHandlers::ValidateCartHandler',  # Registers with this name
+  inputs: Types::Ecommerce::OrderInput
+) do |inputs:, context:|
+  Ecommerce::Service.validate_cart_items(...)
+end
+```
+
+```typescript
+export const ValidateCartHandler = defineHandler(
+  'Ecommerce.StepHandlers.ValidateCartHandler',  // Registers with this name
+  { inputs: { cartItems: 'cart_items' } },
+  async ({ cartItems }) => svc.validateCartItems(cartItems),
+);
+```
+
+#### Manual Registration
+
+For Rust (required — no DSL) or class-based handlers that need explicit registration:
 
 ```rust
-// Rust registration
+// Rust registration (required — no runtime reflection)
 registry.register("process_payment", Arc::new(ProcessPaymentHandler::new()));
 ```
 
 ```ruby
-# Ruby registration
+# Ruby manual registration (optional — auto-resolver also finds derived classes)
 registry.register("process_payment", ProcessPaymentHandler)
-```
-
-```python
-# Python registration
-registry.register("process_payment", ProcessPaymentHandler)
-```
-
-```typescript
-// TypeScript registration
-registry.register("process_payment", ProcessPaymentHandler);
 ```
 
 **When it resolves:** When the `callable` exactly matches a registered key.
@@ -277,7 +299,7 @@ class PaymentHandler extends StepHandler {
 
 ```rust
 // Rust - requires explicit method routing
-impl RustStepHandler for PaymentHandler {
+impl StepHandler for PaymentHandler {
     async fn call(&self, step: &TaskSequenceStep) -> Result<StepExecutionResult> {
         // Default method
     }

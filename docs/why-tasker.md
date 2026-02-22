@@ -178,4 +178,4 @@ If that resonates with you, welcome. Let's build something good together.
 
 ---
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)

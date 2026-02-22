@@ -2,7 +2,7 @@
 
 Integrating Tasker's API security with external identity providers via JWKS endpoints.
 
-> See also: [Auth Documentation Hub](../auth/README.md) for architecture overview, [Configuration](../auth/configuration.md) for full TOML reference.
+> See also: [Auth Documentation Hub](../auth/index.md) for architecture overview, [Configuration](../auth/configuration.md) for full TOML reference.
 
 ---
 

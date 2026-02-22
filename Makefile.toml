@@ -2487,6 +2487,10 @@ echo "  index.md"
 $CLI docs index --output "$OUTDIR/index.md"
 
 echo ""
+echo "Post-processing generated markdown..."
+bash cargo-make/scripts/fixup-generated-docs.sh "$OUTDIR"
+
+echo ""
 echo "Generated documentation in $OUTDIR/:"
 ls -1 "$OUTDIR/"
 echo ""

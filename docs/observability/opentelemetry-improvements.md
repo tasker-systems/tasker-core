@@ -3,9 +3,9 @@
 **Last Updated**: 2025-12-01
 **Audience**: Developers, Operators
 **Status**: Active
-**Related Docs**: [Observability Hub](README.md) | [Metrics Reference](metrics-reference.md) | [Domain Events](../domain-events.md)
+**Related Docs**: [Observability Hub](index.md) | [Metrics Reference](metrics-reference.md) | [Domain Events](../domain-events.md)
 
-← Back to [Observability Hub](README.md)
+← Back to [Observability Hub](index.md)
 
 ---
 

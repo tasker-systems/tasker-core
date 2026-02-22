@@ -3,9 +3,9 @@
 **Last Updated**: 2025-10-27
 **Audience**: Developers, Architects
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Use Cases & Patterns](use-cases-and-patterns.md) | [States and Lifecycles](states-and-lifecycles.md)
+**Related Docs**: [Documentation Hub](index.md) | [Use Cases & Patterns](use-cases-and-patterns.md) | [States and Lifecycles](../architecture/states-and-lifecycles.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 
@@ -365,9 +365,9 @@ module ConditionalApproval
       SMALL_AMOUNT_THRESHOLD = 1_000
       LARGE_AMOUNT_THRESHOLD = 5_000
 
-      def call(task, _sequence, _step)
+      def call(context)
         # Get amount from validated request
-        amount = task.context['amount']
+        amount = context.get_task_field('amount')
         raise 'Amount is required for routing decision' unless amount
 
         # Make routing decision based on amount
@@ -426,6 +426,28 @@ end
 - Helper automatically creates `DecisionPointOutcome` and embeds it correctly
 - No manual serialization needed - base class handles Rust compatibility
 - For no-branch scenarios, use `decision_no_branches(result_data:, metadata:)`
+
+> **Handler Syntax**: Decision handler examples use the class-based pattern. For the DSL alternative, see the examples below each class-based handler or visit [Class-Based Handlers](../reference/class-based-handlers.md).
+
+**DSL Alternative**:
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+RoutingDecisionHandler = decision_handler(
+  'RoutingDecisionHandler',
+  inputs: [:amount]
+) do |amount:, context:|
+  steps = if amount.to_f < 1_000
+    ['auto_approve']
+  elsif amount.to_f < 5_000
+    ['manager_approval']
+  else
+    ['manager_approval', 'finance_review']
+  end
+  Decision.route(steps, route_type: determine_route_type(amount), amount: amount)
+end
+```
 
 ### Execution Flow Examples
 
@@ -565,10 +587,10 @@ steps:
 
 ```ruby
 class PrimaryRoutingHandler < TaskerCore::StepHandler::Decision
-  def call(task, sequence, _step)
-    amount = task.context['amount']
-    risk_score = sequence.get_results('assess_risk')['risk_score']
-    is_emergency = task.context['emergency'] == true
+  def call(context)
+    amount = context.get_task_field('amount')
+    risk_score = context.get_dependency_result('assess_risk')['risk_score']
+    is_emergency = context.get_task_field('emergency') == true
 
     steps_to_create = if is_emergency && amount < 10_000
       # Emergency override path
@@ -594,14 +616,37 @@ class PrimaryRoutingHandler < TaskerCore::StepHandler::Decision
 end
 ```
 
+**DSL Alternative**:
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+PrimaryRoutingHandler = decision_handler(
+  'PrimaryRoutingHandler',
+  inputs: [:amount, :emergency]
+) do |amount:, emergency:, context:|
+  risk_score = context.get_dependency_result('assess_risk')['risk_score']
+  is_emergency = emergency == true
+
+  steps = if is_emergency && amount.to_f < 10_000
+    ['emergency_approval']
+  elsif risk_score < 30 && amount.to_f < 5_000
+    ['standard_manager_approval']
+  else
+    ['senior_manager_approval', 'compliance_routing']
+  end
+  Decision.route(steps, route_type: determine_route_type(is_emergency, risk_score, amount))
+end
+```
+
 ### Ruby Handler: Compliance Routing (Nested Decision)
 
 ```ruby
 class ComplianceRoutingHandler < TaskerCore::StepHandler::Decision
-  def call(task, sequence, _step)
-    amount = task.context['amount']
-    risk_score = sequence.get_results('assess_risk')['risk_score']
-    jurisdiction = task.context['jurisdiction']
+  def call(context)
+    amount = context.get_task_field('amount')
+    risk_score = context.get_dependency_result('assess_risk')['risk_score']
+    jurisdiction = context.get_task_field('jurisdiction')
 
     steps_to_create = []
 
@@ -634,6 +679,29 @@ class ComplianceRoutingHandler < TaskerCore::StepHandler::Decision
 
   def high_regulation_jurisdiction?(jurisdiction)
     %w[EU UK APAC].include?(jurisdiction)
+  end
+end
+```
+
+**DSL Alternative**:
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+ComplianceRoutingHandler = decision_handler(
+  'ComplianceRoutingHandler',
+  inputs: [:amount, :jurisdiction]
+) do |amount:, jurisdiction:, context:|
+  risk_score = context.get_dependency_result('assess_risk')['risk_score']
+  steps = []
+  steps << 'legal_review' if amount.to_f >= 50_000
+  steps << 'fraud_investigation' if risk_score >= 70
+  steps << 'jurisdictional_check' if %w[EU UK APAC].include?(jurisdiction)
+
+  if steps.empty?
+    Decision.no_branches(reason: 'no_compliance_requirements')
+  else
+    Decision.route(steps, compliance_level: 'enhanced', checks_required: steps)
   end
 end
 ```
@@ -1212,12 +1280,12 @@ When implementing decision point workflows, ensure:
 ## Related Documentation
 
 - **[Use Cases & Patterns](use-cases-and-patterns.md)** - More workflow examples
-- **[States and Lifecycles](states-and-lifecycles.md)** - State machine details
-- **[Task and Step Readiness](task-and-step-readiness-and-execution.md)** - Dependency resolution logic
+- **[States and Lifecycles](../architecture/states-and-lifecycles.md)** - State machine details
+- **[Task and Step Readiness](../reference/task-and-step-readiness-and-execution.md)** - Dependency resolution logic
 - **[Quick Start](quick-start.md)** - Getting started guide
-- **[Crate Architecture](crate-architecture.md)** - System architecture overview
-- **[Decision Point E2E Tests](testing/decision-point-e2e-tests.md)** - Detailed test documentation
+- **[Crate Architecture](../architecture/crate-architecture.md)** - System architecture overview
+- **[Decision Point E2E Tests](../testing/decision-point-e2e-tests.md)** - Detailed test documentation
 
 ---
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
