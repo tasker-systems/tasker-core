@@ -3,9 +3,9 @@
 **Last Updated**: 2025-12-01
 **Audience**: Architects, Developers
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Events and Commands](events-and-commands.md) | [Observability](observability/README.md) | [States and Lifecycles](states-and-lifecycles.md)
+**Related Docs**: [Documentation Hub](index.md) | [Events and Commands](events-and-commands.md) | [Observability](observability/index.md) | [States and Lifecycles](states-and-lifecycles.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 
@@ -1069,7 +1069,7 @@ info!(
 ## Related Documentation
 
 - **Events and Commands**: [events-and-commands.md](events-and-commands.md) - System event architecture
-- **Observability**: [observability/README.md](observability/README.md) - Metrics and monitoring
+- **Observability**: [observability/README.md](observability/index.md) - Metrics and monitoring
 - **States and Lifecycles**: [states-and-lifecycles.md](states-and-lifecycles.md) - Task/step state machines
 
 ---

@@ -107,8 +107,8 @@ The documentation is organized by cognitive function:
 - **[Circuit Breakers](architecture/circuit-breakers.md)** - Fault isolation and operational monitoring
 - **[Backpressure Architecture](architecture/backpressure-architecture.md)** - Unified resilience strategy
 - **[DLQ System](guides/dlq-system.md)** - Dead letter queue investigation
-- **[Observability](observability/README.md)** - Metrics, logging, and monitoring
-- **[Benchmarks](benchmarks/README.md)** - Performance validation and targets
+- **[Observability](observability/index.md)** - Metrics, logging, and monitoring
+- **[Benchmarks](benchmarks/index.md)** - Performance validation and targets
 
 ---
 

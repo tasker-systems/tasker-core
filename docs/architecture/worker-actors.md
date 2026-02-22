@@ -3,9 +3,9 @@
 **Last Updated**: 2025-12-04
 **Audience**: Architects, Developers
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Actor-Based Architecture](actors.md) | [Events and Commands](events-and-commands.md)
+**Related Docs**: [Documentation Hub](index.md) | [Actor-Based Architecture](actors.md) | [Events and Commands](events-and-commands.md)
 
-<- Back to [Documentation Hub](README.md)
+<- Back to [Documentation Hub](index.md)
 
 ---
 
@@ -636,4 +636,4 @@ The architecture provides a solid foundation for high-throughput step execution 
 
 ---
 
-<- Back to [Documentation Hub](README.md)
+<- Back to [Documentation Hub](index.md)

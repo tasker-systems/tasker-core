@@ -3,9 +3,9 @@
 **Last Updated**: 2025-12-04
 **Audience**: Architects, Developers
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Worker Actor Architecture](worker-actors.md) | [Events and Commands](events-and-commands.md) | [States and Lifecycles](states-and-lifecycles.md)
+**Related Docs**: [Documentation Hub](index.md) | [Worker Actor Architecture](worker-actors.md) | [Events and Commands](events-and-commands.md) | [States and Lifecycles](states-and-lifecycles.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 
@@ -677,4 +677,4 @@ The architecture provides a solid foundation for future scalability and maintain
 
 ---
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)

@@ -108,11 +108,13 @@ Clap's built-in help rendering also uses custom styles via `clap_styles()` for a
 The plugin system enables external code to extend `tasker-ctl` with new templates without modifying the binary.
 
 **Discovery** (`plugins/discovery.rs`): Scans configured paths with a three-level search strategy:
+
 1. Check if the path root contains `tasker-plugin.toml`
 2. Scan immediate subdirectories for `tasker-plugin.toml`
 3. Scan `*/tasker-cli-plugin/` subdirectories (handles `tasker-contrib` layout)
 
 **Manifest** (`plugins/manifest.rs`): Each plugin is defined by a `tasker-plugin.toml`:
+
 ```toml
 [metadata]
 name = "rails"
@@ -134,6 +136,7 @@ description = "Generate a Tasker step handler"
 The template engine renders plugin-provided templates using Tera (runtime evaluation).
 
 **Metadata** (`template_engine/metadata.rs`): Each template directory contains a `template.toml` defining parameters and output files:
+
 ```toml
 [metadata]
 name = "step_handler"
@@ -153,6 +156,7 @@ template = "handler.rb.tera"
 **Engine** (`template_engine/engine.rs`): Wraps Tera with custom case-conversion filters registered at initialization. Renders both output file paths and template content from the same context.
 
 **Filters** (`template_engine/filters.rs`): Custom Tera filters via the `heck` crate:
+
 - `snake_case` — `ProcessPayment` → `process_payment`
 - `pascal_case` — `process_payment` → `ProcessPayment`
 - `camel_case` — `process_payment` → `processPayment`
@@ -165,6 +169,7 @@ The remote system enables `tasker-ctl` to fetch plugins and configuration from g
 **Cache** (`remotes/cache.rs`): Manages local clones of remote git repos under `~/.cache/tasker-ctl/remotes/<name>/`. Uses `git2` for clone and fetch operations. A `.tasker-last-fetch` timestamp file tracks cache freshness against the configurable `cache-max-age-hours` threshold.
 
 **Configuration** (`cli_config/mod.rs`): Remotes are defined in `.tasker-ctl.toml`:
+
 ```toml
 [[remotes]]
 name = "tasker-contrib"

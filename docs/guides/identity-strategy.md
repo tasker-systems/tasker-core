@@ -3,9 +3,9 @@
 **Last Updated**: 2026-01-20
 **Audience**: Developers, Operators
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Idempotency and Atomicity](../architecture/idempotency-and-atomicity.md)
+**Related Docs**: [Documentation Hub](index.md) | [Idempotency and Atomicity](../architecture/idempotency-and-atomicity.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 

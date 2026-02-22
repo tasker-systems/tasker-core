@@ -3,9 +3,9 @@
 **Last Updated**: 2026-01-15
 **Audience**: Architects, Developers
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Events and Commands](events-and-commands.md) | [Deployment Patterns](deployment-patterns.md) | [Crate Architecture](crate-architecture.md)
+**Related Docs**: [Documentation Hub](index.md) | [Events and Commands](events-and-commands.md) | [Deployment Patterns](deployment-patterns.md) | [Crate Architecture](crate-architecture.md)
 
-<- Back to [Documentation Hub](README.md)
+<- Back to [Documentation Hub](index.md)
 
 ---
 
@@ -647,6 +647,6 @@ if provider.requires_fallback_polling() {
 
 ---
 
-<- Back to [Documentation Hub](README.md)
+<- Back to [Documentation Hub](index.md)
 
 **Next**: [Events and Commands](events-and-commands.md) | [Deployment Patterns](deployment-patterns.md)

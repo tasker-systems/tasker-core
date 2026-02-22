@@ -5,7 +5,7 @@
 **Status**: Active
 **Package**: `tasker_core` (gem)
 **Related Docs**: [Patterns and Practices](patterns-and-practices.md) | [Worker Event Systems](../worker-event-systems.md) | [API Convergence Matrix](api-convergence-matrix.md)
-<- Back to [Worker Crates Overview](README.md)
+<- Back to [Worker Crates Overview](index.md)
 
 ---
 
@@ -843,7 +843,7 @@ end
 
 ## See Also
 
-- [Worker Crates Overview](README.md) - High-level introduction
+- [Worker Crates Overview](index.md) - High-level introduction
 - [Patterns and Practices](patterns-and-practices.md) - Common patterns
 - [Python Worker](python.md) - Python implementation
 - [Worker Event Systems](../worker-event-systems.md) - Architecture details

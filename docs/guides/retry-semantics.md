@@ -3,9 +3,9 @@
 **Last Updated**: 2025-10-10
 **Audience**: Developers
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Bug Report: Retry Eligibility Logic](bug-reports/2025-10-05-retry-eligibility-bug.md) | [States and Lifecycles](states-and-lifecycles.md)
+**Related Docs**: [Documentation Hub](index.md) | [Bug Report: Retry Eligibility Logic](bug-reports/2025-10-05-retry-eligibility-bug.md) | [States and Lifecycles](states-and-lifecycles.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 

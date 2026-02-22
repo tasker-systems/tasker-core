@@ -5,7 +5,7 @@
 **Status**: Active
 **Related Docs**: [Worker Event Systems](../worker-event-systems.md) | [Worker Actors](../worker-actors.md)
 
-<- Back to [Documentation Hub](../README.md)
+<- Back to [Documentation Hub](../index.md)
 
 ---
 

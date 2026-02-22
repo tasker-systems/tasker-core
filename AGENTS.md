@@ -154,11 +154,13 @@ configures environment variables, PATH, git hooks, and the `.env` file. Heavy to
 installations and service startup are available on-demand via individual scripts.
 
 **Full setup** (installs everything, takes several minutes):
+
 ```bash
 ./bin/setup-claude-web-full.sh
 ```
 
 **Individual setup scripts** (in `cargo-make/scripts/claude-web/`):
+
 ```bash
 # Source the common helpers first
 source cargo-make/scripts/claude-web/setup-common.sh
@@ -176,6 +178,7 @@ source cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migratio
 ```
 
 **When to run what:**
+
 - Need to create a PR? → `setup_gh`
 - Need to run database tests? → `setup_postgres` then `setup_db_migrations`
 - Need to build (protoc missing)? → `setup_protoc`

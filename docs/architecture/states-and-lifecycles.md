@@ -3,9 +3,9 @@
 **Last Updated**: 2025-10-10
 **Audience**: All
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Events and Commands](events-and-commands.md) | [Task Readiness & Execution](task-and-step-readiness-and-execution.md)
+**Related Docs**: [Documentation Hub](index.md) | [Events and Commands](events-and-commands.md) | [Task Readiness & Execution](task-and-step-readiness-and-execution.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 

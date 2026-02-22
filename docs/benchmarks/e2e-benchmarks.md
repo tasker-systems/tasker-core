@@ -2,9 +2,9 @@
 
 **Last Updated**: 2026-01-23
 **Audience**: Architects, Developers, Performance Engineers
-**Related Docs**: [Benchmarks README](./README.md) | [States & Lifecycles](../architecture/states-and-lifecycles.md) | [Actor Pattern](../architecture/actors.md)
+**Related Docs**: [Benchmarks README](./index.md) | [States & Lifecycles](../architecture/states-and-lifecycles.md) | [Actor Pattern](../architecture/actors.md)
 
-<- Back to [Benchmarks](./README.md)
+<- Back to [Benchmarks](./index.md)
 
 ---
 

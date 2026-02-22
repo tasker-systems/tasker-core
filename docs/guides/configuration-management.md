@@ -5,7 +5,7 @@
 **Status**: Active
 **Related Docs**: [Environment Configuration Comparison](environment-configuration-comparison.md), [Deployment Patterns](deployment-patterns.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 
@@ -1063,4 +1063,4 @@ Tasker's configuration system provides:
 - ✅ Fail loudly: missing/invalid config halts startup with explicit errors
 - ✅ Generated configs committed to repo for reproducibility
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)

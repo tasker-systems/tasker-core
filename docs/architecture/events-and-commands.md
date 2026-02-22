@@ -3,9 +3,9 @@
 **Last Updated**: 2026-01-15
 **Audience**: Architects, Developers
 **Status**: Active
-**Related Docs**: [Documentation Hub](README.md) | [Actor-Based Architecture](actors.md) | [Messaging Abstraction](messaging-abstraction.md) | [States and Lifecycles](states-and-lifecycles.md) | [Deployment Patterns](deployment-patterns.md)
+**Related Docs**: [Documentation Hub](index.md) | [Actor-Based Architecture](actors.md) | [Messaging Abstraction](messaging-abstraction.md) | [States and Lifecycles](states-and-lifecycles.md) | [Deployment Patterns](deployment-patterns.md)
 
-← Back to [Documentation Hub](README.md)
+← Back to [Documentation Hub](index.md)
 
 ---
 

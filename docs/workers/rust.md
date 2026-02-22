@@ -5,7 +5,7 @@
 **Status**: Active
 **Package**: `workers-rust`
 **Related Docs**: [Patterns and Practices](patterns-and-practices.md) | [Worker Event Systems](../worker-event-systems.md) | [API Convergence Matrix](api-convergence-matrix.md)
-<- Back to [Worker Crates Overview](README.md)
+<- Back to [Worker Crates Overview](index.md)
 
 ---
 
@@ -687,7 +687,7 @@ DATABASE_URL=postgresql://... cargo nextest run --package workers-rust
 
 ## See Also
 
-- [Worker Crates Overview](README.md) - High-level introduction
+- [Worker Crates Overview](index.md) - High-level introduction
 - [Patterns and Practices](patterns-and-practices.md) - Common patterns
 - [Worker Event Systems](../worker-event-systems.md) - Architecture details
 - [Worker Actors](../worker-actors.md) - Actor pattern documentation

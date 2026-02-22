@@ -3,9 +3,9 @@
 **Last Updated**: 2026-01-23
 **Audience**: Architects, Developers
 **Status**: Active
-**Related Docs**: [Documentation Hub](../README.md) | [Observability](../observability/README.md) | [Deployment Patterns](../deployment-patterns.md)
+**Related Docs**: [Documentation Hub](../index.md) | [Observability](../observability/index.md) | [Deployment Patterns](../deployment-patterns.md)
 
-<- Back to [Documentation Hub](../README.md)
+<- Back to [Documentation Hub](../index.md)
 
 ---
 
