@@ -136,7 +136,9 @@ module TaskerCore
                                         # Convert to plain Hash first — ActiveSupport::HashWithIndifferentAccess
                                         # stores keys as strings internally even after transform_keys(&:to_sym),
                                         # which causes Dry::Struct to silently ignore all attributes.
-                                        symbolized = Hash(raw).transform_keys(&:to_sym)
+                                        # Hash() is a no-op on HWIA (since it IS-A Hash); .to_h produces
+                                        # a true plain Hash so symbol keys actually stick.
+                                        symbolized = raw.to_h.transform_keys(&:to_sym)
                                         known = model_cls.attribute_names
                                         model_cls.new(**symbolized.slice(*known))
                                       else

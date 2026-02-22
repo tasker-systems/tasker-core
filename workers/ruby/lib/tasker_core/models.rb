@@ -192,8 +192,13 @@ module TaskerCore
       #
       # @param results_data [Hash] Hash of step names to their results
       def initialize(results_data)
-        # Use HashWithIndifferentAccess for developer-friendly key access
-        @results = (results_data || {}).with_indifferent_access
+        # Use HashWithIndifferentAccess for developer-friendly key access.
+        # serde_magnus serializes Rust struct field names as Ruby symbols, so
+        # each inner StepExecutionResult hash has symbol keys (:result, :success, etc.).
+        # Convert them to indifferent access so callers can use string or symbol keys.
+        raw = results_data || {}
+        @results = raw.transform_values { |v| v.is_a?(Hash) ? v.with_indifferent_access : v }
+                      .with_indifferent_access
       end
 
       # Get result from a parent step (returns full result hash)
