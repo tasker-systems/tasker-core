@@ -171,9 +171,7 @@ module TaskerCore
 
       # Extract all callable references
       def all_callables
-        callables = []
-        steps.each { |step| callables << step.handler.callable }
-        callables
+        steps.map { |step| step.handler.callable }
       end
 
       # Check if template is valid for registration
