@@ -198,6 +198,24 @@ class ProcessPaymentHandler < TaskerCore::StepHandler::Base
 end
 ```
 
+**Ruby Handler Alternative (DSL)**:
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+ProcessPaymentHandler = step_handler(
+  'ProcessPaymentHandler',
+  inputs: [:order_id, :amount]
+) do |order_id:, amount:, context:|
+  result = PaymentGateway.charge(amount: amount, idempotency_key: context.step_uuid)
+  if result.success?
+    { transaction_id: result.transaction_id }
+  else
+    raise TaskerCore::Errors::RetryableError.new(result.error)
+  end
+end
+```
+
 ### Key Patterns
 
 **1. Parallel Execution**
@@ -844,6 +862,26 @@ class RoutingDecisionHandler < TaskerCore::StepHandler::Decision
       }
     )
   end
+end
+```
+
+**DSL Alternative**:
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+RoutingDecisionHandler = decision_handler(
+  'RoutingDecisionHandler',
+  inputs: [:amount]
+) do |amount:, context:|
+  steps = if amount.to_f < 1_000
+    ['auto_approve']
+  elsif amount.to_f < 5_000
+    ['manager_approval']
+  else
+    ['manager_approval', 'finance_review']
+  end
+  Decision.route(steps, route_type: determine_route_type(amount), amount: amount)
 end
 ```
 

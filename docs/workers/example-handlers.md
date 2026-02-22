@@ -1,128 +1,93 @@
 # Example Handlers - Cross-Language Reference
 
-**Last Updated**: 2025-12-21
+**Last Updated**: 2026-02-21
 **Status**: Active
-<- Back to [Worker Crates Overview](README.md)
+<- Back to [Worker Crates Overview](index.md)
+
+> **DSL syntax**: All examples below use the functional DSL pattern (recommended for new projects). For the class-based alternative, see [Class-Based Handlers](../reference/class-based-handlers.md).
 
 ---
 
 ## Overview
 
-This document provides side-by-side handler examples across Ruby, Python, and Rust. These examples demonstrate the aligned APIs that enable consistent patterns across all worker implementations.
+This document provides side-by-side handler examples across Python, Ruby, TypeScript, and Rust. These examples demonstrate the aligned patterns that enable consistent handler authoring across all worker implementations.
 
 ---
 
 ## Simple Step Handler
 
+### Python
+
+```python
+from tasker_core.step_handler.functional import step_handler, inputs
+from app.services.types import EcommerceOrderInput
+from app.services import ecommerce as svc
+
+@step_handler("ecommerce_validate_cart")
+@inputs(EcommerceOrderInput)
+def validate_cart(inputs: EcommerceOrderInput, context):
+    return svc.validate_cart_items(
+        cart_items=inputs.cart_items,
+        customer_email=inputs.customer_email,
+    )
+```
+
 ### Ruby
 
 ```ruby
-class ProcessOrderHandler < TaskerCore::StepHandler::Base
-  def call(context)
-    order_id = context.get_task_field('order_id')
-    amount = context.get_task_field('amount')
+module Ecommerce
+  module StepHandlers
+    extend TaskerCore::StepHandler::Functional
 
-    result = process_order(order_id, amount)
-
-    success(
-      result: {
-        order_id: order_id,
-        status: 'processed',
-        total: result[:total]
-      },
-      metadata: { processed_at: Time.now.iso8601 }
-    )
-  rescue StandardError => e
-    failure(
-      message: e.message,
-      error_type: 'UnexpectedError',
-      retryable: true,
-      metadata: { order_id: order_id }
-    )
-  end
-
-  private
-
-  def process_order(order_id, amount)
-    # Business logic here
-    { total: amount * 1.08 }
+    ValidateCartHandler = step_handler(
+      'Ecommerce::StepHandlers::ValidateCartHandler',
+      inputs: Types::Ecommerce::OrderInput
+    ) do |inputs:, context:|
+      Ecommerce::Service.validate_cart_items(
+        cart_items: inputs.cart_items,
+        customer_email: inputs.customer_email,
+      )
+    end
   end
 end
 ```
 
-### Python
+### TypeScript
 
-```python
-from tasker_core import BaseStepHandler, StepContext, StepHandlerResult
+```typescript
+import { defineHandler } from '@tasker-systems/tasker';
+import type { CartItem } from '../services/types';
+import * as svc from '../services/ecommerce';
 
-
-class ProcessOrderHandler(BaseStepHandler):
-    def call(self, context: StepContext) -> StepHandlerResult:
-        try:
-            order_id = context.get_task_field("order_id")
-            amount = context.get_task_field("amount")
-
-            result = self.process_order(order_id, amount)
-
-            return self.success(
-                result={
-                    "order_id": order_id,
-                    "status": "processed",
-                    "total": result["total"],
-                },
-                metadata={"processed_at": datetime.now().isoformat()},
-            )
-        except Exception as e:
-            return self.failure(
-                message=str(e),
-                error_type="handler_error",
-                retryable=True,
-                metadata={"order_id": order_id},
-            )
-
-    def process_order(self, order_id: str, amount: float) -> dict:
-        # Business logic here
-        return {"total": amount * 1.08}
+export const ValidateCartHandler = defineHandler(
+  'Ecommerce.StepHandlers.ValidateCartHandler',
+  { inputs: { cartItems: 'cart_items' } },
+  async ({ cartItems }) =>
+    svc.validateCartItems(cartItems as CartItem[] | undefined),
+);
 ```
 
 ### Rust
 
 ```rust
-use tasker_shared::types::{TaskSequenceStep, StepExecutionResult};
+use serde_json::{json, Value};
 
-pub struct ProcessOrderHandler;
+pub fn validate_cart(context: &Value) -> Result<Value, String> {
+    let cart_items = context.get("cart_items")
+        .and_then(|v| v.as_array())
+        .ok_or("Missing cart_items in context")?;
 
-impl ProcessOrderHandler {
-    pub async fn call(&self, step_data: &TaskSequenceStep) -> StepExecutionResult {
-        let order_id = step_data.task.context.get("order_id")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
-        let amount = step_data.task.context.get("amount")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-
-        match self.process_order(order_id, amount).await {
-            Ok(result) => StepExecutionResult::success(
-                serde_json::json!({
-                    "order_id": order_id,
-                    "status": "processed",
-                    "total": result.total,
-                }),
-                Some(serde_json::json!({
-                    "processed_at": chrono::Utc::now().to_rfc3339(),
-                })),
-            ),
-            Err(e) => StepExecutionResult::failure(
-                &e.to_string(),
-                "handler_error",
-                true, // retryable
-            ),
-        }
+    if cart_items.is_empty() {
+        return Err("Cart cannot be empty".to_string());
     }
 
-    async fn process_order(&self, _order_id: &str, amount: f64) -> Result<OrderResult, Error> {
-        Ok(OrderResult { total: amount * 1.08 })
-    }
+    // Business logic: validate items, calculate pricing...
+    Ok(json!({
+        "validated_items": cart_items,
+        "subtotal": 59.97,
+        "tax": 4.80,
+        "total": 64.77
+    }))
 }
 ```
 
@@ -130,445 +95,510 @@ impl ProcessOrderHandler {
 
 ## Handler with Dependencies
 
+### Python
+
+```python
+from tasker_core.step_handler.functional import step_handler, depends_on, inputs
+from app.services.types import (
+    EcommerceOrderInput,
+    EcommerceValidateCartResult,
+    EcommerceProcessPaymentResult,
+    EcommerceUpdateInventoryResult,
+)
+from app.services import ecommerce as svc
+
+@step_handler("ecommerce_create_order")
+@depends_on(
+    cart_result=("validate_cart", EcommerceValidateCartResult),
+    payment_result=("process_payment", EcommerceProcessPaymentResult),
+    inventory_result=("update_inventory", EcommerceUpdateInventoryResult),
+)
+@inputs(EcommerceOrderInput)
+def create_order(
+    cart_result: EcommerceValidateCartResult,
+    payment_result: EcommerceProcessPaymentResult,
+    inventory_result: EcommerceUpdateInventoryResult,
+    inputs: EcommerceOrderInput,
+    context,
+):
+    return svc.create_order(
+        cart_result=cart_result,
+        payment_result=payment_result,
+        inventory_result=inventory_result,
+        customer_email=inputs.customer_email,
+    )
+```
+
 ### Ruby
 
 ```ruby
-class ShipOrderHandler < TaskerCore::StepHandler::Base
-  def call(context)
-    # Get results from dependent steps
-    validation = context.get_dependency_result('validate_order')
-    payment = context.get_dependency_result('process_payment')
+module Microservices
+  module StepHandlers
+    extend TaskerCore::StepHandler::Functional
 
-    unless validation && validation['valid']
-      return failure(
-        message: 'Order validation failed',
-        error_type: 'ValidationError',
-        retryable: false
+    SendWelcomeSequenceHandler = step_handler(
+      'Microservices::StepHandlers::SendWelcomeSequenceHandler',
+      depends_on: {
+        account_data: ['create_user_account', Types::Microservices::CreateUserResult],
+        billing_data: ['setup_billing_profile', Types::Microservices::SetupBillingResult],
+        preferences_data: ['initialize_preferences', Types::Microservices::InitPreferencesResult]
+      }
+    ) do |account_data:, billing_data:, preferences_data:, context:|
+      Microservices::Service.send_welcome_sequence(
+        account_data: account_data,
+        billing_data: billing_data,
+        preferences_data: preferences_data,
       )
     end
-
-    unless payment && payment['status'] == 'completed'
-      return failure(
-        message: 'Payment not completed',
-        error_type: 'PermanentError',
-        retryable: false
-      )
-    end
-
-    # Access task context
-    order_id = context.get_task_field('order_id')
-    shipping_address = context.get_task_field('shipping_address')
-
-    tracking_number = create_shipment(order_id, shipping_address)
-
-    success(result: {
-      order_id: order_id,
-      tracking_number: tracking_number,
-      shipped_at: Time.now.iso8601
-    })
   end
 end
 ```
 
-### Python
+### TypeScript
 
-```python
-class ShipOrderHandler(BaseStepHandler):
-    def call(self, context: StepContext) -> StepHandlerResult:
-        # Get results from dependent steps
-        validation = context.get_dependency_result("validate_order")
-        payment = context.get_dependency_result("process_payment")
+```typescript
+import { defineHandler } from '@tasker-systems/tasker';
+import * as svc from '../services/ecommerce';
 
-        if not validation or not validation.get("valid"):
-            return self.failure(
-                message="Order validation failed",
-                error_type="validation_error",
-                retryable=False,
-            )
+export const CreateOrderHandler = defineHandler(
+  'Ecommerce.StepHandlers.CreateOrderHandler',
+  {
+    depends: {
+      cartResult: 'validate_cart',
+      paymentResult: 'process_payment',
+      inventoryResult: 'update_inventory',
+    },
+    inputs: { customerEmail: 'customer_email' },
+  },
+  async ({ cartResult, paymentResult, inventoryResult, customerEmail }) =>
+    svc.createOrder(
+      cartResult as Record<string, unknown>,
+      paymentResult as Record<string, unknown>,
+      inventoryResult as Record<string, unknown>,
+      customerEmail as string | undefined,
+    ),
+);
+```
 
-        if not payment or payment.get("status") != "completed":
-            return self.failure(
-                message="Payment not completed",
-                error_type="permanent_error",
-                retryable=False,
-            )
+### Rust
 
-        # Access task context
-        order_id = context.get_task_field("order_id")
-        shipping_address = context.get_task_field("shipping_address")
+```rust
+use serde_json::{json, Value};
+use std::collections::HashMap;
 
-        tracking_number = self.create_shipment(order_id, shipping_address)
+pub fn create_order(
+    context: &Value,
+    dependency_results: &HashMap<String, Value>,
+) -> Result<Value, String> {
+    let cart_result = dependency_results
+        .get("validate_cart")
+        .ok_or("Missing validate_cart dependency")?;
+    let payment_result = dependency_results
+        .get("process_payment")
+        .ok_or("Missing process_payment dependency")?;
+    let inventory_result = dependency_results
+        .get("update_inventory")
+        .ok_or("Missing update_inventory dependency")?;
 
-        return self.success(
-            result={
-                "order_id": order_id,
-                "tracking_number": tracking_number,
-                "shipped_at": datetime.now().isoformat(),
-            }
-        )
+    let customer_email = context
+        .get("customer_email")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown@example.com");
+
+    Ok(json!({
+        "order_id": format!("ord_{}", uuid::Uuid::new_v4()),
+        "customer_email": customer_email,
+        "total": cart_result.get("total").and_then(|v| v.as_f64()).unwrap_or(0.0),
+        "payment_id": payment_result.get("payment_id"),
+        "inventory_log_id": inventory_result.get("inventory_log_id"),
+        "status": "confirmed"
+    }))
+}
 ```
 
 ---
 
 ## Decision Handler
 
-### Ruby
-
-```ruby
-class ApprovalRoutingHandler < TaskerCore::StepHandler::Decision
-  THRESHOLDS = {
-    auto_approve: 1000,
-    manager_only: 5000
-  }.freeze
-
-  def call(context)
-    amount = context.get_task_field('amount').to_f
-    department = context.get_task_field('department')
-
-    if amount < THRESHOLDS[:auto_approve]
-      decision_success(
-        steps: ['auto_approve'],
-        result_data: {
-          route_type: 'automatic',
-          amount: amount,
-          reason: 'Below threshold'
-        }
-      )
-    elsif amount < THRESHOLDS[:manager_only]
-      decision_success(
-        steps: ['manager_approval'],
-        result_data: {
-          route_type: 'manager',
-          amount: amount,
-          approver: find_manager(department)
-        }
-      )
-    else
-      decision_success(
-        steps: ['manager_approval', 'finance_review'],
-        result_data: {
-          route_type: 'dual_approval',
-          amount: amount,
-          requires_cfo: amount > 50_000
-        }
-      )
-    end
-  end
-
-  private
-
-  def find_manager(department)
-    # Lookup logic
-    "manager@example.com"
-  end
-end
-```
+Decision handlers route workflows dynamically by activating different step sets based on business logic. The DSL returns a `Decision` object — `Decision.route(steps)` to activate branches or `Decision.skip(reason)` to skip. For full details, see [Conditional Workflows](../guides/conditional-workflows.md).
 
 ### Python
 
 ```python
-class ApprovalRoutingHandler(DecisionHandler):
-    THRESHOLDS = {
-        "auto_approve": 1000,
-        "manager_only": 5000,
+from tasker_core.step_handler.functional import decision_handler, inputs, Decision
+
+@decision_handler("routing_decision")
+@inputs('amount')
+def routing_decision(amount, context):
+    amount = float(amount or 0)
+
+    if amount < 1000:
+        return Decision.route(
+            ['auto_approve'],
+            route_type='automatic', amount=amount,
+        )
+    elif amount < 5000:
+        return Decision.route(
+            ['manager_approval'],
+            route_type='manager', amount=amount,
+        )
+    else:
+        return Decision.route(
+            ['manager_approval', 'finance_review'],
+            route_type='dual_approval', amount=amount,
+        )
+```
+
+### Ruby
+
+```ruby
+module Orders
+  module StepHandlers
+    extend TaskerCore::StepHandler::Functional
+
+    RoutingDecisionHandler = decision_handler(
+      'Orders::StepHandlers::RoutingDecisionHandler',
+      inputs: [:amount]
+    ) do |amount:, context:|
+      amount = amount.to_f
+
+      if amount < 1000
+        Decision.route(['auto_approve'], route_type: 'automatic', amount: amount)
+      elsif amount < 5000
+        Decision.route(['manager_approval'], route_type: 'manager', amount: amount)
+      else
+        Decision.route(
+          ['manager_approval', 'finance_review'],
+          route_type: 'dual_approval', amount: amount
+        )
+      end
+    end
+  end
+end
+```
+
+### TypeScript
+
+```typescript
+import { defineDecisionHandler, Decision } from '@tasker-systems/tasker';
+
+export const RoutingDecisionHandler = defineDecisionHandler(
+  'Orders.StepHandlers.RoutingDecisionHandler',
+  { inputs: { amount: 'amount' } },
+  async ({ amount }) => {
+    const amt = (amount as number) || 0;
+
+    if (amt < 1000) {
+      return Decision.route(['auto_approve'], { routeType: 'automatic', amount: amt });
+    } else if (amt < 5000) {
+      return Decision.route(['manager_approval'], { routeType: 'manager', amount: amt });
+    } else {
+      return Decision.route(
+        ['manager_approval', 'finance_review'],
+        { routeType: 'dual_approval', amount: amt },
+      );
     }
+  },
+);
+```
 
-    def call(self, context: StepContext) -> StepHandlerResult:
-        amount = float(context.get_task_field("amount") or 0)
-        department = context.get_task_field("department")
+### Rust
 
-        if amount < self.THRESHOLDS["auto_approve"]:
-            return self.decision_success(
-                steps=["auto_approve"],
-                routing_context={
-                    "route_type": "automatic",
-                    "amount": amount,
-                    "reason": "Below threshold",
-                },
-            )
-        elif amount < self.THRESHOLDS["manager_only"]:
-            return self.decision_success(
-                steps=["manager_approval"],
-                routing_context={
-                    "route_type": "manager",
-                    "amount": amount,
-                    "approver": self.find_manager(department),
-                },
-            )
-        else:
-            return self.decision_success(
-                steps=["manager_approval", "finance_review"],
-                routing_context={
-                    "route_type": "dual_approval",
-                    "amount": amount,
-                    "requires_cfo": amount > 50000,
-                },
-            )
+```rust
+use tasker_shared::messaging::DecisionPointOutcome;
+use serde_json::{json, Value};
 
-    def find_manager(self, department: str) -> str:
-        return "manager@example.com"
+pub fn routing_decision(context: &Value) -> Result<Value, String> {
+    let amount = context.get("amount")
+        .and_then(|v| v.as_f64())
+        .ok_or("Amount is required for routing decision")?;
+
+    let (route_type, steps) = if amount < 1000.0 {
+        ("automatic", vec!["auto_approve"])
+    } else if amount < 5000.0 {
+        ("manager", vec!["manager_approval"])
+    } else {
+        ("dual_approval", vec!["manager_approval", "finance_review"])
+    };
+
+    let outcome = DecisionPointOutcome::create_steps(
+        steps.iter().map(|s| s.to_string()).collect()
+    );
+
+    Ok(json!({
+        "route_type": route_type,
+        "amount": amount,
+        "decision_point_outcome": outcome.to_value()
+    }))
+}
 ```
 
 ---
 
 ## Batch Processing Handler
 
-### Ruby (Analyzer)
+Batch handlers use the Analyzer/Worker pattern. The analyzer returns a `BatchConfig` specifying total items and batch size; the orchestrator automatically generates cursor ranges and spawns workers. For full details, see [Batch Processing](../guides/batch-processing.md).
 
-```ruby
-class CsvAnalyzerHandler < TaskerCore::StepHandler::Batchable
-  BATCH_SIZE = 100
-
-  def call(context)
-    file_path = context.get_task_field('csv_file_path')
-    total_rows = count_csv_rows(file_path)
-
-    if total_rows <= BATCH_SIZE
-      # Small file - process inline, no batches needed
-      outcome = TaskerCore::Types::BatchProcessingOutcome.no_batches
-
-      success(
-        result: {
-          batch_processing_outcome: outcome.to_h,
-          total_rows: total_rows,
-          processing_mode: 'inline'
-        }
-      )
-    else
-      # Large file - create batch workers
-      cursor_configs = calculate_batches(total_rows, BATCH_SIZE)
-      outcome = TaskerCore::Types::BatchProcessingOutcome.create_batches(
-        worker_template_name: 'process_csv_batch',
-        worker_count: cursor_configs.size,
-        cursor_configs: cursor_configs,
-        total_items: total_rows
-      )
-
-      success(
-        result: {
-          batch_processing_outcome: outcome.to_h,
-          total_rows: total_rows,
-          batch_count: cursor_configs.size
-        }
-      )
-    end
-  end
-
-  private
-
-  def calculate_batches(total, batch_size)
-    (0...total).step(batch_size).map.with_index do |start, idx|
-      {
-        'batch_id' => format('%03d', idx),
-        'start_cursor' => start,
-        'end_cursor' => [start + batch_size, total].min,
-        'batch_size' => [batch_size, total - start].min
-      }
-    end
-  end
-end
-```
-
-### Ruby (Batch Worker)
-
-```ruby
-class CsvBatchWorkerHandler < TaskerCore::StepHandler::Batchable
-  def call(context)
-    batch_ctx = get_batch_context(context)
-
-    # Handle placeholder batches
-    no_op_result = handle_no_op_worker(batch_ctx)
-    return no_op_result if no_op_result
-
-    # Get file path from analyzer step
-    analyzer_result = context.get_dependency_result('analyze_csv')
-    file_path = analyzer_result&.dig('csv_file_path')
-
-    # Process this batch
-    records = read_csv_range(file_path, batch_ctx.start_cursor, batch_ctx.batch_size)
-    processed = records.map { |row| transform_row(row) }
-
-    batch_worker_success(
-      items_processed: processed.size,
-      items_succeeded: processed.size,
-      results: processed,
-      last_cursor: batch_ctx.start_cursor + processed.size,
-      metadata: {
-        batch_id: batch_ctx.batch_id,
-        summary: calculate_summary(processed)
-      }
-    )
-  end
-end
-```
-
-### Python (Batch Worker)
+### Python (Analyzer + Worker)
 
 ```python
-class CsvBatchWorkerHandler(BatchableHandler):
-    def call(self, context: StepContext) -> StepHandlerResult:
-        batch_ctx = self.get_batch_context(context)
+from tasker_core.step_handler.functional import (
+    batch_analyzer, batch_worker, inputs, depends_on, BatchConfig,
+)
 
-        # Handle placeholder batches
-        no_op_result = self.handle_no_op_worker(batch_ctx)
-        if no_op_result:
-            return no_op_result
+@batch_analyzer("analyze_csv", worker_template="process_csv_batch")
+@inputs('csv_file_path')
+def analyze_csv(csv_file_path, context):
+    total_rows = count_csv_rows(csv_file_path)
+    return BatchConfig(total_items=total_rows, batch_size=100)
 
-        # Get file path from analyzer step
-        analyzer_result = context.get_dependency_result("analyze_csv")
-        file_path = analyzer_result.get("csv_file_path") if analyzer_result else None
+@batch_worker("process_csv_batch")
+@depends_on(analyzer_result="analyze_csv")
+def process_csv_batch(analyzer_result, batch_context, context):
+    records = read_csv_range(
+        analyzer_result['csv_file_path'],
+        batch_context.start_cursor,
+        batch_context.batch_size,
+    )
+    processed = [transform_row(row) for row in records]
+    return {"items_processed": len(processed), "items_succeeded": len(processed)}
+```
 
-        # Process this batch
-        records = self.read_csv_range(
-            file_path, batch_ctx.start_cursor, batch_ctx.batch_size
-        )
-        processed = [self.transform_row(row) for row in records]
+### Ruby (Analyzer + Worker)
 
-        return self.batch_worker_success(
-            items_processed=len(processed),
-            items_succeeded=len(processed),
-            results=processed,
-            last_cursor=batch_ctx.start_cursor + len(processed),
-            batch_metadata={
-                "batch_id": batch_ctx.batch_id,
-                "summary": self.calculate_summary(processed),
-            },
-        )
+```ruby
+module Csv
+  module StepHandlers
+    extend TaskerCore::StepHandler::Functional
+
+    AnalyzeCsvHandler = batch_analyzer(
+      'Csv::StepHandlers::AnalyzeCsvHandler',
+      worker_template: 'process_csv_batch',
+      inputs: [:csv_file_path]
+    ) do |csv_file_path:, context:|
+      total_rows = count_csv_rows(csv_file_path)
+      BatchConfig.new(total_items: total_rows, batch_size: 100)
+    end
+
+    ProcessCsvBatchHandler = batch_worker(
+      'Csv::StepHandlers::ProcessCsvBatchHandler',
+      depends_on: { analyzer_result: ['analyze_csv'] }
+    ) do |analyzer_result:, batch_context:, context:|
+      records = read_csv_range(
+        analyzer_result['csv_file_path'],
+        batch_context.start_cursor,
+        batch_context.batch_size
+      )
+      processed = records.map { |row| transform_row(row) }
+      { items_processed: processed.size, items_succeeded: processed.size }
+    end
+  end
+end
+```
+
+### TypeScript (Analyzer + Worker)
+
+```typescript
+import { defineBatchAnalyzer, defineBatchWorker } from '@tasker-systems/tasker';
+
+export const AnalyzeCsvHandler = defineBatchAnalyzer(
+  'Csv.StepHandlers.AnalyzeCsvHandler',
+  { workerTemplate: 'process_csv_batch', inputs: { csvFilePath: 'csv_file_path' } },
+  async ({ csvFilePath }) => ({
+    totalItems: await countCsvRows(csvFilePath as string),
+    batchSize: 100,
+  }),
+);
+
+export const ProcessCsvBatchHandler = defineBatchWorker(
+  'Csv.StepHandlers.ProcessCsvBatchHandler',
+  { depends: { analyzerResult: 'analyze_csv' } },
+  async ({ analyzerResult, batchContext }) => {
+    const records = await readCsvRange(
+      (analyzerResult as Record<string, unknown>).csvFilePath as string,
+      batchContext?.startCursor ?? 0,
+      batchContext?.batchSize ?? 100,
+    );
+    return { itemsProcessed: records.length, itemsSucceeded: records.length };
+  },
+);
+```
+
+### Rust
+
+```rust
+use serde_json::{json, Value};
+
+// Batch analyzers in Rust return batch configuration via the result
+pub fn analyze_csv(context: &Value) -> Result<Value, String> {
+    let file_path = context.get("csv_file_path")
+        .and_then(|v| v.as_str())
+        .ok_or("Missing csv_file_path")?;
+
+    let total_rows = count_csv_rows(file_path)?;
+
+    Ok(json!({
+        "total_items": total_rows,
+        "batch_size": 100,
+        "csv_file_path": file_path
+    }))
+}
 ```
 
 ---
 
 ## API Handler
 
+API handlers add HTTP client methods with automatic error classification (429 -> retryable, 4xx -> permanent, 5xx -> retryable). The DSL provides an `api` object with `get`, `post`, `put`, `delete` methods and result helpers like `api_success` / `api_failure`.
+
+### Python
+
+```python
+from tasker_core.step_handler.functional import api_handler, inputs
+
+@api_handler("fetch_user", base_url="https://api.example.com")
+@inputs('user_id')
+def fetch_user(user_id, api, context):
+    response = api.get(f"/users/{user_id}")
+    return api.api_success(result={
+        "user_id": user_id,
+        "email": response["email"],
+        "name": response["name"],
+    })
+```
+
 ### Ruby
 
 ```ruby
-class FetchUserHandler < TaskerCore::StepHandler::Api
-  def call(context)
-    user_id = context.get_task_field('user_id')
+module Users
+  module StepHandlers
+    extend TaskerCore::StepHandler::Functional
 
-    # Automatic error classification (429 -> retryable, 404 -> permanent)
-    response = connection.get("/users/#{user_id}")
-    process_response(response)
-
-    success(result: {
-      user_id: user_id,
-      email: response.body['email'],
-      name: response.body['name']
-    })
-  end
-
-  def base_url
-    'https://api.example.com'
-  end
-
-  def configure_connection
-    Faraday.new(base_url) do |conn|
-      conn.request :json
-      conn.response :json
-      conn.options.timeout = 30
+    FetchUserHandler = api_handler(
+      'Users::StepHandlers::FetchUserHandler',
+      base_url: 'https://api.example.com',
+      inputs: [:user_id]
+    ) do |user_id:, api:, context:|
+      response = api.get("/users/#{user_id}")
+      api.api_success(result: {
+        user_id: user_id,
+        email: response.body['email'],
+        name: response.body['name']
+      })
     end
   end
 end
 ```
 
-### Python
+### TypeScript
 
-```python
-class FetchUserHandler(ApiStepHandler):
-    def call(self, context: StepContext) -> StepHandlerResult:
-        user_id = context.get_task_field("user_id")
+```typescript
+import { defineApiHandler } from '@tasker-systems/tasker';
 
-        # Automatic error classification
-        response = self.get(f"/users/{user_id}")
-
-        return self.success(
-            result={
-                "user_id": user_id,
-                "email": response["email"],
-                "name": response["name"],
-            }
-        )
-
-    @property
-    def base_url(self) -> str:
-        return "https://api.example.com"
-
-    def configure_session(self, session):
-        session.headers["Authorization"] = f"Bearer {self.get_token()}"
-        session.timeout = 30
+export const FetchUserHandler = defineApiHandler(
+  'Users.StepHandlers.FetchUserHandler',
+  {
+    baseUrl: 'https://api.example.com',
+    inputs: { userId: 'user_id' },
+  },
+  async ({ userId, api }) => {
+    const response = await api.get(`/users/${userId}`);
+    return api.apiSuccess({
+      userId,
+      email: response.email,
+      name: response.name,
+    });
+  },
+);
 ```
 
 ---
 
 ## Error Handling Patterns
 
-### Ruby - Raising Exceptions
+### Python (DSL — exceptions)
+
+```python
+from tasker_core import PermanentError, RetryableError
+
+@step_handler("validate_order")
+@inputs(OrderInput)
+def validate_order(inputs: OrderInput, context):
+    if not inputs.amount or inputs.amount <= 0:
+        raise PermanentError(
+            "Order amount must be positive",
+            error_code="INVALID_AMOUNT",
+        )
+
+    if external_service_unavailable():
+        raise RetryableError("External service temporarily unavailable")
+
+    return {"valid": True, "amount": inputs.amount}
+```
+
+### Ruby (DSL — exceptions)
 
 ```ruby
-class ValidateOrderHandler < TaskerCore::StepHandler::Base
-  def call(context)
-    order = context.task.context
+ValidateOrderHandler = step_handler(
+  'Orders::StepHandlers::ValidateOrderHandler',
+  inputs: Types::Orders::OrderInput
+) do |inputs:, context:|
+  raise TaskerCore::Errors::PermanentError.new(
+    'Order amount must be positive',
+    error_code: 'INVALID_AMOUNT'
+  ) if inputs.amount.to_f <= 0
 
-    # Permanent error - will not retry
-    if order['amount'].to_f <= 0
-      raise TaskerCore::Errors::PermanentError.new(
-        'Order amount must be positive',
-        error_code: 'INVALID_AMOUNT',
-        context: { amount: order['amount'] }
-      )
-    end
+  raise TaskerCore::Errors::RetryableError.new(
+    'External service temporarily unavailable'
+  ) if external_service_unavailable?
 
-    # Retryable error - will retry with backoff
-    if external_service_unavailable?
-      raise TaskerCore::Errors::RetryableError.new(
-        'External service temporarily unavailable',
-        retry_after: 30,
-        context: { service: 'payment_gateway' }
-      )
-    end
-
-    success(result: { valid: true })
-  end
+  { valid: true, amount: inputs.amount }
 end
 ```
 
-### Python - Returning Failures
+### TypeScript (DSL — exceptions)
 
-```python
-class ValidateOrderHandler(BaseStepHandler):
-    def call(self, context: StepContext) -> StepHandlerResult:
-        order = context.task.context
+```typescript
+import { defineHandler, PermanentError, RetryableError } from '@tasker-systems/tasker';
 
-        # Permanent error - will not retry
-        amount = float(order.get("amount", 0))
-        if amount <= 0:
-            return self.failure(
-                message="Order amount must be positive",
-                error_type="validation_error",
-                error_code="INVALID_AMOUNT",
-                retryable=False,
-                metadata={"amount": amount},
-            )
-
-        # Retryable error - will retry with backoff
-        if self.external_service_unavailable():
-            return self.failure(
-                message="External service temporarily unavailable",
-                error_type="retryable_error",
-                retryable=True,
-                metadata={"service": "payment_gateway"},
-            )
-
-        return self.success(result={"valid": True})
+export const ValidateOrderHandler = defineHandler(
+  'Orders.StepHandlers.ValidateOrderHandler',
+  { inputs: { amount: 'amount' } },
+  async ({ amount }) => {
+    if (!amount || (amount as number) <= 0) {
+      throw new PermanentError('Order amount must be positive', 'INVALID_AMOUNT');
+    }
+    return { valid: true, amount };
+  },
+);
 ```
+
+### Rust (Result type)
+
+```rust
+pub fn validate_order(context: &Value) -> Result<Value, String> {
+    let amount = context.get("amount")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+
+    if amount <= 0.0 {
+        return Err("Order amount must be positive".to_string());
+    }
+
+    Ok(json!({ "valid": true, "amount": amount }))
+}
+```
+
+For finer control over retryability in Rust, use `StepExecutionResult` directly in a `StepHandler` implementation. See [Building with Rust](../building/rust.md#error-handling).
 
 ---
 
 ## See Also
 
+- [Class-Based Handlers](../reference/class-based-handlers.md) - Class-based alternative for all languages
 - [API Convergence Matrix](api-convergence-matrix.md) - Quick reference tables
 - [Patterns and Practices](patterns-and-practices.md) - Common patterns
-- [Ruby Worker](ruby.md) - Ruby implementation details
-- [Python Worker](python.md) - Python implementation details
-- [Rust Worker](rust.md) - Rust implementation details
+- [Building with Python](../building/python.md) - Python handler guide
+- [Building with Ruby](../building/ruby.md) - Ruby handler guide
+- [Building with TypeScript](../building/typescript.md) - TypeScript handler guide
+- [Building with Rust](../building/rust.md) - Rust handler guide

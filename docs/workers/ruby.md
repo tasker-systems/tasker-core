@@ -116,6 +116,65 @@ Ruby communicates with the Rust foundation via FFI polling:
 
 ## Handler Development
 
+### DSL Handlers (Recommended)
+
+> Both DSL and class-based handlers are fully supported. DSL is recommended for new projects. See [Class-Based Handlers](../reference/class-based-handlers.md) for the inheritance-based patterns.
+
+The functional DSL provides a block-based approach for defining handlers:
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+ValidateCartHandler = step_handler(
+  'Ecommerce::StepHandlers::ValidateCartHandler',
+  inputs: Types::Ecommerce::OrderInput
+) do |inputs:, context:|
+  Ecommerce::Service.validate_cart_items(inputs.cart_items)
+end
+```
+
+**Specialized DSL Handlers**:
+
+```ruby
+RoutingHandler = decision_handler(
+  'RoutingDecisionHandler',
+  inputs: [:amount]
+) do |amount:, context:|
+  if amount.to_f < 1000
+    Decision.route(['auto_approve'], route_type: 'automatic')
+  else
+    Decision.route(['manager_approval'], route_type: 'manager')
+  end
+end
+
+FetchUserHandler = api_handler(
+  'Users::StepHandlers::FetchUserHandler',
+  base_url: 'https://api.example.com',
+  inputs: [:user_id]
+) do |user_id:, api:, context:|
+  response = api.get("/users/#{user_id}")
+  api.api_success(result: { user: response.body })
+end
+
+CsvAnalyzer = batch_analyzer(
+  'Csv::StepHandlers::CsvAnalyzerHandler',
+  inputs: [:csv_path]
+) do |csv_path:, context:|
+  BatchConfig.new(total_items: count_rows(csv_path), batch_size: 100)
+end
+
+CsvWorker = batch_worker(
+  'Csv::StepHandlers::CsvWorkerHandler',
+  analyzer_step: 'analyze_csv'
+) do |batch_context:, context:|
+  { processed: batch_context.batch_size }
+end
+```
+
+### Class-Based Handlers
+
+The class-based patterns below remain fully supported.
+
 ### Base Handler
 
 **Location**: `lib/tasker_core/step_handler/base.rb`
@@ -652,6 +711,24 @@ bundle exec rspec spec/handlers/
 
 ### Linear Workflow
 
+**DSL** (recommended):
+
+```ruby
+extend TaskerCore::StepHandler::Functional
+
+LinearStep1Handler = step_handler(
+  'LinearWorkflow::StepHandlers::LinearStep1Handler'
+) do |context:|
+  {
+    step1_processed: true,
+    input_received: context.context,
+    processed_at: Time.now.iso8601
+  }
+end
+```
+
+**Class-based**:
+
 ```ruby
 # spec/handlers/examples/linear_workflow/step_handlers/linear_step_1_handler.rb
 module LinearWorkflow
@@ -671,6 +748,31 @@ end
 ```
 
 ### Order Fulfillment
+
+**DSL** (recommended):
+
+```ruby
+ValidateOrderHandler = step_handler(
+  'ValidateOrderHandler'
+) do |context:|
+  order = context.context
+
+  unless order['items']&.any?
+    raise TaskerCore::Errors::PermanentError.new(
+      'Order must have at least one item',
+      error_code: 'EMPTY_ORDER'
+    )
+  end
+
+  {
+    valid: true,
+    item_count: order['items'].size,
+    total: calculate_total(order['items'])
+  }
+end
+```
+
+**Class-based**:
 
 ```ruby
 class ValidateOrderHandler < TaskerCore::StepHandler::Base
@@ -696,6 +798,25 @@ end
 ```
 
 ### Conditional Approval
+
+**DSL** (recommended):
+
+```ruby
+RoutingDecisionHandler = decision_handler(
+  'RoutingDecisionHandler',
+  inputs: [:amount]
+) do |amount:, context:|
+  if amount.to_f < 1000
+    Decision.route(['auto_approve'], route_type: 'automatic')
+  elsif amount.to_f < 5000
+    Decision.route(['manager_approval'], route_type: 'manager')
+  else
+    Decision.route(['manager_approval', 'finance_review'], route_type: 'dual')
+  end
+end
+```
+
+**Class-based**:
 
 ```ruby
 class RoutingDecisionHandler < TaskerCore::StepHandler::Decision

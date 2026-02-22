@@ -162,6 +162,58 @@ Python communicates with the Rust foundation via FFI polling:
 
 ## Handler Development
 
+### DSL Handlers (Recommended)
+
+> Both DSL and class-based handlers are fully supported. DSL is recommended for new projects. See [Class-Based Handlers](../reference/class-based-handlers.md) for the inheritance-based patterns.
+
+The functional DSL provides a decorator-based approach for defining handlers:
+
+```python
+from tasker_core.step_handler.functional import step_handler, inputs, depends_on
+
+@step_handler("process_order")
+@inputs(OrderInput)   # Pydantic BaseModel
+@depends_on(validation=ValidationResult)  # optional typed dependencies
+def process_order(inputs: OrderInput, validation: ValidationResult, context):
+    result = process(inputs.order_id, inputs.amount)
+    return {"order_id": inputs.order_id, "status": "processed", "total": result["total"]}
+```
+
+**Specialized DSL Handlers**:
+
+```python
+from tasker_core.step_handler.functional import (
+    decision_handler, api_handler, batch_analyzer, batch_worker,
+    Decision, BatchConfig
+)
+
+@decision_handler("routing_decision")
+@inputs('amount')
+def routing_decision(amount, context):
+    if float(amount or 0) < 1000:
+        return Decision.route(['auto_approve'], route_type='automatic')
+    return Decision.route(['manager_approval'], route_type='manager')
+
+@api_handler("fetch_user", base_url="https://api.example.com")
+@inputs('user_id')
+def fetch_user(user_id, api, context):
+    response = api.get(f"/users/{user_id}")
+    return api.api_success(result=response.body)
+
+@batch_analyzer("csv_analyzer")
+@inputs('csv_path')
+def csv_analyzer(csv_path, context):
+    return BatchConfig(total_items=count_rows(csv_path), batch_size=100)
+
+@batch_worker("csv_processor", analyzer_step="analyze_csv")
+def csv_processor(batch_context, context):
+    return {"processed": batch_context.batch_size}
+```
+
+### Class-Based Handlers
+
+The class-based patterns below remain fully supported.
+
 ### Base Handler (ABC)
 
 **Location**: `python/tasker_core/step_handler/base.py`
@@ -225,12 +277,12 @@ return self.failure(
 # Or using factory methods
 from tasker_core import StepHandlerResult
 
-return StepHandlerResult.success_handler_result(
+return StepHandlerResult.success(
     {"key": "value"},
     {"duration_ms": 100}
 )
 
-return StepHandlerResult.failure_handler_result(
+return StepHandlerResult.failure(
     message="Error",
     error_type="validation_error",
     retryable=False
@@ -573,7 +625,7 @@ context.input_data     # dict
 context.retry_count    # int
 
 # StepHandlerResult - structured result
-result = StepHandlerResult.success_handler_result({"key": "value"})
+result = StepHandlerResult.success({"key": "value"})
 result.success         # True
 result.result          # {"key": "value"}
 result.error_message   # None
@@ -808,7 +860,13 @@ signal.signal(signal.SIGINT, handle_shutdown)
 
 ### Exception Classes
 
+Python uses two error modules:
+
+- `tasker_core.exceptions` -- FFI and bootstrap errors
+- `tasker_core.errors` -- Execution errors (handler-level)
+
 ```python
+# FFI/bootstrap errors (tasker_core.exceptions)
 from tasker_core import (
     TaskerError,              # Base class
     WorkerNotInitializedError,
@@ -816,30 +874,38 @@ from tasker_core import (
     WorkerAlreadyRunningError,
     FFIError,
     ConversionError,
-    StepExecutionError,
+)
+
+# Execution errors (tasker_core.errors)
+from tasker_core.errors import (
+    StepExecutionError,       # Base execution error
+    RetryableError,           # Transient failures (will be retried)
+    PermanentError,           # Unrecoverable failures (no retry)
 )
 ```
 
-### Using StepExecutionError
+### Using Execution Errors
+
+Use `RetryableError` and `PermanentError` for handler-level error classification:
 
 ```python
-from tasker_core import StepExecutionError
+from tasker_core.errors import RetryableError, PermanentError
 
 def call(self, context):
-    # Retryable error
-    raise StepExecutionError(
+    # Retryable error (transient failure)
+    raise RetryableError(
         "Database connection timeout",
-        error_type="database_error",
-        retryable=True
+        error_type="database_error"
     )
 
-    # Non-retryable error
-    raise StepExecutionError(
+    # Permanent error (unrecoverable)
+    raise PermanentError(
         "Invalid input format",
-        error_type="validation_error",
-        retryable=False
+        error_type="validation_error"
     )
 ```
+
+`StepExecutionError` remains available as the base class for custom execution errors:
 
 ---
 
@@ -937,6 +1003,22 @@ uv run ruff check python/
 
 ### Linear Workflow
 
+**DSL** (recommended):
+
+```python
+from tasker_core.step_handler.functional import step_handler
+
+@step_handler("linear_step_1")
+def linear_step_1(context):
+    return {
+        "step1_processed": True,
+        "input_received": context.input_data,
+        "processed_at": datetime.now().isoformat()
+    }
+```
+
+**Class-based**:
+
 ```python
 class LinearStep1Handler(StepHandler):
     handler_name = "linear_step_1"
@@ -950,6 +1032,23 @@ class LinearStep1Handler(StepHandler):
 ```
 
 ### Data Processing
+
+**DSL** (recommended):
+
+```python
+from tasker_core.step_handler.functional import step_handler, depends_on
+
+@step_handler("transform_data")
+@depends_on(fetch_data=dict)
+def transform_data(fetch_data: dict, context):
+    transformed = [
+        {"id": item["id"], "value": item["raw_value"] * 2}
+        for item in fetch_data.get("items", [])
+    ]
+    return {"items": transformed, "count": len(transformed)}
+```
+
+**Class-based**:
 
 ```python
 class TransformDataHandler(StepHandler):
@@ -972,6 +1071,24 @@ class TransformDataHandler(StepHandler):
 ```
 
 ### Conditional Approval
+
+**DSL** (recommended):
+
+```python
+from tasker_core.step_handler.functional import decision_handler, inputs, Decision
+
+@decision_handler("approval_router")
+@inputs('amount')
+def approval_router(amount, context):
+    amount = float(amount or 0)
+    if amount < 1000:
+        return Decision.route(['auto_approve'], route_type='automatic')
+    elif amount < 5000:
+        return Decision.route(['manager_approval'], route_type='manager')
+    return Decision.route(['manager_approval', 'finance_review'], route_type='dual')
+```
+
+**Class-based**:
 
 ```python
 class ApprovalRouterHandler(DecisionHandler):

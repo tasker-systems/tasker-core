@@ -299,75 +299,76 @@ All workers support specialized handler types:
 Basic step execution:
 
 ```python
-class MyHandler(StepHandler):
-    handler_name = "my_handler"
+from tasker_core.step_handler.functional import step_handler, inputs
 
-    def call(self, context):
-        return self.success({"result": "done"})
+@step_handler("my_handler")
+@inputs(MyInputModel)
+def my_handler(inputs: MyInputModel, context):
+    return {"result": "done"}
 ```
+
+See [Class-Based Handlers](../reference/class-based-handlers.md) for the inheritance-based alternative.
 
 ### ApiHandler
 
 HTTP/REST API integration with automatic error classification:
 
 ```ruby
-class FetchDataHandler < TaskerCore::StepHandler::Api
-  def call(context)
-    user_id = context.get_task_field('user_id')
-    response = connection.get("/users/#{user_id}")
-    process_response(response)
-    success(result: response.body)
-  end
+extend TaskerCore::StepHandler::Functional
+
+FetchDataHandler = api_handler(
+  'FetchDataHandler',
+  base_url: 'https://api.example.com',
+  inputs: [:user_id]
+) do |user_id:, api:, context:|
+  response = api.get("/users/#{user_id}")
+  api.api_success(result: { user: response.body })
 end
 ```
+
+See [Class-Based Handlers](../reference/class-based-handlers.md) for the inheritance-based alternative.
 
 ### DecisionHandler
 
 Dynamic workflow routing:
 
 ```python
-class RouteHandler(DecisionHandler):
-    handler_name = "route_handler"
+from tasker_core.step_handler.functional import decision_handler, Decision
 
-    def call(self, context):
-        if context.input_data["amount"] < 1000:
-            return self.route_to_steps(["auto_approve"])
-        return self.route_to_steps(["manager_approval"])
+@decision_handler("routing_decision")
+@inputs('amount')
+def routing_decision(amount, context):
+    if float(amount or 0) < 1000:
+        return Decision.route(['auto_approve'], route_type='automatic')
+    return Decision.route(['manager_approval'], route_type='manager')
 ```
+
+See [Class-Based Handlers](../reference/class-based-handlers.md) for the inheritance-based alternative.
 
 ### Batchable
 
-Large dataset processing. Note: Ruby uses subclass inheritance, Python uses mixin:
+Large dataset processing with separate analyzer and worker handlers:
 
-**Ruby** (subclass of Base):
+```typescript
+import { defineBatchAnalyzer, defineBatchWorker, BatchConfig } from '@tasker-systems/tasker';
 
-```ruby
-class CsvBatchProcessorHandler < TaskerCore::StepHandler::Batchable
-  def call(context)
-    batch_ctx = get_batch_context(context)
-    no_op_result = handle_no_op_worker(batch_ctx)
-    return no_op_result if no_op_result
+export const CsvAnalyzer = defineBatchAnalyzer(
+  'Csv.StepHandlers.CsvAnalyzerHandler',
+  { inputs: { csvPath: 'csv_path' } },
+  async ({ csvPath }) => ({
+    totalItems: await countRows(csvPath as string),
+    batchSize: 100,
+  }),
+);
 
-    # Process batch using batch_ctx.start_cursor, batch_ctx.end_cursor
-    batch_worker_complete(processed_count: batch_ctx.batch_size)
-  end
-end
+export const CsvWorker = defineBatchWorker(
+  'Csv.StepHandlers.CsvWorkerHandler',
+  { analyzerStep: 'analyze_csv' },
+  async ({ batchContext }) => ({ processed: batchContext.batchSize }),
+);
 ```
 
-**Python** (mixin):
-
-```python
-class CsvBatchProcessor(StepHandler, Batchable):
-    handler_name = "csv_batch_processor"
-
-    def call(self, context: StepContext) -> StepHandlerResult:
-        batch_ctx = self.get_batch_context(context)
-        if batch_ctx is None:
-            return self.failure(message="No batch context", error_type="missing_context")
-        # Process batch using batch_ctx.start_cursor, batch_ctx.end_cursor
-        batch_size = batch_ctx.cursor_config.end_cursor - batch_ctx.cursor_config.start_cursor
-        return self.batch_worker_success(items_processed=batch_size)
-```
+See [Class-Based Handlers](../reference/class-based-handlers.md) for the inheritance-based alternative.
 
 ---
 

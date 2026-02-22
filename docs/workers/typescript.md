@@ -134,6 +134,75 @@ TypeScript communicates with the Rust foundation via napi-rs native addons:
 
 ## Handler Development
 
+### DSL Handlers (Recommended)
+
+> Both DSL and class-based handlers are fully supported. DSL is recommended for new projects. See [Class-Based Handlers](../reference/class-based-handlers.md) for the inheritance-based patterns.
+
+The functional DSL provides a concise approach for defining handlers:
+
+```typescript
+import { defineHandler } from '@tasker-systems/tasker';
+
+export const ProcessOrderHandler = defineHandler(
+  'ProcessOrderHandler',
+  { inputs: { orderId: 'order_id', amount: 'amount' } },
+  async ({ orderId, amount }) => ({
+    order_id: orderId,
+    status: 'processed',
+    total: Number(amount) * 1.1,
+  }),
+);
+```
+
+**Specialized DSL Handlers**:
+
+```typescript
+import {
+  defineDecisionHandler, defineApiHandler,
+  defineBatchAnalyzer, defineBatchWorker,
+  Decision, BatchConfig,
+} from '@tasker-systems/tasker';
+
+export const RoutingHandler = defineDecisionHandler(
+  'RoutingDecisionHandler',
+  { inputs: { amount: 'amount' } },
+  async ({ amount }) => {
+    if (Number(amount) < 1000) {
+      return Decision.route(['auto_approve'], { routeType: 'automatic' });
+    }
+    return Decision.route(['manager_approval'], { routeType: 'manager' });
+  },
+);
+
+export const FetchUserHandler = defineApiHandler(
+  'Users.StepHandlers.FetchUserHandler',
+  { baseUrl: 'https://api.example.com', inputs: { userId: 'user_id' } },
+  async ({ userId, api }) => {
+    const response = await api.get(`/users/${userId}`);
+    return api.apiSuccess({ user: response.body });
+  },
+);
+
+export const CsvAnalyzer = defineBatchAnalyzer(
+  'Csv.StepHandlers.CsvAnalyzerHandler',
+  { inputs: { csvPath: 'csv_path' } },
+  async ({ csvPath }) => ({
+    totalItems: await countRows(csvPath as string),
+    batchSize: 100,
+  }),
+);
+
+export const CsvWorker = defineBatchWorker(
+  'Csv.StepHandlers.CsvWorkerHandler',
+  { analyzerStep: 'analyze_csv' },
+  async ({ batchContext }) => ({ processed: batchContext.batchSize }),
+);
+```
+
+### Class-Based Handlers
+
+The class-based patterns below remain fully supported.
+
 ### Base Handler
 
 **Location**: `workers/typescript/src/handler/base.ts`
@@ -1011,6 +1080,29 @@ bunx tsc --noEmit               # Type check without emit
 
 ### Linear Workflow
 
+**DSL** (recommended):
+
+```typescript
+import { defineHandler } from '@tasker-systems/tasker';
+
+export const DoubleHandler = defineHandler(
+  'double_value',
+  { inputs: { value: 'value' } },
+  async ({ value }) => ({ result: Number(value ?? 0) * 2, operation: 'double' }),
+);
+
+export const AddHandler = defineHandler(
+  'add_constant',
+  { dependsOn: { doubleValue: 'double_value' } },
+  async ({ doubleValue }) => ({
+    result: (doubleValue as { result: number })?.result + 10 ?? 10,
+    operation: 'add',
+  }),
+);
+```
+
+**Class-based**:
+
 ```typescript
 export class DoubleHandler extends StepHandler {
   static handlerName = 'double_value';
@@ -1041,6 +1133,38 @@ export class AddHandler extends StepHandler {
 ```
 
 ### Diamond Workflow (Parallel Branches)
+
+**DSL** (recommended):
+
+```typescript
+export const DiamondStart = defineHandler(
+  'diamond_start',
+  { inputs: { value: 'value' } },
+  async ({ value }) => ({ squared: Number(value ?? 0) ** 2 }),
+);
+
+export const BranchB = defineHandler(
+  'branch_b',
+  { dependsOn: { start: 'diamond_start' } },
+  async ({ start }) => ({ result: (start as { squared: number }).squared + 25 }),
+);
+
+export const BranchC = defineHandler(
+  'branch_c',
+  { dependsOn: { start: 'diamond_start' } },
+  async ({ start }) => ({ result: (start as { squared: number }).squared * 2 }),
+);
+
+export const DiamondEnd = defineHandler(
+  'diamond_end',
+  { dependsOn: { branchB: 'branch_b', branchC: 'branch_c' } },
+  async ({ branchB, branchC }) => ({
+    final: ((branchB as { result: number }).result + (branchC as { result: number }).result) / 2,
+  }),
+);
+```
+
+**Class-based**:
 
 ```typescript
 export class DiamondStartHandler extends StepHandler {
