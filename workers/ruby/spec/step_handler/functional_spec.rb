@@ -667,6 +667,98 @@ RSpec.describe TaskerCore::StepHandler::Functional do
     end
   end
 
+  # ============================================================================
+  # Tests: _inject_args HWIA and plain hash handling
+  # ============================================================================
+
+  describe 'attribute parsing with HashWithIndifferentAccess' do
+    it 'converts HWIA to plain hash before symbolizing keys for Dry::Struct' do
+      # ActiveSupport::HashWithIndifferentAccess stores keys as strings internally,
+      # so transform_keys(&:to_sym) on HWIA doesn't actually produce symbol keys.
+      # _inject_args must call .to_h first to get a real plain Hash.
+      hwia_result = ActiveSupport::HashWithIndifferentAccess.new(
+        'approved' => true,
+        'approval_id' => 'APR-HWIA'
+      )
+
+      handler_class = step_handler('hwia_dep',
+                                   depends_on: {
+                                     approval: ['get_approval', TestTypes::ApprovalResult]
+                                   }) do |approval:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        {
+          approved: approval.approved,
+          id: approval.approval_id
+        }
+      end
+
+      dep_wrapper = double('dependency_results')
+      allow(dep_wrapper).to receive(:get_results).with('get_approval').and_return(hwia_result)
+
+      ctx = TaskerCore::Types::StepContext.allocate
+      ctx.instance_variable_set(:@task, double('task', task_uuid: 'task-456', context: {}))
+      ctx.instance_variable_set(:@workflow_step, double('workflow_step',
+                                                        workflow_step_uuid: 'step-789',
+                                                        name: 'test_step',
+                                                        inputs: {},
+                                                        attempts: 0,
+                                                        max_attempts: 3,
+                                                        checkpoint: nil,
+                                                        retryable: true))
+      ctx.instance_variable_set(:@dependency_results, dep_wrapper)
+      ctx.instance_variable_set(:@step_definition, double('step_definition',
+                                                          handler: double('handler', callable: 'test',
+                                                                                     initialization: {})))
+      ctx.instance_variable_set(:@handler_name, 'test')
+
+      handler = handler_class.new
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({ approved: true, id: 'APR-HWIA' })
+    end
+
+    it 'handles plain hashes correctly when symbolizing keys for Dry::Struct' do
+      plain_hash_result = { 'approved' => false, 'approval_id' => 'APR-PLAIN' }
+
+      handler_class = step_handler('plain_dep',
+                                   depends_on: {
+                                     approval: ['get_approval', TestTypes::ApprovalResult]
+                                   }) do |approval:, context:| # rubocop:disable Lint/UnusedBlockArgument
+        {
+          approved: approval.approved,
+          id: approval.approval_id
+        }
+      end
+
+      dep_wrapper = double('dependency_results')
+      allow(dep_wrapper).to receive(:get_results).with('get_approval').and_return(plain_hash_result)
+
+      ctx = TaskerCore::Types::StepContext.allocate
+      ctx.instance_variable_set(:@task, double('task', task_uuid: 'task-456', context: {}))
+      ctx.instance_variable_set(:@workflow_step, double('workflow_step',
+                                                        workflow_step_uuid: 'step-789',
+                                                        name: 'test_step',
+                                                        inputs: {},
+                                                        attempts: 0,
+                                                        max_attempts: 3,
+                                                        checkpoint: nil,
+                                                        retryable: true))
+      ctx.instance_variable_set(:@dependency_results, dep_wrapper)
+      ctx.instance_variable_set(:@step_definition, double('step_definition',
+                                                          handler: double('handler', callable: 'test',
+                                                                                     initialization: {})))
+      ctx.instance_variable_set(:@handler_name, 'test')
+
+      handler = handler_class.new
+      result = handler.call(ctx)
+      expect(result.success?).to be true
+      expect(result.result).to eq({ approved: false, id: 'APR-PLAIN' })
+    end
+  end
+
+  # ============================================================================
+  # Tests: Mixed Struct Inputs + Struct Deps
+  # ============================================================================
+
   describe 'mixed struct inputs and deps' do
     it 'struct inputs: and array-pair depends_on: work together' do
       handler_class = step_handler('full_struct',

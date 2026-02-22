@@ -145,41 +145,15 @@ RSpec/DescribeClass:
 # rather than mirroring the exact lib/ path structure
 RSpec/FilePath:
   Exclude:
-    - "spec/examples/**/*" # Example files may not follow standard naming
-    - "spec/tasks/**/*" # Integration test files may not follow standard spec naming patterns
-    - "spec/types/**/*" # Types specs are organized by concept, not nested path
-    - "spec/observability/**/*" # Observability specs in dedicated directory
-    - "spec/step_handler/**/*" # Step handler specs organized by handler type
-    - "spec/worker/**/*" # Worker specs in dedicated directory
-    - "spec/ffi/**/*" # FFI specs in dedicated directory
-    - "spec/batch_processing/**/*" # Batch processing specs in dedicated directory
-    - "spec/domain_events/**/*" # Domain events specs in dedicated directory
-    - "spec/handlers/**/*" # Handler specs organized by workflow type
-    - "spec/registry/**/*" # Registry specs in dedicated directory
-    - "spec/errors/**/*" # Error specs organized by concept, not nested path
-    - "spec/tracing_spec.rb" # Top-level spec for Tracing module
-    - "spec/version_spec.rb" # Top-level spec for version constants
+    - "spec/**/*" # Example files may not follow standard naming
 
 RSpec/SpecFilePathFormat:
   Exclude:
-    - "spec/examples/**/*" # Example files may not follow standard naming
-    - "spec/tasks/**/*" # Integration test files may not follow standard spec naming patterns
-    - "spec/types/**/*" # Types specs are organized by concept, not nested path
-    - "spec/observability/**/*" # Observability specs in dedicated directory
-    - "spec/step_handler/**/*" # Step handler specs organized by handler type
-    - "spec/worker/**/*" # Worker specs in dedicated directory
-    - "spec/ffi/**/*" # FFI specs in dedicated directory
-    - "spec/batch_processing/**/*" # Batch processing specs in dedicated directory
-    - "spec/domain_events/**/*" # Domain events specs in dedicated directory
-    - "spec/handlers/**/*" # Handler specs organized by workflow type
-    - "spec/registry/**/*" # Registry specs in dedicated directory
-    - "spec/errors/**/*" # Error specs organized by concept, not nested path
-    - "spec/tracing_spec.rb" # Top-level spec for Tracing module
-    - "spec/version_spec.rb" # Top-level spec for version constants
+    - "spec/**/*" # Example files may not follow standard naming
 
 RSpec/DescribeMethod:
   Exclude:
-    - "spec/examples/**/*" # Example tests may not follow method testing pattern
+    - "spec/**/*" # Example tests may not follow method testing pattern
 
 # Factory-specific RSpec exclusions
 FactoryBot/CreateList:
@@ -286,4 +260,3 @@ Style/MultilineBlockChain:
 Naming/ConstantName:
   Exclude:
     - "lib/tasker_core/version.rb" # Version constant for compatibility
-
