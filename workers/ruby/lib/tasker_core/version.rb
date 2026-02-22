@@ -3,7 +3,7 @@
 module TaskerCore
   # Version synchronization with the core Rust crate
   # This should be kept in sync with the Cargo.toml version
-  VERSION = '0.1.6'
+  VERSION = '0.1.7'
 
   def self.version_info
     {
