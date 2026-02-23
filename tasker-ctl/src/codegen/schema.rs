@@ -58,6 +58,71 @@ impl fmt::Display for FieldType {
     }
 }
 
+// =========================================================================
+// Language-specific rendering helpers (called from Askama templates)
+// =========================================================================
+
+impl FieldDef {
+    /// Field name in snake_case (for Python, Rust, Ruby attribute names).
+    pub fn snake_name(&self) -> String {
+        use heck::ToSnakeCase;
+        self.name.to_snake_case()
+    }
+}
+
+impl FieldType {
+    /// Python type annotation.
+    pub fn python_type(&self) -> String {
+        match self {
+            FieldType::String => "str".to_string(),
+            FieldType::Integer => "int".to_string(),
+            FieldType::Number => "float".to_string(),
+            FieldType::Boolean => "bool".to_string(),
+            FieldType::Array(inner) => format!("list[{}]", inner.python_type()),
+            FieldType::Nested(name) => name.clone(),
+            FieldType::Any => "Any".to_string(),
+        }
+    }
+
+    /// Ruby Dry::Types type.
+    pub fn ruby_type(&self) -> String {
+        match self {
+            FieldType::String => "Types::Strict::String".to_string(),
+            FieldType::Integer => "Types::Strict::Integer".to_string(),
+            FieldType::Number => "Types::Strict::Float".to_string(),
+            FieldType::Boolean => "Types::Strict::Bool".to_string(),
+            FieldType::Array(inner) => format!("Types::Strict::Array.of({})", inner.ruby_type()),
+            FieldType::Nested(name) => name.clone(),
+            FieldType::Any => "Types::Nominal::Any".to_string(),
+        }
+    }
+
+    /// TypeScript type annotation.
+    pub fn typescript_type(&self) -> String {
+        match self {
+            FieldType::String => "string".to_string(),
+            FieldType::Integer | FieldType::Number => "number".to_string(),
+            FieldType::Boolean => "boolean".to_string(),
+            FieldType::Array(inner) => format!("{}[]", inner.typescript_type()),
+            FieldType::Nested(name) => name.clone(),
+            FieldType::Any => "unknown".to_string(),
+        }
+    }
+
+    /// Rust type.
+    pub fn rust_type(&self) -> String {
+        match self {
+            FieldType::String => "String".to_string(),
+            FieldType::Integer => "i64".to_string(),
+            FieldType::Number => "f64".to_string(),
+            FieldType::Boolean => "bool".to_string(),
+            FieldType::Array(inner) => format!("Vec<{}>", inner.rust_type()),
+            FieldType::Nested(name) => name.clone(),
+            FieldType::Any => "serde_json::Value".to_string(),
+        }
+    }
+}
+
 /// Error during schema extraction.
 #[derive(Debug, thiserror::Error)]
 pub enum SchemaError {

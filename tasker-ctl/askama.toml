@@ -3,7 +3,7 @@
 [general]
 dirs = ["templates"]
 
-# Register .toml as a text-escaped extension (no HTML escaping)
+# Register text-escaped extensions (no HTML escaping)
 [[escaper]]
 path = "::askama::filters::Text"
-extensions = ["toml"]
+extensions = ["toml", "py", "rb", "ts", "rs"]
