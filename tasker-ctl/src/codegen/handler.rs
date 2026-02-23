@@ -78,6 +78,11 @@ impl DependencyRef {
         format!("{}_result", self.step_name.to_snake_case())
     }
 
+    /// PascalCase parameter name for test variable names (e.g., "ValidateOrderResult").
+    pub fn pascal_param(&self) -> String {
+        format!("{}_result", self.step_name).to_upper_camel_case()
+    }
+
     /// Type comment string showing the result type or "untyped".
     pub fn type_comment(&self) -> String {
         match &self.result_type {

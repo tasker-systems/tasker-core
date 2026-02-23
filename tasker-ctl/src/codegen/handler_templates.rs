@@ -65,17 +65,59 @@ pub fn render_handlers(
 }
 
 // =========================================================================
-// Test templates (placeholder — wired in commit 4)
+// Test templates
 // =========================================================================
+
+#[derive(Template, Debug)]
+#[template(path = "codegen/python_tests.py")]
+struct PythonTestTemplate<'a> {
+    handlers: &'a [HandlerDef],
+}
+
+#[derive(Template, Debug)]
+#[template(path = "codegen/ruby_tests.rb")]
+struct RubyTestTemplate<'a> {
+    handlers: &'a [HandlerDef],
+}
+
+#[derive(Template, Debug)]
+#[template(path = "codegen/typescript_tests.ts")]
+struct TypeScriptTestTemplate<'a> {
+    handlers: &'a [HandlerDef],
+}
+
+#[derive(Template, Debug)]
+#[template(path = "codegen/rust_tests.rs")]
+struct RustTestTemplate<'a> {
+    handlers: &'a [HandlerDef],
+}
 
 /// Render test scaffolds for the given language.
 pub fn render_tests(
-    _handlers: &[HandlerDef],
+    handlers: &[HandlerDef],
     _template_name: &str,
-    _language: TargetLanguage,
+    language: TargetLanguage,
 ) -> Result<String, CodegenError> {
-    // Will be implemented in commit 4 with test Askama templates
-    Ok(String::new())
+    let output = match language {
+        TargetLanguage::Python => {
+            let t = PythonTestTemplate { handlers };
+            t.render()
+        }
+        TargetLanguage::Ruby => {
+            let t = RubyTestTemplate { handlers };
+            t.render()
+        }
+        TargetLanguage::TypeScript => {
+            let t = TypeScriptTestTemplate { handlers };
+            t.render()
+        }
+        TargetLanguage::Rust => {
+            let t = RustTestTemplate { handlers };
+            t.render()
+        }
+    };
+
+    output.map_err(|e| CodegenError::Rendering(e.to_string()))
 }
 
 #[cfg(test)]
@@ -210,5 +252,72 @@ mod tests {
 
         assert!(output.contains("def process_payment(validate_order_result, context):"));
         assert!(output.contains("return {}"));
+    }
+
+    // ── Test scaffolds ──────────────────────────────────────────────
+
+    #[test]
+    fn test_python_test_scaffold() {
+        let template = codegen_test_template();
+        let handlers = extract_handlers(&template, None);
+        let output = render_tests(&handlers, "codegen_test", TargetLanguage::Python).unwrap();
+
+        assert!(output.contains("class TestValidateOrderHandler:"));
+        assert!(output.contains("class TestEnrichOrderHandler:"));
+        assert!(output.contains("from .handlers import"));
+        assert!(output.contains("mock_validate_order_result"));
+    }
+
+    #[test]
+    fn test_ruby_test_scaffold() {
+        let template = codegen_test_template();
+        let handlers = extract_handlers(&template, None);
+        let output = render_tests(&handlers, "codegen_test", TargetLanguage::Ruby).unwrap();
+
+        assert!(output.contains("RSpec.describe \"ValidateOrderHandler\""));
+        assert!(output.contains("RSpec.describe \"EnrichOrderHandler\""));
+        assert!(output.contains("mock_validate_order_result"));
+    }
+
+    #[test]
+    fn test_typescript_test_scaffold() {
+        let template = codegen_test_template();
+        let handlers = extract_handlers(&template, None);
+        let output = render_tests(&handlers, "codegen_test", TargetLanguage::TypeScript).unwrap();
+
+        assert!(output.contains("describe('ValidateOrderHandler'"));
+        assert!(output.contains("describe('EnrichOrderHandler'"));
+        assert!(output.contains("mockValidateOrderResult"));
+    }
+
+    #[test]
+    fn test_rust_test_scaffold() {
+        let template = codegen_test_template();
+        let handlers = extract_handlers(&template, None);
+        let output = render_tests(&handlers, "codegen_test", TargetLanguage::Rust).unwrap();
+
+        assert!(output.contains("async fn test_validate_order()"));
+        assert!(output.contains("async fn test_enrich_order()"));
+        assert!(output.contains("_mock_validate_order_result"));
+    }
+
+    #[test]
+    fn test_python_test_no_deps() {
+        let template = codegen_test_template();
+        let handlers = extract_handlers(&template, Some("validate_order"));
+        let output = render_tests(&handlers, "codegen_test", TargetLanguage::Python).unwrap();
+
+        assert!(output.contains("test_validate_order_returns_expected_shape"));
+        assert!(output.contains("result = validate_order(context=None)"));
+    }
+
+    #[test]
+    fn test_python_test_with_typed_deps() {
+        let template = codegen_test_template();
+        let handlers = extract_handlers(&template, Some("enrich_order"));
+        let output = render_tests(&handlers, "codegen_test", TargetLanguage::Python).unwrap();
+
+        assert!(output.contains("test_enrich_order_with_dependencies"));
+        assert!(output.contains("mock_validate_order_result = {"));
     }
 }
