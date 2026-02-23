@@ -1,6 +1,6 @@
 //! # Worker Task Template Manager
 //!
-//! Local task template management that integrates with the shared TaskHandlerRegistry.
+//! Local task template management that integrates with the shared TaskTemplateRegistry.
 //! Provides worker-specific template caching, validation, and namespace-aware filtering.
 
 use std::collections::HashMap;
@@ -68,7 +68,7 @@ pub struct CachedTemplate {
 /// This provides a worker-local view of task templates with:
 /// - Namespace filtering for supported namespaces only
 /// - Local caching with TTL and LRU eviction
-/// - Integration with shared TaskHandlerRegistry
+/// - Integration with shared TaskTemplateRegistry
 /// - Worker-specific template validation
 /// - Metrics and observability
 pub struct TaskTemplateManager {
@@ -164,7 +164,7 @@ impl TaskTemplateManager {
     /// This method provides worker-specific template resolution with:
     /// - Namespace validation against supported namespaces
     /// - Local cache lookup with TTL validation
-    /// - Fallback to database via TaskHandlerRegistry
+    /// - Fallback to database via TaskTemplateRegistry
     /// - Cache population on miss
     pub async fn get_task_template(
         &self,
@@ -776,6 +776,7 @@ mod tests {
                 timeout_seconds: Some(30),
                 publishes_events: Vec::new(),
                 batch_config: None,
+                result_schema: None,
             }],
             environments: HashMap::new(),
             lifecycle: None,
@@ -798,7 +799,7 @@ mod tests {
             ..Default::default()
         };
 
-        // We can't easily create TaskHandlerRegistry without a database pool in tests,
+        // We can't easily create TaskTemplateRegistry without a database pool in tests,
         // so we'll test the config validation instead
         assert!(config
             .supported_namespaces
