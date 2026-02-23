@@ -219,6 +219,7 @@ impl TemplateQueryService {
                 description: step.description,
                 default_retryable: step.retry.retryable,
                 default_max_attempts: step.retry.max_attempts as i32,
+                result_schema: step.result_schema,
             })
             .collect();
 

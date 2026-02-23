@@ -523,6 +523,7 @@ mod tests {
                 },
                 publishes_events: vec![],
                 batch_config: None,
+                result_schema: None,
             },
         }
     }

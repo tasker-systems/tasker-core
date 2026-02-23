@@ -333,6 +333,7 @@ mod tests {
             timeout_seconds: None,
             publishes_events: events,
             batch_config: None,
+            result_schema: None,
         }
     }
 

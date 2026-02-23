@@ -760,6 +760,7 @@ impl BatchProcessingService {
                 timeout_seconds: template.timeout_seconds,
                 publishes_events: template.publishes_events.clone(),
                 batch_config: None, // Workers don't have batch config
+                result_schema: template.result_schema.clone(),
             };
 
             // Use WorkflowStepCreator for transactional creation

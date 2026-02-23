@@ -90,6 +90,7 @@ fn create_test_task_sequence_step() -> TaskSequenceStep {
             timeout_seconds: None,
             publishes_events: vec![],
             batch_config: None,
+            result_schema: None,
         },
     }
 }
