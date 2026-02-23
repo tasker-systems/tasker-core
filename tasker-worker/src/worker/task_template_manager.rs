@@ -15,7 +15,7 @@ use tasker_shared::{
         task_request::TaskRequest,
         task_template::{ResolvedTaskTemplate, TaskTemplate},
     },
-    registry::{HandlerKey, TaskHandlerRegistry, TaskTemplateDiscoveryResult},
+    registry::{HandlerKey, TaskTemplateDiscoveryResult, TaskTemplateRegistry},
     types::{base::CacheStats, HandlerMetadata},
 };
 
@@ -73,7 +73,7 @@ pub struct CachedTemplate {
 /// - Metrics and observability
 pub struct TaskTemplateManager {
     /// Shared task handler registry for database operations
-    registry: Arc<TaskHandlerRegistry>,
+    registry: Arc<TaskTemplateRegistry>,
     /// Local cache of task templates with expiry
     cache: Arc<RwLock<HashMap<HandlerKey, CachedTemplate>>>,
     /// Configuration for this manager (wrapped in RwLock for interior mutability)
@@ -110,13 +110,13 @@ impl std::fmt::Debug for TaskTemplateManager {
 
 impl TaskTemplateManager {
     /// Create a new task template manager with default configuration
-    pub fn new(registry: Arc<TaskHandlerRegistry>) -> Self {
+    pub fn new(registry: Arc<TaskTemplateRegistry>) -> Self {
         Self::with_config(registry, TaskTemplateManagerConfig::default())
     }
 
     /// Create a new task template manager with custom configuration
     pub fn with_config(
-        registry: Arc<TaskHandlerRegistry>,
+        registry: Arc<TaskTemplateRegistry>,
         config: TaskTemplateManagerConfig,
     ) -> Self {
         let initial_stats = CacheStats {
@@ -145,7 +145,7 @@ impl TaskTemplateManager {
     }
 
     /// Get a reference to the underlying task handler registry (TAS-156)
-    pub fn registry(&self) -> &Arc<TaskHandlerRegistry> {
+    pub fn registry(&self) -> &Arc<TaskTemplateRegistry> {
         &self.registry
     }
 

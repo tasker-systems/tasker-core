@@ -23,7 +23,7 @@ use tasker_orchestration::orchestration::viable_step_discovery::ViableStepDiscov
 use tasker_shared::messaging::DecisionPointOutcome;
 use tasker_shared::models::core::task_request::TaskRequest;
 use tasker_shared::models::WorkflowStep;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::state_machine::{StepEvent, StepStateMachine};
 use tasker_shared::system_context::SystemContext;
 
@@ -47,7 +47,7 @@ async fn setup_decision_service(
     TaskInitializer,
     Arc<SystemContext>,
 )> {
-    let registry = TaskHandlerRegistry::new(pool.clone());
+    let registry = TaskTemplateRegistry::new(pool.clone());
     registry
         .discover_and_register_templates(&fixture_path())
         .await?;

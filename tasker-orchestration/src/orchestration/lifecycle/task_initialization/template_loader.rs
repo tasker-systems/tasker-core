@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use tasker_shared::models::core::task_template::TaskTemplate;
 use tasker_shared::models::task_request::TaskRequest;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::system_context::SystemContext;
 
 use super::TaskInitializationError;
@@ -48,7 +48,7 @@ impl TemplateLoader {
     async fn load_from_registry(
         &self,
         task_request: &TaskRequest,
-        registry: Arc<TaskHandlerRegistry>,
+        registry: Arc<TaskTemplateRegistry>,
     ) -> Result<TaskTemplate, TaskInitializationError> {
         // Use the namespace and name directly from the TaskRequest
         let namespace = &task_request.namespace;

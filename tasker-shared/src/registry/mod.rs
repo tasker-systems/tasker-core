@@ -59,7 +59,7 @@ pub mod method_dispatch;
 pub mod resolver_chain;
 pub mod resolvers;
 pub mod step_handler_resolver;
-pub mod task_handler_registry;
+pub mod task_template_registry;
 
 pub use method_dispatch::{
     validate_method_support, wrap_with_method, MethodDispatchError, MethodDispatchInfo,
@@ -69,7 +69,7 @@ pub use resolver_chain::{ResolverChain, ResolverChainStats};
 pub use step_handler_resolver::{
     ResolutionContext, ResolutionError, ResolvedHandler, StepHandlerResolver,
 };
-pub use task_handler_registry::{
-    HandlerKey, RegistryStats as TaskHandlerRegistryStats, TaskHandlerRegistry,
-    TaskTemplateDiscoveryResult,
+pub use task_template_registry::{
+    HandlerKey, RegistryStats as TaskHandlerRegistryStats, TaskTemplateDiscoveryResult,
+    TaskTemplateRegistry,
 };

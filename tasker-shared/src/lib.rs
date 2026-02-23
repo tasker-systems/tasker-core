@@ -138,7 +138,7 @@ pub use messaging::{
     StepExecutionRequest, StepExecutionResult, StepMessage, TaskRequestMessage,
 };
 
-pub use registry::TaskHandlerRegistry;
+pub use registry::TaskTemplateRegistry;
 pub use system_context::SystemContext;
 pub use types::base::{
     HandlerMetadata, StepEventPayload, StepExecutionCompletionEvent, StepExecutionEvent,

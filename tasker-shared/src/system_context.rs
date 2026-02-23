@@ -9,7 +9,7 @@ use crate::database::DatabasePools;
 use crate::events::EventPublisher;
 use crate::messaging::client::MessageClient;
 use crate::messaging::service::{MessageRouterKind, MessagingProvider};
-use crate::registry::TaskHandlerRegistry;
+use crate::registry::TaskTemplateRegistry;
 use crate::resilience::CircuitBreaker;
 use crate::{TaskerError, TaskerResult};
 use sqlx::PgPool;
@@ -71,7 +71,7 @@ pub struct SystemContext {
     database_pools: DatabasePools,
 
     /// Task handler registry
-    pub task_handler_registry: Arc<TaskHandlerRegistry>,
+    pub task_handler_registry: Arc<TaskTemplateRegistry>,
 
     /// TAS-156: Distributed cache provider
     pub cache_provider: Arc<CacheProvider>,
@@ -347,13 +347,13 @@ impl SystemContext {
         // Create task handler registry with Tasker pool and cache
         let task_handler_registry = Arc::new(
             if let Some(cache_config) = tasker_config.common.cache.clone() {
-                TaskHandlerRegistry::with_cache(
+                TaskTemplateRegistry::with_cache(
                     database_pools.tasker().clone(),
                     cache_provider.clone(),
                     cache_config,
                 )
             } else {
-                TaskHandlerRegistry::new(database_pools.tasker().clone())
+                TaskTemplateRegistry::new(database_pools.tasker().clone())
             },
         );
 
@@ -564,13 +564,13 @@ impl SystemContext {
         // Create task handler registry with Tasker pool and cache
         let task_handler_registry = Arc::new(
             if let Some(cache_config) = tasker_config.common.cache.clone() {
-                TaskHandlerRegistry::with_cache(
+                TaskTemplateRegistry::with_cache(
                     database_pools.tasker().clone(),
                     cache_provider.clone(),
                     cache_config,
                 )
             } else {
-                TaskHandlerRegistry::new(database_pools.tasker().clone())
+                TaskTemplateRegistry::new(database_pools.tasker().clone())
             },
         );
 

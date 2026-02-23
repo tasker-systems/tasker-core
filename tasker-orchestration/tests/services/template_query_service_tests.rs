@@ -13,7 +13,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 
 use tasker_orchestration::services::TemplateQueryService;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::system_context::SystemContext;
 
 /// Get the path to task template fixtures in the workspace root
@@ -29,7 +29,7 @@ fn fixture_path() -> String {
 
 /// Helper to set up TemplateQueryService with registered templates
 async fn setup_template_service(pool: PgPool) -> Result<TemplateQueryService> {
-    let registry = TaskHandlerRegistry::new(pool.clone());
+    let registry = TaskTemplateRegistry::new(pool.clone());
     registry
         .discover_and_register_templates(&fixture_path())
         .await?;

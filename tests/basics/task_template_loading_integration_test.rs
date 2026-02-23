@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, error, info, warn};
 
 use tasker_shared::models::core::task_template::TaskTemplate;
-use tasker_shared::registry::task_handler_registry::TaskHandlerRegistry;
+use tasker_shared::registry::task_template_registry::TaskTemplateRegistry;
 
 /// Test all template fixtures for proper registration and deserialization
 #[tokio::test]
@@ -42,7 +42,7 @@ async fn test_all_template_fixtures_registration_and_deserialization() -> Result
         .context("Failed to connect to test database")?;
 
     // Create registry using actual worker code path
-    let registry = TaskHandlerRegistry::new(db_pool.clone());
+    let registry = TaskTemplateRegistry::new(db_pool.clone());
 
     // Define all template fixtures to test
     let template_fixtures = vec![
@@ -116,7 +116,7 @@ async fn test_all_template_fixtures_registration_and_deserialization() -> Result
 }
 
 /// Test a single template through the complete workflow
-async fn test_single_template(registry: &TaskHandlerRegistry, template_path: &Path) -> Result<()> {
+async fn test_single_template(registry: &TaskTemplateRegistry, template_path: &Path) -> Result<()> {
     debug!("📖 Loading template: {}", template_path.display());
 
     // Step 1: Load YAML template using actual production code path

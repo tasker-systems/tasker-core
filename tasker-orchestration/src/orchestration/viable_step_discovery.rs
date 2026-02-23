@@ -252,7 +252,7 @@ impl ViableStepDiscovery {
         &self,
         task_uuid: Uuid,
         viable_steps: &[ViableStep],
-        _task_handler_registry: &tasker_shared::registry::TaskHandlerRegistry,
+        _task_handler_registry: &tasker_shared::registry::TaskTemplateRegistry,
     ) -> OrchestrationResult<Vec<tasker_shared::messaging::execution_types::StepExecutionRequest>>
     {
         use tasker_shared::models::core::task::Task;

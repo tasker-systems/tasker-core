@@ -27,7 +27,7 @@ use thiserror::Error;
 use tracing::{debug, warn};
 
 use tasker_shared::models::{NamedTask, TaskNamespace};
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::system_context::SystemContext;
 use tasker_shared::types::api::templates::{
     NamespaceSummary, StepDefinition, TemplateDetail, TemplateListResponse, TemplateSummary,
@@ -92,7 +92,7 @@ pub struct TemplateQueryService {
     /// Read-only database pool for listing queries
     db_pool: PgPool,
     /// Task handler registry for individual template resolution (with caching)
-    task_handler_registry: TaskHandlerRegistry,
+    task_handler_registry: TaskTemplateRegistry,
 }
 
 impl std::fmt::Debug for TemplateQueryService {
@@ -109,13 +109,13 @@ impl TemplateQueryService {
     pub fn new(system_context: Arc<SystemContext>) -> Self {
         Self {
             db_pool: system_context.database_pool().clone(),
-            task_handler_registry: TaskHandlerRegistry::with_system_context(system_context),
+            task_handler_registry: TaskTemplateRegistry::with_system_context(system_context),
         }
     }
 
     /// Create with explicit database pool and registry (for testing)
     #[cfg(test)]
-    pub fn with_pool_and_registry(db_pool: PgPool, registry: TaskHandlerRegistry) -> Self {
+    pub fn with_pool_and_registry(db_pool: PgPool, registry: TaskTemplateRegistry) -> Self {
         Self {
             db_pool,
             task_handler_registry: registry,

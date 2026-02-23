@@ -19,7 +19,7 @@ use tasker_orchestration::orchestration::lifecycle::task_initialization::TaskIni
 use tasker_orchestration::orchestration::viable_step_discovery::ViableStepDiscovery;
 use tasker_shared::models::core::task_request::TaskRequest;
 use tasker_shared::models::WorkflowStep;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::state_machine::{StepEvent, StepStateMachine};
 use tasker_shared::system_context::SystemContext;
 
@@ -38,7 +38,7 @@ fn fixture_path() -> String {
 async fn setup_discovery(
     pool: PgPool,
 ) -> Result<(ViableStepDiscovery, TaskInitializer, Arc<SystemContext>)> {
-    let registry = TaskHandlerRegistry::new(pool.clone());
+    let registry = TaskTemplateRegistry::new(pool.clone());
     registry
         .discover_and_register_templates(&fixture_path())
         .await?;
@@ -408,7 +408,7 @@ async fn test_build_step_execution_requests(pool: PgPool) -> Result<()> {
     let viable = discovery.find_viable_steps(task_uuid).await?;
     assert_eq!(viable.len(), 1);
 
-    let registry = TaskHandlerRegistry::new(pool);
+    let registry = TaskTemplateRegistry::new(pool);
     let requests = discovery
         .build_step_execution_requests(task_uuid, &viable, &registry)
         .await?;
@@ -441,7 +441,7 @@ async fn test_build_step_execution_requests_with_previous_results(pool: PgPool) 
     assert_eq!(viable.len(), 1);
     assert_eq!(viable[0].name, "linear_step_2");
 
-    let registry = TaskHandlerRegistry::new(pool);
+    let registry = TaskTemplateRegistry::new(pool);
     let requests = discovery
         .build_step_execution_requests(task_uuid, &viable, &registry)
         .await?;
