@@ -39,7 +39,7 @@ fn uses_json_value(ft: &FieldType) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codegen::schema::{FieldDef, FieldType};
+    use crate::codegen::schema::FieldDef;
 
     #[test]
     fn test_rust_flat_types() {

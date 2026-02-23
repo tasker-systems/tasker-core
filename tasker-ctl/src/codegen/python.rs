@@ -36,7 +36,7 @@ fn uses_any(ft: &FieldType) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codegen::schema::{FieldDef, FieldType};
+    use crate::codegen::schema::FieldDef;
 
     #[test]
     fn test_python_flat_types() {
