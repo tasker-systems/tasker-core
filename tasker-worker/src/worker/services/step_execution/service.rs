@@ -407,7 +407,7 @@ impl StepExecutorService {
         // 3. Get task template for step definition (needed for publishes_events)
         let task_template = self
             .context
-            .task_handler_registry
+            .task_template_registry
             .get_task_template(
                 &task_for_orchestration.namespace_name,
                 &task_for_orchestration.task_name,
@@ -620,7 +620,7 @@ mod tests {
         );
 
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
 
         // Create required dependencies

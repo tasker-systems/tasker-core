@@ -18,12 +18,12 @@
 //! ## Usage
 //!
 //! ```rust
-//! use tasker_shared::registry::TaskHandlerRegistry;
+//! use tasker_shared::registry::TaskTemplateRegistry;
 //! use tasker_shared::models::core::task_request::TaskRequest;
 //! use sqlx::PgPool;
 //!
 //! # async fn example(db_pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
-//! let registry = TaskHandlerRegistry::new(db_pool);
+//! let registry = TaskTemplateRegistry::new(db_pool);
 //!
 //! // Handler resolution via database queries
 //! let task_request = TaskRequest::new("order_processing".to_string(), "fulfillment".to_string());
@@ -909,7 +909,7 @@ impl TaskTemplateRegistry {
     }
 }
 
-// Note: Default implementation removed - TaskHandlerRegistry now requires database pool
+// Note: Default implementation removed - TaskTemplateRegistry now requires database pool
 
 impl Clone for TaskTemplateRegistry {
     fn clone(&self) -> Self {

@@ -10,7 +10,7 @@
 //! - `Task::find_by_id()`
 //! - `task.for_orchestration()`
 //! - `NamedStep::find_by_uuid()`
-//! - `task_handler_registry.get_task_template_from_registry()`
+//! - `task_template_registry.get_task_template_from_registry()`
 //!
 //! When both checks are performed on the same step, this results in 8-12 redundant queries.
 //!
@@ -170,7 +170,7 @@ impl ResultProcessingContext {
 
                 let handler_metadata = self
                     .system_context
-                    .task_handler_registry
+                    .task_template_registry
                     .get_task_template_from_registry(
                         &task_metadata.namespace_name,
                         &task_metadata.task_name,

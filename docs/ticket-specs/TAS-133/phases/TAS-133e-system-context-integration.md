@@ -40,7 +40,7 @@ pub struct SystemContext {
 
     // ... other fields unchanged
     database_pools: DatabasePools,
-    pub task_handler_registry: Arc<TaskHandlerRegistry>,
+    pub task_template_registry: Arc<TaskTemplateRegistry>,
     pub circuit_breaker_manager: Option<Arc<CircuitBreakerManager>>,
     pub event_publisher: Arc<EventPublisher>,
 }
@@ -165,7 +165,7 @@ impl ActorRegistry {
         // Use new MessageClient instead of old message_client
         let task_request_processor = Arc::new(TaskRequestProcessor::new(
             context.message_client.clone(),  // New MessageClient struct
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
             task_initializer,
             TaskRequestProcessorConfig::default(),
         ));

@@ -133,7 +133,7 @@ event_metadata:
         namespace_name: { type: "String", required: true }
         version: { type: "String", required: true }
         timestamp: { type: "Time", required: true }
-      fired_by: ["StepHandlerFactory", "TaskHandlerRegistry"]
+      fired_by: ["StepHandlerFactory", "TaskTemplateRegistry"]
 
     unregistered:
       description: "Fired when a handler is unregistered"
@@ -143,7 +143,7 @@ event_metadata:
         namespace_name: { type: "String", required: true }
         version: { type: "String", required: true }
         timestamp: { type: "Time", required: true }
-      fired_by: ["StepHandlerFactory", "TaskHandlerRegistry"]
+      fired_by: ["StepHandlerFactory", "TaskTemplateRegistry"]
 
     validation_failed:
       description: "Fired when handler validation fails during registration"
@@ -152,7 +152,7 @@ event_metadata:
         handler_class: { type: "String", required: true }
         validation_error: { type: "String", required: true }
         timestamp: { type: "Time", required: true }
-      fired_by: ["StepHandlerFactory", "TaskHandlerRegistry"]
+      fired_by: ["StepHandlerFactory", "TaskTemplateRegistry"]
 
 # State machine transition mappings (declarative configuration)
 # Updated for TAS-41: Richer Task States with 12 comprehensive task states
@@ -211,7 +211,7 @@ state_machine_mappings:
       event_constant: "task.completed"
       description: "All steps completed successfully"
 
-    # Waiting states transitions  
+    # Waiting states transitions
     - from_state: "evaluating_results"
       to_state: "waiting_for_dependencies"
       event_constant: "task.awaiting_dependencies"

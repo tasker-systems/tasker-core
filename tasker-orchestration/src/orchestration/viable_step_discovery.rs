@@ -239,7 +239,7 @@ impl ViableStepDiscovery {
     /// # Arguments
     /// * `task_uuid` - The task ID to load context for
     /// * `viable_steps` - The viable steps discovered for execution
-    /// * `task_handler_registry` - Registry to resolve handler class names and configurations
+    /// * `task_template_registry` - Registry to resolve handler class names and configurations
     ///
     /// # Returns
     /// Vector of complete StepExecutionRequest objects with:
@@ -252,7 +252,7 @@ impl ViableStepDiscovery {
         &self,
         task_uuid: Uuid,
         viable_steps: &[ViableStep],
-        _task_handler_registry: &tasker_shared::registry::TaskTemplateRegistry,
+        _task_template_registry: &tasker_shared::registry::TaskTemplateRegistry,
     ) -> OrchestrationResult<Vec<tasker_shared::messaging::execution_types::StepExecutionRequest>>
     {
         use tasker_shared::models::core::task::Task;

@@ -86,7 +86,7 @@ pub use event_system::deployment::{DeploymentMode, ...};
 pub use event_system::event_driven::{EventDrivenSystem, EventSystemFactory, ...};
 pub use errors::{TaskerError, TaskerResult, OrchestrationError, ...};
 pub use messaging::{PgmqClient, StepExecutionResult, StepMessage, ...};
-pub use registry::TaskHandlerRegistry;
+pub use registry::TaskTemplateRegistry;
 pub use system_context::SystemContext;
 pub use types::base::{HandlerMetadata, StepEventPayload, ...};
 ```

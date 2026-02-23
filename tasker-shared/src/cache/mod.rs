@@ -34,7 +34,7 @@
 //!
 //! ## Usage
 //!
-//! The cache is used by `TaskHandlerRegistry` for template resolution and
+//! The cache is used by `TaskTemplateRegistry` for template resolution and
 //! `AnalyticsService` for analytics response caching.
 
 pub mod constraints;

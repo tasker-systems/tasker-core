@@ -20,7 +20,7 @@ This plan adds response caching to analytics endpoints while addressing architec
 | `RedisCacheService` | `tasker-shared/src/cache/providers/redis.rs` | ✅ Complete |
 | `NoOpCacheService` | `tasker-shared/src/cache/providers/noop.rs` | ✅ Complete |
 | Configuration | `config/tasker/base/common.toml` | ✅ Complete |
-| Template caching | `tasker-shared/src/registry/task_handler_registry.rs` | ✅ Complete |
+| Template caching | `tasker-shared/src/registry/task_template_registry.rs` | ✅ Complete |
 
 ### Problem: Fat Controller Anti-Pattern
 
@@ -274,10 +274,10 @@ Contains:
 - `ConstrainedCacheProvider` wrapper
 - Validation logic
 
-**Update** `TaskHandlerRegistry` to use constrained provider:
+**Update** `TaskTemplateRegistry` to use constrained provider:
 
 ```rust
-impl TaskHandlerRegistry {
+impl TaskTemplateRegistry {
     pub fn with_system_context(context: Arc<SystemContext>) -> Self {
         // Validate that cache provider is valid for templates
         let cache_provider = ConstrainedCacheProvider::new(
@@ -659,7 +659,7 @@ max_capacity = 10000        # Maximum entries in cache
 **Rationale**:
 
 - Query service is testable without cache
-- Cache wrapper follows established `TaskHandlerRegistry` pattern
+- Cache wrapper follows established `TaskTemplateRegistry` pattern
 - Clear separation of concerns
 - Query service could be reused for non-cached internal calls
 
@@ -686,7 +686,7 @@ max_capacity = 10000        # Maximum entries in cache
 | `tasker-shared/src/cache/provider.rs` | Add Moka variant, `is_distributed()` |
 | `tasker-shared/src/cache/providers/mod.rs` | Export moka module |
 | `tasker-shared/src/config/tasker.rs` | Add `MokaConfig` |
-| `tasker-shared/src/registry/task_handler_registry.rs` | Use constrained provider |
+| `tasker-shared/src/registry/task_template_registry.rs` | Use constrained provider |
 | `tasker-orchestration/src/web/state.rs` | Add analytics_service field |
 | `tasker-orchestration/src/web/handlers/analytics.rs` | Simplify to use service |
 | `tasker-orchestration/src/lib.rs` | Export services module |
@@ -776,7 +776,7 @@ All existing analytics endpoint tests should pass unchanged (caching is transpar
 | `tasker-shared/src/cache/providers/mod.rs` | Export MokaCacheService |
 | `tasker-shared/src/cache/mod.rs` | Export constraints module |
 | `tasker-shared/src/config/tasker.rs` | Added MokaConfig struct |
-| `tasker-shared/src/registry/task_handler_registry.rs` | Validate cache provider for templates |
+| `tasker-shared/src/registry/task_template_registry.rs` | Validate cache provider for templates |
 | `tasker-shared/src/database/sql_functions.rs` | Added AggregatedStepAnalysis, AggregatedTaskAnalysis |
 | `tasker-shared/src/types/api/orchestration.rs` | Added template identity to SlowStepInfo/SlowTaskInfo |
 | `tasker-orchestration/src/lib.rs` | Added services module |

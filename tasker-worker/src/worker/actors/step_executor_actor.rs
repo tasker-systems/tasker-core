@@ -724,7 +724,7 @@ mod tests {
         );
 
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
 
         // Create required dependencies
@@ -772,7 +772,7 @@ mod tests {
         );
 
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
 
         let event_publisher = WorkerEventPublisher::new("test_worker".to_string());
@@ -830,7 +830,7 @@ mod tests {
         );
 
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
 
         let event_publisher = WorkerEventPublisher::new("test_worker".to_string());

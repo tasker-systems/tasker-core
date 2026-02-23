@@ -1,6 +1,6 @@
 //! Task Template Loading
 //!
-//! Loads TaskTemplate configurations from the TaskHandlerRegistry.
+//! Loads TaskTemplate configurations from the TaskTemplateRegistry.
 //! Templates define the workflow structure including steps, dependencies, and retry policies.
 
 use std::sync::Arc;
@@ -22,7 +22,7 @@ impl TemplateLoader {
         Self { context }
     }
 
-    /// Load task template from TaskHandlerRegistry
+    /// Load task template from TaskTemplateRegistry
     ///
     /// In FFI integration, handlers register their configuration in the registry.
     /// This method retrieves the TaskTemplate which defines the workflow structure.
@@ -32,7 +32,7 @@ impl TemplateLoader {
     ) -> Result<TaskTemplate, TaskInitializationError> {
         // Try registry first if available
         match self
-            .load_from_registry(task_request, self.context.task_handler_registry.clone())
+            .load_from_registry(task_request, self.context.task_template_registry.clone())
             .await
         {
             Ok(config) => Ok(config),

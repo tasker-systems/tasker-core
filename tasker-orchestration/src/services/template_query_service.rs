@@ -10,14 +10,14 @@
 //! and manages template definitions. This service provides visibility into
 //! what templates are available for task creation.
 //!
-//! Uses `TaskHandlerRegistry` (via `SystemContext`) for individual template
+//! Uses `TaskTemplateRegistry` (via `SystemContext`) for individual template
 //! resolution (leverages distributed caching), and direct database queries
 //! for listing operations.
 //!
 //! ## Pattern
 //!
 //! ```text
-//! Handler -> TemplateQueryService -> TaskHandlerRegistry (cached)
+//! Handler -> TemplateQueryService -> TaskTemplateRegistry (cached)
 //!                                 -> Database (for listings)
 //! ```
 
@@ -92,14 +92,14 @@ pub struct TemplateQueryService {
     /// Read-only database pool for listing queries
     db_pool: PgPool,
     /// Task handler registry for individual template resolution (with caching)
-    task_handler_registry: TaskTemplateRegistry,
+    task_template_registry: TaskTemplateRegistry,
 }
 
 impl std::fmt::Debug for TemplateQueryService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TemplateQueryService")
             .field("db_pool", &"PgPool")
-            .field("task_handler_registry", &"TaskHandlerRegistry")
+            .field("task_template_registry", &"TaskTemplateRegistry")
             .finish()
     }
 }
@@ -109,7 +109,7 @@ impl TemplateQueryService {
     pub fn new(system_context: Arc<SystemContext>) -> Self {
         Self {
             db_pool: system_context.database_pool().clone(),
-            task_handler_registry: TaskTemplateRegistry::with_system_context(system_context),
+            task_template_registry: TaskTemplateRegistry::with_system_context(system_context),
         }
     }
 
@@ -118,7 +118,7 @@ impl TemplateQueryService {
     pub fn with_pool_and_registry(db_pool: PgPool, registry: TaskTemplateRegistry) -> Self {
         Self {
             db_pool,
-            task_handler_registry: registry,
+            task_template_registry: registry,
         }
     }
 
@@ -176,7 +176,7 @@ impl TemplateQueryService {
 
     /// Get a specific template by namespace, name, and version
     ///
-    /// Uses `TaskHandlerRegistry` for resolution which leverages distributed caching.
+    /// Uses `TaskTemplateRegistry` for resolution which leverages distributed caching.
     pub async fn get_template(
         &self,
         namespace: &str,
@@ -190,9 +190,9 @@ impl TemplateQueryService {
             "Getting template details"
         );
 
-        // Use TaskHandlerRegistry to get the template (with caching)
+        // Use TaskTemplateRegistry to get the template (with caching)
         let task_template = self
-            .task_handler_registry
+            .task_template_registry
             .get_task_template(namespace, name, version)
             .await
             .map_err(|e| {
@@ -240,7 +240,7 @@ impl TemplateQueryService {
         name: &str,
         version: &str,
     ) -> TemplateQueryResult<bool> {
-        self.task_handler_registry
+        self.task_template_registry
             .is_template_registered(namespace, name, version)
             .await
             .map_err(|e| TemplateQueryError::Internal(e.to_string()))

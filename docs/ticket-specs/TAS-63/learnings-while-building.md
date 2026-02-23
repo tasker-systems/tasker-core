@@ -182,7 +182,7 @@ Added `#[sqlx::test]` integration tests in `tests/services/` that exercise query
 
 ```rust
 async fn setup_services(pool: PgPool) -> Result<(ServiceUnderTest, TaskInitializer)> {
-    let registry = TaskHandlerRegistry::new(pool.clone());
+    let registry = TaskTemplateRegistry::new(pool.clone());
     registry.discover_and_register_templates(&fixture_path()).await?;
     let system_context = Arc::new(SystemContext::with_pool(pool.clone()).await?);
     let step_enqueuer = Arc::new(StepEnqueuerService::new(system_context.clone()).await?);
@@ -230,7 +230,7 @@ These modules require either: (a) decomposing large functions into testable unit
 
 2. **Integration tests complement, not replace, unit tests.** Write integration tests to validate database interactions, ownership checks, and SQL function correctness — not to inflate coverage numbers.
 
-3. **The `#[sqlx::test]` pattern is excellent.** Automatic migration, transaction isolation, and pool injection make database tests as easy to write as unit tests. The `fixture_path()` + `TaskHandlerRegistry::discover_and_register_templates()` pattern provides repeatable template setup.
+3. **The `#[sqlx::test]` pattern is excellent.** Automatic migration, transaction isolation, and pool injection make database tests as easy to write as unit tests. The `fixture_path()` + `TaskTemplateRegistry::discover_and_register_templates()` pattern provides repeatable template setup.
 
 4. **Coverage ceilings exist for un-refactored code.** Files like `command_processor_actor.rs` at 1001 lines have complex control flow that resists testing from the outside. Refactoring to extract testable units (strategy pattern, pure functions, smaller methods) will unlock more coverage than adding more integration tests.
 

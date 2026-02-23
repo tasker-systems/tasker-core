@@ -151,6 +151,7 @@ fn create_payment_task_sequence_step(
             timeout_seconds: None,
             publishes_events,
             batch_config: None,
+            result_schema: None,
         },
     }
 }

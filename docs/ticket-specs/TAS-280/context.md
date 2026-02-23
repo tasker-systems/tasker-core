@@ -79,13 +79,13 @@ task_handler:
 
 Scope: Remove `task_handler` blocks from all YAML files in `tests/fixtures/task_templates/`. Since the struct no longer has this field, serde should already be ignoring it during deserialization — but the fixtures should reflect the current schema.
 
-### 2. Rename `TaskHandlerRegistry` → `TaskTemplateRegistry`
+### 2. Rename `TaskTemplateRegistry` → `TaskTemplateRegistry`
 
-The `TaskHandlerRegistry` in `tasker-shared/src/registry/task_handler_registry.rs` is the runtime registry that discovers and caches task templates. The name is a holdover — it manages templates, not handlers. Rename to `TaskTemplateRegistry` for clarity:
+The `TaskTemplateRegistry` in `tasker-shared/src/registry/task_template_registry.rs` is the runtime registry that discovers and caches task templates. The name is a holdover — it manages templates, not handlers. Rename to `TaskTemplateRegistry` for clarity:
 
-- `tasker-shared/src/registry/task_handler_registry.rs` → `task_template_registry.rs`
-- `TaskHandlerRegistry` struct → `TaskTemplateRegistry`
-- `task_handler_registry` field on `SystemContext` → `task_template_registry`
+- `tasker-shared/src/registry/task_template_registry.rs` → `task_template_registry.rs`
+- `TaskTemplateRegistry` struct → `TaskTemplateRegistry`
+- `task_template_registry` field on `SystemContext` → `task_template_registry`
 - Update all references across the workspace (re-exports in `registry/mod.rs`, usage in `system_context.rs`, etc.)
 
 This is a mechanical rename with no behavior change. Do it as a separate commit before TAS-280 work begins so the diff is clean.
@@ -125,7 +125,7 @@ This is a mechanical rename with no behavior change. Do it as a separate commit 
 
 - **Cross-step schema compatibility checking.** That's Phase 3. Phase 1 parses and stores `result_schema`, generates types from it, and trusts the developer to keep schemas consistent. The typed `depends_on` patterns make inconsistencies more visible (type errors in handler code) but the tooling doesn't enforce it yet.
 - **Runtime schema validation.** The orchestrator never inspects, validates, or rejects handler results based on `result_schema`. This is a tooling-only field. Misconfigured schemas must never cause orchestration errors.
-- **Changes to existing handler registration or resolution.** The resolver chain, `TaskHandlerRegistry`, handler dispatch — none of this changes.
+- **Changes to existing handler registration or resolution.** The resolver chain, `TaskTemplateRegistry`, handler dispatch — none of this changes.
 
 ---
 

@@ -35,7 +35,7 @@ pub struct SystemContext {
     database_pools: DatabasePools,
 
     /// Task handler registry
-    pub task_handler_registry: Arc<TaskHandlerRegistry>,
+    pub task_template_registry: Arc<TaskTemplateRegistry>,
 
     /// Circuit breaker manager (optional)
     pub circuit_breaker_manager: Option<Arc<CircuitBreakerManager>>,
@@ -164,7 +164,7 @@ impl ActorRegistry {
     pub async fn build(context: Arc<SystemContext>) -> TaskerResult<Self> {
         let task_request_processor = Arc::new(TaskRequestProcessor::new(
             context.message_client.clone(),  // Extracted from SystemContext
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
             task_initializer,
             TaskRequestProcessorConfig::default(),
         ));
@@ -178,7 +178,7 @@ impl ActorRegistry {
 ```rust
 pub struct TaskRequestProcessor {
     pgmq_client: Arc<UnifiedPgmqClient>,  // Injected from SystemContext
-    task_handler_registry: Arc<TaskHandlerRegistry>,
+    task_template_registry: Arc<TaskTemplateRegistry>,
     task_initializer: Arc<TaskInitializer>,
     config: TaskRequestProcessorConfig,
 }

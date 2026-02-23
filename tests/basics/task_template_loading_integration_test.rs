@@ -5,7 +5,7 @@
 //!
 //! This test validates the complete workflow:
 //! 1. YAML template parsing
-//! 2. Template registration via TaskHandlerRegistry
+//! 2. Template registration via TaskTemplateRegistry
 //! 3. Database storage and retrieval
 //! 4. JSON deserialization (the critical orchestration step)
 //! 5. Template validation and comparison

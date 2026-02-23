@@ -223,7 +223,7 @@ impl WorkerCore {
 
         // Create worker-specific components
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
 
         let discovery_result = task_template_manager.ensure_templates_in_database().await?;

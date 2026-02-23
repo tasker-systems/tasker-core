@@ -2,7 +2,7 @@
 
 ## Overview
 
-Add a distributed Redis cache layer **internal to `TaskHandlerRegistry`**. The registry already owns both the read path (`resolve_handler`) and write path (`register_task_template`), so cache-aside and invalidation are co-located. No wrapper struct needed. Entirely opt-in; PostgreSQL remains the only hard dependency.
+Add a distributed Redis cache layer **internal to `TaskTemplateRegistry`**. The registry already owns both the read path (`resolve_handler`) and write path (`register_task_template`), so cache-aside and invalidation are co-located. No wrapper struct needed. Entirely opt-in; PostgreSQL remains the only hard dependency.
 
 ---
 
@@ -65,14 +65,14 @@ Key design:
 
 ---
 
-## Phase 2: Integrate Cache into TaskHandlerRegistry
+## Phase 2: Integrate Cache into TaskTemplateRegistry
 
-**Modify: `tasker-shared/src/registry/task_handler_registry.rs`**
+**Modify: `tasker-shared/src/registry/task_template_registry.rs`**
 
 Add cache provider as an internal field:
 
 ```rust
-pub struct TaskHandlerRegistry {
+pub struct TaskTemplateRegistry {
     db_pool: PgPool,
     event_publisher: Option<Arc<EventPublisher>>,
     search_paths: Option<Vec<String>>,
@@ -134,11 +134,11 @@ pub fn cache_enabled(&self) -> bool { ... }
 
 - Add field: `pub cache_provider: Arc<CacheProvider>`
 - Add `create_cache_provider()` method (reads `config.common.cache`, calls `from_config_graceful`)
-- Wire into `from_pools_and_config()`: create cache provider, pass to `TaskHandlerRegistry`
-- Update `TaskHandlerRegistry` construction to pass the cache provider
+- Wire into `from_pools_and_config()`: create cache provider, pass to `TaskTemplateRegistry`
+- Update `TaskTemplateRegistry` construction to pass the cache provider
 - Add accessor: `pub fn cache_provider(&self) -> &Arc<CacheProvider>`
 
-The `task_handler_registry` field type stays `Arc<TaskHandlerRegistry>` - no new wrapper type. Orchestration's `TemplateLoader` continues calling `registry.resolve_handler()` with zero code changes since the cache is internal.
+The `task_template_registry` field type stays `Arc<TaskTemplateRegistry>` - no new wrapper type. Orchestration's `TemplateLoader` continues calling `registry.resolve_handler()` with zero code changes since the cache is internal.
 
 ---
 
@@ -281,12 +281,12 @@ analytics_ttl_seconds = 120
 - `tasker-shared/src/cache/providers/noop.rs` - NoOp always returns None/success
 - `tasker-shared/src/cache/provider.rs` - `from_config_graceful` fallback logic
 - Config deserialization for `CacheConfig`/`RedisConfig`
-- `TaskHandlerRegistry` with no cache provider: existing behavior unchanged
+- `TaskTemplateRegistry` with no cache provider: existing behavior unchanged
 
 ### Integration Tests (behind `test-services` feature)
 
 - Redis provider: CRUD, TTL expiry, pattern delete via SCAN
-- `TaskHandlerRegistry` with Redis: cache-aside flow (hit/miss/populate)
+- `TaskTemplateRegistry` with Redis: cache-aside flow (hit/miss/populate)
 - `register_task_template` invalidates cache entry
 - `discover_and_register_templates` invalidates all on completion
 - Graceful degradation: simulate Redis down, verify DB fallback (warn log, no error)
@@ -303,7 +303,7 @@ analytics_ttl_seconds = 120
 
 | Decision | Rationale |
 |----------|-----------|
-| Cache inside TaskHandlerRegistry | Single responsibility boundary: reads and writes co-located with invalidation |
+| Cache inside TaskTemplateRegistry | Single responsibility boundary: reads and writes co-located with invalidation |
 | Enum dispatch (not trait objects) | Matches MessagingProvider; zero vtable overhead |
 | NoOp as default | All code paths identical; no conditional branching in business logic |
 | Graceful degradation | System never fails to start or serve requests due to cache issues |
@@ -321,7 +321,7 @@ analytics_ttl_seconds = 120
 1. Phase 1A-1C: Config structs + cache module + dependencies
 2. Phase 6: Infrastructure (Docker, env, TOML) - enables testing as we build
 3. Phase 1D: Config loader allowlist
-4. Phase 2: Integrate cache into TaskHandlerRegistry (core logic)
+4. Phase 2: Integrate cache into TaskTemplateRegistry (core logic)
 5. Phase 3: SystemContext wiring
 6. Phase 5: Worker API updates (cache status + distributed clear)
 7. Phase 7: Tests
@@ -336,7 +336,7 @@ Note: Phase 4 (orchestration) requires zero changes.
 |------|--------|
 | `tasker-shared/src/config/tasker.rs` | Add CacheConfig, RedisConfig to CommonConfig |
 | `tasker-shared/src/cache/` (new dir) | Cache module: traits, provider, errors, redis/noop |
-| `tasker-shared/src/registry/task_handler_registry.rs` | Add cache_provider field, cache-aside in resolve_handler, invalidation in register_task_template |
+| `tasker-shared/src/registry/task_template_registry.rs` | Add cache_provider field, cache-aside in resolve_handler, invalidation in register_task_template |
 | `tasker-shared/src/system_context.rs` | Add cache_provider field, pass to registry constructor |
 | `tasker-shared/src/config/config_loader.rs` | Add REDIS_URL to env var allowlist |
 | `tasker-shared/Cargo.toml` | Add redis dep + cache-redis feature |

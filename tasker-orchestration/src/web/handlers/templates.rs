@@ -14,7 +14,7 @@
 //! service layer pattern for gRPC reusability:
 //!
 //! ```text
-//! Handler -> TemplateQueryService -> TaskHandlerRegistry (cached)
+//! Handler -> TemplateQueryService -> TaskTemplateRegistry (cached)
 //!                                 -> Database (for listings)
 //! ```
 

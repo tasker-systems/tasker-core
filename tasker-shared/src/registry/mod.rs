@@ -6,11 +6,11 @@
 //!
 //! The registry module provides infrastructure for managing different types of
 //! registries across the system. This is separate from the orchestration-specific
-//! TaskHandlerRegistry to maintain separation of concerns.
+//! TaskTemplateRegistry to maintain separation of concerns.
 //!
 //! ## Available Registries
 //!
-//! - **TaskHandlerRegistry**: Task handler registration and resolution (orchestration-specific)
+//! - **TaskTemplateRegistry**: Task handler registration and resolution (orchestration-specific)
 //! - **StepHandlerResolver**: Strategy pattern for step handler resolution (TAS-93)
 //! - **ResolverChain**: Priority-ordered chain of step handler resolvers (TAS-93)
 //! - **MethodDispatchWrapper**: Framework-level method dispatch for handlers (TAS-93)
@@ -22,7 +22,7 @@
 //!
 //! ```text
 //! Registry Infrastructure
-//! ├── TaskHandlerRegistry       (Orchestration task handlers)
+//! ├── TaskTemplateRegistry       (Orchestration task handlers)
 //! ├── StepHandlerResolver       (Step handler resolution strategy)
 //! ├── ResolverChain             (Priority-ordered resolver coordination)
 //! ├── MethodDispatchWrapper     (Method dispatch for resolved handlers)
@@ -43,16 +43,16 @@
 //! ## Usage
 //!
 //! ```rust,no_run
-//! use tasker_shared::registry::TaskHandlerRegistry;
+//! use tasker_shared::registry::TaskTemplateRegistry;
 //! use std::sync::Arc;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create task handler registry
 //! let pool = sqlx::PgPool::connect("postgresql://localhost/test").await?;
-//! let task_handler_registry = TaskHandlerRegistry::new(pool);
+//! let task_template_registry = TaskTemplateRegistry::new(pool);
 //!     Ok(())
 //! }
-//!
+//! ```
 //! ```
 
 pub mod method_dispatch;
@@ -70,6 +70,6 @@ pub use step_handler_resolver::{
     ResolutionContext, ResolutionError, ResolvedHandler, StepHandlerResolver,
 };
 pub use task_template_registry::{
-    HandlerKey, RegistryStats as TaskHandlerRegistryStats, TaskTemplateDiscoveryResult,
+    HandlerKey, RegistryStats as TaskTemplateRegistryStats, TaskTemplateDiscoveryResult,
     TaskTemplateRegistry,
 };

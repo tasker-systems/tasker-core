@@ -577,7 +577,7 @@ impl BatchProcessingService {
         Ok(step_mapping)
     }
 
-    /// Get the TaskTemplate for a task using the task_handler_registry
+    /// Get the TaskTemplate for a task using the task_template_registry
     ///
     /// This retrieves the template via the registry rather than direct SQL queries,
     /// maintaining consistency with the rest of the system and avoiding duplicate parsing.
@@ -605,10 +605,10 @@ impl BatchProcessingService {
             BatchProcessingError::InvalidConfiguration(format!("Task {task_uuid} not found"))
         })?;
 
-        // Use the task_handler_registry to get the template
+        // Use the task_template_registry to get the template
         let template = self
             .context
-            .task_handler_registry
+            .task_template_registry
             .get_task_template(
                 &task_info.namespace_name,
                 &task_info.name,

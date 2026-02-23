@@ -118,7 +118,7 @@ impl LifecycleTestManager {
     pub async fn with_template_path(pool: PgPool, template_path: &str) -> Result<Self> {
         tracing::info!("🔧 Initializing LifecycleTestManager");
 
-        // Create TaskHandlerRegistry and load templates
+        // Create TaskTemplateRegistry and load templates
         let registry = TaskTemplateRegistry::new(pool.clone());
         let discovery_result = registry
             .discover_and_register_templates(template_path)
