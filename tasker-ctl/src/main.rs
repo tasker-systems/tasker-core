@@ -6,6 +6,7 @@
 //! This is the CLI binary crate. The API client library lives in `tasker-client`.
 
 pub(crate) mod cli_config;
+pub(crate) mod codegen;
 pub(crate) mod commands;
 pub(crate) mod docs;
 pub(crate) mod output;
