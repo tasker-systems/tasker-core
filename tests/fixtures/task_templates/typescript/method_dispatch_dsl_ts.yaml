@@ -31,15 +31,6 @@ metadata:
   created_at: "2026-01-07T00:00:00Z"
   updated_at: "2026-01-07T00:00:00Z"
   notes: "Tests method dispatch feature where handler.method() is called instead of handler.call()"
-task_handler:
-  callable: ResolverTests_dsl.TaskHandler
-  initialization:
-    test_type: method_dispatch
-    expected_methods:
-      - validate
-      - process
-      - refund
-      - call
 system_dependencies:
   primary: default
   secondary: []

@@ -34,10 +34,6 @@ metadata:
   created_at: "2025-01-03T00:00:00Z"
   updated_at: "2025-01-03T00:00:00Z"
   notes: "Validates TAS-125 checkpoint_yield() with FFI persistence and re-dispatch"
-task_handler:
-  callable: ruby_ffi_handler_dsl
-  initialization:
-    test_type: checkpoint_yield
 system_dependencies:
   primary: default
   secondary: []
