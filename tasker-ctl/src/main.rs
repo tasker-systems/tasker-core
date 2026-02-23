@@ -759,6 +759,29 @@ pub(crate) enum GenerateCommands {
         #[arg(short, long)]
         step: Option<String>,
     },
+
+    /// Generate handler scaffolds with typed dependency wiring
+    Handler {
+        /// Path to task template YAML file
+        #[arg(short, long)]
+        template: std::path::PathBuf,
+
+        /// Target language: python (py), ruby (rb), typescript (ts), rust (rs)
+        #[arg(short, long)]
+        language: String,
+
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Generate handler for a specific step only
+        #[arg(short, long)]
+        step: Option<String>,
+
+        /// Also generate test scaffolds
+        #[arg(long, default_value = "false")]
+        with_tests: bool,
+    },
 }
 
 #[tokio::main]

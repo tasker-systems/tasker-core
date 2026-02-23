@@ -123,8 +123,7 @@ pub fn render_tests(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codegen::handler::{extract_handlers, DependencyRef, StubField};
-    use crate::codegen::schema::FieldType;
+    use crate::codegen::handler::extract_handlers;
     use tasker_shared::models::core::task_template::TaskTemplate;
 
     fn codegen_test_template() -> TaskTemplate {

@@ -24,8 +24,6 @@ pub struct HandlerDef {
     pub dependencies: Vec<DependencyRef>,
     /// Whether this step has a result_schema (typed result available)
     pub has_result_schema: bool,
-    /// The result type name if result_schema exists (e.g., "ValidateOrderResult")
-    pub result_type_name: Option<String>,
     /// Stub return fields derived from result_schema (field_name, stub_value pairs)
     pub stub_fields: Vec<StubField>,
 }
@@ -59,6 +57,19 @@ impl HandlerDef {
     /// snake_case step name (e.g., "validate_order").
     pub fn snake_name(&self) -> String {
         self.step_name.to_snake_case()
+    }
+
+    /// The PascalCase result type name if result_schema exists (e.g., "ValidateOrderResult").
+    #[allow(
+        dead_code,
+        reason = "public API for handler IR consumers; exercised in tests"
+    )]
+    pub fn result_type_name(&self) -> Option<String> {
+        if self.has_result_schema {
+            Some(schema::to_pascal_result_name(&self.step_name))
+        } else {
+            None
+        }
     }
 
     /// Check if this handler has any dependencies.
@@ -106,11 +117,6 @@ impl StubField {
     /// TypeScript stub value for this field type.
     pub fn typescript_value(&self) -> String {
         stub_value_typescript(&self.field_type)
-    }
-
-    /// Rust stub value for this field type.
-    pub fn rust_value(&self) -> String {
-        stub_value_rust(&self.field_type)
     }
 
     /// JSON stub value (for serde_json::json! macro and generic mocks).
@@ -166,18 +172,6 @@ fn stub_value_typescript(ft: &FieldType) -> String {
     }
 }
 
-fn stub_value_rust(ft: &FieldType) -> String {
-    match ft {
-        FieldType::String => "String::new()".to_string(),
-        FieldType::Integer => "0".to_string(),
-        FieldType::Number => "0.0".to_string(),
-        FieldType::Boolean => "false".to_string(),
-        FieldType::Array(_) => "vec![]".to_string(),
-        FieldType::Nested(name) => format!("{name}::default()"),
-        FieldType::Any => "serde_json::Value::Null".to_string(),
-    }
-}
-
 // =========================================================================
 // Extraction
 // =========================================================================
@@ -217,16 +211,11 @@ pub fn extract_handlers(template: &TaskTemplate, step_filter: Option<&str>) -> V
                 .collect();
 
             let has_result_schema = step.result_schema.is_some();
-            let result_type_name = if has_result_schema {
-                Some(schema::to_pascal_result_name(&step.name))
-            } else {
-                None
-            };
 
             let stub_fields = step
                 .result_schema
                 .as_ref()
-                .map(|s| extract_stub_fields(s))
+                .map(extract_stub_fields)
                 .unwrap_or_default();
 
             HandlerDef {
@@ -235,7 +224,6 @@ pub fn extract_handlers(template: &TaskTemplate, step_filter: Option<&str>) -> V
                 description: step.description.clone(),
                 dependencies,
                 has_result_schema,
-                result_type_name,
                 stub_fields,
             }
         })
@@ -277,7 +265,6 @@ fn resolve_simple_type(schema: &Value) -> FieldType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tasker_shared::models::core::task_template::TaskTemplate;
 
     fn codegen_test_template() -> TaskTemplate {
         let yaml =
@@ -376,16 +363,16 @@ mod tests {
         let handlers = extract_handlers(&template, None);
 
         assert_eq!(
-            handlers[0].result_type_name.as_deref(),
+            handlers[0].result_type_name().as_deref(),
             Some("ValidateOrderResult")
         );
         assert_eq!(
-            handlers[1].result_type_name.as_deref(),
+            handlers[1].result_type_name().as_deref(),
             Some("EnrichOrderResult")
         );
-        assert!(handlers[2].result_type_name.is_none());
+        assert!(handlers[2].result_type_name().is_none());
         assert_eq!(
-            handlers[3].result_type_name.as_deref(),
+            handlers[3].result_type_name().as_deref(),
             Some("GenerateReportResult")
         );
     }
@@ -418,7 +405,6 @@ mod tests {
             description: None,
             dependencies: vec![],
             has_result_schema: false,
-            result_type_name: None,
             stub_fields: vec![],
         };
         assert_eq!(handler.pascal_name(), "ValidateOrderHandler");

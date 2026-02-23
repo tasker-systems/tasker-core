@@ -12,7 +12,6 @@ pub mod rust_gen;
 pub mod schema;
 pub mod typescript;
 
-use handler::HandlerDef;
 use schema::{SchemaError, TypeDef};
 use std::fmt;
 use tasker_shared::models::core::task_template::TaskTemplate;
