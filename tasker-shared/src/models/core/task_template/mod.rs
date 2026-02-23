@@ -480,7 +480,9 @@ pub struct StepDefinition {
     pub system_dependency: Option<String>,
 
     /// Dependencies on other steps
-    #[serde(default)]
+    ///
+    /// Accepts both `dependencies` (canonical) and `depends_on` (DSL convenience alias).
+    #[serde(default, alias = "depends_on")]
     #[builder(default)]
     pub dependencies: Vec<String>,
 
@@ -3275,6 +3277,45 @@ steps:
             schema["properties"]["details"]["properties"]["tags"]["items"]["type"],
             "string"
         );
+    }
+
+    #[test]
+    fn test_depends_on_alias_populates_dependencies() {
+        let yaml_content = r#"
+name: alias_test
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: step_a
+    handler:
+      callable: "HandlerA"
+
+  - name: step_b
+    handler:
+      callable: "HandlerB"
+    depends_on:
+      - step_a
+
+  - name: step_c
+    handler:
+      callable: "HandlerC"
+    dependencies:
+      - step_a
+      - step_b
+"#;
+
+        let template = TaskTemplate::from_yaml(yaml_content).expect("Should parse YAML");
+        assert_eq!(template.steps.len(), 3);
+
+        // step_a has no dependencies
+        assert!(template.steps[0].dependencies.is_empty());
+
+        // step_b uses depends_on alias → should populate dependencies field
+        assert_eq!(template.steps[1].dependencies, vec!["step_a"]);
+
+        // step_c uses canonical dependencies field
+        assert_eq!(template.steps[2].dependencies, vec!["step_a", "step_b"]);
     }
 
     #[test]
