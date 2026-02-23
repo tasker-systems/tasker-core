@@ -238,13 +238,13 @@ fn resolve_field_type(
 }
 
 /// Convert a step name like `validate_order` to `ValidateOrderResult`.
-fn to_pascal_result_name(step_name: &str) -> String {
+pub(crate) fn to_pascal_result_name(step_name: &str) -> String {
     use heck::ToUpperCamelCase;
     format!("{}Result", step_name.to_upper_camel_case())
 }
 
 /// Convert a property name to PascalCase.
-fn to_pascal_case(name: &str) -> String {
+pub(crate) fn to_pascal_case(name: &str) -> String {
     use heck::ToUpperCamelCase;
     name.to_upper_camel_case()
 }

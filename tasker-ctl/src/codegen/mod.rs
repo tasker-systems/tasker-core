@@ -2,13 +2,17 @@
 //!
 //! Converts JSON Schema on `StepDefinition.result_schema` into typed models
 //! for Python (Pydantic), Ruby (Dry::Struct), TypeScript (interfaces), and Rust (structs).
+//! Also generates handler scaffolds with typed dependency wiring and test files.
 
+pub mod handler;
+pub mod handler_templates;
 pub mod python;
 pub mod ruby;
 pub mod rust_gen;
 pub mod schema;
 pub mod typescript;
 
+use handler::HandlerDef;
 use schema::{SchemaError, TypeDef};
 use std::fmt;
 use tasker_shared::models::core::task_template::TaskTemplate;
@@ -102,4 +106,34 @@ pub fn generate_types(
         TargetLanguage::TypeScript => typescript::render(&all_types),
         TargetLanguage::Rust => rust_gen::render(&all_types),
     }
+}
+
+/// Generate handler scaffolds from a task template.
+///
+/// Produces runnable handler code with typed `depends_on` wiring for each step.
+/// If `step_filter` is provided, only generates handlers for that step.
+pub fn generate_handlers(
+    template: &TaskTemplate,
+    language: TargetLanguage,
+    step_filter: Option<&str>,
+) -> Result<String, CodegenError> {
+    let handlers = handler::extract_handlers(template, step_filter);
+    let template_name = &template.name;
+
+    handler_templates::render_handlers(&handlers, template_name, language)
+}
+
+/// Generate test scaffolds for handler functions.
+///
+/// Produces test files with mock dependency data derived from `result_schema`.
+/// If `step_filter` is provided, only generates tests for that step.
+pub fn generate_tests(
+    template: &TaskTemplate,
+    language: TargetLanguage,
+    step_filter: Option<&str>,
+) -> Result<String, CodegenError> {
+    let handlers = handler::extract_handlers(template, step_filter);
+    let template_name = &template.name;
+
+    handler_templates::render_tests(&handlers, template_name, language)
 }
