@@ -15,6 +15,9 @@ end
 {% endif -%}
 class {{ type_def.name }} < Dry::Struct
 {%- for field in type_def.fields %}
+{%- if field.field_type.is_string_enum() %}
+  # Allowed values: {{ field.field_type.enum_values()|join(", ") }}
+{%- endif %}
 {%- if field.required %}
   attribute :{{ field.snake_name() }}, {{ field.field_type.ruby_type() }}
 {%- else %}

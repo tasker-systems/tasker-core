@@ -23,6 +23,9 @@ class {{ type_def.name }}(BaseModel):
 {%- if field.description.is_some() %}
     # {{ field.description.as_deref().unwrap_or_default() }}
 {%- endif %}
+{%- if field.field_type.is_string_enum() %}
+    # Allowed values: {{ field.field_type.enum_values()|join(", ") }}
+{%- endif %}
 {%- if field.required %}
     {{ field.snake_name() }}: {{ field.field_type.python_type() }}
 {%- else %}

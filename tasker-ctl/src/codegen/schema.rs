@@ -40,6 +40,8 @@ pub enum FieldType {
     Array(Box<FieldType>),
     /// References another TypeDef by name
     Nested(String),
+    /// A string with a fixed set of allowed values
+    StringEnum(Vec<String>),
     /// Fallback for unrecognized or unsupported schema constructs
     Any,
 }
@@ -53,6 +55,9 @@ impl fmt::Display for FieldType {
             FieldType::Boolean => write!(f, "Boolean"),
             FieldType::Array(inner) => write!(f, "Array<{inner}>"),
             FieldType::Nested(name) => write!(f, "{name}"),
+            FieldType::StringEnum(ref values) => {
+                write!(f, "Enum({})", values.join(", "))
+            }
             FieldType::Any => write!(f, "Any"),
         }
     }
@@ -68,6 +73,25 @@ impl FieldDef {
         use heck::ToSnakeCase;
         self.name.to_snake_case()
     }
+
+    /// Field name escaped for Rust (prefixes reserved keywords with `r#`).
+    pub fn rust_name(&self) -> String {
+        let name = self.snake_name();
+        match name.as_str() {
+            "type" | "struct" | "enum" | "fn" | "let" | "mut" | "ref" | "self" | "super"
+            | "crate" | "mod" | "pub" | "use" | "impl" | "trait" | "where" | "async" | "await"
+            | "move" | "return" | "match" | "if" | "else" | "loop" | "for" | "while" | "break"
+            | "continue" | "in" | "as" | "const" | "static" | "extern" | "unsafe" | "dyn"
+            | "abstract" | "become" | "box" | "do" | "final" | "macro" | "override" | "priv"
+            | "typeof" | "unsized" | "virtual" | "yield" | "try" => format!("r#{name}"),
+            _ => name,
+        }
+    }
+
+    /// Whether this field name is a Rust reserved keyword (needing `r#` prefix).
+    pub fn is_rust_keyword(&self) -> bool {
+        self.rust_name() != self.snake_name()
+    }
 }
 
 impl FieldType {
@@ -80,6 +104,7 @@ impl FieldType {
             FieldType::Boolean => "bool".to_string(),
             FieldType::Array(inner) => format!("list[{}]", inner.python_type()),
             FieldType::Nested(name) => name.clone(),
+            FieldType::StringEnum(_) => "str".to_string(),
             FieldType::Any => "Any".to_string(),
         }
     }
@@ -93,6 +118,7 @@ impl FieldType {
             FieldType::Boolean => "Types::Strict::Bool".to_string(),
             FieldType::Array(inner) => format!("Types::Strict::Array.of({})", inner.ruby_type()),
             FieldType::Nested(name) => name.clone(),
+            FieldType::StringEnum(_) => "Types::Strict::String".to_string(),
             FieldType::Any => "Types::Nominal::Any".to_string(),
         }
     }
@@ -105,6 +131,10 @@ impl FieldType {
             FieldType::Boolean => "boolean".to_string(),
             FieldType::Array(inner) => format!("{}[]", inner.typescript_type()),
             FieldType::Nested(name) => name.clone(),
+            FieldType::StringEnum(ref values) => {
+                let quoted: Vec<String> = values.iter().map(|v| format!("\"{v}\"")).collect();
+                quoted.join(" | ")
+            }
             FieldType::Any => "unknown".to_string(),
         }
     }
@@ -118,7 +148,21 @@ impl FieldType {
             FieldType::Boolean => "bool".to_string(),
             FieldType::Array(inner) => format!("Vec<{}>", inner.rust_type()),
             FieldType::Nested(name) => name.clone(),
+            FieldType::StringEnum(_) => "String".to_string(),
             FieldType::Any => "serde_json::Value".to_string(),
+        }
+    }
+
+    /// Whether this type is a string enum (for template rendering).
+    pub fn is_string_enum(&self) -> bool {
+        matches!(self, FieldType::StringEnum(_))
+    }
+
+    /// Get enum values if this is a StringEnum.
+    pub fn enum_values(&self) -> Vec<&str> {
+        match self {
+            FieldType::StringEnum(values) => values.iter().map(|s| s.as_str()).collect(),
+            _ => vec![],
         }
     }
 }
@@ -210,6 +254,17 @@ fn resolve_field_type(
 ) -> FieldType {
     let type_str = schema.get("type").and_then(|v| v.as_str());
 
+    // Check for enum values (applies to string type with constrained values)
+    if let Some(enum_values) = schema.get("enum").and_then(|v| v.as_array()) {
+        let variants: Vec<String> = enum_values
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect();
+        if !variants.is_empty() {
+            return FieldType::StringEnum(variants);
+        }
+    }
+
     match type_str {
         Some("string") => FieldType::String,
         Some("integer") => FieldType::Integer,
@@ -224,9 +279,16 @@ fn resolve_field_type(
         }
         Some("object") => {
             if let Some(obj) = schema.as_object() {
-                let nested_name = format!("{parent_type_name}{}", to_pascal_case(prop_name));
-                extract_object_type(&nested_name, obj, types);
-                FieldType::Nested(nested_name)
+                // Only create a named nested type if the object has properties.
+                // Bare `{type: object}` with no properties is an open-content
+                // container (dict/map/HashMap) — use Any instead of an empty struct.
+                if obj.contains_key("properties") {
+                    let nested_name = format!("{parent_type_name}{}", to_pascal_case(prop_name));
+                    extract_object_type(&nested_name, obj, types);
+                    FieldType::Nested(nested_name)
+                } else {
+                    FieldType::Any
+                }
             } else {
                 FieldType::Any
             }
@@ -427,6 +489,58 @@ mod tests {
         assert_eq!(
             untyped_array.field_type,
             FieldType::Array(Box::new(FieldType::Any))
+        );
+    }
+
+    #[test]
+    fn test_string_enum_values() {
+        let schema = json!({
+            "type": "object",
+            "required": ["status"],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["completed", "processing", "failed"]
+                },
+                "optional_tier": {
+                    "type": "string",
+                    "enum": ["free", "pro", "enterprise"]
+                }
+            }
+        });
+
+        let types = extract_types("check_status", &schema).unwrap();
+        assert_eq!(types.len(), 1);
+
+        let root = &types[0];
+        let status = root.fields.iter().find(|f| f.name == "status").unwrap();
+        assert_eq!(
+            status.field_type,
+            FieldType::StringEnum(vec![
+                "completed".to_string(),
+                "processing".to_string(),
+                "failed".to_string()
+            ])
+        );
+        assert!(status.required);
+        assert_eq!(status.field_type.python_type(), "str");
+        assert_eq!(
+            status.field_type.typescript_type(),
+            "\"completed\" | \"processing\" | \"failed\""
+        );
+        assert_eq!(status.field_type.ruby_type(), "Types::Strict::String");
+        assert_eq!(status.field_type.rust_type(), "String");
+
+        let tier = root
+            .fields
+            .iter()
+            .find(|f| f.name == "optional_tier")
+            .unwrap();
+        assert!(!tier.required);
+        assert!(tier.field_type.is_string_enum());
+        assert_eq!(
+            tier.field_type.enum_values(),
+            vec!["free", "pro", "enterprise"]
         );
     }
 

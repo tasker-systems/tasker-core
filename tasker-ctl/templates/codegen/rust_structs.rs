@@ -13,11 +13,17 @@ use serde_json;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct {{ type_def.name }} {
 {%- for field in type_def.fields %}
+{%- if field.field_type.is_string_enum() %}
+    /// Allowed values: {{ field.field_type.enum_values()|join(", ") }}
+{%- endif %}
+{%- if field.is_rust_keyword() %}
+    #[serde(rename = "{{ field.snake_name() }}")]
+{%- endif %}
 {%- if !field.required %}
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub {{ field.snake_name() }}: Option<{{ field.field_type.rust_type() }}>,
+    pub {{ field.rust_name() }}: Option<{{ field.field_type.rust_type() }}>,
 {%- else %}
-    pub {{ field.snake_name() }}: {{ field.field_type.rust_type() }},
+    pub {{ field.rust_name() }}: {{ field.field_type.rust_type() }},
 {%- endif %}
 {%- endfor %}
 }
