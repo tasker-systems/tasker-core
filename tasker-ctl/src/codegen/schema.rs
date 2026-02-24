@@ -170,7 +170,7 @@ impl FieldType {
 /// Error during schema extraction.
 #[derive(Debug, thiserror::Error)]
 pub enum SchemaError {
-    #[error("result_schema must be a JSON object, got: {0}")]
+    #[error("schema must be a JSON object, got: {0}")]
     NotAnObject(String),
 }
 
@@ -299,10 +299,33 @@ fn resolve_field_type(
     }
 }
 
+/// Extract type definitions from a task template's `input_schema`.
+///
+/// Returns types in dependency order (nested types before their parents).
+/// The root type is named `{task_name}Input` in PascalCase.
+pub fn extract_input_types(task_name: &str, schema: &Value) -> Result<Vec<TypeDef>, SchemaError> {
+    let obj = schema
+        .as_object()
+        .ok_or_else(|| SchemaError::NotAnObject(format!("{schema}")))?;
+
+    let root_name = to_pascal_input_name(task_name);
+    let mut types = Vec::new();
+
+    extract_object_type(&root_name, obj, &mut types);
+
+    Ok(types)
+}
+
 /// Convert a step name like `validate_order` to `ValidateOrderResult`.
 pub(crate) fn to_pascal_result_name(step_name: &str) -> String {
     use heck::ToUpperCamelCase;
     format!("{}Result", step_name.to_upper_camel_case())
+}
+
+/// Convert a task name like `ecommerce_order_processing` to `EcommerceOrderProcessingInput`.
+pub(crate) fn to_pascal_input_name(task_name: &str) -> String {
+    use heck::ToUpperCamelCase;
+    format!("{}Input", task_name.to_upper_camel_case())
 }
 
 /// Convert a property name to PascalCase.
@@ -549,5 +572,103 @@ mod tests {
         let schema = json!("not an object");
         let result = extract_types("bad", &schema);
         assert!(result.is_err());
+    }
+
+    // ── Input type extraction tests ─────────────────────────────────
+
+    #[test]
+    fn test_extract_input_types_flat_schema() {
+        let schema = json!({
+            "type": "object",
+            "required": ["order_id", "customer_email"],
+            "properties": {
+                "order_id": { "type": "string" },
+                "customer_email": { "type": "string" },
+                "notes": { "type": "string" }
+            }
+        });
+
+        let types = extract_input_types("codegen_test", &schema).unwrap();
+        assert_eq!(types.len(), 1);
+
+        let root = &types[0];
+        assert_eq!(root.name, "CodegenTestInput");
+        assert_eq!(root.fields.len(), 3);
+
+        let order_id = root.fields.iter().find(|f| f.name == "order_id").unwrap();
+        assert_eq!(order_id.field_type, FieldType::String);
+        assert!(order_id.required);
+
+        let notes = root.fields.iter().find(|f| f.name == "notes").unwrap();
+        assert!(!notes.required);
+    }
+
+    #[test]
+    fn test_extract_input_types_with_nested_and_array() {
+        let schema = json!({
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["product_id", "quantity"],
+                        "properties": {
+                            "product_id": { "type": "integer" },
+                            "quantity": { "type": "integer" }
+                        }
+                    }
+                },
+                "shipping_address": {
+                    "type": "object",
+                    "required": ["street"],
+                    "properties": {
+                        "street": { "type": "string" },
+                        "city": { "type": "string" }
+                    }
+                }
+            }
+        });
+
+        let types = extract_input_types("ecommerce_order", &schema).unwrap();
+        // Nested types come before root: Items, ShippingAddress, then root
+        assert_eq!(types.len(), 3);
+
+        // Array item type
+        let items_type = types
+            .iter()
+            .find(|t| t.name == "EcommerceOrderInputItems")
+            .unwrap();
+        assert_eq!(items_type.fields.len(), 2);
+
+        // Nested object type
+        let addr_type = types
+            .iter()
+            .find(|t| t.name == "EcommerceOrderInputShippingAddress")
+            .unwrap();
+        assert_eq!(addr_type.fields.len(), 2);
+
+        // Root type
+        let root = types
+            .iter()
+            .find(|t| t.name == "EcommerceOrderInput")
+            .unwrap();
+        assert_eq!(root.fields.len(), 2);
+
+        let items_field = root.fields.iter().find(|f| f.name == "items").unwrap();
+        assert!(items_field.required);
+        assert!(
+            matches!(&items_field.field_type, FieldType::Array(inner) if matches!(inner.as_ref(), FieldType::Nested(n) if n == "EcommerceOrderInputItems"))
+        );
+    }
+
+    #[test]
+    fn test_to_pascal_input_name() {
+        assert_eq!(to_pascal_input_name("codegen_test"), "CodegenTestInput");
+        assert_eq!(
+            to_pascal_input_name("ecommerce_order_processing"),
+            "EcommerceOrderProcessingInput"
+        );
     }
 }

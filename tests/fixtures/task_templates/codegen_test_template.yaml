@@ -24,9 +24,48 @@ system_dependencies:
 domain_events: []
 input_schema:
   type: object
+  required:
+    - order_id
+    - customer_email
+    - items
   properties:
     order_id:
       type: string
+      description: "Unique order identifier"
+    customer_email:
+      type: string
+      description: "Customer email address"
+    items:
+      type: array
+      description: "Cart items to process"
+      items:
+        type: object
+        required:
+          - product_id
+          - quantity
+        properties:
+          product_id:
+            type: integer
+          quantity:
+            type: integer
+    shipping_address:
+      type: object
+      required:
+        - street
+        - city
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        zip:
+          type: string
+    priority:
+      type: string
+      enum:
+        - standard
+        - express
+        - overnight
 steps:
   - name: validate_order
     description: "Validates an incoming order"

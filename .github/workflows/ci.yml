@@ -27,6 +27,7 @@ jobs:
       run-ruby-framework: ${{ steps.detect.outputs.run-ruby-framework }}
       run-python-framework: ${{ steps.detect.outputs.run-python-framework }}
       run-typescript-framework: ${{ steps.detect.outputs.run-typescript-framework }}
+      run-codegen-validation: ${{ steps.detect.outputs.run-codegen-validation }}
       run-performance-analysis: ${{ steps.detect.outputs.run-performance-analysis }}
       scope-summary: ${{ steps.detect.outputs.scope-summary }}
     steps:
@@ -131,6 +132,15 @@ jobs:
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
 
+  validate-codegen:
+    needs: [detect-scope, build-workers]
+    if: >-
+      always() &&
+      needs.detect-scope.outputs.run-codegen-validation == 'true' &&
+      needs.detect-scope.result == 'success' &&
+      (needs.build-workers.result == 'success' || needs.build-workers.result == 'skipped')
+    uses: ./.github/workflows/validate-codegen.yml
+
   # Code quality runs in parallel with builds after postgres is ready
   code-quality:
     needs: [detect-scope, build-postgres]
@@ -188,7 +198,7 @@ jobs:
   # ============================================================================
   ci-success:
     name: CI Success
-    needs: [detect-scope, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, performance-analysis]
+    needs: [detect-scope, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, validate-codegen, performance-analysis]
     if: always()
     runs-on: ubuntu-22.04
     steps:
@@ -257,6 +267,10 @@ jobs:
           check_job "typescript-framework-tests" \
             "${{ needs.typescript-framework-tests.result }}" \
             "${{ needs.detect-scope.outputs.run-typescript-framework }}"
+
+          check_job "validate-codegen" \
+            "${{ needs.validate-codegen.result }}" \
+            "${{ needs.detect-scope.outputs.run-codegen-validation }}"
 
           check_job "performance-analysis" \
             "${{ needs.performance-analysis.result }}" \

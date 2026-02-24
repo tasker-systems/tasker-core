@@ -95,7 +95,7 @@ Makefile.toml" \
     "RUN_TYPESCRIPT_FRAMEWORK=false"
 
 # --- server-core change ---
-run_test "server-core: builds + integration, no framework tests" \
+run_test "server-core: builds + integration + codegen validation, no framework tests" \
     "tasker-orchestration/src/lib.rs
 tasker-client/src/client.rs" \
     "RUN_BUILD_POSTGRES=true" \
@@ -103,6 +103,7 @@ tasker-client/src/client.rs" \
     "RUN_BUILD_RUST_WORKER=true" \
     "RUN_CODE_QUALITY=true" \
     "RUN_INTEGRATION_TESTS=true" \
+    "RUN_CODEGEN_VALIDATION=true" \
     "RUN_RUBY_FRAMEWORK=false" \
     "RUN_PYTHON_FRAMEWORK=false" \
     "RUN_TYPESCRIPT_FRAMEWORK=false"
@@ -317,6 +318,26 @@ tasker-pgmq/CLAUDE.md" \
     "RUN_CODE_QUALITY=true" \
     "RUN_INTEGRATION_TESTS=false" \
     "RUN_RUBY_FRAMEWORK=false"
+
+# --- codegen validation: tasker-ctl source triggers it ---
+run_test "tasker-ctl codegen source: codegen validation enabled" \
+    "tasker-ctl/src/codegen/python.rs" \
+    "RUN_CODEGEN_VALIDATION=true"
+
+# --- codegen validation: Askama templates trigger it ---
+run_test "tasker-ctl Askama template: codegen validation enabled" \
+    "tasker-ctl/templates/codegen/python_models.py" \
+    "RUN_CODEGEN_VALIDATION=true"
+
+# --- codegen validation: worker-only changes do NOT trigger it ---
+run_test "ruby worker only: codegen validation disabled" \
+    "workers/ruby/lib/handler.rb" \
+    "RUN_CODEGEN_VALIDATION=false"
+
+# --- codegen validation: full CI (proto) triggers it ---
+run_test "proto change: codegen validation enabled via full CI" \
+    "proto/tasker/v1/task.proto" \
+    "RUN_CODEGEN_VALIDATION=true"
 
 # --- scope summary checks ---
 run_test "scope summary: docs-only" \

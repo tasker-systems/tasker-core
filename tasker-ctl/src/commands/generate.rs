@@ -95,10 +95,11 @@ async fn handle_generate_types(
 
     let template = load_template(template_path)?;
 
-    let has_schemas = template.steps.iter().any(|s| s.result_schema.is_some());
+    let has_schemas =
+        template.input_schema.is_some() || template.steps.iter().any(|s| s.result_schema.is_some());
     if !has_schemas {
         eprintln!(
-            "Warning: No steps in '{}' have result_schema definitions.",
+            "Warning: '{}' has no input_schema and no steps with result_schema definitions.",
             template_path.display()
         );
         return Ok(());

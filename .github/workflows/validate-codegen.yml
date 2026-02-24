@@ -1,0 +1,51 @@
+name: Validate Codegen
+
+on:
+  workflow_call:
+
+jobs:
+  validate-codegen:
+    name: Validate Generated Code Syntax
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Download core artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: core-artifacts
+          path: target/debug/
+
+      - name: Make binaries executable
+        run: chmod +x target/debug/tasker-ctl
+
+      - name: Install Rust toolchain (rustfmt)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Set up Bun (for tsc)
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install TypeScript compiler
+        run: bun install -g typescript
+
+      - name: Validate codegen output
+        run: |
+          chmod +x cargo-make/scripts/validate-codegen.sh
+          cargo-make/scripts/validate-codegen.sh \
+            --binary target/debug/tasker-ctl \
+            --fixture tests/fixtures/task_templates/codegen_test_template.yaml \
+            --verbose

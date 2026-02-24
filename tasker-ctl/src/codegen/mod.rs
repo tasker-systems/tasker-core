@@ -67,18 +67,33 @@ pub enum CodegenError {
     Rendering(String),
 }
 
-/// Generate typed models from a task template's `result_schema` definitions.
+/// Generate typed models from a task template's `input_schema` and `result_schema` definitions.
 ///
-/// Iterates all steps with `result_schema`, extracts type definitions,
-/// and renders them in the target language.
+/// When no step filter is active, extracts the task-level input type first,
+/// then iterates all steps with `result_schema`. The input type appears first
+/// in the output for natural reading order.
 ///
-/// If `step_filter` is provided, only generates types for that step.
+/// If `step_filter` is provided, only generates types for that step (no input type).
 pub fn generate_types(
     template: &TaskTemplate,
     language: TargetLanguage,
     step_filter: Option<&str>,
 ) -> Result<String, CodegenError> {
     let mut all_types: Vec<TypeDef> = Vec::new();
+
+    // Extract input types from template-level input_schema (skip when step-filtering)
+    if step_filter.is_none() {
+        if let Some(input_schema) = &template.input_schema {
+            let input_types =
+                schema::extract_input_types(&template.name, input_schema).map_err(|e| {
+                    CodegenError::SchemaExtraction {
+                        step: format!("{} (input_schema)", template.name),
+                        source: e,
+                    }
+                })?;
+            all_types.extend(input_types);
+        }
+    }
 
     for step in &template.steps {
         // Apply step filter if provided
