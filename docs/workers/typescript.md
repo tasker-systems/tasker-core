@@ -1280,7 +1280,7 @@ typescript-worker:
     TASKER_TEMPLATE_PATH: /app/templates
     PORT: 8081
   ports:
-    - "8084:8081"
+    - "8085:8081"
   healthcheck:
     test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
     interval: 10s

@@ -132,7 +132,7 @@ impl Default for BenchmarkConfig {
 
         let typescript_worker_url = env::var("TASKER_TEST_TS_WORKER_URL")
             .ok()
-            .or_else(|| Some("http://localhost:8084".to_string()));
+            .or_else(|| Some("http://localhost:8085".to_string()));
 
         Self {
             orchestration_url,
