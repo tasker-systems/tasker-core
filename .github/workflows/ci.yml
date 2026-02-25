@@ -94,6 +94,9 @@ jobs:
     uses: ./.github/workflows/test-integration.yml
     with:
       postgres-image: ${{ needs.build-postgres.outputs.postgres-image }}
+      build-ruby: ${{ needs.detect-scope.outputs.run-build-ruby == 'true' }}
+      build-python: ${{ needs.detect-scope.outputs.run-build-python == 'true' }}
+      build-typescript: ${{ needs.detect-scope.outputs.run-build-typescript == 'true' }}
 
   ruby-framework-tests:
     needs: [detect-scope, build-postgres, build-workers]
