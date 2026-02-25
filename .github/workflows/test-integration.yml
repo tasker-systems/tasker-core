@@ -383,11 +383,29 @@ jobs:
           if [ "$BUILD_TYPESCRIPT" = "true" ]; then
             export TASKER_TEST_TYPESCRIPT_WORKER_URL=http://localhost:8085
           fi
+
+          # Build nextest filter to exclude tests for out-of-scope FFI workers
+          NEXTEST_FILTER="all()"
+          if [ "$BUILD_RUBY" != "true" ]; then
+            NEXTEST_FILTER="$NEXTEST_FILTER - test(::ruby::)"
+            echo "⏭️  Excluding Ruby worker tests (not in scope)"
+          fi
+          if [ "$BUILD_PYTHON" != "true" ]; then
+            NEXTEST_FILTER="$NEXTEST_FILTER - test(::python::)"
+            echo "⏭️  Excluding Python worker tests (not in scope)"
+          fi
+          if [ "$BUILD_TYPESCRIPT" != "true" ]; then
+            NEXTEST_FILTER="$NEXTEST_FILTER - test(::typescript::)"
+            echo "⏭️  Excluding TypeScript worker tests (not in scope)"
+          fi
+          echo "📋 Nextest filter: $NEXTEST_FILTER"
+
           mkdir -p target/nextest/ci
           cargo nextest run \
             --profile ci \
             --test '*' \
-            --no-fail-fast
+            --no-fail-fast \
+            -E "$NEXTEST_FILTER"
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           TASKER_TEST_ORCHESTRATION_URL: http://localhost:8080
@@ -634,6 +652,22 @@ jobs:
           if [ "$BUILD_TYPESCRIPT" = "true" ]; then
             export TASKER_TEST_TYPESCRIPT_WORKER_URL=http://localhost:8085
           fi
+
+          # Build exclusion filter for out-of-scope FFI workers
+          EXCLUSIONS=""
+          if [ "$BUILD_RUBY" != "true" ]; then
+            EXCLUSIONS="$EXCLUSIONS - test(::ruby::)"
+            echo "⏭️  Excluding Ruby worker tests (not in scope)"
+          fi
+          if [ "$BUILD_PYTHON" != "true" ]; then
+            EXCLUSIONS="$EXCLUSIONS - test(::python::)"
+            echo "⏭️  Excluding Python worker tests (not in scope)"
+          fi
+          if [ "$BUILD_TYPESCRIPT" != "true" ]; then
+            EXCLUSIONS="$EXCLUSIONS - test(::typescript::)"
+            echo "⏭️  Excluding TypeScript worker tests (not in scope)"
+          fi
+
           mkdir -p target/nextest/ci
 
           # Run gRPC-specific tests (health, parity)
@@ -645,14 +679,16 @@ jobs:
             -E 'binary(grpc_tests)' \
             --no-fail-fast
 
-          # Run E2E tests with gRPC transport
+          # Run E2E tests with gRPC transport (excluding out-of-scope workers)
+          E2E_FILTER="(binary(e2e_tests) | binary(integration_tests))${EXCLUSIONS}"
+          echo "📋 gRPC E2E filter: $E2E_FILTER"
           echo "🏁 Running E2E tests with gRPC transport..."
           TASKER_TEST_TRANSPORT=grpc \
           cargo nextest run \
             --profile ci \
             --workspace \
             --features test-services \
-            -E 'binary(e2e_tests) | binary(integration_tests)' \
+            -E "$E2E_FILTER" \
             --no-fail-fast
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
