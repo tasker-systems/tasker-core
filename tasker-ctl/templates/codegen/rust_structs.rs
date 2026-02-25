@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 {% if needs_json_value -%}
-use serde_json;
+use serde_json::Value;
 {% endif -%}
 {% if needs_hashmap -%}
 use std::collections::HashMap;

@@ -5,6 +5,7 @@
 
 use serde_json::Value;
 use std::fmt;
+use tracing::warn;
 
 /// A resolved type definition extracted from a JSON Schema.
 #[derive(Debug, Clone, PartialEq)]
@@ -168,7 +169,7 @@ impl FieldType {
                     value_type.rust_type()
                 )
             }
-            FieldType::Any => "serde_json::Value".to_string(),
+            FieldType::Any => "Value".to_string(),
         }
     }
 
@@ -343,8 +344,36 @@ fn resolve_field_type(
             }
         }
         Some("null") => FieldType::Any,
-        // Unsupported or missing type — check for $ref, allOf, oneOf, etc.
-        _ => FieldType::Any,
+        _ => {
+            // Warn about unsupported constructs so users know a field was degraded
+            if schema.get("$ref").is_some() {
+                warn!(
+                    parent = parent_type_name,
+                    field = prop_name,
+                    "$ref is not yet supported in codegen; falling back to Any"
+                );
+            } else if schema.get("oneOf").is_some() || schema.get("anyOf").is_some() {
+                warn!(
+                    parent = parent_type_name,
+                    field = prop_name,
+                    "oneOf/anyOf unions are not yet supported in codegen; falling back to Any"
+                );
+            } else if schema.get("allOf").is_some() {
+                warn!(
+                    parent = parent_type_name,
+                    field = prop_name,
+                    "allOf composition is not yet supported in codegen; falling back to Any"
+                );
+            } else if let Some(t) = type_str {
+                warn!(
+                    parent = parent_type_name,
+                    field = prop_name,
+                    schema_type = t,
+                    "unrecognized JSON Schema type; falling back to Any"
+                );
+            }
+            FieldType::Any
+        }
     }
 }
 
@@ -625,6 +654,39 @@ mod tests {
         let schema = json!("not an object");
         let result = extract_types("bad", &schema);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_unsupported_constructs_all_resolve_to_any() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "ref_field": { "$ref": "#/definitions/Foo" },
+                "union_field": { "oneOf": [{ "type": "string" }, { "type": "integer" }] },
+                "any_of_field": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                "composed": { "allOf": [{ "type": "object" }, { "required": ["id"] }] }
+            }
+        });
+
+        let types = extract_types("unsupported_constructs", &schema).unwrap();
+        assert_eq!(types.len(), 1);
+
+        let root = &types[0];
+        assert_eq!(root.name, "UnsupportedConstructsResult");
+
+        for field_name in ["ref_field", "union_field", "any_of_field", "composed"] {
+            let field = root
+                .fields
+                .iter()
+                .find(|f| f.name == field_name)
+                .unwrap_or_else(|| panic!("missing field: {field_name}"));
+            assert_eq!(
+                field.field_type,
+                FieldType::Any,
+                "expected FieldType::Any for '{field_name}', got {:?}",
+                field.field_type
+            );
+        }
     }
 
     // ── Input type extraction tests ─────────────────────────────────

@@ -91,6 +91,19 @@ fn test_generate_python_types() {
 
     // process_payment has no result_schema — should NOT generate types
     assert!(!stdout.contains("ProcessPayment"));
+
+    // ── Map types (aggregate_metrics step) ──
+    assert!(stdout.contains("class CodegenTestsAggregateMetricsResult(BaseModel):"));
+
+    // Simple map: additionalProperties with primitive value
+    assert!(stdout.contains("scores: dict[str, float]"));
+
+    // Map with nested object value type
+    assert!(stdout
+        .contains("daily_breakdown: dict[str, CodegenTestsAggregateMetricsResultDailyBreakdown]"));
+
+    // Open map: additionalProperties: true
+    assert!(stdout.contains("extra: Optional[dict[str, Any]]"));
 }
 
 // ── Ruby ────────────────────────────────────────────────────────────
@@ -122,6 +135,11 @@ fn test_generate_ruby_types() {
     assert!(stdout.contains("class CodegenTestsGenerateReportResult < Dry::Struct"));
 
     assert!(!stdout.contains("ProcessPayment"));
+
+    // ── Map types (aggregate_metrics step) ──
+    assert!(stdout.contains("class CodegenTestsAggregateMetricsResult < Dry::Struct"));
+    assert!(stdout.contains("Types::Strict::Hash.map(Types::Strict::String, Types::Strict::Float)"));
+    assert!(stdout.contains("Types::Nominal::Any"));
 }
 
 // ── TypeScript ──────────────────────────────────────────────────────
@@ -170,6 +188,13 @@ fn test_generate_typescript_types() {
 
     // process_payment has no result_schema — should NOT generate types
     assert!(!stdout.contains("ProcessPayment"));
+
+    // ── Map types (aggregate_metrics step) ──
+    assert!(stdout.contains("export const CodegenTestsAggregateMetricsResultSchema = z.object({"));
+    assert!(stdout.contains("z.record(z.string(), z.number())"));
+    assert!(stdout
+        .contains("z.record(z.string(), CodegenTestsAggregateMetricsResultDailyBreakdownSchema)"));
+    assert!(stdout.contains("z.record(z.string(), z.unknown())"));
 }
 
 // ── Rust ────────────────────────────────────────────────────────────
@@ -205,6 +230,14 @@ fn test_generate_rust_types() {
     assert!(stdout.contains("pub struct CodegenTestsGenerateReportResult {"));
 
     assert!(!stdout.contains("ProcessPayment"));
+
+    // ── Map types (aggregate_metrics step) ──
+    assert!(stdout.contains("pub struct CodegenTestsAggregateMetricsResult {"));
+    assert!(stdout.contains("std::collections::HashMap<String, f64>"));
+    assert!(stdout.contains(
+        "std::collections::HashMap<String, CodegenTestsAggregateMetricsResultDailyBreakdown>"
+    ));
+    assert!(stdout.contains("std::collections::HashMap<String, Value>"));
 }
 
 // ── Step filter ─────────────────────────────────────────────────────

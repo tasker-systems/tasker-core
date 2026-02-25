@@ -216,6 +216,9 @@ module TaskerCore
 
         begin
           TaskerCore::FFI.complete_step_event(event_id_str, stringified)
+          # Only publish monitoring event after successful primary FFI
+          publish('step.completion.sent', completion_data)
+          logger.debug 'Step completion sent to Rust'
         rescue StandardError => e
           logger.error "FFI serialization failed for event #{event_id_str}: #{e.message}"
           logger.error e.backtrace&.first(5)&.join("\n")
@@ -224,16 +227,18 @@ module TaskerCore
           fallback = build_ffi_safe_failure(completion_data, e)
           begin
             TaskerCore::FFI.complete_step_event(event_id_str, fallback)
+            logger.warn "FFI fallback failure submitted for event #{event_id_str}"
+            begin
+              publish('step.completion.sent', fallback)
+            rescue StandardError => pub_err
+              logger.warn "Monitoring publish failed after fallback: #{pub_err.message}"
+            end
           rescue StandardError => fallback_error
-            logger.error "FFI fallback also failed for event #{event_id_str}: #{fallback_error.message}"
+            logger.error "FFI fallback also failed for event #{event_id_str}: " \
+                         "#{fallback_error.message} (original error: #{e.message})"
             raise fallback_error
           end
         end
-
-        # Also publish locally for monitoring/debugging
-        publish('step.completion.sent', completion_data)
-
-        logger.debug 'Step completion sent to Rust'
       rescue ArgumentError
         # Validation errors from validate_completion! should propagate
         raise
@@ -348,6 +353,7 @@ module TaskerCore
       def build_ffi_safe_failure(original_data, error)
         {
           'step_uuid' => original_data[:step_uuid].to_s,
+          'task_uuid' => original_data[:task_uuid].to_s,
           'success' => false,
           'result' => {},
           'status' => 'error',

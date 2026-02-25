@@ -762,35 +762,79 @@ export class StepExecutionSubscriber {
       return false;
     } catch (error) {
       this.handleFfiError(event, error);
-
-      // Submit a minimal failure result that is guaranteed to serialize
-      const fallback = this.buildFfiSafeFailure(event, error);
-      try {
-        const fallbackResult = this.module.completeStepEvent(event.eventId, fallback);
-        if (fallbackResult) {
-          pinoLog.warn(
-            { component: 'subscriber', eventId: event.eventId },
-            'FFI fallback failure submitted successfully'
-          );
-          return true;
-        }
-        pinoLog.error(
-          { component: 'subscriber', eventId: event.eventId },
-          'FFI fallback submission also rejected'
-        );
-        return false;
-      } catch (fallbackError) {
-        pinoLog.error(
-          {
-            component: 'subscriber',
-            eventId: event.eventId,
-            error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
-          },
-          'FFI fallback also failed'
-        );
-        return false;
-      }
+      return this.submitFallbackFailure(event, error);
     }
+  }
+
+  /**
+   * Submit a minimal safe-failure result after the primary FFI call fails.
+   *
+   * Builds a primitive-only result guaranteed to serialize, then attempts
+   * to submit it. Throws if the fallback is also rejected or fails,
+   * since the step would otherwise be silently lost.
+   */
+  private submitFallbackFailure(event: FfiStepEvent, originalError: unknown): boolean {
+    const fallback = this.buildFfiSafeFailure(event, originalError);
+
+    try {
+      const accepted = this.module.completeStepEvent(event.eventId, fallback);
+      if (accepted) {
+        pinoLog.warn(
+          { component: 'subscriber', eventId: event.eventId },
+          'FFI fallback failure submitted successfully'
+        );
+        return true;
+      }
+      // Rust rejected the fallback too — step is orphaned
+      this.throwOrphanedError(event, 'rejected', originalError);
+    } catch (fallbackError) {
+      this.throwOrphanedError(event, 'failed', originalError, fallbackError);
+    }
+
+    // Unreachable — throwOrphanedError always throws — but satisfies the return type
+    return false;
+  }
+
+  /**
+   * Throw an error indicating a step has been orphaned (both primary and fallback failed).
+   */
+  private throwOrphanedError(
+    event: FfiStepEvent,
+    reason: 'rejected' | 'failed',
+    originalError: unknown,
+    fallbackError?: unknown
+  ): never {
+    const originalMsg =
+      originalError instanceof Error ? originalError.message : String(originalError);
+
+    if (reason === 'rejected') {
+      pinoLog.error(
+        { component: 'subscriber', eventId: event.eventId, stepUuid: event.stepUuid },
+        'FFI fallback submission also rejected - step is orphaned'
+      );
+      throw new Error(
+        `Both primary and fallback FFI submissions rejected for event ${event.eventId}. ` +
+          `Step ${event.stepUuid} is orphaned.`
+      );
+    }
+
+    const fallbackMsg =
+      fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+    pinoLog.error(
+      {
+        component: 'subscriber',
+        eventId: event.eventId,
+        stepUuid: event.stepUuid,
+        error: fallbackMsg,
+        originalError: originalMsg,
+      },
+      'FFI fallback also failed - step is orphaned'
+    );
+    throw new Error(
+      `Both primary and fallback FFI submissions failed for event ${event.eventId}. ` +
+        `Step ${event.stepUuid} is orphaned. ` +
+        `Fallback: ${fallbackMsg}, Original: ${originalMsg}`
+    );
   }
 
   /**

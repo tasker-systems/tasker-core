@@ -28,7 +28,7 @@ pub fn render(types: &[TypeDef]) -> Result<String, CodegenError> {
 fn uses_any(ft: &FieldType) -> bool {
     match ft {
         FieldType::Any => true,
-        FieldType::Array(inner) => uses_any(inner),
+        FieldType::Array(inner) | FieldType::Map(inner) => uses_any(inner),
         _ => false,
     }
 }

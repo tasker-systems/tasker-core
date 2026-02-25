@@ -392,13 +392,11 @@ class StepExecutionSubscriber:
 
         return {
             "step_uuid": str(event.step_uuid),
-            "task_uuid": str(event.task_uuid),
             "success": False,
             "status": "error",
-            "execution_time_ms": 0,
             "result": {},
-            "worker_id": self._worker_id,
             "metadata": {
+                "execution_time_ms": 0,
                 "retryable": False,
                 "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "worker_id": self._worker_id,
@@ -480,11 +478,20 @@ class StepExecutionSubscriber:
 
         # Submit via FFI
         #
-        # If the primary FFI call fails (e.g. serialization error, unexpected
-        # type mismatch), we construct a guaranteed-safe failure result so the
-        # step is marked as permanently failed rather than silently lost.
+        # Serialization and FFI transport are separated so failures can be
+        # diagnosed independently.  If either fails, we construct a
+        # guaranteed-safe failure result so the step is marked as permanently
+        # failed rather than silently lost.
         try:
             result_dict = result.model_dump(mode="json")
+        except Exception as ser_error:
+            log_error(
+                f"Pydantic serialization failed for event {event.event_id}: {ser_error}",
+                {"event_id": event.event_id, "step_uuid": event.step_uuid},
+            )
+            result_dict = self._build_ffi_safe_failure(event, handler_result, ser_error)
+
+        try:
             success = _complete_step_event(str(event.event_id), result_dict)
 
             if success:
@@ -501,7 +508,7 @@ class StepExecutionSubscriber:
 
         except Exception as e:
             log_error(
-                f"FFI serialization failed for event {event.event_id}: {e}",
+                f"FFI transport failed for event {event.event_id}: {e}",
                 {"event_id": event.event_id, "step_uuid": event.step_uuid},
             )
 
@@ -516,11 +523,18 @@ class StepExecutionSubscriber:
                     )
                 else:
                     log_error(
-                        "FFI fallback submission also rejected",
-                        {"event_id": event.event_id},
+                        "FFI fallback submission also rejected - step is orphaned",
+                        {"event_id": event.event_id, "step_uuid": event.step_uuid},
                     )
+                    raise RuntimeError(
+                        f"Both primary and fallback FFI submissions rejected for event "
+                        f"{event.event_id}. Step {event.step_uuid} is orphaned."
+                    ) from e
             except Exception as fallback_error:
-                log_error(f"FFI fallback also failed for event {event.event_id}: {fallback_error}")
+                log_error(
+                    f"FFI fallback also failed for event {event.event_id}: {fallback_error} "
+                    f"(original error: {e})"
+                )
                 raise fallback_error from e
 
     def _submit_checkpoint_yield(

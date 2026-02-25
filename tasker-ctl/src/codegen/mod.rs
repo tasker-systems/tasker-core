@@ -182,3 +182,46 @@ fn strip_language_suffix(namespace: &str) -> &str {
     }
     namespace
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_language_suffix_typescript_short() {
+        assert_eq!(strip_language_suffix("ecommerce_ts"), "ecommerce");
+    }
+
+    #[test]
+    fn test_strip_language_suffix_ruby_long() {
+        assert_eq!(strip_language_suffix("payments_ruby"), "payments");
+    }
+
+    #[test]
+    fn test_strip_language_suffix_python_short() {
+        assert_eq!(strip_language_suffix("data_pipeline_py"), "data_pipeline");
+    }
+
+    #[test]
+    fn test_strip_language_suffix_rust_short() {
+        assert_eq!(strip_language_suffix("microservices_rs"), "microservices");
+    }
+
+    #[test]
+    fn test_strip_language_suffix_no_suffix() {
+        assert_eq!(strip_language_suffix("plain_namespace"), "plain_namespace");
+    }
+
+    #[test]
+    fn test_strip_language_suffix_only_strips_at_end() {
+        // "ts" appears as a prefix segment, not a suffix — should not be stripped
+        assert_eq!(strip_language_suffix("ts_prefix"), "ts_prefix");
+    }
+
+    #[test]
+    fn test_strip_language_suffix_long_forms() {
+        assert_eq!(strip_language_suffix("service_typescript"), "service");
+        assert_eq!(strip_language_suffix("service_python"), "service");
+        assert_eq!(strip_language_suffix("service_rust"), "service");
+    }
+}

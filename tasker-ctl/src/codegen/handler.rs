@@ -35,6 +35,8 @@ pub struct DependencyRef {
     pub step_name: String,
     /// Result type if upstream has result_schema (e.g., "ValidateOrderResult")
     pub result_type: Option<String>,
+    /// Stub fields from the upstream step's result_schema (for test mock generation)
+    pub stub_fields: Vec<StubField>,
 }
 
 /// A stub field for generating placeholder return values.
@@ -60,7 +62,7 @@ impl HandlerDef {
     }
 
     /// The PascalCase result type name if result_schema exists (e.g., "ValidateOrderResult").
-    #[allow(
+    #[expect(
         dead_code,
         reason = "public API for handler IR consumers; exercised in tests"
     )]
@@ -189,6 +191,20 @@ pub fn extract_handlers(template: &TaskTemplate, step_filter: Option<&str>) -> V
         .map(|s| (s.name.as_str(), s.result_schema.is_some()))
         .collect();
 
+    // Build a map of step_name → stub fields from result_schema
+    let stub_fields_map: HashMap<&str, Vec<StubField>> = template
+        .steps
+        .iter()
+        .map(|s| {
+            let fields = s
+                .result_schema
+                .as_ref()
+                .map(extract_stub_fields)
+                .unwrap_or_default();
+            (s.name.as_str(), fields)
+        })
+        .collect();
+
     template
         .steps
         .iter()
@@ -199,6 +215,10 @@ pub fn extract_handlers(template: &TaskTemplate, step_filter: Option<&str>) -> V
                 .iter()
                 .map(|dep_name| {
                     let has_schema = schema_map.get(dep_name.as_str()).copied().unwrap_or(false);
+                    let dep_stub_fields = stub_fields_map
+                        .get(dep_name.as_str())
+                        .cloned()
+                        .unwrap_or_default();
                     DependencyRef {
                         step_name: dep_name.clone(),
                         result_type: if has_schema {
@@ -206,6 +226,7 @@ pub fn extract_handlers(template: &TaskTemplate, step_filter: Option<&str>) -> V
                         } else {
                             None
                         },
+                        stub_fields: dep_stub_fields,
                     }
                 })
                 .collect();
@@ -277,11 +298,12 @@ mod tests {
         let template = codegen_test_template();
         let handlers = extract_handlers(&template, None);
 
-        assert_eq!(handlers.len(), 4);
+        assert_eq!(handlers.len(), 5);
         assert_eq!(handlers[0].step_name, "validate_order");
         assert_eq!(handlers[1].step_name, "enrich_order");
         assert_eq!(handlers[2].step_name, "process_payment");
         assert_eq!(handlers[3].step_name, "generate_report");
+        assert_eq!(handlers[4].step_name, "aggregate_metrics");
     }
 
     #[test]
@@ -355,6 +377,7 @@ mod tests {
         assert!(handlers[1].has_result_schema); // enrich_order
         assert!(!handlers[2].has_result_schema); // process_payment
         assert!(handlers[3].has_result_schema); // generate_report
+        assert!(handlers[4].has_result_schema); // aggregate_metrics
     }
 
     #[test]
@@ -374,6 +397,10 @@ mod tests {
         assert_eq!(
             handlers[3].result_type_name().as_deref(),
             Some("GenerateReportResult")
+        );
+        assert_eq!(
+            handlers[4].result_type_name().as_deref(),
+            Some("AggregateMetricsResult")
         );
     }
 
@@ -415,6 +442,7 @@ mod tests {
         let dep = DependencyRef {
             step_name: "validate_order".to_string(),
             result_type: Some("ValidateOrderResult".to_string()),
+            stub_fields: vec![],
         };
         assert_eq!(dep.snake_param(), "validate_order_result");
         assert_eq!(dep.camel_param(), "validateOrderResult");
@@ -423,7 +451,58 @@ mod tests {
         let untyped = DependencyRef {
             step_name: "process_payment".to_string(),
             result_type: None,
+            stub_fields: vec![],
         };
         assert_eq!(untyped.type_comment(), "untyped");
+    }
+
+    #[test]
+    fn test_dependency_stub_fields_from_upstream() {
+        let template = codegen_test_template();
+        let handlers = extract_handlers(&template, None);
+
+        // enrich_order depends on validate_order — dep mock should have validate_order's fields
+        let enrich = &handlers[1];
+        assert_eq!(enrich.dependencies.len(), 1);
+        let validate_dep = &enrich.dependencies[0];
+        assert_eq!(validate_dep.step_name, "validate_order");
+        assert!(!validate_dep.stub_fields.is_empty());
+        assert!(
+            validate_dep
+                .stub_fields
+                .iter()
+                .any(|f| f.name == "validated"),
+            "dependency stub_fields should contain validate_order's 'validated' field"
+        );
+        assert!(
+            validate_dep
+                .stub_fields
+                .iter()
+                .any(|f| f.name == "order_total"),
+            "dependency stub_fields should contain validate_order's 'order_total' field"
+        );
+        // Should NOT contain enrich_order's own fields
+        assert!(
+            !validate_dep
+                .stub_fields
+                .iter()
+                .any(|f| f.name == "enriched"),
+            "dependency stub_fields should NOT contain the current handler's fields"
+        );
+    }
+
+    #[test]
+    fn test_untyped_dependency_has_empty_stub_fields() {
+        let template = codegen_test_template();
+        let handlers = extract_handlers(&template, None);
+
+        // generate_report depends on process_payment (no result_schema)
+        let report = &handlers[3];
+        let payment_dep = report
+            .dependencies
+            .iter()
+            .find(|d| d.step_name == "process_payment")
+            .unwrap();
+        assert!(payment_dep.stub_fields.is_empty());
     }
 }

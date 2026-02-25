@@ -9,7 +9,7 @@ describe('{{ handler.pascal_name() }}', () => {
 {%- for dep in handler.dependencies %}
 {%- if dep.result_type.is_some() %}
     const mock{{ dep.pascal_param() }} = {
-{%- for field in handler.stub_fields %}
+{%- for field in dep.stub_fields %}
       {{ field.name }}: {{ field.typescript_value() }},
 {%- endfor %}
     };

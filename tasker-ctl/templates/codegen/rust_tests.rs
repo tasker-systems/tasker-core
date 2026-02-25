@@ -12,7 +12,7 @@ mod tests {
 {%- for dep in handler.dependencies %}
 {%- if dep.result_type.is_some() %}
         let _mock_{{ dep.snake_param() }} = json!({
-{%- for field in handler.stub_fields %}
+{%- for field in dep.stub_fields %}
             "{{ field.name }}": {{ field.json_value() }}{% if !loop.last %},{% endif %}
 {%- endfor %}
         });
