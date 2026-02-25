@@ -108,6 +108,19 @@ trap 'rm -rf "$TMPDIR_CODEGEN"' EXIT
 debug "Temp dir: ${TMPDIR_CODEGEN}"
 
 # ---------------------------------------------------------------------------
+# Install TypeScript dependencies for generated code validation
+# ---------------------------------------------------------------------------
+# Generated TypeScript types import zod. Install it in the temp directory
+# so tsc can resolve the import without a global install.
+if check_tool bun; then
+    debug "Installing zod in temp directory..."
+    (cd "$TMPDIR_CODEGEN" && bun init -y >/dev/null 2>&1 && bun add zod >/dev/null 2>&1) || true
+elif check_tool npm; then
+    debug "Installing zod in temp directory..."
+    (cd "$TMPDIR_CODEGEN" && npm init -y >/dev/null 2>&1 && npm install --no-audit --no-fund zod >/dev/null 2>&1) || true
+fi
+
+# ---------------------------------------------------------------------------
 # Detect available tools
 # ---------------------------------------------------------------------------
 HAS_PYTHON=false
