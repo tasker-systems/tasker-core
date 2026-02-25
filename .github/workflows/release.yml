@@ -37,12 +37,12 @@ concurrency:
 #           |
 #     pre-flight-check        (15 min) — fmt, clippy, cargo publish --dry-run
 #           |
-#     +-----+------------------+
-#     |                        |
-#  publish-crates          build-ffi-libraries  (2x matrix: amd64/macOS)
-#  (20 min)                (45 min)
-#     |                        |
-#     +-----+------------------+
+#     +-----+------------------+------------------+
+#     |                        |                  |
+#  publish-crates          build-ffi-libraries  build-cli-binaries
+#  (20 min)                (45 min)             (20 min, 4x matrix)
+#     |                        |                  |
+#     +-----+------------------+------------------+
 #           |
 #     +----------+----------+----------+--------------------+
 #     |          |          |          |                    |
@@ -226,6 +226,22 @@ jobs:
       skip_ruby: ${{ needs.detect-and-read.outputs.ruby_published == 'true' }}
       skip_python: ${{ needs.detect-and-read.outputs.python_published == 'true' }}
       skip_typescript: ${{ needs.detect-and-read.outputs.typescript_published == 'true' }}
+
+  # ============================================================================
+  # Stage 2c: Build CLI Binaries (TAS-292: cargo-binstall support)
+  # ============================================================================
+  # Builds tasker-ctl for 4 targets (linux/darwin × amd64/arm64).
+  # Runs in parallel with publish-crates and build-ffi-libraries.
+  # Artifacts are attached to the GitHub Release by release-summary.
+  build-cli-binaries:
+    name: Build CLI Binaries
+    needs: [detect-and-read, pre-flight-check]
+    if: needs.detect-and-read.outputs.core_changed == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build-cli-binaries.yml
+    with:
+      version: ${{ needs.detect-and-read.outputs.core_version }}
 
   # ============================================================================
   # Stage 3: Publish Rust crates
@@ -633,7 +649,7 @@ jobs:
     name: Release Summary
     runs-on: ubuntu-22.04
     timeout-minutes: 5
-    needs: [detect-and-read, publish-crates, build-ffi-libraries, publish-ruby, publish-python, publish-typescript, publish-containers]
+    needs: [detect-and-read, publish-crates, build-ffi-libraries, build-cli-binaries, publish-ruby, publish-python, publish-typescript, publish-containers]
     if: always()
     permissions:
       contents: write
@@ -649,6 +665,14 @@ jobs:
           path: ffi-artifacts/
           merge-multiple: false
 
+      - name: Download CLI binary artifacts
+        if: needs.build-cli-binaries.result == 'success'
+        uses: actions/download-artifact@v7
+        with:
+          pattern: cli-${{ needs.detect-and-read.outputs.core_version }}-*
+          path: cli-artifacts/
+          merge-multiple: true
+
       - name: Generate summary
         run: .github/scripts/release/generate-summary.sh
         env:
@@ -659,6 +683,7 @@ jobs:
           TS_RESULT: ${{ needs.publish-typescript.result }}
           CONTAINERS_RESULT: ${{ needs.publish-containers.result }}
           FFI_RESULT: ${{ needs.build-ffi-libraries.result }}
+          CLI_RESULT: ${{ needs.build-cli-binaries.result }}
           CORE_VERSION: ${{ needs.detect-and-read.outputs.core_version }}
           RUBY_VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
           PYTHON_VERSION: ${{ needs.detect-and-read.outputs.python_version }}
@@ -674,6 +699,7 @@ jobs:
           TS_RESULT: ${{ needs.publish-typescript.result }}
           CONTAINERS_RESULT: ${{ needs.publish-containers.result }}
           FFI_RESULT: ${{ needs.build-ffi-libraries.result }}
+          CLI_RESULT: ${{ needs.build-cli-binaries.result }}
 
       - name: Create GitHub Release
         if: |
@@ -689,6 +715,7 @@ jobs:
           TS_RESULT: ${{ needs.publish-typescript.result }}
           CONTAINERS_RESULT: ${{ needs.publish-containers.result }}
           FFI_RESULT: ${{ needs.build-ffi-libraries.result }}
+          CLI_RESULT: ${{ needs.build-cli-binaries.result }}
           RUBY_VERSION: ${{ needs.detect-and-read.outputs.ruby_version }}
           PYTHON_VERSION: ${{ needs.detect-and-read.outputs.python_version }}
           TS_VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
@@ -704,6 +731,24 @@ jobs:
           if [[ -d "ffi-artifacts" ]]; then
             echo "Attaching FFI artifacts to release ${TAG}..."
             find ffi-artifacts/ -type f | while read -r artifact; do
+              echo "  Uploading: ${artifact}"
+              gh release upload "${TAG}" "${artifact}" --clobber || true
+            done
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Attach CLI binary artifacts to release
+        if: |
+          needs.detect-and-read.outputs.is_dry_run != 'true' &&
+          steps.check-failures.outputs.has_failures != 'true' &&
+          needs.build-cli-binaries.result == 'success'
+        run: |
+          VERSION="${{ needs.detect-and-read.outputs.core_version }}"
+          TAG="v${VERSION}"
+          if [[ -d "cli-artifacts" ]]; then
+            echo "Attaching CLI binary artifacts to release ${TAG}..."
+            find cli-artifacts/ -name '*.tar.gz' -type f | while read -r artifact; do
               echo "  Uploading: ${artifact}"
               gh release upload "${TAG}" "${artifact}" --clobber || true
             done

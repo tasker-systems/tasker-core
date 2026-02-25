@@ -20,6 +20,21 @@ on:
       postgres-image:
         required: true
         type: string
+      build-ruby:
+        description: "Whether Ruby worker was built (controls setup/artifact steps)"
+        required: false
+        type: boolean
+        default: true
+      build-python:
+        description: "Whether Python worker was built (controls setup/artifact steps)"
+        required: false
+        type: boolean
+        default: true
+      build-typescript:
+        description: "Whether TypeScript worker was built (controls setup/artifact steps)"
+        required: false
+        type: boolean
+        default: true
 
 # =============================================================================
 # Shared service definitions (YAML anchors not supported in GitHub Actions,
@@ -202,6 +217,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Ruby
+        if: inputs.build-ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
@@ -209,16 +225,19 @@ jobs:
           working-directory: workers/ruby
 
       - name: Set up Python
+        if: inputs.build-python
         uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
       - name: Install uv
+        if: inputs.build-python
         uses: astral-sh/setup-uv@v7
         with:
           version: "latest"
 
       - name: Setup Bun
+        if: inputs.build-typescript
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -249,6 +268,7 @@ jobs:
           path: artifacts/core
 
       - name: Download Ruby extension artifact
+        if: inputs.build-ruby
         uses: actions/download-artifact@v7
         with:
           name: ruby-extension
@@ -256,6 +276,7 @@ jobs:
         continue-on-error: true
 
       - name: Download TypeScript artifacts
+        if: inputs.build-typescript
         uses: actions/download-artifact@v7
         with:
           name: typescript-artifacts
@@ -273,6 +294,7 @@ jobs:
         run: ARTIFACTS_BASE=artifacts cargo-make/scripts/ci-restore-all-artifacts.sh
 
       - name: Build Ruby FFI extension (if not from artifacts)
+        if: inputs.build-ruby
         run: |
           cd workers/ruby
           if ls lib/tasker_core/*.so 2>/dev/null || ls lib/tasker_core/*.bundle 2>/dev/null; then
@@ -287,6 +309,7 @@ jobs:
           SQLX_OFFLINE: "true"
 
       - name: Build Python FFI extension
+        if: inputs.build-python
         run: |
           echo "🔨 Building Python FFI extension (uses warm cache)..."
           cd workers/python
@@ -307,6 +330,7 @@ jobs:
           SQLX_OFFLINE: "true"
 
       - name: Setup TypeScript worker
+        if: inputs.build-typescript
         run: |
           echo "📜 Setting up TypeScript worker..."
           cd workers/typescript
@@ -342,22 +366,53 @@ jobs:
           TASKER_MESSAGING_BACKEND: ${{ matrix.messaging_backend }}
           RABBITMQ_URL: amqp://tasker:tasker@localhost:5672/%2F
           REDIS_URL: redis://localhost:6379
+          SKIP_RUBY_WORKER: ${{ !inputs.build-ruby }}
+          SKIP_PYTHON_WORKER: ${{ !inputs.build-python }}
+          SKIP_TYPESCRIPT_WORKER: ${{ !inputs.build-typescript }}
 
       - name: Run integration tests
         run: |
           echo "🏁 Running integration tests..."
+          # Conditionally export worker URLs based on scope
+          if [ "$BUILD_RUBY" = "true" ]; then
+            export TASKER_TEST_RUBY_WORKER_URL=http://localhost:8082
+          fi
+          if [ "$BUILD_PYTHON" = "true" ]; then
+            export TASKER_TEST_PYTHON_WORKER_URL=http://localhost:8083
+          fi
+          if [ "$BUILD_TYPESCRIPT" = "true" ]; then
+            export TASKER_TEST_TYPESCRIPT_WORKER_URL=http://localhost:8085
+          fi
+
+          # Build nextest filter to exclude tests for out-of-scope FFI workers
+          NEXTEST_FILTER="all()"
+          if [ "$BUILD_RUBY" != "true" ]; then
+            NEXTEST_FILTER="$NEXTEST_FILTER - test(::ruby::)"
+            echo "⏭️  Excluding Ruby worker tests (not in scope)"
+          fi
+          if [ "$BUILD_PYTHON" != "true" ]; then
+            NEXTEST_FILTER="$NEXTEST_FILTER - test(::python::)"
+            echo "⏭️  Excluding Python worker tests (not in scope)"
+          fi
+          if [ "$BUILD_TYPESCRIPT" != "true" ]; then
+            NEXTEST_FILTER="$NEXTEST_FILTER - test(::typescript::)"
+            echo "⏭️  Excluding TypeScript worker tests (not in scope)"
+          fi
+          echo "📋 Nextest filter: $NEXTEST_FILTER"
+
           mkdir -p target/nextest/ci
           cargo nextest run \
             --profile ci \
             --test '*' \
-            --no-fail-fast
+            --no-fail-fast \
+            -E "$NEXTEST_FILTER"
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           TASKER_TEST_ORCHESTRATION_URL: http://localhost:8080
           TASKER_TEST_WORKER_URL: http://localhost:8081
-          TASKER_TEST_RUBY_WORKER_URL: http://localhost:8082
-          TASKER_TEST_PYTHON_WORKER_URL: http://localhost:8083
-          TASKER_TEST_TYPESCRIPT_WORKER_URL: http://localhost:8085
+          BUILD_RUBY: ${{ inputs.build-ruby }}
+          BUILD_PYTHON: ${{ inputs.build-python }}
+          BUILD_TYPESCRIPT: ${{ inputs.build-typescript }}
           TASKER_FIXTURE_PATH: ${{ github.workspace }}/tests/fixtures
           RUST_LOG: info
           REDIS_URL: redis://localhost:6379
@@ -434,6 +489,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Ruby
+        if: inputs.build-ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
@@ -441,16 +497,19 @@ jobs:
           working-directory: workers/ruby
 
       - name: Set up Python
+        if: inputs.build-python
         uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
       - name: Install uv
+        if: inputs.build-python
         uses: astral-sh/setup-uv@v7
         with:
           version: "latest"
 
       - name: Setup Bun
+        if: inputs.build-typescript
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -479,6 +538,7 @@ jobs:
           path: artifacts/core
 
       - name: Download Ruby extension artifact
+        if: inputs.build-ruby
         uses: actions/download-artifact@v7
         with:
           name: ruby-extension
@@ -486,6 +546,7 @@ jobs:
         continue-on-error: true
 
       - name: Download TypeScript artifacts
+        if: inputs.build-typescript
         uses: actions/download-artifact@v7
         with:
           name: typescript-artifacts
@@ -503,6 +564,7 @@ jobs:
         run: ARTIFACTS_BASE=artifacts cargo-make/scripts/ci-restore-all-artifacts.sh
 
       - name: Build Ruby FFI extension (if not from artifacts)
+        if: inputs.build-ruby
         run: |
           cd workers/ruby
           if ls lib/tasker_core/*.so 2>/dev/null || ls lib/tasker_core/*.bundle 2>/dev/null; then
@@ -517,6 +579,7 @@ jobs:
           SQLX_OFFLINE: "true"
 
       - name: Build Python FFI extension
+        if: inputs.build-python
         run: |
           echo "🔨 Building Python FFI extension (uses warm cache)..."
           cd workers/python
@@ -537,6 +600,7 @@ jobs:
           SQLX_OFFLINE: "true"
 
       - name: Setup TypeScript worker
+        if: inputs.build-typescript
         run: |
           echo "📜 Setting up TypeScript worker..."
           cd workers/typescript
@@ -571,10 +635,39 @@ jobs:
           SKIP_MIGRATIONS: "true"
           TASKER_MESSAGING_BACKEND: pgmq
           REDIS_URL: redis://localhost:6379
+          SKIP_RUBY_WORKER: ${{ !inputs.build-ruby }}
+          SKIP_PYTHON_WORKER: ${{ !inputs.build-python }}
+          SKIP_TYPESCRIPT_WORKER: ${{ !inputs.build-typescript }}
 
       - name: Run gRPC transport tests
         run: |
           echo "🔌 Running gRPC transport tests..."
+          # Conditionally export worker URLs based on scope
+          if [ "$BUILD_RUBY" = "true" ]; then
+            export TASKER_TEST_RUBY_WORKER_URL=http://localhost:8082
+          fi
+          if [ "$BUILD_PYTHON" = "true" ]; then
+            export TASKER_TEST_PYTHON_WORKER_URL=http://localhost:8083
+          fi
+          if [ "$BUILD_TYPESCRIPT" = "true" ]; then
+            export TASKER_TEST_TYPESCRIPT_WORKER_URL=http://localhost:8085
+          fi
+
+          # Build exclusion filter for out-of-scope FFI workers
+          EXCLUSIONS=""
+          if [ "$BUILD_RUBY" != "true" ]; then
+            EXCLUSIONS="$EXCLUSIONS - test(::ruby::)"
+            echo "⏭️  Excluding Ruby worker tests (not in scope)"
+          fi
+          if [ "$BUILD_PYTHON" != "true" ]; then
+            EXCLUSIONS="$EXCLUSIONS - test(::python::)"
+            echo "⏭️  Excluding Python worker tests (not in scope)"
+          fi
+          if [ "$BUILD_TYPESCRIPT" != "true" ]; then
+            EXCLUSIONS="$EXCLUSIONS - test(::typescript::)"
+            echo "⏭️  Excluding TypeScript worker tests (not in scope)"
+          fi
+
           mkdir -p target/nextest/ci
 
           # Run gRPC-specific tests (health, parity)
@@ -586,22 +679,24 @@ jobs:
             -E 'binary(grpc_tests)' \
             --no-fail-fast
 
-          # Run E2E tests with gRPC transport
+          # Run E2E tests with gRPC transport (excluding out-of-scope workers)
+          E2E_FILTER="(binary(e2e_tests) | binary(integration_tests))${EXCLUSIONS}"
+          echo "📋 gRPC E2E filter: $E2E_FILTER"
           echo "🏁 Running E2E tests with gRPC transport..."
           TASKER_TEST_TRANSPORT=grpc \
           cargo nextest run \
             --profile ci \
             --workspace \
             --features test-services \
-            -E 'binary(e2e_tests) | binary(integration_tests)' \
+            -E "$E2E_FILTER" \
             --no-fail-fast
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           TASKER_TEST_ORCHESTRATION_URL: http://localhost:8080
           TASKER_TEST_WORKER_URL: http://localhost:8081
-          TASKER_TEST_RUBY_WORKER_URL: http://localhost:8082
-          TASKER_TEST_PYTHON_WORKER_URL: http://localhost:8083
-          TASKER_TEST_TYPESCRIPT_WORKER_URL: http://localhost:8085
+          BUILD_RUBY: ${{ inputs.build-ruby }}
+          BUILD_PYTHON: ${{ inputs.build-python }}
+          BUILD_TYPESCRIPT: ${{ inputs.build-typescript }}
           TASKER_TEST_ORCHESTRATION_GRPC_URL: http://localhost:9190
           TASKER_TEST_WORKER_GRPC_URL: http://localhost:9191
           TASKER_FIXTURE_PATH: ${{ github.workspace }}/tests/fixtures

@@ -6,7 +6,7 @@ set -euo pipefail
 # Env:
 #   IS_DRY_RUN
 #   CRATES_RESULT, RUBY_RESULT, PYTHON_RESULT, TS_RESULT, CONTAINERS_RESULT
-#   FFI_RESULT
+#   FFI_RESULT, CLI_RESULT
 #   CORE_VERSION, RUBY_VERSION, PYTHON_VERSION, TS_VERSION
 
 echo "## Release Summary" >> "$GITHUB_STEP_SUMMARY"
@@ -24,4 +24,5 @@ echo "| Ruby gem | ${RUBY_RESULT} | ${RUBY_VERSION} |" >> "$GITHUB_STEP_SUMMARY"
 echo "| Python wheel | ${PYTHON_RESULT} | ${PYTHON_VERSION} |" >> "$GITHUB_STEP_SUMMARY"
 echo "| TypeScript | ${TS_RESULT} | ${TS_VERSION} |" >> "$GITHUB_STEP_SUMMARY"
 echo "| FFI libraries | ${FFI_RESULT:-skipped} | ${CORE_VERSION} |" >> "$GITHUB_STEP_SUMMARY"
+echo "| CLI binaries | ${CLI_RESULT:-skipped} | ${CORE_VERSION} |" >> "$GITHUB_STEP_SUMMARY"
 echo "| Containers | ${CONTAINERS_RESULT:-skipped} | ${CORE_VERSION} |" >> "$GITHUB_STEP_SUMMARY"
