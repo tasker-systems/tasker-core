@@ -215,7 +215,7 @@ def _inject_args(
         raw = context.get_dependency_result(step_name)
         model_cls = dep_models.get(param_name)
         if model_cls is not None and isinstance(raw, dict):
-            kwargs[param_name] = model_cls.model_construct(**raw)  # type: ignore[attr-defined]  # Pydantic BaseModel
+            kwargs[param_name] = model_cls.model_validate(raw)  # type: ignore[attr-defined]  # Pydantic BaseModel
         else:
             kwargs[param_name] = raw
 

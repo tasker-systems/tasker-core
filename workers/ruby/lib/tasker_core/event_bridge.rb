@@ -194,21 +194,49 @@ module TaskerCore
 
       # Send completion event back to Rust
       # Called by StepExecutionSubscriber after handler execution
+      #
+      # serde_magnus requires string keys for deserialization into Rust structs.
+      # Ruby hashes built with symbol literals (e.g. { success: true }) must be
+      # deep-stringified before crossing the FFI boundary.
+      #
+      # If the FFI call still fails (e.g. unexpected nil, type mismatch), the
+      # fallback path constructs a guaranteed-safe failure result so the step is
+      # marked as permanently failed rather than silently lost.
       def publish_step_completion(completion_data)
         return unless active?
 
-        logger.debug "Sending step completion to Rust: #{completion_data[:event_id]}"
+        event_id_str = completion_data[:event_id].to_s
+        logger.debug "Sending step completion to Rust: #{event_id_str}"
 
         # Validate completion data
         validate_completion!(completion_data)
 
-        # Send to Rust via FFI (TAS-67: complete_step_event takes event_id and completion_data)
-        TaskerCore::FFI.complete_step_event(completion_data[:event_id].to_s, completion_data)
+        # serde_magnus expects string keys — convert symbol keys at the FFI boundary
+        stringified = completion_data.deep_stringify_keys
+
+        begin
+          TaskerCore::FFI.complete_step_event(event_id_str, stringified)
+        rescue StandardError => e
+          logger.error "FFI serialization failed for event #{event_id_str}: #{e.message}"
+          logger.error e.backtrace&.first(5)&.join("\n")
+
+          # Submit a minimal failure result that is guaranteed to deserialize
+          fallback = build_ffi_safe_failure(completion_data, e)
+          begin
+            TaskerCore::FFI.complete_step_event(event_id_str, fallback)
+          rescue StandardError => fallback_error
+            logger.error "FFI fallback also failed for event #{event_id_str}: #{fallback_error.message}"
+            raise fallback_error
+          end
+        end
 
         # Also publish locally for monitoring/debugging
         publish('step.completion.sent', completion_data)
 
         logger.debug 'Step completion sent to Rust'
+      rescue ArgumentError
+        # Validation errors from validate_completion! should propagate
+        raise
       rescue StandardError => e
         logger.error "Failed to send step completion: #{e.message}"
         logger.error e.backtrace.join("\n")
@@ -246,10 +274,13 @@ module TaskerCore
         # Validate checkpoint data
         validate_checkpoint_yield!(checkpoint_data)
 
+        # serde_magnus expects string keys — convert symbol keys at the FFI boundary
+        stringified = checkpoint_data.deep_stringify_keys
+
         # Send to Rust via FFI (TAS-125)
         success = TaskerCore::FFI.checkpoint_yield_step_event(
           checkpoint_data[:event_id].to_s,
-          checkpoint_data
+          stringified
         )
 
         if success
@@ -309,6 +340,33 @@ module TaskerCore
 
         # Ensure timestamps
         completion_data[:completed_at] ||= Time.now.utc.iso8601
+      end
+
+      # Build a minimal StepExecutionResult-shaped hash that is guaranteed to
+      # deserialize through serde_magnus. Uses only string keys and primitive
+      # values so there is zero chance of a secondary serialization failure.
+      def build_ffi_safe_failure(original_data, error)
+        {
+          'step_uuid' => original_data[:step_uuid].to_s,
+          'success' => false,
+          'result' => {},
+          'status' => 'error',
+          'metadata' => {
+            'execution_time_ms' => 0,
+            'retryable' => false,
+            'completed_at' => Time.now.utc.iso8601,
+            'worker_id' => 'ruby_worker',
+            'custom' => {
+              'ffi_serialization_error' => error.message.to_s[0, 500],
+              'original_success' => original_data[:success].to_s
+            }
+          },
+          'error' => {
+            'message' => "FFI serialization failed: #{error.message}"[0, 500],
+            'error_type' => 'FFI_SERIALIZATION_ERROR',
+            'retryable' => false
+          }
+        }
       end
 
       # TAS-125: Validate checkpoint yield data before sending to Rust

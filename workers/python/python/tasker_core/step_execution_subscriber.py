@@ -29,7 +29,7 @@ import asyncio
 import inspect
 import time
 import traceback
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from tasker_core._tasker_core import (
@@ -368,6 +368,52 @@ class StepExecutionSubscriber:
             metadata={"traceback": traceback.format_exc()},
         )
 
+    def _build_ffi_safe_failure(
+        self,
+        event: FfiStepEvent,
+        handler_result: StepHandlerResult,
+        error: Exception,
+    ) -> dict[str, Any]:
+        """Build a minimal result dict guaranteed to deserialize through PyO3.
+
+        Uses only primitive values and string keys so there is zero chance
+        of a secondary serialization failure. The step will be marked as
+        permanently failed rather than silently lost.
+
+        Args:
+            event: The original FfiStepEvent.
+            handler_result: The handler result that failed to serialize.
+            error: The serialization error.
+
+        Returns:
+            A plain dict matching StepExecutionResult's shape.
+        """
+        import datetime
+
+        return {
+            "step_uuid": str(event.step_uuid),
+            "task_uuid": str(event.task_uuid),
+            "success": False,
+            "status": "error",
+            "execution_time_ms": 0,
+            "result": {},
+            "worker_id": self._worker_id,
+            "metadata": {
+                "retryable": False,
+                "completed_at": datetime.datetime.now(datetime.UTC).isoformat(),
+                "worker_id": self._worker_id,
+                "custom": {
+                    "ffi_serialization_error": str(error)[:500],
+                    "original_success": str(handler_result.is_success),
+                },
+            },
+            "error": {
+                "error_type": "FFI_SERIALIZATION_ERROR",
+                "message": f"FFI serialization failed: {error}"[:500],
+                "retryable": False,
+            },
+        }
+
     def _submit_result(
         self,
         event: FfiStepEvent,
@@ -433,6 +479,10 @@ class StepExecutionSubscriber:
             )
 
         # Submit via FFI
+        #
+        # If the primary FFI call fails (e.g. serialization error, unexpected
+        # type mismatch), we construct a guaranteed-safe failure result so the
+        # step is marked as permanently failed rather than silently lost.
         try:
             result_dict = result.model_dump(mode="json")
             success = _complete_step_event(str(event.event_id), result_dict)
@@ -450,9 +500,28 @@ class StepExecutionSubscriber:
                 )
 
         except Exception as e:
-            log_error(f"Failed to submit result: {e}")
-            # Result submission failure is serious - log but don't retry
-            raise
+            log_error(
+                f"FFI serialization failed for event {event.event_id}: {e}",
+                {"event_id": event.event_id, "step_uuid": event.step_uuid},
+            )
+
+            # Submit a minimal failure result that is guaranteed to serialize
+            fallback = self._build_ffi_safe_failure(event, handler_result, e)
+            try:
+                success = _complete_step_event(str(event.event_id), fallback)
+                if success:
+                    log_warn(
+                        "FFI fallback failure submitted successfully",
+                        {"event_id": event.event_id},
+                    )
+                else:
+                    log_error(
+                        "FFI fallback submission also rejected",
+                        {"event_id": event.event_id},
+                    )
+            except Exception as fallback_error:
+                log_error(f"FFI fallback also failed for event {event.event_id}: {fallback_error}")
+                raise fallback_error from e
 
     def _submit_checkpoint_yield(
         self,

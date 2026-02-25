@@ -729,6 +729,10 @@ export class StepExecutionSubscriber {
   /**
    * Send a completion result to Rust via FFI and handle the response.
    *
+   * If the primary FFI call fails (e.g. serialization error, unexpected
+   * type mismatch), we construct a guaranteed-safe failure result so the
+   * step is marked as permanently failed rather than silently lost.
+   *
    * @returns true if the completion was accepted by Rust, false otherwise
    */
   private async sendCompletionViaFfi(
@@ -758,7 +762,34 @@ export class StepExecutionSubscriber {
       return false;
     } catch (error) {
       this.handleFfiError(event, error);
-      return false;
+
+      // Submit a minimal failure result that is guaranteed to serialize
+      const fallback = this.buildFfiSafeFailure(event, error);
+      try {
+        const fallbackResult = this.module.completeStepEvent(event.eventId, fallback);
+        if (fallbackResult) {
+          pinoLog.warn(
+            { component: 'subscriber', eventId: event.eventId },
+            'FFI fallback failure submitted successfully'
+          );
+          return true;
+        }
+        pinoLog.error(
+          { component: 'subscriber', eventId: event.eventId },
+          'FFI fallback submission also rejected'
+        );
+        return false;
+      } catch (fallbackError) {
+        pinoLog.error(
+          {
+            component: 'subscriber',
+            eventId: event.eventId,
+            error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+          },
+          'FFI fallback also failed'
+        );
+        return false;
+      }
     }
   }
 
@@ -823,5 +854,36 @@ export class StepExecutionSubscriber {
       event_id: event.eventId,
       error_message: error instanceof Error ? error.message : String(error),
     });
+  }
+
+  /**
+   * Build a minimal NapiStepExecutionResult guaranteed to serialize through napi-rs.
+   *
+   * Uses only primitive values so there is zero chance of a secondary
+   * serialization failure. The step will be marked as permanently failed
+   * rather than silently lost.
+   */
+  private buildFfiSafeFailure(event: FfiStepEvent, error: unknown): NapiStepExecutionResult {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      stepUuid: event.stepUuid,
+      success: false,
+      result: {},
+      status: 'error',
+      metadata: {
+        executionTimeMs: 0,
+        retryable: false,
+        completedAt: new Date().toISOString(),
+        ...(this.workerId != null && { workerId: this.workerId }),
+        custom: {
+          ffi_serialization_error: errorMessage.substring(0, 500),
+        },
+      },
+      error: {
+        message: `FFI serialization failed: ${errorMessage}`.substring(0, 500),
+        errorType: 'FFI_SERIALIZATION_ERROR',
+        retryable: false,
+      },
+    };
   }
 }
