@@ -57,7 +57,7 @@ use tasker_orchestration::orchestration::lifecycle::{
 };
 use tasker_shared::models::core::task_request::TaskRequest;
 use tasker_shared::models::WorkflowStep;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::state_machine::{
     events::StepEvent, states::WorkflowStepState, step_state_machine::StepStateMachine,
 };
@@ -84,7 +84,7 @@ pub struct LifecycleTestManager {
         dead_code,
         reason = "Registry kept for test infrastructure - may be used by future tests"
     )]
-    pub registry: TaskHandlerRegistry,
+    pub registry: TaskTemplateRegistry,
 
     // ========== Legacy Fields (Backward Compatibility) ==========
     /// Task initializer for creating tasks (legacy - prefer actor_harness)
@@ -118,8 +118,8 @@ impl LifecycleTestManager {
     pub async fn with_template_path(pool: PgPool, template_path: &str) -> Result<Self> {
         tracing::info!("🔧 Initializing LifecycleTestManager");
 
-        // Create TaskHandlerRegistry and load templates
-        let registry = TaskHandlerRegistry::new(pool.clone());
+        // Create TaskTemplateRegistry and load templates
+        let registry = TaskTemplateRegistry::new(pool.clone());
         let discovery_result = registry
             .discover_and_register_templates(template_path)
             .await?;

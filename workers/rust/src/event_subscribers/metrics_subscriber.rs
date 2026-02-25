@@ -345,6 +345,7 @@ mod tests {
                         timeout_seconds: None,
                         publishes_events: vec![],
                         batch_config: None,
+                        result_schema: None,
                     },
                 },
                 execution_result: StepExecutionResult {

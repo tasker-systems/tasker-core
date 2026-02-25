@@ -32,21 +32,6 @@ metadata:
   created_at: "2025-12-13T00:00:00Z"
   updated_at: "2025-12-13T00:00:00Z"
   notes: "Python FFI implementation with parallel branch processing and convergence logic"
-task_handler:
-  callable: diamond_workflow_dsl_py.DiamondWorkflowHandler
-  initialization:
-    input_validation:
-      required_fields:
-        - even_number
-      even_number_constraint: must_be_even
-      value_range:
-        min: 2
-        max: 100
-    expected_results:
-      diamond_start_dsl_py: "input**2"
-      diamond_branch_b_dsl_py: "input**2 + 25"
-      diamond_branch_c_dsl_py: "input**2 * 2"
-      diamond_end_dsl_py: "((input**2 + 25) + (input**2 * 2)) / 2"
 system_dependencies:
   primary: default
   secondary: []

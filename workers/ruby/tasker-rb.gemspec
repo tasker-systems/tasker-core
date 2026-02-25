@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
     Ruby FFI bindings for tasker-core, providing 10-100x performance improvements
     for workflow orchestration, dependency resolution, and state management.
 
-    This gem enables Rails applications using the Tasker engine to leverage
+    This gem enables Ruby applications using the Tasker engine to leverage
     Rust's performance for computationally intensive orchestration operations
     while maintaining Ruby's flexibility for business logic.
   DESC
@@ -24,8 +24,8 @@ Gem::Specification.new do |spec|
 
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = 'https://github.com/tasker-systems/tasker-core/tree/main/workers/ruby'
-  spec.metadata['changelog_uri'] = 'https://github.com/tasker-systems/tasker-core/blob/main/workers/ruby/CHANGELOG.md'
-  spec.metadata['documentation_uri'] = 'https://github.com/tasker-systems/tasker-core/blob/main/docs/RUBY.md'
+  spec.metadata['changelog_uri'] = 'https://github.com/tasker-systems/tasker-core/blob/main/CHANGELOG.md'
+  spec.metadata['documentation_uri'] = 'https://docs.tasker.systems'
   spec.metadata['bug_tracker_uri'] = 'https://github.com/tasker-systems/tasker-core/issues'
 
   # Include all necessary files for the gem, excluding test/spec files
@@ -86,9 +86,7 @@ Gem::Specification.new do |spec|
 
     This gem provides high-performance Rust-powered workflow orchestration.
 
-    Documentation: https://github.com/tasker-systems/tasker-core/blob/main/docs/workers/ruby.md
-
-    For Rails integration, see the tasker-engine gem documentation.
+    Documentation: https://docs.tasker.systems
 
   MSG
 end

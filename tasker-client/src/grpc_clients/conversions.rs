@@ -836,6 +836,7 @@ pub fn proto_worker_template_to_domain(
             timeout_seconds: None,
             publishes_events: vec![],
             batch_config: None,
+            result_schema: None,
         })
         .collect();
 
@@ -1005,6 +1006,7 @@ pub fn proto_template_detail_to_domain(
                 description: s.description,
                 default_retryable: s.default_retryable,
                 default_max_attempts: s.default_max_attempts,
+                result_schema: None, // Proto doesn't carry result_schema yet
             })
             .collect(),
     })

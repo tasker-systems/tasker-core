@@ -38,18 +38,6 @@ metadata:
   created_at: "2025-12-16T00:00:00Z"
   updated_at: "2025-12-16T00:00:00Z"
   notes: "Demonstrates TAS-53 decision point functionality with Python handlers"
-task_handler:
-  callable: conditional_approval_dsl_py.ConditionalApprovalHandler
-  initialization:
-    input_validation:
-      required_fields:
-        - amount
-        - requester
-        - purpose
-      amount_constraint: must_be_positive
-    routing_thresholds:
-      small: 1000
-      large: 5000
 system_dependencies:
   primary: default
   secondary: []

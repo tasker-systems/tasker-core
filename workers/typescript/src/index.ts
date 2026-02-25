@@ -32,10 +32,23 @@ export type {
 // =============================================================================
 export {
   type CreateTaskOptions,
+  getFfiLayer,
+  getTaskerClient,
   type ListTasksOptions,
   TaskerClient,
   TaskerClientError,
 } from './client/index.js';
+
+export type {
+  CancelTaskResponse,
+  HealthCheckResponse,
+  PaginationInfo,
+  StepAuditResponse,
+  StepReadinessStatus,
+  StepResponse,
+  TaskListResponse,
+  TaskResponse,
+} from './client/types.js';
 // =============================================================================
 // Events module
 // =============================================================================

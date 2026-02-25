@@ -28,11 +28,6 @@ metadata:
     - pattern:refund_processing
     - dependencies:linear
     - implementation:ruby_ffi
-task_handler:
-  callable: ruby_ffi_handler_dsl
-  initialization:
-    timeout_seconds: 60
-    max_retries: 3
 input_schema:
   type: object
   required:

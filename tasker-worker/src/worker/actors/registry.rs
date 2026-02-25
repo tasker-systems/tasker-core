@@ -382,7 +382,7 @@ mod tests {
 
         let worker_id = format!("worker_{}", Uuid::new_v4());
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
         let (event_publisher, domain_event_handle) =
             create_test_deps(&worker_id, context.message_client.clone());
@@ -438,7 +438,7 @@ mod tests {
 
         let worker_id = format!("worker_{}", Uuid::new_v4());
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
         let (event_publisher, domain_event_handle) =
             create_test_deps(&worker_id, context.message_client.clone());
@@ -476,7 +476,7 @@ mod tests {
 
         let worker_id = format!("worker_{}", Uuid::new_v4());
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
         let (event_publisher, domain_event_handle) =
             create_test_deps(&worker_id, context.message_client.clone());

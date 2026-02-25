@@ -200,7 +200,7 @@ impl DecisionPointService {
         // Load task template from registry
         let handler_metadata = self
             .context
-            .task_handler_registry
+            .task_template_registry
             .get_task_template_from_registry(
                 &task_metadata.namespace_name,
                 &task_metadata.task_name,

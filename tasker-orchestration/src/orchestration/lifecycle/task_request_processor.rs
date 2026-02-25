@@ -11,7 +11,7 @@ use tasker_shared::config::tasker::TaskerConfig;
 use tasker_shared::messaging::client::MessageClient;
 use tasker_shared::messaging::orchestration_messages::TaskRequestMessage;
 use tasker_shared::messaging::service::QueuedMessage;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::{TaskerError, TaskerResult};
 use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
@@ -69,7 +69,7 @@ pub struct TaskRequestProcessor {
     /// Message client for queue operations (TAS-133e: provider-agnostic)
     message_client: Arc<MessageClient>,
     /// Task handler registry for validation
-    task_handler_registry: Arc<TaskHandlerRegistry>,
+    task_template_registry: Arc<TaskTemplateRegistry>,
     /// Task initializer for creating tasks
     task_initializer: Arc<TaskInitializer>,
     /// Configuration
@@ -80,13 +80,13 @@ impl TaskRequestProcessor {
     /// Create a new task request processor with message client
     pub fn new(
         message_client: Arc<MessageClient>,
-        task_handler_registry: Arc<TaskHandlerRegistry>,
+        task_template_registry: Arc<TaskTemplateRegistry>,
         task_initializer: Arc<TaskInitializer>,
         config: TaskRequestProcessorConfig,
     ) -> Self {
         Self {
             message_client,
-            task_handler_registry,
+            task_template_registry,
             task_initializer,
             config,
         }
@@ -242,7 +242,7 @@ impl TaskRequestProcessor {
 
         // Use the task handler registry to validate the task exists and is configured
         match self
-            .task_handler_registry
+            .task_template_registry
             .get_task_template(
                 &request.task_request.namespace,
                 &request.task_request.name,

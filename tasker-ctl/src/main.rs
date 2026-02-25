@@ -6,6 +6,7 @@
 //! This is the CLI binary crate. The API client library lives in `tasker-client`.
 
 pub(crate) mod cli_config;
+pub(crate) mod codegen;
 pub(crate) mod commands;
 pub(crate) mod docs;
 pub(crate) mod output;
@@ -19,8 +20,8 @@ use tracing::info;
 
 use commands::{
     handle_auth_command, handle_config_command, handle_dlq_command, handle_docs_command,
-    handle_init_command, handle_plugin_command, handle_remote_command, handle_system_command,
-    handle_task_command, handle_template_command, handle_worker_command,
+    handle_generate_command, handle_init_command, handle_plugin_command, handle_remote_command,
+    handle_system_command, handle_task_command, handle_template_command, handle_worker_command,
 };
 
 #[derive(Parser, Debug)]
@@ -96,6 +97,10 @@ pub(crate) enum Commands {
     /// Remote repository management (TAS-270: fetch templates and config from git repos)
     #[command(subcommand)]
     Remote(RemoteCommands),
+
+    /// Generate typed code from task template schemas (TAS-280)
+    #[command(subcommand)]
+    Generate(GenerateCommands),
 
     /// Initialize a new .tasker-ctl.toml with sensible defaults
     Init {
@@ -733,6 +738,52 @@ pub(crate) enum RemoteCommands {
     },
 }
 
+/// TAS-280: Code generation commands
+#[derive(Debug, Subcommand)]
+pub(crate) enum GenerateCommands {
+    /// Generate typed result models from step result_schema definitions
+    Types {
+        /// Path to task template YAML file
+        #[arg(short, long)]
+        template: std::path::PathBuf,
+
+        /// Target language: python (py), ruby (rb), typescript (ts), rust (rs)
+        #[arg(short, long)]
+        language: String,
+
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Generate types for a specific step only (default: all steps with result_schema)
+        #[arg(short, long)]
+        step: Option<String>,
+    },
+
+    /// Generate handler scaffolds with typed dependency wiring
+    Handler {
+        /// Path to task template YAML file
+        #[arg(short, long)]
+        template: std::path::PathBuf,
+
+        /// Target language: python (py), ruby (rb), typescript (ts), rust (rs)
+        #[arg(short, long)]
+        language: String,
+
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Generate handler for a specific step only
+        #[arg(short, long)]
+        step: Option<String>,
+
+        /// Also generate test scaffolds
+        #[arg(long, default_value = "false")]
+        with_tests: bool,
+    },
+}
+
 #[tokio::main]
 async fn main() -> tasker_client::ClientResult<()> {
     let cli = Cli::parse();
@@ -790,6 +841,7 @@ async fn main() -> tasker_client::ClientResult<()> {
             let cli_config = cli_config::load_cli_config();
             handle_remote_command(remote_cmd, &cli_config).await
         }
+        Commands::Generate(gen_cmd) => handle_generate_command(gen_cmd).await,
         Commands::Init { no_contrib } => handle_init_command(no_contrib).await,
     }
 }

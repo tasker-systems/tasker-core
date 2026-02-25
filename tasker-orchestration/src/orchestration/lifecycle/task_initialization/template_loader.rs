@@ -1,12 +1,12 @@
 //! Task Template Loading
 //!
-//! Loads TaskTemplate configurations from the TaskHandlerRegistry.
+//! Loads TaskTemplate configurations from the TaskTemplateRegistry.
 //! Templates define the workflow structure including steps, dependencies, and retry policies.
 
 use std::sync::Arc;
 use tasker_shared::models::core::task_template::TaskTemplate;
 use tasker_shared::models::task_request::TaskRequest;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::system_context::SystemContext;
 
 use super::TaskInitializationError;
@@ -22,7 +22,7 @@ impl TemplateLoader {
         Self { context }
     }
 
-    /// Load task template from TaskHandlerRegistry
+    /// Load task template from TaskTemplateRegistry
     ///
     /// In FFI integration, handlers register their configuration in the registry.
     /// This method retrieves the TaskTemplate which defines the workflow structure.
@@ -32,7 +32,7 @@ impl TemplateLoader {
     ) -> Result<TaskTemplate, TaskInitializationError> {
         // Try registry first if available
         match self
-            .load_from_registry(task_request, self.context.task_handler_registry.clone())
+            .load_from_registry(task_request, self.context.task_template_registry.clone())
             .await
         {
             Ok(config) => Ok(config),
@@ -48,7 +48,7 @@ impl TemplateLoader {
     async fn load_from_registry(
         &self,
         task_request: &TaskRequest,
-        registry: Arc<TaskHandlerRegistry>,
+        registry: Arc<TaskTemplateRegistry>,
     ) -> Result<TaskTemplate, TaskInitializationError> {
         // Use the namespace and name directly from the TaskRequest
         let namespace = &task_request.namespace;

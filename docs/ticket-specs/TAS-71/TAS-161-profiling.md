@@ -252,7 +252,7 @@ let msgpack_size = rmp_serde::to_vec(&result)?.len();
 
 - `named_tasks` lookups by namespace + name
 - `task_templates` configuration
-- `TaskHandlerRegistry` (worker-side)
+- `TaskTemplateRegistry` (worker-side)
 
 **Architecture:**
 

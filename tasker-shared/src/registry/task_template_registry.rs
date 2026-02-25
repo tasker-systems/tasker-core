@@ -18,12 +18,12 @@
 //! ## Usage
 //!
 //! ```rust
-//! use tasker_shared::registry::TaskHandlerRegistry;
+//! use tasker_shared::registry::TaskTemplateRegistry;
 //! use tasker_shared::models::core::task_request::TaskRequest;
 //! use sqlx::PgPool;
 //!
 //! # async fn example(db_pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
-//! let registry = TaskHandlerRegistry::new(db_pool);
+//! let registry = TaskTemplateRegistry::new(db_pool);
 //!
 //! // Handler resolution via database queries
 //! let task_request = TaskRequest::new("order_processing".to_string(), "fulfillment".to_string());
@@ -108,7 +108,7 @@ pub struct TaskTemplateDiscoveryResult {
 }
 
 /// Database-first task handler registry for distributed orchestration
-pub struct TaskHandlerRegistry {
+pub struct TaskTemplateRegistry {
     /// Database connection pool for persistent storage
     db_pool: PgPool,
     /// Event publisher for notifications
@@ -121,14 +121,14 @@ pub struct TaskHandlerRegistry {
     cache_config: Option<CacheConfig>,
 }
 
-crate::debug_with_pgpool!(TaskHandlerRegistry {
+crate::debug_with_pgpool!(TaskTemplateRegistry {
     db_pool: PgPool,
     event_publisher,
     search_paths,
     cache_config
 });
 
-impl TaskHandlerRegistry {
+impl TaskTemplateRegistry {
     /// Create a new database-backed task handler registry
     pub fn new(db_pool: PgPool) -> Self {
         Self {
@@ -909,9 +909,9 @@ impl TaskHandlerRegistry {
     }
 }
 
-// Note: Default implementation removed - TaskHandlerRegistry now requires database pool
+// Note: Default implementation removed - TaskTemplateRegistry now requires database pool
 
-impl Clone for TaskHandlerRegistry {
+impl Clone for TaskTemplateRegistry {
     fn clone(&self) -> Self {
         Self {
             db_pool: self.db_pool.clone(),
@@ -928,17 +928,17 @@ mod tests {
     use super::*;
 
     /// Create a registry with a lazy (non-connecting) pool for unit tests
-    fn test_registry_no_cache() -> TaskHandlerRegistry {
+    fn test_registry_no_cache() -> TaskTemplateRegistry {
         let pool = sqlx::PgPool::connect_lazy("postgresql://test").unwrap();
-        TaskHandlerRegistry::new(pool)
+        TaskTemplateRegistry::new(pool)
     }
 
     /// Create a registry with NoOp cache for unit tests
-    fn test_registry_with_noop_cache(config: Option<CacheConfig>) -> TaskHandlerRegistry {
+    fn test_registry_with_noop_cache(config: Option<CacheConfig>) -> TaskTemplateRegistry {
         let pool = sqlx::PgPool::connect_lazy("postgresql://test").unwrap();
         let provider = Arc::new(CacheProvider::noop());
         let cache_config = config.unwrap_or_default();
-        TaskHandlerRegistry::with_cache(pool, provider, cache_config)
+        TaskTemplateRegistry::with_cache(pool, provider, cache_config)
     }
 
     #[tokio::test]

@@ -309,7 +309,7 @@ mod tests {
         );
 
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
 
         let actor = WorkerStatusActor::new(
@@ -330,7 +330,7 @@ mod tests {
         );
 
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
 
         let actor = WorkerStatusActor::new(
@@ -359,7 +359,7 @@ mod tests {
         );
 
         let task_template_manager = Arc::new(TaskTemplateManager::new(
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
         ));
 
         let actor = WorkerStatusActor::new(

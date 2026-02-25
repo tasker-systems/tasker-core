@@ -70,10 +70,10 @@ docker compose -f docker/docker-compose.test.yml ps
 curl http://localhost:8080/health
 
 # Check TypeScript worker service (Rust HTTP API)
-curl http://localhost:8084/health
+curl http://localhost:8085/health
 
 # Check metrics endpoint
-curl http://localhost:8084/metrics/events
+curl http://localhost:8085/metrics/events
 ```
 
 ## Running Tests
@@ -177,7 +177,7 @@ docker compose -f docker/docker-compose.test.yml exec typescript-worker \
 curl http://localhost:8080/v1/tasks/{task_uuid}
 
 # Check worker metrics
-curl http://localhost:8084/metrics/events
+curl http://localhost:8085/metrics/events
 ```
 
 ## Architecture

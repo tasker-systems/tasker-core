@@ -103,7 +103,7 @@ Both orchestration server and Rust worker are **I/O bound, not CPU bound**. Over
 | `step_state_machine` | 1.55% | 688 |
 | `step_claim::get_task_seq` | 1.37% | 610 |
 | `completion_processor` | 1.20% | 533 |
-| `task_handler_registry` | 0.63% | 280 |
+| `task_template_registry` | 0.63% | 280 |
 
 ### Database Operations (SQLx)
 

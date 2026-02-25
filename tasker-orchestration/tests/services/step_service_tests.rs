@@ -16,7 +16,7 @@ use tasker_orchestration::orchestration::lifecycle::step_enqueuer_services::Step
 use tasker_orchestration::orchestration::lifecycle::task_initialization::TaskInitializer;
 use tasker_orchestration::services::StepService;
 use tasker_shared::models::core::task_request::TaskRequest;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::system_context::SystemContext;
 use tasker_shared::types::api::orchestration::StepManualAction;
 
@@ -34,7 +34,7 @@ fn fixture_path() -> String {
 /// Helper to set up StepService with real infrastructure
 async fn setup_step_service(pool: PgPool) -> Result<(StepService, TaskInitializer)> {
     // Register templates from workspace root fixtures
-    let registry = TaskHandlerRegistry::new(pool.clone());
+    let registry = TaskTemplateRegistry::new(pool.clone());
     registry
         .discover_and_register_templates(&fixture_path())
         .await?;

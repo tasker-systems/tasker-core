@@ -79,10 +79,10 @@ impl StepClaim {
             TaskerError::DatabaseError(format!("Failed to fetch task for orchestration: {e}"))
         })?;
 
-        // Use task_handler_registry to get task template
+        // Use task_template_registry to get task template
         let task_template = self
             .context
-            .task_handler_registry
+            .task_template_registry
             .get_task_template(
                 &task_for_orchestration.namespace_name,
                 &task_for_orchestration.task_name,
@@ -175,10 +175,10 @@ impl StepClaim {
             TaskerError::DatabaseError(format!("Failed to fetch task for orchestration: {e}"))
         })?;
 
-        // Use task_handler_registry to get task template and handler information
+        // Use task_template_registry to get task template and handler information
         let task_template = self
             .context
-            .task_handler_registry
+            .task_template_registry
             .get_task_template(
                 &task_for_orchestration.namespace_name,
                 &task_for_orchestration.task_name,

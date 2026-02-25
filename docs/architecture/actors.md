@@ -288,7 +288,7 @@ impl ActorRegistry {
 
         let task_request_processor = Arc::new(TaskRequestProcessor::new(
             context.message_client.clone(),
-            context.task_handler_registry.clone(),
+            context.task_template_registry.clone(),
             task_initializer,
             TaskRequestProcessorConfig::default(),
         ));

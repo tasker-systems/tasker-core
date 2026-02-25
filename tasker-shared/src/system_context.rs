@@ -9,7 +9,7 @@ use crate::database::DatabasePools;
 use crate::events::EventPublisher;
 use crate::messaging::client::MessageClient;
 use crate::messaging::service::{MessageRouterKind, MessagingProvider};
-use crate::registry::TaskHandlerRegistry;
+use crate::registry::TaskTemplateRegistry;
 use crate::resilience::CircuitBreaker;
 use crate::{TaskerError, TaskerResult};
 use sqlx::PgPool;
@@ -71,7 +71,7 @@ pub struct SystemContext {
     database_pools: DatabasePools,
 
     /// Task handler registry
-    pub task_handler_registry: Arc<TaskHandlerRegistry>,
+    pub task_template_registry: Arc<TaskTemplateRegistry>,
 
     /// TAS-156: Distributed cache provider
     pub cache_provider: Arc<CacheProvider>,
@@ -94,7 +94,7 @@ impl std::fmt::Debug for SystemContext {
             )
             .field("message_client", &"Arc<MessageClient>")
             .field("database_pools", &self.database_pools)
-            .field("task_handler_registry", &"Arc<TaskHandlerRegistry>")
+            .field("task_template_registry", &"Arc<TaskTemplateRegistry>")
             .field(
                 "cache_provider",
                 &format!(
@@ -345,15 +345,15 @@ impl SystemContext {
         let cache_provider = Arc::new(Self::create_cache_provider(&tasker_config).await);
 
         // Create task handler registry with Tasker pool and cache
-        let task_handler_registry = Arc::new(
+        let task_template_registry = Arc::new(
             if let Some(cache_config) = tasker_config.common.cache.clone() {
-                TaskHandlerRegistry::with_cache(
+                TaskTemplateRegistry::with_cache(
                     database_pools.tasker().clone(),
                     cache_provider.clone(),
                     cache_config,
                 )
             } else {
-                TaskHandlerRegistry::new(database_pools.tasker().clone())
+                TaskTemplateRegistry::new(database_pools.tasker().clone())
             },
         );
 
@@ -379,7 +379,7 @@ impl SystemContext {
             messaging_provider,
             message_client,
             database_pools,
-            task_handler_registry,
+            task_template_registry,
             cache_provider,
             event_publisher,
         })
@@ -562,15 +562,15 @@ impl SystemContext {
         let cache_provider = Arc::new(Self::create_cache_provider(&tasker_config).await);
 
         // Create task handler registry with Tasker pool and cache
-        let task_handler_registry = Arc::new(
+        let task_template_registry = Arc::new(
             if let Some(cache_config) = tasker_config.common.cache.clone() {
-                TaskHandlerRegistry::with_cache(
+                TaskTemplateRegistry::with_cache(
                     database_pools.tasker().clone(),
                     cache_provider.clone(),
                     cache_config,
                 )
             } else {
-                TaskHandlerRegistry::new(database_pools.tasker().clone())
+                TaskTemplateRegistry::new(database_pools.tasker().clone())
             },
         );
 
@@ -588,7 +588,7 @@ impl SystemContext {
             messaging_provider,
             message_client,
             database_pools,
-            task_handler_registry,
+            task_template_registry,
             cache_provider,
             event_publisher,
         })

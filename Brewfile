@@ -28,10 +28,10 @@ brew "docker"
 brew "docker-compose"
 
 # Container runtime (aliased to docker commands)
-brew "podman"
+# brew "podman"
 
 # Podman Compose for docker-compose compatibility
-brew "podman-compose"
+# brew "podman-compose"
 
 # -----------------------------------------------------------------------------
 # Rust Tooling

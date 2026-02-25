@@ -316,6 +316,12 @@ if any_true "$ANY_RUST" "$HAS_CONFIG" "$FULL_CI"; then
     RUN_INTEGRATION_TESTS="true"
 fi
 
+# RUN_CODEGEN_VALIDATION: server-core changes (includes tasker-ctl) or full CI
+RUN_CODEGEN_VALIDATION="false"
+if any_true "$HAS_SERVER_CORE" "$FULL_CI"; then
+    RUN_CODEGEN_VALIDATION="true"
+fi
+
 # Framework test flags
 RUN_RUBY_FRAMEWORK="false"
 if any_true "$HAS_FFI_CORE" "$HAS_RUBY_WORKER" "$FULL_CI"; then
@@ -375,6 +381,7 @@ RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS}
 RUN_RUBY_FRAMEWORK=${RUN_RUBY_FRAMEWORK}
 RUN_PYTHON_FRAMEWORK=${RUN_PYTHON_FRAMEWORK}
 RUN_TYPESCRIPT_FRAMEWORK=${RUN_TYPESCRIPT_FRAMEWORK}
+RUN_CODEGEN_VALIDATION=${RUN_CODEGEN_VALIDATION}
 RUN_PERFORMANCE_ANALYSIS=${RUN_PERFORMANCE_ANALYSIS}
 SCOPE_SUMMARY=${SCOPE_SUMMARY}
 "
@@ -402,6 +409,7 @@ if [ "$USE_GITHUB_OUTPUT" = "true" ] && [ -n "${GITHUB_OUTPUT:-}" ]; then
         echo "run-ruby-framework=${RUN_RUBY_FRAMEWORK}"
         echo "run-python-framework=${RUN_PYTHON_FRAMEWORK}"
         echo "run-typescript-framework=${RUN_TYPESCRIPT_FRAMEWORK}"
+        echo "run-codegen-validation=${RUN_CODEGEN_VALIDATION}"
         echo "run-performance-analysis=${RUN_PERFORMANCE_ANALYSIS}"
         echo "scope-summary=${SCOPE_SUMMARY}"
     } >> "$GITHUB_OUTPUT"

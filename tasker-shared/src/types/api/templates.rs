@@ -112,4 +112,7 @@ pub struct StepDefinition {
     pub default_retryable: bool,
     /// Maximum retry attempts
     pub default_max_attempts: i32,
+    /// Optional JSON Schema describing the expected result payload
+    #[cfg_attr(feature = "web-api", schema(value_type = Object))]
+    pub result_schema: Option<serde_json::Value>,
 }

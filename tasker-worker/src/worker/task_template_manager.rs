@@ -1,6 +1,6 @@
 //! # Worker Task Template Manager
 //!
-//! Local task template management that integrates with the shared TaskHandlerRegistry.
+//! Local task template management that integrates with the shared TaskTemplateRegistry.
 //! Provides worker-specific template caching, validation, and namespace-aware filtering.
 
 use std::collections::HashMap;
@@ -15,7 +15,7 @@ use tasker_shared::{
         task_request::TaskRequest,
         task_template::{ResolvedTaskTemplate, TaskTemplate},
     },
-    registry::{HandlerKey, TaskHandlerRegistry, TaskTemplateDiscoveryResult},
+    registry::{HandlerKey, TaskTemplateDiscoveryResult, TaskTemplateRegistry},
     types::{base::CacheStats, HandlerMetadata},
 };
 
@@ -68,12 +68,12 @@ pub struct CachedTemplate {
 /// This provides a worker-local view of task templates with:
 /// - Namespace filtering for supported namespaces only
 /// - Local caching with TTL and LRU eviction
-/// - Integration with shared TaskHandlerRegistry
+/// - Integration with shared TaskTemplateRegistry
 /// - Worker-specific template validation
 /// - Metrics and observability
 pub struct TaskTemplateManager {
     /// Shared task handler registry for database operations
-    registry: Arc<TaskHandlerRegistry>,
+    registry: Arc<TaskTemplateRegistry>,
     /// Local cache of task templates with expiry
     cache: Arc<RwLock<HashMap<HandlerKey, CachedTemplate>>>,
     /// Configuration for this manager (wrapped in RwLock for interior mutability)
@@ -110,13 +110,13 @@ impl std::fmt::Debug for TaskTemplateManager {
 
 impl TaskTemplateManager {
     /// Create a new task template manager with default configuration
-    pub fn new(registry: Arc<TaskHandlerRegistry>) -> Self {
+    pub fn new(registry: Arc<TaskTemplateRegistry>) -> Self {
         Self::with_config(registry, TaskTemplateManagerConfig::default())
     }
 
     /// Create a new task template manager with custom configuration
     pub fn with_config(
-        registry: Arc<TaskHandlerRegistry>,
+        registry: Arc<TaskTemplateRegistry>,
         config: TaskTemplateManagerConfig,
     ) -> Self {
         let initial_stats = CacheStats {
@@ -145,7 +145,7 @@ impl TaskTemplateManager {
     }
 
     /// Get a reference to the underlying task handler registry (TAS-156)
-    pub fn registry(&self) -> &Arc<TaskHandlerRegistry> {
+    pub fn registry(&self) -> &Arc<TaskTemplateRegistry> {
         &self.registry
     }
 
@@ -164,7 +164,7 @@ impl TaskTemplateManager {
     /// This method provides worker-specific template resolution with:
     /// - Namespace validation against supported namespaces
     /// - Local cache lookup with TTL validation
-    /// - Fallback to database via TaskHandlerRegistry
+    /// - Fallback to database via TaskTemplateRegistry
     /// - Cache population on miss
     pub async fn get_task_template(
         &self,
@@ -776,6 +776,7 @@ mod tests {
                 timeout_seconds: Some(30),
                 publishes_events: Vec::new(),
                 batch_config: None,
+                result_schema: None,
             }],
             environments: HashMap::new(),
             lifecycle: None,
@@ -798,7 +799,7 @@ mod tests {
             ..Default::default()
         };
 
-        // We can't easily create TaskHandlerRegistry without a database pool in tests,
+        // We can't easily create TaskTemplateRegistry without a database pool in tests,
         // so we'll test the config validation instead
         assert!(config
             .supported_namespaces

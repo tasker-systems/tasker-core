@@ -12,10 +12,6 @@ metadata:
     - language:ruby
   created_at: "2025-10-02T00:00:00Z"
   updated_at: "2025-10-03T00:00:00Z"
-task_handler:
-  callable: ruby_ffi_handler_dsl
-  initialization:
-    error_tracking_enabled: true
 system_dependencies:
   primary: test_system
   secondary: []

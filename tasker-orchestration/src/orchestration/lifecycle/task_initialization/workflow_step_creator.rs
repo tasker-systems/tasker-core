@@ -227,6 +227,7 @@ mod tests {
             timeout_seconds: Some(30),
             publishes_events: vec![],
             batch_config: None,
+            result_schema: None,
         }
     }
 
@@ -250,6 +251,7 @@ mod tests {
             timeout_seconds: Some(30),
             publishes_events: vec![],
             batch_config: None,
+            result_schema: None,
         }
     }
 

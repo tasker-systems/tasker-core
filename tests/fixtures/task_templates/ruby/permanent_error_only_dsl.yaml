@@ -10,10 +10,6 @@ metadata:
     - pattern:permanent_error
     - implementation:ruby_ffi
     - language:ruby
-task_handler:
-  callable: ruby_ffi_handler_dsl
-  initialization:
-    error_tracking_enabled: true
 system_dependencies:
   primary: test_system
   secondary: []

@@ -20,9 +20,9 @@ The system has a full resolution pipeline for **step handlers**:
 **No equivalent pipeline exists for task handlers.** The `task_handler.callable` string
 from YAML is parsed, stored, and passed around — but never resolved to executable code.
 
-#### 2. `TaskHandlerRegistry` Is Misnamed
+#### 2. `TaskTemplateRegistry` Is Misnamed
 
-Despite its name, `TaskHandlerRegistry` (`tasker-shared/src/registry/task_handler_registry.rs`)
+Despite its name, `TaskTemplateRegistry` (`tasker-shared/src/registry/task_template_registry.rs`)
 is a **template registry/loader**, not a handler invocation engine. It:
 - Loads YAML templates from disk
 - Persists them to the `named_tasks` table
@@ -35,7 +35,7 @@ The `handler_class` field on `HandlerMetadata` defaults to `"TaskerCore::TaskHan
 (a Ruby class name literal). It's extracted from the `named_tasks.configuration` JSONB
 column but is never used for actual class resolution or instantiation in the Rust system.
 
-Relevant code (`task_handler_registry.rs:667-714`):
+Relevant code (`task_template_registry.rs:667-714`):
 ```rust
 let handler_class = named_task.configuration.as_ref().and_then(|config| {
     config.get("handler_class").and_then(|v| {
@@ -87,8 +87,8 @@ from YAML — but only to discover which classes/modules to import/require, not 
 | Config templates (config/tasks/) | 11 | ~22 | `task_handler:` + environment overrides |
 | Worker config YAML | ~17 | ~17 | Ruby/Rust worker-specific templates |
 | Rust source (TaskTemplate struct) | 1 | 15 | Field definition, tests, env override logic |
-| Rust source (TaskHandlerRegistry) | 22 | 81 | Type name references |
-| Rust source (task_handler_registry field) | 20 | 51 | Field access on SystemContext, services |
+| Rust source (TaskTemplateRegistry) | 22 | 81 | Type name references |
+| Rust source (task_template_registry field) | 20 | 51 | Field access on SystemContext, services |
 | Ruby source | 7 | ~12 | Types, handlers, discovery, base class |
 | Python source | 2 | ~18 | Template discovery + tests |
 | Documentation (*.md) | ~12 | ~15 | Various docs and ticket specs |
@@ -104,11 +104,11 @@ from YAML — but only to discover which classes/modules to import/require, not 
 - Ruby/Python template discovery extracting task_handler.callable
 - Ruby `TaskHandler::Base` class and inheriting handlers
 
-**Concern B: The `TaskHandlerRegistry` naming (secondary, larger scope)**
+**Concern B: The `TaskTemplateRegistry` naming (secondary, larger scope)**
 - The type is really a "template registry" — renaming to `TaskTemplateRegistry` or
   `TemplateRegistry` would be more accurate
 - 81 type name occurrences + 51 field name occurrences across 22+ files
-- Renaming `SystemContext.task_handler_registry` to `template_registry`
+- Renaming `SystemContext.task_template_registry` to `template_registry`
 - This is a bigger rename that may warrant its own ticket
 
 ---
@@ -182,7 +182,7 @@ Each file needs the `task_handler:` block (and any `environments.*.task_handler:
 
 1. `tasker-shared/src/types/base.rs` — Evaluate whether `handler_class` on `HandlerMetadata`
    is still needed or should be removed/renamed
-2. `tasker-shared/src/registry/task_handler_registry.rs` — Remove the
+2. `tasker-shared/src/registry/task_template_registry.rs` — Remove the
    `"TaskerCore::TaskHandler::Base"` default string and handler_class extraction logic
 3. `tasker-shared/src/messaging/execution_types.rs` — `handler_class` here refers to
    **step handler** class, not task handler — leave as-is
@@ -199,12 +199,12 @@ Each file needs the `task_handler:` block (and any `environments.*.task_handler:
 - `workers/ruby/spec/handlers/examples/blog_examples/README.md`
 - `workers/rust/README.md`
 
-### Phase 8 (Separate Ticket): Rename `TaskHandlerRegistry` → `TemplateRegistry`
+### Phase 8 (Separate Ticket): Rename `TaskTemplateRegistry` → `TemplateRegistry`
 
 This is a large mechanical rename affecting 22+ Rust source files and should be its own PR:
-- Rename `TaskHandlerRegistry` → `TemplateRegistry` (or `TaskTemplateRegistry`)
-- Rename `task_handler_registry` field → `template_registry` on `SystemContext` and all services
-- Rename file `task_handler_registry.rs` → `template_registry.rs`
+- Rename `TaskTemplateRegistry` → `TemplateRegistry` (or `TaskTemplateRegistry`)
+- Rename `task_template_registry` field → `template_registry` on `SystemContext` and all services
+- Rename file `task_template_registry.rs` → `template_registry.rs`
 - Update module declarations in `registry/mod.rs`
 - This is ~132 occurrences across ~22 files
 
@@ -223,7 +223,7 @@ This is a large mechanical rename affecting 22+ Rust source files and should be 
   handling updated so old YAML still parses (or all YAML files updated simultaneously)
 - **Medium risk**: Removing Ruby `TaskHandler::Base` — need to verify no runtime code path
   depends on it (the `Handlers::Tasks.handle` method needs a replacement or removal)
-- **Low risk**: TaskHandlerRegistry rename — purely mechanical, no semantic change
+- **Low risk**: TaskTemplateRegistry rename — purely mechanical, no semantic change
 
 ## Recommended Approach
 

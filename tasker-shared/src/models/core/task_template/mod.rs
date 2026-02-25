@@ -480,7 +480,9 @@ pub struct StepDefinition {
     pub system_dependency: Option<String>,
 
     /// Dependencies on other steps
-    #[serde(default)]
+    ///
+    /// Accepts both `dependencies` (canonical) and `depends_on` (DSL convenience alias).
+    #[serde(default, alias = "depends_on")]
     #[builder(default)]
     pub dependencies: Vec<String>,
 
@@ -539,6 +541,24 @@ pub struct StepDefinition {
     /// ```
     #[serde(default)]
     pub batch_config: Option<BatchConfiguration>,
+
+    /// Optional JSON Schema describing the expected result payload for this step.
+    ///
+    /// Tooling metadata only — the orchestrator never inspects or validates handler
+    /// results against this schema. Used by `tasker-ctl generate types` to produce
+    /// typed models (Pydantic BaseModel, Dry::Struct, TypeScript interfaces, Rust structs).
+    ///
+    /// # Example
+    /// ```yaml
+    /// result_schema:
+    ///   type: object
+    ///   required: [validated, order_total]
+    ///   properties:
+    ///     validated: { type: boolean }
+    ///     order_total: { type: number }
+    /// ```
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_schema: Option<Value>,
 }
 
 /// Retry configuration with backoff strategies
@@ -1685,6 +1705,7 @@ steps:
             timeout_seconds: None,
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
+            result_schema: None,
         };
         assert!(!standard_step.is_decision());
 
@@ -1704,6 +1725,7 @@ steps:
             timeout_seconds: None,
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
+            result_schema: None,
         };
         assert!(decision_step.is_decision());
     }
@@ -2063,6 +2085,7 @@ steps:
             timeout_seconds: None,
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
+            result_schema: None,
         };
 
         let result = invalid_decision.validate_decision_constraints();
@@ -2088,6 +2111,7 @@ steps:
             timeout_seconds: None,
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
+            result_schema: None,
         };
 
         let result = valid_decision.validate_decision_constraints();
@@ -2110,6 +2134,7 @@ steps:
             timeout_seconds: None,
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
+            result_schema: None,
         };
 
         let result = standard_step.validate_decision_constraints();
@@ -3142,5 +3167,181 @@ steps:
         let step = &template.steps[0];
         assert_eq!(step.handler.resolver.as_deref(), Some("explicit_mapping"));
         assert!(step.handler.has_resolver_hint());
+    }
+
+    // =========================================================================
+    // TAS-280: result_schema on StepDefinition
+    // =========================================================================
+
+    #[test]
+    fn test_step_definition_with_result_schema() {
+        let yaml_content = r#"
+name: order_processing
+namespace_name: ecommerce
+version: "1.0.0"
+
+steps:
+  - name: validate_order
+    handler:
+      callable: "handlers.validate_order"
+    result_schema:
+      type: object
+      required: [validated, order_total]
+      properties:
+        validated: { type: boolean }
+        order_total: { type: number }
+        item_count: { type: integer }
+"#;
+
+        let template = TaskTemplate::from_yaml(yaml_content).expect("Should parse YAML");
+        assert_eq!(template.steps.len(), 1);
+
+        let step = &template.steps[0];
+        assert!(step.result_schema.is_some());
+
+        let schema = step.result_schema.as_ref().unwrap();
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["required"][0], "validated");
+        assert_eq!(schema["required"][1], "order_total");
+        assert_eq!(schema["properties"]["validated"]["type"], "boolean");
+        assert_eq!(schema["properties"]["order_total"]["type"], "number");
+        assert_eq!(schema["properties"]["item_count"]["type"], "integer");
+    }
+
+    #[test]
+    fn test_step_definition_without_result_schema_backward_compat() {
+        let yaml_content = r#"
+name: legacy_task
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: legacy_step
+    handler:
+      callable: "LegacyHandler"
+"#;
+
+        let template = TaskTemplate::from_yaml(yaml_content).expect("Should parse YAML");
+        assert_eq!(template.steps.len(), 1);
+        assert!(template.steps[0].result_schema.is_none());
+    }
+
+    #[test]
+    fn test_result_schema_round_trip_serialization() {
+        let yaml_content = r#"
+name: test_task
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: process_data
+    handler:
+      callable: "handlers.process"
+    result_schema:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+        details:
+          type: object
+          properties:
+            count: { type: integer }
+            tags:
+              type: array
+              items: { type: string }
+"#;
+
+        let template = TaskTemplate::from_yaml(yaml_content).expect("Should parse YAML");
+
+        // Serialize back to YAML
+        let serialized = serde_yaml::to_string(&template).expect("Should serialize back to YAML");
+
+        // Parse again
+        let reparsed =
+            TaskTemplate::from_yaml(&serialized).expect("Should re-parse serialized YAML");
+
+        // Verify round-trip preserves result_schema
+        assert_eq!(
+            template.steps[0].result_schema,
+            reparsed.steps[0].result_schema
+        );
+
+        // Verify nested structure survived
+        let schema = reparsed.steps[0].result_schema.as_ref().unwrap();
+        assert_eq!(schema["properties"]["details"]["type"], "object");
+        assert_eq!(
+            schema["properties"]["details"]["properties"]["tags"]["type"],
+            "array"
+        );
+        assert_eq!(
+            schema["properties"]["details"]["properties"]["tags"]["items"]["type"],
+            "string"
+        );
+    }
+
+    #[test]
+    fn test_depends_on_alias_populates_dependencies() {
+        let yaml_content = r#"
+name: alias_test
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: step_a
+    handler:
+      callable: "HandlerA"
+
+  - name: step_b
+    handler:
+      callable: "HandlerB"
+    depends_on:
+      - step_a
+
+  - name: step_c
+    handler:
+      callable: "HandlerC"
+    dependencies:
+      - step_a
+      - step_b
+"#;
+
+        let template = TaskTemplate::from_yaml(yaml_content).expect("Should parse YAML");
+        assert_eq!(template.steps.len(), 3);
+
+        // step_a has no dependencies
+        assert!(template.steps[0].dependencies.is_empty());
+
+        // step_b uses depends_on alias → should populate dependencies field
+        assert_eq!(template.steps[1].dependencies, vec!["step_a"]);
+
+        // step_c uses canonical dependencies field
+        assert_eq!(template.steps[2].dependencies, vec!["step_a", "step_b"]);
+    }
+
+    #[test]
+    fn test_result_schema_mixed_steps_with_and_without() {
+        let yaml_content = r#"
+name: mixed_task
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: step_with_schema
+    handler:
+      callable: "handlers.typed"
+    result_schema:
+      type: object
+      properties:
+        value: { type: string }
+
+  - name: step_without_schema
+    handler:
+      callable: "handlers.untyped"
+"#;
+
+        let template = TaskTemplate::from_yaml(yaml_content).expect("Should parse YAML");
+        assert_eq!(template.steps.len(), 2);
+        assert!(template.steps[0].result_schema.is_some());
+        assert!(template.steps[1].result_schema.is_none());
     }
 }

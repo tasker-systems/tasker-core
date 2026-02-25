@@ -38,26 +38,6 @@ metadata:
   created_at: "2025-09-24T00:00:00Z"
   updated_at: "2025-09-24T00:00:00Z"
   notes: "Ruby FFI implementation with complex hierarchical dependency resolution"
-task_handler:
-  callable: ruby_ffi_handler_dsl
-  initialization:
-    input_validation:
-      required_fields:
-        - even_number
-      even_number_constraint: must_be_even
-      value_range:
-        min: 2
-        max: 100
-    expected_results:
-      tree_root_dsl: "input²"
-      tree_branch_left_dsl: "(input²)²"
-      tree_branch_right_dsl: "(input²)²"
-      tree_leaf_d_dsl: "((input²)²)²"
-      tree_leaf_e_dsl: "((input²)²)²"
-      tree_leaf_f_dsl: "((input²)²)²"
-      tree_leaf_g_dsl: "((input²)²)²"
-      tree_final_convergence_dsl: "(((input²)²)² × ((input²)²)² × ((input²)²)² × ((input²)²)²)²"
-      final_pattern: "input^32"
 system_dependencies:
   primary: default
   secondary: []

@@ -15,7 +15,7 @@ use tasker_orchestration::orchestration::lifecycle::task_initialization::TaskIni
 use tasker_orchestration::services::{AnalyticsQueryService, AnalyticsService};
 use tasker_shared::cache::CacheProvider;
 use tasker_shared::models::core::task_request::TaskRequest;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::system_context::SystemContext;
 use uuid::Uuid;
 
@@ -32,7 +32,7 @@ fn fixture_path() -> String {
 
 /// Helper to register templates and create some tasks for analytics
 async fn seed_analytics_data(pool: &PgPool) -> Result<()> {
-    let registry = TaskHandlerRegistry::new(pool.clone());
+    let registry = TaskTemplateRegistry::new(pool.clone());
     registry
         .discover_and_register_templates(&fixture_path())
         .await?;

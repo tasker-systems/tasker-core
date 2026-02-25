@@ -109,7 +109,7 @@ Project lint policy mandates `#[expect(lint_name, reason = "...")]` instead of `
 
 - `src/messaging/execution_types.rs:120,186,213` — Step execution status defaults to empty string
 - `src/database/sql_functions.rs:377,558` — Query results default to empty vectors
-- `src/registry/task_handler_registry.rs:214,268,656,700,942` — Config schema fields default silently
+- `src/registry/task_template_registry.rs:214,268,656,700,942` — Config schema fields default silently
 - `src/proto/conversions.rs:32` — Invalid timestamps silently default to UNIX epoch
 
 **Risk**: Required fields silently defaulting to empty values can mask real errors and produce incorrect behavior that's hard to debug.

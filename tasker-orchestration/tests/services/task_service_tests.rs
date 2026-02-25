@@ -17,7 +17,7 @@ use tasker_orchestration::orchestration::lifecycle::task_initialization::TaskIni
 use tasker_orchestration::services::TaskService;
 use tasker_shared::models::core::task::TaskListQuery;
 use tasker_shared::models::core::task_request::TaskRequest;
-use tasker_shared::registry::TaskHandlerRegistry;
+use tasker_shared::registry::TaskTemplateRegistry;
 use tasker_shared::system_context::SystemContext;
 
 /// Get the path to task template fixtures in the workspace root
@@ -34,7 +34,7 @@ fn fixture_path() -> String {
 /// Helper to set up TaskService with real infrastructure
 async fn setup_task_service(pool: PgPool) -> Result<TaskService> {
     // Register templates from workspace root fixtures
-    let registry = TaskHandlerRegistry::new(pool.clone());
+    let registry = TaskTemplateRegistry::new(pool.clone());
     registry
         .discover_and_register_templates(&fixture_path())
         .await?;

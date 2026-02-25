@@ -729,6 +729,10 @@ export class StepExecutionSubscriber {
   /**
    * Send a completion result to Rust via FFI and handle the response.
    *
+   * If the primary FFI call fails (e.g. serialization error, unexpected
+   * type mismatch), we construct a guaranteed-safe failure result so the
+   * step is marked as permanently failed rather than silently lost.
+   *
    * @returns true if the completion was accepted by Rust, false otherwise
    */
   private async sendCompletionViaFfi(
@@ -758,8 +762,79 @@ export class StepExecutionSubscriber {
       return false;
     } catch (error) {
       this.handleFfiError(event, error);
-      return false;
+      return this.submitFallbackFailure(event, error);
     }
+  }
+
+  /**
+   * Submit a minimal safe-failure result after the primary FFI call fails.
+   *
+   * Builds a primitive-only result guaranteed to serialize, then attempts
+   * to submit it. Throws if the fallback is also rejected or fails,
+   * since the step would otherwise be silently lost.
+   */
+  private submitFallbackFailure(event: FfiStepEvent, originalError: unknown): boolean {
+    const fallback = this.buildFfiSafeFailure(event, originalError);
+
+    try {
+      const accepted = this.module.completeStepEvent(event.eventId, fallback);
+      if (accepted) {
+        pinoLog.warn(
+          { component: 'subscriber', eventId: event.eventId },
+          'FFI fallback failure submitted successfully'
+        );
+        return true;
+      }
+      // Rust rejected the fallback too — step is orphaned
+      this.throwOrphanedError(event, 'rejected', originalError);
+    } catch (fallbackError) {
+      this.throwOrphanedError(event, 'failed', originalError, fallbackError);
+    }
+
+    // Unreachable — throwOrphanedError always throws — but satisfies the return type
+    return false;
+  }
+
+  /**
+   * Throw an error indicating a step has been orphaned (both primary and fallback failed).
+   */
+  private throwOrphanedError(
+    event: FfiStepEvent,
+    reason: 'rejected' | 'failed',
+    originalError: unknown,
+    fallbackError?: unknown
+  ): never {
+    const originalMsg =
+      originalError instanceof Error ? originalError.message : String(originalError);
+
+    if (reason === 'rejected') {
+      pinoLog.error(
+        { component: 'subscriber', eventId: event.eventId, stepUuid: event.stepUuid },
+        'FFI fallback submission also rejected - step is orphaned'
+      );
+      throw new Error(
+        `Both primary and fallback FFI submissions rejected for event ${event.eventId}. ` +
+          `Step ${event.stepUuid} is orphaned.`
+      );
+    }
+
+    const fallbackMsg =
+      fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+    pinoLog.error(
+      {
+        component: 'subscriber',
+        eventId: event.eventId,
+        stepUuid: event.stepUuid,
+        error: fallbackMsg,
+        originalError: originalMsg,
+      },
+      'FFI fallback also failed - step is orphaned'
+    );
+    throw new Error(
+      `Both primary and fallback FFI submissions failed for event ${event.eventId}. ` +
+        `Step ${event.stepUuid} is orphaned. ` +
+        `Fallback: ${fallbackMsg}, Original: ${originalMsg}`
+    );
   }
 
   /**
@@ -823,5 +898,36 @@ export class StepExecutionSubscriber {
       event_id: event.eventId,
       error_message: error instanceof Error ? error.message : String(error),
     });
+  }
+
+  /**
+   * Build a minimal NapiStepExecutionResult guaranteed to serialize through napi-rs.
+   *
+   * Uses only primitive values so there is zero chance of a secondary
+   * serialization failure. The step will be marked as permanently failed
+   * rather than silently lost.
+   */
+  private buildFfiSafeFailure(event: FfiStepEvent, error: unknown): NapiStepExecutionResult {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      stepUuid: event.stepUuid,
+      success: false,
+      result: {},
+      status: 'error',
+      metadata: {
+        executionTimeMs: 0,
+        retryable: false,
+        completedAt: new Date().toISOString(),
+        ...(this.workerId != null && { workerId: this.workerId }),
+        custom: {
+          ffi_serialization_error: errorMessage.substring(0, 500),
+        },
+      },
+      error: {
+        message: `FFI serialization failed: ${errorMessage}`.substring(0, 500),
+        errorType: 'FFI_SERIALIZATION_ERROR',
+        retryable: false,
+      },
+    };
   }
 }

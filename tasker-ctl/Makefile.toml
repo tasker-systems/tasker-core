@@ -1,1 +1,9 @@
 extend = "../cargo-make/base-tasks.toml"
+
+[tasks.validate-codegen]
+description = "Build tasker-ctl and validate all generated codegen output for syntax"
+category = "Validation"
+script = '''
+cargo build --package tasker-ctl
+${SCRIPTS_DIR}/validate-codegen.sh --binary target/debug/tasker-ctl
+'''

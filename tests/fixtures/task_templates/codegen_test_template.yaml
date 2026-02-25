@@ -1,0 +1,186 @@
+# TaskTemplate for codegen integration tests (TAS-280)
+#
+# Purpose-built template exercising result_schema code generation scenarios:
+# - Flat types (string, number, integer, boolean)
+# - Nested objects
+# - Arrays with typed items
+# - Optional vs required fields
+# - Steps without result_schema (should be skipped)
+#
+---
+name: codegen_test
+namespace_name: codegen_tests
+version: 1.0.0
+description: "Test template for tasker-ctl generate types"
+metadata:
+  author: TAS-280 Test Suite
+  tags:
+    - test_type:codegen
+  created_at: "2026-02-23T00:00:00Z"
+  updated_at: "2026-02-23T00:00:00Z"
+system_dependencies:
+  primary: default
+  secondary: []
+domain_events: []
+input_schema:
+  type: object
+  required:
+    - order_id
+    - customer_email
+    - items
+  properties:
+    order_id:
+      type: string
+      description: "Unique order identifier"
+    customer_email:
+      type: string
+      description: "Customer email address"
+    items:
+      type: array
+      description: "Cart items to process"
+      items:
+        type: object
+        required:
+          - product_id
+          - quantity
+        properties:
+          product_id:
+            type: integer
+          quantity:
+            type: integer
+    shipping_address:
+      type: object
+      required:
+        - street
+        - city
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        zip:
+          type: string
+    priority:
+      type: string
+      enum:
+        - standard
+        - express
+        - overnight
+steps:
+  - name: validate_order
+    description: "Validates an incoming order"
+    handler:
+      callable: codegen_tests.validate_order
+    result_schema:
+      type: object
+      required:
+        - validated
+        - order_total
+        - item_count
+      properties:
+        validated:
+          type: boolean
+          description: "Whether the order passed validation"
+        order_total:
+          type: number
+          description: "Total order amount"
+        item_count:
+          type: integer
+          description: "Number of items in the order"
+        notes:
+          type: string
+          description: "Optional validation notes"
+
+  - name: enrich_order
+    description: "Enriches order with external data"
+    handler:
+      callable: codegen_tests.enrich_order
+    depends_on:
+      - validate_order
+    result_schema:
+      type: object
+      required:
+        - enriched
+        - metadata
+      properties:
+        enriched:
+          type: boolean
+        metadata:
+          type: object
+          required:
+            - source
+          properties:
+            source:
+              type: string
+            confidence:
+              type: number
+            tags:
+              type: array
+              items:
+                type: string
+
+  - name: process_payment
+    description: "Processes payment (no result_schema — should be skipped)"
+    handler:
+      callable: codegen_tests.process_payment
+    depends_on:
+      - validate_order
+
+  - name: generate_report
+    description: "Generates a summary report with arrays"
+    handler:
+      callable: codegen_tests.generate_report
+    depends_on:
+      - enrich_order
+      - process_payment
+    result_schema:
+      type: object
+      required:
+        - line_items
+        - success
+      properties:
+        line_items:
+          type: array
+          items:
+            type: string
+        success:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+
+  - name: aggregate_metrics
+    description: "Aggregates metrics using Map/Record types"
+    handler:
+      callable: codegen_tests.aggregate_metrics
+    depends_on:
+      - generate_report
+    result_schema:
+      type: object
+      required:
+        - scores
+        - daily_breakdown
+      properties:
+        scores:
+          type: object
+          description: "Simple map of metric name to numeric value"
+          additionalProperties:
+            type: number
+        daily_breakdown:
+          type: object
+          description: "Map of date string to detailed breakdown"
+          additionalProperties:
+            type: object
+            required:
+              - total
+              - count
+            properties:
+              total:
+                type: number
+              count:
+                type: integer
+        extra:
+          type: object
+          description: "Open map accepting any value"
+          additionalProperties: true

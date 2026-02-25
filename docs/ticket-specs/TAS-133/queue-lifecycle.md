@@ -21,7 +21,7 @@ This document examines how queue creation/management integrates with Tasker's ta
 │   2. TaskTemplateManager parses templates                                │
 │      └── Extracts unique namespaces: [fulfillment, inventory, ...]      │
 │                                                                          │
-│   3. TaskHandlerRegistry registers handlers                              │
+│   3. TaskTemplateRegistry registers handlers                              │
 │      └── Maps handler_key → handler implementation                       │
 │                                                                          │
 │   4. Messaging Service creates namespace queues                          │

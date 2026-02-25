@@ -29,7 +29,7 @@ import asyncio
 import inspect
 import time
 import traceback
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from tasker_core._tasker_core import (
@@ -368,6 +368,50 @@ class StepExecutionSubscriber:
             metadata={"traceback": traceback.format_exc()},
         )
 
+    def _build_ffi_safe_failure(
+        self,
+        event: FfiStepEvent,
+        handler_result: StepHandlerResult,
+        error: Exception,
+    ) -> dict[str, Any]:
+        """Build a minimal result dict guaranteed to deserialize through PyO3.
+
+        Uses only primitive values and string keys so there is zero chance
+        of a secondary serialization failure. The step will be marked as
+        permanently failed rather than silently lost.
+
+        Args:
+            event: The original FfiStepEvent.
+            handler_result: The handler result that failed to serialize.
+            error: The serialization error.
+
+        Returns:
+            A plain dict matching StepExecutionResult's shape.
+        """
+        import datetime
+
+        return {
+            "step_uuid": str(event.step_uuid),
+            "success": False,
+            "status": "error",
+            "result": {},
+            "metadata": {
+                "execution_time_ms": 0,
+                "retryable": False,
+                "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "worker_id": self._worker_id,
+                "custom": {
+                    "ffi_serialization_error": str(error)[:500],
+                    "original_success": str(handler_result.is_success),
+                },
+            },
+            "error": {
+                "error_type": "FFI_SERIALIZATION_ERROR",
+                "message": f"FFI serialization failed: {error}"[:500],
+                "retryable": False,
+            },
+        }
+
     def _submit_result(
         self,
         event: FfiStepEvent,
@@ -433,8 +477,21 @@ class StepExecutionSubscriber:
             )
 
         # Submit via FFI
+        #
+        # Serialization and FFI transport are separated so failures can be
+        # diagnosed independently.  If either fails, we construct a
+        # guaranteed-safe failure result so the step is marked as permanently
+        # failed rather than silently lost.
         try:
             result_dict = result.model_dump(mode="json")
+        except Exception as ser_error:
+            log_error(
+                f"Pydantic serialization failed for event {event.event_id}: {ser_error}",
+                {"event_id": event.event_id, "step_uuid": event.step_uuid},
+            )
+            result_dict = self._build_ffi_safe_failure(event, handler_result, ser_error)
+
+        try:
             success = _complete_step_event(str(event.event_id), result_dict)
 
             if success:
@@ -450,9 +507,35 @@ class StepExecutionSubscriber:
                 )
 
         except Exception as e:
-            log_error(f"Failed to submit result: {e}")
-            # Result submission failure is serious - log but don't retry
-            raise
+            log_error(
+                f"FFI transport failed for event {event.event_id}: {e}",
+                {"event_id": event.event_id, "step_uuid": event.step_uuid},
+            )
+
+            # Submit a minimal failure result that is guaranteed to serialize
+            fallback = self._build_ffi_safe_failure(event, handler_result, e)
+            try:
+                success = _complete_step_event(str(event.event_id), fallback)
+                if success:
+                    log_warn(
+                        "FFI fallback failure submitted successfully",
+                        {"event_id": event.event_id},
+                    )
+                else:
+                    log_error(
+                        "FFI fallback submission also rejected - step is orphaned",
+                        {"event_id": event.event_id, "step_uuid": event.step_uuid},
+                    )
+                    raise RuntimeError(
+                        f"Both primary and fallback FFI submissions rejected for event "
+                        f"{event.event_id}. Step {event.step_uuid} is orphaned."
+                    ) from e
+            except Exception as fallback_error:
+                log_error(
+                    f"FFI fallback also failed for event {event.event_id}: {fallback_error} "
+                    f"(original error: {e})"
+                )
+                raise fallback_error from e
 
     def _submit_checkpoint_yield(
         self,
