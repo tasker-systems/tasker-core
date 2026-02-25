@@ -6,7 +6,7 @@ set -euo pipefail
 # Env:
 #   CORE_VERSION
 #   CRATES_RESULT, RUBY_RESULT, PYTHON_RESULT, TS_RESULT, CONTAINERS_RESULT
-#   FFI_RESULT
+#   FFI_RESULT, CLI_RESULT
 #   RUBY_VERSION, PYTHON_VERSION, TS_VERSION
 #   GH_TOKEN (for gh CLI authentication)
 
@@ -45,6 +45,22 @@ if [[ "${FFI_RESULT:-}" == "success" ]]; then
   BODY+="|--------|--------|------------|------|"$'\n'
   BODY+="| x86_64-unknown-linux-gnu | .whl | .so | .so |"$'\n'
   BODY+="| aarch64-apple-darwin | .whl | .dylib | .bundle |"$'\n'
+fi
+
+if [[ "${CLI_RESULT:-}" == "success" ]]; then
+  BODY+=$'\n'"## CLI Binaries"$'\n\n'
+  BODY+="Pre-built \`tasker-ctl\` binaries are attached to this release."$'\n\n'
+  BODY+='```bash'$'\n'
+  BODY+="# Install via cargo-binstall (recommended, installs in seconds):"$'\n'
+  BODY+="cargo binstall tasker-ctl"$'\n\n'
+  BODY+="# Or download directly from this release"$'\n'
+  BODY+='```'$'\n\n'
+  BODY+="| Target | Archive |"$'\n'
+  BODY+="|--------|---------|"$'\n'
+  BODY+="| x86_64-unknown-linux-gnu | tasker-ctl-${VERSION}-x86_64-unknown-linux-gnu.tar.gz |"$'\n'
+  BODY+="| aarch64-unknown-linux-gnu | tasker-ctl-${VERSION}-aarch64-unknown-linux-gnu.tar.gz |"$'\n'
+  BODY+="| x86_64-apple-darwin | tasker-ctl-${VERSION}-x86_64-apple-darwin.tar.gz |"$'\n'
+  BODY+="| aarch64-apple-darwin | tasker-ctl-${VERSION}-aarch64-apple-darwin.tar.gz |"$'\n'
 fi
 
 if [[ "${CONTAINERS_RESULT}" == "success" ]]; then

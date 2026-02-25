@@ -1,0 +1,126 @@
+name: Build CLI Binaries
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version string for artifact naming'
+        required: true
+        type: string
+    outputs:
+      artifact-prefix:
+        description: 'Prefix for uploaded artifact names'
+        value: ${{ jobs.build.outputs.artifact-prefix }}
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version string for artifact naming'
+        required: false
+        default: 'dev'
+
+# =============================================================================
+# Matrix Strategy
+# =============================================================================
+# Builds the tasker-ctl binary for 4 platform/architecture combinations.
+# Uses native compilation where possible, cross-compilation for linux-arm64
+# and darwin-amd64.
+#
+# | Job           | Runner       | Method                    |
+# |---------------|-------------|---------------------------|
+# | linux-amd64   | ubuntu-22.04 | Native cargo build        |
+# | linux-arm64   | ubuntu-22.04 | Cross-compile (gcc-aarch64) |
+# | darwin-amd64  | macos-14     | Cross-compile (x86_64)    |
+# | darwin-arm64  | macos-14     | Native cargo build        |
+# =============================================================================
+
+jobs:
+  build:
+    name: CLI ${{ matrix.target.name }}
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: 20
+    outputs:
+      artifact-prefix: cli-${{ inputs.version || 'dev' }}
+    env:
+      SQLX_OFFLINE: 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: linux-amd64
+            runner: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+            cross: false
+          - name: linux-arm64
+            runner: ubuntu-22.04
+            triple: aarch64-unknown-linux-gnu
+            cross: true
+            cross_packages: gcc-aarch64-linux-gnu
+            linker: aarch64-linux-gnu-gcc
+          - name: darwin-amd64
+            runner: macos-14
+            triple: x86_64-apple-darwin
+            cross: false
+          - name: darwin-arm64
+            runner: macos-14
+            triple: aarch64-apple-darwin
+            cross: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target.triple }}
+
+      - name: Setup Rust build cache
+        uses: ./.github/actions/setup-rust-cache
+
+      - name: Install cross-compilation toolchain
+        if: matrix.target.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.target.cross_packages }}
+
+      - name: Configure cross-compilation linker
+        if: matrix.target.cross
+        run: |
+          # Set the linker for the target triple (env var format: CARGO_TARGET_<TRIPLE>_LINKER)
+          TRIPLE_UPPER="$(echo '${{ matrix.target.triple }}' | tr '[:lower:]-' '[:upper:]_')"
+          echo "CARGO_TARGET_${TRIPLE_UPPER}_LINKER=${{ matrix.target.linker }}" >> "$GITHUB_ENV"
+
+      - name: Build tasker-ctl
+        run: |
+          cargo build --release --package tasker-ctl --target ${{ matrix.target.triple }}
+
+      - name: Package binary
+        run: |
+          VERSION="${{ inputs.version || 'dev' }}"
+          TARGET="${{ matrix.target.triple }}"
+          BINARY="tasker-ctl"
+
+          # Locate the compiled binary
+          BIN_PATH="target/${TARGET}/release/${BINARY}"
+          if [[ ! -f "$BIN_PATH" ]]; then
+            echo "::error::Binary not found at ${BIN_PATH}"
+            exit 1
+          fi
+
+          # Create archive
+          ARCHIVE="${BINARY}-${VERSION}-${TARGET}.tar.gz"
+          mkdir -p staging
+          cp "$BIN_PATH" staging/
+          tar -czf "$ARCHIVE" -C staging "$BINARY"
+
+          echo "Created ${ARCHIVE}"
+          ls -lh "$ARCHIVE"
+          echo "Binary size: $(ls -lh staging/${BINARY} | awk '{print $5}')"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: cli-${{ inputs.version || 'dev' }}-${{ matrix.target.triple }}
+          path: tasker-ctl-*.tar.gz
+          retention-days: 7
+          if-no-files-found: error

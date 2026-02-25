@@ -5,13 +5,13 @@ set -euo pipefail
 #
 # Env:
 #   CRATES_RESULT, RUBY_RESULT, PYTHON_RESULT, TS_RESULT, CONTAINERS_RESULT
-#   FFI_RESULT
+#   FFI_RESULT, CLI_RESULT
 #
 # Output (GITHUB_OUTPUT):
 #   has_failures - "true" or "false"
 
 FAILED=false
-for result in "${CRATES_RESULT}" "${RUBY_RESULT}" "${PYTHON_RESULT}" "${TS_RESULT}" "${CONTAINERS_RESULT}" "${FFI_RESULT:-}"; do
+for result in "${CRATES_RESULT}" "${RUBY_RESULT}" "${PYTHON_RESULT}" "${TS_RESULT}" "${CONTAINERS_RESULT}" "${FFI_RESULT:-}" "${CLI_RESULT:-}"; do
   if [[ "$result" == "failure" ]]; then
     FAILED=true
   fi
