@@ -136,7 +136,7 @@ fn stub_value_json(ft: &FieldType) -> String {
         FieldType::Number => "0.0".to_string(),
         FieldType::Boolean => "false".to_string(),
         FieldType::Array(_) => "[]".to_string(),
-        FieldType::Nested(_) | FieldType::Any => "{}".to_string(),
+        FieldType::Nested(_) | FieldType::Map(_) | FieldType::Any => "{}".to_string(),
     }
 }
 
@@ -147,7 +147,7 @@ fn stub_value_python(ft: &FieldType) -> String {
         FieldType::Number => "0.0".to_string(),
         FieldType::Boolean => "False".to_string(),
         FieldType::Array(_) => "[]".to_string(),
-        FieldType::Nested(_) | FieldType::Any => "{}".to_string(),
+        FieldType::Nested(_) | FieldType::Map(_) | FieldType::Any => "{}".to_string(),
     }
 }
 
@@ -158,7 +158,7 @@ fn stub_value_ruby(ft: &FieldType) -> String {
         FieldType::Number => "0.0".to_string(),
         FieldType::Boolean => "false".to_string(),
         FieldType::Array(_) => "[]".to_string(),
-        FieldType::Nested(_) | FieldType::Any => "{}".to_string(),
+        FieldType::Nested(_) | FieldType::Map(_) | FieldType::Any => "{}".to_string(),
     }
 }
 
@@ -168,7 +168,7 @@ fn stub_value_typescript(ft: &FieldType) -> String {
         FieldType::Integer | FieldType::Number => "0".to_string(),
         FieldType::Boolean => "false".to_string(),
         FieldType::Array(_) => "[]".to_string(),
-        FieldType::Nested(_) | FieldType::Any => "{}".to_string(),
+        FieldType::Nested(_) | FieldType::Map(_) | FieldType::Any => "{}".to_string(),
     }
 }
 

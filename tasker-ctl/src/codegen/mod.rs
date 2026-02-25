@@ -96,6 +96,9 @@ pub fn generate_types(
         }
     }
 
+    // Strip language suffix from namespace for type naming (e.g. "ecommerce_ts" → "ecommerce")
+    let namespace_prefix = strip_language_suffix(&template.namespace_name);
+
     for step in &template.steps {
         // Apply step filter if provided
         if let Some(filter) = step_filter {
@@ -105,7 +108,10 @@ pub fn generate_types(
         }
 
         if let Some(schema) = &step.result_schema {
-            let types = schema::extract_types(&step.name, schema).map_err(|e| {
+            // Prefix step name with namespace for namespaced type names
+            // e.g. namespace "ecommerce" + step "validate_cart" → "ecommerce_validate_cart"
+            let qualified_name = format!("{namespace_prefix}_{}", step.name);
+            let types = schema::extract_types(&qualified_name, schema).map_err(|e| {
                 CodegenError::SchemaExtraction {
                     step: step.name.clone(),
                     source: e,
@@ -151,4 +157,28 @@ pub fn generate_tests(
     let template_name = &template.name;
 
     handler_templates::render_tests(&handlers, template_name, language)
+}
+
+/// Strip common language suffixes from namespace names.
+///
+/// Tasker templates often use language-specific namespace suffixes to avoid
+/// queue collisions across polyglot deployments (e.g. `ecommerce_ts`,
+/// `payments_ruby`). For type naming, these suffixes are noise.
+fn strip_language_suffix(namespace: &str) -> &str {
+    const SUFFIXES: &[&str] = &[
+        "_ts",
+        "_typescript",
+        "_rb",
+        "_ruby",
+        "_py",
+        "_python",
+        "_rs",
+        "_rust",
+    ];
+    for suffix in SUFFIXES {
+        if let Some(stripped) = namespace.strip_suffix(suffix) {
+            return stripped;
+        }
+    }
+    namespace
 }

@@ -3,6 +3,9 @@
 //! Tests the full CLI pipeline: YAML parsing → schema extraction → code generation.
 //! Uses the codegen_test_template.yaml fixture which covers flat types, nested objects,
 //! arrays, optional fields, and steps without result_schema.
+//!
+//! The fixture has namespace_name: "codegen_tests", so result types are prefixed
+//! with `CodegenTests` (e.g. `CodegenTestsValidateOrderResult`).
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -64,26 +67,26 @@ fn test_generate_python_types() {
     // Input type appears before result types
     let input_pos = stdout.find("class CodegenTestInput(BaseModel):").unwrap();
     let result_pos = stdout
-        .find("class ValidateOrderResult(BaseModel):")
+        .find("class CodegenTestsValidateOrderResult(BaseModel):")
         .unwrap();
     assert!(
         input_pos < result_pos,
         "Input type should appear before result types"
     );
 
-    // ValidateOrderResult
-    assert!(stdout.contains("class ValidateOrderResult(BaseModel):"));
+    // CodegenTestsValidateOrderResult (namespace-prefixed)
+    assert!(stdout.contains("class CodegenTestsValidateOrderResult(BaseModel):"));
     assert!(stdout.contains("validated: bool"));
     assert!(stdout.contains("order_total: float"));
     assert!(stdout.contains("item_count: int"));
     assert!(stdout.contains("notes: Optional[str] = None"));
 
-    // EnrichOrderResult with nested Metadata
-    assert!(stdout.contains("class EnrichOrderResultMetadata(BaseModel):"));
-    assert!(stdout.contains("class EnrichOrderResult(BaseModel):"));
+    // CodegenTestsEnrichOrderResult with nested Metadata
+    assert!(stdout.contains("class CodegenTestsEnrichOrderResultMetadata(BaseModel):"));
+    assert!(stdout.contains("class CodegenTestsEnrichOrderResult(BaseModel):"));
 
-    // GenerateReportResult with arrays
-    assert!(stdout.contains("class GenerateReportResult(BaseModel):"));
+    // CodegenTestsGenerateReportResult with arrays
+    assert!(stdout.contains("class CodegenTestsGenerateReportResult(BaseModel):"));
     assert!(stdout.contains("line_items: list[str]"));
 
     // process_payment has no result_schema — should NOT generate types
@@ -108,14 +111,15 @@ fn test_generate_ruby_types() {
     assert!(stdout.contains("class CodegenTestInputItems < Dry::Struct"));
     assert!(stdout.contains("class CodegenTestInputShippingAddress < Dry::Struct"));
 
-    assert!(stdout.contains("class ValidateOrderResult < Dry::Struct"));
+    // Namespace-prefixed result types
+    assert!(stdout.contains("class CodegenTestsValidateOrderResult < Dry::Struct"));
     assert!(stdout.contains("attribute :validated, Types::Strict::Bool"));
     assert!(stdout.contains("attribute :order_total, Types::Strict::Float"));
     assert!(stdout.contains("attribute :item_count, Types::Strict::Integer"));
 
-    assert!(stdout.contains("class EnrichOrderResultMetadata < Dry::Struct"));
-    assert!(stdout.contains("class EnrichOrderResult < Dry::Struct"));
-    assert!(stdout.contains("class GenerateReportResult < Dry::Struct"));
+    assert!(stdout.contains("class CodegenTestsEnrichOrderResultMetadata < Dry::Struct"));
+    assert!(stdout.contains("class CodegenTestsEnrichOrderResult < Dry::Struct"));
+    assert!(stdout.contains("class CodegenTestsGenerateReportResult < Dry::Struct"));
 
     assert!(!stdout.contains("ProcessPayment"));
 }
@@ -147,19 +151,22 @@ fn test_generate_typescript_types() {
     assert!(stdout.contains("export const CodegenTestInputItemsSchema = z.object({"));
     assert!(stdout.contains("export const CodegenTestInputShippingAddressSchema = z.object({"));
 
-    // ValidateOrderResult — field-level assertions
-    assert!(stdout.contains("export const ValidateOrderResultSchema = z.object({"));
+    // Namespace-prefixed result types — field-level assertions
+    assert!(stdout.contains("export const CodegenTestsValidateOrderResultSchema = z.object({"));
     assert!(stdout.contains("validated: z.boolean(),"));
     assert!(stdout.contains("order_total: z.number(),"));
     assert!(stdout.contains("item_count: z.number().int(),"));
     assert!(stdout.contains("notes: z.string().optional(),"));
-    assert!(stdout
-        .contains("export type ValidateOrderResult = z.infer<typeof ValidateOrderResultSchema>;"));
+    assert!(stdout.contains(
+        "export type CodegenTestsValidateOrderResult = z.infer<typeof CodegenTestsValidateOrderResultSchema>;"
+    ));
 
     // Nested and array types
-    assert!(stdout.contains("export const EnrichOrderResultMetadataSchema = z.object({"));
-    assert!(stdout.contains("export const EnrichOrderResultSchema = z.object({"));
-    assert!(stdout.contains("export const GenerateReportResultSchema = z.object({"));
+    assert!(
+        stdout.contains("export const CodegenTestsEnrichOrderResultMetadataSchema = z.object({")
+    );
+    assert!(stdout.contains("export const CodegenTestsEnrichOrderResultSchema = z.object({"));
+    assert!(stdout.contains("export const CodegenTestsGenerateReportResultSchema = z.object({"));
 
     // process_payment has no result_schema — should NOT generate types
     assert!(!stdout.contains("ProcessPayment"));
@@ -183,7 +190,8 @@ fn test_generate_rust_types() {
     assert!(stdout.contains("pub struct CodegenTestInputItems {"));
     assert!(stdout.contains("pub struct CodegenTestInputShippingAddress {"));
 
-    assert!(stdout.contains("pub struct ValidateOrderResult {"));
+    // Namespace-prefixed result types
+    assert!(stdout.contains("pub struct CodegenTestsValidateOrderResult {"));
     assert!(stdout.contains("pub validated: bool,"));
     assert!(stdout.contains("pub order_total: f64,"));
     assert!(stdout.contains("pub item_count: i64,"));
@@ -192,9 +200,9 @@ fn test_generate_rust_types() {
         stdout.contains("#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]")
     );
 
-    assert!(stdout.contains("pub struct EnrichOrderResultMetadata {"));
-    assert!(stdout.contains("pub struct EnrichOrderResult {"));
-    assert!(stdout.contains("pub struct GenerateReportResult {"));
+    assert!(stdout.contains("pub struct CodegenTestsEnrichOrderResultMetadata {"));
+    assert!(stdout.contains("pub struct CodegenTestsEnrichOrderResult {"));
+    assert!(stdout.contains("pub struct CodegenTestsGenerateReportResult {"));
 
     assert!(!stdout.contains("ProcessPayment"));
 }
@@ -212,8 +220,8 @@ fn test_generate_types_with_step_filter() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    // Only validate_order types should appear
-    assert!(stdout.contains("class ValidateOrderResult(BaseModel):"));
+    // Only validate_order types should appear (namespace-prefixed)
+    assert!(stdout.contains("class CodegenTestsValidateOrderResult(BaseModel):"));
 
     // Input type should NOT appear when step filter is active
     assert!(!stdout.contains("CodegenTestInput"));
@@ -228,10 +236,13 @@ fn test_generate_types_with_step_filter() {
 #[test]
 fn test_generate_types_language_aliases() {
     for (alias, expected) in [
-        ("py", "class ValidateOrderResult(BaseModel):"),
-        ("rb", "class ValidateOrderResult < Dry::Struct"),
-        ("ts", "export const ValidateOrderResultSchema = z.object({"),
-        ("rs", "pub struct ValidateOrderResult {"),
+        ("py", "class CodegenTestsValidateOrderResult(BaseModel):"),
+        ("rb", "class CodegenTestsValidateOrderResult < Dry::Struct"),
+        (
+            "ts",
+            "export const CodegenTestsValidateOrderResultSchema = z.object({",
+        ),
+        ("rs", "pub struct CodegenTestsValidateOrderResult {"),
     ] {
         let output = generate_types(alias, &["--step", "validate_order"]);
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -319,6 +330,6 @@ fn test_generate_types_output_to_file() {
     );
 
     let contents = std::fs::read_to_string(&output_path).unwrap();
-    assert!(contents.contains("class ValidateOrderResult(BaseModel):"));
-    assert!(contents.contains("class EnrichOrderResult(BaseModel):"));
+    assert!(contents.contains("class CodegenTestsValidateOrderResult(BaseModel):"));
+    assert!(contents.contains("class CodegenTestsEnrichOrderResult(BaseModel):"));
 }

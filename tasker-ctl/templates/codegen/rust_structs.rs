@@ -4,6 +4,9 @@
 use serde::{Deserialize, Serialize};
 {% if needs_json_value -%}
 use serde_json;
+{% endif -%}
+{% if needs_hashmap -%}
+use std::collections::HashMap;
 {% endif %}
 {%- for type_def in types %}
 

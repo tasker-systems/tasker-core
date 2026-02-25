@@ -42,6 +42,8 @@ pub enum FieldType {
     Nested(String),
     /// A string with a fixed set of allowed values
     StringEnum(Vec<String>),
+    /// A string-keyed map/record: `{ [key: string]: T }`
+    Map(Box<FieldType>),
     /// Fallback for unrecognized or unsupported schema constructs
     Any,
 }
@@ -58,6 +60,7 @@ impl fmt::Display for FieldType {
             FieldType::StringEnum(ref values) => {
                 write!(f, "Enum({})", values.join(", "))
             }
+            FieldType::Map(value_type) => write!(f, "Map<String, {value_type}>"),
             FieldType::Any => write!(f, "Any"),
         }
     }
@@ -105,6 +108,7 @@ impl FieldType {
             FieldType::Array(inner) => format!("list[{}]", inner.python_type()),
             FieldType::Nested(name) => name.clone(),
             FieldType::StringEnum(_) => "str".to_string(),
+            FieldType::Map(value_type) => format!("dict[str, {}]", value_type.python_type()),
             FieldType::Any => "Any".to_string(),
         }
     }
@@ -119,6 +123,12 @@ impl FieldType {
             FieldType::Array(inner) => format!("Types::Strict::Array.of({})", inner.ruby_type()),
             FieldType::Nested(name) => name.clone(),
             FieldType::StringEnum(_) => "Types::Strict::String".to_string(),
+            FieldType::Map(value_type) => {
+                format!(
+                    "Types::Strict::Hash.map(Types::Strict::String, {})",
+                    value_type.ruby_type()
+                )
+            }
             FieldType::Any => "Types::Nominal::Any".to_string(),
         }
     }
@@ -135,6 +145,9 @@ impl FieldType {
                 let quoted: Vec<String> = values.iter().map(|v| format!("\"{v}\"")).collect();
                 quoted.join(" | ")
             }
+            FieldType::Map(value_type) => {
+                format!("Record<string, {}>", value_type.typescript_type())
+            }
             FieldType::Any => "unknown".to_string(),
         }
     }
@@ -149,6 +162,12 @@ impl FieldType {
             FieldType::Array(inner) => format!("Vec<{}>", inner.rust_type()),
             FieldType::Nested(name) => name.clone(),
             FieldType::StringEnum(_) => "String".to_string(),
+            FieldType::Map(value_type) => {
+                format!(
+                    "std::collections::HashMap<String, {}>",
+                    value_type.rust_type()
+                )
+            }
             FieldType::Any => "serde_json::Value".to_string(),
         }
     }
@@ -165,6 +184,9 @@ impl FieldType {
             FieldType::StringEnum(ref values) => {
                 let quoted: Vec<String> = values.iter().map(|v| format!("'{v}'")).collect();
                 format!("z.enum([{}])", quoted.join(", "))
+            }
+            FieldType::Map(value_type) => {
+                format!("z.record(z.string(), {})", value_type.zod_type())
             }
             FieldType::Any => "z.unknown()".to_string(),
         }
@@ -296,14 +318,24 @@ fn resolve_field_type(
         }
         Some("object") => {
             if let Some(obj) = schema.as_object() {
-                // Only create a named nested type if the object has properties.
-                // Bare `{type: object}` with no properties is an open-content
-                // container (dict/map/HashMap) — use Any instead of an empty struct.
                 if obj.contains_key("properties") {
+                    // Named nested type with known properties
                     let nested_name = format!("{parent_type_name}{}", to_pascal_case(prop_name));
                     extract_object_type(&nested_name, obj, types);
                     FieldType::Nested(nested_name)
+                } else if let Some(additional) = obj.get("additionalProperties") {
+                    // Map/Record type: `{ [key: string]: T }`
+                    // `additionalProperties: true` means open-content → Map<Any>
+                    // `additionalProperties: { type: ... }` means typed values
+                    if additional.is_boolean() {
+                        FieldType::Map(Box::new(FieldType::Any))
+                    } else {
+                        let value_type =
+                            resolve_field_type(parent_type_name, prop_name, additional, types);
+                        FieldType::Map(Box::new(value_type))
+                    }
                 } else {
+                    // Bare `{type: object}` with no properties or additionalProperties
                     FieldType::Any
                 }
             } else {
@@ -690,6 +722,129 @@ mod tests {
         assert_eq!(
             to_pascal_input_name("ecommerce_order_processing"),
             "EcommerceOrderProcessingInput"
+        );
+    }
+
+    // ── Map / Record type tests ────────────────────────────────────
+
+    #[test]
+    fn test_additional_properties_with_primitive_value() {
+        let schema = json!({
+            "type": "object",
+            "required": ["scores"],
+            "properties": {
+                "scores": {
+                    "type": "object",
+                    "additionalProperties": { "type": "number" }
+                }
+            }
+        });
+
+        let types = extract_types("aggregate", &schema).unwrap();
+        assert_eq!(types.len(), 1);
+
+        let root = &types[0];
+        let scores = root.fields.iter().find(|f| f.name == "scores").unwrap();
+        assert_eq!(
+            scores.field_type,
+            FieldType::Map(Box::new(FieldType::Number))
+        );
+
+        // Language renderings
+        assert_eq!(scores.field_type.python_type(), "dict[str, float]");
+        assert_eq!(
+            scores.field_type.ruby_type(),
+            "Types::Strict::Hash.map(Types::Strict::String, Types::Strict::Float)"
+        );
+        assert_eq!(
+            scores.field_type.typescript_type(),
+            "Record<string, number>"
+        );
+        assert_eq!(
+            scores.field_type.rust_type(),
+            "std::collections::HashMap<String, f64>"
+        );
+        assert_eq!(
+            scores.field_type.zod_type(),
+            "z.record(z.string(), z.number())"
+        );
+    }
+
+    #[test]
+    fn test_additional_properties_true_is_open_map() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        });
+
+        let types = extract_types("enrich", &schema).unwrap();
+        let root = &types[0];
+        let metadata = root.fields.iter().find(|f| f.name == "metadata").unwrap();
+        assert_eq!(
+            metadata.field_type,
+            FieldType::Map(Box::new(FieldType::Any))
+        );
+    }
+
+    #[test]
+    fn test_additional_properties_with_nested_object_value() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "daily_sales": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "required": ["total_amount", "order_count"],
+                        "properties": {
+                            "total_amount": { "type": "number" },
+                            "order_count": { "type": "integer" }
+                        }
+                    }
+                }
+            }
+        });
+
+        let types = extract_types("transform", &schema).unwrap();
+        // Should produce: nested type + root type
+        assert_eq!(types.len(), 2);
+
+        // Nested type for the map value
+        let nested = types
+            .iter()
+            .find(|t| t.name == "TransformResultDailySales")
+            .unwrap();
+        assert_eq!(nested.fields.len(), 2);
+        let total = nested
+            .fields
+            .iter()
+            .find(|f| f.name == "total_amount")
+            .unwrap();
+        assert_eq!(total.field_type, FieldType::Number);
+
+        // Root type references it via Map
+        let root = types.iter().find(|t| t.name == "TransformResult").unwrap();
+        let daily = root
+            .fields
+            .iter()
+            .find(|f| f.name == "daily_sales")
+            .unwrap();
+        assert_eq!(
+            daily.field_type,
+            FieldType::Map(Box::new(FieldType::Nested(
+                "TransformResultDailySales".to_string()
+            )))
+        );
+
+        // Zod rendering of nested map
+        assert_eq!(
+            daily.field_type.zod_type(),
+            "z.record(z.string(), TransformResultDailySalesSchema)"
         );
     }
 }

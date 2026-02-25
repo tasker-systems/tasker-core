@@ -10,18 +10,24 @@ use super::CodegenError;
 struct RustTemplate<'a> {
     types: &'a [TypeDef],
     needs_json_value: bool,
+    needs_hashmap: bool,
 }
 
 /// Render Rust structs from type definitions.
 pub fn render(types: &[TypeDef]) -> Result<String, CodegenError> {
-    let needs_json_value = types
+    let all_field_types: Vec<&FieldType> = types
         .iter()
         .flat_map(|t| &t.fields)
-        .any(|f| uses_json_value(&f.field_type));
+        .map(|f| &f.field_type)
+        .collect();
+
+    let needs_json_value = all_field_types.iter().any(|ft| uses_json_value(ft));
+    let needs_hashmap = all_field_types.iter().any(|ft| uses_hashmap(ft));
 
     let template = RustTemplate {
         types,
         needs_json_value,
+        needs_hashmap,
     };
     template
         .render()
@@ -31,7 +37,15 @@ pub fn render(types: &[TypeDef]) -> Result<String, CodegenError> {
 fn uses_json_value(ft: &FieldType) -> bool {
     match ft {
         FieldType::Any => true,
-        FieldType::Array(inner) => uses_json_value(inner),
+        FieldType::Array(inner) | FieldType::Map(inner) => uses_json_value(inner),
+        _ => false,
+    }
+}
+
+fn uses_hashmap(ft: &FieldType) -> bool {
+    match ft {
+        FieldType::Map(_) => true,
+        FieldType::Array(inner) => uses_hashmap(inner),
         _ => false,
     }
 }
