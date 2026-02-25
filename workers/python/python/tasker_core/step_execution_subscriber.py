@@ -400,7 +400,7 @@ class StepExecutionSubscriber:
             "worker_id": self._worker_id,
             "metadata": {
                 "retryable": False,
-                "completed_at": datetime.datetime.now(datetime.UTC).isoformat(),
+                "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "worker_id": self._worker_id,
                 "custom": {
                     "ffi_serialization_error": str(error)[:500],
