@@ -10,7 +10,7 @@ use serde_json;
 {% if type_def.description.is_some() -%}
 /// {{ type_def.description.as_deref().unwrap_or_default() }}
 {% endif -%}
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct {{ type_def.name }} {
 {%- for field in type_def.fields %}
 {%- if field.field_type.is_string_enum() %}

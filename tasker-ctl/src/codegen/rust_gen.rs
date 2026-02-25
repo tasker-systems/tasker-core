@@ -73,7 +73,8 @@ mod tests {
         assert!(output.contains("pub validated: bool,"));
         assert!(output.contains("pub order_total: f64,"));
         assert!(output.contains("pub notes: Option<String>,"));
-        assert!(output.contains("#[derive(Debug, Clone, Serialize, Deserialize)]"));
+        assert!(output
+            .contains("#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]"));
     }
 
     #[test]

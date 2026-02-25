@@ -11,6 +11,7 @@ pub mod ruby;
 pub mod rust_gen;
 pub mod schema;
 pub mod typescript;
+pub mod typescript_zod;
 
 use schema::{SchemaError, TypeDef};
 use std::fmt;
@@ -117,7 +118,7 @@ pub fn generate_types(
     match language {
         TargetLanguage::Python => python::render(&all_types),
         TargetLanguage::Ruby => ruby::render(&all_types),
-        TargetLanguage::TypeScript => typescript::render(&all_types),
+        TargetLanguage::TypeScript => typescript_zod::render(&all_types),
         TargetLanguage::Rust => rust_gen::render(&all_types),
     }
 }

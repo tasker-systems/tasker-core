@@ -153,6 +153,23 @@ impl FieldType {
         }
     }
 
+    /// Zod schema expression.
+    pub fn zod_type(&self) -> String {
+        match self {
+            FieldType::String => "z.string()".to_string(),
+            FieldType::Integer => "z.number().int()".to_string(),
+            FieldType::Number => "z.number()".to_string(),
+            FieldType::Boolean => "z.boolean()".to_string(),
+            FieldType::Array(inner) => format!("z.array({})", inner.zod_type()),
+            FieldType::Nested(name) => format!("{name}Schema"),
+            FieldType::StringEnum(ref values) => {
+                let quoted: Vec<String> = values.iter().map(|v| format!("'{v}'")).collect();
+                format!("z.enum([{}])", quoted.join(", "))
+            }
+            FieldType::Any => "z.unknown()".to_string(),
+        }
+    }
+
     /// Whether this type is a string enum (for template rendering).
     pub fn is_string_enum(&self) -> bool {
         matches!(self, FieldType::StringEnum(_))
@@ -550,6 +567,10 @@ mod tests {
         assert_eq!(
             status.field_type.typescript_type(),
             "\"completed\" | \"processing\" | \"failed\""
+        );
+        assert_eq!(
+            status.field_type.zod_type(),
+            "z.enum(['completed', 'processing', 'failed'])"
         );
         assert_eq!(status.field_type.ruby_type(), "Types::Strict::String");
         assert_eq!(status.field_type.rust_type(), "String");

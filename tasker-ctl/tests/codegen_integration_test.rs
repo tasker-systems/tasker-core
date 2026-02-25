@@ -133,21 +133,35 @@ fn test_generate_typescript_types() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    // Input type (from input_schema)
-    assert!(stdout.contains("export interface CodegenTestInput {"));
-    assert!(stdout.contains("export interface CodegenTestInputItems {"));
-    assert!(stdout.contains("export interface CodegenTestInputShippingAddress {"));
+    // Zod import
+    assert!(stdout.contains("import { z } from 'zod';"));
 
-    assert!(stdout.contains("export interface ValidateOrderResult {"));
-    assert!(stdout.contains("validated: boolean;"));
-    assert!(stdout.contains("order_total: number;"));
-    assert!(stdout.contains("item_count: number;"));
-    assert!(stdout.contains("notes?: string;"));
+    // No plain interfaces — Zod schemas are the single source of truth
+    assert!(!stdout.contains("export interface"));
 
-    assert!(stdout.contains("export interface EnrichOrderResultMetadata {"));
-    assert!(stdout.contains("export interface EnrichOrderResult {"));
-    assert!(stdout.contains("export interface GenerateReportResult {"));
+    // Input type (from input_schema) — Zod schemas with inferred types
+    assert!(stdout.contains("export const CodegenTestInputSchema = z.object({"));
+    assert!(
+        stdout.contains("export type CodegenTestInput = z.infer<typeof CodegenTestInputSchema>;")
+    );
+    assert!(stdout.contains("export const CodegenTestInputItemsSchema = z.object({"));
+    assert!(stdout.contains("export const CodegenTestInputShippingAddressSchema = z.object({"));
 
+    // ValidateOrderResult — field-level assertions
+    assert!(stdout.contains("export const ValidateOrderResultSchema = z.object({"));
+    assert!(stdout.contains("validated: z.boolean(),"));
+    assert!(stdout.contains("order_total: z.number(),"));
+    assert!(stdout.contains("item_count: z.number().int(),"));
+    assert!(stdout.contains("notes: z.string().optional(),"));
+    assert!(stdout
+        .contains("export type ValidateOrderResult = z.infer<typeof ValidateOrderResultSchema>;"));
+
+    // Nested and array types
+    assert!(stdout.contains("export const EnrichOrderResultMetadataSchema = z.object({"));
+    assert!(stdout.contains("export const EnrichOrderResultSchema = z.object({"));
+    assert!(stdout.contains("export const GenerateReportResultSchema = z.object({"));
+
+    // process_payment has no result_schema — should NOT generate types
     assert!(!stdout.contains("ProcessPayment"));
 }
 
@@ -174,7 +188,9 @@ fn test_generate_rust_types() {
     assert!(stdout.contains("pub order_total: f64,"));
     assert!(stdout.contains("pub item_count: i64,"));
     assert!(stdout.contains("pub notes: Option<String>,"));
-    assert!(stdout.contains("#[derive(Debug, Clone, Serialize, Deserialize)]"));
+    assert!(
+        stdout.contains("#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]")
+    );
 
     assert!(stdout.contains("pub struct EnrichOrderResultMetadata {"));
     assert!(stdout.contains("pub struct EnrichOrderResult {"));
@@ -214,7 +230,7 @@ fn test_generate_types_language_aliases() {
     for (alias, expected) in [
         ("py", "class ValidateOrderResult(BaseModel):"),
         ("rb", "class ValidateOrderResult < Dry::Struct"),
-        ("ts", "export interface ValidateOrderResult {"),
+        ("ts", "export const ValidateOrderResultSchema = z.object({"),
         ("rs", "pub struct ValidateOrderResult {"),
     ] {
         let output = generate_types(alias, &["--step", "validate_order"]);

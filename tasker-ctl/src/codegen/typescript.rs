@@ -1,4 +1,7 @@
 //! TypeScript interface code generation.
+//!
+//! Retained for potential `--format interfaces` option. The default TypeScript
+//! type output now uses Zod schemas via `typescript_zod` module.
 
 use askama::Template;
 
@@ -12,6 +15,7 @@ struct TypeScriptTemplate<'a> {
 }
 
 /// Render TypeScript interfaces from type definitions.
+#[expect(dead_code, reason = "retained for future --format interfaces option")]
 pub fn render(types: &[TypeDef]) -> Result<String, CodegenError> {
     let template = TypeScriptTemplate { types };
     template
