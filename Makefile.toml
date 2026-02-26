@@ -322,6 +322,22 @@ fi
 exit $((REST_EXIT + GRPC_EXIT))
 '''
 
+[tasks.test-random-transport]
+description = "Run E2E tests with random REST/gRPC transport per test"
+script = '''
+#!/bin/bash
+set -a
+source .env 2>/dev/null || true
+set +a
+
+echo "🎲 Running E2E tests with random transport selection..."
+export TASKER_TEST_TRANSPORT=random
+export TASKER_TEST_ORCHESTRATION_GRPC_URL="${TASKER_TEST_ORCHESTRATION_GRPC_URL:-http://localhost:9190}"
+export TASKER_TEST_WORKER_GRPC_URL="${TASKER_TEST_WORKER_GRPC_URL:-http://localhost:9191}"
+cargo nextest run --workspace --features test-services \
+  -E 'binary(e2e_tests) | binary(integration_tests)'
+'''
+
 # gRPC test shortcuts
 [tasks.tg]
 alias = "test-grpc"
@@ -334,6 +350,10 @@ description = "Shortcut for test-grpc-parity"
 [tasks.tge]
 alias = "test-e2e-grpc"
 description = "Shortcut for test-e2e-grpc"
+
+[tasks.tgr]
+alias = "test-random-transport"
+description = "Shortcut for test-random-transport"
 
 [tasks.test-rust-all]
 description = "Run ALL tests including cluster (local development only)"

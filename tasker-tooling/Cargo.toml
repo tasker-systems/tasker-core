@@ -1,0 +1,43 @@
+[package]
+name = "tasker-tooling"
+version = "0.1.6"
+edition = "2021"
+license = "MIT"
+description = "Shared developer tooling for Tasker: code generation, template parsing, and schema inspection"
+readme = "README.md"
+repository = "https://github.com/tasker-systems/tasker-core"
+keywords = ["codegen", "tooling", "workflow", "orchestration"]
+categories = ["development-tools"]
+
+[lib]
+name = "tasker_tooling"
+path = "src/lib.rs"
+
+[dependencies]
+# Workspace crates
+tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
+
+# Serialization & config
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+
+# Template rendering (compile-time Askama for codegen, runtime Tera for plugins)
+askama = { workspace = true }
+tera = { workspace = true }
+
+# Case conversion utilities
+heck = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

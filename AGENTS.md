@@ -115,11 +115,12 @@ cargo nextest run --profile local      # Fail-fast mode
 
 ```bash
 # cargo-make tasks
-cargo make test-grpc             # tg  - All gRPC tests
+cargo make test-random-transport # tgr - E2E with random REST/gRPC per test (CI default)
+cargo make test-grpc             # tg  - All gRPC-specific tests (health, parity)
 cargo make test-grpc-health      # gRPC health endpoint tests
 cargo make test-grpc-parity      # tgp - REST/gRPC response parity tests
-cargo make test-e2e-grpc         # tge - E2E tests with gRPC transport
-cargo make test-both-transports  # E2E with both REST and gRPC
+cargo make test-e2e-grpc         # tge - E2E tests with gRPC transport only
+cargo make test-both-transports  # E2E with both REST and gRPC (sequential)
 
 # grpcurl examples (requires services running)
 grpcurl -plaintext localhost:9190 list                           # List services
@@ -192,7 +193,9 @@ source cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migratio
 [workspace.members]
 - tasker-pgmq          # PGMQ wrapper with notification support
 - tasker-client        # API client library (REST + gRPC transport)
-- tasker-ctl           # CLI binary (depends on tasker-client)
+- tasker-ctl           # CLI binary (depends on tasker-client, tasker-tooling)
+- tasker-tooling       # Shared developer tooling (codegen, templates, schema inspection)
+- tasker-mcp           # MCP server for LLM agent integration
 - tasker-orchestration # Core orchestration logic (see AGENTS.md)
 - tasker-shared        # Shared types, traits, utilities
 - tasker-worker        # Worker implementation (see AGENTS.md)

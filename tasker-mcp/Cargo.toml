@@ -1,0 +1,50 @@
+[package]
+name = "tasker-mcp"
+version = "0.1.6"
+edition = "2021"
+license = "MIT"
+description = "MCP server exposing Tasker capabilities to LLM agents and developer tools"
+readme = "README.md"
+repository = "https://github.com/tasker-systems/tasker-core"
+keywords = ["mcp", "llm", "orchestration", "workflow", "ai"]
+categories = ["development-tools"]
+
+[[bin]]
+name = "tasker-mcp"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace crates
+tasker-tooling = { path = "../tasker-tooling", version = "=0.1.6" }
+tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
+
+# MCP protocol
+rmcp = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# JSON Schema generation for MCP tool parameters
+schemars = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[lints]
+workspace = true
+
+# TAS-305: cargo-machete ignore list for tasker-mcp
+# These dependencies ARE used or will be used in the next ticket:
+# - schemars: JSON Schema generation for MCP tool parameters (TAS-305)
+# - serde/serde_json: MCP tool argument serialization (TAS-305)
+# - tasker-shared: TaskTemplate types consumed via tasker-tooling
+[package.metadata.cargo-machete]
+ignored = ["schemars", "serde", "serde_json", "tasker-shared"]

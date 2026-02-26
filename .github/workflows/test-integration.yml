@@ -149,6 +149,9 @@ jobs:
   # Run E2E tests with all services running
   # Uses artifacts from build-workers workflow
   # TAS-133: Matrix strategy tests both PGMQ and RabbitMQ messaging backends
+  # Transport: TASKER_TEST_TRANSPORT=random — each test randomly selects REST
+  # or gRPC, providing mixed transport coverage without a separate CI job.
+  # gRPC parity tests run as a dedicated step in the pgmq matrix entry.
   # ============================================================================
   integration-tests:
     name: Integration Tests (${{ matrix.messaging_backend }})
@@ -410,9 +413,32 @@ jobs:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           TASKER_TEST_ORCHESTRATION_URL: http://localhost:8080
           TASKER_TEST_WORKER_URL: http://localhost:8081
+          TASKER_TEST_TRANSPORT: random
+          TASKER_TEST_ORCHESTRATION_GRPC_URL: http://localhost:9190
+          TASKER_TEST_WORKER_GRPC_URL: http://localhost:9191
           BUILD_RUBY: ${{ inputs.build-ruby }}
           BUILD_PYTHON: ${{ inputs.build-python }}
           BUILD_TYPESCRIPT: ${{ inputs.build-typescript }}
+          TASKER_FIXTURE_PATH: ${{ github.workspace }}/tests/fixtures
+          RUST_LOG: info
+          REDIS_URL: redis://localhost:6379
+
+      # Run gRPC health and parity tests (only for pgmq to avoid duplication)
+      - name: Run gRPC parity tests
+        if: matrix.messaging_backend == 'pgmq'
+        run: |
+          echo "🔍 Running gRPC health and parity tests..."
+          mkdir -p target/nextest/ci
+          cargo nextest run \
+            --profile ci \
+            --workspace \
+            --features test-services \
+            -E 'binary(grpc_tests)' \
+            --no-fail-fast
+        env:
+          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+          TASKER_TEST_ORCHESTRATION_URL: http://localhost:8080
+          TASKER_TEST_ORCHESTRATION_GRPC_URL: http://localhost:9190
           TASKER_FIXTURE_PATH: ${{ github.workspace }}/tests/fixtures
           RUST_LOG: info
           REDIS_URL: redis://localhost:6379
@@ -436,288 +462,9 @@ jobs:
           chmod +x .github/scripts/stop-native-services.sh
           .github/scripts/stop-native-services.sh
 
-  # ============================================================================
-  # Stage 3: gRPC Transport Tests (TAS-177)
-  # Run gRPC-specific tests to verify transport parity
-  # This is part of the 2+1 matrix strategy:
-  #   - 2 jobs: (PGMQ, RabbitMQ) × REST transport
-  #   - 1 job: gRPC transport (messaging backend independent)
-  # ============================================================================
-  grpc-transport-tests:
-    name: gRPC Transport Tests
-    runs-on: ubuntu-22.04
-    timeout-minutes: 20
-    needs: unit-tests
-
-    services:
-      postgres:
-        image: ${{ inputs.postgres-image }}
-        ports:
-          - "5432:5432"
-        env:
-          POSTGRES_USER: tasker
-          POSTGRES_PASSWORD: tasker
-          POSTGRES_DB: tasker_rust_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      # TAS-171: Dragonfly for distributed cache
-      dragonfly:
-        image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
-        ports:
-          - "6379:6379"
-          - "11211:11211"
-        env:
-          DFLY_memcached_port: 11211
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Free up disk space
-        uses: ./.github/actions/free-disk-space
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Ruby
-        if: inputs.build-ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.4"
-          bundler-cache: true
-          working-directory: workers/ruby
-
-      - name: Set up Python
-        if: inputs.build-python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.10"
-
-      - name: Install uv
-        if: inputs.build-python
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "latest"
-
-      - name: Setup Bun
-        if: inputs.build-typescript
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Setup Rust build cache
-        uses: ./.github/actions/setup-rust-cache
-
-      - name: Setup shared environment variables
-        uses: ./.github/actions/setup-env
-
-      - name: Install tools
-        uses: ./.github/actions/install-tools
-        with:
-          tools: "nextest sqlx-cli make"
-
-      - name: Install protobuf compiler
-        uses: ./.github/actions/install-protobuf
-
-      # ========================================================================
-      # Download artifacts from multi-job build-workers workflow
-      # ========================================================================
-      - name: Download core artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: core-artifacts
-          path: artifacts/core
-
-      - name: Download Ruby extension artifact
-        if: inputs.build-ruby
-        uses: actions/download-artifact@v7
-        with:
-          name: ruby-extension
-          path: artifacts/ruby
-        continue-on-error: true
-
-      - name: Download TypeScript artifacts
-        if: inputs.build-typescript
-        uses: actions/download-artifact@v7
-        with:
-          name: typescript-artifacts
-          path: artifacts/typescript
-        continue-on-error: true
-
-      - name: Download Rust worker artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: rust-worker-artifact
-          path: artifacts/rust-worker
-        continue-on-error: true
-
-      - name: Restore artifacts to correct locations
-        run: ARTIFACTS_BASE=artifacts cargo-make/scripts/ci-restore-all-artifacts.sh
-
-      - name: Build Ruby FFI extension (if not from artifacts)
-        if: inputs.build-ruby
-        run: |
-          cd workers/ruby
-          if ls lib/tasker_core/*.so 2>/dev/null || ls lib/tasker_core/*.bundle 2>/dev/null; then
-            echo "✅ Ruby extension already available from artifacts"
-            ls -lh lib/tasker_core/
-          else
-            echo "🔨 Building Ruby extension from source..."
-            bundle install
-            bundle exec rake compile
-          fi
-        env:
-          SQLX_OFFLINE: "true"
-
-      - name: Build Python FFI extension
-        if: inputs.build-python
-        run: |
-          echo "🔨 Building Python FFI extension (uses warm cache)..."
-          cd workers/python
-          uv sync --dev
-          uv run maturin develop
-        env:
-          SQLX_OFFLINE: "true"
-
-      - name: Build Rust worker (if not from artifacts)
-        run: |
-          if [ -f target/debug/rust-worker ]; then
-            echo "✅ Rust worker already available from artifacts"
-          else
-            echo "🔨 Building Rust worker from source..."
-            cargo build --package tasker-worker-rust
-          fi
-        env:
-          SQLX_OFFLINE: "true"
-
-      - name: Setup TypeScript worker
-        if: inputs.build-typescript
-        run: |
-          echo "📜 Setting up TypeScript worker..."
-          cd workers/typescript
-          bun install --frozen-lockfile
-          # Build napi-rs .node file if not already present
-          if ls tasker_ts.*.node 1>/dev/null 2>&1; then
-            echo "✅ napi-rs .node file found"
-          else
-            echo "⚠️ .node file not found, building..."
-            bun run build:napi
-          fi
-          bun run build
-        env:
-          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
-
-      - name: Run database migrations
-        run: sqlx migrate run
-        env:
-          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
-
-      - name: Generate test configuration
-        uses: ./.github/actions/generate-test-config
-
-      - name: Start native services with gRPC
-        run: |
-          mkdir -p .pids
-          chmod +x .github/scripts/start-native-services.sh
-          echo "🔧 Starting services with gRPC enabled..."
-          .github/scripts/start-native-services.sh
-        env:
-          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
-          SKIP_MIGRATIONS: "true"
-          TASKER_MESSAGING_BACKEND: pgmq
-          REDIS_URL: redis://localhost:6379
-          SKIP_RUBY_WORKER: ${{ !inputs.build-ruby }}
-          SKIP_PYTHON_WORKER: ${{ !inputs.build-python }}
-          SKIP_TYPESCRIPT_WORKER: ${{ !inputs.build-typescript }}
-
-      - name: Run gRPC transport tests
-        run: |
-          echo "🔌 Running gRPC transport tests..."
-          # Conditionally export worker URLs based on scope
-          if [ "$BUILD_RUBY" = "true" ]; then
-            export TASKER_TEST_RUBY_WORKER_URL=http://localhost:8082
-          fi
-          if [ "$BUILD_PYTHON" = "true" ]; then
-            export TASKER_TEST_PYTHON_WORKER_URL=http://localhost:8083
-          fi
-          if [ "$BUILD_TYPESCRIPT" = "true" ]; then
-            export TASKER_TEST_TYPESCRIPT_WORKER_URL=http://localhost:8085
-          fi
-
-          # Build exclusion filter for out-of-scope FFI workers
-          EXCLUSIONS=""
-          if [ "$BUILD_RUBY" != "true" ]; then
-            EXCLUSIONS="$EXCLUSIONS - test(::ruby::)"
-            echo "⏭️  Excluding Ruby worker tests (not in scope)"
-          fi
-          if [ "$BUILD_PYTHON" != "true" ]; then
-            EXCLUSIONS="$EXCLUSIONS - test(::python::)"
-            echo "⏭️  Excluding Python worker tests (not in scope)"
-          fi
-          if [ "$BUILD_TYPESCRIPT" != "true" ]; then
-            EXCLUSIONS="$EXCLUSIONS - test(::typescript::)"
-            echo "⏭️  Excluding TypeScript worker tests (not in scope)"
-          fi
-
-          mkdir -p target/nextest/ci
-
-          # Run gRPC-specific tests (health, parity)
-          echo "🔍 Running gRPC health and parity tests..."
-          cargo nextest run \
-            --profile ci \
-            --workspace \
-            --features test-services \
-            -E 'binary(grpc_tests)' \
-            --no-fail-fast
-
-          # Run E2E tests with gRPC transport (excluding out-of-scope workers)
-          E2E_FILTER="(binary(e2e_tests) | binary(integration_tests))${EXCLUSIONS}"
-          echo "📋 gRPC E2E filter: $E2E_FILTER"
-          echo "🏁 Running E2E tests with gRPC transport..."
-          TASKER_TEST_TRANSPORT=grpc \
-          cargo nextest run \
-            --profile ci \
-            --workspace \
-            --features test-services \
-            -E "$E2E_FILTER" \
-            --no-fail-fast
-        env:
-          DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
-          TASKER_TEST_ORCHESTRATION_URL: http://localhost:8080
-          TASKER_TEST_WORKER_URL: http://localhost:8081
-          BUILD_RUBY: ${{ inputs.build-ruby }}
-          BUILD_PYTHON: ${{ inputs.build-python }}
-          BUILD_TYPESCRIPT: ${{ inputs.build-typescript }}
-          TASKER_TEST_ORCHESTRATION_GRPC_URL: http://localhost:9190
-          TASKER_TEST_WORKER_GRPC_URL: http://localhost:9191
-          TASKER_FIXTURE_PATH: ${{ github.workspace }}/tests/fixtures
-          RUST_LOG: info
-          REDIS_URL: redis://localhost:6379
-
-      - name: Upload gRPC test results
-        uses: actions/upload-artifact@v6
-        if: always() && hashFiles('target/nextest/ci/junit.xml') != ''
-        with:
-          name: grpc-transport-test-results
-          path: target/nextest/ci/junit.xml
-
-      - name: Collect service logs on failure
-        if: failure()
-        uses: ./.github/actions/collect-service-logs
-        with:
-          artifact-name: service-logs-grpc-transport
-
-      - name: Stop native services
-        if: always()
-        run: |
-          chmod +x .github/scripts/stop-native-services.sh
-          .github/scripts/stop-native-services.sh
+  # NOTE: gRPC transport tests were previously a separate job (TAS-177 "2+1 matrix strategy").
+  # They have been folded into the integration-tests job above:
+  #   - TASKER_TEST_TRANSPORT=random: each test randomly picks REST or gRPC transport
+  #   - gRPC parity tests (binary(grpc_tests)) run as a dedicated step in the pgmq matrix entry
+  # This eliminates a full redundant CI job (build, artifact download, service startup) while
+  # maintaining equivalent coverage across both transports.

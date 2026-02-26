@@ -11,7 +11,7 @@
 
 ## Overview
 
-Tasker Core is organized as a Cargo workspace with 7 member crates, each with a specific responsibility in the workflow orchestration system. This document explains the role of each crate, their inter-dependencies, and how they work together to provide a complete orchestration solution.
+Tasker Core is organized as a Cargo workspace with 9 member crates, each with a specific responsibility in the workflow orchestration system. This document explains the role of each crate, their inter-dependencies, and how they work together to provide a complete orchestration solution.
 
 ### Design Philosophy
 
@@ -31,10 +31,12 @@ The crate structure follows these principles:
 tasker-core/
 ├── tasker-pgmq/              # PGMQ wrapper with notification support
 ├── tasker-shared/            # Shared types, SQL functions, utilities
+├── tasker-tooling/           # Shared developer tooling (codegen, templates, schema inspection)
 ├── tasker-orchestration/     # Task coordination and lifecycle management
 ├── tasker-worker/            # Step execution and handler integration
 ├── tasker-client/            # API client library (REST + gRPC transport)
-├── tasker-ctl/              # CLI binary (depends on tasker-client)
+├── tasker-ctl/              # CLI binary (depends on tasker-client, tasker-tooling)
+├── tasker-mcp/              # MCP server for LLM agent integration
 └── workers/
     ├── python/              # Python FFI bindings (PyO3/maturin)
     ├── ruby/ext/tasker_core/ # Ruby FFI bindings (Magnus)
@@ -47,7 +49,7 @@ tasker-core/
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                   External Dependencies                 │
-│  (sqlx, tokio, serde, pgmq, magnus, axum, etc.)       │
+│  (sqlx, tokio, serde, pgmq, magnus, axum, rmcp, etc.) │
 └─────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -62,39 +64,44 @@ tasker-core/
 │  Core types, SQL functions, state machines             │
 └─────────────────────────────────────────────────────────┘
                             │
-               ┌────────────┴────────────┐
-               │                         │
-               ▼                         ▼
-┌──────────────────────────┐  ┌──────────────────────────┐
-│  tasker-orchestration    │  │    tasker-worker         │
-│  Task coordination       │  │    Step execution        │
-│  Lifecycle management    │  │    Handler integration   │
-│  REST API                │  │    FFI support           │
-└──────────────────────────┘  └──────────────────────────┘
-               │                         │
-               ▼                         │
-┌──────────────────────────┐            │
-│    tasker-client         │            │
-│    API client library    │            │
-│    REST + gRPC transport │            │
-└──────────────────────────┘            │
-               │                        │
-               ▼                        │
-┌──────────────────────────┐            │
-│    tasker-ctl            │            │
-│    CLI binary            │            │
-└──────────────────────────┘            │
-                                        │
-               ┌────────────────────────┘
-               │
-      ┌────────┴────────┐
-      ▼                 ▼
-┌────────────┐  ┌────────────┐
-│ workers/   │  │ workers/   │
-│   ruby/    │  │   rust/    │
-│   ext/     │  │            │
-└────────────┘  └────────────┘
+          ┌─────────────────┼─────────────────┐
+          │                 │                  │
+          ▼                 ▼                  ▼
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+│ tasker-        │ │ tasker-        │ │ tasker-        │
+│ orchestration  │ │ worker         │ │ tooling        │
+│ Task coord.    │ │ Step exec.     │ │ Codegen,       │
+│ REST/gRPC API  │ │ FFI support    │ │ templates,     │
+└────────────────┘ └────────────────┘ │ schema inspect │
+          │                 │         └────────────────┘
+          ▼                 │           │           │
+┌────────────────┐          │           │           │
+│ tasker-client  │          │           ▼           ▼
+│ API client     │          │  ┌──────────────┐ ┌──────────┐
+│ REST + gRPC    │          │  │ tasker-ctl   │ │ tasker-  │
+└────────────────┘          │  │ CLI binary   │ │ mcp      │
+          │                 │  └──────────────┘ │ MCP      │
+          ▼                 │                   │ server   │
+  ┌───────┘                 │                   └──────────┘
+  │                         │
+  ▼                         │
+┌──────────────┐   ┌───────┘
+│ tasker-ctl   │   │
+│ (also deps   │   ▼
+│  on client)  │  ┌────────────┬────────────┬────────────┐
+└──────────────┘  │ workers/   │ workers/   │ workers/   │
+                  │ ruby       │ python     │ typescript │
+                  └────────────┴────────────┴────────────┘
+                                    │
+                              ┌─────┘
+                              ▼
+                        ┌────────────┐
+                        │ workers/   │
+                        │ rust       │
+                        └────────────┘
 ```
+
+> **Note**: `tasker-ctl` depends on both `tasker-client` (API access) and `tasker-tooling` (codegen, template engine). `tasker-mcp` depends on `tasker-tooling` for shared developer tooling capabilities.
 
 ---
 
@@ -497,9 +504,43 @@ pub trait OrchestrationClient: Send + Sync {
 - When implementing client applications or FFI bindings
 - When building UI frontends (TUI, web) that need API access
 
+### tasker-tooling
+
+**Purpose**: Shared developer tooling library for codegen, template parsing, and schema inspection (TAS-304)
+
+**Location**: `tasker-tooling/`
+
+**Key Responsibilities**:
+
+- Schema-driven code generation for Python, Ruby, TypeScript, and Rust handler scaffolds
+- Task template YAML parsing with structured error reporting
+- Result schema contract inspection and analysis
+- Tera-based runtime template engine with custom case-conversion filters
+
+**Key Modules**:
+
+| Module | Description |
+|--------|-------------|
+| `codegen` | Generate typed handler stubs, model types, and test scaffolds from `result_schema` |
+| `template_parser` | Parse `TaskTemplate` definitions from YAML files |
+| `schema_inspector` | Inspect and summarize `result_schema` presence across template steps |
+| `template_engine` | Tera runtime rendering with custom filters (snake_case, pascal_case, etc.) |
+
+**When to Use**:
+
+- When building tools that consume Tasker task templates
+- When generating handler scaffolds for new workflows
+- When inspecting schema contracts for compatibility analysis
+
+**Dependencies**:
+
+- `tasker-shared` - Core types (`TaskTemplate`, etc.)
+- `askama` - Compile-time template rendering for codegen
+- `tera` - Runtime template rendering for plugin templates
+
 ### tasker-ctl
 
-**Purpose**: Command-line interface for Tasker (split from tasker-client)
+**Purpose**: Command-line interface for Tasker
 
 **Location**: `tasker-ctl/`
 
@@ -507,7 +548,8 @@ pub trait OrchestrationClient: Send + Sync {
 
 - CLI argument parsing and command dispatch (via clap)
 - Task, worker, system, config, auth, and DLQ commands
-- Configuration documentation generation (via askama, feature-gated)
+- Code generation commands (delegates to `tasker-tooling`)
+- Plugin system with remote template support
 - API key generation and management
 
 **CLI Tools**:
@@ -517,6 +559,10 @@ pub trait OrchestrationClient: Send + Sync {
 tasker-ctl task create --template linear_workflow
 tasker-ctl task get <uuid>
 tasker-ctl task list --namespace payments
+
+# Code generation
+tasker-ctl generate types --language python --template workflow.yaml
+tasker-ctl generate handler --language typescript --template workflow.yaml
 
 # Health checks
 tasker-ctl health
@@ -528,14 +574,38 @@ tasker-ctl docs generate
 **When to Use**:
 
 - When managing tasks from the command line
+- When generating handler scaffolds for new workflows
 - When generating configuration documentation
 - When performing administrative operations (auth, DLQ management)
 
 **Dependencies**:
 
-- `reqwest` - HTTP client
+- `tasker-client` - API access (REST + gRPC)
+- `tasker-tooling` - Codegen, template engine, schema inspection
 - `clap` - CLI argument parsing
-- `serde_json` - JSON serialization
+
+### tasker-mcp
+
+**Purpose**: MCP (Model Context Protocol) server exposing Tasker developer tooling to LLM agents (TAS-304)
+
+**Location**: `tasker-mcp/`
+
+**Key Responsibilities**:
+
+- MCP server implementation using `rmcp` (stdio transport)
+- Exposes Tasker tooling capabilities (codegen, template parsing, schema inspection) as MCP tools
+- Enables LLM agents to generate handler scaffolds, inspect schemas, and parse templates
+
+**When to Use**:
+
+- When integrating Tasker with LLM-powered development tools
+- When building AI-assisted workflow development experiences
+
+**Dependencies**:
+
+- `tasker-tooling` - Shared developer tooling
+- `rmcp` - MCP protocol implementation
+- `tokio` - Async runtime
 
 ---
 

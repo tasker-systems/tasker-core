@@ -1,15 +1,14 @@
 # =============================================================================
-# tasker-ctl - cargo-make Task Definitions
+# tasker-tooling - cargo-make Task Definitions
 # =============================================================================
 #
-# CLI binary for the Tasker orchestration system. Depends on tasker-tooling
-# for codegen, template engine, and schema inspection capabilities.
+# Shared developer tooling library: codegen, template engine, schema inspection.
+# Consumed by tasker-ctl and tasker-mcp.
 #
 # Quick Start:
-#   cargo make check              # Run all quality checks
-#   cargo make test               # Run tests
-#   cargo make fix                # Auto-fix issues
-#   cargo make validate-codegen   # Validate generated output syntax
+#   cargo make check    # Run all quality checks
+#   cargo make test     # Run tests
+#   cargo make fix      # Auto-fix issues
 #
 # =============================================================================
 
@@ -19,7 +18,7 @@ extend = "../cargo-make/base-tasks.toml"
 default_to_workspace = false
 
 [env]
-CRATE_NAME = "tasker-ctl"
+CRATE_NAME = "tasker-tooling"
 
 # =============================================================================
 # Main Tasks
@@ -46,7 +45,7 @@ extend = "base-rust-lint-fix"
 
 [tasks.test]
 extend = "base-rust-test"
-description = "Run tasker-ctl tests"
+description = "Run tasker-tooling tests"
 args = ["nextest", "run", "-p", "${CRATE_NAME}", "--all-features"]
 
 [tasks.fix]
@@ -57,15 +56,3 @@ dependencies = ["format-fix", "lint-fix"]
 description = "Clean build artifacts"
 command = "cargo"
 args = ["clean", "-p", "${CRATE_NAME}"]
-
-# =============================================================================
-# Codegen Validation
-# =============================================================================
-
-[tasks.validate-codegen]
-description = "Build tasker-ctl and validate all generated codegen output for syntax"
-category = "Validation"
-script = '''
-cargo build --package tasker-ctl
-${SCRIPTS_DIR}/validate-codegen.sh --binary target/debug/tasker-ctl
-'''

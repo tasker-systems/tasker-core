@@ -15,7 +15,6 @@ struct TypeScriptTemplate<'a> {
 }
 
 /// Render TypeScript interfaces from type definitions.
-#[expect(dead_code, reason = "retained for future --format interfaces option")]
 pub fn render(types: &[TypeDef]) -> Result<String, CodegenError> {
     let template = TypeScriptTemplate { types };
     template

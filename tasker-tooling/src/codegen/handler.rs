@@ -62,10 +62,6 @@ impl HandlerDef {
     }
 
     /// The PascalCase result type name if result_schema exists (e.g., "ValidateOrderResult").
-    #[expect(
-        dead_code,
-        reason = "public API for handler IR consumers; exercised in tests"
-    )]
     pub fn result_type_name(&self) -> Option<String> {
         if self.has_result_schema {
             Some(schema::to_pascal_result_name(&self.step_name))

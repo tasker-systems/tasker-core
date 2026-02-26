@@ -17,6 +17,7 @@ path = "src/main.rs"
 # Workspace crates
 tasker-client = { path = "../tasker-client", version = "=0.1.6" }
 tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
+tasker-tooling = { path = "../tasker-tooling", version = "=0.1.6" }
 
 # CLI framework
 clap = { workspace = true, features = ["color", "derive", "env"] }
@@ -55,9 +56,7 @@ askama = { workspace = true }
 anstream = { workspace = true }
 anstyle = { workspace = true }
 
-# Plugin template engine (TAS-126: runtime templates for contrib plugins)
-tera = { workspace = true }
-heck = { workspace = true }
+# Error handling
 thiserror = { workspace = true }
 
 # Remote template/config fetching (TAS-270)

@@ -1,12 +1,6 @@
-//! Runtime template engine for plugin-provided templates.
+//! Runtime template engine — re-exported from `tasker-tooling`.
 //!
-//! Uses Tera for runtime template rendering (complementing Askama's compile-time
-//! templates used for built-in docs generation). Plugins provide `.tera` template
-//! files and `template.toml` metadata describing parameters and output files.
+//! All template engine logic lives in `tasker_tooling::template_engine`. This module
+//! re-exports the public API for backwards compatibility within `tasker-ctl`.
 
-mod engine;
-mod filters;
-mod loader;
-mod metadata;
-
-pub(crate) use engine::TemplateEngine;
+pub(crate) use tasker_tooling::template_engine::TemplateEngine;
