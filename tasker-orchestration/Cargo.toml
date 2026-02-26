@@ -1,6 +1,6 @@
 [package]
 name = "tasker-orchestration"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 default-run = "tasker-server"
 description = "Orchestration system for tasker workflow coordination"
@@ -84,7 +84,7 @@ opentelemetry = { workspace = true }
 opentelemetry-otlp = { workspace = true }
 # Message queue management
 pgmq = { workspace = true }
-tasker-pgmq = { path = "../tasker-pgmq", version = "=0.1.5" }
+tasker-pgmq = { path = "../tasker-pgmq", version = "=0.1.6" }
 rand = { workspace = true }
 regex = { workspace = true }
 # Web API testing and API Integration
@@ -99,7 +99,7 @@ serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 # System information
 sysinfo = { workspace = true }
-tasker-shared = { package = "tasker-shared", path = "../tasker-shared", version = "=0.1.5" }
+tasker-shared = { package = "tasker-shared", path = "../tasker-shared", version = "=0.1.6" }
 # Error handling
 thiserror = { workspace = true }
 tokio = { workspace = true }
