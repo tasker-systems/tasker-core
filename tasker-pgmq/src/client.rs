@@ -10,7 +10,7 @@ use crate::{
     listener::PgmqNotifyListener,
     types::{ClientStatus, QueueMetrics},
 };
-use pgmq::{types::Message, PGMQueue};
+use pgmq::{types::Message, PGMQueueExt};
 use regex::Regex;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
@@ -20,7 +20,7 @@ use tracing::{debug, error, info, instrument, warn};
 #[derive(Debug, Clone)]
 pub struct PgmqClient {
     /// Underlying PGMQ client
-    pgmq: PGMQueue,
+    pgmq: PGMQueueExt,
     /// Database connection pool for advanced operations and health checks
     pool: sqlx::PgPool,
     /// Configuration for notifications and queue naming
@@ -37,11 +37,9 @@ impl PgmqClient {
     pub async fn new_with_config(database_url: &str, config: PgmqNotifyConfig) -> Result<Self> {
         info!("Connecting to pgmq using unified client");
 
-        let pgmq = PGMQueue::new(database_url.to_string()).await?;
-        let pool = sqlx::postgres::PgPoolOptions::new()
-            .max_connections(20)
-            .connect(database_url)
-            .await?;
+        let max_connections = 20;
+        let pgmq = PGMQueueExt::new(database_url.to_string(), max_connections).await?;
+        let pool = pgmq.connection.clone();
 
         info!("Connected to pgmq using unified client");
         Ok(Self { pgmq, pool, config })
@@ -56,7 +54,7 @@ impl PgmqClient {
     pub async fn new_with_pool_and_config(pool: sqlx::PgPool, config: PgmqNotifyConfig) -> Self {
         info!("Creating unified pgmq client with shared connection pool");
 
-        let pgmq = PGMQueue::new_with_pool(pool.clone()).await;
+        let pgmq = PGMQueueExt::new_with_pool(pool.clone()).await;
 
         info!("Unified pgmq client created with shared pool");
         Self { pgmq, pool, config }
@@ -67,9 +65,13 @@ impl PgmqClient {
     pub async fn create_queue(&self, queue_name: &str) -> Result<()> {
         debug!("📋 Creating queue: {}", queue_name);
 
-        self.pgmq.create(queue_name).await?;
+        let created = self.pgmq.create(queue_name).await?;
 
-        info!("Queue created: {}", queue_name);
+        if created {
+            info!("Queue created: {}", queue_name);
+        } else {
+            debug!("Queue already exists: {}", queue_name);
+        }
         Ok(())
     }
 
@@ -156,13 +158,14 @@ impl PgmqClient {
             queue_name, limit
         );
 
+        let vt = visibility_timeout.unwrap_or(30);
         let messages = match limit {
             Some(l) => self
                 .pgmq
-                .read_batch(queue_name, visibility_timeout, l)
+                .read_batch_with_poll::<serde_json::Value>(queue_name, vt, l, None, None)
                 .await?
                 .unwrap_or_default(),
-            None => match self.pgmq.read(queue_name, visibility_timeout).await? {
+            None => match self.pgmq.read::<serde_json::Value>(queue_name, vt).await? {
                 Some(msg) => vec![msg],
                 None => vec![],
             },
@@ -184,7 +187,7 @@ impl PgmqClient {
     ) -> Result<Option<Message<serde_json::Value>>> {
         debug!("📥 Popping message from queue: {}", queue_name);
 
-        let message = self.pgmq.pop(queue_name).await?;
+        let message = self.pgmq.pop::<serde_json::Value>(queue_name).await?;
 
         if message.is_some() {
             debug!("📨 Popped message from queue: {}", queue_name);
@@ -262,7 +265,7 @@ impl PgmqClient {
             message_id, queue_name
         );
 
-        self.pgmq.delete(queue_name, message_id).await?;
+        let _ = self.pgmq.delete(queue_name, message_id).await?;
 
         debug!("Message deleted: {}", message_id);
         Ok(())
@@ -276,7 +279,7 @@ impl PgmqClient {
             message_id, queue_name
         );
 
-        self.pgmq.archive(queue_name, message_id).await?;
+        let _ = self.pgmq.archive(queue_name, message_id).await?;
 
         debug!("Message archived: {}", message_id);
         Ok(())
@@ -332,13 +335,13 @@ impl PgmqClient {
     pub async fn purge_queue(&self, queue_name: &str) -> Result<u64> {
         warn!("🧹 Purging queue: {}", queue_name);
 
-        let purged_count = self.pgmq.purge(queue_name).await?;
+        let purged_count = self.pgmq.purge_queue(queue_name).await?;
 
         warn!(
             "🗑Purged {} messages from queue: {}",
             purged_count, queue_name
         );
-        Ok(purged_count)
+        Ok(purged_count as u64)
     }
 
     /// Drop queue completely
@@ -346,7 +349,7 @@ impl PgmqClient {
     pub async fn drop_queue(&self, queue_name: &str) -> Result<()> {
         warn!("💥 Dropping queue: {}", queue_name);
 
-        self.pgmq.destroy(queue_name).await?;
+        self.pgmq.drop_queue(queue_name).await?;
 
         warn!("🗑Queue dropped: {}", queue_name);
         Ok(())
@@ -391,7 +394,7 @@ impl PgmqClient {
 
     /// Get reference to pgmq client for direct access
     #[must_use]
-    pub fn pgmq(&self) -> &PGMQueue {
+    pub fn pgmq(&self) -> &PGMQueueExt {
         &self.pgmq
     }
 
