@@ -1,0 +1,9 @@
+# TAS-304: Askama template engine configuration for tasker-tooling
+# Templates are resolved relative to this crate's root directory
+[general]
+dirs = ["templates"]
+
+# Register text-escaped extensions (no HTML escaping)
+[[escaper]]
+path = "::askama::filters::Text"
+extensions = ["py", "rb", "ts", "rs"]

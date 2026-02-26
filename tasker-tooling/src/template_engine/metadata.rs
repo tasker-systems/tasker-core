@@ -8,7 +8,7 @@ const METADATA_FILENAME: &str = "template.toml";
 
 /// Metadata for a template, parsed from `template.toml`.
 #[derive(Debug, Deserialize)]
-pub(crate) struct TemplateMetadata {
+pub struct TemplateMetadata {
     /// Template display name.
     pub name: String,
 
@@ -25,7 +25,7 @@ pub(crate) struct TemplateMetadata {
 
 /// A parameter the template accepts.
 #[derive(Debug, Deserialize)]
-pub(crate) struct ParameterDef {
+pub struct ParameterDef {
     /// Parameter name (used as `--param name=value`).
     pub name: String,
 
@@ -42,7 +42,7 @@ pub(crate) struct ParameterDef {
 
 /// An output file to generate from a template.
 #[derive(Debug, Deserialize)]
-pub(crate) struct OutputFile {
+pub struct OutputFile {
     /// Tera template filename (e.g., `handler.rb.tera`).
     pub template: String,
 
@@ -82,7 +82,7 @@ impl TemplateMetadata {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum MetadataError {
+pub enum MetadataError {
     #[error("failed to read {path}: {source}")]
     Io {
         path: std::path::PathBuf,

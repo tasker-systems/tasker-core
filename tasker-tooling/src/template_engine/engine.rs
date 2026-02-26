@@ -11,14 +11,14 @@ use super::metadata::{MetadataError, TemplateMetadata};
 
 /// Template engine wrapping Tera with plugin-specific context.
 #[derive(Debug)]
-pub(crate) struct TemplateEngine {
+pub struct TemplateEngine {
     tera: Tera,
     metadata: TemplateMetadata,
 }
 
 /// A rendered output file ready to be written to disk.
 #[derive(Debug)]
-pub(crate) struct RenderedFile {
+pub struct RenderedFile {
     /// Relative path for the output file.
     pub path: String,
     /// Rendered content.
@@ -113,7 +113,7 @@ impl TemplateEngine {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum EngineError {
+pub enum EngineError {
     #[error("metadata error: {0}")]
     Metadata(#[from] MetadataError),
     #[error("template load error: {0}")]

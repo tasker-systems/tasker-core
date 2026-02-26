@@ -26,7 +26,9 @@ members = [
   ".",  # Current crate temporarily remains during migration
   "tasker-pgmq",
   "tasker-client",
-  "tasker-ctl",  # TAS-188: CLI binary (split from tasker-client)
+  "tasker-ctl",      # TAS-188: CLI binary (split from tasker-client)
+  "tasker-tooling",  # TAS-304: Shared developer tooling (codegen, template parsing, schema inspection)
+  "tasker-mcp",      # TAS-304: MCP server scaffold
   "tasker-orchestration",
   "tasker-shared",
   "tasker-worker",
@@ -101,6 +103,11 @@ opentelemetry-semantic-conventions = "0.31"
 # Message queue management
 pgmq = "0.32.0"
 tasker-pgmq = { path = "tasker-pgmq", version = "=0.1.6" }
+tasker-tooling = { path = "tasker-tooling", version = "=0.1.6" }
+# MCP protocol server (TAS-304)
+rmcp = { version = "0.16", features = ["server", "transport-io"] }
+# JSON Schema generation for MCP tool parameters (TAS-304)
+schemars = "1.0"
 rand = "0.9.1"
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 # In-process cache with TTL support (TAS-168)
