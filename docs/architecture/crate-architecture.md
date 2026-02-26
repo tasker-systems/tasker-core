@@ -1,6 +1,6 @@
 # Crate Architecture
 
-**Last Updated**: 2026-01-15
+**Last Updated**: 2026-02-26
 **Audience**: Developers, Architects
 **Status**: Active
 **Related Docs**: [Documentation Hub](index.md) | [Actor-Based Architecture](actors.md) | [Events and Commands](events-and-commands.md) | [Quick Start](quick-start.md)
@@ -36,8 +36,10 @@ tasker-core/
 ├── tasker-client/            # API client library (REST + gRPC transport)
 ├── tasker-ctl/              # CLI binary (depends on tasker-client)
 └── workers/
-    ├── ruby/ext/tasker_core/ # Ruby FFI bindings
-    └── rust/                 # Rust native worker
+    ├── python/              # Python FFI bindings (PyO3/maturin)
+    ├── ruby/ext/tasker_core/ # Ruby FFI bindings (Magnus)
+    ├── rust/                 # Rust native worker
+    └── typescript/           # TypeScript FFI bindings (napi-rs)
 ```
 
 ### Crate Dependency Graph

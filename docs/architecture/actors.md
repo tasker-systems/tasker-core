@@ -1,6 +1,6 @@
 # Actor-Based Architecture
 
-**Last Updated**: 2025-12-04
+**Last Updated**: 2026-02-26
 **Audience**: Architects, Developers
 **Status**: Active
 **Related Docs**: [Documentation Hub](index.md) | [Worker Actor Architecture](worker-actors.md) | [Events and Commands](events-and-commands.md) | [States and Lifecycles](states-and-lifecycles.md)
@@ -25,7 +25,7 @@ This architecture eliminates inconsistencies in lifecycle component initializati
 
 ## Implementation Status
 
-All phases implemented and production-ready: core abstractions, all 4 primary actors, message hydration, module reorganization, service decomposition, and direct actor integration.
+All phases implemented and production-ready: core abstractions, all 6 orchestration actors, message hydration, module reorganization, service decomposition, and direct actor integration.
 
 ## Core Concepts
 
@@ -84,7 +84,7 @@ impl OrchestrationActor for TaskRequestActor {
 - Wrap services with message-based interface
 - Manage service lifecycle
 - Asynchronous message handling
-- Examples: TaskRequestActor, ResultProcessorActor, StepEnqueuerActor, TaskFinalizerActor
+- Examples: TaskRequestActor, ResultProcessorActor, StepEnqueuerActor, TaskFinalizerActor, DecisionPointActor, BatchProcessingActor
 
 The relationship:
 
@@ -264,6 +264,12 @@ pub struct ActorRegistry {
 
     /// Task finalizer actor for task finalization with atomic claiming
     pub task_finalizer_actor: Arc<TaskFinalizerActor>,
+
+    /// Decision point actor for dynamic workflow step creation (TAS-53)
+    pub decision_point_actor: Arc<DecisionPointActor>,
+
+    /// Batch processing actor for dynamic batch worker creation (TAS-59)
+    pub batch_processing_actor: Arc<BatchProcessingActor>,
 }
 ```
 
@@ -434,6 +440,26 @@ Handles task finalization with atomic claiming.
 **Delegation**: Wraps `TaskFinalizer` service (decomposed into focused components)
 
 **Purpose**: Completes or fails tasks based on step execution results, prevents race conditions through atomic claiming.
+
+### DecisionPointActor
+
+Handles dynamic workflow step creation from decision point results.
+
+**Location**: `tasker-orchestration/src/actors/decision_point_actor.rs`
+
+**Delegation**: Wraps `DecisionPointService`
+
+**Purpose**: When a step handler returns decision point results (dynamic branching), this actor creates the new workflow steps and edges. Introduced in TAS-53 Phase 6.
+
+### BatchProcessingActor
+
+Handles dynamic batch worker step creation.
+
+**Location**: `tasker-orchestration/src/actors/batch_processing_actor.rs`
+
+**Delegation**: Wraps `BatchProcessingService`
+
+**Purpose**: When a batch handler indicates more pages to process, this actor creates continuation steps for the next batch iteration. Introduced in TAS-59 Phase 2.
 
 ## Integration with Commands
 
