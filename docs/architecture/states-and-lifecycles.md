@@ -1,6 +1,6 @@
 # States and Lifecycles
 
-**Last Updated**: 2025-10-10
+**Last Updated**: 2026-02-26
 **Audience**: All
 **Status**: Active
 **Related Docs**: [Documentation Hub](index.md) | [Events and Commands](events-and-commands.md) | [Task Readiness & Execution](task-and-step-readiness-and-execution.md)
@@ -16,7 +16,7 @@ This document provides comprehensive documentation of the state machine architec
 The tasker-core system implements a sophisticated dual-state-machine architecture:
 
 1. **Task State Machine**: Manages overall workflow orchestration with 12 comprehensive states
-2. **Workflow Step State Machine**: Manages individual step execution with 8 states including orchestration queuing
+2. **Workflow Step State Machine**: Manages individual step execution with 10 states including orchestration queuing
 
 Both state machines work in coordination to provide atomic, auditable, and resilient workflow execution with proper event-driven communication between orchestration and worker systems.
 
@@ -174,7 +174,7 @@ The task state machine tracks processor UUID for audit trail and debugging purpo
 
 ### Step State Definitions
 
-The workflow step state machine implements 9 states for individual step execution:
+The workflow step state machine implements 10 states for individual step execution:
 
 #### Processing Pipeline States
 
@@ -347,11 +347,9 @@ Both state machines implement comprehensive guard conditions in `tasker-shared/s
 - Checks retry limits and conditions
 - Prevents infinite retry loops
 
-#### Orchestration Guards
+#### Orchestration State Validation
 
-- `StepCanBeEnqueuedForOrchestrationGuard`: Step must be InProgress
-- `StepCanBeCompletedFromOrchestrationGuard`: Step must be EnqueuedForOrchestration
-- `StepCanBeFailedFromOrchestrationGuard`: Step must be EnqueuedForOrchestration
+Orchestration state transitions (e.g., InProgress → EnqueuedForOrchestration, EnqueuedForOrchestration → Complete) are validated by `TransitionGuard::can_transition()` using specific from/to/event combinations rather than separate guard types. This ensures all state transitions are validated through a single, consistent mechanism.
 
 ## Persistence Layer Architecture
 
