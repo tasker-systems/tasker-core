@@ -113,7 +113,7 @@ impl Default for IntegrationConfig {
                     let mut hasher = std::hash::DefaultHasher::new();
                     std::thread::current().id().hash(&mut hasher);
                     std::time::Instant::now().hash(&mut hasher);
-                    if hasher.finish() % 2 == 0 {
+                    if hasher.finish().is_multiple_of(2) {
                         Some(Transport::Rest)
                     } else {
                         Some(Transport::Grpc)

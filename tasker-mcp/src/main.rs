@@ -1,13 +1,11 @@
 //! Tasker MCP Server
 //!
 //! Model Context Protocol server exposing Tasker developer tooling
-//! (code generation, template parsing, schema inspection) to LLM agents,
+//! (template validation, code generation, schema inspection) to LLM agents,
 //! developer IDEs, and operational tooling.
-//!
-//! This is a scaffold — no tools are registered yet. The server responds
-//! to the MCP `initialize` handshake and returns server info.
 
 mod server;
+mod tools;
 
 use rmcp::ServiceExt;
 use tracing_subscriber::EnvFilter;

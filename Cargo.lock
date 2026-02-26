@@ -5232,6 +5232,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tracing",
 ]
@@ -6497,10 +6498,12 @@ name = "tasker-mcp"
 version = "0.1.6"
 dependencies = [
  "anyhow",
+ "futures",
  "rmcp",
  "schemars 1.2.1",
  "serde",
  "serde_json",
+ "serde_yaml",
  "tasker-shared",
  "tasker-tooling",
  "tokio",
