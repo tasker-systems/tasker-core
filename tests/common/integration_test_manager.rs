@@ -100,11 +100,25 @@ impl Default for IntegrationConfig {
         // Configuration loading removed - tests should use environment variables to override defaults
 
         // Transport selection from environment
+        // "random" mode picks REST or gRPC per-test for mixed transport coverage
         let transport = env::var("TASKER_TEST_TRANSPORT")
             .ok()
             .and_then(|v| match v.to_lowercase().as_str() {
                 "grpc" => Some(Transport::Grpc),
                 "rest" => Some(Transport::Rest),
+                "random" => {
+                    use std::hash::{Hash, Hasher};
+                    // Use thread ID + instant as entropy source for per-test randomization.
+                    // This avoids adding a rand dependency just for test transport selection.
+                    let mut hasher = std::hash::DefaultHasher::new();
+                    std::thread::current().id().hash(&mut hasher);
+                    std::time::Instant::now().hash(&mut hasher);
+                    if hasher.finish() % 2 == 0 {
+                        Some(Transport::Rest)
+                    } else {
+                        Some(Transport::Grpc)
+                    }
+                }
                 _ => None,
             })
             .unwrap_or(Transport::Rest);

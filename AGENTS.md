@@ -115,11 +115,12 @@ cargo nextest run --profile local      # Fail-fast mode
 
 ```bash
 # cargo-make tasks
-cargo make test-grpc             # tg  - All gRPC tests
+cargo make test-random-transport # tgr - E2E with random REST/gRPC per test (CI default)
+cargo make test-grpc             # tg  - All gRPC-specific tests (health, parity)
 cargo make test-grpc-health      # gRPC health endpoint tests
 cargo make test-grpc-parity      # tgp - REST/gRPC response parity tests
-cargo make test-e2e-grpc         # tge - E2E tests with gRPC transport
-cargo make test-both-transports  # E2E with both REST and gRPC
+cargo make test-e2e-grpc         # tge - E2E tests with gRPC transport only
+cargo make test-both-transports  # E2E with both REST and gRPC (sequential)
 
 # grpcurl examples (requires services running)
 grpcurl -plaintext localhost:9190 list                           # List services
