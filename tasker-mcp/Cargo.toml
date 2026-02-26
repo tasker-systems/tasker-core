@@ -40,3 +40,11 @@ tracing-subscriber = { workspace = true }
 
 [lints]
 workspace = true
+
+# TAS-305: cargo-machete ignore list for tasker-mcp
+# These dependencies ARE used or will be used in the next ticket:
+# - schemars: JSON Schema generation for MCP tool parameters (TAS-305)
+# - serde/serde_json: MCP tool argument serialization (TAS-305)
+# - tasker-shared: TaskTemplate types consumed via tasker-tooling
+[package.metadata.cargo-machete]
+ignored = ["schemars", "serde", "serde_json", "tasker-shared"]

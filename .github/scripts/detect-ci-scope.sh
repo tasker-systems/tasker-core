@@ -162,7 +162,7 @@ if code_changes_match '^(tasker-shared|tasker-worker|tasker-pgmq)/'; then
 fi
 
 # Server/client core crates
-if code_changes_match '^(tasker-orchestration|tasker-client|tasker-ctl)/'; then
+if code_changes_match '^(tasker-orchestration|tasker-client|tasker-ctl|tasker-tooling|tasker-mcp)/'; then
     HAS_SERVER_CORE=true
 fi
 

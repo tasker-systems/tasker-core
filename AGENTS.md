@@ -192,7 +192,9 @@ source cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migratio
 [workspace.members]
 - tasker-pgmq          # PGMQ wrapper with notification support
 - tasker-client        # API client library (REST + gRPC transport)
-- tasker-ctl           # CLI binary (depends on tasker-client)
+- tasker-ctl           # CLI binary (depends on tasker-client, tasker-tooling)
+- tasker-tooling       # Shared developer tooling (codegen, templates, schema inspection)
+- tasker-mcp           # MCP server for LLM agent integration
 - tasker-orchestration # Core orchestration logic (see AGENTS.md)
 - tasker-shared        # Shared types, traits, utilities
 - tasker-worker        # Worker implementation (see AGENTS.md)
