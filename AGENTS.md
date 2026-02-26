@@ -259,7 +259,7 @@ PostgreSQL-backed orchestration with provider-agnostic messaging (PGMQ default, 
 ### State Machines
 
 - **Task States (12)**: Pending → Initializing → EnqueuingSteps → StepsInProcess → EvaluatingResults → Complete/Error
-- **Step States (8)**: Pending → Enqueued → InProgress → Complete/Error
+- **Step States (10)**: Pending → Enqueued → InProgress → Complete/Error
 - Details: `docs/architecture/states-and-lifecycles.md`
 
 ### Actor Pattern

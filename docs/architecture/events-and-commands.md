@@ -1,6 +1,6 @@
 # Events and Commands Architecture
 
-**Last Updated**: 2026-01-15
+**Last Updated**: 2026-02-26
 **Audience**: Architects, Developers
 **Status**: Active
 **Related Docs**: [Documentation Hub](index.md) | [Actor-Based Architecture](actors.md) | [Messaging Abstraction](messaging-abstraction.md) | [States and Lifecycles](states-and-lifecycles.md) | [Deployment Patterns](deployment-patterns.md)
@@ -184,18 +184,15 @@ pub enum OrchestrationCommand {
 
     // Full message processing (RabbitMQ style - MessageNotification::Message)
     // Used when provider delivers complete message payload
-    ProcessStepResultFromMessage { queue_name: String, message: QueuedMessage, resp: CommandResponder<StepProcessResult> },
-    InitializeTaskFromMessage { queue_name: String, message: QueuedMessage, resp: CommandResponder<TaskInitializeResult> },
-    FinalizeTaskFromMessage { queue_name: String, message: QueuedMessage, resp: CommandResponder<TaskFinalizationResult> },
+    ProcessStepResultFromMessage { message: QueuedMessage<serde_json::Value>, resp: CommandResponder<StepProcessResult> },
+    InitializeTaskFromMessage { message: QueuedMessage<serde_json::Value>, resp: CommandResponder<TaskInitializeResult> },
+    FinalizeTaskFromMessage { message: QueuedMessage<serde_json::Value>, resp: CommandResponder<TaskFinalizationResult> },
 
     // Signal-only processing (PGMQ style - MessageNotification::Available)
     // Used when provider sends notification that requires separate fetch
-    ProcessStepResultFromMessageEvent { message_event: MessageReadyEvent, resp: CommandResponder<StepProcessResult> },
-    InitializeTaskFromMessageEvent { message_event: MessageReadyEvent, resp: CommandResponder<TaskInitializeResult> },
-    FinalizeTaskFromMessageEvent { message_event: MessageReadyEvent, resp: CommandResponder<TaskFinalizationResult> },
-
-    // Task readiness (database events)
-    ProcessTaskReadiness { task_uuid: Uuid, namespace: String, priority: i32, ready_steps: i32, triggered_by: String, resp: CommandResponder<TaskReadinessResult> },
+    ProcessStepResultFromMessageEvent { message_event: MessageEvent, resp: CommandResponder<StepProcessResult> },
+    InitializeTaskFromMessageEvent { message_event: MessageEvent, resp: CommandResponder<TaskInitializeResult> },
+    FinalizeTaskFromMessageEvent { message_event: MessageEvent, resp: CommandResponder<TaskFinalizationResult> },
 
     // System operations
     GetProcessingStats { resp: CommandResponder<OrchestrationProcessingStats> },
@@ -285,16 +282,16 @@ pub struct WorkerEventSystem {
 ```rust
 pub enum WorkerCommand {
     // Step execution
-    ExecuteStep { message: PgmqMessage<SimpleStepMessage>, queue_name: String, resp: CommandResponder<()> },
-    ExecuteStepWithCorrelation { message: PgmqMessage<SimpleStepMessage>, queue_name: String, correlation_id: Uuid, resp: CommandResponder<()> },
+    ExecuteStep { message: PgmqMessage<StepMessage>, queue_name: String, resp: CommandResponder<()> },
+    ExecuteStepWithCorrelation { message: PgmqMessage<StepMessage>, queue_name: String, correlation_id: Uuid, resp: CommandResponder<()> },
 
     // Result processing
     SendStepResult { result: StepExecutionResult, resp: CommandResponder<()> },
     ProcessStepCompletion { step_result: StepExecutionResult, correlation_id: Option<Uuid>, resp: CommandResponder<()> },
 
-    // Event integration
-    ExecuteStepFromMessage { queue_name: String, message: PgmqMessage, resp: CommandResponder<()> },
-    ExecuteStepFromEvent { message_event: MessageReadyEvent, resp: CommandResponder<()> },
+    // Provider-agnostic message processing (TAS-133)
+    ExecuteStepFromMessage { message: QueuedMessage<serde_json::Value>, resp: CommandResponder<()> },
+    ExecuteStepFromEvent { message_event: MessageEvent, resp: CommandResponder<()> },
 
     // System operations
     GetWorkerStatus { resp: CommandResponder<WorkerStatus> },

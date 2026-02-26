@@ -16,6 +16,11 @@ This directory contains Architecture Decision Records that document significant 
 | [ADR-006](./adr-006-worker-decomposition.md) | Worker Actor-Service Decomposition | 2025-12 | Accepted |
 | [ADR-007](./adr-007-ffi-over-wasm.md) | FFI Over WASM for Language Workers | 2025-12 | Accepted |
 | [ADR-008](./adr-008-composition-pattern.md) | Handler Composition Pattern | 2025-12 | Accepted |
+| [ADR-009](./adr-009-napi-rs-replaces-koffi.md) | napi-rs Replaces koffi for TypeScript FFI | 2026-02 | Accepted |
+| [ADR-010](./adr-010-messaging-strategy-pattern.md) | Messaging Strategy Pattern Abstraction | 2026-01 | Accepted |
+| [ADR-011](./adr-011-task-identity-strategy.md) | Task Identity Strategy Pattern | 2026-01 | Implemented |
+| [ADR-012](./adr-012-permission-enforcement-boundary.md) | Permission Enforcement Boundary | 2026-01 | Accepted |
+| [ADR-013](./adr-013-cache-aside-graceful-degradation.md) | Cache-Aside with Graceful Degradation | 2026-01 | Accepted |
 
 ### Root Cause Analyses
 

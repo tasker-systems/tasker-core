@@ -1,6 +1,6 @@
 # Tasker Core Development Chronology
 
-**Last Updated**: 2025-12-29
+**Last Updated**: 2026-02-26
 **Status**: Active
 
 This document captures the major architectural decisions, feature milestones, and lessons learned during Tasker Core development. Use it to understand *why* things are the way they are.
@@ -81,6 +81,48 @@ See [Defense in Depth](./principles/defense-in-depth.md) for the full protection
 - Cross-language API consistency established
 - Composition over inheritance identified as target pattern
 
+### 2026-01: Abstractions & Security
+
+| Category | What Happened |
+|----------|---------------|
+| Architecture | Messaging strategy pattern abstraction (PGMQ/RabbitMQ provider-agnostic) |
+| Architecture | Task identity strategy pattern (STRICT, CALLER_PROVIDED, ALWAYS_UNIQUE) |
+| Architecture | Command processor refactor — extracted command types, reduced boilerplate (TAS-148) |
+| Security | Permission enforcement boundary defined (enforce, don't manage identity) |
+| Architecture | Cache-aside pattern with graceful degradation (Redis/Moka/NoOp) |
+| Performance | Hot-path logging optimization (5.15% → target 2-3% CPU) |
+| Testing | gRPC test infrastructure with REST/gRPC parity validation (TAS-177) |
+| Feature | Database pattern optimizations scoped (ResultProcessingContext, TaskFinalizationContext) |
+
+**Key outcomes**:
+
+- Provider-agnostic messaging enables zero-code migration between PGMQ and RabbitMQ
+- Identity strategy gives each use case appropriate deduplication semantics
+- Security model cleanly separates enforcement (Tasker) from identity management (external)
+- Cache never becomes a failure point — graceful degradation to NoOp
+
+### 2026-02: TypeScript FFI & Tooling
+
+| Category | What Happened |
+|----------|---------------|
+| Architecture | napi-rs replaces koffi for TypeScript FFI — eliminates TAS-283 trailing input bugs |
+| Workers | TypeScript DSL handler examples and parity tests (TAS-294) |
+| Workers | Handler ergonomics harmonization completed across Ruby, Python, TypeScript (TAS-112) |
+| Tooling | cargo-make standardization across workspace (TAS-111) |
+| Tooling | `tasker-ctl` plugin architecture and remote template system (TAS-126/TAS-208/TAS-270) |
+| Documentation | Architecture documentation curated for mdbook (TAS-218) |
+| Cleanup | Vestigial `task_handler` concept removed from codebase (TAS-93) |
+| Planning | PostgreSQL 18 migration and schema flattening scoped (TAS-128) |
+| Planning | Standalone example applications designed (TAS-205) |
+| Planning | Automated release management system designed (TAS-170) |
+
+**Key outcomes**:
+
+- TypeScript worker reaches parity with Ruby (magnus) and Python (pyo3) via napi-rs
+- Single N-API binary serves Bun, Node.js, and Deno — eliminates multi-runtime FFI layer
+- `tasker-ctl` evolves into extensible developer tool with plugin discovery and template generation
+- Ticket specs consolidated into ADRs and chronology; directory cleaned to active specs only
+
 ---
 
 ## Architectural Decisions
@@ -138,6 +180,38 @@ But: class Handler < Base; include API, include Decision, include Batchable
 
 **Outcome**: Selective capability inclusion, clear separation of concerns, easier testing.
 
+### Messaging Strategy Pattern
+
+**Context**: PGMQ was hard-coded as the messaging backend. RabbitMQ support needed without code changes.
+
+**Decision**: Enum-based provider abstraction with zero-cost dispatch. `MessageNotification` enum handles the signal-vs-payload divide between PGMQ and RabbitMQ. Dual command variants (`*FromMessage`/`*FromMessageEvent`) enable provider-agnostic routing.
+
+**Outcome**: Zero-code migration between providers via configuration. Community providers (SQS, Kafka) extensible via `tasker-contrib`.
+
+### Task Identity Strategy
+
+**Context**: Different use cases have fundamentally different deduplication needs.
+
+**Decision**: Three strategies (STRICT hash, CALLER_PROVIDED key, ALWAYS_UNIQUE uuid) per template, with per-request override. 409 Conflict on duplicates (security-conscious).
+
+**Outcome**: Each use case gets appropriate identity semantics without workarounds.
+
+### Permission Enforcement Boundary
+
+**Context**: Tasker needed auth without becoming an identity provider.
+
+**Decision**: Enforce permissions at API boundary; delegate identity management to external providers (JWT/JWKS). Health endpoints always public.
+
+**Outcome**: Integrates with any identity provider. No user management, no password storage.
+
+### napi-rs Over koffi
+
+**Context**: koffi + C FFI approach had unfixable trailing input bugs (TAS-283) in TypeScript worker.
+
+**Decision**: Replace koffi with napi-rs. Single `.node` binary serves Bun, Node.js, and Deno via N-API. Eliminates JSON serialization, C string marshalling, and manual memory management at FFI boundary.
+
+**Outcome**: TypeScript FFI parity with Ruby (magnus) and Python (pyo3). Entire runtime abstraction layer deleted.
+
 ---
 
 ## Lessons Learned
@@ -172,6 +246,24 @@ Look for patterns that emerged naturally. If one handler type already works well
 
 Refactoring is discovery. The act of decomposition reveals hidden assumptions and undocumented behaviors.
 
+### Enum Dispatch Over Trait Objects (from Messaging + Cache Abstractions)
+
+> "When the provider set is small and known at compile time, enum dispatch is zero-cost and provides exhaustive matching. Save trait objects for truly open extension points."
+
+Both the messaging abstraction (ADR-010) and cache provider (ADR-013) use enum dispatch rather than `Box<dyn Trait>`. The compile-time exhaustive match catches missing provider implementations; trait objects would defer this to runtime.
+
+### Enforce, Don't Manage (from Permission Boundary)
+
+> "Tasker enforces permissions but doesn't manage identity. External systems handle the hard problems of authentication; Tasker handles the easy problem of checking claims."
+
+Avoiding identity management keeps Tasker focused. The permission vocabulary maps 1:1 to API operations, preventing the abstraction mismatch that plagues generic RBAC systems.
+
+### Graceful Degradation as Default (from Cache Architecture)
+
+> "Optional infrastructure should degrade to no-op, never to failure. If Redis is down, log a warning and continue — PostgreSQL is always the source of truth."
+
+This principle extended from caching to other optional components. The system should always start and serve requests; optional infrastructure improves performance but never gates correctness.
+
 ---
 
 ## Pre-Alpha Philosophy
@@ -193,4 +285,5 @@ This freedom is temporary. Once stable, these patterns become the foundation.
 - [Defense in Depth](./principles/defense-in-depth.md) - Protection model from ownership enforcement removal
 - [Composition Over Inheritance](./principles/composition-over-inheritance.md) - Handler composition pattern
 - [Cross-Language Consistency](./principles/cross-language-consistency.md) - Cross-language API philosophy
-- [Ticket Specifications](./ticket-specs/) - Detailed specs for each feature
+- [Architecture Decision Records](./decisions/) - Formal decision records (ADR-001 through ADR-013)
+- [Ticket Specifications](./ticket-specs/) - Active specs (recent tickets only; historical specs archived in git)
