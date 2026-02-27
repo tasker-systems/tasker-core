@@ -18,75 +18,118 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: 'true'
+
+# =============================================================================
+# Matrix Strategy
+# =============================================================================
+# Builds the tasker-mcp binary for 4 platform/architecture combinations.
+# Mirrors the build-cli-binaries.yml pattern used for tasker-ctl.
+#
+# | Job           | Runner       | Method                      |
+# |---------------|-------------|-----------------------------|
+# | linux-amd64   | ubuntu-22.04 | Native cargo build          |
+# | linux-arm64   | ubuntu-22.04 | Cross-compile (gcc-aarch64) |
+# | darwin-amd64  | macos-14     | Cross-compile (x86_64)      |
+# | darwin-arm64  | macos-14     | Native cargo build          |
+# =============================================================================
 
 jobs:
   build-binaries:
-    name: Build (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.target.name }})
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            artifact: tasker-mcp-linux-x86_64
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            artifact: tasker-mcp-linux-aarch64
-          - target: x86_64-apple-darwin
-            os: macos-13
-            artifact: tasker-mcp-macos-x86_64
-          - target: aarch64-apple-darwin
-            os: macos-14
-            artifact: tasker-mcp-macos-aarch64
+        target:
+          - name: linux-amd64
+            runner: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+            cross: false
+          - name: linux-arm64
+            runner: ubuntu-22.04
+            triple: aarch64-unknown-linux-gnu
+            cross: true
+            cross_packages: gcc-aarch64-linux-gnu
+            linker: aarch64-linux-gnu-gcc
+          - name: darwin-amd64
+            runner: macos-14
+            triple: x86_64-apple-darwin
+            cross: false
+          - name: darwin-arm64
+            runner: macos-14
+            triple: aarch64-apple-darwin
+            cross: false
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-      - name: Install Rust toolchain
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.target.triple }}
 
-      - name: Install cross-compilation tools (Linux aarch64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
+      - name: Setup Rust build cache
+        uses: ./.github/actions/setup-rust-cache
+
+      - name: Install protobuf compiler
+        uses: ./.github/actions/install-protobuf
+
+      - name: Install cross-compilation toolchain
+        if: matrix.target.cross
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          sudo apt-get install -y ${{ matrix.target.cross_packages }}
 
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          version: '25.x'
+      - name: Configure cross-compilation linker
+        if: matrix.target.cross
+        run: |
+          TRIPLE_UPPER="$(echo '${{ matrix.target.triple }}' | tr '[:lower:]-' '[:upper:]_')"
+          echo "CARGO_TARGET_${TRIPLE_UPPER}_LINKER=${{ matrix.target.linker }}" >> "$GITHUB_ENV"
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-
-      - name: Build
-        run: cargo build --release -p tasker-mcp --all-features --target ${{ matrix.target }}
+      - name: Build tasker-mcp
+        run: cargo build --release --package tasker-mcp --target ${{ matrix.target.triple }}
 
       - name: Package binary
         run: |
-          mkdir -p dist
-          cp target/${{ matrix.target }}/release/tasker-mcp dist/${{ matrix.artifact }}
-          chmod +x dist/${{ matrix.artifact }}
+          TARGET="${{ matrix.target.triple }}"
+          BINARY="tasker-mcp"
+          BIN_PATH="target/${TARGET}/release/${BINARY}"
+
+          if [[ ! -f "$BIN_PATH" ]]; then
+            echo "::error::Binary not found at ${BIN_PATH}"
+            exit 1
+          fi
+
+          ARCHIVE="${BINARY}-${TARGET}.tar.gz"
+          mkdir -p staging
+          cp "$BIN_PATH" staging/
+          tar -czf "$ARCHIVE" -C staging "$BINARY"
+
+          echo "Created ${ARCHIVE}"
+          ls -lh "$ARCHIVE"
+          echo "Binary size: $(ls -lh "staging/${BINARY}" | awk '{print $5}')"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.artifact }}
-          path: dist/${{ matrix.artifact }}
+          name: mcp-${{ matrix.target.triple }}
+          path: tasker-mcp-*.tar.gz
+          retention-days: 7
+          if-no-files-found: error
 
   docker:
     name: Docker image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -102,10 +145,11 @@ jobs:
       - name: Extract version from tag
         id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/tasker-mcp-v}" >> $GITHUB_OUTPUT
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/tasker-mcp-v}" >> "$GITHUB_OUTPUT"
           else
-            echo "version=dev" >> $GITHUB_OUTPUT
+            echo "version=dev" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build and push
@@ -123,7 +167,8 @@ jobs:
   release:
     name: Create GitHub Release
     needs: [build-binaries, docker]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
     permissions:
       contents: write
@@ -131,11 +176,13 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: mcp-*
           path: artifacts
+          merge-multiple: false
 
       - name: Extract version from tag
         id: version
-        run: echo "version=${GITHUB_REF#refs/tags/tasker-mcp-v}" >> $GITHUB_OUTPUT
+        run: echo "version=${GITHUB_REF#refs/tags/tasker-mcp-v}" >> "$GITHUB_OUTPUT"
 
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -150,8 +197,5 @@ jobs:
 
             **Docker**: `docker run --rm -i ghcr.io/${{ github.repository_owner }}/tasker-mcp:${{ steps.version.outputs.version }}`
           files: |
-            artifacts/tasker-mcp-linux-x86_64/tasker-mcp-linux-x86_64
-            artifacts/tasker-mcp-linux-aarch64/tasker-mcp-linux-aarch64
-            artifacts/tasker-mcp-macos-x86_64/tasker-mcp-macos-x86_64
-            artifacts/tasker-mcp-macos-aarch64/tasker-mcp-macos-aarch64
+            artifacts/mcp-*/tasker-mcp-*.tar.gz
           generate_release_notes: true

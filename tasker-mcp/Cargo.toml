@@ -50,3 +50,6 @@ futures = { workspace = true }
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["futures", "serde_yaml"]
