@@ -32,6 +32,15 @@ pub(crate) async fn handle_generate_command(cmd: GenerateCommands) -> ClientResu
             )
             .await
         }
+        GenerateCommands::Scaffold {
+            template,
+            language,
+            output_dir,
+            step,
+        } => {
+            handle_generate_scaffold(&template, &language, output_dir.as_deref(), step.as_deref())
+                .await
+        }
     }
 }
 
@@ -142,4 +151,66 @@ async fn handle_generate_handler(
         &generated,
         &format!("Generated {target} handler scaffolds"),
     )
+}
+
+async fn handle_generate_scaffold(
+    template_path: &PathBuf,
+    language: &str,
+    output_dir: Option<&str>,
+    step: Option<&str>,
+) -> ClientResult<()> {
+    let target: TargetLanguage = language.parse().map_err(|e: codegen::CodegenError| {
+        tasker_client::ClientError::config_error(e.to_string())
+    })?;
+
+    let template = load_template(template_path)?;
+
+    let output = codegen::scaffold::generate_scaffold(&template, target, step).map_err(|e| {
+        tasker_client::ClientError::config_error(format!("Scaffold generation failed: {e}"))
+    })?;
+
+    let ext = match target {
+        TargetLanguage::Python => "py",
+        TargetLanguage::Ruby => "rb",
+        TargetLanguage::TypeScript => "ts",
+        TargetLanguage::Rust => "rs",
+    };
+
+    if let Some(dir) = output_dir {
+        let dir_path = PathBuf::from(dir);
+        std::fs::create_dir_all(&dir_path).map_err(|e| {
+            tasker_client::ClientError::config_error(format!(
+                "Failed to create output directory '{}': {}",
+                dir_path.display(),
+                e
+            ))
+        })?;
+
+        let write_file = |name: &str, content: &str| -> ClientResult<()> {
+            let path = dir_path.join(format!("{name}.{ext}"));
+            std::fs::write(&path, content).map_err(|e| {
+                tasker_client::ClientError::config_error(format!(
+                    "Failed to write '{}': {}",
+                    path.display(),
+                    e
+                ))
+            })?;
+            eprintln!("  Written: {}", path.display());
+            Ok(())
+        };
+
+        eprintln!("Generated {target} scaffold:");
+        write_file("models", &output.types)?;
+        write_file("handlers", &output.handlers)?;
+        write_file("tests", &output.tests)?;
+    } else {
+        println!("# --- types ---");
+        print!("{}", output.types);
+        println!("\n# --- handlers ---");
+        print!("{}", output.handlers);
+        println!("\n# --- tests ---");
+        print!("{}", output.tests);
+    }
+
+    Ok(())
 }

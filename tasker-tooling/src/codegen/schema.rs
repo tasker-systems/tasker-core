@@ -193,6 +193,71 @@ impl FieldType {
         }
     }
 
+    // =====================================================================
+    // Stub value methods (used by scaffold templates for typed constructors)
+    // =====================================================================
+
+    /// Python stub value for this field type.
+    pub fn python_stub_value(&self) -> String {
+        match self {
+            FieldType::String | FieldType::StringEnum(_) => "\"\"".to_string(),
+            FieldType::Integer => "0".to_string(),
+            FieldType::Number => "0.0".to_string(),
+            FieldType::Boolean => "False".to_string(),
+            FieldType::Array(_) => "[]".to_string(),
+            FieldType::Nested(_) | FieldType::Map(_) | FieldType::Any => "{}".to_string(),
+        }
+    }
+
+    /// Ruby stub value for this field type.
+    pub fn ruby_stub_value(&self) -> String {
+        match self {
+            FieldType::String | FieldType::StringEnum(_) => "\"\"".to_string(),
+            FieldType::Integer => "0".to_string(),
+            FieldType::Number => "0.0".to_string(),
+            FieldType::Boolean => "false".to_string(),
+            FieldType::Array(_) => "[]".to_string(),
+            FieldType::Nested(_) | FieldType::Map(_) | FieldType::Any => "{}".to_string(),
+        }
+    }
+
+    /// TypeScript stub value for this field type.
+    pub fn typescript_stub_value(&self) -> String {
+        match self {
+            FieldType::String | FieldType::StringEnum(_) => "\"\"".to_string(),
+            FieldType::Integer | FieldType::Number => "0".to_string(),
+            FieldType::Boolean => "false".to_string(),
+            FieldType::Array(_) => "[]".to_string(),
+            FieldType::Nested(_) | FieldType::Map(_) | FieldType::Any => "{}".to_string(),
+        }
+    }
+
+    /// Rust stub value for this field type (for use in struct constructors).
+    pub fn rust_stub_value(&self) -> String {
+        match self {
+            FieldType::String | FieldType::StringEnum(_) => "String::new()".to_string(),
+            FieldType::Integer => "0".to_string(),
+            FieldType::Number => "0.0".to_string(),
+            FieldType::Boolean => "false".to_string(),
+            FieldType::Array(_) => "Vec::new()".to_string(),
+            FieldType::Map(_) => "HashMap::new()".to_string(),
+            FieldType::Nested(_) => "Default::default()".to_string(),
+            FieldType::Any => "Value::Null".to_string(),
+        }
+    }
+
+    /// JSON stub value (for serde_json::json! macro).
+    pub fn json_stub_value(&self) -> String {
+        match self {
+            FieldType::String | FieldType::StringEnum(_) => "\"\"".to_string(),
+            FieldType::Integer => "0".to_string(),
+            FieldType::Number => "0.0".to_string(),
+            FieldType::Boolean => "false".to_string(),
+            FieldType::Array(_) => "[]".to_string(),
+            FieldType::Nested(_) | FieldType::Map(_) | FieldType::Any => "{}".to_string(),
+        }
+    }
+
     /// Whether this type is a string enum (for template rendering).
     pub fn is_string_enum(&self) -> bool {
         matches!(self, FieldType::StringEnum(_))

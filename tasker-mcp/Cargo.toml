@@ -13,6 +13,10 @@ categories = ["development-tools"]
 name = "tasker-mcp"
 path = "src/main.rs"
 
+[lib]
+name = "tasker_mcp"
+path = "src/lib.rs"
+
 [dependencies]
 # Workspace crates
 tasker-tooling = { path = "../tasker-tooling", version = "=0.1.6" }

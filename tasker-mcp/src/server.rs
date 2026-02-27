@@ -30,6 +30,12 @@ pub struct TaskerMcpServer {
     tool_router: ToolRouter<Self>,
 }
 
+impl Default for TaskerMcpServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskerMcpServer {
     pub fn new() -> Self {
         Self {
@@ -59,7 +65,8 @@ impl ServerHandler for TaskerMcpServer {
             instructions: Some(
                 "Tasker is a workflow orchestration system. You help developers create and validate \
                  task templates (workflow definitions) and generate typed handler code.\n\
-                 Workflow: template_generate → template_validate → handler_generate (per step)\n\
+                 Workflow: template_generate → template_validate → handler_generate (unified types+handlers+tests)\n\
+                 handler_generate defaults to scaffold mode: handlers import generated types with typed returns.\n\
                  When debugging: template_inspect → schema_inspect → schema_compare"
                     .to_string(),
             ),
@@ -196,7 +203,7 @@ impl TaskerMcpServer {
     /// in the specified language.
     #[tool(
         name = "handler_generate",
-        description = "Generate typed handler code for a task template. Returns types, handler scaffolds, and test files for the specified language (python, ruby, typescript, rust)."
+        description = "Generate typed handler code for a task template. Returns types, handler scaffolds, and test files for the specified language (python, ruby, typescript, rust). By default uses scaffold mode where handlers import generated types."
     )]
     pub async fn handler_generate(
         &self,
@@ -213,31 +220,50 @@ impl TaskerMcpServer {
         };
 
         let step_filter = params.step_filter.as_deref();
+        let use_scaffold = params.scaffold.unwrap_or(true);
 
-        let types = match codegen::generate_types(&template, language, step_filter) {
-            Ok(t) => t,
-            Err(e) => return error_json("codegen_error", &format!("types: {e}")),
-        };
+        if use_scaffold {
+            let scaffold_output =
+                match codegen::scaffold::generate_scaffold(&template, language, step_filter) {
+                    Ok(o) => o,
+                    Err(e) => return error_json("codegen_error", &e.to_string()),
+                };
 
-        let handlers = match codegen::generate_handlers(&template, language, step_filter) {
-            Ok(h) => h,
-            Err(e) => return error_json("codegen_error", &format!("handlers: {e}")),
-        };
+            let response = HandlerGenerateResponse {
+                language: language.to_string(),
+                types: scaffold_output.types,
+                handlers: scaffold_output.handlers,
+                tests: scaffold_output.tests,
+            };
 
-        let tests = match codegen::generate_tests(&template, language, step_filter) {
-            Ok(t) => t,
-            Err(e) => return error_json("codegen_error", &format!("tests: {e}")),
-        };
+            serde_json::to_string_pretty(&response)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+        } else {
+            let types = match codegen::generate_types(&template, language, step_filter) {
+                Ok(t) => t,
+                Err(e) => return error_json("codegen_error", &format!("types: {e}")),
+            };
 
-        let response = HandlerGenerateResponse {
-            language: language.to_string(),
-            types,
-            handlers,
-            tests,
-        };
+            let handlers = match codegen::generate_handlers(&template, language, step_filter) {
+                Ok(h) => h,
+                Err(e) => return error_json("codegen_error", &format!("handlers: {e}")),
+            };
 
-        serde_json::to_string_pretty(&response)
-            .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+            let tests = match codegen::generate_tests(&template, language, step_filter) {
+                Ok(t) => t,
+                Err(e) => return error_json("codegen_error", &format!("tests: {e}")),
+            };
+
+            let response = HandlerGenerateResponse {
+                language: language.to_string(),
+                types,
+                handlers,
+                tests,
+            };
+
+            serde_json::to_string_pretty(&response)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+        }
     }
 
     /// Inspect result_schema definitions across template steps with field-level
@@ -565,12 +591,39 @@ steps:
                 template_yaml: yaml.to_string(),
                 language: "python".into(),
                 step_filter: Some("validate_order".into()),
+                scaffold: Some(true),
             }))
             .await;
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["language"], "python");
         assert!(parsed["types"].as_str().unwrap().contains("class"));
         assert!(parsed["handlers"].as_str().unwrap().contains("def"));
+        // Scaffold mode: handlers import types
+        assert!(parsed["handlers"]
+            .as_str()
+            .unwrap()
+            .contains("from .models import"));
+    }
+
+    #[tokio::test]
+    async fn test_handler_generate_no_scaffold() {
+        let server = TaskerMcpServer::new();
+        let yaml = include_str!("../../tests/fixtures/task_templates/codegen_test_template.yaml");
+        let result = server
+            .handler_generate(Parameters(HandlerGenerateParams {
+                template_yaml: yaml.to_string(),
+                language: "python".into(),
+                step_filter: Some("validate_order".into()),
+                scaffold: Some(false),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["language"], "python");
+        // Non-scaffold mode: no type imports in handlers
+        assert!(!parsed["handlers"]
+            .as_str()
+            .unwrap()
+            .contains("from .models import"));
     }
 
     #[tokio::test]
@@ -582,6 +635,7 @@ steps:
                 template_yaml: yaml.to_string(),
                 language: "cobol".into(),
                 step_filter: None,
+                scaffold: None,
             }))
             .await;
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
@@ -635,5 +689,63 @@ steps:
             .await;
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["error"], "step_not_found");
+    }
+
+    #[tokio::test]
+    async fn test_content_publishing_template_validates() {
+        let server = TaskerMcpServer::new();
+        let yaml =
+            include_str!("../../tests/fixtures/task_templates/content_publishing_template.yaml");
+        let result = server
+            .template_validate(Parameters(TemplateValidateParams {
+                template_yaml: yaml.to_string(),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["valid"], true);
+        assert_eq!(parsed["step_count"], 7);
+    }
+
+    #[tokio::test]
+    async fn test_content_publishing_template_inspect() {
+        let server = TaskerMcpServer::new();
+        let yaml =
+            include_str!("../../tests/fixtures/task_templates/content_publishing_template.yaml");
+        let result = server
+            .template_inspect(Parameters(TemplateInspectParams {
+                template_yaml: yaml.to_string(),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "publish_article");
+        assert_eq!(parsed["step_count"], 7);
+
+        let root_steps = parsed["root_steps"].as_array().unwrap();
+        assert_eq!(root_steps.len(), 1);
+        assert_eq!(root_steps[0], "validate_content");
+
+        let leaf_steps = parsed["leaf_steps"].as_array().unwrap();
+        assert_eq!(leaf_steps.len(), 1);
+        assert_eq!(leaf_steps[0], "update_analytics");
+    }
+
+    #[tokio::test]
+    async fn test_content_publishing_handler_generate() {
+        let server = TaskerMcpServer::new();
+        let yaml =
+            include_str!("../../tests/fixtures/task_templates/content_publishing_template.yaml");
+        let result = server
+            .handler_generate(Parameters(HandlerGenerateParams {
+                template_yaml: yaml.to_string(),
+                language: "python".into(),
+                step_filter: None,
+                scaffold: Some(true),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["language"], "python");
+        assert!(parsed["types"].as_str().unwrap().contains("class"));
+        assert!(parsed["handlers"].as_str().unwrap().contains("def"));
+        assert!(parsed["tests"].as_str().unwrap().contains("def test_"));
     }
 }

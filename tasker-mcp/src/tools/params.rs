@@ -166,6 +166,12 @@ pub struct HandlerGenerateParams {
     /// Optional step name to generate code for (generates all if omitted).
     #[schemars(description = "Optional step name to generate code for (all steps if omitted)")]
     pub step_filter: Option<String>,
+    /// When true (default), handlers import generated types and use typed return values.
+    /// When false, generates independent types/handlers/tests without import wiring.
+    #[schemars(
+        description = "When true (default), handlers import generated types and use typed return values. When false, generates independent types/handlers/tests."
+    )]
+    pub scaffold: Option<bool>,
 }
 
 /// Response for the `handler_generate` tool.
