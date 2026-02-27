@@ -8,6 +8,7 @@
 //!
 //! - [`codegen`] — Schema-driven code generation from task template `result_schema` definitions
 //! - [`schema_comparator`] — Producer/consumer schema compatibility checking
+//! - [`schema_diff`] — Temporal schema diff between template versions
 //! - [`schema_inspector`] — Result schema contract inspection utilities
 //! - [`template_engine`] — Tera-based runtime template rendering for plugin templates
 //! - [`template_generator`] — Structured spec → task template YAML generation
@@ -16,6 +17,7 @@
 
 pub mod codegen;
 pub mod schema_comparator;
+pub mod schema_diff;
 pub mod schema_inspector;
 pub mod template_engine;
 pub mod template_generator;

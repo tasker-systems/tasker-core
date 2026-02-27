@@ -258,6 +258,25 @@ impl FieldType {
         }
     }
 
+    /// JSON Schema type string (lowercase, matching the JSON Schema specification).
+    ///
+    /// Returns types like `"string"`, `"integer"`, `"number"`, `"boolean"`,
+    /// `"array:string"`, `"object"`, etc.
+    pub fn json_schema_type(&self) -> String {
+        match self {
+            FieldType::String | FieldType::StringEnum(_) => "string".to_string(),
+            FieldType::Integer => "integer".to_string(),
+            FieldType::Number => "number".to_string(),
+            FieldType::Boolean => "boolean".to_string(),
+            FieldType::Array(inner) => format!("array:{}", inner.json_schema_type()),
+            FieldType::Nested(name) => format!("object:{name}"),
+            FieldType::Map(value_type) => {
+                format!("object:map<{}>", value_type.json_schema_type())
+            }
+            FieldType::Any => "any".to_string(),
+        }
+    }
+
     /// Whether this type is a string enum (for template rendering).
     pub fn is_string_enum(&self) -> bool {
         matches!(self, FieldType::StringEnum(_))

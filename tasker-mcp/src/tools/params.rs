@@ -181,6 +181,9 @@ pub struct HandlerGenerateResponse {
     pub types: String,
     pub handlers: String,
     pub tests: String,
+    /// Handler registry bridge (Rust only — wraps plain functions as `StepHandler` trait objects)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub handler_registry: Option<String>,
 }
 
 // ── schema_inspect ──
@@ -236,4 +239,20 @@ pub struct SchemaCompareParams {
     /// Name of the consumer step.
     #[schemars(description = "Name of the consumer step (consumes data)")]
     pub consumer_step: String,
+}
+
+// ── schema_diff ──
+
+/// Parameters for the `schema_diff` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SchemaDiffParams {
+    /// Older version of the task template YAML.
+    #[schemars(description = "Older version of the task template YAML (before changes)")]
+    pub before_yaml: String,
+    /// Newer version of the task template YAML.
+    #[schemars(description = "Newer version of the task template YAML (after changes)")]
+    pub after_yaml: String,
+    /// Optional step name to diff (diffs all steps if omitted).
+    #[schemars(description = "Optional step name to diff (all steps if omitted)")]
+    pub step_filter: Option<String>,
 }

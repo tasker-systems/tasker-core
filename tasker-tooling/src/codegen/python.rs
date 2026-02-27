@@ -10,6 +10,7 @@ use super::CodegenError;
 struct PythonTemplate<'a> {
     types: &'a [TypeDef],
     needs_any: bool,
+    needs_optional: bool,
 }
 
 /// Render Python Pydantic models from type definitions.
@@ -19,7 +20,13 @@ pub fn render(types: &[TypeDef]) -> Result<String, CodegenError> {
         .flat_map(|t| &t.fields)
         .any(|f| uses_any(&f.field_type));
 
-    let template = PythonTemplate { types, needs_any };
+    let needs_optional = types.iter().flat_map(|t| &t.fields).any(|f| !f.required);
+
+    let template = PythonTemplate {
+        types,
+        needs_any,
+        needs_optional,
+    };
     template
         .render()
         .map_err(|e| CodegenError::Rendering(e.to_string()))

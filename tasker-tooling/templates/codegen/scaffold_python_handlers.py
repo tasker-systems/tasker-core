@@ -9,9 +9,7 @@ from .{{ types_module_name }} import {% for t in import_types %}{{ t }}{% if !lo
 
 {% if handler.has_dependencies() -%}
 @step_handler("{{ handler.callable }}")
-{%- for dep in handler.dependencies %}
-@depends_on({{ dep.snake_param() }}="{{ dep.step_name }}")
-{%- endfor %}
+@depends_on({% for dep in handler.dependencies %}{{ dep.snake_param() }}="{{ dep.step_name }}"{% if !loop.last %}, {% endif %}{% endfor %})
 def {{ handler.snake_name() }}(
     {%- for dep in handler.dependencies %}{{ dep.snake_param() }}, {% endfor %}context){% if handler.result_type_name().is_some() %} -> {{ handler.result_type_name().unwrap() }}{% endif %}:
 {%- else -%}

@@ -5,9 +5,7 @@ from tasker_core.step_handler.functional import step_handler, depends_on
 
 {% if handler.has_dependencies() -%}
 @step_handler("{{ handler.callable }}")
-{%- for dep in handler.dependencies %}
-@depends_on({{ dep.snake_param() }}="{{ dep.step_name }}")
-{%- endfor %}
+@depends_on({% for dep in handler.dependencies %}{{ dep.snake_param() }}="{{ dep.step_name }}"{% if !loop.last %}, {% endif %}{% endfor %})
 def {{ handler.snake_name() }}(
     {%- for dep in handler.dependencies %}{{ dep.snake_param() }}, {% endfor %}context):
 {%- else -%}

@@ -2,7 +2,7 @@
 //!
 //! Uses the real `TaskerMcpServer` from the library target to verify protocol
 //! round-trips: tool discovery via `list_tools` and tool invocation via `call_tool`
-//! for all 6 tools.
+//! for all 7 tools.
 
 use rmcp::model::{CallToolRequestParams, ClientInfo};
 use rmcp::service::{RoleClient, RunningService};
@@ -68,7 +68,7 @@ fn codegen_yaml() -> &'static str {
 // ── Discovery ──
 
 #[tokio::test]
-async fn test_list_tools_returns_all_six() -> anyhow::Result<()> {
+async fn test_list_tools_returns_all_seven() -> anyhow::Result<()> {
     let (client, server_handle) = setup().await?;
 
     let tools = client.list_tools(None).await?;
@@ -80,6 +80,7 @@ async fn test_list_tools_returns_all_six() -> anyhow::Result<()> {
         vec![
             "handler_generate",
             "schema_compare",
+            "schema_diff",
             "schema_inspect",
             "template_generate",
             "template_inspect",
@@ -297,6 +298,69 @@ async fn test_schema_compare() -> anyhow::Result<()> {
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
     assert!(parsed["compatibility"].is_string());
     assert!(parsed["findings"].is_array());
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+// ── schema_diff ──
+
+#[tokio::test]
+async fn test_schema_diff() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let before_yaml = r#"
+name: diff_test
+namespace_name: test
+version: "1.0.0"
+steps:
+  - name: step_a
+    handler:
+      callable: test.step_a
+    result_schema:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+"#;
+    let after_yaml = r#"
+name: diff_test
+namespace_name: test
+version: "2.0.0"
+steps:
+  - name: step_a
+    handler:
+      callable: test.step_a
+    result_schema:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+"#;
+
+    let text = call_tool_text(
+        &client,
+        "schema_diff",
+        serde_json::json!({
+            "before_yaml": before_yaml,
+            "after_yaml": after_yaml
+        }),
+    )
+    .await?;
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["compatibility"], "incompatible");
+    let diffs = parsed["step_diffs"].as_array().unwrap();
+    assert_eq!(diffs.len(), 1);
+    assert_eq!(diffs[0]["step_name"], "step_a");
+    assert_eq!(diffs[0]["status"], "modified");
 
     client.cancel().await?;
     server_handle.await??;

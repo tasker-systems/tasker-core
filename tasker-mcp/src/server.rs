@@ -1,12 +1,13 @@
 //! MCP ServerHandler implementation for Tasker.
 //!
-//! Provides the MCP server with 6 developer tooling tools:
+//! Provides the MCP server with 7 developer tooling tools:
 //! - `template_validate` — Validate a task template for structural correctness
 //! - `template_inspect` — Inspect template DAG structure and step details
 //! - `template_generate` — Generate task template YAML from a structured spec
 //! - `handler_generate` — Generate typed handler code for a template
 //! - `schema_inspect` — Inspect result_schema field details per step
 //! - `schema_compare` — Compare producer/consumer schema compatibility
+//! - `schema_diff` — Detect field-level changes between two template versions
 
 use std::collections::{HashMap, HashSet};
 
@@ -17,6 +18,7 @@ use rmcp::{tool, tool_handler, tool_router, ServerHandler};
 
 use tasker_tooling::codegen::{self, TargetLanguage};
 use tasker_tooling::schema_comparator;
+use tasker_tooling::schema_diff;
 use tasker_tooling::schema_inspector;
 use tasker_tooling::template_generator;
 use tasker_tooling::template_parser::parse_template_str;
@@ -24,7 +26,7 @@ use tasker_tooling::template_validator;
 
 use crate::tools::*;
 
-/// Tasker MCP server handler with 6 developer tooling tools.
+/// Tasker MCP server handler with 7 developer tooling tools.
 #[derive(Debug, Clone)]
 pub struct TaskerMcpServer {
     tool_router: ToolRouter<Self>,
@@ -67,7 +69,8 @@ impl ServerHandler for TaskerMcpServer {
                  task templates (workflow definitions) and generate typed handler code.\n\
                  Workflow: template_generate → template_validate → handler_generate (unified types+handlers+tests)\n\
                  handler_generate defaults to scaffold mode: handlers import generated types with typed returns.\n\
-                 When debugging: template_inspect → schema_inspect → schema_compare"
+                 When debugging: template_inspect → schema_inspect → schema_compare\n\
+                 For versioning: schema_diff compares before/after template YAML to detect breaking field changes"
                     .to_string(),
             ),
         }
@@ -234,6 +237,7 @@ impl TaskerMcpServer {
                 types: scaffold_output.types,
                 handlers: scaffold_output.handlers,
                 tests: scaffold_output.tests,
+                handler_registry: scaffold_output.handler_registry,
             };
 
             serde_json::to_string_pretty(&response)
@@ -259,6 +263,7 @@ impl TaskerMcpServer {
                 types,
                 handlers,
                 tests,
+                handler_registry: None,
             };
 
             serde_json::to_string_pretty(&response)
@@ -315,7 +320,7 @@ impl TaskerMcpServer {
                                     .iter()
                                     .map(|f| FieldDetail {
                                         name: f.name.clone(),
-                                        field_type: format!("{:?}", f.field_type),
+                                        field_type: f.field_type.json_schema_type(),
                                         required: f.required,
                                         description: f.description.clone(),
                                     })
@@ -394,6 +399,28 @@ impl TaskerMcpServer {
             &params.consumer_step,
             consumer_schema,
         );
+
+        serde_json::to_string_pretty(&report)
+            .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+    }
+
+    /// Diff two versions of a task template to detect field-level changes in
+    /// result_schema definitions (additions, removals, type changes, required status).
+    #[tool(
+        name = "schema_diff",
+        description = "Compare two versions of the same task template to detect field-level changes. Reports field additions, removals, type changes, and required/optional status changes with breaking-change analysis."
+    )]
+    pub async fn schema_diff(&self, Parameters(params): Parameters<SchemaDiffParams>) -> String {
+        let before = match parse_template_str(&params.before_yaml) {
+            Ok(t) => t,
+            Err(e) => return error_json("yaml_parse_error", &format!("before_yaml: {e}")),
+        };
+        let after = match parse_template_str(&params.after_yaml) {
+            Ok(t) => t,
+            Err(e) => return error_json("yaml_parse_error", &format!("after_yaml: {e}")),
+        };
+
+        let report = schema_diff::diff_templates(&before, &after, params.step_filter.as_deref());
 
         serde_json::to_string_pretty(&report)
             .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
@@ -689,6 +716,65 @@ steps:
             .await;
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["error"], "step_not_found");
+    }
+
+    #[tokio::test]
+    async fn test_schema_diff() {
+        let server = TaskerMcpServer::new();
+        let before_yaml = r#"
+name: diff_test
+namespace_name: test
+version: "1.0.0"
+steps:
+  - name: step_a
+    handler:
+      callable: test.step_a
+    result_schema:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+"#;
+        let after_yaml = r#"
+name: diff_test
+namespace_name: test
+version: "2.0.0"
+steps:
+  - name: step_a
+    handler:
+      callable: test.step_a
+    result_schema:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+"#;
+        let result = server
+            .schema_diff(Parameters(SchemaDiffParams {
+                before_yaml: before_yaml.to_string(),
+                after_yaml: after_yaml.to_string(),
+                step_filter: None,
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["compatibility"], "incompatible");
+        let diffs = parsed["step_diffs"].as_array().unwrap();
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0]["status"], "modified");
+
+        let findings = diffs[0]["findings"].as_array().unwrap();
+        // Should detect: FIELD_ADDED (email), FIELD_REMOVED (name, required→breaking),
+        // REQUIRED_TO_OPTIONAL (name was required, removed is separate)
+        assert!(findings.iter().any(|f| f["code"] == "FIELD_ADDED"));
+        assert!(findings
+            .iter()
+            .any(|f| f["code"] == "FIELD_REMOVED" && f["breaking"] == true));
     }
 
     #[tokio::test]

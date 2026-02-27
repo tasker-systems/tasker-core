@@ -22,6 +22,8 @@ pub struct ScaffoldOutput {
     pub handlers: String,
     /// Test scaffolds with typed mock data
     pub tests: String,
+    /// Handler registry bridge (Rust only — wraps plain functions as `StepHandler` trait objects)
+    pub handler_registry: Option<String>,
 }
 
 /// Generate coordinated types + handlers + tests where handlers import generated types.
@@ -124,20 +126,7 @@ pub fn generate_scaffold(
         TargetLanguage::Rust => "rs",
     };
 
-    // 7. Check if any handler needs special imports (e.g., Python needs Any)
-    let needs_any = type_defs.iter().any(|td| {
-        td.fields
-            .iter()
-            .any(|f| field_type_contains_any(&f.field_type))
-    });
-
-    let needs_hashmap = type_defs.iter().any(|td| {
-        td.fields
-            .iter()
-            .any(|f| field_type_contains_map(&f.field_type))
-    });
-
-    // 8. Render scaffold handlers
+    // 7. Render scaffold handlers
     let handler_output = render_scaffold_handlers(
         &handlers,
         &type_map,
@@ -145,11 +134,9 @@ pub fn generate_scaffold(
         types_module_name,
         types_file_ext,
         language,
-        needs_any,
-        needs_hashmap,
     )?;
 
-    // 9. Render scaffold tests
+    // 8. Render scaffold tests
     let test_output = render_scaffold_tests(
         &handlers,
         &type_map,
@@ -159,10 +146,21 @@ pub fn generate_scaffold(
         language,
     )?;
 
+    // 9. Render handler registry (Rust only)
+    let handler_registry = if language == TargetLanguage::Rust {
+        Some(render_scaffold_registry(
+            &handlers,
+            &template.namespace_name,
+        )?)
+    } else {
+        None
+    };
+
     Ok(ScaffoldOutput {
         types,
         handlers: handler_output,
         tests: test_output,
+        handler_registry,
     })
 }
 
@@ -206,8 +204,14 @@ struct ScaffoldRustHandlerTemplate<'a> {
     import_types: &'a [String],
     #[expect(dead_code, reason = "template uses types_module_name")]
     types_module_name: &'a str,
-    needs_any: bool,
-    needs_hashmap: bool,
+}
+
+#[derive(Template, Debug)]
+#[template(path = "codegen/scaffold_rust_handler_registry.rs")]
+struct ScaffoldRustRegistryTemplate<'a> {
+    handlers: &'a [HandlerDef],
+    namespace: &'a str,
+    registry_name: String,
 }
 
 // =========================================================================
@@ -263,8 +267,6 @@ fn render_scaffold_handlers(
     types_module_name: &str,
     _types_file_ext: &str,
     language: TargetLanguage,
-    needs_any: bool,
-    needs_hashmap: bool,
 ) -> Result<String, CodegenError> {
     let output = match language {
         TargetLanguage::Python => {
@@ -300,8 +302,6 @@ fn render_scaffold_handlers(
                 type_map,
                 import_types,
                 types_module_name,
-                needs_any,
-                needs_hashmap,
             };
             t.render()
         }
@@ -360,26 +360,24 @@ fn render_scaffold_tests(
     output.map_err(|e| CodegenError::Rendering(e.to_string()))
 }
 
+fn render_scaffold_registry(
+    handlers: &[HandlerDef],
+    namespace: &str,
+) -> Result<String, CodegenError> {
+    use heck::ToUpperCamelCase;
+    let registry_name = format!("{}Registry", namespace.to_upper_camel_case());
+    let t = ScaffoldRustRegistryTemplate {
+        handlers,
+        namespace,
+        registry_name,
+    };
+    t.render()
+        .map_err(|e| CodegenError::Rendering(e.to_string()))
+}
+
 // =========================================================================
 // Helpers
 // =========================================================================
-
-fn field_type_contains_any(ft: &super::schema::FieldType) -> bool {
-    match ft {
-        super::schema::FieldType::Any => true,
-        super::schema::FieldType::Array(inner) => field_type_contains_any(inner),
-        super::schema::FieldType::Map(inner) => field_type_contains_any(inner),
-        _ => false,
-    }
-}
-
-fn field_type_contains_map(ft: &super::schema::FieldType) -> bool {
-    match ft {
-        super::schema::FieldType::Map(_) => true,
-        super::schema::FieldType::Array(inner) => field_type_contains_map(inner),
-        _ => false,
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -485,7 +483,10 @@ mod tests {
         let template = codegen_test_template();
         let output = generate_scaffold(&template, TargetLanguage::Rust, None).unwrap();
 
-        assert!(output.handlers.contains("use super::models::"));
+        // Pattern B: plain functions import from super::models
+        assert!(output.handlers.contains("use super::models::{"));
+        // Pattern B: has get_dependency helper
+        assert!(output.handlers.contains("fn get_dependency<T"));
     }
 
     #[test]
@@ -494,7 +495,32 @@ mod tests {
         let output =
             generate_scaffold(&template, TargetLanguage::Rust, Some("validate_order")).unwrap();
 
+        // Pattern B: plain function with serde_json serialization
         assert!(output.handlers.contains("ValidateOrderResult {"));
+        assert!(output.handlers.contains("serde_json::to_value(result)"));
+        // Pattern B: plain function signature
+        assert!(output.handlers.contains("pub fn validate_order("));
+    }
+
+    #[test]
+    fn test_rust_scaffold_has_handler_registry() {
+        let template = codegen_test_template();
+        let output = generate_scaffold(&template, TargetLanguage::Rust, None).unwrap();
+
+        let registry = output
+            .handler_registry
+            .as_ref()
+            .expect("Rust scaffold should produce handler_registry");
+        assert!(registry.contains("impl StepHandlerRegistry"));
+        assert!(registry.contains("FunctionHandler"));
+        assert!(registry.contains("handlers::validate_order"));
+    }
+
+    #[test]
+    fn test_non_rust_scaffold_has_no_handler_registry() {
+        let template = codegen_test_template();
+        let output = generate_scaffold(&template, TargetLanguage::Python, None).unwrap();
+        assert!(output.handler_registry.is_none());
     }
 
     // ── Cross-language: ScaffoldOutput has all three parts ──────────

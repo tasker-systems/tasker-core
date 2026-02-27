@@ -14,10 +14,11 @@ tasker-mcp (MCP server, stdio transport)
        ├── template_validator (structural + cycle checks)
        ├── template_generator (spec → YAML)
        ├── schema_inspector (field-level analysis)
-       └── schema_comparator (producer/consumer compatibility)
+       ├── schema_comparator (producer/consumer compatibility)
+       └── schema_diff (temporal diff between versions)
 ```
 
-## 6 Tools
+## 7 Tools
 
 | Tool | Module | What It Does |
 |------|--------|-------------|
@@ -27,6 +28,7 @@ tasker-mcp (MCP server, stdio transport)
 | `handler_generate` | `codegen::scaffold` / `codegen` | Types + handlers + tests (py/rb/ts/rs) |
 | `schema_inspect` | `codegen::schema` | Field-level result_schema details |
 | `schema_compare` | `schema_comparator` | Producer/consumer compatibility check |
+| `schema_diff` | `schema_diff` | Temporal diff between template versions |
 
 ## Key Files
 
@@ -36,7 +38,7 @@ tasker-mcp (MCP server, stdio transport)
 | `tasker-mcp/src/tools/params.rs` | Parameter and response structs (schemars + serde) |
 | `tasker-mcp/src/lib.rs` | Library target for integration test imports |
 | `tasker-mcp/src/main.rs` | Binary entry point (stdio transport) |
-| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 6 tools) |
+| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 7 tools) |
 | `.mcp.json.example` | Example client config (copy to `.mcp.json`) |
 
 ## Test Commands

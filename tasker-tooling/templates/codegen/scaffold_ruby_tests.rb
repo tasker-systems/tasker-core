@@ -5,6 +5,7 @@
 
 require "spec_helper"
 require_relative '{{ types_module_name }}'
+require_relative 'handlers'
 {% for handler in handlers %}
 
 RSpec.describe "{{ handler.pascal_name() }}" do
@@ -27,13 +28,18 @@ RSpec.describe "{{ handler.pascal_name() }}" do
     mock_{{ dep.snake_param() }} = {}
 {%- endmatch %}
 {%- endfor %}
-    # TODO: create mock context and invoke handler
-    expect(true).to be true # placeholder
+    result = {{ handler.pascal_name() }}.call(
+{%- for dep in handler.dependencies %}
+      {{ dep.snake_param() }}: mock_{{ dep.snake_param() }},
+{%- endfor %}
+      context: nil
+    )
+    expect(result).not_to be_nil
   end
 {%- else %}
   it "returns expected result" do
-    # TODO: create mock context and invoke handler
-    expect(true).to be true # placeholder
+    result = {{ handler.pascal_name() }}.call(context: nil)
+    expect(result).not_to be_nil
   end
 {%- endif %}
 end
