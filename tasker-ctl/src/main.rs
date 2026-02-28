@@ -782,6 +782,28 @@ pub(crate) enum GenerateCommands {
         #[arg(long, default_value = "false")]
         with_tests: bool,
     },
+
+    /// Generate coordinated types + handlers + tests with import wiring
+    ///
+    /// Unlike separate `types` and `handler` commands, scaffold produces handlers
+    /// that import the generated types and use typed return values.
+    Scaffold {
+        /// Path to task template YAML file
+        #[arg(short, long)]
+        template: std::path::PathBuf,
+
+        /// Target language: python (py), ruby (rb), typescript (ts), rust (rs)
+        #[arg(short, long)]
+        language: String,
+
+        /// Output directory for multi-file output (models.ext, handlers.ext, tests.ext)
+        #[arg(short, long)]
+        output_dir: Option<String>,
+
+        /// Generate scaffold for a specific step only
+        #[arg(short, long)]
+        step: Option<String>,
+    },
 }
 
 #[tokio::main]

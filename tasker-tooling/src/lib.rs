@@ -7,11 +7,19 @@
 //! # Modules
 //!
 //! - [`codegen`] — Schema-driven code generation from task template `result_schema` definitions
-//! - [`template_engine`] — Tera-based runtime template rendering for plugin templates
-//! - [`template_parser`] — Task template YAML parsing with rich error reporting
+//! - [`schema_comparator`] — Producer/consumer schema compatibility checking
+//! - [`schema_diff`] — Temporal schema diff between template versions
 //! - [`schema_inspector`] — Result schema contract inspection utilities
+//! - [`template_engine`] — Tera-based runtime template rendering for plugin templates
+//! - [`template_generator`] — Structured spec → task template YAML generation
+//! - [`template_parser`] — Task template YAML parsing with rich error reporting
+//! - [`template_validator`] — Structural validation, cycle detection, and DAG analysis
 
 pub mod codegen;
+pub mod schema_comparator;
+pub mod schema_diff;
 pub mod schema_inspector;
 pub mod template_engine;
+pub mod template_generator;
 pub mod template_parser;
+pub mod template_validator;

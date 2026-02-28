@@ -1,0 +1,201 @@
+name: Release tasker-mcp
+
+on:
+  push:
+    tags:
+      - 'tasker-mcp-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run mode (build but do not publish)'
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: release-mcp
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: 'true'
+
+# =============================================================================
+# Matrix Strategy
+# =============================================================================
+# Builds the tasker-mcp binary for 4 platform/architecture combinations.
+# Mirrors the build-cli-binaries.yml pattern used for tasker-ctl.
+#
+# | Job           | Runner       | Method                      |
+# |---------------|-------------|-----------------------------|
+# | linux-amd64   | ubuntu-22.04 | Native cargo build          |
+# | linux-arm64   | ubuntu-22.04 | Cross-compile (gcc-aarch64) |
+# | darwin-amd64  | macos-14     | Cross-compile (x86_64)      |
+# | darwin-arm64  | macos-14     | Native cargo build          |
+# =============================================================================
+
+jobs:
+  build-binaries:
+    name: Build (${{ matrix.target.name }})
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: linux-amd64
+            runner: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+            cross: false
+          - name: linux-arm64
+            runner: ubuntu-22.04
+            triple: aarch64-unknown-linux-gnu
+            cross: true
+            cross_packages: gcc-aarch64-linux-gnu
+            linker: aarch64-linux-gnu-gcc
+          - name: darwin-amd64
+            runner: macos-14
+            triple: x86_64-apple-darwin
+            cross: false
+          - name: darwin-arm64
+            runner: macos-14
+            triple: aarch64-apple-darwin
+            cross: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target.triple }}
+
+      - name: Setup Rust build cache
+        uses: ./.github/actions/setup-rust-cache
+
+      - name: Install protobuf compiler
+        uses: ./.github/actions/install-protobuf
+
+      - name: Install cross-compilation toolchain
+        if: matrix.target.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.target.cross_packages }}
+
+      - name: Configure cross-compilation linker
+        if: matrix.target.cross
+        run: |
+          TRIPLE_UPPER="$(echo '${{ matrix.target.triple }}' | tr '[:lower:]-' '[:upper:]_')"
+          echo "CARGO_TARGET_${TRIPLE_UPPER}_LINKER=${{ matrix.target.linker }}" >> "$GITHUB_ENV"
+
+      - name: Build tasker-mcp
+        run: cargo build --release --package tasker-mcp --target ${{ matrix.target.triple }}
+
+      - name: Package binary
+        run: |
+          TARGET="${{ matrix.target.triple }}"
+          BINARY="tasker-mcp"
+          BIN_PATH="target/${TARGET}/release/${BINARY}"
+
+          if [[ ! -f "$BIN_PATH" ]]; then
+            echo "::error::Binary not found at ${BIN_PATH}"
+            exit 1
+          fi
+
+          ARCHIVE="${BINARY}-${TARGET}.tar.gz"
+          mkdir -p staging
+          cp "$BIN_PATH" staging/
+          tar -czf "$ARCHIVE" -C staging "$BINARY"
+
+          echo "Created ${ARCHIVE}"
+          ls -lh "$ARCHIVE"
+          echo "Binary size: $(ls -lh "staging/${BINARY}" | awk '{print $5}')"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: mcp-${{ matrix.target.triple }}
+          path: tasker-mcp-*.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/tasker-mcp-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: tasker-mcp/Dockerfile
+          push: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/tasker-mcp:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/tasker-mcp:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: Create GitHub Release
+    needs: [build-binaries, docker]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mcp-*
+          path: artifacts
+          merge-multiple: false
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/tasker-mcp-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "tasker-mcp v${{ steps.version.outputs.version }}"
+          body: |
+            ## Installation
+
+            **Binary download** — choose your platform below.
+
+            **Cargo**: `cargo install tasker-mcp`
+
+            **Docker**: `docker run --rm -i ghcr.io/${{ github.repository_owner }}/tasker-mcp:${{ steps.version.outputs.version }}`
+          files: |
+            artifacts/mcp-*/tasker-mcp-*.tar.gz
+          generate_release_notes: true

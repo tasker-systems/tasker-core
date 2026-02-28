@@ -315,6 +315,7 @@ Dual-channel system: dispatch channel + completion channel
 | `typescript-development` | TypeScript handler patterns, vitest, Biome |
 | `project-navigation` | Terminology, investigation patterns, doc routing |
 | `git-workflow` | Commit conventions, branch naming, PR process, git hooks |
+| `mcp-development` | tasker-mcp architecture, tool list, test commands, dev patterns |
 
 ### Core Architecture
 
@@ -358,6 +359,14 @@ Dual-channel system: dispatch channel + completion channel
 | Auth Testing | `docs/auth/testing.md` |
 | API Security Guide | `docs/guides/api-security.md` |
 | External Providers (JWKS) | `docs/guides/auth-integration.md` |
+
+### MCP Server (tasker-mcp)
+
+| Topic | Document |
+|-------|----------|
+| Setup Guide | `docs/guides/mcp-setup.md` |
+| Workflow Exercise | `docs/guides/mcp-workflow-exercise.md` |
+| Local Models (Ollama) | `docs/guides/mcp-local-models.md` |
 
 ### Development Tooling
 

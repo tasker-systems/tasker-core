@@ -1,15 +1,11 @@
-//! Tasker MCP Server
+//! Tasker MCP Server binary.
 //!
 //! Model Context Protocol server exposing Tasker developer tooling
-//! (code generation, template parsing, schema inspection) to LLM agents,
+//! (template validation, code generation, schema inspection) to LLM agents,
 //! developer IDEs, and operational tooling.
-//!
-//! This is a scaffold — no tools are registered yet. The server responds
-//! to the MCP `initialize` handshake and returns server info.
-
-mod server;
 
 use rmcp::ServiceExt;
+use tasker_mcp::server::TaskerMcpServer;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -21,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("tasker-mcp starting (stdio transport)");
 
-    let server = server::TaskerMcpServer::new();
+    let server = TaskerMcpServer::new();
     let transport = rmcp::transport::io::stdio();
 
     let service = server.serve(transport).await?;

@@ -116,9 +116,9 @@ fn test_generate_rust_handlers() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    assert!(stdout.contains("pub struct ValidateOrderHandler {"));
-    assert!(stdout.contains("impl RustStepHandler for ValidateOrderHandler {"));
-    assert!(stdout.contains("pub struct EnrichOrderHandler {"));
+    // Plain function pattern (Pattern B)
+    assert!(stdout.contains("pub fn validate_order("));
+    assert!(stdout.contains("pub fn enrich_order("));
 }
 
 // ── Step filter ─────────────────────────────────────────────────────
@@ -169,7 +169,7 @@ fn test_generate_handler_language_aliases() {
         ("py", "def validate_order("),
         ("rb", "ValidateOrderHandler = step_handler("),
         ("ts", "export const ValidateOrderHandler = defineHandler("),
-        ("rs", "pub struct ValidateOrderHandler {"),
+        ("rs", "pub fn validate_order("),
     ] {
         let output = generate_handler(alias, &["--step", "validate_order"]);
         let stdout = String::from_utf8_lossy(&output.stdout);

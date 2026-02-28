@@ -9,6 +9,7 @@ pub mod handler_templates;
 pub mod python;
 pub mod ruby;
 pub mod rust_gen;
+pub mod scaffold;
 pub mod schema;
 pub mod typescript;
 pub mod typescript_zod;

@@ -4,25 +4,35 @@
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use std::collections::HashMap;
+
+    use super::handlers;
 {% for handler in handlers %}
 
-    #[tokio::test]
-    async fn test_{{ handler.snake_name() }}() {
+    #[test]
+    fn test_{{ handler.snake_name() }}() {
 {%- if handler.has_dependencies() %}
+        let context = json!({});
+        let mut deps = HashMap::new();
 {%- for dep in handler.dependencies %}
 {%- if dep.result_type.is_some() %}
-        let _mock_{{ dep.snake_param() }} = json!({
+        deps.insert("{{ dep.step_name }}".to_string(), json!({
 {%- for field in dep.stub_fields %}
             "{{ field.name }}": {{ field.json_value() }}{% if !loop.last %},{% endif %}
 {%- endfor %}
-        });
+        }));
 {%- else %}
-        let _mock_{{ dep.snake_param() }} = json!({});
+        deps.insert("{{ dep.step_name }}".to_string(), json!({}));
 {%- endif %}
 {%- endfor %}
+        let result = handlers::{{ handler.snake_name() }}(&context, &deps);
+        assert!(result.is_ok(), "handler should succeed: {:?}", result.err());
+{%- else %}
+        let context = json!({});
+        let deps = HashMap::new();
+        let result = handlers::{{ handler.snake_name() }}(&context, &deps);
+        assert!(result.is_ok(), "handler should succeed: {:?}", result.err());
 {%- endif %}
-        // TODO: create test step_data and invoke handler
-        assert!(true); // placeholder
     }
 {%- endfor %}
 }

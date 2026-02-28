@@ -1,0 +1,224 @@
+# Content Publishing Pipeline — MCP Workflow Exercise (TAS-305)
+#
+# 7-step double-diamond DAG for validating MCP tool surface end-to-end.
+# Shape: validate_content fans out to check_plagiarism + generate_metadata,
+# converges at review_gate, fans out again to publish_to_cdn + notify_subscribers,
+# converges at update_analytics.
+#
+#   validate_content
+#      ├── check_plagiarism ──┐
+#      └── generate_metadata ─┤
+#                             ├── review_gate
+#                             │      ├── publish_to_cdn ──────┐
+#                             │      └── notify_subscribers ──┤
+#                             │                               └── update_analytics
+---
+name: publish_article
+namespace_name: content_publishing
+version: 1.0.0
+description: "End-to-end content publishing pipeline: validation, plagiarism check, metadata generation, editorial review, CDN publishing, subscriber notification, and analytics tracking"
+metadata:
+  author: TAS-305 MCP Exercise
+  tags:
+    - test_type:mcp_exercise
+    - domain:content
+  created_at: "2026-02-26T00:00:00Z"
+  updated_at: "2026-02-26T00:00:00Z"
+system_dependencies:
+  primary: default
+  secondary: []
+domain_events: []
+input_schema:
+  type: object
+  required:
+    - content_id
+    - title
+    - body
+    - author_id
+  properties:
+    content_id:
+      type: string
+      description: "Unique content identifier"
+    title:
+      type: string
+      description: "Article title"
+    body:
+      type: string
+      description: "Article body content (markdown)"
+    author_id:
+      type: string
+      description: "Author identifier"
+    tags:
+      type: array
+      description: "Content tags for categorization"
+      items:
+        type: string
+    publish_immediately:
+      type: boolean
+      description: "Whether to publish without manual review delay"
+steps:
+  - name: validate_content
+    description: "Validates article structure, length, and formatting requirements"
+    handler:
+      callable: content_publishing.validate_content
+    result_schema:
+      type: object
+      required:
+        - is_valid
+        - word_count
+      properties:
+        is_valid:
+          type: boolean
+          description: "Whether the content passed all validation checks"
+        word_count:
+          type: integer
+          description: "Total word count of the article"
+        format_issues:
+          type: array
+          description: "List of formatting issues found"
+          items:
+            type: string
+
+  - name: check_plagiarism
+    description: "Checks content against plagiarism databases and known sources"
+    handler:
+      callable: content_publishing.check_plagiarism
+    depends_on:
+      - validate_content
+    result_schema:
+      type: object
+      required:
+        - plagiarism_score
+        - is_original
+      properties:
+        plagiarism_score:
+          type: number
+          description: "Plagiarism similarity score (0.0 = fully original, 1.0 = fully plagiarized)"
+        flagged_passages:
+          type: array
+          description: "Passages flagged as potentially plagiarized"
+          items:
+            type: string
+        is_original:
+          type: boolean
+          description: "Whether the content is considered original (score below threshold)"
+
+  - name: generate_metadata
+    description: "Generates SEO metadata, slug, and reading time estimate"
+    handler:
+      callable: content_publishing.generate_metadata
+    depends_on:
+      - validate_content
+    result_schema:
+      type: object
+      required:
+        - title
+        - slug
+        - estimated_read_time
+      properties:
+        title:
+          type: string
+          description: "SEO-optimized title"
+        slug:
+          type: string
+          description: "URL-friendly slug"
+        seo_keywords:
+          type: array
+          description: "Extracted SEO keywords"
+          items:
+            type: string
+        estimated_read_time:
+          type: integer
+          description: "Estimated reading time in minutes"
+
+  - name: review_gate
+    description: "Editorial review gate — approves or rejects based on plagiarism and metadata quality"
+    handler:
+      callable: content_publishing.review_gate
+    depends_on:
+      - check_plagiarism
+      - generate_metadata
+    result_schema:
+      type: object
+      required:
+        - approved
+        - quality_score
+      properties:
+        approved:
+          type: boolean
+          description: "Whether the content is approved for publishing"
+        reviewer_notes:
+          type: string
+          description: "Notes from the review process"
+        quality_score:
+          type: number
+          description: "Overall quality score (0.0 - 10.0)"
+
+  - name: publish_to_cdn
+    description: "Publishes approved content to CDN with cache configuration"
+    handler:
+      callable: content_publishing.publish_to_cdn
+    depends_on:
+      - review_gate
+    result_schema:
+      type: object
+      required:
+        - published_url
+        - cdn_id
+      properties:
+        published_url:
+          type: string
+          description: "Public URL of the published content"
+        cdn_id:
+          type: string
+          description: "CDN asset identifier"
+        cache_ttl:
+          type: integer
+          description: "Cache TTL in seconds"
+
+  - name: notify_subscribers
+    description: "Sends notifications to subscribers about the new content"
+    handler:
+      callable: content_publishing.notify_subscribers
+    depends_on:
+      - review_gate
+    result_schema:
+      type: object
+      required:
+        - notifications_sent
+        - delivery_status
+      properties:
+        notifications_sent:
+          type: integer
+          description: "Number of notifications sent"
+        channels:
+          type: array
+          description: "Notification channels used (email, push, webhook)"
+          items:
+            type: string
+        delivery_status:
+          type: string
+          description: "Overall delivery status (delivered, partial, failed)"
+
+  - name: update_analytics
+    description: "Records publishing event and initializes analytics tracking"
+    handler:
+      callable: content_publishing.update_analytics
+    depends_on:
+      - publish_to_cdn
+      - notify_subscribers
+    result_schema:
+      type: object
+      required:
+        - tracking_id
+        - metrics_recorded
+      properties:
+        tracking_id:
+          type: string
+          description: "Analytics tracking identifier"
+        metrics_recorded:
+          type: boolean
+          description: "Whether metrics were successfully recorded"
+        dashboard_url:
+          type: string
+          description: "URL to the analytics dashboard for this content"

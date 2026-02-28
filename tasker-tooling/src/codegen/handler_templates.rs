@@ -226,9 +226,9 @@ mod tests {
         let handlers = extract_handlers(&template, Some("validate_order"));
         let output = render_handlers(&handlers, "codegen_test", TargetLanguage::Rust).unwrap();
 
-        assert!(output.contains("pub struct ValidateOrderHandler {"));
-        assert!(output.contains("impl RustStepHandler for ValidateOrderHandler {"));
-        assert!(output.contains("\"codegen_tests.validate_order\""));
+        // Pattern B: plain function
+        assert!(output.contains("pub fn validate_order(context: &Value"));
+        assert!(output.contains("_dependency_results"));
     }
 
     #[test]
@@ -237,7 +237,8 @@ mod tests {
         let handlers = extract_handlers(&template, Some("enrich_order"));
         let output = render_handlers(&handlers, "codegen_test", TargetLanguage::Rust).unwrap();
 
-        assert!(output.contains("pub struct EnrichOrderHandler {"));
+        // Pattern B: plain function with deps
+        assert!(output.contains("pub fn enrich_order("));
         assert!(output.contains("// Dependency: validate_order"));
     }
 
@@ -295,9 +296,9 @@ mod tests {
         let handlers = extract_handlers(&template, None);
         let output = render_tests(&handlers, "codegen_test", TargetLanguage::Rust).unwrap();
 
-        assert!(output.contains("async fn test_validate_order()"));
-        assert!(output.contains("async fn test_enrich_order()"));
-        assert!(output.contains("_mock_validate_order_result"));
+        assert!(output.contains("fn test_validate_order()"));
+        assert!(output.contains("fn test_enrich_order()"));
+        assert!(output.contains("handlers::validate_order("));
     }
 
     #[test]

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "tasker": {
+      "command": "tasker-mcp",
+      "env": {
+        "RUST_LOG": "tasker_mcp=info"
+      }
+    }
+  }
+}
