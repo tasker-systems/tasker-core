@@ -31,11 +31,11 @@ The crate structure follows these principles:
 tasker-core/
 ├── tasker-pgmq/              # PGMQ wrapper with notification support
 ├── tasker-shared/            # Shared types, SQL functions, utilities
-├── tasker-tooling/           # Shared developer tooling (codegen, templates, schema inspection)
+├── tasker-sdk/           # Shared developer tooling (codegen, templates, schema inspection)
 ├── tasker-orchestration/     # Task coordination and lifecycle management
 ├── tasker-worker/            # Step execution and handler integration
 ├── tasker-client/            # API client library (REST + gRPC transport)
-├── tasker-ctl/              # CLI binary (depends on tasker-client, tasker-tooling)
+├── tasker-ctl/              # CLI binary (depends on tasker-client, tasker-sdk)
 ├── tasker-mcp/              # MCP server for LLM agent integration
 └── workers/
     ├── python/              # Python FFI bindings (PyO3/maturin)
@@ -101,7 +101,7 @@ tasker-core/
                         └────────────┘
 ```
 
-> **Note**: `tasker-ctl` depends on both `tasker-client` (API access) and `tasker-tooling` (codegen, template engine). `tasker-mcp` depends on `tasker-tooling` for shared developer tooling capabilities.
+> **Note**: `tasker-ctl` depends on both `tasker-client` (API access) and `tasker-sdk` (codegen, template engine). `tasker-mcp` depends on `tasker-sdk` for shared developer tooling capabilities.
 
 ---
 
@@ -504,11 +504,11 @@ pub trait OrchestrationClient: Send + Sync {
 - When implementing client applications or FFI bindings
 - When building UI frontends (TUI, web) that need API access
 
-### tasker-tooling
+### tasker-sdk
 
 **Purpose**: Shared developer tooling library for codegen, template parsing, and schema inspection (TAS-304)
 
-**Location**: `tasker-tooling/`
+**Location**: `tasker-sdk/`
 
 **Key Responsibilities**:
 
@@ -548,7 +548,7 @@ pub trait OrchestrationClient: Send + Sync {
 
 - CLI argument parsing and command dispatch (via clap)
 - Task, worker, system, config, auth, and DLQ commands
-- Code generation commands (delegates to `tasker-tooling`)
+- Code generation commands (delegates to `tasker-sdk`)
 - Plugin system with remote template support
 - API key generation and management
 
@@ -581,7 +581,7 @@ tasker-ctl docs generate
 **Dependencies**:
 
 - `tasker-client` - API access (REST + gRPC)
-- `tasker-tooling` - Codegen, template engine, schema inspection
+- `tasker-sdk` - Codegen, template engine, schema inspection
 - `clap` - CLI argument parsing
 
 ### tasker-mcp
@@ -603,7 +603,7 @@ tasker-ctl docs generate
 
 **Dependencies**:
 
-- `tasker-tooling` - Shared developer tooling
+- `tasker-sdk` - Shared developer tooling
 - `rmcp` - MCP protocol implementation
 - `tokio` - Async runtime
 

@@ -56,7 +56,7 @@ fi
 # ---------------------------------------------------------------------------
 PHASE_1=("tasker-pgmq")
 PHASE_2=("tasker-shared")
-PHASE_3=("tasker-client" "tasker-orchestration" "tasker-tooling")
+PHASE_3=("tasker-client" "tasker-orchestration" "tasker-sdk")
 PHASE_4=("tasker-worker" "tasker-ctl" "tasker-mcp")
 
 publish_phase() {

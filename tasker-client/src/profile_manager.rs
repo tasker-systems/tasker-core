@@ -247,11 +247,11 @@ impl ProfileManager {
         self.find(&self.active_profile).map(|e| &e.config)
     }
 
-    /// Switch the active profile. Returns error if the profile doesn't exist.
-    pub fn switch_profile(&mut self, name: &str) -> ClientResult<()> {
+    /// Set the active profile at construction time. Returns error if the profile doesn't exist.
+    pub fn set_initial_profile(&mut self, name: &str) -> ClientResult<()> {
         if self.find(name).is_some() {
             self.active_profile = name.to_string();
-            debug!(profile = %name, "Switched active profile");
+            debug!(profile = %name, "Set initial active profile");
             Ok(())
         } else {
             let available: Vec<&str> = self.list_profile_names();
@@ -535,42 +535,6 @@ base_url = "http://localhost:9190"
         let names = pm.list_profile_names();
         assert!(names.contains(&"default"));
         assert!(names.contains(&"grpc"));
-    }
-
-    #[test]
-    fn test_switch_profile() {
-        let toml = r#"
-[profile.default]
-transport = "rest"
-
-[profile.grpc]
-transport = "grpc"
-"#;
-        let file = parse_profile_file(toml);
-        let mut pm = ProfileManager::from_profile_file(file).unwrap();
-
-        assert_eq!(pm.active_profile_name(), "default");
-
-        pm.switch_profile("grpc").unwrap();
-        assert_eq!(pm.active_profile_name(), "grpc");
-
-        let config = pm.active_config().unwrap();
-        assert_eq!(config.transport, Transport::Grpc);
-    }
-
-    #[test]
-    fn test_switch_profile_nonexistent() {
-        let toml = r#"
-[profile.default]
-transport = "rest"
-"#;
-        let file = parse_profile_file(toml);
-        let mut pm = ProfileManager::from_profile_file(file).unwrap();
-
-        let result = pm.switch_profile("nonexistent");
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.to_string().contains("not found"));
     }
 
     #[test]

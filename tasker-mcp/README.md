@@ -77,12 +77,12 @@ By default, scaffold mode is enabled — handlers import generated type models a
 
 - **Transport**: stdio (standard MCP transport for CLI tools)
 - **Protocol**: MCP 2025-03-26 via [`rmcp`](https://crates.io/crates/rmcp)
-- **Tooling**: All tools delegate to [`tasker-tooling`](../tasker-tooling/) for codegen, validation, and schema analysis
+- **Tooling**: All tools delegate to [`tasker-sdk`](../tasker-sdk/) for codegen, validation, and schema analysis
 - **Runtime**: Tokio async with tracing to stderr
 
 ## Dependencies
 
-- `tasker-tooling` — Shared developer tooling (codegen, template parsing, schema inspection)
+- `tasker-sdk` — Shared SDK (codegen, template parsing, schema inspection, operational tooling)
 - `tasker-shared` — Core types (`TaskTemplate`, `StepDefinition`)
 - `rmcp` — MCP protocol implementation (server mode, stdio transport)
 - `tokio` — Async runtime

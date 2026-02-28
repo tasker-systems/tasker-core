@@ -1,5 +1,5 @@
 # =============================================================================
-# tasker-tooling - cargo-make Task Definitions
+# tasker-sdk - cargo-make Task Definitions
 # =============================================================================
 #
 # Shared developer tooling library: codegen, template engine, schema inspection.
@@ -18,7 +18,7 @@ extend = "../cargo-make/base-tasks.toml"
 default_to_workspace = false
 
 [env]
-CRATE_NAME = "tasker-tooling"
+CRATE_NAME = "tasker-sdk"
 
 # =============================================================================
 # Main Tasks
@@ -45,7 +45,7 @@ extend = "base-rust-lint-fix"
 
 [tasks.test]
 extend = "base-rust-test"
-description = "Run tasker-tooling tests"
+description = "Run tasker-sdk tests"
 args = ["nextest", "run", "-p", "${CRATE_NAME}", "--all-features"]
 
 [tasks.fix]

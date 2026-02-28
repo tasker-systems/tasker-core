@@ -6480,8 +6480,8 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "tasker-client",
+ "tasker-sdk",
  "tasker-shared",
- "tasker-tooling",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -6506,12 +6506,13 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tasker-client",
+ "tasker-sdk",
  "tasker-shared",
- "tasker-tooling",
  "tokio",
  "toml 0.9.5",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -6643,6 +6644,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "tasker-sdk"
+version = "0.1.6"
+dependencies = [
+ "askama",
+ "chrono",
+ "heck",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tasker-client",
+ "tasker-shared",
+ "tempfile",
+ "tera",
+ "thiserror 2.0.18",
+ "toml 0.9.5",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "tasker-shared"
 version = "0.1.6"
 dependencies = [
@@ -6714,23 +6735,6 @@ dependencies = [
  "uuid",
  "validator",
  "workspace_tools",
-]
-
-[[package]]
-name = "tasker-tooling"
-version = "0.1.6"
-dependencies = [
- "askama",
- "heck",
- "serde",
- "serde_json",
- "serde_yaml",
- "tasker-shared",
- "tempfile",
- "tera",
- "thiserror 2.0.18",
- "toml 0.9.5",
- "tracing",
 ]
 
 [[package]]

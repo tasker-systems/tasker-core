@@ -27,7 +27,7 @@ members = [
   "tasker-pgmq",
   "tasker-client",
   "tasker-ctl",      # TAS-188: CLI binary (split from tasker-client)
-  "tasker-tooling",  # TAS-304: Shared developer tooling (codegen, template parsing, schema inspection)
+  "tasker-sdk",      # TAS-304: Shared SDK (codegen, template parsing, schema inspection, operational tooling)
   "tasker-mcp",      # TAS-304: MCP server scaffold
   "tasker-orchestration",
   "tasker-shared",
@@ -103,7 +103,7 @@ opentelemetry-semantic-conventions = "0.31"
 # Message queue management
 pgmq = "0.32.0"
 tasker-pgmq = { path = "tasker-pgmq", version = "=0.1.6" }
-tasker-tooling = { path = "tasker-tooling", version = "=0.1.6" }
+tasker-sdk = { path = "tasker-sdk", version = "=0.1.6" }
 # MCP protocol server (TAS-304)
 rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
 # JSON Schema generation for MCP tool parameters (TAS-304)

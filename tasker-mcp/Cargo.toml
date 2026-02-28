@@ -19,7 +19,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # Workspace crates
-tasker-tooling = { path = "../tasker-tooling", version = "=0.1.6" }
+tasker-sdk = { path = "../tasker-sdk", version = "=0.1.6" }
 tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
 tasker-client = { path = "../tasker-client", version = "=0.1.6" }
 
@@ -39,6 +39,9 @@ serde_yaml = { workspace = true }
 
 # JSON Schema generation for MCP tool parameters
 schemars = { workspace = true }
+
+# UUID parsing for task/step identifiers
+uuid = { workspace = true }
 
 # Error handling
 anyhow = { workspace = true }

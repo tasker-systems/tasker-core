@@ -1,4 +1,4 @@
-# TAS-304: Askama template engine configuration for tasker-tooling
+# TAS-304: Askama template engine configuration for tasker-sdk
 # Templates are resolved relative to this crate's root directory
 [general]
 dirs = ["templates"]
