@@ -6498,15 +6498,18 @@ name = "tasker-mcp"
 version = "0.1.6"
 dependencies = [
  "anyhow",
+ "clap",
  "futures",
  "rmcp",
  "schemars 1.2.1",
  "serde",
  "serde_json",
  "serde_yaml",
+ "tasker-client",
  "tasker-shared",
  "tasker-tooling",
  "tokio",
+ "toml 0.9.5",
  "tracing",
  "tracing-subscriber",
 ]

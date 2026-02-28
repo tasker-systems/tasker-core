@@ -1,6 +1,9 @@
 //! MCP ServerHandler implementation for Tasker.
 //!
-//! Provides the MCP server with 7 developer tooling tools:
+//! Provides the MCP server with developer tooling tools (Tier 1, always available)
+//! and profile management tools (available when profiles are configured):
+//!
+//! **Tier 1 — Developer Tooling (offline)**
 //! - `template_validate` — Validate a task template for structural correctness
 //! - `template_inspect` — Inspect template DAG structure and step details
 //! - `template_generate` — Generate task template YAML from a structured spec
@@ -8,14 +11,21 @@
 //! - `schema_inspect` — Inspect result_schema field details per step
 //! - `schema_compare` — Compare producer/consumer schema compatibility
 //! - `schema_diff` — Detect field-level changes between two template versions
+//!
+//! **Profile Management (when profiles configured)**
+//! - `connection_status` — Show profile health and available capabilities
+//! - `use_environment` — Switch active profile/environment
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{Implementation, ProtocolVersion, ServerCapabilities, ServerInfo};
 use rmcp::{tool, tool_handler, tool_router, ServerHandler};
+use tokio::sync::RwLock;
 
+use tasker_client::ProfileManager;
 use tasker_tooling::codegen::{self, TargetLanguage};
 use tasker_tooling::schema_comparator;
 use tasker_tooling::schema_diff;
@@ -26,29 +36,70 @@ use tasker_tooling::template_validator;
 
 use crate::tools::*;
 
-/// Tasker MCP server handler with 7 developer tooling tools.
+/// Tasker MCP server handler with developer tooling and profile management.
 #[derive(Debug, Clone)]
 pub struct TaskerMcpServer {
     tool_router: ToolRouter<Self>,
+    profile_manager: Arc<RwLock<ProfileManager>>,
+    offline: bool,
 }
 
 impl Default for TaskerMcpServer {
     fn default() -> Self {
-        Self::new()
+        let pm = ProfileManager::load().unwrap_or_else(|_| ProfileManager::offline());
+        Self::with_profile_manager(pm, false)
     }
 }
 
 impl TaskerMcpServer {
-    pub fn new() -> Self {
+    /// Create a server with profile management.
+    pub fn with_profile_manager(profile_manager: ProfileManager, offline: bool) -> Self {
         Self {
             tool_router: Self::tool_router(),
+            profile_manager: Arc::new(RwLock::new(profile_manager)),
+            offline,
         }
+    }
+
+    /// Create a server in offline mode (Tier 1 developer tools only).
+    pub fn offline() -> Self {
+        Self::with_profile_manager(ProfileManager::offline(), true)
+    }
+
+    /// Create a server with no-arg constructor for backward compatibility in tests.
+    pub fn new() -> Self {
+        Self::offline()
+    }
+
+    /// Get a reference to the profile manager.
+    pub fn profile_manager(&self) -> &Arc<RwLock<ProfileManager>> {
+        &self.profile_manager
     }
 }
 
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for TaskerMcpServer {
     fn get_info(&self) -> ServerInfo {
+        let instructions = if self.offline {
+            "Tasker is a workflow orchestration system. Running in OFFLINE mode — \
+             only developer tooling tools are available (template validation, code generation, \
+             schema inspection). Connect to a Tasker instance for task management tools.\n\
+             Workflow: template_generate → template_validate → handler_generate (unified types+handlers+tests)\n\
+             handler_generate defaults to scaffold mode: handlers import generated types with typed returns.\n\
+             When debugging: template_inspect → schema_inspect → schema_compare\n\
+             For versioning: schema_diff compares before/after template YAML to detect breaking field changes"
+                .to_string()
+        } else {
+            "Tasker is a workflow orchestration system. You help developers create and validate \
+             task templates (workflow definitions) and generate typed handler code.\n\
+             Workflow: template_generate → template_validate → handler_generate (unified types+handlers+tests)\n\
+             handler_generate defaults to scaffold mode: handlers import generated types with typed returns.\n\
+             When debugging: template_inspect → schema_inspect → schema_compare\n\
+             For versioning: schema_diff compares before/after template YAML to detect breaking field changes\n\
+             Profile management: connection_status to check environment health, use_environment to switch profiles"
+                .to_string()
+        };
+
         ServerInfo {
             protocol_version: ProtocolVersion::V_2025_03_26,
             capabilities: ServerCapabilities::builder().enable_tools().build(),
@@ -64,21 +115,15 @@ impl ServerHandler for TaskerMcpServer {
                 icons: None,
                 website_url: None,
             },
-            instructions: Some(
-                "Tasker is a workflow orchestration system. You help developers create and validate \
-                 task templates (workflow definitions) and generate typed handler code.\n\
-                 Workflow: template_generate → template_validate → handler_generate (unified types+handlers+tests)\n\
-                 handler_generate defaults to scaffold mode: handlers import generated types with typed returns.\n\
-                 When debugging: template_inspect → schema_inspect → schema_compare\n\
-                 For versioning: schema_diff compares before/after template YAML to detect breaking field changes"
-                    .to_string(),
-            ),
+            instructions: Some(instructions),
         }
     }
 }
 
 #[tool_router(router = tool_router)]
 impl TaskerMcpServer {
+    // ── Tier 1: Developer Tooling (always available) ──
+
     /// Validate a task template YAML for structural correctness, dependency cycles,
     /// and best-practice warnings.
     #[tool(
@@ -425,6 +470,80 @@ impl TaskerMcpServer {
         serde_json::to_string_pretty(&report)
             .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
     }
+
+    // ── Profile Management ──
+
+    /// Show connection status of all configured Tasker profiles.
+    #[tool(
+        name = "connection_status",
+        description = "Show connection status of all configured Tasker profiles. Returns profile names, endpoints, transport type, health status, and which profile is active. Use this to verify connectivity before running task management operations. Pass refresh=true to re-probe all endpoints."
+    )]
+    pub async fn connection_status(
+        &self,
+        Parameters(params): Parameters<ConnectionStatusParams>,
+    ) -> String {
+        if self.offline {
+            return serde_json::json!({
+                "mode": "offline",
+                "message": "Running in offline mode. No profiles are configured. Only developer tooling tools (template_*, handler_*, schema_*) are available.",
+                "profiles": []
+            })
+            .to_string();
+        }
+
+        let mut pm = self.profile_manager.write().await;
+
+        if params.refresh.unwrap_or(false) {
+            pm.probe_all_health().await;
+        }
+
+        let profiles = pm.list_profiles();
+        let active = pm.active_profile_name().to_string();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "mode": "connected",
+            "active_profile": active,
+            "profiles": profiles,
+        }))
+        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+    }
+
+    /// Switch the active Tasker profile to a different environment.
+    #[tool(
+        name = "use_environment",
+        description = "Switch the active Tasker profile to a different environment (e.g., 'staging', 'local-dev', 'grpc'). After switching, probes health by default. Returns the new active profile's connection details."
+    )]
+    pub async fn use_environment(
+        &self,
+        Parameters(params): Parameters<UseEnvironmentParams>,
+    ) -> String {
+        if self.offline {
+            return error_json(
+                "offline_mode",
+                "Cannot switch environments in offline mode. Restart without --offline flag.",
+            );
+        }
+
+        let mut pm = self.profile_manager.write().await;
+
+        if let Err(e) = pm.switch_profile(&params.profile) {
+            return error_json("profile_not_found", &e.to_string());
+        }
+
+        // Probe health after switching (default: true)
+        if params.probe_health.unwrap_or(true) {
+            let _ = pm.probe_active_health().await;
+        }
+
+        let profiles = pm.list_profiles();
+        let active_summary = profiles.into_iter().find(|p| p.is_active);
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "switched_to": params.profile,
+            "profile": active_summary,
+        }))
+        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+    }
 }
 
 /// Build a structured error JSON string that LLMs can parse.
@@ -489,14 +608,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_server_info() {
+    fn test_server_info_offline() {
         let server = TaskerMcpServer::new();
         let info = server.get_info();
 
         assert_eq!(info.server_info.name, "tasker-mcp");
         assert_eq!(info.server_info.version, env!("CARGO_PKG_VERSION"));
-        assert!(info.instructions.is_some());
-        assert!(info.instructions.unwrap().contains("template_generate"));
+        let instructions = info.instructions.unwrap();
+        assert!(instructions.contains("OFFLINE"));
+        assert!(instructions.contains("template_generate"));
+    }
+
+    #[test]
+    fn test_server_info_connected() {
+        let pm = ProfileManager::offline(); // Empty but not in offline mode
+        let server = TaskerMcpServer::with_profile_manager(pm, false);
+        let info = server.get_info();
+
+        let instructions = info.instructions.unwrap();
+        assert!(!instructions.contains("OFFLINE"));
+        assert!(instructions.contains("connection_status"));
+        assert!(instructions.contains("use_environment"));
     }
 
     #[test]
@@ -833,5 +965,104 @@ steps:
         assert!(parsed["types"].as_str().unwrap().contains("class"));
         assert!(parsed["handlers"].as_str().unwrap().contains("def"));
         assert!(parsed["tests"].as_str().unwrap().contains("def test_"));
+    }
+
+    // ── Profile management tool tests ──
+
+    #[tokio::test]
+    async fn test_connection_status_offline() {
+        let server = TaskerMcpServer::offline();
+        let result = server
+            .connection_status(Parameters(ConnectionStatusParams { refresh: None }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["mode"], "offline");
+        assert!(parsed["profiles"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_connection_status_with_profiles() {
+        let toml_content = r#"
+[profile.default]
+description = "Local development"
+transport = "rest"
+
+[profile.default.orchestration]
+base_url = "http://localhost:8080"
+"#;
+        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
+        let pm = ProfileManager::from_profile_file_for_test(file);
+        let server = TaskerMcpServer::with_profile_manager(pm, false);
+
+        let result = server
+            .connection_status(Parameters(ConnectionStatusParams { refresh: None }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["mode"], "connected");
+        assert_eq!(parsed["active_profile"], "default");
+
+        let profiles = parsed["profiles"].as_array().unwrap();
+        assert_eq!(profiles.len(), 1);
+        assert_eq!(profiles[0]["name"], "default");
+        assert_eq!(profiles[0]["description"], "Local development");
+        assert_eq!(profiles[0]["is_active"], true);
+    }
+
+    #[tokio::test]
+    async fn test_use_environment_offline() {
+        let server = TaskerMcpServer::offline();
+        let result = server
+            .use_environment(Parameters(UseEnvironmentParams {
+                profile: "staging".to_string(),
+                probe_health: Some(false),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "offline_mode");
+    }
+
+    #[tokio::test]
+    async fn test_use_environment_switch() {
+        let toml_content = r#"
+[profile.default]
+transport = "rest"
+
+[profile.grpc]
+transport = "grpc"
+"#;
+        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
+        let pm = ProfileManager::from_profile_file_for_test(file);
+        let server = TaskerMcpServer::with_profile_manager(pm, false);
+
+        let result = server
+            .use_environment(Parameters(UseEnvironmentParams {
+                profile: "grpc".to_string(),
+                probe_health: Some(false), // Skip health probe in test
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["switched_to"], "grpc");
+        assert_eq!(parsed["profile"]["name"], "grpc");
+        assert_eq!(parsed["profile"]["is_active"], true);
+    }
+
+    #[tokio::test]
+    async fn test_use_environment_not_found() {
+        let toml_content = r#"
+[profile.default]
+transport = "rest"
+"#;
+        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
+        let pm = ProfileManager::from_profile_file_for_test(file);
+        let server = TaskerMcpServer::with_profile_manager(pm, false);
+
+        let result = server
+            .use_environment(Parameters(UseEnvironmentParams {
+                profile: "nonexistent".to_string(),
+                probe_health: Some(false),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "profile_not_found");
     }
 }
