@@ -130,6 +130,7 @@
 pub mod api_clients;
 pub mod config;
 pub(crate) mod error;
+pub mod profile_manager;
 pub(crate) mod transport;
 
 #[cfg(feature = "grpc")]
@@ -141,6 +142,9 @@ pub use api_clients::{
 };
 pub use config::{ClientAuthConfig, ClientAuthMethod, ClientConfig, Transport};
 pub use error::{ClientError, ClientResult};
+pub use profile_manager::{
+    ProfileHealthSnapshot, ProfileHealthStatus, ProfileManager, ProfileSummary,
+};
 
 // Re-export unified transport types for orchestration
 #[cfg(feature = "grpc")]

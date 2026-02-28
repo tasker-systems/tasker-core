@@ -68,7 +68,7 @@ fn codegen_yaml() -> &'static str {
 // ── Discovery ──
 
 #[tokio::test]
-async fn test_list_tools_returns_all_seven() -> anyhow::Result<()> {
+async fn test_list_tools_returns_all_nine() -> anyhow::Result<()> {
     let (client, server_handle) = setup().await?;
 
     let tools = client.list_tools(None).await?;
@@ -78,6 +78,7 @@ async fn test_list_tools_returns_all_seven() -> anyhow::Result<()> {
     assert_eq!(
         names,
         vec![
+            "connection_status",
             "handler_generate",
             "schema_compare",
             "schema_diff",
@@ -85,6 +86,7 @@ async fn test_list_tools_returns_all_seven() -> anyhow::Result<()> {
             "template_generate",
             "template_inspect",
             "template_validate",
+            "use_environment",
         ]
     );
 

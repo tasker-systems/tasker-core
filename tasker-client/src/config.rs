@@ -92,6 +92,12 @@ pub struct ProfileConfigFile {
 /// A single named profile configuration.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProfileConfig {
+    /// Human-readable description of this environment
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Known namespaces in this environment (informational, not enforced)
+    #[serde(default)]
+    pub namespaces: Option<Vec<String>>,
     /// Transport protocol (rest or grpc)
     #[serde(default)]
     pub transport: Option<Transport>,
@@ -457,6 +463,38 @@ impl ClientConfig {
         Ok(config)
     }
 
+    /// Resolve a named profile from a parsed ProfileConfigFile into a ClientConfig.
+    ///
+    /// Applies: defaults → [profile.default] → [profile.{name}] → env overrides
+    pub(crate) fn resolve_from_file(
+        profile_name: &str,
+        profile_file: &ProfileConfigFile,
+    ) -> ClientResult<Self> {
+        let mut config = Self::default();
+
+        // Apply [profile.default] first if it exists
+        if let Some(default_profile) = profile_file.profile.get("default") {
+            config.apply_profile(default_profile);
+        }
+
+        // Apply the requested profile on top (if not default)
+        if profile_name != "default" {
+            if let Some(profile) = profile_file.profile.get(profile_name) {
+                config.apply_profile(profile);
+            } else {
+                return Err(ClientError::config_error(format!(
+                    "Profile '{}' not found in config file",
+                    profile_name,
+                )));
+            }
+        }
+
+        // Override with environment variables
+        config.apply_env_overrides();
+
+        Ok(config)
+    }
+
     /// Apply a profile's settings to this config.
     fn apply_profile(&mut self, profile: &ProfileConfig) {
         if let Some(transport) = profile.transport {
@@ -507,7 +545,7 @@ impl ClientConfig {
     }
 
     /// Load profile configuration file
-    fn load_profile_file(path: &Path) -> ClientResult<ProfileConfigFile> {
+    pub(crate) fn load_profile_file(path: &Path) -> ClientResult<ProfileConfigFile> {
         let content = std::fs::read_to_string(path).map_err(|e| {
             ClientError::config_error(format!("Failed to read profile file: {}", e))
         })?;
@@ -973,6 +1011,7 @@ base_url = "http://localhost:8080"
                 max_retries: None,
                 auth: None,
             }),
+            ..Default::default()
         };
 
         let mut config = ClientConfig::default();
@@ -1000,6 +1039,7 @@ base_url = "http://localhost:8080"
                 auth: None,
             }),
             worker: None, // Don't override worker at all
+            ..Default::default()
         };
 
         let mut config = ClientConfig::default();

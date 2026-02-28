@@ -21,6 +21,10 @@ path = "src/lib.rs"
 # Workspace crates
 tasker-tooling = { path = "../tasker-tooling", version = "=0.1.6" }
 tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
+tasker-client = { path = "../tasker-client", version = "=0.1.6" }
+
+# CLI argument parsing
+clap = { workspace = true }
 
 # MCP protocol
 rmcp = { workspace = true }
@@ -47,6 +51,7 @@ tracing-subscriber = { workspace = true }
 # MCP client + transport for integration tests
 rmcp = { workspace = true, features = ["client"] }
 futures = { workspace = true }
+toml = { workspace = true }
 
 [lints]
 workspace = true

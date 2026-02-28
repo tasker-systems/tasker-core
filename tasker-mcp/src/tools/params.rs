@@ -256,3 +256,28 @@ pub struct SchemaDiffParams {
     #[schemars(description = "Optional step name to diff (all steps if omitted)")]
     pub step_filter: Option<String>,
 }
+
+// ── connection_status ──
+
+/// Parameters for the `connection_status` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ConnectionStatusParams {
+    /// Set to true to refresh health probes for all profiles.
+    #[schemars(description = "Set to true to refresh health probes for all profiles")]
+    #[serde(default)]
+    pub refresh: Option<bool>,
+}
+
+// ── use_environment ──
+
+/// Parameters for the `use_environment` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct UseEnvironmentParams {
+    /// Profile name to switch to.
+    #[schemars(description = "Profile name to switch to (e.g., 'default', 'staging', 'grpc')")]
+    pub profile: String,
+    /// Whether to probe health after switching (default: true).
+    #[schemars(description = "Whether to probe health after switching (default: true)")]
+    #[serde(default)]
+    pub probe_health: Option<bool>,
+}
