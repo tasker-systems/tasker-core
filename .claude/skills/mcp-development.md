@@ -105,7 +105,10 @@ All accept optional `profile` parameter to target a specific environment.
 | `tasker-mcp/src/tools/params.rs` | Parameter and response structs (schemars + serde) |
 | `tasker-mcp/src/lib.rs` | Library target for integration test imports |
 | `tasker-mcp/src/main.rs` | Binary entry point (clap CLI + stdio transport) |
-| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 24 tools) |
+| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 23 tools) |
+| `tests/mcp_tests.rs` | Connected integration tests entry point (requires running services) |
+| `tests/mcp/harness.rs` | `McpTestHarness` — duplex MCP + IntegrationTestManager for seeding |
+| `tests/mcp/` | 4 persona test files: task_inspection, system_monitoring, dlq_investigation, analytics |
 | `tasker-client/src/profile_manager.rs` | ProfileManager, health types, multi-profile sessions |
 | `.mcp.json.example` | Example client config (copy to `.mcp.json`) |
 
@@ -120,6 +123,11 @@ cargo test --all-features -p tasker-mcp --lib
 
 # Integration tests only (MCP protocol round-trip)
 cargo test --all-features -p tasker-mcp --test mcp_protocol_test
+
+# Connected integration tests (requires running services)
+cargo test --features test-services --test mcp_tests -- --nocapture
+# Or via cargo-make:
+cd tasker-mcp && cargo make test-mcp-connected
 
 # Clippy
 cargo clippy --all-targets --all-features -p tasker-mcp
@@ -150,6 +158,17 @@ All tools return `String`. Errors are returned as JSON: `{"error": "code", "mess
 ### Scaffold Mode
 
 `handler_generate` defaults to scaffold mode (`scaffold: true`), which generates handlers that import the generated type models. Non-scaffold mode generates independent files without import wiring.
+
+## Persona Skills
+
+Operational skill files for context-aware tool recommendations live in `docs/skills/mcp/`:
+
+| Skill | Persona | Tool Sequence |
+|-------|---------|--------------|
+| `task-debugging.md` | Software Engineer | connection_status → task_list → task_inspect → step_inspect → step_audit |
+| `system-monitoring.md` | SRE / Platform | connection_status → system_health → system_config → staleness_check → analytics |
+| `dlq-triage.md` | Technical Ops | dlq_stats → dlq_queue → dlq_list → dlq_inspect → task/step cross-ref |
+| `performance-analysis.md` | Analytics | analytics_performance → analytics_bottlenecks → task_list with filters |
 
 ## Test Fixtures
 

@@ -288,9 +288,13 @@ serial_test = { workspace = true }
 sqlx = { workspace = true }
 # E2E tests need workspace crates
 tasker-client = { path = "tasker-client" }
+tasker-mcp = { path = "tasker-mcp" }
 tasker-orchestration = { path = "tasker-orchestration" }
 tasker-shared = { path = "tasker-shared" }
 tasker-worker = { path = "tasker-worker" }
+# MCP protocol + connected integration tests
+rmcp = { workspace = true, features = ["client"] }
+toml = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

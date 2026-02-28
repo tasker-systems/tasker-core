@@ -119,6 +119,9 @@ jobs:
             --package tasker-worker \
             --package tasker-pgmq \
             --package tasker-client \
+            --package tasker-sdk \
+            --package tasker-ctl \
+            --package tasker-mcp \
             --no-fail-fast
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
@@ -132,7 +135,10 @@ jobs:
             --package tasker-orchestration \
             --package tasker-worker \
             --package tasker-pgmq \
-            --package tasker-client
+            --package tasker-client \
+            --package tasker-sdk \
+            --package tasker-ctl \
+            --package tasker-mcp
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           REDIS_URL: redis://localhost:6379
@@ -406,6 +412,7 @@ jobs:
           mkdir -p target/nextest/ci
           cargo nextest run \
             --profile ci \
+            --features test-services \
             --test '*' \
             --no-fail-fast \
             -E "$NEXTEST_FILTER"
