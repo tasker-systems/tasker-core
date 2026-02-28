@@ -9,14 +9,19 @@
 //! - **Atomic Operations**: Database transaction guarantees
 //! - **Full MessagingService Implementation**: Complete API compatibility
 //! - **Push Notifications (TAS-133)**: Signal-only push via pg_notify
+//! - **Shared Listener (TAS-149)**: Single PostgreSQL connection for all subscriptions
 
+use std::collections::HashMap;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::Stream;
 use sqlx::PgPool;
-use tasker_pgmq::{PgmqClient, PgmqNotifyConfig};
+use tasker_pgmq::{PgmqClient, PgmqNotifyConfig, PgmqNotifyEvent};
+use tracing::{debug, error, info, warn};
 
 use crate::messaging::service::traits::{
     MessagingService, NotificationStream, QueueMessage, SupportsPushNotifications,
@@ -27,10 +32,359 @@ use crate::messaging::service::types::{
 };
 use crate::messaging::MessagingError;
 
+// =============================================================================
+// Constants
+// =============================================================================
+
+/// Default buffer size for per-subscriber notification channels
+const DEFAULT_NOTIFICATION_BUFFER_SIZE: usize = 100;
+
+/// Buffer size for the internal listener command channel
+const LISTENER_COMMAND_BUFFER_SIZE: usize = 128;
+
+// =============================================================================
+// Shared Listener Manager (TAS-149)
+// =============================================================================
+
+/// Commands sent to the shared listener background task
+#[derive(Debug)]
+enum ListenerCommand {
+    /// Start listening on a PostgreSQL NOTIFY channel
+    AddChannel(String),
+    /// Register a subscriber for notifications on a specific queue
+    AddSubscriber {
+        queue_name: String,
+        tx: tokio::sync::mpsc::Sender<MessageNotification>,
+    },
+}
+
+/// Internal state shared across all clones of a [`SharedListenerManager`]
+struct SharedListenerState {
+    pool: PgPool,
+    command_tx: tokio::sync::mpsc::Sender<ListenerCommand>,
+    /// Receiver taken once when the background task starts
+    command_rx: Mutex<Option<tokio::sync::mpsc::Receiver<ListenerCommand>>>,
+    started: AtomicBool,
+}
+
+impl std::fmt::Debug for SharedListenerState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SharedListenerState")
+            .field("started", &self.started.load(Ordering::Relaxed))
+            .finish()
+    }
+}
+
+/// Manages a single shared `PgListener` for all PGMQ subscriptions (TAS-149)
+///
+/// Instead of creating a new `PgmqNotifyListener` per `subscribe()` or `subscribe_many()`
+/// call, this manager maintains one PostgreSQL LISTEN connection shared across all
+/// subscriptions within a [`PgmqMessagingService`] instance.
+///
+/// The background listener task is started lazily on the first subscription request.
+/// Subsequent subscribe calls send commands to add channels and subscribers to the
+/// already-running listener.
+#[derive(Debug, Clone)]
+struct SharedListenerManager {
+    inner: Arc<SharedListenerState>,
+}
+
+impl SharedListenerManager {
+    /// Create a new shared listener manager
+    fn new(pool: PgPool) -> Self {
+        let (command_tx, command_rx) = tokio::sync::mpsc::channel(LISTENER_COMMAND_BUFFER_SIZE);
+
+        Self {
+            inner: Arc::new(SharedListenerState {
+                pool,
+                command_tx,
+                command_rx: Mutex::new(Some(command_rx)),
+                started: AtomicBool::new(false),
+            }),
+        }
+    }
+
+    /// Ensure the background listener task is running
+    ///
+    /// This is idempotent - only the first call actually spawns the task.
+    fn ensure_started(&self) {
+        if self
+            .inner
+            .started
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            // We won the race - spawn the background task
+            let command_rx = self
+                .inner
+                .command_rx
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .take()
+                .expect("command_rx should only be taken once");
+
+            let pool = self.inner.pool.clone();
+
+            tokio::spawn(async move {
+                shared_listener_task(pool, command_rx).await;
+            });
+        }
+    }
+
+    /// Send a command to the background listener task
+    fn send_command(&self, command: ListenerCommand) -> Result<(), MessagingError> {
+        self.inner.command_tx.try_send(command).map_err(|e| {
+            MessagingError::internal(format!("Failed to send command to shared listener: {}", e))
+        })
+    }
+
+    /// Add a PostgreSQL LISTEN channel to the shared listener
+    fn add_channel(&self, channel: String) -> Result<(), MessagingError> {
+        self.send_command(ListenerCommand::AddChannel(channel))
+    }
+
+    /// Register a subscriber for notifications on a specific queue
+    fn add_subscriber(
+        &self,
+        queue_name: String,
+        tx: tokio::sync::mpsc::Sender<MessageNotification>,
+    ) -> Result<(), MessagingError> {
+        self.send_command(ListenerCommand::AddSubscriber { queue_name, tx })
+    }
+}
+
+/// Background task that manages a single PgListener connection (TAS-149)
+///
+/// Uses `tokio::select!` to multiplex between:
+/// - PostgreSQL notifications from `PgListener::recv()`
+/// - Control commands from `command_rx`
+async fn shared_listener_task(
+    pool: PgPool,
+    mut command_rx: tokio::sync::mpsc::Receiver<ListenerCommand>,
+) {
+    use sqlx::postgres::PgListener;
+
+    let mut listener = match PgListener::connect_with(&pool).await {
+        Ok(l) => l,
+        Err(e) => {
+            error!("TAS-149: Failed to create shared PgListener: {}", e);
+            return;
+        }
+    };
+
+    info!("TAS-149: Shared PgListener started");
+
+    // Per-queue subscribers: queue_name -> Vec<Sender>
+    let mut subscribers: HashMap<String, Vec<tokio::sync::mpsc::Sender<MessageNotification>>> =
+        HashMap::new();
+
+    // Track channels already listened to (avoid duplicate LISTEN calls)
+    let mut listening_channels: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+
+    // Process any commands that arrived before the listener was ready
+    while let Ok(command) = command_rx.try_recv() {
+        process_command(
+            command,
+            &mut listener,
+            &mut subscribers,
+            &mut listening_channels,
+        )
+        .await;
+    }
+
+    loop {
+        tokio::select! {
+            notification = listener.recv() => {
+                match notification {
+                    Ok(notification) => {
+                        debug!(
+                            channel = %notification.channel(),
+                            "TAS-149: Shared listener received notification"
+                        );
+
+                        match serde_json::from_str::<PgmqNotifyEvent>(notification.payload()) {
+                            Ok(event) => {
+                                dispatch_notification(&event, &mut subscribers).await;
+                            }
+                            Err(e) => {
+                                warn!(
+                                    channel = %notification.channel(),
+                                    error = %e,
+                                    "TAS-149: Failed to parse notification payload"
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("TAS-149: Shared PgListener connection error: {}", e);
+                        break;
+                    }
+                }
+            }
+
+            command = command_rx.recv() => {
+                match command {
+                    Some(cmd) => {
+                        process_command(
+                            cmd,
+                            &mut listener,
+                            &mut subscribers,
+                            &mut listening_channels,
+                        )
+                        .await;
+                    }
+                    None => {
+                        // All command senders dropped - service is shutting down
+                        info!("TAS-149: Command channel closed, shutting down shared listener");
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    info!(
+        channels = listening_channels.len(),
+        subscribers = subscribers.len(),
+        "TAS-149: Shared PgListener stopped"
+    );
+}
+
+/// Process a single listener command
+async fn process_command(
+    command: ListenerCommand,
+    listener: &mut sqlx::postgres::PgListener,
+    subscribers: &mut HashMap<String, Vec<tokio::sync::mpsc::Sender<MessageNotification>>>,
+    listening_channels: &mut std::collections::HashSet<String>,
+) {
+    match command {
+        ListenerCommand::AddChannel(channel) => {
+            if listening_channels.contains(&channel) {
+                debug!(
+                    channel = %channel,
+                    "TAS-149: Already listening on channel, skipping"
+                );
+                return;
+            }
+
+            match listener.listen(&channel).await {
+                Ok(()) => {
+                    listening_channels.insert(channel.clone());
+                    info!(
+                        channel = %channel,
+                        total_channels = listening_channels.len(),
+                        "TAS-149: Added LISTEN channel"
+                    );
+                }
+                Err(e) => {
+                    error!(
+                        channel = %channel,
+                        error = %e,
+                        "TAS-149: Failed to listen on channel"
+                    );
+                }
+            }
+        }
+        ListenerCommand::AddSubscriber { queue_name, tx } => {
+            subscribers.entry(queue_name.clone()).or_default().push(tx);
+
+            debug!(
+                queue = %queue_name,
+                total_queues = subscribers.len(),
+                "TAS-149: Added subscriber"
+            );
+        }
+    }
+}
+
+/// Dispatch a parsed notification event to matching subscribers
+async fn dispatch_notification(
+    event: &PgmqNotifyEvent,
+    subscribers: &mut HashMap<String, Vec<tokio::sync::mpsc::Sender<MessageNotification>>>,
+) {
+    let event_queue_name = event.queue_name();
+
+    if let Some(senders) = subscribers.get_mut(event_queue_name) {
+        if let Some(notification) = convert_event_to_notification(event) {
+            // Remove closed senders while dispatching
+            senders.retain(|tx| !tx.is_closed());
+
+            for tx in senders.iter() {
+                if tx.send(notification.clone()).await.is_err() {
+                    warn!(
+                        queue = %event_queue_name,
+                        "TAS-149: Subscriber receiver dropped"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Convert a [`PgmqNotifyEvent`] to a [`MessageNotification`]
+///
+/// Returns `None` for events that don't map to message notifications (e.g. QueueCreated).
+fn convert_event_to_notification(event: &PgmqNotifyEvent) -> Option<MessageNotification> {
+    match event {
+        PgmqNotifyEvent::MessageWithPayload(e) => {
+            // Small message (< 7KB): Full payload included
+            let handle = MessageHandle::Pgmq {
+                msg_id: e.msg_id,
+                queue_name: e.queue_name.clone(),
+            };
+            let metadata = MessageMetadata {
+                receive_count: 0,
+                enqueued_at: e.ready_at,
+            };
+            let payload_bytes = serde_json::to_vec(&e.message).unwrap_or_else(|_| Vec::new());
+            let queued_msg = QueuedMessage::with_handle(payload_bytes, handle, metadata);
+            Some(MessageNotification::message(queued_msg))
+        }
+        PgmqNotifyEvent::MessageReady(e) => {
+            // Large message (>= 7KB): Signal only with msg_id
+            Some(MessageNotification::available_with_msg_id(
+                e.queue_name.clone(),
+                e.msg_id,
+            ))
+        }
+        PgmqNotifyEvent::QueueCreated(_) => None,
+        PgmqNotifyEvent::BatchReady(e) => {
+            let msg_id = e.msg_ids.first().copied();
+            Some(match msg_id {
+                Some(id) => MessageNotification::available_with_msg_id(e.queue_name.clone(), id),
+                None => MessageNotification::available(e.queue_name.clone()),
+            })
+        }
+    }
+}
+
+/// Extract namespace from a queue name for LISTEN channel resolution
+///
+/// Uses simple string splitting: takes the first segment before any underscore.
+/// For "worker_default_queue" → "worker".
+fn extract_namespace_from_queue(queue_name: &str) -> String {
+    queue_name
+        .rsplit('_')
+        .next_back()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| queue_name.to_string())
+}
+
+// =============================================================================
+// PGMQ Messaging Service
+// =============================================================================
+
 /// PGMQ-based messaging service implementation
 ///
 /// Wraps the `tasker_pgmq::PgmqClient` to provide the `MessagingService` trait interface.
 /// Supports all standard PGMQ operations plus LISTEN/NOTIFY for event-driven processing.
+///
+/// ## Shared Listener (TAS-149)
+///
+/// Push notification subscriptions share a single PostgreSQL LISTEN connection
+/// via [`SharedListenerManager`]. This prevents connection pool exhaustion when
+/// subscribing to many queues across namespaces.
 ///
 /// # Example
 ///
@@ -61,6 +415,8 @@ use crate::messaging::MessagingError;
 pub struct PgmqMessagingService {
     /// Underlying PGMQ client
     client: PgmqClient,
+    /// TAS-149: Shared listener for all push notification subscriptions
+    shared_listener: SharedListenerManager,
 }
 
 impl PgmqMessagingService {
@@ -71,7 +427,11 @@ impl PgmqMessagingService {
         let client = PgmqClient::new(database_url)
             .await
             .map_err(|e| MessagingError::connection(e.to_string()))?;
-        Ok(Self { client })
+        let shared_listener = SharedListenerManager::new(client.pool().clone());
+        Ok(Self {
+            client,
+            shared_listener,
+        })
     }
 
     /// Create a new PGMQ messaging service with database URL and custom configuration
@@ -84,7 +444,11 @@ impl PgmqMessagingService {
         let client = PgmqClient::new_with_config(database_url, config)
             .await
             .map_err(|e| MessagingError::connection(e.to_string()))?;
-        Ok(Self { client })
+        let shared_listener = SharedListenerManager::new(client.pool().clone());
+        Ok(Self {
+            client,
+            shared_listener,
+        })
     }
 
     /// Create a new PGMQ messaging service with an existing connection pool
@@ -94,7 +458,11 @@ impl PgmqMessagingService {
     /// (e.g., from TOML config via SystemContext).
     pub async fn new_with_pool(pool: PgPool) -> Self {
         let client = PgmqClient::new_with_pool(pool).await;
-        Self { client }
+        let shared_listener = SharedListenerManager::new(client.pool().clone());
+        Self {
+            client,
+            shared_listener,
+        }
     }
 
     /// Create a new PGMQ messaging service with existing pool and custom configuration
@@ -103,14 +471,22 @@ impl PgmqMessagingService {
     /// Use this when you need both pool tuning (from TOML) and notify configuration.
     pub async fn new_with_pool_and_config(pool: PgPool, config: PgmqNotifyConfig) -> Self {
         let client = PgmqClient::new_with_pool_and_config(pool, config).await;
-        Self { client }
+        let shared_listener = SharedListenerManager::new(client.pool().clone());
+        Self {
+            client,
+            shared_listener,
+        }
     }
 
     /// Create from an existing PgmqClient
     ///
     /// Escape hatch for when you need full control over client construction.
     pub fn from_client(client: PgmqClient) -> Self {
-        Self { client }
+        let shared_listener = SharedListenerManager::new(client.pool().clone());
+        Self {
+            client,
+            shared_listener,
+        }
     }
 
     /// Get a reference to the underlying PgmqClient
@@ -333,11 +709,15 @@ impl MessagingService for PgmqMessagingService {
 }
 
 // =============================================================================
-// SupportsPushNotifications Implementation (TAS-133)
+// SupportsPushNotifications Implementation (TAS-133 + TAS-149)
 // =============================================================================
 
 impl SupportsPushNotifications for PgmqMessagingService {
     /// Subscribe to push notifications for a PGMQ queue
+    ///
+    /// TAS-149: Uses the shared listener instead of creating a new `PgmqNotifyListener`
+    /// per call. The shared listener is started lazily on first subscribe and reused
+    /// for all subsequent subscriptions.
     ///
     /// PGMQ uses PostgreSQL LISTEN/NOTIFY for push notifications with two modes (TAS-133):
     ///
@@ -346,198 +726,41 @@ impl SupportsPushNotifications for PgmqMessagingService {
     /// - **Large messages (>= 7KB)**: Signal-only via `MessageReady` event, returned as
     ///   `MessageNotification::Available` with `msg_id` - fetch via `read_specific_message()`
     ///
-    /// # Implementation Notes
-    ///
-    /// This creates a new `PgmqNotifyListener` for each subscription, which:
-    /// 1. Opens a dedicated connection for LISTEN
-    /// 2. Listens to the queue's notification channel
-    /// 3. Returns `MessageNotification::Message` for small messages (< 7KB)
-    /// 4. Returns `MessageNotification::Available` with `msg_id` for large messages
-    ///
     /// # Fallback Polling
     ///
     /// **Important**: pg_notify is not guaranteed delivery. Notifications can be
     /// lost under load or if the listener disconnects. Consumers should always
     /// implement fallback polling (see `requires_fallback_polling()`).
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// use futures::StreamExt;
-    ///
-    /// let mut stream = service.subscribe("my_queue")?;
-    /// while let Some(notification) = stream.next().await {
-    ///     match notification {
-    ///         MessageNotification::Message(queued_msg) => {
-    ///             // TAS-133: Small message - full payload available, process directly
-    ///             process(queued_msg);
-    ///         }
-    ///         MessageNotification::Available { queue_name, msg_id } => {
-    ///             // Large message - fetch using msg_id
-    ///             if let Some(id) = msg_id {
-    ///                 let msg = service.read_specific_message(&queue_name, id).await?;
-    ///                 process(msg);
-    ///             }
-    ///         }
-    ///     }
-    /// }
-    /// ```
     fn subscribe(
         &self,
         queue_name: &str,
     ) -> Result<Pin<Box<dyn Stream<Item = MessageNotification> + Send>>, MessagingError> {
-        // TAS-133: Create a notification stream for this queue
-        //
-        // Note: This is a simplified implementation that creates a stream from
-        // a spawned task with an mpsc channel. A production implementation would
-        // likely use a shared listener pool or more sophisticated resource management.
-        let pool = self.pool().clone();
-        let queue_name = queue_name.to_string();
-        let config = self.client.config().clone();
+        let config = self.client.config();
 
-        // Create a channel to bridge the async listener to the stream
-        let (tx, rx) = tokio::sync::mpsc::channel::<MessageNotification>(100);
+        // Resolve the LISTEN channel from queue name
+        let namespace = extract_namespace_from_queue(queue_name);
+        let channel = config
+            .message_ready_channel(&namespace)
+            .map_err(|e| MessagingError::configuration("pgmq", e.to_string()))?;
 
-        // Spawn a task to manage the listener lifecycle
-        tokio::spawn(async move {
-            use tasker_pgmq::listener::PgmqEventHandler;
-            use tasker_pgmq::{PgmqNotifyEvent, PgmqNotifyListener};
-            use tracing::{debug, error, warn};
+        // Start the shared listener if not already running
+        self.shared_listener.ensure_started();
 
-            // Create and connect listener
-            // TAS-51: Use default buffer size from config or fallback
-            let buffer_size = 100; // Default buffer size
-            let mut listener =
-                match PgmqNotifyListener::new(pool, config.clone(), buffer_size).await {
-                    Ok(l) => l,
-                    Err(e) => {
-                        error!("Failed to create PGMQ listener for {}: {}", queue_name, e);
-                        return;
-                    }
-                };
+        // Create a channel for this subscriber
+        let (tx, rx) =
+            tokio::sync::mpsc::channel::<MessageNotification>(DEFAULT_NOTIFICATION_BUFFER_SIZE);
 
-            if let Err(e) = listener.connect().await {
-                error!("Failed to connect PGMQ listener for {}: {}", queue_name, e);
-                return;
-            }
+        // Register the channel and subscriber with the shared listener
+        self.shared_listener.add_channel(channel)?;
+        self.shared_listener
+            .add_subscriber(queue_name.to_string(), tx)?;
 
-            // Extract namespace from queue name (convention: namespace_queue)
-            let namespace = queue_name
-                .rsplit('_')
-                .next_back()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| queue_name.clone());
+        debug!(
+            queue = %queue_name,
+            "TAS-149: Subscribed via shared listener"
+        );
 
-            // Listen to the message ready channel for this namespace
-            let channel = match config.message_ready_channel(&namespace) {
-                Ok(ch) => ch,
-                Err(e) => {
-                    error!(
-                        "Invalid channel name for namespace '{}' in queue {}: {}",
-                        namespace, queue_name, e
-                    );
-                    return;
-                }
-            };
-            if let Err(e) = listener.listen_channel(&channel).await {
-                error!(
-                    "Failed to listen to channel {} for {}: {}",
-                    channel, queue_name, e
-                );
-                return;
-            }
-
-            debug!(
-                "PGMQ subscription started for queue: {} (channel: {})",
-                queue_name, channel
-            );
-
-            // Create an event handler that sends notifications to the channel
-            // TAS-133: Handles both small messages (full payload) and large messages (signal only)
-            struct NotificationForwarder {
-                tx: tokio::sync::mpsc::Sender<MessageNotification>,
-                target_queue: String,
-            }
-
-            #[async_trait::async_trait]
-            impl PgmqEventHandler for NotificationForwarder {
-                async fn handle_event(
-                    &self,
-                    event: PgmqNotifyEvent,
-                ) -> tasker_pgmq::error::Result<()> {
-                    // Only forward events for our target queue
-                    if event.queue_name() != self.target_queue {
-                        return Ok(());
-                    }
-
-                    // TAS-133: Convert event to appropriate MessageNotification variant
-                    let notification = match &event {
-                        PgmqNotifyEvent::MessageWithPayload(e) => {
-                            // Small message (< 7KB): Full payload included
-                            // Convert to MessageNotification::Message for direct processing
-                            let handle = MessageHandle::Pgmq {
-                                msg_id: e.msg_id,
-                                queue_name: e.queue_name.clone(),
-                            };
-                            let metadata = MessageMetadata {
-                                receive_count: 0, // First receive
-                                enqueued_at: e.ready_at,
-                            };
-                            // Serialize the JSON payload to bytes
-                            let payload_bytes =
-                                serde_json::to_vec(&e.message).unwrap_or_else(|_| Vec::new());
-                            let queued_msg =
-                                QueuedMessage::with_handle(payload_bytes, handle, metadata);
-                            MessageNotification::message(queued_msg)
-                        }
-                        PgmqNotifyEvent::MessageReady(e) => {
-                            // Large message (>= 7KB): Signal only with msg_id
-                            // Consumer must fetch via read_specific_message()
-                            MessageNotification::available_with_msg_id(
-                                e.queue_name.clone(),
-                                e.msg_id,
-                            )
-                        }
-                        PgmqNotifyEvent::QueueCreated(_) => {
-                            // Queue creation events don't generate message notifications
-                            debug!("Ignoring queue created event for notification stream");
-                            return Ok(());
-                        }
-                        PgmqNotifyEvent::BatchReady(e) => {
-                            // Batch events could be handled, but for now use Available
-                            // The first msg_id in the batch if available
-                            let msg_id = e.msg_ids.first().copied();
-                            match msg_id {
-                                Some(id) => MessageNotification::available_with_msg_id(
-                                    e.queue_name.clone(),
-                                    id,
-                                ),
-                                None => MessageNotification::available(e.queue_name.clone()),
-                            }
-                        }
-                    };
-
-                    if self.tx.send(notification).await.is_err() {
-                        warn!("Notification receiver dropped");
-                    }
-                    Ok(())
-                }
-            }
-
-            let handler = NotificationForwarder {
-                tx,
-                target_queue: queue_name.clone(),
-            };
-
-            // Run the listener loop - this blocks until disconnection
-            if let Err(e) = listener.listen_with_handler(handler).await {
-                error!("PGMQ listener error for {}: {}", queue_name, e);
-            }
-
-            debug!("PGMQ subscription ended for queue: {}", queue_name);
-        });
-
-        // Convert the mpsc receiver to a Stream using futures::stream::unfold
+        // Convert the mpsc receiver to a Stream
         let stream = futures::stream::unfold(rx, |mut rx| async move {
             rx.recv().await.map(|item| (item, rx))
         });
@@ -577,43 +800,50 @@ impl SupportsPushNotifications for PgmqMessagingService {
         true
     }
 
-    /// Subscribe to multiple queues using a SINGLE shared PostgreSQL connection
+    /// Subscribe to multiple queues using a SINGLE shared PostgreSQL connection (TAS-149)
     ///
-    /// This is a critical optimization for PGMQ. PostgreSQL LISTEN can listen to
-    /// multiple channels on one connection. Without this, each `subscribe()` call
-    /// creates a separate connection, quickly exhausting the pool.
+    /// TAS-149: All queues share the same background `PgListener` task, regardless of
+    /// whether they were subscribed via `subscribe()` or `subscribe_many()`. Multiple
+    /// calls to this method add to the existing shared listener rather than creating
+    /// new connections.
     ///
     /// # Resource Efficiency
     ///
-    /// - **Without `subscribe_many`**: N queues = N connections held permanently
-    /// - **With `subscribe_many`**: N queues = 1 connection held permanently
-    ///
-    /// For workers with 20+ namespaces, this is the difference between pool
-    /// exhaustion and healthy operation.
+    /// - **Before TAS-133**: N queues = N connections held permanently
+    /// - **After TAS-133**: N queues = 1 connection per `subscribe_many()` call
+    /// - **After TAS-149**: N queues = 1 connection total across ALL subscribe calls
     fn subscribe_many(
         &self,
         queue_names: &[&str],
     ) -> Result<Vec<(String, NotificationStream)>, MessagingError> {
-        use std::collections::HashMap;
-        use std::sync::Arc;
-        use tokio::sync::RwLock;
-
         if queue_names.is_empty() {
             return Ok(Vec::new());
         }
 
-        let pool = self.pool().clone();
-        let config = self.client.config().clone();
+        let config = self.client.config();
 
-        // Create per-queue channels for demultiplexing
-        // Map: queue_name -> sender
-        let mut queue_senders: HashMap<String, tokio::sync::mpsc::Sender<MessageNotification>> =
-            HashMap::new();
+        // Start the shared listener if not already running
+        self.shared_listener.ensure_started();
+
+        // Collect unique channels to listen to and create per-queue subscriber channels
+        let mut channel_set = std::collections::HashSet::new();
         let mut result_streams: Vec<(String, NotificationStream)> = Vec::new();
 
         for queue_name in queue_names {
-            let (tx, rx) = tokio::sync::mpsc::channel::<MessageNotification>(100);
-            queue_senders.insert(queue_name.to_string(), tx);
+            // Resolve LISTEN channel
+            let namespace = extract_namespace_from_queue(queue_name);
+            let channel = config
+                .message_ready_channel(&namespace)
+                .map_err(|e| MessagingError::configuration("pgmq", e.to_string()))?;
+            channel_set.insert(channel);
+
+            // Create per-queue subscriber channel
+            let (tx, rx) =
+                tokio::sync::mpsc::channel::<MessageNotification>(DEFAULT_NOTIFICATION_BUFFER_SIZE);
+
+            // Register subscriber
+            self.shared_listener
+                .add_subscriber(queue_name.to_string(), tx)?;
 
             // Convert receiver to stream
             let stream = futures::stream::unfold(rx, |mut rx| async move {
@@ -625,166 +855,16 @@ impl SupportsPushNotifications for PgmqMessagingService {
             ));
         }
 
-        // Collect unique channels to listen to
-        let mut channel_set = std::collections::HashSet::new();
-        for q in queue_names {
-            let namespace = q
-                .rsplit('_')
-                .next_back()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| q.to_string());
-            let channel = config
-                .message_ready_channel(&namespace)
-                .map_err(|e| MessagingError::configuration("pgmq", e.to_string()))?;
-            channel_set.insert(channel);
+        // Add all unique channels
+        for channel in &channel_set {
+            self.shared_listener.add_channel(channel.clone())?;
         }
-        let channels_to_listen: Vec<String> = channel_set.into_iter().collect();
 
-        // Wrap senders in Arc<RwLock> for shared access in the spawned task
-        let senders = Arc::new(RwLock::new(queue_senders));
-        let queue_names_owned: Vec<String> = queue_names.iter().map(|s| s.to_string()).collect();
-
-        // Spawn a SINGLE task with ONE listener for all queues
-        tokio::spawn(async move {
-            use tasker_pgmq::listener::PgmqEventHandler;
-            use tasker_pgmq::{PgmqNotifyEvent, PgmqNotifyListener};
-            use tracing::{debug, error, info};
-
-            // Create and connect ONE listener
-            let buffer_size = 100;
-            let mut listener =
-                match PgmqNotifyListener::new(pool, config.clone(), buffer_size).await {
-                    Ok(l) => l,
-                    Err(e) => {
-                        error!(
-                            "Failed to create shared PGMQ listener for {} queues: {}",
-                            queue_names_owned.len(),
-                            e
-                        );
-                        return;
-                    }
-                };
-
-            if let Err(e) = listener.connect().await {
-                error!(
-                    "Failed to connect shared PGMQ listener for {} queues: {}",
-                    queue_names_owned.len(),
-                    e
-                );
-                return;
-            }
-
-            // Listen to ALL channels on this ONE connection
-            for channel in &channels_to_listen {
-                if let Err(e) = listener.listen_channel(channel).await {
-                    error!("Failed to listen to channel {}: {}", channel, e);
-                    // Continue - try to listen to other channels
-                }
-            }
-
-            info!(
-                queue_count = queue_names_owned.len(),
-                channel_count = channels_to_listen.len(),
-                "PGMQ subscribe_many started with SINGLE shared connection"
-            );
-
-            // Event handler that demultiplexes to per-queue senders
-            struct DemultiplexingForwarder {
-                senders:
-                    Arc<RwLock<HashMap<String, tokio::sync::mpsc::Sender<MessageNotification>>>>,
-                queue_names: Vec<String>,
-            }
-
-            #[async_trait::async_trait]
-            impl PgmqEventHandler for DemultiplexingForwarder {
-                async fn handle_event(
-                    &self,
-                    event: PgmqNotifyEvent,
-                ) -> tasker_pgmq::error::Result<()> {
-                    let event_queue_name = event.queue_name();
-
-                    // Find matching queue(s) for this event
-                    let senders = self.senders.read().await;
-
-                    for queue_name in &self.queue_names {
-                        // Match event's queue_name to our subscribed queues
-                        if event_queue_name != queue_name.as_str() {
-                            continue;
-                        }
-
-                        if let Some(tx) = senders.get(queue_name) {
-                            // Convert event to MessageNotification
-                            let notification = match &event {
-                                PgmqNotifyEvent::MessageWithPayload(e) => {
-                                    let handle = MessageHandle::Pgmq {
-                                        msg_id: e.msg_id,
-                                        queue_name: e.queue_name.clone(),
-                                    };
-                                    let metadata = MessageMetadata {
-                                        receive_count: 0,
-                                        enqueued_at: e.ready_at,
-                                    };
-                                    let payload_bytes = serde_json::to_vec(&e.message)
-                                        .unwrap_or_else(|_| Vec::new());
-                                    let queued_msg =
-                                        QueuedMessage::with_handle(payload_bytes, handle, metadata);
-                                    MessageNotification::message(queued_msg)
-                                }
-                                PgmqNotifyEvent::MessageReady(e) => {
-                                    MessageNotification::available_with_msg_id(
-                                        e.queue_name.clone(),
-                                        e.msg_id,
-                                    )
-                                }
-                                PgmqNotifyEvent::QueueCreated(_) => {
-                                    continue; // Skip queue creation events
-                                }
-                                PgmqNotifyEvent::BatchReady(e) => {
-                                    let msg_id = e.msg_ids.first().copied();
-                                    match msg_id {
-                                        Some(id) => MessageNotification::available_with_msg_id(
-                                            e.queue_name.clone(),
-                                            id,
-                                        ),
-                                        None => {
-                                            MessageNotification::available(e.queue_name.clone())
-                                        }
-                                    }
-                                }
-                            };
-
-                            if tx.send(notification).await.is_err() {
-                                tracing::warn!(
-                                    queue = %queue_name,
-                                    "Notification receiver dropped for queue"
-                                );
-                            }
-                        }
-                    }
-
-                    Ok(())
-                }
-            }
-
-            let handler = DemultiplexingForwarder {
-                senders,
-                queue_names: queue_names_owned.clone(),
-            };
-
-            // Run the single listener loop
-            if let Err(e) = listener.listen_with_handler(handler).await {
-                error!(
-                    "Shared PGMQ listener error for {} queues: {}",
-                    queue_names_owned.len(),
-                    e
-                );
-            }
-
-            debug!(
-                "PGMQ subscribe_many ended for {} queues",
-                queue_names_owned.len()
-            );
-        });
+        info!(
+            queue_count = queue_names.len(),
+            channel_count = channel_set.len(),
+            "TAS-149: subscribe_many completed via shared listener"
+        );
 
         Ok(result_streams)
     }
@@ -993,5 +1073,55 @@ mod tests {
         // Verify all messages are in queue
         let stats = service.queue_stats(&queue_name).await.unwrap();
         assert_eq!(stats.message_count, 3);
+    }
+
+    // =========================================================================
+    // TAS-149: Shared Listener Manager Tests
+    // =========================================================================
+
+    #[test]
+    fn test_extract_namespace_from_queue() {
+        assert_eq!(
+            extract_namespace_from_queue("worker_default_queue"),
+            "worker"
+        );
+        assert_eq!(extract_namespace_from_queue("orders_queue"), "orders");
+        assert_eq!(extract_namespace_from_queue("simple"), "simple");
+    }
+
+    #[test]
+    fn test_convert_event_queue_created_returns_none() {
+        use tasker_pgmq::QueueCreatedEvent;
+        let event = PgmqNotifyEvent::QueueCreated(QueueCreatedEvent::new("test_queue", "test"));
+        assert!(convert_event_to_notification(&event).is_none());
+    }
+
+    #[test]
+    fn test_convert_event_message_ready() {
+        use tasker_pgmq::MessageReadyEvent;
+        let event = PgmqNotifyEvent::MessageReady(MessageReadyEvent::new(42, "test_queue", "test"));
+        let notification = convert_event_to_notification(&event).unwrap();
+        assert!(notification.is_available());
+        assert_eq!(notification.queue_name(), "test_queue");
+        assert_eq!(notification.msg_id(), Some(42));
+    }
+
+    #[test]
+    fn test_convert_event_batch_ready_with_ids() {
+        use tasker_pgmq::BatchReadyEvent;
+        let event =
+            PgmqNotifyEvent::BatchReady(BatchReadyEvent::new(vec![1, 2, 3], "test_queue", "test"));
+        let notification = convert_event_to_notification(&event).unwrap();
+        assert!(notification.is_available());
+        assert_eq!(notification.msg_id(), Some(1));
+    }
+
+    #[test]
+    fn test_convert_event_batch_ready_empty() {
+        use tasker_pgmq::BatchReadyEvent;
+        let event = PgmqNotifyEvent::BatchReady(BatchReadyEvent::new(vec![], "test_queue", "test"));
+        let notification = convert_event_to_notification(&event).unwrap();
+        assert!(notification.is_available());
+        assert_eq!(notification.msg_id(), None);
     }
 }
