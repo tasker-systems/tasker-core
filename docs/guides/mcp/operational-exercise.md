@@ -44,7 +44,7 @@ This exercise demonstrates how different roles use Tasker's connected MCP tools 
 **Prompt**: "What happened with step {id}?"
 
 **Tool**: `step_inspect`
-**Parameters**: `{ "step_id": <step-id-from-task-inspect> }`
+**Parameters**: `{ "task_uuid": "<task-uuid>", "step_uuid": "<step-uuid-from-task-inspect>" }`
 **Expected**: Step details including handler callable, execution results, timing, and retry count.
 **Next**: Check if the error is transient (retry-related) or permanent.
 
@@ -53,7 +53,7 @@ This exercise demonstrates how different roles use Tasker's connected MCP tools 
 **Prompt**: "Show me the audit history for that step"
 
 **Tool**: `step_audit`
-**Parameters**: `{ "step_id": <same-step-id> }`
+**Parameters**: `{ "task_uuid": "<task-uuid>", "step_uuid": "<same-step-uuid>" }`
 **Expected**: SOC2-compliant audit trail showing state transitions with timestamps and worker attribution.
 **Next**: Use the audit trail to understand the sequence of events leading to failure.
 
@@ -125,7 +125,7 @@ This exercise demonstrates how different roles use Tasker's connected MCP tools 
 ### Step 4: Deep-Dive on a Specific Entry
 
 **Tool**: `dlq_inspect`
-**Parameters**: `{ "entry_id": <id-from-queue> }`
+**Parameters**: `{ "task_uuid": "<task-uuid-from-dlq-entry>" }`
 **Expected**: Full DLQ entry with error message, stack trace snapshot, task/step context, and retry history.
 **Next**: Determine if the failure is systemic (infrastructure) or task-specific (bad input).
 
@@ -138,7 +138,7 @@ This exercise demonstrates how different roles use Tasker's connected MCP tools 
 ### Step 6: Check Step Details
 
 **Tool**: `step_inspect`
-**Parameters**: `{ "step_id": <step-from-task> }`
+**Parameters**: `{ "task_uuid": "<task-uuid>", "step_uuid": "<step-uuid-from-task>" }`
 **Expected**: Handler configuration, input data, and execution results to identify root cause.
 
 ## Scenario 4: Analytics — Performance Review
@@ -163,6 +163,50 @@ This exercise demonstrates how different roles use Tasker's connected MCP tools 
 **Parameters**: `{ "namespace": "production", "status": "complete", "limit": 50 }`
 **Expected**: Recent completed tasks for trend analysis.
 
+## Scenario 5: Technical Ops — DLQ Remediation with Write Tools
+
+**Context**: You've triaged DLQ entries (Scenario 3) and identified a step that failed due to a transient infrastructure issue that's now resolved. Time to fix it.
+
+All write tools use a **preview → confirm** pattern. The first call (without `confirm`) shows what will happen. The second call (with `confirm: true`) executes the action.
+
+### Step 1: Preview a Step Retry
+
+**Prompt**: "Reset the failed step for retry — the database connection issue is resolved"
+
+**Tool**: `step_retry`
+**Parameters**: `{ "task_uuid": "<uuid>", "step_uuid": "<uuid>", "reason": "Database connection restored", "reset_by": "operator@example.com" }`
+**Expected**: Preview showing current step state, attempt count, and what will happen. Includes `"status": "preview"` and `"instruction": "Call this tool again with confirm: true..."`.
+**Next**: Review the preview, then confirm.
+
+### Step 2: Execute the Retry
+
+**Tool**: `step_retry`
+**Parameters**: `{ "task_uuid": "<uuid>", "step_uuid": "<uuid>", "reason": "Database connection restored", "reset_by": "operator@example.com", "confirm": true }`
+**Expected**: `"status": "executed"` — step is reset to pending and will be picked up by a worker.
+**Next**: Use `task_inspect` to monitor progress.
+
+### Step 3: Record the DLQ Resolution
+
+**Prompt**: "Update the DLQ entry to record our investigation"
+
+**Tool**: `dlq_update`
+**Parameters**: `{ "dlq_entry_uuid": "<uuid>", "resolution_status": "manually_resolved", "resolution_notes": "Transient DB connection failure. Root cause: connection pool exhaustion during deployment. Step retried successfully after pool recovery.", "resolved_by": "operator@example.com" }`
+**Expected**: Preview first (omit `confirm`), then execute with `confirm: true`.
+
+### Alternative: Manual Step Completion
+
+When you have the correct result data but the handler can't run:
+
+**Tool**: `step_complete`
+**Parameters**: `{ "task_uuid": "<uuid>", "step_uuid": "<uuid>", "result": { "processed": true, "output_url": "https://..." }, "reason": "Data obtained from backup system", "completed_by": "operator@example.com", "confirm": true }`
+**Expected**: Step marked complete with provided result data. Downstream dependent steps are unblocked.
+
+### Alternative: Submit a New Task
+
+**Tool**: `task_submit`
+**Parameters**: `{ "name": "retry_failed_batch", "namespace": "data_processing", "context": { "batch_id": "2026-03-01" }, "initiator": "operator@example.com" }`
+**Expected**: Preview shows template details and context shape. Confirm to create and execute the task.
+
 ## Cross-Persona: Incident Response Flow
 
 When an incident triggers, multiple roles collaborate using these tools in sequence:
@@ -173,6 +217,8 @@ When an incident triggers, multiple roles collaborate using these tools in seque
 4. **Ops** runs `dlq_queue` → identifies affected task patterns
 5. **Engineer** runs `task_inspect` on affected tasks → understands the failure mode
 6. **Engineer** runs `step_audit` → traces the sequence of events to root cause
-7. **SRE** runs `analytics_performance` post-fix → confirms recovery
+7. **Ops** runs `step_retry` on affected steps → resets them for re-execution after fix
+8. **Ops** runs `dlq_update` → records investigation notes and resolution status
+9. **SRE** runs `analytics_performance` post-fix → confirms recovery
 
 Each handoff passes context (UUIDs, step IDs, error patterns) from one tool's output to the next tool's input.

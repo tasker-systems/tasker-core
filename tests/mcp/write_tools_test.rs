@@ -18,6 +18,7 @@ async fn test_task_submit_preview_and_execute() -> anyhow::Result<()> {
             serde_json::json!({
                 "name": "mathematical_sequence",
                 "namespace": "rust_e2e_linear",
+                "version": "1.0.0",
                 "context": { "even_number": 10 },
                 "initiator": "integration-test"
             }),
@@ -41,6 +42,7 @@ async fn test_task_submit_preview_and_execute() -> anyhow::Result<()> {
             serde_json::json!({
                 "name": "mathematical_sequence",
                 "namespace": "rust_e2e_linear",
+                "version": "1.0.0",
                 "context": { "even_number": 10 },
                 "initiator": "integration-test",
                 "confirm": true
@@ -340,16 +342,22 @@ async fn test_dlq_update_preview_and_execute() -> anyhow::Result<()> {
         )
         .await?;
 
-    // Find the DLQ entry via dlq_inspect (uses task_uuid)
-    let dlq_detail = harness
-        .call_tool("dlq_inspect", serde_json::json!({ "task_uuid": task_uuid }))
-        .await?;
-
-    // Extract the dlq_entry_uuid
-    let dlq_entry_uuid = dlq_detail
-        .get("dlq_entry_uuid")
-        .and_then(|v| v.as_str())
-        .expect("Should have dlq_entry_uuid");
+    // DLQ entry creation is async — poll until the entry appears (max 10s)
+    let mut dlq_entry_uuid = None;
+    for attempt in 0..20 {
+        let dlq_detail = harness
+            .call_tool("dlq_inspect", serde_json::json!({ "task_uuid": task_uuid }))
+            .await?;
+        if let Some(uuid) = dlq_detail.get("dlq_entry_uuid").and_then(|v| v.as_str()) {
+            dlq_entry_uuid = Some(uuid.to_string());
+            break;
+        }
+        if attempt < 19 {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+    }
+    let dlq_entry_uuid =
+        dlq_entry_uuid.expect("DLQ entry should appear within 10s after task failure");
 
     // Preview
     let preview = harness

@@ -55,14 +55,28 @@ Use `task_inspect` and `step_inspect` to understand the original task context. T
 | `timeout` | Step exceeded timeout_seconds | Check handler performance, increase timeout if justified |
 | `dependency_failure` | Upstream step failed | Investigate the upstream step first |
 
-## Bridges to Tier 3
+## Phase 5: Resolution with Tier 3 Write Tools
 
-After diagnosis with these read-only tools, resolution requires Tier 3 mutation tools (future):
-- **Retry**: Re-enqueue the failed step for another attempt
-- **Resolve**: Mark the DLQ entry as investigated and resolved
-- **Skip**: Mark the step as skipped to unblock downstream steps
+After diagnosis, use write tools to remediate. All write tools use a two-phase **preview → confirm** pattern — call without `confirm` to see what will happen, then call with `confirm: true` to execute.
 
-Until Tier 3 tools are available, use `tasker-ctl` CLI or direct API calls for mutations.
+### Remediation Actions
+
+| Action | Tool | When to Use |
+|--------|------|-------------|
+| Retry a failed step | `step_retry` | Root cause resolved (e.g., dependency restored), step can succeed on re-execution |
+| Manually resolve a step | `step_resolve` | Step's work was completed out-of-band, or step is non-critical and can be bypassed |
+| Manually complete with data | `step_complete` | You have the correct result data from another source; provides it to downstream steps |
+| Update DLQ investigation | `dlq_update` | Record resolution status, notes, and operator identity after fixing the underlying issue |
+
+### Typical Resolution Flow
+
+```
+dlq_inspect → task_inspect → step_inspect (diagnose)
+  → step_retry / step_resolve / step_complete (fix the step)
+  → dlq_update (record resolution with notes)
+```
+
+Always fix at the **step level first** (retry, resolve, or complete), then update the **DLQ entry** to record the investigation outcome. The DLQ entry tracks the investigation; the actual fix happens at the step level.
 
 ## Anti-Patterns
 
