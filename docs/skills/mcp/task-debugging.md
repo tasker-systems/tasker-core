@@ -62,6 +62,19 @@ Use `step_audit` for the complete state transition history. Useful for:
 | Step completed but wrong results | `step_inspect` → examine results JSON → check handler logic |
 | Task in `error` state | `task_inspect` → find failed steps → DLQ tools for investigation context |
 
+## Phase 6: Remediation with Write Tools
+
+After identifying the root cause, use Tier 3 write tools to resolve the issue. All write tools use a **preview → confirm** pattern.
+
+| Symptom | Resolution Tool | Action |
+|---------|----------------|--------|
+| Step failed, transient cause fixed | `step_retry` | Reset step for re-execution by a worker |
+| Step failed, work done out-of-band | `step_resolve` | Mark as resolved to unblock downstream steps |
+| Step failed, you have correct data | `step_complete` | Provide result data for downstream consumers |
+| Task should not continue | `task_cancel` | Cancel task and all pending steps (irreversible) |
+
+Always preview first (omit `confirm`), verify the action is correct, then execute with `confirm: true`.
+
 ## Anti-Patterns
 
 - **Don't guess UUIDs**: Always get them from `task_list` or `task_inspect` output

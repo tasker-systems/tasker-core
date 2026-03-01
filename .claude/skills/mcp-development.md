@@ -33,7 +33,7 @@ tasker-mcp --offline          # Offline mode, Tier 1 only
 tasker-mcp --profile staging  # Set initial active profile
 ```
 
-## 23 Tools
+## 29 Tools
 
 ### Tier 1 — Offline Developer Tools (7)
 
@@ -97,18 +97,48 @@ All accept optional `profile` parameter to target a specific environment.
 | `template_list_remote` | List templates registered on the server |
 | `template_inspect_remote` | Template details from the server |
 
+### Tier 3 — Write Tools (6)
+
+All accept optional `profile` parameter to target a specific environment. Writes use preview → confirm workflow.
+
+**Task Management**
+
+| Tool | What It Does |
+|------|-------------|
+| `task_submit` | Submit a task for execution with confirmation |
+| `task_cancel` | Cancel a task and all pending steps with confirmation |
+
+**Step Resolution**
+
+| Tool | What It Does |
+|------|-------------|
+| `step_retry` | Reset a failed step for retry with confirmation |
+| `step_resolve` | Mark a step as manually resolved with confirmation |
+| `step_complete` | Manually complete a step with result data and confirmation |
+
+**DLQ Management**
+
+| Tool | What It Does |
+|------|-------------|
+| `dlq_update` | Update DLQ entry investigation status with confirmation |
+
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `tasker-mcp/src/server.rs` | ServerHandler impl, tool methods, proc macro routing |
+| `tasker-mcp/src/server.rs` | ServerHandler impl, thin tool routing stubs, client resolution |
+| `tasker-mcp/src/tools/mod.rs` | Module declarations, re-exports `error_json` and `params::*` |
+| `tasker-mcp/src/tools/developer.rs` | Tier 1 offline tool logic (7 pure functions + unit tests) |
+| `tasker-mcp/src/tools/connected.rs` | Tier 2 read-only tool logic (15 async functions) |
+| `tasker-mcp/src/tools/write.rs` | Tier 3 write tool logic (6 async functions, confirmation pattern) |
+| `tasker-mcp/src/tools/helpers.rs` | `error_json()`, `topological_sort()` |
 | `tasker-mcp/src/tools/params.rs` | Parameter and response structs (schemars + serde) |
 | `tasker-mcp/src/lib.rs` | Library target for integration test imports |
 | `tasker-mcp/src/main.rs` | Binary entry point (clap CLI + stdio transport) |
-| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 23 tools) |
+| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 29 tools) |
 | `tests/mcp_tests.rs` | Connected integration tests entry point (requires running services) |
 | `tests/mcp/harness.rs` | `McpTestHarness` — duplex MCP + IntegrationTestManager for seeding |
-| `tests/mcp/` | 4 persona test files: task_inspection, system_monitoring, dlq_investigation, analytics |
+| `tests/mcp/` | 5 persona test files: task_inspection, system_monitoring, dlq_investigation, analytics, write_tools |
 | `tasker-client/src/profile_manager.rs` | ProfileManager, health types, multi-profile sessions |
 | `.mcp.json.example` | Example client config (copy to `.mcp.json`) |
 
@@ -139,9 +169,14 @@ cargo clippy --all-targets --all-features -p tasker-mcp
 
 1. Add parameter struct to `tasker-mcp/src/tools/params.rs` (derive `Deserialize + JsonSchema`)
 2. Add response struct if needed (derive `Serialize`)
-3. Add tool method to `impl TaskerMcpServer` in `server.rs` with `#[tool(...)]` attribute
-4. Add unit test in `server.rs` `mod tests`
-5. Add protocol integration test in `tests/mcp_protocol_test.rs`
+3. Add business logic function in the appropriate tier module:
+   - `tools/developer.rs` — Tier 1 offline (pure `fn`, no client)
+   - `tools/connected.rs` — Tier 2 read-only (`async fn`, takes `&UnifiedOrchestrationClient`)
+   - `tools/write.rs` — Tier 3 write (`async fn`, takes client + profile_name, uses `ConfirmationPhase`)
+4. Add thin routing stub to `server.rs` `#[tool_router]` impl with `#[tool(...)]` attribute
+5. Add unit test in the tier module (developer.rs for pure functions)
+6. Add protocol integration test in `tests/mcp_protocol_test.rs`
+7. For connected tools: add integration test in `tests/mcp/` (requires running services)
 
 ### Tool Parameter Schema
 
@@ -149,7 +184,9 @@ Parameter structs use `schemars::JsonSchema` for automatic MCP tool schema gener
 
 ### Error Handling
 
-All tools return `String`. Errors are returned as JSON: `{"error": "code", "message": "detail", "valid": false}`. The `error_json()` helper in `server.rs` produces this format.
+All tools return `String`. Errors are returned as JSON: `{"error": "code", "message": "detail", "valid": false}`. The `error_json()` helper in `tools/helpers.rs` produces this format.
+
+Write tools use `handle_api_error()` from `tasker-sdk::operational::confirmation` which detects HTTP 403 responses and returns structured `permission_denied` errors with tool name, required permission, and actionable hints.
 
 ### Server Struct (Interior Mutability)
 

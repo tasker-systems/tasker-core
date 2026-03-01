@@ -4,5 +4,6 @@
 //! consumed by both `tasker-mcp` (JSON serialization) and `tasker-ctl` (terminal formatting).
 
 pub mod client_factory;
+pub mod confirmation;
 pub mod enums;
 pub mod responses;
