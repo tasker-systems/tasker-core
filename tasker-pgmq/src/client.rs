@@ -145,7 +145,11 @@ impl PgmqClient {
         Ok(message_id)
     }
 
-    /// Read messages from queue
+    /// Read messages from queue (non-blocking)
+    ///
+    /// Uses `max_poll_seconds=0` to avoid blocking on empty queues. This is critical
+    /// for the fallback poller which iterates many queues sequentially — blocking 5s
+    /// per empty queue creates unacceptable latency (25 queues × 5s = 125s per cycle).
     #[instrument(skip(self), fields(queue = %queue_name, limit = ?limit))]
     pub async fn read_messages(
         &self,
