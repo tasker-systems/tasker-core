@@ -24,9 +24,14 @@ use uuid::Uuid;
 
 use tasker_shared::{
     models::core::task_request::TaskRequest,
+    models::orchestration::{
+        DlqEntry, DlqInvestigationQueueEntry, DlqInvestigationUpdate, DlqListParams, DlqStats,
+        StalenessMonitoring,
+    },
     types::api::orchestration::{
-        DetailedHealthResponse, HealthResponse, StepAuditResponse, StepManualAction, StepResponse,
-        TaskListResponse, TaskResponse, WorkerConfigResponse,
+        BottleneckAnalysis, BottleneckQuery, DetailedHealthResponse, HealthResponse, MetricsQuery,
+        OrchestrationConfigResponse, PerformanceMetrics, StepAuditResponse, StepManualAction,
+        StepResponse, TaskListResponse, TaskResponse, WorkerConfigResponse,
     },
     types::api::templates::{TemplateDetail, TemplateListResponse},
     types::api::worker::{
@@ -129,6 +134,62 @@ pub trait OrchestrationClient: Send + Sync {
 
     /// Get detailed health status.
     async fn get_detailed_health(&self) -> ClientResult<DetailedHealthResponse>;
+
+    // ===================================================================================
+    // ANALYTICS OPERATIONS
+    // ===================================================================================
+
+    /// Get system-wide performance metrics.
+    async fn get_performance_metrics(
+        &self,
+        query: Option<&MetricsQuery>,
+    ) -> ClientResult<PerformanceMetrics>;
+
+    /// Get bottleneck analysis.
+    async fn get_bottlenecks(
+        &self,
+        query: Option<&BottleneckQuery>,
+    ) -> ClientResult<BottleneckAnalysis>;
+
+    // ===================================================================================
+    // DLQ OPERATIONS
+    // ===================================================================================
+
+    /// List DLQ entries with optional filtering.
+    async fn list_dlq_entries(&self, params: Option<&DlqListParams>)
+        -> ClientResult<Vec<DlqEntry>>;
+
+    /// Get a specific DLQ entry by task UUID.
+    async fn get_dlq_entry(&self, task_uuid: Uuid) -> ClientResult<DlqEntry>;
+
+    /// Update a DLQ investigation.
+    async fn update_dlq_investigation(
+        &self,
+        dlq_entry_uuid: Uuid,
+        update: DlqInvestigationUpdate,
+    ) -> ClientResult<()>;
+
+    /// Get DLQ statistics aggregated by reason code.
+    async fn get_dlq_stats(&self) -> ClientResult<Vec<DlqStats>>;
+
+    /// Get prioritized investigation queue.
+    async fn get_investigation_queue(
+        &self,
+        limit: Option<i64>,
+    ) -> ClientResult<Vec<DlqInvestigationQueueEntry>>;
+
+    /// Get task staleness monitoring data.
+    async fn get_staleness_monitoring(
+        &self,
+        limit: Option<i64>,
+    ) -> ClientResult<Vec<StalenessMonitoring>>;
+
+    // ===================================================================================
+    // CONFIGURATION OPERATIONS
+    // ===================================================================================
+
+    /// Get orchestration configuration (secrets redacted).
+    async fn get_config(&self) -> ClientResult<OrchestrationConfigResponse>;
 }
 
 // ===================================================================================
@@ -299,6 +360,88 @@ impl OrchestrationClient for RestOrchestrationClient {
             .await
             .map_err(|e| ClientError::Internal(format!("Get detailed health failed: {}", e)))
     }
+
+    async fn get_performance_metrics(
+        &self,
+        query: Option<&MetricsQuery>,
+    ) -> ClientResult<PerformanceMetrics> {
+        self.inner
+            .get_performance_metrics(query)
+            .await
+            .map_err(|e| ClientError::Internal(format!("Get performance metrics failed: {}", e)))
+    }
+
+    async fn get_bottlenecks(
+        &self,
+        query: Option<&BottleneckQuery>,
+    ) -> ClientResult<BottleneckAnalysis> {
+        self.inner
+            .get_bottlenecks(query)
+            .await
+            .map_err(|e| ClientError::Internal(format!("Get bottlenecks failed: {}", e)))
+    }
+
+    async fn list_dlq_entries(
+        &self,
+        params: Option<&DlqListParams>,
+    ) -> ClientResult<Vec<DlqEntry>> {
+        self.inner
+            .list_dlq_entries(params)
+            .await
+            .map_err(|e| ClientError::Internal(format!("List DLQ entries failed: {}", e)))
+    }
+
+    async fn get_dlq_entry(&self, task_uuid: Uuid) -> ClientResult<DlqEntry> {
+        self.inner
+            .get_dlq_entry(task_uuid)
+            .await
+            .map_err(|e| ClientError::Internal(format!("Get DLQ entry failed: {}", e)))
+    }
+
+    async fn update_dlq_investigation(
+        &self,
+        dlq_entry_uuid: Uuid,
+        update: DlqInvestigationUpdate,
+    ) -> ClientResult<()> {
+        self.inner
+            .update_dlq_investigation(dlq_entry_uuid, update)
+            .await
+            .map_err(|e| ClientError::Internal(format!("Update DLQ investigation failed: {}", e)))
+    }
+
+    async fn get_dlq_stats(&self) -> ClientResult<Vec<DlqStats>> {
+        self.inner
+            .get_dlq_stats()
+            .await
+            .map_err(|e| ClientError::Internal(format!("Get DLQ stats failed: {}", e)))
+    }
+
+    async fn get_investigation_queue(
+        &self,
+        limit: Option<i64>,
+    ) -> ClientResult<Vec<DlqInvestigationQueueEntry>> {
+        self.inner
+            .get_investigation_queue(limit)
+            .await
+            .map_err(|e| ClientError::Internal(format!("Get investigation queue failed: {}", e)))
+    }
+
+    async fn get_staleness_monitoring(
+        &self,
+        limit: Option<i64>,
+    ) -> ClientResult<Vec<StalenessMonitoring>> {
+        self.inner
+            .get_staleness_monitoring(limit)
+            .await
+            .map_err(|e| ClientError::Internal(format!("Get staleness monitoring failed: {}", e)))
+    }
+
+    async fn get_config(&self) -> ClientResult<OrchestrationConfigResponse> {
+        self.inner
+            .get_config()
+            .await
+            .map_err(|e| ClientError::Internal(format!("Get config failed: {}", e)))
+    }
 }
 
 // ===================================================================================
@@ -441,6 +584,67 @@ impl OrchestrationClient for GrpcOrchestrationClient {
 
     async fn get_detailed_health(&self) -> ClientResult<DetailedHealthResponse> {
         self.inner.get_detailed_health().await
+    }
+
+    async fn get_performance_metrics(
+        &self,
+        query: Option<&MetricsQuery>,
+    ) -> ClientResult<PerformanceMetrics> {
+        self.inner.get_performance_metrics(query).await
+    }
+
+    async fn get_bottlenecks(
+        &self,
+        query: Option<&BottleneckQuery>,
+    ) -> ClientResult<BottleneckAnalysis> {
+        let (limit, min_executions) = match query {
+            Some(q) => (q.limit, q.min_executions),
+            None => (None, None),
+        };
+        self.inner.get_bottlenecks(limit, min_executions).await
+    }
+
+    async fn list_dlq_entries(
+        &self,
+        params: Option<&DlqListParams>,
+    ) -> ClientResult<Vec<DlqEntry>> {
+        self.inner.list_dlq_entries(params).await
+    }
+
+    async fn get_dlq_entry(&self, task_uuid: Uuid) -> ClientResult<DlqEntry> {
+        self.inner.get_dlq_entry(task_uuid).await
+    }
+
+    async fn update_dlq_investigation(
+        &self,
+        dlq_entry_uuid: Uuid,
+        update: DlqInvestigationUpdate,
+    ) -> ClientResult<()> {
+        self.inner
+            .update_dlq_investigation(dlq_entry_uuid, update)
+            .await
+    }
+
+    async fn get_dlq_stats(&self) -> ClientResult<Vec<DlqStats>> {
+        self.inner.get_dlq_stats().await
+    }
+
+    async fn get_investigation_queue(
+        &self,
+        limit: Option<i64>,
+    ) -> ClientResult<Vec<DlqInvestigationQueueEntry>> {
+        self.inner.get_investigation_queue(limit).await
+    }
+
+    async fn get_staleness_monitoring(
+        &self,
+        limit: Option<i64>,
+    ) -> ClientResult<Vec<StalenessMonitoring>> {
+        self.inner.get_staleness_monitoring(limit).await
+    }
+
+    async fn get_config(&self) -> ClientResult<OrchestrationConfigResponse> {
+        self.inner.get_config().await
     }
 }
 
@@ -656,6 +860,101 @@ impl OrchestrationClient for UnifiedOrchestrationClient {
             UnifiedOrchestrationClient::Rest(c) => c.get_detailed_health().await,
             #[cfg(feature = "grpc")]
             UnifiedOrchestrationClient::Grpc(c) => c.get_detailed_health().await,
+        }
+    }
+
+    async fn get_performance_metrics(
+        &self,
+        query: Option<&MetricsQuery>,
+    ) -> ClientResult<PerformanceMetrics> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.get_performance_metrics(query).await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.get_performance_metrics(query).await,
+        }
+    }
+
+    async fn get_bottlenecks(
+        &self,
+        query: Option<&BottleneckQuery>,
+    ) -> ClientResult<BottleneckAnalysis> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.get_bottlenecks(query).await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.get_bottlenecks(query).await,
+        }
+    }
+
+    async fn list_dlq_entries(
+        &self,
+        params: Option<&DlqListParams>,
+    ) -> ClientResult<Vec<DlqEntry>> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.list_dlq_entries(params).await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.list_dlq_entries(params).await,
+        }
+    }
+
+    async fn get_dlq_entry(&self, task_uuid: Uuid) -> ClientResult<DlqEntry> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.get_dlq_entry(task_uuid).await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.get_dlq_entry(task_uuid).await,
+        }
+    }
+
+    async fn update_dlq_investigation(
+        &self,
+        dlq_entry_uuid: Uuid,
+        update: DlqInvestigationUpdate,
+    ) -> ClientResult<()> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => {
+                c.update_dlq_investigation(dlq_entry_uuid, update).await
+            }
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => {
+                c.update_dlq_investigation(dlq_entry_uuid, update).await
+            }
+        }
+    }
+
+    async fn get_dlq_stats(&self) -> ClientResult<Vec<DlqStats>> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.get_dlq_stats().await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.get_dlq_stats().await,
+        }
+    }
+
+    async fn get_investigation_queue(
+        &self,
+        limit: Option<i64>,
+    ) -> ClientResult<Vec<DlqInvestigationQueueEntry>> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.get_investigation_queue(limit).await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.get_investigation_queue(limit).await,
+        }
+    }
+
+    async fn get_staleness_monitoring(
+        &self,
+        limit: Option<i64>,
+    ) -> ClientResult<Vec<StalenessMonitoring>> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.get_staleness_monitoring(limit).await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.get_staleness_monitoring(limit).await,
+        }
+    }
+
+    async fn get_config(&self) -> ClientResult<OrchestrationConfigResponse> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.get_config().await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.get_config().await,
         }
     }
 }

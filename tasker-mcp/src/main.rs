@@ -59,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
 
         // Switch to requested profile if specified
         if let Some(ref profile_name) = cli.profile {
-            pm.switch_profile(profile_name)?;
+            pm.set_initial_profile(profile_name)?;
             tracing::info!(profile = %profile_name, "Set active profile");
         }
 

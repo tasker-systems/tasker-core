@@ -2,7 +2,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tasker_tooling::template_generator::{FieldSpec, StepSpec, TemplateSpec};
+use tasker_sdk::template_generator::{FieldSpec, StepSpec, TemplateSpec};
 
 // ── template_validate ──
 
@@ -268,16 +268,233 @@ pub struct ConnectionStatusParams {
     pub refresh: Option<bool>,
 }
 
-// ── use_environment ──
+// ═══════════════════════════════════════════════════════════════════════════
+// Tier 2: Connected Read-Only Tools
+// ═══════════════════════════════════════════════════════════════════════════
 
-/// Parameters for the `use_environment` tool.
+// ── Task & Step Inspection ──
+
+/// Parameters for the `task_list` tool.
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct UseEnvironmentParams {
-    /// Profile name to switch to.
-    #[schemars(description = "Profile name to switch to (e.g., 'default', 'staging', 'grpc')")]
-    pub profile: String,
-    /// Whether to probe health after switching (default: true).
-    #[schemars(description = "Whether to probe health after switching (default: true)")]
-    #[serde(default)]
-    pub probe_health: Option<bool>,
+pub struct TaskListParams {
+    /// Optional profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Filter by namespace.
+    #[schemars(description = "Filter tasks by namespace")]
+    pub namespace: Option<String>,
+    /// Filter by status (e.g., 'pending', 'complete', 'error').
+    #[schemars(description = "Filter tasks by status (e.g., 'pending', 'complete', 'error')")]
+    pub status: Option<String>,
+    /// Maximum number of tasks to return (default 20, max 100).
+    #[schemars(description = "Maximum number of tasks to return (default 20, max 100)")]
+    pub limit: Option<i32>,
+    /// Offset for pagination (default 0).
+    #[schemars(description = "Offset for pagination (default 0)")]
+    pub offset: Option<i32>,
+}
+
+/// Parameters for the `task_inspect` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TaskInspectParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task UUID to inspect.
+    #[schemars(description = "Task UUID to inspect")]
+    pub task_uuid: String,
+}
+
+/// Parameters for the `step_inspect` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StepInspectToolParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task UUID the step belongs to.
+    #[schemars(description = "Task UUID the step belongs to")]
+    pub task_uuid: String,
+    /// Step UUID to inspect.
+    #[schemars(description = "Step UUID to inspect")]
+    pub step_uuid: String,
+}
+
+/// Parameters for the `step_audit` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StepAuditParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task UUID the step belongs to.
+    #[schemars(description = "Task UUID the step belongs to")]
+    pub task_uuid: String,
+    /// Step UUID to get audit history for.
+    #[schemars(description = "Step UUID to get audit history for")]
+    pub step_uuid: String,
+}
+
+// ── DLQ Investigation ──
+
+/// Parameters for the `dlq_list` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DlqListToolParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Filter by resolution status (e.g., 'pending_investigation', 'resolved', 'retry_scheduled').
+    #[schemars(
+        description = "Filter by resolution status (e.g., 'pending_investigation', 'resolved', 'retry_scheduled')"
+    )]
+    pub resolution_status: Option<String>,
+    /// Maximum number of entries to return (default 20).
+    #[schemars(description = "Maximum number of entries to return (default 20)")]
+    pub limit: Option<i64>,
+}
+
+/// Parameters for the `dlq_inspect` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DlqInspectToolParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task UUID of the DLQ entry to inspect.
+    #[schemars(description = "Task UUID of the DLQ entry to inspect")]
+    pub task_uuid: String,
+}
+
+/// Parameters for the `dlq_stats` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DlqStatsToolParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+}
+
+/// Parameters for the `dlq_queue` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DlqQueueToolParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Maximum number of entries in the prioritized queue (default 10).
+    #[schemars(description = "Maximum number of entries in the prioritized queue (default 10)")]
+    pub limit: Option<i64>,
+}
+
+/// Parameters for the `staleness_check` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StalenessCheckParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Maximum number of tasks to check (default 20).
+    #[schemars(description = "Maximum number of tasks to check (default 20)")]
+    pub limit: Option<i64>,
+}
+
+// ── Analytics ──
+
+/// Parameters for the `analytics_performance` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AnalyticsPerformanceParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Number of hours to look back for metrics (e.g., 24 for last day).
+    #[schemars(description = "Number of hours to look back for metrics (e.g., 24 for last day)")]
+    pub hours: Option<u32>,
+}
+
+/// Parameters for the `analytics_bottlenecks` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AnalyticsBottlenecksParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Maximum number of bottlenecks to return.
+    #[schemars(description = "Maximum number of bottlenecks to return")]
+    pub limit: Option<i32>,
+    /// Minimum number of executions to consider a step for bottleneck analysis.
+    #[schemars(
+        description = "Minimum number of executions to consider a step for bottleneck analysis"
+    )]
+    pub min_executions: Option<i32>,
+}
+
+// ── System ──
+
+/// Parameters for the `system_health` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SystemHealthParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+}
+
+/// Parameters for the `system_config` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SystemConfigParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+}
+
+// ── Remote Templates ──
+
+/// Parameters for the `template_list_remote` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TemplateListRemoteParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Filter templates by namespace.
+    #[schemars(description = "Filter templates by namespace")]
+    pub namespace: Option<String>,
+}
+
+/// Parameters for the `template_inspect_remote` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TemplateInspectRemoteParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Template namespace.
+    #[schemars(description = "Template namespace")]
+    pub namespace: String,
+    /// Template name.
+    #[schemars(description = "Template name")]
+    pub name: String,
+    /// Template version.
+    #[schemars(description = "Template version (e.g., '1.0.0')")]
+    pub version: String,
 }

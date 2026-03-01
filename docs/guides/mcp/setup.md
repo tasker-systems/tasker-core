@@ -1,6 +1,6 @@
 # MCP Server Setup Guide
 
-This guide covers installing and configuring `tasker-mcp`, the Model Context Protocol server for Tasker developer tooling.
+This guide covers installing and configuring `tasker-mcp`, the Model Context Protocol server that exposes 23 Tasker tools to LLM agents and developer tooling.
 
 ## Installation
 
@@ -25,6 +25,25 @@ cargo install tasker-mcp
 ```bash
 docker run --rm -i ghcr.io/tasker-systems/tasker-mcp:latest
 ```
+
+## Operating Modes
+
+### Offline Mode (Tier 1 only)
+
+```bash
+tasker-mcp --offline
+```
+
+All 7 developer tooling tools work locally with no network calls. Use this when you only need template validation, code generation, and schema inspection.
+
+### Connected Mode (default)
+
+```bash
+tasker-mcp                    # Loads profiles from tasker-client.toml
+tasker-mcp --profile staging  # Set initial active profile
+```
+
+All 23 tools available. Requires a profile configuration pointing to a running Tasker orchestration server. Connected tools accept an optional `profile` parameter to target a specific environment.
 
 ## Client Configuration
 
@@ -91,7 +110,37 @@ Run with a local model:
 mcphost --config mcphost.json --model ollama:qwen2.5-coder:14b
 ```
 
-## Available Tools
+## Profile Configuration (Connected Mode)
+
+Create `.config/tasker-client.toml` in your project or home directory:
+
+```toml
+[profile.default]
+description = "Local development server"
+transport = "rest"
+
+[profile.default.orchestration]
+base_url = "http://localhost:8080"
+
+[profile.default.worker]
+base_url = "http://localhost:8081"
+
+[profile.staging]
+description = "Staging environment"
+transport = "rest"
+
+[profile.staging.orchestration]
+base_url = "https://staging-orchestration.example.com"
+
+[profile.staging.worker]
+base_url = "https://staging-worker.example.com"
+```
+
+Verify connectivity with the `connection_status` tool after configuring profiles.
+
+## Available Tools (23)
+
+### Tier 1 — Offline Developer Tools (7)
 
 | Tool | Description |
 |------|-------------|
@@ -101,6 +150,57 @@ mcphost --config mcphost.json --model ollama:qwen2.5-coder:14b
 | `handler_generate` | Generate typed handlers, models, and tests |
 | `schema_inspect` | Inspect result_schema field details and consumer relationships |
 | `schema_compare` | Compare producer/consumer schema compatibility |
+| `schema_diff` | Detect field-level changes between two template versions |
+
+### Profile Management (1)
+
+| Tool | Description |
+|------|-------------|
+| `connection_status` | List profiles with health status, refresh endpoint probes |
+
+### Tier 2 — Connected Read-Only Tools (15)
+
+All accept an optional `profile` parameter to target a specific environment.
+
+**Task & Step Inspection**
+
+| Tool | Description |
+|------|-------------|
+| `task_list` | List tasks with namespace/status filtering and pagination |
+| `task_inspect` | Task details with step breakdown and completion percentage |
+| `step_inspect` | Step details including results, timing, and retry info |
+| `step_audit` | SOC2-compliant audit trail for a step |
+
+**DLQ Investigation**
+
+| Tool | Description |
+|------|-------------|
+| `dlq_list` | List DLQ entries with resolution status filtering |
+| `dlq_inspect` | Detailed DLQ entry with error context and snapshots |
+| `dlq_stats` | DLQ statistics aggregated by reason code |
+| `dlq_queue` | Prioritized investigation queue ranked by severity |
+| `staleness_check` | Task staleness monitoring with health annotations |
+
+**Analytics**
+
+| Tool | Description |
+|------|-------------|
+| `analytics_performance` | System-wide performance metrics |
+| `analytics_bottlenecks` | Slow steps and bottleneck identification |
+
+**System**
+
+| Tool | Description |
+|------|-------------|
+| `system_health` | Detailed component health (DB, queues, circuit breakers) |
+| `system_config` | Orchestration configuration (secrets redacted) |
+
+**Remote Templates**
+
+| Tool | Description |
+|------|-------------|
+| `template_list_remote` | List templates registered on the server |
+| `template_inspect_remote` | Template details from the server |
 
 ## Troubleshooting
 
@@ -126,9 +226,25 @@ RUST_LOG=tasker_mcp=debug tasker-mcp
 3. Restart your MCP client after configuration changes
 4. Check stderr output for initialization errors
 
-### Timeout errors
+### Offline tools timeout
 
-MCP tool calls are synchronous — all 6 tools run locally against in-memory data (no network calls). If you see timeouts, the issue is likely transport-level. Check that the stdio pipe is connected properly.
+Tier 1 tools run locally against in-memory data (no network calls). If you see timeouts, the issue is likely transport-level. Check that the stdio pipe is connected properly.
+
+### Connected tools return "offline_mode" error
+
+You're running in offline mode but trying to use Tier 2 tools. Remove the `--offline` flag or ensure a profile configuration exists.
+
+### Connected tools return "profile_not_found" error
+
+The requested profile doesn't exist in your `tasker-client.toml`. Use `connection_status` to see available profiles.
+
+### Connected tools return "connection_failed" error
+
+The profile's orchestration server is unreachable. Verify:
+
+1. The server is running at the configured URL
+2. Network connectivity (firewalls, VPN)
+3. Use `connection_status` with `refresh=true` to re-probe endpoints
 
 ### Common parameter errors
 

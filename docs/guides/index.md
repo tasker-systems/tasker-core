@@ -39,8 +39,9 @@ This directory contains practical how-to guides for working with Tasker Core.
 
 | Document | Description |
 |----------|-------------|
-| [MCP Setup](./mcp/setup.md) | Installing and configuring the tasker-mcp server |
+| [MCP Setup](./mcp/setup.md) | Installing and configuring the tasker-mcp server (23 tools) |
 | [MCP Workflow Exercise](./mcp/workflow-exercise.md) | Build a complete workflow using only MCP tools |
+| [MCP Operational Exercise](./mcp/operational-exercise.md) | Multi-persona connected tool workflows (debugging, monitoring, DLQ triage, analytics) |
 | [MCP Local Models](./mcp/local-models.md) | Using tasker-mcp with Ollama and local LLMs |
 
 ## When to Read These

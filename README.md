@@ -104,7 +104,7 @@ curl http://localhost:8080/health
 | `tasker-orchestration` | Task coordination, REST/gRPC API |
 | `tasker-worker` | Step execution, FFI layer |
 | `tasker-client` | REST/gRPC client library |
-| `tasker-tooling` | Shared developer tooling — codegen, template parsing, schema inspection |
+| `tasker-sdk` | Shared SDK — codegen, template parsing, schema inspection, operational tooling |
 | `tasker-ctl` | CLI binary — operations, config management, plugin system |
 | `tasker-mcp` | MCP server exposing Tasker tooling to LLM agents |
 | `workers/rust` | Native Rust worker implementation |

@@ -2,7 +2,7 @@
 //!
 //! Uses the real `TaskerMcpServer` from the library target to verify protocol
 //! round-trips: tool discovery via `list_tools` and tool invocation via `call_tool`
-//! for all 7 tools.
+//! for all 25 tools (8 Tier 1/profile + 17 Tier 2 connected).
 
 use rmcp::model::{CallToolRequestParams, ClientInfo};
 use rmcp::service::{RoleClient, RunningService};
@@ -68,7 +68,7 @@ fn codegen_yaml() -> &'static str {
 // ── Discovery ──
 
 #[tokio::test]
-async fn test_list_tools_returns_all_nine() -> anyhow::Result<()> {
+async fn test_list_tools_returns_all() -> anyhow::Result<()> {
     let (client, server_handle) = setup().await?;
 
     let tools = client.list_tools(None).await?;
@@ -78,16 +78,35 @@ async fn test_list_tools_returns_all_nine() -> anyhow::Result<()> {
     assert_eq!(
         names,
         vec![
+            "analytics_bottlenecks",
+            "analytics_performance",
             "connection_status",
+            "dlq_inspect",
+            "dlq_list",
+            "dlq_queue",
+            "dlq_stats",
             "handler_generate",
             "schema_compare",
             "schema_diff",
             "schema_inspect",
+            "staleness_check",
+            "step_audit",
+            "step_inspect",
+            "system_config",
+            "system_health",
+            "task_inspect",
+            "task_list",
             "template_generate",
             "template_inspect",
+            "template_inspect_remote",
+            "template_list_remote",
             "template_validate",
-            "use_environment",
         ]
+    );
+    assert_eq!(
+        names.len(),
+        23,
+        "Expected 23 tools: 7 Tier 1 + 1 profile + 15 Tier 2 connected"
     );
 
     client.cancel().await?;
@@ -386,6 +405,91 @@ async fn test_schema_compare_step_not_found() -> anyhow::Result<()> {
 
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
     assert_eq!(parsed["error"], "step_not_found");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+// ── Tier 2: Offline mode error tests ──
+
+#[tokio::test]
+async fn test_task_list_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(&client, "task_list", serde_json::json!({})).await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_task_inspect_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(
+        &client,
+        "task_inspect",
+        serde_json::json!({ "task_uuid": "00000000-0000-0000-0000-000000000000" }),
+    )
+    .await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_dlq_list_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(&client, "dlq_list", serde_json::json!({})).await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_system_health_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(&client, "system_health", serde_json::json!({})).await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_analytics_performance_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(&client, "analytics_performance", serde_json::json!({})).await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_template_list_remote_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(&client, "template_list_remote", serde_json::json!({})).await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
 
     client.cancel().await?;
     server_handle.await??;

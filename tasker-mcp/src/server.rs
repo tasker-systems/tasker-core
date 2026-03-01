@@ -14,7 +14,23 @@
 //!
 //! **Profile Management (when profiles configured)**
 //! - `connection_status` — Show profile health and available capabilities
-//! - `use_environment` — Switch active profile/environment
+//!
+//! **Tier 2 — Connected Read-Only Tools (require live server)**
+//! - `task_list` — List tasks with filtering by namespace/status
+//! - `task_inspect` — Get task details with step breakdown
+//! - `step_inspect` — Get step details including results and timing
+//! - `step_audit` — Get SOC2-compliant audit trail for a step
+//! - `dlq_list` — List dead letter queue entries with filtering
+//! - `dlq_inspect` — Get detailed DLQ entry with investigation context
+//! - `dlq_stats` — Get DLQ statistics aggregated by reason code
+//! - `dlq_queue` — Get prioritized investigation queue
+//! - `staleness_check` — Monitor task staleness with health annotations
+//! - `analytics_performance` — Get system-wide performance metrics
+//! - `analytics_bottlenecks` — Identify slow steps and tasks
+//! - `system_health` — Get detailed component health status
+//! - `system_config` — Get orchestration configuration (secrets redacted)
+//! - `template_list_remote` — List templates registered on the server
+//! - `template_inspect_remote` — Get template details from the server
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -24,15 +40,21 @@ use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{Implementation, ProtocolVersion, ServerCapabilities, ServerInfo};
 use rmcp::{tool, tool_handler, tool_router, ServerHandler};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
-use tasker_client::ProfileManager;
-use tasker_tooling::codegen::{self, TargetLanguage};
-use tasker_tooling::schema_comparator;
-use tasker_tooling::schema_diff;
-use tasker_tooling::schema_inspector;
-use tasker_tooling::template_generator;
-use tasker_tooling::template_parser::parse_template_str;
-use tasker_tooling::template_validator;
+use tasker_client::{OrchestrationClient, ProfileManager, UnifiedOrchestrationClient};
+use tasker_sdk::codegen::{self, TargetLanguage};
+use tasker_sdk::operational::client_factory;
+use tasker_sdk::operational::responses::{
+    BottleneckFilter, BottleneckReport, DlqSummary, HealthReport, PerformanceReport, StepSummary,
+    TaskDetail, TaskSummary,
+};
+use tasker_sdk::schema_comparator;
+use tasker_sdk::schema_diff;
+use tasker_sdk::schema_inspector;
+use tasker_sdk::template_generator;
+use tasker_sdk::template_parser::parse_template_str;
+use tasker_sdk::template_validator;
 
 use crate::tools::*;
 
@@ -75,6 +97,50 @@ impl TaskerMcpServer {
     pub fn profile_manager(&self) -> &Arc<RwLock<ProfileManager>> {
         &self.profile_manager
     }
+
+    /// Resolve a connected orchestration client for Tier 2 tools.
+    ///
+    /// Returns an error JSON string if offline, profile not found, or connection fails.
+    async fn resolve_client(
+        &self,
+        profile: Option<&str>,
+    ) -> Result<UnifiedOrchestrationClient, String> {
+        if self.offline {
+            return Err(error_json(
+                "offline_mode",
+                "Running in offline mode. Connected tools require a live Tasker server. \
+                 Start tasker-mcp with a profile configuration to enable connected tools.",
+            ));
+        }
+
+        let pm = self.profile_manager.read().await;
+        let profile_name = profile.unwrap_or_else(|| pm.active_profile_name());
+
+        let config = pm.get_config(profile_name).ok_or_else(|| {
+            let available = pm.list_profile_names().join(", ");
+            error_json(
+                "profile_not_found",
+                &format!(
+                    "Profile '{}' not found. Available profiles: [{}]. \
+                     Use connection_status to see all profiles.",
+                    profile_name, available
+                ),
+            )
+        })?;
+
+        client_factory::build_orchestration_client(config)
+            .await
+            .map_err(|e| {
+                error_json(
+                    "connection_failed",
+                    &format!(
+                        "Failed to connect to profile '{}': {}. \
+                         Use connection_status to check endpoint health.",
+                        profile_name, e
+                    ),
+                )
+            })
+    }
 }
 
 #[tool_handler(router = self.tool_router)]
@@ -96,7 +162,13 @@ impl ServerHandler for TaskerMcpServer {
              handler_generate defaults to scaffold mode: handlers import generated types with typed returns.\n\
              When debugging: template_inspect → schema_inspect → schema_compare\n\
              For versioning: schema_diff compares before/after template YAML to detect breaking field changes\n\
-             Profile management: connection_status to check environment health, use_environment to switch profiles"
+             Profile management: connection_status to check environment health.\n\
+             Connected tools: task_list/task_inspect for task inspection, step_inspect/step_audit for step details, \
+             dlq_list/dlq_inspect/dlq_stats/dlq_queue/staleness_check for DLQ investigation, \
+             analytics_performance/analytics_bottlenecks for performance analysis, \
+             system_health/system_config for system status, \
+             template_list_remote/template_inspect_remote for server-side templates.\n\
+             All connected tools accept an optional 'profile' parameter to target a specific environment."
                 .to_string()
         };
 
@@ -240,7 +312,7 @@ impl TaskerMcpServer {
         &self,
         Parameters(params): Parameters<TemplateGenerateParams>,
     ) -> String {
-        let spec: tasker_tooling::template_generator::TemplateSpec = params.into();
+        let spec: tasker_sdk::template_generator::TemplateSpec = params.into();
         match template_generator::generate_yaml(&spec) {
             Ok(yaml) => yaml,
             Err(e) => error_json("generation_error", &e.to_string()),
@@ -508,41 +580,451 @@ impl TaskerMcpServer {
         .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
     }
 
-    /// Switch the active Tasker profile to a different environment.
+    // ── Tier 2: Connected Read-Only Tools ──
+
+    /// List tasks with optional filtering by namespace and status.
     #[tool(
-        name = "use_environment",
-        description = "Switch the active Tasker profile to a different environment (e.g., 'staging', 'local-dev', 'grpc'). After switching, probes health by default. Returns the new active profile's connection details."
+        name = "task_list",
+        description = "List tasks with optional filtering by namespace and status. Returns compact summaries with UUID, name, status, completion percentage, and health. Start here to find tasks for deeper inspection with task_inspect."
     )]
-    pub async fn use_environment(
+    pub async fn task_list(&self, Parameters(params): Parameters<TaskListParams>) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let limit = params.limit.unwrap_or(20).min(100);
+        let offset = params.offset.unwrap_or(0);
+
+        match client
+            .as_client()
+            .list_tasks(
+                limit,
+                offset,
+                params.namespace.as_deref(),
+                params.status.as_deref(),
+            )
+            .await
+        {
+            Ok(response) => {
+                let summaries: Vec<TaskSummary> =
+                    response.tasks.iter().map(TaskSummary::from).collect();
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "tasks": summaries,
+                    "total_count": response.pagination.total_count,
+                    "limit": limit,
+                    "offset": offset,
+                }))
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+            }
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Get detailed task information with step breakdown.
+    #[tool(
+        name = "task_inspect",
+        description = "Get detailed task information including all steps with their status, attempt counts, and dependency satisfaction. Use task_uuid from task_list results. Follow up with step_inspect for individual step details or step_audit for audit trails."
+    )]
+    pub async fn task_inspect(&self, Parameters(params): Parameters<TaskInspectParams>) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+        };
+
+        let task = match client.as_client().get_task(task_uuid).await {
+            Ok(t) => t,
+            Err(e) => return error_json("api_error", &e.to_string()),
+        };
+
+        let steps = match client.as_client().list_task_steps(task_uuid).await {
+            Ok(s) => s,
+            Err(e) => {
+                return error_json("api_error", &format!("Task found but steps failed: {}", e))
+            }
+        };
+
+        let detail = TaskDetail {
+            task: serde_json::to_value(&task)
+                .unwrap_or_else(|_| serde_json::json!({"error": "serialization_failed"})),
+            steps: steps.iter().map(StepSummary::from).collect(),
+        };
+
+        serde_json::to_string_pretty(&detail)
+            .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+    }
+
+    /// Get detailed step information including results and timing.
+    #[tool(
+        name = "step_inspect",
+        description = "Get detailed information about a specific workflow step including current state, results, attempt counts, retry eligibility, and dependency status. Requires both task_uuid and step_uuid from task_inspect results."
+    )]
+    pub async fn step_inspect(
         &self,
-        Parameters(params): Parameters<UseEnvironmentParams>,
+        Parameters(params): Parameters<StepInspectToolParams>,
     ) -> String {
-        if self.offline {
-            return error_json(
-                "offline_mode",
-                "Cannot switch environments in offline mode. Restart without --offline flag.",
-            );
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+        };
+        let step_uuid = match Uuid::parse_str(&params.step_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid step_uuid: {}", e)),
+        };
+
+        match client.as_client().get_step(task_uuid, step_uuid).await {
+            Ok(step) => serde_json::to_string_pretty(&step)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
         }
+    }
 
-        let mut pm = self.profile_manager.write().await;
+    /// Get SOC2-compliant audit trail for a workflow step.
+    #[tool(
+        name = "step_audit",
+        description = "Get the complete audit trail for a workflow step showing all state transitions, worker attribution, execution timing, and results. Ordered most-recent-first. Requires both task_uuid and step_uuid."
+    )]
+    pub async fn step_audit(&self, Parameters(params): Parameters<StepAuditParams>) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
 
-        if let Err(e) = pm.switch_profile(&params.profile) {
-            return error_json("profile_not_found", &e.to_string());
+        let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+        };
+        let step_uuid = match Uuid::parse_str(&params.step_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid step_uuid: {}", e)),
+        };
+
+        match client
+            .as_client()
+            .get_step_audit_history(task_uuid, step_uuid)
+            .await
+        {
+            Ok(audit) => serde_json::to_string_pretty(&audit)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
         }
+    }
 
-        // Probe health after switching (default: true)
-        if params.probe_health.unwrap_or(true) {
-            let _ = pm.probe_active_health().await;
+    /// List dead letter queue entries with optional filtering.
+    #[tool(
+        name = "dlq_list",
+        description = "List dead letter queue entries with optional filtering by resolution status. Returns summaries with task UUID, DLQ reason, resolution status, and age. Start here for DLQ investigation, then use dlq_inspect for details."
+    )]
+    pub async fn dlq_list(&self, Parameters(params): Parameters<DlqListToolParams>) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let dlq_params = {
+            let status = params
+                .resolution_status
+                .as_deref()
+                .and_then(|s| tasker_sdk::operational::enums::parse_dlq_resolution_status(s).ok());
+            Some(tasker_shared::models::orchestration::DlqListParams {
+                resolution_status: status,
+                limit: params.limit.unwrap_or(20),
+                offset: 0,
+            })
+        };
+
+        match client.list_dlq_entries(dlq_params.as_ref()).await {
+            Ok(entries) => {
+                let summaries: Vec<DlqSummary> = entries.iter().map(DlqSummary::from).collect();
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "entries": summaries,
+                    "count": summaries.len(),
+                }))
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+            }
+            Err(e) => error_json("api_error", &e.to_string()),
         }
+    }
 
-        let profiles = pm.list_profiles();
-        let active_summary = profiles.into_iter().find(|p| p.is_active);
+    /// Get detailed DLQ entry with investigation context.
+    #[tool(
+        name = "dlq_inspect",
+        description = "Get detailed information about a specific DLQ entry including the full error context, original task details, and resolution history. Use the task_uuid from dlq_list results."
+    )]
+    pub async fn dlq_inspect(
+        &self,
+        Parameters(params): Parameters<DlqInspectToolParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
 
-        serde_json::to_string_pretty(&serde_json::json!({
-            "switched_to": params.profile,
-            "profile": active_summary,
-        }))
-        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+        let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+        };
+
+        match client.get_dlq_entry(task_uuid).await {
+            Ok(entry) => serde_json::to_string_pretty(&serde_json::json!({
+                "dlq_entry_uuid": entry.dlq_entry_uuid.to_string(),
+                "task_uuid": entry.task_uuid.to_string(),
+                "original_state": entry.original_state,
+                "dlq_reason": format!("{:?}", entry.dlq_reason),
+                "dlq_timestamp": entry.dlq_timestamp.to_string(),
+                "resolution_status": format!("{:?}", entry.resolution_status),
+                "resolution_timestamp": entry.resolution_timestamp.map(|t| t.to_string()),
+                "resolution_notes": entry.resolution_notes,
+                "resolved_by": entry.resolved_by,
+                "task_snapshot": entry.task_snapshot,
+                "metadata": entry.metadata,
+                "created_at": entry.created_at.to_string(),
+                "updated_at": entry.updated_at.to_string(),
+            }))
+            .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Get DLQ statistics aggregated by reason code.
+    #[tool(
+        name = "dlq_stats",
+        description = "Get dead letter queue statistics aggregated by reason code. Shows how many entries exist per failure reason, helping identify systemic issues. Use this for high-level DLQ health assessment."
+    )]
+    pub async fn dlq_stats(&self, Parameters(params): Parameters<DlqStatsToolParams>) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        match client.get_dlq_stats().await {
+            Ok(stats) => serde_json::to_string_pretty(&stats)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Get prioritized DLQ investigation queue.
+    #[tool(
+        name = "dlq_queue",
+        description = "Get the prioritized investigation queue ranking DLQ entries by severity and age. Returns entries scored for triage priority. Use this to decide which DLQ entries to investigate first."
+    )]
+    pub async fn dlq_queue(&self, Parameters(params): Parameters<DlqQueueToolParams>) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        match client.get_investigation_queue(params.limit).await {
+            Ok(queue) => serde_json::to_string_pretty(&queue)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Monitor task staleness with health annotations.
+    #[tool(
+        name = "staleness_check",
+        description = "Monitor task staleness with health annotations (healthy/warning/stale). Identifies tasks that may be stuck based on configurable time thresholds. Use this for proactive health monitoring."
+    )]
+    pub async fn staleness_check(
+        &self,
+        Parameters(params): Parameters<StalenessCheckParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        match client.get_staleness_monitoring(params.limit).await {
+            Ok(monitoring) => serde_json::to_string_pretty(&monitoring)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Get system-wide performance metrics.
+    #[tool(
+        name = "analytics_performance",
+        description = "Get system-wide performance metrics including task throughput, step execution times, and queue depths. Optionally filter by time window in hours. Use this for capacity planning and performance monitoring."
+    )]
+    pub async fn analytics_performance(
+        &self,
+        Parameters(params): Parameters<AnalyticsPerformanceParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let query = params
+            .hours
+            .map(|h| tasker_shared::types::api::orchestration::MetricsQuery { hours: Some(h) });
+
+        match client.get_performance_metrics(query.as_ref()).await {
+            Ok(metrics) => {
+                let report = PerformanceReport {
+                    metrics: serde_json::to_value(&metrics)
+                        .unwrap_or_else(|_| serde_json::json!({})),
+                    period_hours: params.hours,
+                };
+                serde_json::to_string_pretty(&report)
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+            }
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Identify slow steps and bottleneck tasks.
+    #[tool(
+        name = "analytics_bottlenecks",
+        description = "Identify slow steps and bottleneck tasks in the system. Returns steps ranked by execution time with execution counts. Filter by minimum executions to focus on statistically significant bottlenecks."
+    )]
+    pub async fn analytics_bottlenecks(
+        &self,
+        Parameters(params): Parameters<AnalyticsBottlenecksParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let query = if params.limit.is_some() || params.min_executions.is_some() {
+            Some(tasker_shared::types::api::orchestration::BottleneckQuery {
+                limit: params.limit,
+                min_executions: params.min_executions,
+            })
+        } else {
+            None
+        };
+
+        match client.get_bottlenecks(query.as_ref()).await {
+            Ok(analysis) => {
+                let report = BottleneckReport {
+                    analysis: serde_json::to_value(&analysis)
+                        .unwrap_or_else(|_| serde_json::json!({})),
+                    filter: BottleneckFilter {
+                        limit: params.limit,
+                        min_executions: params.min_executions,
+                    },
+                };
+                serde_json::to_string_pretty(&report)
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+            }
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Get detailed component health status.
+    #[tool(
+        name = "system_health",
+        description = "Get detailed health status of all system components including database pools, message queues, circuit breaker states, and cache connectivity. Use this to diagnose infrastructure issues."
+    )]
+    pub async fn system_health(
+        &self,
+        Parameters(params): Parameters<SystemHealthParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        match client.as_client().get_detailed_health().await {
+            Ok(health) => {
+                let report = HealthReport {
+                    overall_status: health.status.clone(),
+                    timestamp: health.timestamp.clone(),
+                    components: serde_json::to_value(&health.checks)
+                        .unwrap_or_else(|_| serde_json::json!({})),
+                    system_info: serde_json::to_value(&health.info)
+                        .unwrap_or_else(|_| serde_json::json!({})),
+                };
+                serde_json::to_string_pretty(&report)
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+            }
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Get orchestration configuration (secrets redacted).
+    #[tool(
+        name = "system_config",
+        description = "Get the orchestration system configuration with secrets redacted. Shows circuit breaker settings, pool sizes, messaging configuration, and feature flags. Use this to verify runtime configuration."
+    )]
+    pub async fn system_config(
+        &self,
+        Parameters(params): Parameters<SystemConfigParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        match client.get_config().await {
+            Ok(config) => serde_json::to_string_pretty(&config)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// List templates registered on the server.
+    #[tool(
+        name = "template_list_remote",
+        description = "List task templates registered on the connected Tasker server. Optionally filter by namespace. Returns template names, versions, and step counts. Unlike template_inspect (which works on local YAML), this queries the live server."
+    )]
+    pub async fn template_list_remote(
+        &self,
+        Parameters(params): Parameters<TemplateListRemoteParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        match client
+            .as_client()
+            .list_templates(params.namespace.as_deref())
+            .await
+        {
+            Ok(templates) => serde_json::to_string_pretty(&templates)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    /// Get template details from the server.
+    #[tool(
+        name = "template_inspect_remote",
+        description = "Get detailed template information from the connected Tasker server including step definitions, handler callables, and schema details. Requires namespace, name, and version. Unlike template_inspect (local YAML), this queries the live server."
+    )]
+    pub async fn template_inspect_remote(
+        &self,
+        Parameters(params): Parameters<TemplateInspectRemoteParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        match client
+            .as_client()
+            .get_template(&params.namespace, &params.name, &params.version)
+            .await
+        {
+            Ok(template) => serde_json::to_string_pretty(&template)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+            Err(e) => error_json("api_error", &e.to_string()),
+        }
     }
 }
 
@@ -628,16 +1110,17 @@ mod tests {
         let instructions = info.instructions.unwrap();
         assert!(!instructions.contains("OFFLINE"));
         assert!(instructions.contains("connection_status"));
-        assert!(instructions.contains("use_environment"));
+        assert!(instructions.contains("task_list"));
+        assert!(instructions.contains("profile"));
     }
 
     #[test]
     fn test_server_uses_tasker_tooling() {
         let yaml = include_str!("../../tests/fixtures/task_templates/codegen_test_template.yaml");
-        let template = tasker_tooling::template_parser::parse_template_str(yaml).unwrap();
+        let template = tasker_sdk::template_parser::parse_template_str(yaml).unwrap();
         assert_eq!(template.name, "codegen_test");
 
-        let report = tasker_tooling::schema_inspector::inspect(&template);
+        let report = tasker_sdk::schema_inspector::inspect(&template);
         assert!(!report.steps.is_empty());
     }
 
@@ -980,6 +1463,103 @@ steps:
         assert!(parsed["profiles"].as_array().unwrap().is_empty());
     }
 
+    // ── Tier 2 tool tests ──
+
+    #[tokio::test]
+    async fn test_task_list_offline() {
+        let server = TaskerMcpServer::offline();
+        let result = server
+            .task_list(Parameters(TaskListParams {
+                profile: None,
+                namespace: None,
+                status: None,
+                limit: None,
+                offset: None,
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "offline_mode");
+    }
+
+    #[tokio::test]
+    async fn test_task_inspect_offline() {
+        let server = TaskerMcpServer::offline();
+        let result = server
+            .task_inspect(Parameters(TaskInspectParams {
+                profile: None,
+                task_uuid: "00000000-0000-0000-0000-000000000000".to_string(),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "offline_mode");
+    }
+
+    #[tokio::test]
+    async fn test_dlq_list_offline() {
+        let server = TaskerMcpServer::offline();
+        let result = server
+            .dlq_list(Parameters(DlqListToolParams {
+                profile: None,
+                resolution_status: None,
+                limit: None,
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "offline_mode");
+    }
+
+    #[tokio::test]
+    async fn test_system_health_offline() {
+        let server = TaskerMcpServer::offline();
+        let result = server
+            .system_health(Parameters(SystemHealthParams { profile: None }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "offline_mode");
+    }
+
+    #[tokio::test]
+    async fn test_task_list_profile_not_found() {
+        let pm = ProfileManager::offline(); // No profiles loaded
+        let server = TaskerMcpServer::with_profile_manager(pm, false);
+        let result = server
+            .task_list(Parameters(TaskListParams {
+                profile: Some("nonexistent".to_string()),
+                namespace: None,
+                status: None,
+                limit: None,
+                offset: None,
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "profile_not_found");
+        assert!(parsed["message"].as_str().unwrap().contains("nonexistent"));
+    }
+
+    #[tokio::test]
+    async fn test_task_inspect_invalid_uuid() {
+        let toml_content = r#"
+[profile.default]
+description = "Test"
+transport = "rest"
+
+[profile.default.orchestration]
+base_url = "http://localhost:8080"
+"#;
+        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
+        let pm = ProfileManager::from_profile_file_for_test(file);
+        let server = TaskerMcpServer::with_profile_manager(pm, false);
+
+        let result = server
+            .task_inspect(Parameters(TaskInspectParams {
+                profile: None,
+                task_uuid: "not-a-uuid".to_string(),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "invalid_uuid");
+    }
+
     #[tokio::test]
     async fn test_connection_status_with_profiles() {
         let toml_content = r#"
@@ -1006,63 +1586,5 @@ base_url = "http://localhost:8080"
         assert_eq!(profiles[0]["name"], "default");
         assert_eq!(profiles[0]["description"], "Local development");
         assert_eq!(profiles[0]["is_active"], true);
-    }
-
-    #[tokio::test]
-    async fn test_use_environment_offline() {
-        let server = TaskerMcpServer::offline();
-        let result = server
-            .use_environment(Parameters(UseEnvironmentParams {
-                profile: "staging".to_string(),
-                probe_health: Some(false),
-            }))
-            .await;
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["error"], "offline_mode");
-    }
-
-    #[tokio::test]
-    async fn test_use_environment_switch() {
-        let toml_content = r#"
-[profile.default]
-transport = "rest"
-
-[profile.grpc]
-transport = "grpc"
-"#;
-        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
-        let pm = ProfileManager::from_profile_file_for_test(file);
-        let server = TaskerMcpServer::with_profile_manager(pm, false);
-
-        let result = server
-            .use_environment(Parameters(UseEnvironmentParams {
-                profile: "grpc".to_string(),
-                probe_health: Some(false), // Skip health probe in test
-            }))
-            .await;
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["switched_to"], "grpc");
-        assert_eq!(parsed["profile"]["name"], "grpc");
-        assert_eq!(parsed["profile"]["is_active"], true);
-    }
-
-    #[tokio::test]
-    async fn test_use_environment_not_found() {
-        let toml_content = r#"
-[profile.default]
-transport = "rest"
-"#;
-        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
-        let pm = ProfileManager::from_profile_file_for_test(file);
-        let server = TaskerMcpServer::with_profile_manager(pm, false);
-
-        let result = server
-            .use_environment(Parameters(UseEnvironmentParams {
-                profile: "nonexistent".to_string(),
-                probe_health: Some(false),
-            }))
-            .await;
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["error"], "profile_not_found");
     }
 }

@@ -2,7 +2,7 @@
 # tasker-ctl - cargo-make Task Definitions
 # =============================================================================
 #
-# CLI binary for the Tasker orchestration system. Depends on tasker-tooling
+# CLI binary for the Tasker orchestration system. Depends on tasker-sdk
 # for codegen, template engine, and schema inspection capabilities.
 #
 # Quick Start:

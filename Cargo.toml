@@ -27,7 +27,7 @@ members = [
   "tasker-pgmq",
   "tasker-client",
   "tasker-ctl",      # TAS-188: CLI binary (split from tasker-client)
-  "tasker-tooling",  # TAS-304: Shared developer tooling (codegen, template parsing, schema inspection)
+  "tasker-sdk",      # TAS-304: Shared SDK (codegen, template parsing, schema inspection, operational tooling)
   "tasker-mcp",      # TAS-304: MCP server scaffold
   "tasker-orchestration",
   "tasker-shared",
@@ -103,7 +103,7 @@ opentelemetry-semantic-conventions = "0.31"
 # Message queue management
 pgmq = "0.32.0"
 tasker-pgmq = { path = "tasker-pgmq", version = "=0.1.6" }
-tasker-tooling = { path = "tasker-tooling", version = "=0.1.6" }
+tasker-sdk = { path = "tasker-sdk", version = "=0.1.6" }
 # MCP protocol server (TAS-304)
 rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
 # JSON Schema generation for MCP tool parameters (TAS-304)
@@ -288,9 +288,13 @@ serial_test = { workspace = true }
 sqlx = { workspace = true }
 # E2E tests need workspace crates
 tasker-client = { path = "tasker-client" }
+tasker-mcp = { path = "tasker-mcp" }
 tasker-orchestration = { path = "tasker-orchestration" }
 tasker-shared = { path = "tasker-shared" }
 tasker-worker = { path = "tasker-worker" }
+# MCP protocol + connected integration tests
+rmcp = { workspace = true, features = ["client"] }
+toml = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

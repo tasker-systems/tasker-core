@@ -361,14 +361,37 @@ fn convert_event_to_notification(event: &PgmqNotifyEvent) -> Option<MessageNotif
 
 /// Extract namespace from a queue name for LISTEN channel resolution
 ///
-/// Uses simple string splitting: takes the first segment before any underscore.
-/// For "worker_default_queue" → "worker".
+/// Must match the SQL function `tasker.extract_queue_namespace()` in
+/// `migrations/20250826180921_add_pgmq_notifications.sql` — both produce
+/// the channel suffix used with `pgmq_message_ready.{namespace}`.
+///
+/// Rules (matching SQL):
+/// 1. Orchestration queues (`orchestration_*`) → `"orchestration"`
+/// 2. Worker queues (`worker_{ns}_queue`) → `"{ns}"`
+/// 3. Other `*_queue` → strip `_queue` suffix
+/// 4. Fallback → queue name as-is
 fn extract_namespace_from_queue(queue_name: &str) -> String {
-    queue_name
-        .rsplit('_')
-        .next_back()
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| queue_name.to_string())
+    // 1. Orchestration queues: all map to "orchestration" namespace
+    //    (matches SQL: IF queue_name ~ '^orchestration' THEN RETURN 'orchestration')
+    if queue_name.starts_with("orchestration") {
+        return "orchestration".to_string();
+    }
+
+    // 2. Worker queues: worker_{namespace}_queue → namespace
+    if let Some(ns) = queue_name
+        .strip_prefix("worker_")
+        .and_then(|s| s.strip_suffix("_queue"))
+    {
+        return ns.to_string();
+    }
+
+    // 3. Other queues ending in _queue: strip suffix
+    if let Some(ns) = queue_name.strip_suffix("_queue") {
+        return ns.to_string();
+    }
+
+    // 4. Fallback: return as-is
+    queue_name.to_string()
 }
 
 // =============================================================================
@@ -1081,11 +1104,39 @@ mod tests {
 
     #[test]
     fn test_extract_namespace_from_queue() {
+        // Standard worker queues: worker_{namespace}_queue
         assert_eq!(
             extract_namespace_from_queue("worker_default_queue"),
-            "worker"
+            "default"
         );
+        assert_eq!(
+            extract_namespace_from_queue("worker_conditional_approval_py_queue"),
+            "conditional_approval_py"
+        );
+        assert_eq!(
+            extract_namespace_from_queue("worker_diamond_workflow_dsl_py_queue"),
+            "diamond_workflow_dsl_py"
+        );
+        // Orchestration queues: all map to "orchestration" (matches SQL extract_queue_namespace)
+        assert_eq!(
+            extract_namespace_from_queue("orchestration_step_results"),
+            "orchestration"
+        );
+        assert_eq!(
+            extract_namespace_from_queue("orchestration_task_requests"),
+            "orchestration"
+        );
+        assert_eq!(
+            extract_namespace_from_queue("orchestration_task_finalizations"),
+            "orchestration"
+        );
+        assert_eq!(
+            extract_namespace_from_queue("orchestration_queue"),
+            "orchestration"
+        );
+        // Non-worker, non-orchestration queues: strip _queue suffix
         assert_eq!(extract_namespace_from_queue("orders_queue"), "orders");
+        // No pattern match: returned as-is
         assert_eq!(extract_namespace_from_queue("simple"), "simple");
     }
 

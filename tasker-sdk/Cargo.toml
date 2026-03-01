@@ -1,21 +1,22 @@
 [package]
-name = "tasker-tooling"
+name = "tasker-sdk"
 version = "0.1.6"
 edition = "2021"
 license = "MIT"
-description = "Shared developer tooling for Tasker: code generation, template parsing, and schema inspection"
+description = "Shared SDK for Tasker: code generation, template parsing, schema inspection, and operational tooling"
 readme = "README.md"
 repository = "https://github.com/tasker-systems/tasker-core"
-keywords = ["codegen", "tooling", "workflow", "orchestration"]
+keywords = ["sdk", "tooling", "workflow", "orchestration"]
 categories = ["development-tools"]
 
 [lib]
-name = "tasker_tooling"
+name = "tasker_sdk"
 path = "src/lib.rs"
 
 [dependencies]
 # Workspace crates
 tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
+tasker-client = { path = "../tasker-client", version = "=0.1.6" }
 
 # Serialization & config
 serde = { workspace = true }
@@ -37,7 +38,9 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+chrono = { workspace = true }
 tempfile = { workspace = true }
+uuid = { workspace = true }
 
 [lints]
 workspace = true

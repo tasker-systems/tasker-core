@@ -70,3 +70,12 @@ args = ["run", "-p", "${CRATE_NAME}", "--all-features"]
 description = "Run MCP server (release build)"
 command = "cargo"
 args = ["run", "-p", "${CRATE_NAME}", "--all-features", "--release"]
+
+# =============================================================================
+# Connected Integration Tests
+# =============================================================================
+
+[tasks.test-mcp-connected]
+description = "MCP connected integration tests (requires running services)"
+command = "cargo"
+args = ["test", "--features", "test-services", "--test", "mcp_tests", "--", "--nocapture"]
