@@ -3,6 +3,8 @@
 //! Tests the two-phase confirmation pattern for all write tools.
 //! Fixtures: mathematical_sequence.yaml (success), retry_exhaustion_test.yaml (failure/DLQ)
 
+use uuid::Uuid;
+
 use super::harness::McpTestHarness;
 
 // ── task_submit ──
@@ -10,6 +12,9 @@ use super::harness::McpTestHarness;
 #[tokio::test]
 async fn test_task_submit_preview_and_execute() -> anyhow::Result<()> {
     let harness = McpTestHarness::setup().await?;
+
+    // TAS-154: Inject unique _test_run_id to avoid identity hash collisions in batch runs
+    let test_run_id = Uuid::new_v4().to_string();
 
     // Preview (omit confirm)
     let preview = harness
@@ -19,7 +24,7 @@ async fn test_task_submit_preview_and_execute() -> anyhow::Result<()> {
                 "name": "mathematical_sequence",
                 "namespace": "rust_e2e_linear",
                 "version": "1.0.0",
-                "context": { "even_number": 10 },
+                "context": { "even_number": 10, "_test_run_id": test_run_id },
                 "initiator": "integration-test"
             }),
         )
@@ -43,7 +48,7 @@ async fn test_task_submit_preview_and_execute() -> anyhow::Result<()> {
                 "name": "mathematical_sequence",
                 "namespace": "rust_e2e_linear",
                 "version": "1.0.0",
-                "context": { "even_number": 10 },
+                "context": { "even_number": 10, "_test_run_id": test_run_id },
                 "initiator": "integration-test",
                 "confirm": true
             }),
