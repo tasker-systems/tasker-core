@@ -31,6 +31,14 @@
 //! - `system_config` — Get orchestration configuration (secrets redacted)
 //! - `template_list_remote` — List templates registered on the server
 //! - `template_inspect_remote` — Get template details from the server
+//!
+//! **Tier 3 — Write Tools with Confirmation (require live server)**
+//! - `task_submit` — Submit a task for execution (preview → confirm)
+//! - `task_cancel` — Cancel a task and all pending steps (preview → confirm)
+//! - `step_retry` — Reset a failed step for retry (preview → confirm)
+//! - `step_resolve` — Mark a step as manually resolved (preview → confirm)
+//! - `step_complete` — Manually complete a step with result data (preview → confirm)
+//! - `dlq_update` — Update DLQ entry investigation status (preview → confirm)
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -45,6 +53,7 @@ use uuid::Uuid;
 use tasker_client::{OrchestrationClient, ProfileManager, UnifiedOrchestrationClient};
 use tasker_sdk::codegen::{self, TargetLanguage};
 use tasker_sdk::operational::client_factory;
+use tasker_sdk::operational::confirmation::{build_preview, handle_api_error, ConfirmationPhase};
 use tasker_sdk::operational::responses::{
     BottleneckFilter, BottleneckReport, DlqSummary, HealthReport, PerformanceReport, StepSummary,
     TaskDetail, TaskSummary,
@@ -98,13 +107,14 @@ impl TaskerMcpServer {
         &self.profile_manager
     }
 
-    /// Resolve a connected orchestration client for Tier 2 tools.
+    /// Resolve a connected orchestration client, returning both client and profile name.
     ///
     /// Returns an error JSON string if offline, profile not found, or connection fails.
-    async fn resolve_client(
+    /// The profile name is needed by permission-aware error handlers.
+    async fn resolve_client_with_profile(
         &self,
         profile: Option<&str>,
-    ) -> Result<UnifiedOrchestrationClient, String> {
+    ) -> Result<(UnifiedOrchestrationClient, String), String> {
         if self.offline {
             return Err(error_json(
                 "offline_mode",
@@ -114,9 +124,11 @@ impl TaskerMcpServer {
         }
 
         let pm = self.profile_manager.read().await;
-        let profile_name = profile.unwrap_or_else(|| pm.active_profile_name());
+        let profile_name = profile
+            .unwrap_or_else(|| pm.active_profile_name())
+            .to_string();
 
-        let config = pm.get_config(profile_name).ok_or_else(|| {
+        let config = pm.get_config(&profile_name).ok_or_else(|| {
             let available = pm.list_profile_names().join(", ");
             error_json(
                 "profile_not_found",
@@ -128,7 +140,7 @@ impl TaskerMcpServer {
             )
         })?;
 
-        client_factory::build_orchestration_client(config)
+        let client = client_factory::build_orchestration_client(config)
             .await
             .map_err(|e| {
                 error_json(
@@ -139,7 +151,21 @@ impl TaskerMcpServer {
                         profile_name, e
                     ),
                 )
-            })
+            })?;
+
+        Ok((client, profile_name))
+    }
+
+    /// Resolve a connected orchestration client for Tier 2 tools.
+    ///
+    /// Delegates to `resolve_client_with_profile` for backward compatibility.
+    async fn resolve_client(
+        &self,
+        profile: Option<&str>,
+    ) -> Result<UnifiedOrchestrationClient, String> {
+        self.resolve_client_with_profile(profile)
+            .await
+            .map(|(client, _)| client)
     }
 }
 
@@ -163,11 +189,14 @@ impl ServerHandler for TaskerMcpServer {
              When debugging: template_inspect → schema_inspect → schema_compare\n\
              For versioning: schema_diff compares before/after template YAML to detect breaking field changes\n\
              Profile management: connection_status to check environment health.\n\
-             Connected tools: task_list/task_inspect for task inspection, step_inspect/step_audit for step details, \
+             Read-only tools: task_list/task_inspect for task inspection, step_inspect/step_audit for step details, \
              dlq_list/dlq_inspect/dlq_stats/dlq_queue/staleness_check for DLQ investigation, \
              analytics_performance/analytics_bottlenecks for performance analysis, \
              system_health/system_config for system status, \
              template_list_remote/template_inspect_remote for server-side templates.\n\
+             Write tools (require confirm: true): task_submit, task_cancel, step_retry, step_resolve, \
+             step_complete, dlq_update. Always preview first (omit confirm), show preview to user, \
+             then call again with confirm: true after user approval.\n\
              All connected tools accept an optional 'profile' parameter to target a specific environment."
                 .to_string()
         };
@@ -1024,6 +1053,429 @@ impl TaskerMcpServer {
             Ok(template) => serde_json::to_string_pretty(&template)
                 .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
             Err(e) => error_json("api_error", &e.to_string()),
+        }
+    }
+
+    // ── Tier 3: Write Tools with Confirmation ──
+
+    /// Submit a task for execution against a registered template.
+    #[tool(
+        name = "task_submit",
+        description = "Submit a task for execution against a registered template. Always preview first (omit confirm) to verify the template and context. Use task_inspect after submission to monitor progress."
+    )]
+    pub async fn task_submit(&self, Parameters(params): Parameters<TaskSubmitParams>) -> String {
+        let (client, profile_name) = match self
+            .resolve_client_with_profile(params.profile.as_deref())
+            .await
+        {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let version = params.version.as_deref().unwrap_or("0.1.0");
+
+        match ConfirmationPhase::from_flag(params.confirm) {
+            ConfirmationPhase::Preview => {
+                let preview = build_preview(
+                    "task_submit",
+                    &format!(
+                        "Submit task '{}' in namespace '{}' version '{}'",
+                        params.name, params.namespace, version
+                    ),
+                    serde_json::json!({
+                        "name": params.name,
+                        "namespace": params.namespace,
+                        "version": version,
+                        "context_keys": params.context.as_object()
+                            .map(|o| o.keys().cloned().collect::<Vec<_>>())
+                            .unwrap_or_default(),
+                        "initiator": params.initiator.as_deref().unwrap_or("mcp-agent"),
+                        "source_system": params.source_system.as_deref().unwrap_or("tasker-mcp"),
+                        "tags": params.tags,
+                        "priority": params.priority,
+                    }),
+                );
+                serde_json::to_string_pretty(&preview)
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+            }
+            ConfirmationPhase::Execute => {
+                let request = tasker_shared::models::core::task_request::TaskRequest::builder()
+                    .name(params.name)
+                    .namespace(params.namespace)
+                    .version(version.to_string())
+                    .context(params.context)
+                    .initiator(params.initiator.unwrap_or_else(|| "mcp-agent".to_string()))
+                    .source_system(
+                        params
+                            .source_system
+                            .unwrap_or_else(|| "tasker-mcp".to_string()),
+                    )
+                    .reason(
+                        params
+                            .reason
+                            .unwrap_or_else(|| "Submitted via MCP".to_string()),
+                    )
+                    .tags(params.tags)
+                    .maybe_priority(params.priority)
+                    .build();
+
+                match client.as_client().create_task(request).await {
+                    Ok(response) => serde_json::to_string_pretty(&serde_json::json!({
+                        "status": "executed",
+                        "action": "task_submit",
+                        "result": response,
+                    }))
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+                    Err(e) => handle_api_error(&e.to_string(), "task_submit", &profile_name),
+                }
+            }
+        }
+    }
+
+    /// Cancel a task and all pending/in-progress steps.
+    #[tool(
+        name = "task_cancel",
+        description = "Cancel a task and all pending/in-progress steps. This is irreversible. Use task_inspect first to verify the target."
+    )]
+    pub async fn task_cancel(&self, Parameters(params): Parameters<TaskCancelParams>) -> String {
+        let (client, profile_name) = match self
+            .resolve_client_with_profile(params.profile.as_deref())
+            .await
+        {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+        };
+
+        match ConfirmationPhase::from_flag(params.confirm) {
+            ConfirmationPhase::Preview => match client.as_client().get_task(task_uuid).await {
+                Ok(task) => {
+                    let preview = build_preview(
+                        "task_cancel",
+                        &format!("Cancel task '{}'", params.task_uuid),
+                        serde_json::json!({
+                            "task_uuid": params.task_uuid,
+                            "current_state": serde_json::to_value(&task)
+                                .unwrap_or_else(|_| serde_json::json!({})),
+                        }),
+                    );
+                    serde_json::to_string_pretty(&preview)
+                        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+                }
+                Err(e) => handle_api_error(&e.to_string(), "task_cancel", &profile_name),
+            },
+            ConfirmationPhase::Execute => match client.as_client().cancel_task(task_uuid).await {
+                Ok(()) => serde_json::json!({
+                    "status": "executed",
+                    "action": "task_cancel",
+                    "task_uuid": params.task_uuid,
+                    "message": "Task cancelled successfully."
+                })
+                .to_string(),
+                Err(e) => handle_api_error(&e.to_string(), "task_cancel", &profile_name),
+            },
+        }
+    }
+
+    /// Reset a failed step for retry by a worker.
+    #[tool(
+        name = "step_retry",
+        description = "Reset a failed step for retry by a worker. Use after investigating via step_inspect and step_audit. The step must be in a failed state."
+    )]
+    pub async fn step_retry(&self, Parameters(params): Parameters<StepRetryParams>) -> String {
+        let (client, profile_name) = match self
+            .resolve_client_with_profile(params.profile.as_deref())
+            .await
+        {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+        };
+        let step_uuid = match Uuid::parse_str(&params.step_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid step_uuid: {}", e)),
+        };
+
+        match ConfirmationPhase::from_flag(params.confirm) {
+            ConfirmationPhase::Preview => {
+                match client.as_client().get_step(task_uuid, step_uuid).await {
+                    Ok(step) => {
+                        let preview = build_preview(
+                            "step_retry",
+                            &format!(
+                                "Reset step '{}' for retry on task '{}'",
+                                params.step_uuid, params.task_uuid
+                            ),
+                            serde_json::json!({
+                                "task_uuid": params.task_uuid,
+                                "step_uuid": params.step_uuid,
+                                "current_step": serde_json::to_value(&step)
+                                    .unwrap_or_else(|_| serde_json::json!({})),
+                                "reason": params.reason,
+                                "reset_by": params.reset_by,
+                            }),
+                        );
+                        serde_json::to_string_pretty(&preview)
+                            .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+                    }
+                    Err(e) => handle_api_error(&e.to_string(), "step_retry", &profile_name),
+                }
+            }
+            ConfirmationPhase::Execute => {
+                let action =
+                    tasker_shared::types::api::orchestration::StepManualAction::ResetForRetry {
+                        reason: params.reason,
+                        reset_by: params.reset_by,
+                    };
+
+                match client
+                    .as_client()
+                    .resolve_step_manually(task_uuid, step_uuid, action)
+                    .await
+                {
+                    Ok(step) => serde_json::to_string_pretty(&serde_json::json!({
+                        "status": "executed",
+                        "action": "step_retry",
+                        "result": step,
+                    }))
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+                    Err(e) => handle_api_error(&e.to_string(), "step_retry", &profile_name),
+                }
+            }
+        }
+    }
+
+    /// Mark a failed/blocked step as manually resolved without re-execution.
+    #[tool(
+        name = "step_resolve",
+        description = "Mark a failed/blocked step as manually resolved without re-execution. Allows downstream steps to proceed."
+    )]
+    pub async fn step_resolve(&self, Parameters(params): Parameters<StepResolveParams>) -> String {
+        let (client, profile_name) = match self
+            .resolve_client_with_profile(params.profile.as_deref())
+            .await
+        {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+        };
+        let step_uuid = match Uuid::parse_str(&params.step_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid step_uuid: {}", e)),
+        };
+
+        match ConfirmationPhase::from_flag(params.confirm) {
+            ConfirmationPhase::Preview => {
+                match client.as_client().get_step(task_uuid, step_uuid).await {
+                    Ok(step) => {
+                        let preview = build_preview(
+                            "step_resolve",
+                            &format!(
+                                "Mark step '{}' as manually resolved on task '{}'",
+                                params.step_uuid, params.task_uuid
+                            ),
+                            serde_json::json!({
+                                "task_uuid": params.task_uuid,
+                                "step_uuid": params.step_uuid,
+                                "current_step": serde_json::to_value(&step)
+                                    .unwrap_or_else(|_| serde_json::json!({})),
+                                "reason": params.reason,
+                                "resolved_by": params.resolved_by,
+                            }),
+                        );
+                        serde_json::to_string_pretty(&preview)
+                            .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+                    }
+                    Err(e) => handle_api_error(&e.to_string(), "step_resolve", &profile_name),
+                }
+            }
+            ConfirmationPhase::Execute => {
+                let action =
+                    tasker_shared::types::api::orchestration::StepManualAction::ResolveManually {
+                        reason: params.reason,
+                        resolved_by: params.resolved_by,
+                    };
+
+                match client
+                    .as_client()
+                    .resolve_step_manually(task_uuid, step_uuid, action)
+                    .await
+                {
+                    Ok(step) => serde_json::to_string_pretty(&serde_json::json!({
+                        "status": "executed",
+                        "action": "step_resolve",
+                        "result": step,
+                    }))
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+                    Err(e) => handle_api_error(&e.to_string(), "step_resolve", &profile_name),
+                }
+            }
+        }
+    }
+
+    /// Manually complete a step with specific result data.
+    #[tool(
+        name = "step_complete",
+        description = "Manually complete a step with specific result data. Use when providing corrected data for downstream steps."
+    )]
+    pub async fn step_complete(
+        &self,
+        Parameters(params): Parameters<StepCompleteParams>,
+    ) -> String {
+        let (client, profile_name) = match self
+            .resolve_client_with_profile(params.profile.as_deref())
+            .await
+        {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+        };
+        let step_uuid = match Uuid::parse_str(&params.step_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid step_uuid: {}", e)),
+        };
+
+        match ConfirmationPhase::from_flag(params.confirm) {
+            ConfirmationPhase::Preview => {
+                match client.as_client().get_step(task_uuid, step_uuid).await {
+                    Ok(step) => {
+                        let preview = build_preview(
+                            "step_complete",
+                            &format!(
+                                "Manually complete step '{}' on task '{}'",
+                                params.step_uuid, params.task_uuid
+                            ),
+                            serde_json::json!({
+                                "task_uuid": params.task_uuid,
+                                "step_uuid": params.step_uuid,
+                                "current_step": serde_json::to_value(&step)
+                                    .unwrap_or_else(|_| serde_json::json!({})),
+                                "result_data": params.result,
+                                "reason": params.reason,
+                                "completed_by": params.completed_by,
+                            }),
+                        );
+                        serde_json::to_string_pretty(&preview)
+                            .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+                    }
+                    Err(e) => handle_api_error(&e.to_string(), "step_complete", &profile_name),
+                }
+            }
+            ConfirmationPhase::Execute => {
+                let completion_data =
+                    tasker_shared::types::api::orchestration::ManualCompletionData {
+                        result: params.result,
+                        metadata: params.metadata,
+                    };
+                let action =
+                    tasker_shared::types::api::orchestration::StepManualAction::CompleteManually {
+                        completion_data,
+                        reason: params.reason,
+                        completed_by: params.completed_by,
+                    };
+
+                match client
+                    .as_client()
+                    .resolve_step_manually(task_uuid, step_uuid, action)
+                    .await
+                {
+                    Ok(step) => serde_json::to_string_pretty(&serde_json::json!({
+                        "status": "executed",
+                        "action": "step_complete",
+                        "result": step,
+                    }))
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+                    Err(e) => handle_api_error(&e.to_string(), "step_complete", &profile_name),
+                }
+            }
+        }
+    }
+
+    /// Update a DLQ entry's investigation status.
+    #[tool(
+        name = "dlq_update",
+        description = "Update a DLQ entry's investigation status. Use after resolving the underlying step-level issue."
+    )]
+    pub async fn dlq_update(&self, Parameters(params): Parameters<DlqUpdateParams>) -> String {
+        let (client, profile_name) = match self
+            .resolve_client_with_profile(params.profile.as_deref())
+            .await
+        {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+
+        let dlq_entry_uuid = match Uuid::parse_str(&params.dlq_entry_uuid) {
+            Ok(u) => u,
+            Err(e) => return error_json("invalid_uuid", &format!("Invalid dlq_entry_uuid: {}", e)),
+        };
+
+        match ConfirmationPhase::from_flag(params.confirm) {
+            ConfirmationPhase::Preview => {
+                let preview = build_preview(
+                    "dlq_update",
+                    &format!("Update DLQ entry '{}'", params.dlq_entry_uuid),
+                    serde_json::json!({
+                        "dlq_entry_uuid": params.dlq_entry_uuid,
+                        "resolution_status": params.resolution_status,
+                        "resolution_notes": params.resolution_notes,
+                        "resolved_by": params.resolved_by,
+                        "has_metadata": params.metadata.is_some(),
+                    }),
+                );
+                serde_json::to_string_pretty(&preview)
+                    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+            }
+            ConfirmationPhase::Execute => {
+                let resolution_status = params
+                    .resolution_status
+                    .as_deref()
+                    .map(tasker_sdk::operational::enums::parse_dlq_resolution_status)
+                    .transpose()
+                    .map_err(|e| error_json("invalid_resolution_status", &e));
+
+                let resolution_status = match resolution_status {
+                    Ok(s) => s,
+                    Err(e) => return e,
+                };
+
+                let update = tasker_shared::models::orchestration::DlqInvestigationUpdate {
+                    resolution_status,
+                    resolution_notes: params.resolution_notes,
+                    resolved_by: params.resolved_by,
+                    metadata: params.metadata,
+                };
+
+                match client
+                    .update_dlq_investigation(dlq_entry_uuid, update)
+                    .await
+                {
+                    Ok(()) => serde_json::json!({
+                        "status": "executed",
+                        "action": "dlq_update",
+                        "dlq_entry_uuid": params.dlq_entry_uuid,
+                        "message": "DLQ entry updated successfully."
+                    })
+                    .to_string(),
+                    Err(e) => handle_api_error(&e.to_string(), "dlq_update", &profile_name),
+                }
+            }
         }
     }
 }

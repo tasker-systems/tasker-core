@@ -2,7 +2,7 @@
 //!
 //! Uses the real `TaskerMcpServer` from the library target to verify protocol
 //! round-trips: tool discovery via `list_tools` and tool invocation via `call_tool`
-//! for all 25 tools (8 Tier 1/profile + 17 Tier 2 connected).
+//! for all 29 tools (8 Tier 1/profile + 15 Tier 2 connected + 6 Tier 3 write).
 
 use rmcp::model::{CallToolRequestParams, ClientInfo};
 use rmcp::service::{RoleClient, RunningService};
@@ -85,17 +85,23 @@ async fn test_list_tools_returns_all() -> anyhow::Result<()> {
             "dlq_list",
             "dlq_queue",
             "dlq_stats",
+            "dlq_update",
             "handler_generate",
             "schema_compare",
             "schema_diff",
             "schema_inspect",
             "staleness_check",
             "step_audit",
+            "step_complete",
             "step_inspect",
+            "step_resolve",
+            "step_retry",
             "system_config",
             "system_health",
+            "task_cancel",
             "task_inspect",
             "task_list",
+            "task_submit",
             "template_generate",
             "template_inspect",
             "template_inspect_remote",
@@ -105,8 +111,8 @@ async fn test_list_tools_returns_all() -> anyhow::Result<()> {
     );
     assert_eq!(
         names.len(),
-        23,
-        "Expected 23 tools: 7 Tier 1 + 1 profile + 15 Tier 2 connected"
+        29,
+        "Expected 29 tools: 7 Tier 1 + 1 profile + 15 Tier 2 connected + 6 Tier 3 write"
     );
 
     client.cancel().await?;
@@ -488,6 +494,137 @@ async fn test_template_list_remote_offline() -> anyhow::Result<()> {
     let (client, server_handle) = setup().await?;
 
     let text = call_tool_text(&client, "template_list_remote", serde_json::json!({})).await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+// ── Tier 3: Offline mode error tests ──
+
+#[tokio::test]
+async fn test_task_submit_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(
+        &client,
+        "task_submit",
+        serde_json::json!({
+            "name": "test",
+            "namespace": "default",
+            "context": {},
+            "confirm": true
+        }),
+    )
+    .await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_task_cancel_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(
+        &client,
+        "task_cancel",
+        serde_json::json!({ "task_uuid": "00000000-0000-0000-0000-000000000000" }),
+    )
+    .await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_step_retry_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(
+        &client,
+        "step_retry",
+        serde_json::json!({
+            "task_uuid": "00000000-0000-0000-0000-000000000000",
+            "step_uuid": "00000000-0000-0000-0000-000000000000",
+            "reason": "test",
+            "reset_by": "test"
+        }),
+    )
+    .await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_step_resolve_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(
+        &client,
+        "step_resolve",
+        serde_json::json!({
+            "task_uuid": "00000000-0000-0000-0000-000000000000",
+            "step_uuid": "00000000-0000-0000-0000-000000000000",
+            "reason": "test",
+            "resolved_by": "test"
+        }),
+    )
+    .await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_step_complete_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(
+        &client,
+        "step_complete",
+        serde_json::json!({
+            "task_uuid": "00000000-0000-0000-0000-000000000000",
+            "step_uuid": "00000000-0000-0000-0000-000000000000",
+            "result": {"value": 42},
+            "reason": "test",
+            "completed_by": "test"
+        }),
+    )
+    .await?;
+    let parsed: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(parsed["error"], "offline_mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_dlq_update_offline() -> anyhow::Result<()> {
+    let (client, server_handle) = setup().await?;
+
+    let text = call_tool_text(
+        &client,
+        "dlq_update",
+        serde_json::json!({ "dlq_entry_uuid": "00000000-0000-0000-0000-000000000000" }),
+    )
+    .await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
     assert_eq!(parsed["error"], "offline_mode");
 

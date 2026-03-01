@@ -1,6 +1,6 @@
 # MCP Server Setup Guide
 
-This guide covers installing and configuring `tasker-mcp`, the Model Context Protocol server that exposes 23 Tasker tools to LLM agents and developer tooling.
+This guide covers installing and configuring `tasker-mcp`, the Model Context Protocol server that exposes 29 Tasker tools to LLM agents and developer tooling.
 
 ## Installation
 
@@ -43,7 +43,7 @@ tasker-mcp                    # Loads profiles from tasker-client.toml
 tasker-mcp --profile staging  # Set initial active profile
 ```
 
-All 23 tools available. Requires a profile configuration pointing to a running Tasker orchestration server. Connected tools accept an optional `profile` parameter to target a specific environment.
+All 29 tools available. Requires a profile configuration pointing to a running Tasker orchestration server. Connected tools accept an optional `profile` parameter to target a specific environment.
 
 ## Client Configuration
 
@@ -138,7 +138,7 @@ base_url = "https://staging-worker.example.com"
 
 Verify connectivity with the `connection_status` tool after configuring profiles.
 
-## Available Tools (23)
+## Available Tools (29)
 
 ### Tier 1 — Offline Developer Tools (7)
 
@@ -201,6 +201,31 @@ All accept an optional `profile` parameter to target a specific environment.
 |------|-------------|
 | `template_list_remote` | List templates registered on the server |
 | `template_inspect_remote` | Template details from the server |
+
+### Tier 3 — Write Tools (6)
+
+All accept an optional `profile` parameter to target a specific environment. Writes require confirmation (preview → confirm workflow).
+
+**Task Management**
+
+| Tool | Description |
+|------|-------------|
+| `task_submit` | Submit a task for execution (preview → confirm) |
+| `task_cancel` | Cancel a task and all pending steps (preview → confirm) |
+
+**Step Resolution**
+
+| Tool | Description |
+|------|-------------|
+| `step_retry` | Reset a failed step for retry (preview → confirm) |
+| `step_resolve` | Mark a step as manually resolved (preview → confirm) |
+| `step_complete` | Manually complete a step with result data (preview → confirm) |
+
+**DLQ Management**
+
+| Tool | Description |
+|------|-------------|
+| `dlq_update` | Update DLQ entry investigation status (preview → confirm) |
 
 ## Troubleshooting
 

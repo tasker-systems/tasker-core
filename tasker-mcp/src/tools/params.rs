@@ -498,3 +498,202 @@ pub struct TemplateInspectRemoteParams {
     #[schemars(description = "Template version (e.g., '1.0.0')")]
     pub version: String,
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tier 3: Write Tools with Confirmation
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Parameters for the `task_submit` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TaskSubmitParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task name matching a registered template.
+    #[schemars(
+        description = "Task name matching a registered template (e.g., 'order_processing')"
+    )]
+    pub name: String,
+    /// Task namespace.
+    #[schemars(description = "Task namespace (e.g., 'ecommerce')")]
+    pub namespace: String,
+    /// Template version (defaults to '0.1.0').
+    #[schemars(description = "Template version (defaults to '0.1.0')")]
+    #[serde(default = "default_version")]
+    pub version: Option<String>,
+    /// Context data for task execution.
+    #[schemars(description = "Context data (JSON object) for task execution")]
+    pub context: serde_json::Value,
+    /// Who or what initiated this task.
+    #[schemars(description = "Who or what initiated this task (defaults to 'mcp-agent')")]
+    pub initiator: Option<String>,
+    /// Source system identifier.
+    #[schemars(description = "Source system identifier (defaults to 'tasker-mcp')")]
+    pub source_system: Option<String>,
+    /// Reason for task submission.
+    #[schemars(description = "Reason for task submission")]
+    pub reason: Option<String>,
+    /// Task priority (-100 to 100, higher = more urgent).
+    #[schemars(description = "Task priority (-100 to 100, higher = more urgent)")]
+    pub priority: Option<i32>,
+    /// Tags for categorization.
+    #[schemars(description = "Tags for categorization and filtering")]
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Set to true to execute the submission (omit or false for preview).
+    #[schemars(
+        description = "Set to true to execute the submission. Omit or set false to preview what will happen."
+    )]
+    #[serde(default)]
+    pub confirm: bool,
+}
+
+fn default_version() -> Option<String> {
+    Some("0.1.0".to_string())
+}
+
+/// Parameters for the `task_cancel` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TaskCancelParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task UUID to cancel.
+    #[schemars(description = "Task UUID to cancel")]
+    pub task_uuid: String,
+    /// Set to true to execute the cancellation (omit or false for preview).
+    #[schemars(
+        description = "Set to true to execute the cancellation. Omit or set false to preview what will happen."
+    )]
+    #[serde(default)]
+    pub confirm: bool,
+}
+
+/// Parameters for the `step_retry` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StepRetryParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task UUID the step belongs to.
+    #[schemars(description = "Task UUID the step belongs to")]
+    pub task_uuid: String,
+    /// Step UUID to retry.
+    #[schemars(description = "Step UUID to reset for retry")]
+    pub step_uuid: String,
+    /// Reason for the retry.
+    #[schemars(description = "Human-readable reason for resetting this step for retry")]
+    pub reason: String,
+    /// Operator performing the reset.
+    #[schemars(description = "Identifier of the operator performing the reset")]
+    pub reset_by: String,
+    /// Set to true to execute the retry (omit or false for preview).
+    #[schemars(
+        description = "Set to true to execute the retry. Omit or set false to preview what will happen."
+    )]
+    #[serde(default)]
+    pub confirm: bool,
+}
+
+/// Parameters for the `step_resolve` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StepResolveParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task UUID the step belongs to.
+    #[schemars(description = "Task UUID the step belongs to")]
+    pub task_uuid: String,
+    /// Step UUID to resolve.
+    #[schemars(description = "Step UUID to mark as manually resolved")]
+    pub step_uuid: String,
+    /// Reason for manual resolution.
+    #[schemars(description = "Human-readable reason for manual resolution")]
+    pub reason: String,
+    /// Operator performing the resolution.
+    #[schemars(description = "Identifier of the operator performing the resolution")]
+    pub resolved_by: String,
+    /// Set to true to execute the resolution (omit or false for preview).
+    #[schemars(
+        description = "Set to true to execute the resolution. Omit or set false to preview what will happen."
+    )]
+    #[serde(default)]
+    pub confirm: bool,
+}
+
+/// Parameters for the `step_complete` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StepCompleteParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// Task UUID the step belongs to.
+    #[schemars(description = "Task UUID the step belongs to")]
+    pub task_uuid: String,
+    /// Step UUID to complete.
+    #[schemars(description = "Step UUID to manually complete")]
+    pub step_uuid: String,
+    /// Result data for the step (business data that downstream steps expect).
+    #[schemars(
+        description = "Result data (JSON object) for the step. Must match what downstream steps expect."
+    )]
+    pub result: serde_json::Value,
+    /// Optional metadata for observability.
+    #[schemars(description = "Optional metadata for observability and tracking")]
+    pub metadata: Option<serde_json::Value>,
+    /// Reason for manual completion.
+    #[schemars(description = "Human-readable reason for manual completion")]
+    pub reason: String,
+    /// Operator performing the completion.
+    #[schemars(description = "Identifier of the operator performing the completion")]
+    pub completed_by: String,
+    /// Set to true to execute the completion (omit or false for preview).
+    #[schemars(
+        description = "Set to true to execute the completion. Omit or set false to preview what will happen."
+    )]
+    #[serde(default)]
+    pub confirm: bool,
+}
+
+/// Parameters for the `dlq_update` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DlqUpdateParams {
+    /// Profile name to target a specific environment (uses active profile if omitted).
+    #[schemars(
+        description = "Profile name to target a specific environment (uses active profile if omitted)"
+    )]
+    pub profile: Option<String>,
+    /// DLQ entry UUID to update.
+    #[schemars(description = "DLQ entry UUID to update")]
+    pub dlq_entry_uuid: String,
+    /// New resolution status (e.g., 'manually_resolved', 'permanently_failed', 'cancelled').
+    #[schemars(
+        description = "New resolution status: 'pending', 'manually_resolved', 'permanently_failed', 'cancelled'"
+    )]
+    pub resolution_status: Option<String>,
+    /// Investigation notes.
+    #[schemars(description = "Investigation notes documenting what was found and done")]
+    pub resolution_notes: Option<String>,
+    /// Who resolved the investigation.
+    #[schemars(description = "Identifier of who resolved the investigation")]
+    pub resolved_by: Option<String>,
+    /// Additional metadata.
+    #[schemars(description = "Additional metadata (JSON object) for the investigation")]
+    pub metadata: Option<serde_json::Value>,
+    /// Set to true to execute the update (omit or false for preview).
+    #[schemars(
+        description = "Set to true to execute the update. Omit or set false to preview what will happen."
+    )]
+    #[serde(default)]
+    pub confirm: bool,
+}

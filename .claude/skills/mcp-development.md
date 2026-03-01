@@ -33,7 +33,7 @@ tasker-mcp --offline          # Offline mode, Tier 1 only
 tasker-mcp --profile staging  # Set initial active profile
 ```
 
-## 23 Tools
+## 29 Tools
 
 ### Tier 1 — Offline Developer Tools (7)
 
@@ -97,6 +97,31 @@ All accept optional `profile` parameter to target a specific environment.
 | `template_list_remote` | List templates registered on the server |
 | `template_inspect_remote` | Template details from the server |
 
+### Tier 3 — Write Tools (6)
+
+All accept optional `profile` parameter to target a specific environment. Writes use preview → confirm workflow.
+
+**Task Management**
+
+| Tool | What It Does |
+|------|-------------|
+| `task_submit` | Submit a task for execution with confirmation |
+| `task_cancel` | Cancel a task and all pending steps with confirmation |
+
+**Step Resolution**
+
+| Tool | What It Does |
+|------|-------------|
+| `step_retry` | Reset a failed step for retry with confirmation |
+| `step_resolve` | Mark a step as manually resolved with confirmation |
+| `step_complete` | Manually complete a step with result data and confirmation |
+
+**DLQ Management**
+
+| Tool | What It Does |
+|------|-------------|
+| `dlq_update` | Update DLQ entry investigation status with confirmation |
+
 ## Key Files
 
 | File | Purpose |
@@ -105,7 +130,7 @@ All accept optional `profile` parameter to target a specific environment.
 | `tasker-mcp/src/tools/params.rs` | Parameter and response structs (schemars + serde) |
 | `tasker-mcp/src/lib.rs` | Library target for integration test imports |
 | `tasker-mcp/src/main.rs` | Binary entry point (clap CLI + stdio transport) |
-| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 23 tools) |
+| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 29 tools) |
 | `tests/mcp_tests.rs` | Connected integration tests entry point (requires running services) |
 | `tests/mcp/harness.rs` | `McpTestHarness` — duplex MCP + IntegrationTestManager for seeding |
 | `tests/mcp/` | 4 persona test files: task_inspection, system_monitoring, dlq_investigation, analytics |
