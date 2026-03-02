@@ -96,7 +96,7 @@ jobs:
       # Download FFI library artifact from build-typescript job
       # ========================================================================
       - name: Download TypeScript artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: typescript-artifacts
           path: artifacts/
@@ -142,7 +142,7 @@ jobs:
       # Client API Integration Tests (TAS-284: merged from test-ffi-client.yml)
       # ========================================================================
       - name: Download core artifacts (for orchestration server)
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: core-artifacts
           path: artifacts/core

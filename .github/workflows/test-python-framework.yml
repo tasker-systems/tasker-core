@@ -105,7 +105,7 @@ jobs:
       # Client API Integration Tests (TAS-284: merged from test-ffi-client.yml)
       # ========================================================================
       - name: Download core artifacts (for orchestration server)
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: core-artifacts
           path: artifacts/core
