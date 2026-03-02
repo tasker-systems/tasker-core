@@ -121,7 +121,7 @@ jobs:
           echo "Binary size: $(ls -lh staging/${BINARY} | awk '{print $5}')"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cli-${{ inputs.version || 'dev' }}-${{ matrix.target.triple }}
           path: tasker-ctl-*.tar.gz

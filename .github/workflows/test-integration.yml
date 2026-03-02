@@ -144,7 +144,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
 
       - name: Upload unit test results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always() && hashFiles('target/nextest/ci/junit.xml') != ''
         with:
           name: unit-test-results
@@ -451,7 +451,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always() && hashFiles('target/nextest/ci/junit.xml') != ''
         with:
           name: integration-test-results-${{ matrix.messaging_backend }}
