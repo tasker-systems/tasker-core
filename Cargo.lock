@@ -2018,7 +2018,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2830,7 +2830,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tokio",
  "tower-service",
  "tracing",
@@ -3048,7 +3048,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3927,7 +3927,7 @@ dependencies = [
  "reqwest 0.12.26",
  "thiserror 2.0.18",
  "tokio",
- "tonic 0.14.2",
+ "tonic 0.14.5",
  "tracing",
 ]
 
@@ -3951,7 +3951,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry_sdk",
  "prost 0.14.3",
- "tonic 0.14.2",
+ "tonic 0.14.5",
  "tonic-prost",
 ]
 
@@ -4709,7 +4709,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4746,9 +4746,9 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -5388,7 +5388,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5479,7 +5479,7 @@ dependencies = [
  "security-framework 3.5.1",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6429,7 +6429,7 @@ dependencies = [
  "tokio",
  "tokio-test",
  "toml 0.9.5",
- "tonic 0.14.2",
+ "tonic 0.14.5",
  "tracing",
  "uuid",
  "workspace_tools",
@@ -6561,7 +6561,7 @@ dependencies = [
  "tokio-stream",
  "tokio-test",
  "toml 0.9.5",
- "tonic 0.14.2",
+ "tonic 0.14.5",
  "tonic-health",
  "tonic-reflection",
  "tower 0.5.3",
@@ -6723,7 +6723,7 @@ dependencies = [
  "tokio-stream",
  "tokio-test",
  "toml 0.9.5",
- "tonic 0.14.2",
+ "tonic 0.14.5",
  "tonic-build",
  "tonic-prost",
  "tonic-prost-build",
@@ -6804,7 +6804,7 @@ dependencies = [
  "tokio-stream",
  "tokio-test",
  "toml 0.9.5",
- "tonic 0.14.2",
+ "tonic 0.14.5",
  "tonic-health",
  "tonic-reflection",
  "tower 0.5.3",
@@ -6870,7 +6870,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7238,9 +7238,9 @@ dependencies = [
 
 [[package]]
 name = "tonic"
-version = "0.14.2"
+version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb7613188ce9f7df5bfe185db26c5814347d110db17920415cf2fbcad85e7203"
+checksum = "fec7c61a0695dc1887c1b53952990f3ad2e3a31453e1f49f10e75424943a93ec"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -7286,7 +7286,7 @@ dependencies = [
  "prost 0.14.3",
  "tokio",
  "tokio-stream",
- "tonic 0.14.2",
+ "tonic 0.14.5",
  "tonic-prost",
 ]
 
@@ -7298,7 +7298,7 @@ checksum = "66bd50ad6ce1252d87ef024b3d64fe4c3cf54a86fb9ef4c631fdd0ded7aeaa67"
 dependencies = [
  "bytes",
  "prost 0.14.3",
- "tonic 0.14.2",
+ "tonic 0.14.5",
 ]
 
 [[package]]
@@ -7327,7 +7327,7 @@ dependencies = [
  "prost-types 0.14.3",
  "tokio",
  "tokio-stream",
- "tonic 0.14.2",
+ "tonic 0.14.5",
  "tonic-prost",
 ]
 
