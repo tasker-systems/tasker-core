@@ -332,7 +332,7 @@ jobs:
         if: steps.check-published.outputs.already_published != 'true'
         id: download-artifacts
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
           path: ffi-artifacts/
@@ -429,7 +429,7 @@ jobs:
 
       - name: Download pre-built wheels
         if: steps.check-published.outputs.already_published != 'true'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
           path: ffi-artifacts/
@@ -525,7 +525,7 @@ jobs:
       - name: Download pre-built FFI artifacts
         if: steps.check-published.outputs.already_published != 'true'
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
           path: ffi-artifacts/
@@ -659,7 +659,7 @@ jobs:
 
       - name: Download FFI artifacts
         if: needs.build-ffi-libraries.result == 'success'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
           path: ffi-artifacts/
@@ -667,7 +667,7 @@ jobs:
 
       - name: Download CLI binary artifacts
         if: needs.build-cli-binaries.result == 'success'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: cli-${{ needs.detect-and-read.outputs.core_version }}-*
           path: cli-artifacts/

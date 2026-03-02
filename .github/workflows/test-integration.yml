@@ -271,14 +271,14 @@ jobs:
       # Download artifacts from multi-job build-workers workflow
       # ========================================================================
       - name: Download core artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: core-artifacts
           path: artifacts/core
 
       - name: Download Ruby extension artifact
         if: inputs.build-ruby
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ruby-extension
           path: artifacts/ruby
@@ -286,14 +286,14 @@ jobs:
 
       - name: Download TypeScript artifacts
         if: inputs.build-typescript
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: typescript-artifacts
           path: artifacts/typescript
         continue-on-error: true
 
       - name: Download Rust worker artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: rust-worker-artifact
           path: artifacts/rust-worker
