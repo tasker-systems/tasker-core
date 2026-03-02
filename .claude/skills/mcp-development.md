@@ -28,10 +28,52 @@ tasker-mcp (MCP server, stdio transport)
 ### CLI Flags
 
 ```bash
-tasker-mcp                    # Connected mode, loads profiles
-tasker-mcp --offline          # Offline mode, Tier 1 only
-tasker-mcp --profile staging  # Set initial active profile
+tasker-mcp                              # Connected mode, loads profiles, all tiers
+tasker-mcp --offline                    # Offline mode, Tier 1 only
+tasker-mcp --profile staging            # Set initial active profile
+tasker-mcp --tools tier1,tier2          # Override tool tiers (CLI takes precedence)
+tasker-mcp --profile prod --tools tier1,tier2  # Production read-only (no writes)
 ```
+
+### Tool Tier Configuration (TAS-309)
+
+Tool tiers control which tools are registered on the MCP server, directly affecting LLM context window usage. Three tiers:
+
+- **Tier 1** (7 tools): Offline developer tooling — always available
+- **Tier 2** (15 tools): Connected read-only — task/step inspection, DLQ, analytics, system
+- **Tier 3** (6 tools): Write tools with confirmation — task submit/cancel, step operations, DLQ update
+
+**Resolution priority** (highest to lowest):
+1. `--tools` CLI flag
+2. Profile `tools` config in `tasker-client.toml`
+3. Default: all tiers when connected, tier1 only when offline
+
+**Profile configuration example:**
+```toml
+[profile.default]
+description = "Local development - full access"
+transport = "rest"
+# tools omitted = all tiers enabled
+
+[profile.staging]
+description = "Staging - read only"
+transport = "grpc"
+tools = ["tier1", "tier2"]  # No write tools
+
+[profile.production]
+description = "Production - monitoring only"
+transport = "grpc"
+tools = ["tier1", "tier2"]  # No write tools for safety
+```
+
+### Read Anywhere, Write Locked (TAS-309)
+
+**Security model for multi-profile environments:**
+
+- **Tier 2 reads**: Accept any profile via the optional `profile` parameter. An agent can inspect tasks across staging and production simultaneously.
+- **Tier 3 writes**: Locked to the launch profile. If the server started with `--profile staging`, writes can only target staging. Requesting a write to `production` returns a `write_profile_locked` error with restart instructions.
+
+This prevents accidental cross-environment mutations. To write to a different environment, restart tasker-mcp with the target profile.
 
 ## 29 Tools
 
@@ -99,7 +141,7 @@ All accept optional `profile` parameter to target a specific environment.
 
 ### Tier 3 — Write Tools (6)
 
-All accept optional `profile` parameter to target a specific environment. Writes use preview → confirm workflow.
+Writes are locked to the launch profile (see "Read Anywhere, Write Locked" above). Writes use preview → confirm workflow.
 
 **Task Management**
 
@@ -126,7 +168,8 @@ All accept optional `profile` parameter to target a specific environment. Writes
 
 | File | Purpose |
 |------|---------|
-| `tasker-mcp/src/server.rs` | ServerHandler impl, thin tool routing stubs, client resolution |
+| `tasker-mcp/src/server.rs` | ServerHandler impl, thin tool routing stubs, client resolution, write-profile locking |
+| `tasker-mcp/src/tier.rs` | `ToolTier` enum, `EnabledTiers` resolution, tool name constants (TAS-309) |
 | `tasker-mcp/src/tools/mod.rs` | Module declarations, re-exports `error_json` and `params::*` |
 | `tasker-mcp/src/tools/developer.rs` | Tier 1 offline tool logic (7 pure functions + unit tests) |
 | `tasker-mcp/src/tools/connected.rs` | Tier 2 read-only tool logic (15 async functions) |

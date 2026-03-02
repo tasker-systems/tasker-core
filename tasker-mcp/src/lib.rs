@@ -4,4 +4,5 @@
 //! Used by the `tasker-mcp` binary and available for integration testing.
 
 pub mod server;
+pub mod tier;
 pub mod tools;

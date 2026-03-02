@@ -141,7 +141,10 @@ impl ProfileManager {
     }
 
     /// Create from an already-parsed profile config file.
-    fn from_profile_file(file: ProfileConfigFile) -> ClientResult<Self> {
+    ///
+    /// Resolves each profile through the standard chain:
+    /// defaults → `[profile.default]` → `[profile.{name}]` → env overrides.
+    pub fn from_profile_file(file: ProfileConfigFile) -> ClientResult<Self> {
         let mut entries = Vec::with_capacity(file.profile.len());
 
         for (name, raw) in &file.profile {
@@ -189,6 +192,53 @@ impl ProfileManager {
             active_profile,
             health_probe_timeout_ms: Self::DEFAULT_HEALTH_PROBE_TIMEOUT_MS,
         })
+    }
+
+    /// Create from pre-resolved profile entries.
+    ///
+    /// This is the primary construction path for upstream crates that manage
+    /// configuration independently (e.g., a unified config loader in TAS-311).
+    /// The caller provides fully-hydrated configs and metadata — no file I/O
+    /// or TOML parsing occurs.
+    ///
+    /// The first entry with name `"default"` becomes the active profile.
+    /// If no `"default"` exists, the first entry (alphabetically) is active.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tasker_client::config::{ClientConfig, ProfileConfig};
+    /// use tasker_client::profile_manager::ProfileManager;
+    ///
+    /// let pm = ProfileManager::from_entries(vec![
+    ///     ("staging".to_string(), ClientConfig::default(), ProfileConfig::default()),
+    /// ]);
+    /// assert_eq!(pm.active_profile_name(), "staging");
+    /// ```
+    pub fn from_entries(entries: Vec<(String, ClientConfig, ProfileConfig)>) -> Self {
+        let mut built: Vec<ProfileEntry> = entries
+            .into_iter()
+            .map(|(name, config, metadata)| ProfileEntry {
+                name,
+                config,
+                metadata,
+                health: ProfileHealthSnapshot::default(),
+            })
+            .collect();
+
+        built.sort_by(|a, b| a.name.cmp(&b.name));
+
+        let active_profile = if built.iter().any(|e| e.name == "default") {
+            "default".to_string()
+        } else {
+            built.first().map(|e| e.name.clone()).unwrap_or_default()
+        };
+
+        Self {
+            entries: built,
+            active_profile,
+            health_probe_timeout_ms: Self::DEFAULT_HEALTH_PROBE_TIMEOUT_MS,
+        }
     }
 
     /// Find a profile entry by name.
@@ -245,6 +295,11 @@ impl ProfileManager {
     /// Get the active profile's resolved `ClientConfig`.
     pub fn active_config(&self) -> Option<&ClientConfig> {
         self.find(&self.active_profile).map(|e| &e.config)
+    }
+
+    /// Get the active profile's raw metadata (including tool tier configuration).
+    pub fn active_profile_metadata(&self) -> Option<&ProfileConfig> {
+        self.find(&self.active_profile).map(|e| &e.metadata)
     }
 
     /// Set the active profile at construction time. Returns error if the profile doesn't exist.
@@ -715,6 +770,116 @@ base_url = "http://127.0.0.1:19996"
 
         pm.set_health_probe_timeout_ms(10_000);
         assert_eq!(pm.health_probe_timeout_ms, 10_000);
+    }
+
+    #[test]
+    fn test_from_entries_single_profile() {
+        let pm = ProfileManager::from_entries(vec![(
+            "production".to_string(),
+            ClientConfig::default(),
+            ProfileConfig {
+                description: Some("Prod".to_string()),
+                ..Default::default()
+            },
+        )]);
+
+        assert_eq!(pm.active_profile_name(), "production");
+        assert!(pm.active_config().is_some());
+        assert_eq!(
+            pm.active_profile_metadata().unwrap().description.as_deref(),
+            Some("Prod")
+        );
+    }
+
+    #[test]
+    fn test_from_entries_default_is_active() {
+        let pm = ProfileManager::from_entries(vec![
+            (
+                "staging".to_string(),
+                ClientConfig::default(),
+                ProfileConfig::default(),
+            ),
+            (
+                "default".to_string(),
+                ClientConfig::default(),
+                ProfileConfig::default(),
+            ),
+        ]);
+
+        assert_eq!(pm.active_profile_name(), "default");
+        assert_eq!(pm.list_profile_names().len(), 2);
+    }
+
+    #[test]
+    fn test_from_entries_alphabetical_when_no_default() {
+        let pm = ProfileManager::from_entries(vec![
+            (
+                "staging".to_string(),
+                ClientConfig::default(),
+                ProfileConfig::default(),
+            ),
+            (
+                "production".to_string(),
+                ClientConfig::default(),
+                ProfileConfig::default(),
+            ),
+        ]);
+
+        // Sorted alphabetically, "production" comes first
+        assert_eq!(pm.active_profile_name(), "production");
+    }
+
+    #[test]
+    fn test_from_entries_empty() {
+        let pm = ProfileManager::from_entries(vec![]);
+
+        assert!(pm.active_profile_name().is_empty());
+        assert!(pm.list_profile_names().is_empty());
+        assert!(pm.active_config().is_none());
+    }
+
+    #[test]
+    fn test_from_entries_preserves_config() {
+        let mut config = ClientConfig::default();
+        config.orchestration.base_url = "https://custom:9090".to_string();
+        config.transport = Transport::Grpc;
+
+        let metadata = ProfileConfig {
+            tools: Some(vec!["tier1".to_string(), "tier2".to_string()]),
+            ..Default::default()
+        };
+
+        let pm = ProfileManager::from_entries(vec![("custom".to_string(), config, metadata)]);
+
+        let resolved = pm.active_config().unwrap();
+        assert_eq!(resolved.orchestration.base_url, "https://custom:9090");
+        assert_eq!(resolved.transport, Transport::Grpc);
+
+        let meta = pm.active_profile_metadata().unwrap();
+        assert_eq!(
+            meta.tools.as_deref(),
+            Some(&["tier1".to_string(), "tier2".to_string()][..])
+        );
+    }
+
+    #[test]
+    fn test_from_entries_supports_set_initial_profile() {
+        let mut pm = ProfileManager::from_entries(vec![
+            (
+                "alpha".to_string(),
+                ClientConfig::default(),
+                ProfileConfig::default(),
+            ),
+            (
+                "beta".to_string(),
+                ClientConfig::default(),
+                ProfileConfig::default(),
+            ),
+        ]);
+
+        assert_eq!(pm.active_profile_name(), "alpha");
+        pm.set_initial_profile("beta").unwrap();
+        assert_eq!(pm.active_profile_name(), "beta");
     }
 
     #[test]

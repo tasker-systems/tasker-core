@@ -1,0 +1,32 @@
+# Tasker Client Configuration Profiles
+#
+# Profiles define how tasker-ctl and tasker-mcp connect to Tasker services.
+# Use with: tasker-ctl --profile <name> <command>
+#            tasker-mcp --profile <name>
+#
+# Profile precedence:
+#   1. Environment variables (highest)
+#   2. Selected profile settings
+#   3. [profile.default] settings
+#   4. Hardcoded defaults (lowest)
+#
+# Available transports: "rest" (default), "grpc"
+#
+# MCP tool tiers (optional, for tasker-mcp):
+#   tools = ["tier1"]                 # Offline dev tools only
+#   tools = ["tier1", "tier2"]        # + read-only inspection
+#   tools = ["tier1", "tier2", "tier3"] # + write tools (default when connected)
+
+[profile.default]
+description = "Local development"
+transport = "rest"
+
+[profile.default.orchestration]
+base_url = "http://localhost:8080"
+timeout_ms = 30000
+max_retries = 3
+
+[profile.default.worker]
+base_url = "http://localhost:8081"
+timeout_ms = 30000
+max_retries = 3

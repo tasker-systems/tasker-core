@@ -107,6 +107,10 @@ pub struct ProfileConfig {
     /// Worker endpoint configuration
     #[serde(default)]
     pub worker: Option<ProfileEndpointConfig>,
+    /// Which tool tiers to expose via MCP. Valid: "tier1", "tier2", "tier3".
+    /// Defaults to all available tiers based on connectivity.
+    #[serde(default)]
+    pub tools: Option<Vec<String>>,
 }
 
 /// Partial endpoint configuration for profiles (all fields optional).
@@ -466,7 +470,7 @@ impl ClientConfig {
     /// Resolve a named profile from a parsed ProfileConfigFile into a ClientConfig.
     ///
     /// Applies: defaults → [profile.default] → [profile.{name}] → env overrides
-    pub(crate) fn resolve_from_file(
+    pub fn resolve_from_file(
         profile_name: &str,
         profile_file: &ProfileConfigFile,
     ) -> ClientResult<Self> {
@@ -545,7 +549,7 @@ impl ClientConfig {
     }
 
     /// Load profile configuration file
-    pub(crate) fn load_profile_file(path: &Path) -> ClientResult<ProfileConfigFile> {
+    pub fn load_profile_file(path: &Path) -> ClientResult<ProfileConfigFile> {
         let content = std::fs::read_to_string(path).map_err(|e| {
             ClientError::config_error(format!("Failed to read profile file: {}", e))
         })?;

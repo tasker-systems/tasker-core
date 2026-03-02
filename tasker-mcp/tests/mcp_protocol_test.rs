@@ -7,7 +7,9 @@
 use rmcp::model::{CallToolRequestParams, ClientInfo};
 use rmcp::service::{RoleClient, RunningService};
 use rmcp::{ClientHandler, ServiceExt};
+use tasker_client::ProfileManager;
 use tasker_mcp::server::TaskerMcpServer;
+use tasker_mcp::tier::EnabledTiers;
 
 #[derive(Debug, Clone, Default)]
 struct TestClient;
@@ -18,14 +20,56 @@ impl ClientHandler for TestClient {
     }
 }
 
-/// Helper: spin up a server/client pair connected via in-memory duplex.
-async fn setup() -> anyhow::Result<(
+/// Helper: spin up an offline server/client pair (Tier 1 tools only).
+async fn setup_offline() -> anyhow::Result<(
     RunningService<RoleClient, TestClient>,
     tokio::task::JoinHandle<anyhow::Result<()>>,
 )> {
     let (server_transport, client_transport) = tokio::io::duplex(65536);
 
     let server = TaskerMcpServer::new();
+    let server_handle = tokio::spawn(async move {
+        let service = server.serve(server_transport).await?;
+        service.waiting().await?;
+        anyhow::Ok(())
+    });
+
+    let client = TestClient.serve(client_transport).await?;
+    Ok((client, server_handle))
+}
+
+/// Helper: spin up a connected server with all tools registered but no reachable backend.
+/// This allows testing Tier 2/3 tool error paths (connection_failed, offline_mode errors)
+/// without tools being pruned from the router.
+async fn setup_connected_no_server() -> anyhow::Result<(
+    RunningService<RoleClient, TestClient>,
+    tokio::task::JoinHandle<anyhow::Result<()>>,
+)> {
+    let (server_transport, client_transport) = tokio::io::duplex(65536);
+
+    let pm = ProfileManager::offline(); // No profiles, but not offline mode
+    let server = TaskerMcpServer::with_profile_manager(pm, false, None);
+    let server_handle = tokio::spawn(async move {
+        let service = server.serve(server_transport).await?;
+        service.waiting().await?;
+        anyhow::Ok(())
+    });
+
+    let client = TestClient.serve(client_transport).await?;
+    Ok((client, server_handle))
+}
+
+/// Helper: spin up a server with specific tiers enabled.
+async fn setup_with_tiers(
+    tiers: EnabledTiers,
+) -> anyhow::Result<(
+    RunningService<RoleClient, TestClient>,
+    tokio::task::JoinHandle<anyhow::Result<()>>,
+)> {
+    let (server_transport, client_transport) = tokio::io::duplex(65536);
+
+    let pm = ProfileManager::offline();
+    let server = TaskerMcpServer::with_profile_manager(pm, false, Some(tiers));
     let server_handle = tokio::spawn(async move {
         let service = server.serve(server_transport).await?;
         service.waiting().await?;
@@ -68,8 +112,35 @@ fn codegen_yaml() -> &'static str {
 // ── Discovery ──
 
 #[tokio::test]
-async fn test_list_tools_returns_all() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+async fn test_list_tools_offline_returns_tier1() -> anyhow::Result<()> {
+    let (client, server_handle) = setup_offline().await?;
+
+    let tools = client.list_tools(None).await?;
+    let mut names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_ref()).collect();
+    names.sort();
+
+    assert_eq!(
+        names,
+        vec![
+            "handler_generate",
+            "schema_compare",
+            "schema_diff",
+            "schema_inspect",
+            "template_generate",
+            "template_inspect",
+            "template_validate",
+        ]
+    );
+    assert_eq!(names.len(), 7, "Expected 7 Tier 1 tools in offline mode");
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_list_tools_connected_returns_all() -> anyhow::Result<()> {
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let tools = client.list_tools(None).await?;
     let mut names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_ref()).collect();
@@ -120,11 +191,32 @@ async fn test_list_tools_returns_all() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[tokio::test]
+async fn test_list_tools_tier_filtered() -> anyhow::Result<()> {
+    let tiers = EnabledTiers::from_tier_strings(&["tier1".to_string(), "tier2".to_string()]);
+    let (client, server_handle) = setup_with_tiers(tiers).await?;
+
+    let tools = client.list_tools(None).await?;
+    let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_ref()).collect();
+
+    // 7 T1 + 1 connection_status + 15 T2 = 23
+    assert_eq!(names.len(), 23, "Expected 23 tools (T1+profile+T2)");
+    assert!(names.contains(&"template_validate"));
+    assert!(names.contains(&"task_list"));
+    assert!(names.contains(&"connection_status"));
+    assert!(!names.contains(&"task_submit"));
+    assert!(!names.contains(&"dlq_update"));
+
+    client.cancel().await?;
+    server_handle.await??;
+    Ok(())
+}
+
 // ── template_validate ──
 
 #[tokio::test]
 async fn test_template_validate_valid() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -144,7 +236,7 @@ async fn test_template_validate_valid() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_template_validate_invalid_yaml() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -165,7 +257,7 @@ async fn test_template_validate_invalid_yaml() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_template_inspect() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -193,7 +285,7 @@ async fn test_template_inspect() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_template_generate() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -227,7 +319,7 @@ async fn test_template_generate() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_handler_generate_scaffold() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -257,7 +349,7 @@ async fn test_handler_generate_scaffold() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_handler_generate_invalid_language() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -281,7 +373,7 @@ async fn test_handler_generate_invalid_language() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_schema_inspect() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -309,7 +401,7 @@ async fn test_schema_inspect() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_schema_compare() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -335,7 +427,7 @@ async fn test_schema_compare() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_schema_diff() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let before_yaml = r#"
 name: diff_test
@@ -396,7 +488,7 @@ steps:
 
 #[tokio::test]
 async fn test_schema_compare_step_not_found() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_offline().await?;
 
     let text = call_tool_text(
         &client,
@@ -418,14 +510,21 @@ async fn test_schema_compare_step_not_found() -> anyhow::Result<()> {
 }
 
 // ── Tier 2: Offline mode error tests ──
+// These use setup_connected_no_server() so all tools are registered in the router.
+// The tools return profile_not_found errors since the ProfileManager has no profiles.
 
 #[tokio::test]
 async fn test_task_list_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(&client, "task_list", serde_json::json!({})).await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    // With empty ProfileManager (not offline mode), this returns profile_not_found
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -434,7 +533,7 @@ async fn test_task_list_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_task_inspect_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(
         &client,
@@ -443,7 +542,11 @@ async fn test_task_inspect_offline() -> anyhow::Result<()> {
     )
     .await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -452,11 +555,15 @@ async fn test_task_inspect_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_dlq_list_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(&client, "dlq_list", serde_json::json!({})).await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -465,11 +572,15 @@ async fn test_dlq_list_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_system_health_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(&client, "system_health", serde_json::json!({})).await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -478,11 +589,15 @@ async fn test_system_health_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_analytics_performance_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(&client, "analytics_performance", serde_json::json!({})).await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -491,11 +606,15 @@ async fn test_analytics_performance_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_template_list_remote_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(&client, "template_list_remote", serde_json::json!({})).await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -506,7 +625,7 @@ async fn test_template_list_remote_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_task_submit_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(
         &client,
@@ -520,7 +639,11 @@ async fn test_task_submit_offline() -> anyhow::Result<()> {
     )
     .await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -529,7 +652,7 @@ async fn test_task_submit_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_task_cancel_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(
         &client,
@@ -538,7 +661,11 @@ async fn test_task_cancel_offline() -> anyhow::Result<()> {
     )
     .await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -547,7 +674,7 @@ async fn test_task_cancel_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_step_retry_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(
         &client,
@@ -561,7 +688,11 @@ async fn test_step_retry_offline() -> anyhow::Result<()> {
     )
     .await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -570,7 +701,7 @@ async fn test_step_retry_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_step_resolve_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(
         &client,
@@ -584,7 +715,11 @@ async fn test_step_resolve_offline() -> anyhow::Result<()> {
     )
     .await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -593,7 +728,7 @@ async fn test_step_resolve_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_step_complete_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(
         &client,
@@ -608,7 +743,11 @@ async fn test_step_complete_offline() -> anyhow::Result<()> {
     )
     .await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
@@ -617,7 +756,7 @@ async fn test_step_complete_offline() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_dlq_update_offline() -> anyhow::Result<()> {
-    let (client, server_handle) = setup().await?;
+    let (client, server_handle) = setup_connected_no_server().await?;
 
     let text = call_tool_text(
         &client,
@@ -626,9 +765,38 @@ async fn test_dlq_update_offline() -> anyhow::Result<()> {
     )
     .await?;
     let parsed: serde_json::Value = serde_json::from_str(&text)?;
-    assert_eq!(parsed["error"], "offline_mode");
+    assert!(
+        parsed["error"] == "profile_not_found" || parsed["error"] == "connection_failed",
+        "Expected profile_not_found or connection_failed, got: {}",
+        parsed["error"]
+    );
 
     client.cancel().await?;
     server_handle.await??;
+    Ok(())
+}
+
+// ── Pruned tool returns protocol error ──
+
+#[tokio::test]
+async fn test_pruned_tool_returns_not_found() -> anyhow::Result<()> {
+    // Offline mode prunes Tier 2/3 tools
+    let (client, _server_handle) = setup_offline().await?;
+
+    // Calling a pruned tool should return an MCP protocol error (not our JSON error)
+    let result = client
+        .call_tool(CallToolRequestParams {
+            meta: None,
+            name: "task_list".into(),
+            arguments: Some(serde_json::Map::new()),
+            task: None,
+        })
+        .await;
+
+    // rmcp returns an error when calling an unknown tool
+    assert!(result.is_err(), "Expected protocol error for pruned tool");
+
+    client.cancel().await?;
+    _server_handle.await??;
     Ok(())
 }
