@@ -584,6 +584,75 @@ base_url = "http://127.0.0.1:19996"
 }
 
 // =============================================================================
+// from_entries() — direct construction without file I/O (TAS-311 prep)
+// =============================================================================
+
+#[test]
+fn test_from_entries_constructs_without_file() {
+    use tasker_client::config::ProfileConfig;
+
+    let mut config = ClientConfig::default();
+    config.orchestration.base_url = "https://staging:9190".to_string();
+    config.transport = tasker_client::config::Transport::Grpc;
+
+    let metadata = ProfileConfig {
+        description: Some("Staging env".to_string()),
+        tools: Some(vec!["tier1".to_string(), "tier2".to_string()]),
+        ..Default::default()
+    };
+
+    let pm = ProfileManager::from_entries(vec![("staging".to_string(), config, metadata)]);
+
+    // Verify it works identically to file-loaded managers
+    assert_eq!(pm.active_profile_name(), "staging");
+    assert_eq!(pm.list_profile_names(), vec!["staging"]);
+
+    let resolved = pm.active_config().unwrap();
+    assert_eq!(resolved.orchestration.base_url, "https://staging:9190");
+    assert_eq!(resolved.transport, tasker_client::config::Transport::Grpc);
+
+    let meta = pm.active_profile_metadata().unwrap();
+    assert_eq!(meta.description.as_deref(), Some("Staging env"));
+    assert_eq!(
+        meta.tools.as_deref(),
+        Some(&["tier1".to_string(), "tier2".to_string()][..])
+    );
+}
+
+#[test]
+fn test_from_entries_multiple_profiles_with_health() {
+    use tasker_client::config::ProfileConfig;
+
+    let pm = ProfileManager::from_entries(vec![
+        (
+            "default".to_string(),
+            ClientConfig::default(),
+            ProfileConfig::default(),
+        ),
+        (
+            "staging".to_string(),
+            ClientConfig::default(),
+            ProfileConfig {
+                description: Some("Staging".to_string()),
+                ..Default::default()
+            },
+        ),
+    ]);
+
+    assert_eq!(pm.active_profile_name(), "default");
+    assert_eq!(pm.list_profile_names().len(), 2);
+
+    // Health should be unknown for all entries
+    let summaries = pm.list_profiles();
+    for s in &summaries {
+        assert_eq!(
+            s.health_status,
+            tasker_client::profile_manager::ProfileHealthStatus::Unknown
+        );
+    }
+}
+
+// =============================================================================
 // Profile name validation tests
 // =============================================================================
 
