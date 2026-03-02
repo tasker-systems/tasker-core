@@ -470,7 +470,7 @@ impl ClientConfig {
     /// Resolve a named profile from a parsed ProfileConfigFile into a ClientConfig.
     ///
     /// Applies: defaults → [profile.default] → [profile.{name}] → env overrides
-    pub(crate) fn resolve_from_file(
+    pub fn resolve_from_file(
         profile_name: &str,
         profile_file: &ProfileConfigFile,
     ) -> ClientResult<Self> {
@@ -549,7 +549,7 @@ impl ClientConfig {
     }
 
     /// Load profile configuration file
-    pub(crate) fn load_profile_file(path: &Path) -> ClientResult<ProfileConfigFile> {
+    pub fn load_profile_file(path: &Path) -> ClientResult<ProfileConfigFile> {
         let content = std::fs::read_to_string(path).map_err(|e| {
             ClientError::config_error(format!("Failed to read profile file: {}", e))
         })?;

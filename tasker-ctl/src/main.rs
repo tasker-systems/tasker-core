@@ -20,8 +20,9 @@ use tracing::info;
 
 use commands::{
     handle_auth_command, handle_config_command, handle_dlq_command, handle_docs_command,
-    handle_generate_command, handle_init_command, handle_plugin_command, handle_remote_command,
-    handle_system_command, handle_task_command, handle_template_command, handle_worker_command,
+    handle_generate_command, handle_init_command, handle_plugin_command, handle_profile_command,
+    handle_remote_command, handle_system_command, handle_task_command, handle_template_command,
+    handle_worker_command,
 };
 
 #[derive(Parser, Debug)]
@@ -101,6 +102,10 @@ pub(crate) enum Commands {
     /// Generate typed code from task template schemas (TAS-280)
     #[command(subcommand)]
     Generate(GenerateCommands),
+
+    /// Manage tasker-client.toml profiles (TAS-310)
+    #[command(subcommand)]
+    Profile(ProfileCommands),
 
     /// Initialize a new .tasker-ctl.toml with sensible defaults
     Init {
@@ -806,6 +811,65 @@ pub(crate) enum GenerateCommands {
     },
 }
 
+/// TAS-310: Profile management commands for tasker-client.toml
+#[derive(Debug, Subcommand)]
+pub(crate) enum ProfileCommands {
+    /// Generate a new .config/tasker-client.toml with a default profile
+    Init {
+        /// Overwrite existing file if present
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// List all profiles and their endpoints
+    List,
+
+    /// Add a new named profile
+    Add {
+        /// Profile name (e.g., staging, production)
+        name: String,
+
+        /// Human-readable description
+        #[arg(short, long)]
+        description: Option<String>,
+
+        /// Transport protocol (rest or grpc)
+        #[arg(short, long, default_value = "rest")]
+        transport: String,
+
+        /// Orchestration endpoint URL
+        #[arg(long, default_value = "http://localhost:8080")]
+        orchestration_url: String,
+
+        /// Worker endpoint URL
+        #[arg(long, default_value = "http://localhost:8081")]
+        worker_url: String,
+
+        /// MCP tool tiers to expose (comma-separated: tier1,tier2,tier3)
+        #[arg(long, value_delimiter = ',')]
+        tools: Option<Vec<String>>,
+    },
+
+    /// Validate the profile config file structure (offline)
+    Validate,
+
+    /// Show details of a specific profile
+    Show {
+        /// Profile name to show
+        name: String,
+    },
+
+    /// Health-check a profile's endpoints
+    Check {
+        /// Profile name to check (default: active profile)
+        name: Option<String>,
+
+        /// Check all profiles
+        #[arg(long)]
+        all: bool,
+    },
+}
+
 #[tokio::main]
 async fn main() -> tasker_client::ClientResult<()> {
     let cli = Cli::parse();
@@ -864,6 +928,7 @@ async fn main() -> tasker_client::ClientResult<()> {
             handle_remote_command(remote_cmd, &cli_config).await
         }
         Commands::Generate(gen_cmd) => handle_generate_command(gen_cmd).await,
+        Commands::Profile(profile_cmd) => handle_profile_command(profile_cmd).await,
         Commands::Init { no_contrib } => handle_init_command(no_contrib).await,
     }
 }
