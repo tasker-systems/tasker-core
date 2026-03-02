@@ -109,7 +109,7 @@ jobs:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
 
       - name: Upload core build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: core-artifacts
           path: |
@@ -178,7 +178,7 @@ jobs:
           SQLX_OFFLINE: "true"
 
       - name: Upload Ruby extension artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ruby-extension
           path: |
@@ -304,7 +304,7 @@ jobs:
           SQLX_OFFLINE: "true"
 
       - name: Upload TypeScript artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: typescript-artifacts
           path: |
@@ -359,7 +359,7 @@ jobs:
           SQLX_OFFLINE: "true"
 
       - name: Upload Rust worker artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: rust-worker-artifact
           path: target/debug/rust-worker

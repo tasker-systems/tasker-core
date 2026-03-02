@@ -144,7 +144,7 @@ jobs:
       # Results
       # ========================================================================
       - name: Upload test results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: python-framework-test-results

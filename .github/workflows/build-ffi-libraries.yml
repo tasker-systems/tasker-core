@@ -217,7 +217,7 @@ jobs:
 
       - name: Upload FFI artifacts
         if: steps.check-artifacts.outputs.has_artifacts == 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ffi-${{ inputs.version || 'dev' }}-${{ matrix.target.triple }}
           path: artifacts/${{ matrix.target.triple }}/
