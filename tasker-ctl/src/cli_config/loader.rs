@@ -1,51 +1,103 @@
-//! Config file discovery and loading for `.tasker-ctl.toml`.
+//! Config file discovery and loading for CLI configuration.
 //!
-//! Checks two locations in precedence order:
-//! 1. `./.tasker-ctl.toml` (project-local)
-//! 2. `~/.config/tasker-ctl.toml` (user-global)
+//! Search order (TAS-311):
+//! 1. `.config/tasker.toml` `[cli]` section (unified config)
+//! 2. `./.tasker-ctl.toml` (project-local standalone)
+//! 3. `~/.config/tasker-ctl.toml` (user-global standalone)
 
 use std::path::PathBuf;
 
+use super::unified::UnifiedConfigFile;
 use super::CliConfig;
 
-const CONFIG_FILENAME: &str = ".tasker-ctl.toml";
+const UNIFIED_CONFIG_PATH: &str = ".config/tasker.toml";
+const STANDALONE_FILENAME: &str = ".tasker-ctl.toml";
 const GLOBAL_CONFIG_DIR: &str = ".config";
-const GLOBAL_CONFIG_FILENAME: &str = "tasker-ctl.toml";
+const GLOBAL_STANDALONE_FILENAME: &str = "tasker-ctl.toml";
+
+/// Where CLI config was found.
+enum ConfigSource {
+    /// `.config/tasker.toml` — parse as `UnifiedConfigFile`, extract `[cli]`.
+    Unified(PathBuf),
+    /// `.tasker-ctl.toml` or `~/.config/tasker-ctl.toml` — parse directly as `CliConfig`.
+    Standalone(PathBuf),
+}
 
 /// Load CLI config from the first discovered location, or return defaults.
 pub(crate) fn load_cli_config() -> CliConfig {
-    if let Some(path) = find_config_file() {
-        match std::fs::read_to_string(&path) {
-            Ok(contents) => match toml::from_str(&contents) {
-                Ok(config) => {
-                    tracing::debug!(?path, "Loaded CLI config");
-                    return config;
-                }
-                Err(e) => {
-                    tracing::warn!(?path, error = %e, "Failed to parse CLI config, using defaults");
-                }
-            },
-            Err(e) => {
-                tracing::warn!(?path, error = %e, "Failed to read CLI config, using defaults");
-            }
-        }
+    let source = find_config_source();
+    let Some(source) = source else {
+        return CliConfig::default();
+    };
+
+    match source {
+        ConfigSource::Unified(path) => load_from_unified(&path),
+        ConfigSource::Standalone(path) => load_from_standalone(&path),
     }
-    CliConfig::default()
 }
 
-/// Search for config file in precedence order.
-fn find_config_file() -> Option<PathBuf> {
-    // 1. Project-local: ./.tasker-ctl.toml
-    let local = PathBuf::from(CONFIG_FILENAME);
-    if local.is_file() {
-        return Some(local);
+fn load_from_unified(path: &PathBuf) -> CliConfig {
+    match std::fs::read_to_string(path) {
+        Ok(contents) => match toml::from_str::<UnifiedConfigFile>(&contents) {
+            Ok(unified) => {
+                tracing::debug!(?path, "Loaded CLI config from unified file");
+                unified.cli.map(CliConfig::from).unwrap_or_default()
+            }
+            Err(e) => {
+                tracing::warn!(?path, error = %e, "Failed to parse unified config, using defaults");
+                CliConfig::default()
+            }
+        },
+        Err(e) => {
+            tracing::warn!(?path, error = %e, "Failed to read unified config, using defaults");
+            CliConfig::default()
+        }
+    }
+}
+
+fn load_from_standalone(path: &PathBuf) -> CliConfig {
+    match std::fs::read_to_string(path) {
+        Ok(contents) => match toml::from_str(&contents) {
+            Ok(config) => {
+                tracing::warn!(
+                    ?path,
+                    "Loaded CLI config from legacy file — consider migrating to .config/tasker.toml"
+                );
+                config
+            }
+            Err(e) => {
+                tracing::warn!(?path, error = %e, "Failed to parse CLI config, using defaults");
+                CliConfig::default()
+            }
+        },
+        Err(e) => {
+            tracing::warn!(?path, error = %e, "Failed to read CLI config, using defaults");
+            CliConfig::default()
+        }
+    }
+}
+
+/// Search for config source in precedence order.
+fn find_config_source() -> Option<ConfigSource> {
+    // 1. Unified config: .config/tasker.toml
+    let unified = PathBuf::from(UNIFIED_CONFIG_PATH);
+    if unified.is_file() {
+        return Some(ConfigSource::Unified(unified));
     }
 
-    // 2. User-global: ~/.config/tasker-ctl.toml
+    // 2. Project-local standalone: ./.tasker-ctl.toml
+    let local = PathBuf::from(STANDALONE_FILENAME);
+    if local.is_file() {
+        return Some(ConfigSource::Standalone(local));
+    }
+
+    // 3. User-global standalone: ~/.config/tasker-ctl.toml
     if let Some(home) = home_dir() {
-        let global = home.join(GLOBAL_CONFIG_DIR).join(GLOBAL_CONFIG_FILENAME);
+        let global = home
+            .join(GLOBAL_CONFIG_DIR)
+            .join(GLOBAL_STANDALONE_FILENAME);
         if global.is_file() {
-            return Some(global);
+            return Some(ConfigSource::Standalone(global));
         }
     }
 

@@ -1,4 +1,7 @@
-//! `tasker-ctl profile` commands: manage `.config/tasker-client.toml` profiles (TAS-310).
+//! `tasker-ctl profile` commands: manage connection profiles (TAS-310, TAS-311).
+//!
+//! Profiles are stored in `.config/tasker.toml` (unified, preferred) or
+//! `.config/tasker-client.toml` (legacy). Both formats use `[profile.*]` sections.
 
 use std::path::PathBuf;
 
@@ -10,7 +13,7 @@ use tasker_client::{ClientError, ClientResult};
 use crate::output;
 use crate::ProfileCommands;
 
-/// Askama template for generating `.config/tasker-client.toml`.
+/// Askama template for generating `.config/tasker.toml` profile section.
 #[derive(Template, Debug)]
 #[template(path = "profile-init.toml")]
 struct ProfileInitTemplate;
@@ -49,16 +52,28 @@ pub(crate) async fn handle_profile_command(cmd: ProfileCommands) -> ClientResult
 
 async fn handle_profile_init(force: bool) -> ClientResult<()> {
     let config_dir = PathBuf::from(".config");
-    let config_path = config_dir.join("tasker-client.toml");
+    let unified_path = config_dir.join("tasker.toml");
+    let legacy_path = config_dir.join("tasker-client.toml");
 
-    if config_path.exists() && !force {
-        output::warning(format!("{} already exists.", config_path.display()));
+    // Check unified file first, then legacy
+    let config_path = if unified_path.exists() && !force {
+        output::warning(format!("{} already exists.", unified_path.display()));
         output::hint("Use --force to overwrite, or edit the file directly.");
         return Err(ClientError::ConfigError(format!(
             "{} already exists",
-            config_path.display()
+            unified_path.display()
         )));
-    }
+    } else if legacy_path.exists() && !unified_path.exists() && !force {
+        output::warning(format!(
+            "Found legacy {}. Creating unified {} instead.",
+            legacy_path.display(),
+            unified_path.display()
+        ));
+        output::hint("Both files will work — the unified file takes precedence.");
+        unified_path
+    } else {
+        unified_path
+    };
 
     // Ensure .config/ directory exists
     if !config_dir.exists() {

@@ -1,0 +1,57 @@
+# Tasker Unified Configuration (TAS-311)
+#
+# This file configures both CLI tools (tasker-ctl) and client profiles
+# (tasker-ctl, tasker-mcp). See: https://github.com/tasker-systems/tasker-core
+#
+# Profile precedence:
+#   1. Environment variables (highest)
+#   2. Selected profile settings
+#   3. [profile.default] settings
+#   4. Hardcoded defaults (lowest)
+
+# =============================================================================
+# Profiles — Connection settings for Tasker environments
+# =============================================================================
+
+[profile.default]
+description = "Local development"
+transport = "rest"
+
+[profile.default.orchestration]
+base_url = "http://localhost:8080"
+timeout_ms = 30000
+max_retries = 3
+
+[profile.default.worker]
+base_url = "http://localhost:8081"
+timeout_ms = 30000
+max_retries = 3
+
+# =============================================================================
+# CLI — Plugin paths, template defaults, and remote repositories
+# =============================================================================
+
+[cli]
+# Additional local plugin directories (besides remotes)
+# plugin-paths = ["./plugins"]
+
+# Default language for template generation
+# default-language = "ruby"
+
+# Default output directory for generated files
+# default-output-dir = "."
+
+# Hours before cached remotes are considered stale (default: 24)
+# cache-max-age-hours = 24
+{% if include_contrib %}
+
+[[cli.remotes]]
+name = "tasker-contrib"
+url = "https://github.com/tasker-systems/tasker-contrib.git"
+{% else %}
+
+# Add remotes for template and config access:
+# [[cli.remotes]]
+# name = "tasker-contrib"
+# url = "https://github.com/tasker-systems/tasker-contrib.git"
+{% endif %}
