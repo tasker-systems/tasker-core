@@ -247,6 +247,11 @@ impl ProfileManager {
         self.find(&self.active_profile).map(|e| &e.config)
     }
 
+    /// Get the active profile's raw metadata (including tool tier configuration).
+    pub fn active_profile_metadata(&self) -> Option<&ProfileConfig> {
+        self.find(&self.active_profile).map(|e| &e.metadata)
+    }
+
     /// Set the active profile at construction time. Returns error if the profile doesn't exist.
     pub fn set_initial_profile(&mut self, name: &str) -> ClientResult<()> {
         if self.find(name).is_some() {

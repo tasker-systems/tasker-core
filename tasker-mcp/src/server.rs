@@ -51,6 +51,7 @@ use tokio::sync::RwLock;
 use tasker_client::{ProfileManager, UnifiedOrchestrationClient};
 use tasker_sdk::operational::client_factory;
 
+use crate::tier::{EnabledTiers, ToolTier};
 use crate::tools::*;
 
 /// Tasker MCP server handler with developer tooling and profile management.
@@ -59,28 +60,54 @@ pub struct TaskerMcpServer {
     tool_router: ToolRouter<Self>,
     profile_manager: Arc<RwLock<ProfileManager>>,
     offline: bool,
+    enabled_tiers: EnabledTiers,
 }
 
 impl Default for TaskerMcpServer {
     fn default() -> Self {
         let pm = ProfileManager::load().unwrap_or_else(|_| ProfileManager::offline());
-        Self::with_profile_manager(pm, false)
+        Self::with_profile_manager(pm, false, None)
     }
 }
 
 impl TaskerMcpServer {
-    /// Create a server with profile management.
-    pub fn with_profile_manager(profile_manager: ProfileManager, offline: bool) -> Self {
+    /// Create a server with profile management and optional tier override.
+    ///
+    /// When `tier_override` is `None`, tiers are resolved from the active profile's
+    /// `tools` configuration (or default to all tiers when connected, tier1 when offline).
+    /// When `Some`, the override takes precedence (used by `--tools` CLI flag).
+    pub fn with_profile_manager(
+        profile_manager: ProfileManager,
+        offline: bool,
+        tier_override: Option<EnabledTiers>,
+    ) -> Self {
+        let enabled_tiers = tier_override.unwrap_or_else(|| {
+            let profile_tools = profile_manager
+                .active_profile_metadata()
+                .and_then(|m| m.tools.as_deref());
+            EnabledTiers::resolve(offline, profile_tools)
+        });
+
+        let mut router = Self::tool_router();
+        for tool_name in enabled_tiers.tools_to_remove() {
+            router.remove_route(tool_name);
+        }
+        // Remove connection_status if fully offline (no profiles to show)
+        if offline {
+            router.remove_route("connection_status");
+        }
+
         Self {
-            tool_router: Self::tool_router(),
+            tool_router: router,
             profile_manager: Arc::new(RwLock::new(profile_manager)),
             offline,
+            enabled_tiers,
         }
     }
 
     /// Create a server in offline mode (Tier 1 developer tools only).
     pub fn offline() -> Self {
-        Self::with_profile_manager(ProfileManager::offline(), true)
+        Self::with_profile_manager(ProfileManager::offline(), true, None)
     }
 
     /// Create a server with no-arg constructor for backward compatibility in tests.
@@ -91,6 +118,11 @@ impl TaskerMcpServer {
     /// Get a reference to the profile manager.
     pub fn profile_manager(&self) -> &Arc<RwLock<ProfileManager>> {
         &self.profile_manager
+    }
+
+    /// Get the enabled tiers for this server instance.
+    pub fn enabled_tiers(&self) -> &EnabledTiers {
+        &self.enabled_tiers
     }
 
     /// Resolve a connected orchestration client, returning both client and profile name.
@@ -153,38 +185,90 @@ impl TaskerMcpServer {
             .await
             .map(|(client, _)| client)
     }
+
+    /// Resolve a connected orchestration client for Tier 3 write tools.
+    ///
+    /// Enforces write-profile locking: if the caller requests a profile different from
+    /// the active (launch) profile, the write is rejected. Reads can target any profile,
+    /// but writes are locked to the launch profile for safety.
+    async fn resolve_client_for_write(
+        &self,
+        profile: Option<&str>,
+    ) -> Result<(UnifiedOrchestrationClient, String), String> {
+        if let Some(requested) = profile {
+            let pm = self.profile_manager.read().await;
+            let active = pm.active_profile_name();
+            if !active.is_empty() && requested != active {
+                return Err(serde_json::json!({
+                    "error": "write_profile_locked",
+                    "message": format!(
+                        "Write tools are locked to the launch profile '{}'. \
+                         You requested '{}'. To write to a different environment, \
+                         restart tasker-mcp with --profile {}.",
+                        active, requested, requested
+                    )
+                })
+                .to_string());
+            }
+        }
+        self.resolve_client_with_profile(profile).await
+    }
 }
 
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for TaskerMcpServer {
     fn get_info(&self) -> ServerInfo {
-        let instructions = if self.offline {
-            "Tasker is a workflow orchestration system. Running in OFFLINE mode — \
-             only developer tooling tools are available (template validation, code generation, \
-             schema inspection). Connect to a Tasker instance for task management tools.\n\
-             Workflow: template_generate → template_validate → handler_generate (unified types+handlers+tests)\n\
-             handler_generate defaults to scaffold mode: handlers import generated types with typed returns.\n\
-             When debugging: template_inspect → schema_inspect → schema_compare\n\
-             For versioning: schema_diff compares before/after template YAML to detect breaking field changes"
-                .to_string()
-        } else {
-            "Tasker is a workflow orchestration system. You help developers create and validate \
+        let tier1_text = "\
+             Tasker is a workflow orchestration system. You help developers create and validate \
              task templates (workflow definitions) and generate typed handler code.\n\
              Workflow: template_generate → template_validate → handler_generate (unified types+handlers+tests)\n\
              handler_generate defaults to scaffold mode: handlers import generated types with typed returns.\n\
              When debugging: template_inspect → schema_inspect → schema_compare\n\
-             For versioning: schema_diff compares before/after template YAML to detect breaking field changes\n\
-             Profile management: connection_status to check environment health.\n\
-             Read-only tools: task_list/task_inspect for task inspection, step_inspect/step_audit for step details, \
-             dlq_list/dlq_inspect/dlq_stats/dlq_queue/staleness_check for DLQ investigation, \
-             analytics_performance/analytics_bottlenecks for performance analysis, \
-             system_health/system_config for system status, \
-             template_list_remote/template_inspect_remote for server-side templates.\n\
-             Write tools (require confirm: true): task_submit, task_cancel, step_retry, step_resolve, \
-             step_complete, dlq_update. Always preview first (omit confirm), show preview to user, \
-             then call again with confirm: true after user approval.\n\
-             All connected tools accept an optional 'profile' parameter to target a specific environment."
-                .to_string()
+             For versioning: schema_diff compares before/after template YAML to detect breaking field changes";
+
+        let has_tier2 = self.enabled_tiers.includes(ToolTier::Tier2);
+        let has_tier3 = self.enabled_tiers.includes(ToolTier::Tier3);
+
+        let instructions = if self.offline {
+            format!(
+                "{}\nRunning in OFFLINE mode — only developer tooling tools are available. \
+                 Connect to a Tasker instance for task management tools.",
+                tier1_text
+            )
+        } else if !has_tier2 && !has_tier3 {
+            format!(
+                "{}\nProfile management: connection_status to check environment health.\n\
+                 This profile is configured for developer tooling only (tier1). \
+                 No read or write tools are available.",
+                tier1_text
+            )
+        } else if has_tier2 && !has_tier3 {
+            format!(
+                "{}\nProfile management: connection_status to check environment health.\n\
+                 Read-only tools: task_list/task_inspect for task inspection, step_inspect/step_audit for step details, \
+                 dlq_list/dlq_inspect/dlq_stats/dlq_queue/staleness_check for DLQ investigation, \
+                 analytics_performance/analytics_bottlenecks for performance analysis, \
+                 system_health/system_config for system status, \
+                 template_list_remote/template_inspect_remote for server-side templates.\n\
+                 Write tools are not enabled for this profile. \
+                 All connected tools accept an optional 'profile' parameter to target a specific environment.",
+                tier1_text
+            )
+        } else {
+            format!(
+                "{}\nProfile management: connection_status to check environment health.\n\
+                 Read-only tools: task_list/task_inspect for task inspection, step_inspect/step_audit for step details, \
+                 dlq_list/dlq_inspect/dlq_stats/dlq_queue/staleness_check for DLQ investigation, \
+                 analytics_performance/analytics_bottlenecks for performance analysis, \
+                 system_health/system_config for system status, \
+                 template_list_remote/template_inspect_remote for server-side templates.\n\
+                 Write tools (require confirm: true): task_submit, task_cancel, step_retry, step_resolve, \
+                 step_complete, dlq_update. Always preview first (omit confirm), show preview to user, \
+                 then call again with confirm: true after user approval.\n\
+                 Write tools are locked to the launch profile. Read tools accept an optional 'profile' parameter \
+                 to target any configured environment.",
+                tier1_text
+            )
         };
 
         ServerInfo {
@@ -569,7 +653,7 @@ impl TaskerMcpServer {
     )]
     pub async fn task_submit(&self, Parameters(params): Parameters<TaskSubmitParams>) -> String {
         let (client, profile_name) = match self
-            .resolve_client_with_profile(params.profile.as_deref())
+            .resolve_client_for_write(params.profile.as_deref())
             .await
         {
             Ok(c) => c,
@@ -585,7 +669,7 @@ impl TaskerMcpServer {
     )]
     pub async fn task_cancel(&self, Parameters(params): Parameters<TaskCancelParams>) -> String {
         let (client, profile_name) = match self
-            .resolve_client_with_profile(params.profile.as_deref())
+            .resolve_client_for_write(params.profile.as_deref())
             .await
         {
             Ok(c) => c,
@@ -601,7 +685,7 @@ impl TaskerMcpServer {
     )]
     pub async fn step_retry(&self, Parameters(params): Parameters<StepRetryParams>) -> String {
         let (client, profile_name) = match self
-            .resolve_client_with_profile(params.profile.as_deref())
+            .resolve_client_for_write(params.profile.as_deref())
             .await
         {
             Ok(c) => c,
@@ -617,7 +701,7 @@ impl TaskerMcpServer {
     )]
     pub async fn step_resolve(&self, Parameters(params): Parameters<StepResolveParams>) -> String {
         let (client, profile_name) = match self
-            .resolve_client_with_profile(params.profile.as_deref())
+            .resolve_client_for_write(params.profile.as_deref())
             .await
         {
             Ok(c) => c,
@@ -636,7 +720,7 @@ impl TaskerMcpServer {
         Parameters(params): Parameters<StepCompleteParams>,
     ) -> String {
         let (client, profile_name) = match self
-            .resolve_client_with_profile(params.profile.as_deref())
+            .resolve_client_for_write(params.profile.as_deref())
             .await
         {
             Ok(c) => c,
@@ -652,7 +736,7 @@ impl TaskerMcpServer {
     )]
     pub async fn dlq_update(&self, Parameters(params): Parameters<DlqUpdateParams>) -> String {
         let (client, profile_name) = match self
-            .resolve_client_with_profile(params.profile.as_deref())
+            .resolve_client_for_write(params.profile.as_deref())
             .await
         {
             Ok(c) => c,
@@ -685,7 +769,7 @@ mod tests {
     #[test]
     fn test_server_info_connected() {
         let pm = ProfileManager::offline(); // Empty but not in offline mode
-        let server = TaskerMcpServer::with_profile_manager(pm, false);
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
         let info = server.get_info();
 
         let instructions = info.instructions.unwrap();
@@ -730,7 +814,7 @@ base_url = "http://localhost:8080"
 "#;
         let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
         let pm = ProfileManager::from_profile_file_for_test(file);
-        let server = TaskerMcpServer::with_profile_manager(pm, false);
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
 
         let result = server
             .connection_status(Parameters(ConnectionStatusParams { refresh: None }))
@@ -807,7 +891,7 @@ base_url = "http://localhost:8080"
     #[tokio::test]
     async fn test_task_list_profile_not_found() {
         let pm = ProfileManager::offline(); // No profiles loaded
-        let server = TaskerMcpServer::with_profile_manager(pm, false);
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
         let result = server
             .task_list(Parameters(TaskListParams {
                 profile: Some("nonexistent".to_string()),
@@ -834,7 +918,7 @@ base_url = "http://localhost:8080"
 "#;
         let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
         let pm = ProfileManager::from_profile_file_for_test(file);
-        let server = TaskerMcpServer::with_profile_manager(pm, false);
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
 
         let result = server
             .task_inspect(Parameters(TaskInspectParams {
@@ -844,5 +928,182 @@ base_url = "http://localhost:8080"
             .await;
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["error"], "invalid_uuid");
+    }
+
+    // ── Tier filtering tests ──
+
+    #[test]
+    fn test_server_tier1_only_prunes_connected_tools() {
+        let pm = ProfileManager::offline();
+        let tiers = EnabledTiers::tier1_only();
+        let server = TaskerMcpServer::with_profile_manager(pm, true, Some(tiers));
+
+        let tools = server.tool_router.list_all();
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
+
+        // Should have only Tier 1 tools (7), no connection_status (offline)
+        assert_eq!(names.len(), 7, "Expected 7 Tier 1 tools, got: {:?}", names);
+        assert!(names.contains(&"template_validate"));
+        assert!(names.contains(&"template_inspect"));
+        assert!(names.contains(&"template_generate"));
+        assert!(names.contains(&"handler_generate"));
+        assert!(names.contains(&"schema_inspect"));
+        assert!(names.contains(&"schema_compare"));
+        assert!(names.contains(&"schema_diff"));
+        // Verify connected tools are pruned
+        assert!(!names.contains(&"task_list"));
+        assert!(!names.contains(&"task_submit"));
+        assert!(!names.contains(&"connection_status"));
+    }
+
+    #[test]
+    fn test_server_tier1_tier2_prunes_write_tools() {
+        let pm = ProfileManager::offline();
+        let tiers = EnabledTiers::from_tier_strings(&["tier1".to_string(), "tier2".to_string()]);
+        let server = TaskerMcpServer::with_profile_manager(pm, false, Some(tiers));
+
+        let tools = server.tool_router.list_all();
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
+
+        // 7 Tier 1 + 1 connection_status + 15 Tier 2 = 23
+        assert_eq!(
+            names.len(),
+            23,
+            "Expected 23 tools (T1+profile+T2), got: {:?}",
+            names
+        );
+        assert!(names.contains(&"template_validate"));
+        assert!(names.contains(&"task_list"));
+        assert!(names.contains(&"connection_status"));
+        // Verify write tools are pruned
+        assert!(!names.contains(&"task_submit"));
+        assert!(!names.contains(&"task_cancel"));
+        assert!(!names.contains(&"dlq_update"));
+    }
+
+    #[test]
+    fn test_server_all_tiers_connected() {
+        let pm = ProfileManager::offline();
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
+
+        let tools = server.tool_router.list_all();
+        // 7 T1 + 1 profile + 15 T2 + 6 T3 = 29
+        assert_eq!(tools.len(), 29, "Expected all 29 tools");
+    }
+
+    #[tokio::test]
+    async fn test_write_profile_locked() {
+        let toml_content = r#"
+[profile.default]
+description = "Local"
+transport = "rest"
+
+[profile.default.orchestration]
+base_url = "http://localhost:8080"
+
+[profile.staging]
+description = "Staging"
+transport = "rest"
+
+[profile.staging.orchestration]
+base_url = "http://staging:8080"
+"#;
+        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
+        let pm = ProfileManager::from_profile_file_for_test(file);
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
+
+        // Try to write to "staging" when active is "default"
+        let result = server
+            .task_submit(Parameters(TaskSubmitParams {
+                profile: Some("staging".to_string()),
+                name: "test".to_string(),
+                namespace: "default".to_string(),
+                version: None,
+                context: serde_json::json!({}),
+                initiator: None,
+                source_system: None,
+                reason: None,
+                priority: None,
+                tags: vec![],
+                confirm: false,
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["error"], "write_profile_locked");
+        assert!(parsed["message"].as_str().unwrap().contains("default"));
+        assert!(parsed["message"].as_str().unwrap().contains("staging"));
+    }
+
+    #[test]
+    fn test_server_info_adapts_to_tiers() {
+        // Offline
+        let server = TaskerMcpServer::offline();
+        let info = server.get_info();
+        let instr = info.instructions.unwrap();
+        assert!(instr.contains("OFFLINE"));
+
+        // Tier 1 + Tier 2 only (connected)
+        let pm = ProfileManager::offline();
+        let tiers = EnabledTiers::from_tier_strings(&["tier1".to_string(), "tier2".to_string()]);
+        let server = TaskerMcpServer::with_profile_manager(pm, false, Some(tiers));
+        let info = server.get_info();
+        let instr = info.instructions.unwrap();
+        assert!(instr.contains("Read-only tools"));
+        assert!(instr.contains("Write tools are not enabled"));
+
+        // All tiers (connected)
+        let pm = ProfileManager::offline();
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
+        let info = server.get_info();
+        let instr = info.instructions.unwrap();
+        assert!(instr.contains("Write tools (require confirm: true)"));
+        assert!(instr.contains("locked to the launch profile"));
+    }
+
+    #[test]
+    fn test_tools_field_in_profile_config() {
+        let toml_content = r#"
+[profile.default]
+description = "Dev with read-only"
+transport = "rest"
+tools = ["tier1", "tier2"]
+
+[profile.default.orchestration]
+base_url = "http://localhost:8080"
+"#;
+        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
+        let profile = file.profile.get("default").unwrap();
+        assert_eq!(
+            profile.tools.as_deref(),
+            Some(&["tier1".to_string(), "tier2".to_string()][..])
+        );
+    }
+
+    #[test]
+    fn test_profile_tools_config_resolves_tiers() {
+        let toml_content = r#"
+[profile.default]
+description = "Read-only profile"
+transport = "rest"
+tools = ["tier1", "tier2"]
+
+[profile.default.orchestration]
+base_url = "http://localhost:8080"
+"#;
+        let file: tasker_client::config::ProfileConfigFile = toml::from_str(toml_content).unwrap();
+        let pm = ProfileManager::from_profile_file_for_test(file);
+        // Let the server resolve tiers from profile config (no override)
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
+
+        let tools = server.tool_router.list_all();
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
+        // Should have T1 + profile + T2, no T3
+        assert_eq!(
+            names.len(),
+            23,
+            "Expected 23 tools from profile config, got: {:?}",
+            names
+        );
+        assert!(!names.contains(&"task_submit"));
     }
 }

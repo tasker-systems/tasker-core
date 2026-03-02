@@ -70,7 +70,7 @@ base_url = "{}"
         let pm = ProfileManager::from_profile_file_for_test(profile_file);
 
         // Create MCP server in connected mode
-        let server = TaskerMcpServer::with_profile_manager(pm, false);
+        let server = TaskerMcpServer::with_profile_manager(pm, false, None);
         let (server_transport, client_transport) = tokio::io::duplex(65536);
 
         let server_handle = tokio::spawn(async move {

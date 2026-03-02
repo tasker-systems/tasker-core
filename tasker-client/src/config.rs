@@ -107,6 +107,10 @@ pub struct ProfileConfig {
     /// Worker endpoint configuration
     #[serde(default)]
     pub worker: Option<ProfileEndpointConfig>,
+    /// Which tool tiers to expose via MCP. Valid: "tier1", "tier2", "tier3".
+    /// Defaults to all available tiers based on connectivity.
+    #[serde(default)]
+    pub tools: Option<Vec<String>>,
 }
 
 /// Partial endpoint configuration for profiles (all fields optional).
