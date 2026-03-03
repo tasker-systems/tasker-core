@@ -19,9 +19,15 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-CLAUDE_WEB_DIR="${SCRIPT_DIR}/claude-web"
+# When run via cargo-make, the script is copied to /tmp. Use CARGO_MAKE env
+# vars for the workspace root, falling back to BASH_SOURCE for standalone use.
+if [ -n "${CARGO_MAKE_WORKING_DIRECTORY:-}" ]; then
+  PROJECT_DIR="${CARGO_MAKE_WORKING_DIRECTORY}"
+else
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  PROJECT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+fi
+CLAUDE_WEB_DIR="${PROJECT_DIR}/cargo-make/scripts/claude-web"
 
 cd "$PROJECT_DIR"
 
@@ -58,6 +64,49 @@ if [ "$PG_READY" != "true" ]; then
   exit 1
 fi
 
+# ---- Step 2b: Fix PGMQ on native pg16 (no .so library needed) ----
+# Native pg16 doesn't ship PGMQ. The setup_postgres script installs the SQL
+# files from source, but the control file references a C module that doesn't
+# exist for pure-SQL PGMQ. Patch it and ensure the extension is created.
+fix_pgmq_native() {
+  local control="/usr/share/postgresql/16/extension/pgmq.control"
+  local sharedir="/usr/share/postgresql/16/extension"
+  local psql_super="${PSQL_SUPER:-sudo -u postgres psql}"
+
+  # Only needed for native pg16 (not Docker which ships pre-built PGMQ)
+  if [ ! -f "$control" ]; then
+    return 0
+  fi
+
+  # Remove module_pathname if it references a missing .so
+  if grep -q "module_pathname" "$control" 2>/dev/null; then
+    local libdir
+    libdir="$(pg_config --pkglibdir 2>/dev/null || echo /usr/lib/postgresql/16/lib)"
+    if [ ! -f "${libdir}/pgmq.so" ]; then
+      log_section "Patching PGMQ for pure-SQL mode (pg16)"
+      sudo sed -i "s/^module_pathname = .*//" "$control"
+      log_ok "Removed module_pathname from pgmq.control"
+    fi
+  fi
+
+  # Ensure base install SQL exists
+  if [ ! -f "${sharedir}/pgmq--1.8.1.sql" ]; then
+    local pgmq_dir="/tmp/pgmq-install"
+    rm -rf "$pgmq_dir"
+    if git clone --depth 1 --branch v1.8.1 https://github.com/tembo-io/pgmq.git "$pgmq_dir" 2>/dev/null; then
+      sudo cp "${pgmq_dir}/pgmq-extension/sql/pgmq.sql" "${sharedir}/pgmq--1.8.1.sql"
+      rm -rf "$pgmq_dir"
+      log_ok "Installed pgmq--1.8.1.sql"
+    fi
+  fi
+
+  # Create extension in tasker_rust_test and template1
+  for db in tasker_rust_test template1; do
+    $psql_super -d "$db" -c "CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;" 2>/dev/null || true
+  done
+}
+fix_pgmq_native
+
 # ---- Step 3: Run migrations ----
 source "${CLAUDE_WEB_DIR}/setup-db-migrations.sh"
 setup_db_migrations
@@ -74,8 +123,13 @@ echo "  DATABASE_URL: ${DATABASE_URL:-not set}"
 echo "  TASKER_ENV: ${TASKER_ENV:-not set}"
 echo ""
 
-cargo nextest run --workspace --features test-messaging \
-  -E 'not binary(e2e_tests)'
+# Use --lib to run library unit tests only (includes #[sqlx::test] tests).
+# This excludes heavyweight integration/E2E tests that take 10+ minutes each.
+# For full integration tests, use: cargo make test-rust-unit (tu)
+#
+# Uses --profile ci for sensible timeouts (60s slow warning, terminate at 120s)
+# which prevents PGMQ LISTEN/NOTIFY tests from hanging indefinitely.
+cargo nextest run --workspace --features test-messaging --lib --profile ci
 
 echo ""
 echo "test-web complete."

@@ -228,6 +228,8 @@ description = "Run pure unit tests (no DB, no services, no setup required)"
 script = '''
 #!/bin/bash
 echo "Running pure unit tests (no infrastructure required)..."
+# Use sqlx offline cache so compilation doesn't need a live database
+export SQLX_OFFLINE=true
 if command -v cargo-nextest >/dev/null 2>&1; then
   cargo nextest run --workspace --lib
 else
