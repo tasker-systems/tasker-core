@@ -25,6 +25,8 @@ pub(crate) use styles::clap_styles;
 
 use styles::{DIM, ERROR, HEADER, HINT, LABEL, SUCCESS, WARNING};
 
+use tasker_sdk::operational::confirmation;
+
 /// Print a success message (green checkmark prefix).
 pub(crate) fn success(msg: impl std::fmt::Display) {
     let mut out = anstream::stdout().lock();
@@ -94,4 +96,28 @@ pub(crate) fn blank() {
 pub(crate) fn plain(msg: impl std::fmt::Display) {
     let mut out = anstream::stdout().lock();
     writeln!(out, "{msg}").ok();
+}
+
+/// Format and print an API error with permission-aware enrichment.
+///
+/// Uses the same 403 detection logic as `tasker-sdk::operational::confirmation`
+/// so that permission denied errors show consistent, structured output matching
+/// the behavior in `tasker-mcp`.
+pub(crate) fn api_error(operation: &str, err: &dyn std::fmt::Display, tool_name: &str) {
+    let err_str = err.to_string();
+    if confirmation::is_permission_error(&err_str) {
+        let perm = confirmation::required_permission(tool_name);
+        let perm_str = perm.map(|p| p.as_str()).unwrap_or("unknown");
+        let mut out = anstream::stderr().lock();
+        writeln!(out, "{ERROR}✗ Permission denied{ERROR:#}").ok();
+        writeln!(out, "  {LABEL}Operation:{LABEL:#} {operation}").ok();
+        writeln!(out, "  {LABEL}Required permission:{LABEL:#} {perm_str}").ok();
+        writeln!(
+            out,
+            "  {HINT}Check the JWT claims or API key scope configured for your profile.{HINT:#}"
+        )
+        .ok();
+    } else {
+        error(format!("Failed to {operation}: {err_str}"));
+    }
 }

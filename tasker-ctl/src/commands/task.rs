@@ -3,6 +3,7 @@
 use std::str::FromStr;
 
 use tasker_client::{ClientConfig, ClientResult, OrchestrationApiClient, OrchestrationApiConfig};
+use tasker_sdk::operational::responses::{StepSummary, TaskSummary};
 use tasker_shared::models::core::{task::TaskListQuery, task_request::TaskRequest};
 use tasker_shared::types::api::orchestration::{ManualCompletionData, StepManualAction};
 use uuid::Uuid;
@@ -79,7 +80,7 @@ pub(crate) async fn handle_task_command(
                     output::label("  Created at", response.created_at);
                 }
                 Err(e) => {
-                    output::error(format!("Failed to create task: {e}"));
+                    output::api_error("create task", &e, "task_submit");
                     return Err(e.into());
                 }
             }
@@ -121,7 +122,7 @@ pub(crate) async fn handle_task_command(
                     output::label("  Correlation ID", response.correlation_id);
                 }
                 Err(e) => {
-                    output::error(format!("Failed to get task: {e}"));
+                    output::api_error("get task", &e, "task_inspect");
                     return Err(e.into());
                 }
             }
@@ -156,29 +157,27 @@ pub(crate) async fn handle_task_command(
                     ));
                     output::blank();
 
-                    for task in response.tasks {
+                    // Use shared TaskSummary type for consistent field mapping
+                    let summaries: Vec<TaskSummary> =
+                        response.tasks.iter().map(TaskSummary::from).collect();
+                    for summary in &summaries {
                         output::item(format!(
                             "{} - {}/{} v{}",
-                            task.task_uuid, task.namespace, task.name, task.version
+                            summary.task_uuid, summary.namespace, summary.name, summary.version
                         ));
                         output::plain(format!(
                             "    Status: {} | Progress: {:.1}% | Health: {}",
-                            task.status, task.completion_percentage, task.health_status
+                            summary.status, summary.completion_percentage, summary.health_status
                         ));
                         output::dim(format!(
                             "    Created: {} | Steps: {}/{}",
-                            task.created_at, task.completed_steps, task.total_steps
+                            summary.created_at, summary.completed_steps, summary.total_steps
                         ));
-                        if let Some(ref tags) = task.tags {
-                            if !tags.is_empty() {
-                                output::dim(format!("    Tags: {}", tags.join(", ")));
-                            }
-                        }
                         output::blank();
                     }
                 }
                 Err(e) => {
-                    output::error(format!("Failed to list tasks: {e}"));
+                    output::api_error("list tasks", &e, "task_list");
                     return Err(e.into());
                 }
             }
@@ -195,7 +194,7 @@ pub(crate) async fn handle_task_command(
                     output::success(format!("Task {task_id} has been canceled successfully"));
                 }
                 Err(e) => {
-                    output::error(format!("Failed to cancel task: {e}"));
+                    output::api_error("cancel task", &e, "task_cancel");
                     return Err(e.into());
                 }
             }
@@ -209,23 +208,24 @@ pub(crate) async fn handle_task_command(
                 Ok(steps) => {
                     output::success(format!("Found {} workflow steps:", steps.len()));
                     output::blank();
-                    for step in steps {
-                        output::item(format!("{} ({})", step.name, step.step_uuid));
-                        output::label("    State", &step.current_state);
-                        output::label("    Dependencies satisfied", step.dependencies_satisfied);
-                        output::label("    Ready for execution", step.ready_for_execution);
+                    // Use shared StepSummary type for consistent field mapping
+                    let summaries: Vec<StepSummary> = steps.iter().map(StepSummary::from).collect();
+                    for summary in &summaries {
+                        output::item(format!("{} ({})", summary.name, summary.step_uuid));
+                        output::label("    State", &summary.status);
+                        output::label("    Dependencies satisfied", summary.dependencies_satisfied);
                         output::label(
                             "    Attempts",
-                            format!("{}/{}", step.attempts, step.max_attempts),
+                            format!("{}/{}", summary.attempt_count, summary.max_attempts),
                         );
-                        if step.retry_eligible {
+                        if summary.retry_eligible {
                             output::warning("    Retry eligible");
                         }
                         output::blank();
                     }
                 }
                 Err(e) => {
-                    output::error(format!("Failed to list steps: {e}"));
+                    output::api_error("list steps", &e, "step_inspect");
                     return Err(e.into());
                 }
             }
@@ -260,7 +260,7 @@ pub(crate) async fn handle_task_command(
                     }
                 }
                 Err(e) => {
-                    output::error(format!("Failed to get step: {e}"));
+                    output::api_error("get step", &e, "step_inspect");
                     return Err(e.into());
                 }
             }
@@ -297,7 +297,7 @@ pub(crate) async fn handle_task_command(
                     output::label("  Reset by", &reset_by);
                 }
                 Err(e) => {
-                    output::error(format!("Failed to reset step: {e}"));
+                    output::api_error("reset step", &e, "step_retry");
                     return Err(e.into());
                 }
             }
@@ -334,7 +334,7 @@ pub(crate) async fn handle_task_command(
                     output::label("  Resolved by", &resolved_by);
                 }
                 Err(e) => {
-                    output::error(format!("Failed to resolve step: {e}"));
+                    output::api_error("resolve step", &e, "step_resolve");
                     return Err(e.into());
                 }
             }
@@ -398,7 +398,7 @@ pub(crate) async fn handle_task_command(
                     output::label("  Completed by", &completed_by);
                 }
                 Err(e) => {
-                    output::error(format!("Failed to complete step: {e}"));
+                    output::api_error("complete step", &e, "step_complete");
                     return Err(e.into());
                 }
             }
@@ -454,7 +454,7 @@ pub(crate) async fn handle_task_command(
                     }
                 }
                 Err(e) => {
-                    output::error(format!("Failed to get audit history: {e}"));
+                    output::api_error("get audit history", &e, "step_audit");
                     return Err(e.into());
                 }
             }

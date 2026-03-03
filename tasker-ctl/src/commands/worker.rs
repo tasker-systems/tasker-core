@@ -48,7 +48,7 @@ pub(crate) async fn handle_worker_command(
                     }
                 }
                 Err(e) => {
-                    output::error(format!("Failed to get worker info: {}", e));
+                    output::api_error("get worker info", &e, "system_health");
                     return Err(e.into());
                 }
             }
@@ -114,7 +114,7 @@ pub(crate) async fn handle_worker_command(
                     }
                 }
                 Err(e) => {
-                    output::error(format!("Failed to get worker status: {}", e));
+                    output::api_error("get worker status", &e, "system_health");
                     return Err(e.into());
                 }
             }
@@ -133,7 +133,7 @@ pub(crate) async fn handle_worker_command(
                     output::label("  Worker ID", &basic.worker_id);
                 }
                 Err(e) => {
-                    output::error(format!("Worker health check failed: {}", e));
+                    output::api_error("check worker health", &e, "system_health");
                     return Err(e.into());
                 }
             }
