@@ -1,6 +1,8 @@
 //! DLQ (Dead Letter Queue) command handlers for the Tasker CLI
 
 use tasker_client::{ClientConfig, ClientResult, OrchestrationApiClient, OrchestrationApiConfig};
+use tasker_sdk::operational::enums::parse_dlq_resolution_status;
+use tasker_sdk::operational::responses::DlqSummary;
 use uuid::Uuid;
 
 use crate::output;
@@ -30,32 +32,16 @@ pub(crate) async fn handle_dlq_command(
                 limit, offset
             ));
 
-            // Parse status if provided
-            let resolution_status = if let Some(status_str) = status {
-                Some(match status_str.as_str() {
-                    "pending" => tasker_shared::models::orchestration::DlqResolutionStatus::Pending,
-                    "manually_resolved" => {
-                        tasker_shared::models::orchestration::DlqResolutionStatus::ManuallyResolved
+            // Parse status if provided (shared SDK parser, case-insensitive)
+            let resolution_status = match status {
+                Some(status_str) => match parse_dlq_resolution_status(&status_str) {
+                    Ok(s) => Some(s),
+                    Err(msg) => {
+                        output::error(&msg);
+                        return Err(tasker_client::ClientError::InvalidInput(msg));
                     }
-                    "permanently_failed" => {
-                        tasker_shared::models::orchestration::DlqResolutionStatus::PermanentlyFailed
-                    }
-                    "cancelled" => {
-                        tasker_shared::models::orchestration::DlqResolutionStatus::Cancelled
-                    }
-                    _ => {
-                        output::error(format!(
-                            "Invalid status '{}'. Valid: pending, manually_resolved, permanently_failed, cancelled",
-                            status_str
-                        ));
-                        return Err(tasker_client::ClientError::InvalidInput(format!(
-                            "Invalid status: {}",
-                            status_str
-                        )));
-                    }
-                })
-            } else {
-                None
+                },
+                None => None,
             };
 
             let params = tasker_shared::models::orchestration::DlqListParams {
@@ -69,27 +55,19 @@ pub(crate) async fn handle_dlq_command(
                     output::success(format!("Found {} DLQ entries", entries.len()));
                     output::blank();
 
-                    for entry in entries {
-                        output::item(format!("DLQ Entry: {}", entry.dlq_entry_uuid));
-                        output::label("    Task UUID", entry.task_uuid);
-                        output::label("    Reason", format!("{:?}", entry.dlq_reason));
-                        output::label("    Original state", &entry.original_state);
-                        output::label(
-                            "    Resolution status",
-                            format!("{:?}", entry.resolution_status),
-                        );
-                        output::label("    DLQ timestamp", entry.dlq_timestamp);
-                        if let Some(ref notes) = entry.resolution_notes {
-                            output::label("    Notes", notes);
-                        }
-                        if let Some(ref resolved_by) = entry.resolved_by {
-                            output::label("    Resolved by", resolved_by);
-                        }
+                    // Use shared DlqSummary type for consistent field mapping
+                    let summaries: Vec<DlqSummary> = entries.iter().map(DlqSummary::from).collect();
+                    for summary in &summaries {
+                        output::item(format!("DLQ Entry: {}", summary.dlq_entry_uuid));
+                        output::label("    Task UUID", &summary.task_uuid);
+                        output::label("    Reason", &summary.dlq_reason);
+                        output::label("    Resolution status", &summary.resolution_status);
+                        output::label("    Created at", &summary.created_at);
                         output::blank();
                     }
                 }
                 Err(e) => {
-                    output::error(format!("Failed to list DLQ entries: {}", e));
+                    output::api_error("list DLQ entries", &e, "dlq_list");
                     return Err(e.into());
                 }
             }
@@ -130,7 +108,7 @@ pub(crate) async fn handle_dlq_command(
                     output::plain(serde_json::to_string_pretty(&entry.task_snapshot).unwrap());
                 }
                 Err(e) => {
-                    output::error(format!("Failed to get DLQ entry: {}", e));
+                    output::api_error("get DLQ entry", &e, "dlq_inspect");
                     return Err(e.into());
                 }
             }
@@ -147,32 +125,16 @@ pub(crate) async fn handle_dlq_command(
                 tasker_client::ClientError::InvalidInput(format!("Invalid UUID: {}", e))
             })?;
 
-            // Parse status if provided
-            let resolution_status = if let Some(status_str) = status {
-                Some(match status_str.as_str() {
-                    "pending" => tasker_shared::models::orchestration::DlqResolutionStatus::Pending,
-                    "manually_resolved" => {
-                        tasker_shared::models::orchestration::DlqResolutionStatus::ManuallyResolved
+            // Parse status if provided (shared SDK parser, case-insensitive)
+            let resolution_status = match status {
+                Some(status_str) => match parse_dlq_resolution_status(&status_str) {
+                    Ok(s) => Some(s),
+                    Err(msg) => {
+                        output::error(&msg);
+                        return Err(tasker_client::ClientError::InvalidInput(msg));
                     }
-                    "permanently_failed" => {
-                        tasker_shared::models::orchestration::DlqResolutionStatus::PermanentlyFailed
-                    }
-                    "cancelled" => {
-                        tasker_shared::models::orchestration::DlqResolutionStatus::Cancelled
-                    }
-                    _ => {
-                        output::error(format!(
-                            "Invalid status '{}'. Valid: pending, manually_resolved, permanently_failed, cancelled",
-                            status_str
-                        ));
-                        return Err(tasker_client::ClientError::InvalidInput(format!(
-                            "Invalid status: {}",
-                            status_str
-                        )));
-                    }
-                })
-            } else {
-                None
+                },
+                None => None,
             };
 
             let update = tasker_shared::models::orchestration::DlqInvestigationUpdate {
@@ -190,7 +152,7 @@ pub(crate) async fn handle_dlq_command(
                     output::success("DLQ investigation updated successfully");
                 }
                 Err(e) => {
-                    output::error(format!("Failed to update DLQ investigation: {}", e));
+                    output::api_error("update DLQ investigation", &e, "dlq_update");
                     return Err(e.into());
                 }
             }
@@ -221,7 +183,7 @@ pub(crate) async fn handle_dlq_command(
                     }
                 }
                 Err(e) => {
-                    output::error(format!("Failed to get DLQ statistics: {}", e));
+                    output::api_error("get DLQ statistics", &e, "dlq_stats");
                     return Err(e.into());
                 }
             }
