@@ -584,28 +584,40 @@ impl ClientConfig {
     /// Find the profile config file (TAS-177, like nextest)
     ///
     /// Search order:
-    /// 1. `.config/tasker-client.toml` (project-local, like nextest)
-    /// 2. `./tasker-client.toml` (current directory)
-    /// 3. `~/.config/tasker/client.toml` (user config)
+    /// 1. `.config/tasker.toml` (unified config, TAS-311)
+    /// 2. `.config/tasker-client.toml` (project-local, like nextest)
+    /// 3. `./tasker-client.toml` (current directory)
+    /// 4. `~/.config/tasker/client.toml` (user config)
     pub fn find_profile_config_file() -> Option<PathBuf> {
-        let possible_paths: Vec<PathBuf> = vec![
-            // Project-local (like nextest's .config/nextest.toml)
+        let unified_path = PathBuf::from(".config/tasker.toml");
+        if unified_path.exists() && unified_path.is_file() {
+            return Some(unified_path);
+        }
+
+        // Legacy paths — warn when used so users know to migrate
+        let legacy_paths: Vec<PathBuf> = vec![
             PathBuf::from(".config/tasker-client.toml"),
-            // Current directory
             PathBuf::from("./tasker-client.toml"),
-            // User config directory
             dirs::config_dir()
                 .map(|d| d.join("tasker").join("client.toml"))
                 .unwrap_or_default(),
-            // Home directory
             dirs::home_dir()
                 .map(|d| d.join(".tasker").join("client.toml"))
                 .unwrap_or_default(),
         ];
 
-        possible_paths
+        let found = legacy_paths
             .into_iter()
-            .find(|path| path.exists() && path.is_file())
+            .find(|path| path.exists() && path.is_file());
+
+        if let Some(ref path) = found {
+            tracing::warn!(
+                ?path,
+                "Using legacy profile config — consider migrating to .config/tasker.toml"
+            );
+        }
+
+        found
     }
 
     /// List available profiles from the config file

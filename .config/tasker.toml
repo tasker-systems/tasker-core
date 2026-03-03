@@ -1,7 +1,7 @@
-# Tasker Client Configuration Profiles (TAS-177)
+# Tasker Unified Configuration (TAS-311)
 #
-# Similar to .config/nextest.toml, this file defines named profiles for different
-# scenarios. Use with: tasker-ctl --profile <name> <command>
+# This file configures both CLI tools (tasker-ctl) and client profiles
+# (tasker-ctl, tasker-mcp). See: https://github.com/tasker-systems/tasker-core
 #
 # Profile precedence:
 #   1. Environment variables (highest)
@@ -44,7 +44,6 @@ timeout_ms = 30000
 # =============================================================================
 # Auth Profile - REST with API Key Authentication
 # =============================================================================
-# Use this profile with servers running auth-test.toml configuration
 [profile.auth]
 transport = "rest"
 
@@ -109,3 +108,24 @@ max_retries = 1
 base_url = "http://localhost:8081"
 timeout_ms = 10000
 max_retries = 1
+
+# =============================================================================
+# CLI — Plugin paths, template defaults, and remote repositories
+# =============================================================================
+
+[cli]
+# Additional local plugin directories (besides remotes)
+# plugin-paths = ["./plugins"]
+
+# Default language for template generation
+# default-language = "ruby"
+
+# Default output directory for generated files
+# default-output-dir = "."
+
+# Hours before cached remotes are considered stale (default: 24)
+# cache-max-age-hours = 24
+
+[[cli.remotes]]
+name = "tasker-contrib"
+url = "https://github.com/tasker-systems/tasker-contrib.git"

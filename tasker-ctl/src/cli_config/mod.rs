@@ -4,6 +4,7 @@
 //! not the API client connection settings.
 
 pub(crate) mod loader;
+pub(crate) mod unified;
 
 pub(crate) use loader::load_cli_config;
 

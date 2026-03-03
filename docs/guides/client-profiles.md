@@ -10,13 +10,15 @@
 
 Tasker uses a profile system (similar to `~/.aws/config` or `.config/nextest.toml`) for managing connections to different Tasker environments. Profiles define transport type, endpoint URLs, authentication, and timeouts. Both `tasker-ctl` and `tasker-mcp` consume the same profile configuration.
 
-## Profile Config File
+## Unified Configuration (TAS-311)
 
-Profiles are defined in a TOML file with `[profile.<name>]` sections:
+The recommended approach is a single `.config/tasker.toml` that combines both connection profiles and CLI settings:
 
 ```toml
+# Connection profiles
 [profile.default]
 transport = "rest"
+description = "Local development"
 
 [profile.default.orchestration]
 base_url = "http://localhost:8080"
@@ -28,21 +30,39 @@ base_url = "http://localhost:8081"
 timeout_ms = 30000
 max_retries = 3
 
-[profile.default.cli]
-default_format = "table"
-colored_output = true
+# CLI settings (tasker-ctl only)
+[cli]
+default-language = "ruby"
+default-output-dir = "./app/handlers"
+
+[[cli.remotes]]
+name = "tasker-contrib"
+url = "https://github.com/tasker-systems/tasker-contrib.git"
 ```
+
+Run `tasker-ctl init` to generate this file. The `[profile.*]` sections are consumed by all tools (tasker-ctl, tasker-mcp), while `[cli]` is specific to tasker-ctl.
 
 ### File Search Order
 
 The client searches these paths in order and uses the first file found:
 
-| Priority | Path | Use Case |
-|----------|------|----------|
-| 1 | `.config/tasker-client.toml` | Project-local (like nextest) |
-| 2 | `./tasker-client.toml` | Current directory |
-| 3 | `~/.config/tasker/client.toml` | User config (XDG) |
-| 4 | `~/.tasker/client.toml` | User config (dotfile) |
+| Priority | Path | Profiles | CLI Config |
+|----------|------|----------|------------|
+| 1 | `.config/tasker.toml` | `[profile.*]` | `[cli]` |
+| 2 | `.config/tasker-client.toml` | `[profile.*]` | — |
+| 3 | `./tasker-client.toml` | `[profile.*]` | — |
+| 4 | `~/.config/tasker/client.toml` | `[profile.*]` | — |
+| 5 | `~/.tasker/client.toml` | `[profile.*]` | — |
+
+For CLI config only (if not found in unified file):
+
+| Priority | Path |
+|----------|------|
+| 1 | `.config/tasker.toml` `[cli]` section |
+| 2 | `./.tasker-ctl.toml` |
+| 3 | `~/.config/tasker-ctl.toml` |
+
+When `.config/tasker.toml` exists, it is used for both profile and CLI configuration. Legacy files (`.config/tasker-client.toml`, `.tasker-ctl.toml`) continue to work as fallbacks.
 
 ## Profile Fields
 
@@ -53,6 +73,7 @@ Each profile supports these sections:
 transport = "rest"              # "rest" (default) or "grpc"
 description = "Staging cluster" # Optional human-readable description
 namespaces = ["billing", "ops"] # Optional namespace hints
+tools = ["tier1", "tier2"]      # Optional MCP tool tier filter
 
 [profile.<name>.orchestration]
 base_url = "http://host:port"   # Orchestration API endpoint
@@ -69,10 +90,6 @@ max_retries = 3
 
 [profile.<name>.worker.auth]
 method = { type = "ApiKey", value = { key = "...", header_name = "X-API-Key" } }
-
-[profile.<name>.cli]
-default_format = "table"        # Output format for tasker-ctl
-colored_output = true
 ```
 
 The `description` and `namespaces` fields are metadata used by tools like `tasker-mcp` to display profile context to LLM agents. They don't affect connectivity.
@@ -208,9 +225,26 @@ max_retries = 5
 base_url = "http://localhost:8081"
 timeout_ms = 60000
 
-[profile.ci.cli]
-colored_output = false
+# CLI settings
+[cli]
+default-language = "ruby"
+
+[[cli.remotes]]
+name = "tasker-contrib"
+url = "https://github.com/tasker-systems/tasker-contrib.git"
 ```
+
+## Migrating from Separate Config Files
+
+If you have existing `.tasker-ctl.toml` and `.config/tasker-client.toml` files, you can migrate to the unified format:
+
+1. Run `tasker-ctl init` to create `.config/tasker.toml` with default profiles
+2. Copy your profiles from `.config/tasker-client.toml` into the `[profile.*]` sections
+3. Copy your CLI settings from `.tasker-ctl.toml` into the `[cli]` section (prefix remotes with `cli.`)
+4. Verify with `tasker-ctl profile validate`
+5. Remove the old files once verified
+
+The legacy files continue to work as fallbacks — migration is not required.
 
 ## Related
 
