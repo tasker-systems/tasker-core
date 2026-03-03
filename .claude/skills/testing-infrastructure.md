@@ -10,6 +10,7 @@ Tests are organized by infrastructure requirements using Cargo feature gates:
 
 | Feature Flag | Infrastructure Required | Test Scope |
 |-------------|------------------------|------------|
+| *(none)* | Nothing (pure Rust) | In-module `#[test]` unit tests |
 | `test-messaging` | PostgreSQL + messaging (PGMQ or RabbitMQ) | Unit/integration tests, DB operations |
 | `test-services` | + running services (orchestration + workers) | E2E tests via HTTP/gRPC |
 | `test-cluster` | + multi-instance cluster | Cluster/race condition tests |
@@ -18,6 +19,10 @@ Tests are organized by infrastructure requirements using Cargo feature gates:
 ### Running Tests by Level
 
 ```bash
+# Pure unit tests (no DB, no services - instant)
+cargo test --workspace --lib
+# Or: cargo nextest run --workspace --lib
+
 # Unit tests (DB + messaging only)
 cargo test --features test-messaging --lib
 
@@ -31,11 +36,26 @@ cargo test --features test-cluster
 cargo test --all-features
 
 # Using cargo-make shortcuts
-cargo make test-rust-unit     # tu
-cargo make test-rust-e2e      # te
-cargo make test-rust-cluster  # tc
+cargo make test-no-infra      # tni - Pure unit tests (no infrastructure)
+cargo make test-web           # tw  - DB + messaging (auto-setup PostgreSQL)
+cargo make test-rust-unit     # tu  - Unit tests (DB + messaging, manual setup)
+cargo make test-rust-e2e      # te  - E2E tests (requires services)
+cargo make test-rust-cluster  # tc  - Cluster tests (requires: cluster-start)
 cargo make test-rust-all      # All tests
 ```
+
+### Claude Code Web Session Testing
+
+For Claude Code web sessions where services are not pre-installed:
+
+| Task | Alias | What it does | Setup required |
+|------|-------|-------------|----------------|
+| `test-no-infra` | `tni` | `cargo nextest run --workspace --lib` | None |
+| `test-web` | `tw` | Auto-installs tools, starts PostgreSQL, runs migrations, runs `test-messaging` tests | None (self-bootstrapping) |
+
+**`test-no-infra`** runs all in-module `#[cfg(test)]` blocks: state machine guards, config parsing, NoOp cache, InProcessEventBus, etc. Falls back to `cargo test` if nextest is not installed.
+
+**`test-web`** is a self-bootstrapping script that installs `cargo-nextest` and `sqlx-cli` if missing, starts native PostgreSQL, configures extensions (PGMQ, uuidv7), runs migrations, then executes the full `test-messaging` test suite. This covers ~729 sqlx-backed tests plus all unit tests.
 
 ### Running Specific Tests
 

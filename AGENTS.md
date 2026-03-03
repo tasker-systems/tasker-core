@@ -23,9 +23,11 @@ cargo make f           # fix
 cargo make b           # build
 
 # Test levels (TAS-73 feature-gated hierarchy)
-cargo make test-rust-unit     # tu - Unit tests (DB + messaging only)
-cargo make test-rust-e2e      # te - E2E tests (requires services)
-cargo make test-rust-cluster  # tc - Cluster tests (requires: cluster-start)
+cargo make test-no-infra      # tni - Pure unit tests (no DB, no services)
+cargo make test-web           # tw  - DB + messaging tests (auto-setup PostgreSQL)
+cargo make test-rust-unit     # tu  - Unit tests (DB + messaging only)
+cargo make test-rust-e2e      # te  - E2E tests (requires services)
+cargo make test-rust-cluster  # tc  - Cluster tests (requires: cluster-start)
 cargo make test-rust-all      # All tests including cluster
 
 # Language-specific
@@ -180,8 +182,10 @@ source cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migratio
 
 **When to run what:**
 
+- Need to run tests quickly (no setup)? → `cargo make test-no-infra` (alias: `tni`)
+- Need to run DB tests (auto-setup)? → `cargo make test-web` (alias: `tw`)
 - Need to create a PR? → `setup_gh`
-- Need to run database tests? → `setup_postgres` then `setup_db_migrations`
+- Need to run database tests manually? → `setup_postgres` then `setup_db_migrations`
 - Need to build (protoc missing)? → `setup_protoc`
 - Fresh environment, need everything? → `./bin/setup-claude-web-full.sh`
 

@@ -214,6 +214,32 @@ cargo nextest run --workspace --features test-cluster \
 '''
 
 # =============================================================================
+# Zero/Minimal Infrastructure Tests (Claude Code Web Sessions)
+# =============================================================================
+# These test levels are designed for environments without full service stacks:
+#   test-no-infra  → Pure unit tests, no DB, no services (instant)
+#   test-web       → DB + messaging tests with auto-setup PostgreSQL
+#
+# See CLAUDE.md "Claude Code on the Web Setup" for details.
+# =============================================================================
+
+[tasks.test-no-infra]
+description = "Run pure unit tests (no DB, no services, no setup required)"
+script = '''
+#!/bin/bash
+echo "Running pure unit tests (no infrastructure required)..."
+if command -v cargo-nextest >/dev/null 2>&1; then
+  cargo nextest run --workspace --lib
+else
+  cargo test --workspace --lib
+fi
+'''
+
+[tasks.test-web]
+description = "Run DB + messaging tests with auto-setup (PostgreSQL, migrations)"
+script = { file = "${SCRIPTS_DIR}/test-web.sh" }
+
+# =============================================================================
 # gRPC Tests (TAS-177)
 # =============================================================================
 
@@ -396,6 +422,14 @@ description = "Shortcut for test-rust-e2e"
 [tasks.tc]
 alias = "test-rust-cluster"
 description = "Shortcut for test-rust-cluster"
+
+[tasks.tni]
+alias = "test-no-infra"
+description = "Shortcut for test-no-infra"
+
+[tasks.tw]
+alias = "test-web"
+description = "Shortcut for test-web"
 
 [tasks.fix-rust]
 description = "Fix Rust formatting and clippy issues"
