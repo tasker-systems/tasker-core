@@ -737,19 +737,95 @@ tasker-worker (bridge):
 
 This separation keeps `tasker-grammar` free of orchestration dependencies while enabling the grammar to express the full range of Tasker step types. The translation layer is thin — it maps JSON fields to Rust struct fields — and lives at the crate boundary where `tasker-worker` already depends on both `tasker-grammar` and `tasker-shared`.
 
-### Checkpoint Yield Within Batch Workers
+### Virtual Handler Wrapper Types
 
-Batch *worker* checkpoint yields (the `while cursor < end` pattern with periodic `checkpoint_yield()`) remain outside grammar scope. These involve stateful iteration within a single execution — fundamentally different from the composition model's sequential capability invocations. A batch *analyzer* (which computes the cursor partitioning) can be grammar-composed; the batch *workers* that process each partition remain domain handlers.
+Rather than a single `CompositionExecutor` that inspects `step_type` and branches, the more natural model is a **family of wrapper `StepHandler` implementations** in `tasker-worker`. Each wrapper owns the orchestration protocol mechanics for its step type and delegates the pure data transformation to a grammar composition:
+
+```
+tasker-worker virtual handler wrappers:
+├── CompositionHandler
+│     Standard step: run composition, return result as StepExecutionResult
+│
+├── DecisionCompositionHandler
+│     Decision step: run composition, translate JSON output → DecisionPointOutcome
+│
+├── BatchAnalyzerCompositionHandler
+│     Batchable step: run composition, translate JSON output → BatchProcessingOutcome
+│
+└── BatchWorkerCompositionHandler
+      Batch worker step: cursor loop + checkpoint_yield + per-chunk composition
+```
+
+Each wrapper implements `StepHandler` and is registered via the normal handler resolution path. The `HandlerDispatchService` treats them identically to domain handlers — it calls `handler.call(step)` and gets back a `StepExecutionResult` (or a `DecisionPointOutcome`/`BatchProcessingOutcome` for the protocol-aware wrappers).
+
+### Batch Worker Compositions: Wrapper Around Grammar
+
+The earlier conclusion that batch *worker* checkpoint yields were "outside grammar scope" was correct about the composition model — sequential capability invocations cannot express `while cursor < end` loops. But the insight is that the **wrapper provides the loop, and the composition provides the per-chunk body**:
+
+```
+BatchWorkerCompositionHandler::call(step):
+  1. Read checkpoint (cursor position, accumulated results)
+  2. Loop from cursor to end:
+     a. Extract chunk from input data (cursor range)
+     b. Build composition context with chunk as input
+     c. Run grammar composition (transform/persist per chunk)
+     d. Accumulate results
+     e. If chunk threshold reached: checkpoint_yield(cursor, accumulated)
+  3. Return batch worker success with metrics
+```
+
+The grammar composition that runs at step (c) is a normal composition — it receives a chunk of data and does transform/persist work. It doesn't know it's inside a batch loop. The wrapper manages:
+- Cursor iteration and chunk extraction
+- Checkpoint save/restore via `CheckpointService`
+- `checkpoint_yield()` calls at configurable chunk boundaries
+- Accumulated result tracking across chunks
+- The final `StepExecutionResult` with batch metrics
+
+This means the per-chunk logic (which is often just "transform this subset of records and persist the results") becomes grammar-composable, while the batch lifecycle (which is orchestration machinery) stays in Rust wrapper code.
+
+A batch worker's composition spec might look like:
+
+```yaml
+# The per-chunk composition — called once per chunk by the wrapper
+compose:
+  - capability: transform
+    output:
+      type: object
+      required: [processed_records]
+      properties:
+        processed_records:
+          type: array
+          items: { type: object }
+        processed_count: { type: integer }
+    filter: |
+      .chunk
+      | map(. + {processed: true, processed_at: now | todate})
+      | {processed_records: ., processed_count: length}
+
+  - capability: persist
+    config:
+      resource: { ref: "analytics-db", entity: processed_records }
+      constraints: { batch_insert: true }
+    data: |
+      .prev.processed_records
+    checkpoint: true
+```
+
+The wrapper feeds `.chunk` into the composition context for each iteration. The composition transforms and persists each chunk. The wrapper handles everything else.
 
 ### Impact on Case Studies
 
 This insight means several handlers previously marked as "outside grammar scope" in the case studies become potential composition candidates:
 
-- `RoutingDecisionHandler` — threshold-based routing can be a `transform` with jq `if-elif-else`
-- `DatasetAnalyzerHandler` — cursor partitioning can be a `transform` with jq math
-- `ResultsAggregatorHandler` (WithBatches path) — aggregation across batch results is already expressible
+- `RoutingDecisionHandler` — threshold-based routing can be a `transform` with jq `if-elif-else`, wrapped by `DecisionCompositionHandler`
+- `DatasetAnalyzerHandler` — cursor partitioning can be a `transform` with jq math, wrapped by `BatchAnalyzerCompositionHandler`
+- `BatchWorkerHandler` — per-chunk processing can be a `transform` + `persist` composition, wrapped by `BatchWorkerCompositionHandler`
+- `ResultsAggregatorHandler` (WithBatches path) — aggregation across batch results is already expressible as a standard composition
 
-The batch *workers* and checkpoint yield handlers remain outside scope.
+What remains genuinely outside grammar scope:
+- The wrapper implementations themselves (Rust code in `tasker-worker`)
+- Domain-specific batch workers where per-chunk logic is opaque (e.g., ML model inference per batch)
+- Orchestration protocol type construction (always in the wrapper, never in the grammar)
 
 ---
 
