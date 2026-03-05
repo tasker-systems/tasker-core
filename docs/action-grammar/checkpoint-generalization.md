@@ -122,12 +122,12 @@ Composition Executor receives step (InProgress state)
   │
   ├─ For each composition step (from start_index..steps.len()):
   │   │
-  │   ├─ Resolve input via InputMapping
-  │   │   ├─ Previous → last step's output (or checkpoint.step_output on resume)
-  │   │   ├─ StepOutput { index } → checkpoint.all_step_outputs[index]
-  │   │   ├─ Mapped { fields } → resolve field paths against available outputs
-  │   │   ├─ Merged { sources } → resolve and merge all sources
-  │   │   └─ TaskContext { path } → resolve from step_inputs
+  │   ├─ Resolve input via composition context envelope
+  │   │   ├─ .prev  → last step's output (or checkpoint.step_output on resume)
+  │   │   ├─ .context → task-level input data (from step_inputs)
+  │   │   ├─ .deps → dependency step results (keyed by step name)
+  │   │   └─ .step → step metadata
+  │   │   (Note: replaces the earlier InputMapping enum — see transform-revised-grammar.md)
   │   │
   │   ├─ Execute capability via CapabilityExecutor
   │   │   ├─ Success → store output
@@ -409,4 +409,4 @@ Composition steps execute sequentially within a single `StepHandler::call()` inv
 
 ---
 
-*This proposal should be read alongside `actions-traits-and-capabilities.md` for how the CompositionExecutor integrates with the resolver chain, and `composition-validation.md` for how compositions are validated before execution.*
+*This proposal should be read alongside `actions-traits-and-capabilities.md` for how the CompositionExecutor integrates with the resolver chain, `composition-validation.md` for how compositions are validated before execution, and `transform-revised-grammar.md` for the current 6-capability model with jaq-core expression language and composition context envelope.*

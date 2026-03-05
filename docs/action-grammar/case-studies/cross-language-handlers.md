@@ -641,6 +641,8 @@ Operations that cannot be expressed as (action, resource, context) remain as **t
 
 These are handlers where the "how" is irreducibly domain-specific. An agent or composition executor cannot reliably parameterize them through a generic (action, resource, context) surface. They should be implemented as domain handler code — the same domain handlers that exist today.
 
+Operations that produce **orchestration protocol types** — decision point outcomes, batch processing outcomes — were previously considered outside grammar scope but are now composable via virtual handler wrappers. The grammar composition produces the routing or partitioning logic as plain JSON; the wrapper in `tasker-worker` translates the JSON output to the formal protocol type (`DecisionPointOutcome`, `BatchProcessingOutcome`). The grammar system itself (`tasker-grammar` crate) remains pure — no orchestration types leak in. See `transform-revised-grammar.md`, section "Open Design: Decision and Batch Outcome Expression" for the full design.
+
 ---
 
 ## Vocabulary Architecture
@@ -673,6 +675,12 @@ Capability Layer (concrete action invocations):
   |-- persist         -- write data to resource target
   +-- emit            -- fire domain event (maps to Tasker's DomainEvent system)
 
+Virtual Handler Wrappers (protocol bridge in tasker-worker):
+  |-- CompositionHandler              -- standard step: composition → StepExecutionResult
+  |-- DecisionCompositionHandler      -- decision step: composition → DecisionPointOutcome
+  |-- BatchAnalyzerCompositionHandler -- batch analyzer: composition → BatchProcessingOutcome
+  +-- BatchWorkerCompositionHandler   -- batch worker: loop + checkpoint + per-chunk composition
+
 Domain Handlers (outside grammar scope):
   |-- fraud_check, payment_gateway_charge, gateway_refund
   |-- inventory_reserve, classify_customer, generate_credentials
@@ -688,6 +696,8 @@ Domain Handlers (outside grammar scope):
 | **Validate** | `validate`, `assert` | validate at boundary, assert at gates |
 | **Persist** | `persist` | transform -> persist |
 | **Emit** | `emit` | transform -> emit |
+
+The virtual handler wrapper pattern extends this mapping: compositions can now produce outputs that the wrapper translates to decision point outcomes or batch processing outcomes. The grammar categories themselves are unchanged — a decision step's composition still uses the same Acquire/Transform/Validate/Persist/Emit capabilities — but the wrapper bridges the composition's JSON output to the orchestration protocol type required by the step's role.
 
 ### What This Means for `CapabilityExecutor`
 
@@ -852,6 +862,10 @@ The previously discussed `when:` clause for capability-level conditional skippin
 ### 4. Evaluate and Compute Composition -- RESOLVED
 
 The question of "should evaluate and compute be separate steps (Option A) or combined (Option B)?" dissolves with the transform-centric model. There is just one `transform` with a jq filter that does whatever combination of boolean, arithmetic, and conditional logic is needed. The author chooses whether to use one transform or several based on readability, testability, and whether intermediate `assert` gates are needed — not because the type system forces a separation.
+
+### 5. Decision and Batch Steps in Grammar Scope -- RESOLVED
+
+Decision point outcomes and batch processing outcomes were previously considered outside grammar scope because they require orchestration protocol types that the grammar system should not depend on. The virtual handler wrapper pattern in `transform-revised-grammar.md` resolves this: compositions produce plain JSON; wrapper types in `tasker-worker` (`DecisionCompositionHandler`, `BatchAnalyzerCompositionHandler`, `BatchWorkerCompositionHandler`) translate the JSON output to the formal protocol type. The grammar crate stays pure — no orchestration types — while the expressible surface of grammar compositions extends to cover decision routing and batch partitioning logic.
 
 ---
 

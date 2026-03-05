@@ -23,7 +23,7 @@ Every capability referenced in the composition must exist in the vocabulary.
 ```yaml
 steps:
   - capability: acquire           # ✓ exists
-  - capability: reshape           # ✓ exists
+  - capability: transform         # ✓ exists
   - capability: quantum_teleport  # ✗ not in vocabulary
 ```
 
@@ -91,19 +91,9 @@ This is deliberately not exact-match. It's closer to structural subtyping: "does
 #     headers: { type: object }
 #     elapsed_ms: { type: integer }
 
-# Capability "reshape" input_schema:
-#   type: object
-#   required: [body]
-#   properties:
-#     body: { type: object }           # the JSON to reshape from
-#     metadata: { type: object }       # optional context
-
-# Capability "reshape" output_schema:
-#   type: object
-#   required: [extracted]
-#   properties:
-#     extracted: {}                     # type depends on selector path — any JSON value
-#     source_path: { type: string }    # echo of the selector path
+# Capability "transform" declares output schema per-step:
+#   The output JSON Schema is declared inline on each transform step,
+#   enabling static contract chaining without running jaq filters.
 
 # Capability "validate" input_schema:
 #   type: object
@@ -119,49 +109,53 @@ steps:
       constraints: { timeout_ms: 5000 }
     # output: { status_code, body, headers, elapsed_ms? }
 
-  - capability: reshape
-    config:
-      fields:
-        records: "$.body.data.records"   # selector path from dependency into flat namespace
-    input_mapping: { type: Previous }
-    # input needs: { body (required), metadata? }
-    # producer has: { status_code, body, headers, elapsed_ms? }
-    # ✓ body is present and type-compatible
-    # ✓ metadata is optional and absent — fine
-    # output: { extracted, source_path? }
+  - capability: transform
+    output:
+      type: object
+      required: [records]
+      properties:
+        records: { type: array }
+    filter: |
+      {records: .prev.body.data.records}
+    # The output schema declares what the jaq filter produces.
+    # Contract chaining uses this schema, not the filter itself.
+    # output: { records }
 
   - capability: validate
     config:
       schema: "record_v2"
       on_failure: partition
-    input_mapping: { type: Previous }
-    # input needs: { data (required) }
-    # producer has: { extracted, source_path? }
-    # ✗ 'data' is required but not present in producer output
+    # The composition context envelope provides .prev automatically.
+    # validate reads .prev.records — but its input_schema expects { data }.
+    # ✗ 'data' is required but .prev only has { records }
 ```
 
-**Finding**: `Error — step 2→3 contract mismatch: consumer requires field 'data' but producer output does not contain it`
+**Finding**: `Error — step 1→2 contract mismatch: consumer requires field 'data' but producer output does not contain it`
 
-#### Resolving the mismatch: input mapping
+#### Resolving the mismatch: jaq filter or output naming
 
-The issue above is that `reshape` outputs `extracted` but `validate` expects `data`. This is where **input mapping** provides the bridge:
+The issue above is that `transform` outputs `records` but `validate` expects `data`. With the composition context envelope model (see `transform-revised-grammar.md`), the resolution is straightforward — either rename the output field in the transform step to match what validate expects, or use a jaq filter within validate's configuration to map the field:
 
 ```yaml
+  # Option 1: Name the transform output to match validate's expectation
+  - capability: transform
+    output:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array }
+    filter: |
+      {data: .prev.body.data.records}
+
+  # Option 2: Validate reads from .prev using its own field convention
   - capability: validate
     config:
       schema: "record_v2"
       on_failure: partition
-    input_mapping:
-      type: Mapped
-      fields:
-        data: "$.previous.extracted"    # map 'extracted' to 'data'
+      data_path: ".prev.records"    # capability-level config for input resolution
 ```
 
-When an explicit field mapping is provided, the validator checks that:
-1. The source path resolves to a field in the referenced step's output
-2. The resolved field's type is compatible with the target field's expected type
-
-This allows capabilities to have different naming conventions for their inputs/outputs while still composing cleanly. The mapping is declarative and validated at assembly time.
+With jaq filters accessing the composition context envelope (`.context`, `.deps`, `.prev`, `.step`) directly, explicit `InputMapping` field mappings are less necessary — the jaq filter itself handles data selection and field renaming inline. The `Mapped` variant from the original design is superseded by jaq's native path traversal within the composition context.
 
 ### 4. Checkpoint Coverage
 
@@ -174,10 +168,14 @@ steps:
       resource: "https://api.example.com/data"
     checkpoint: false           # ✓ non-mutating, checkpoint optional
 
-  - capability: reshape
-    config:
-      fields:
-        records: "$.body.data"
+  - capability: transform
+    output:
+      type: object
+      required: [records]
+      properties:
+        records: { type: array }
+    filter: |
+      {records: .prev.body.data}
     checkpoint: false           # ✓ non-mutating
 
   - capability: persist
@@ -215,7 +213,7 @@ steps:
 
 **Finding**: `Error — outcome mismatch: declared outcome requires 'valid_records' but final step produces 'valid'`
 
-This catches the common case where the composition's internal naming doesn't match the declared external contract. The fix is either renaming the outcome schema fields to match, or adding a final `reshape` step that maps the output fields to the declared outcome names.
+This catches the common case where the composition's internal naming doesn't match the declared external contract. The fix is either renaming the outcome schema fields to match, or adding a final `transform` step that maps the output fields to the declared outcome names.
 
 ### 6. Grammar-Specific Composition Constraints
 
@@ -229,33 +227,38 @@ These are warnings by default (not errors) — they represent best practices, no
 
 ### 7. Input Mapping Resolution
 
-Every `input_mapping` must resolve to available data:
+> **Note**: With the composition context envelope model (see `transform-revised-grammar.md`), each capability invocation receives the full context (`.context`, `.deps`, `.prev`, `.step`) and jaq filters handle data selection directly. The explicit `InputMapping` enum is superseded for runtime data threading, but the validator still checks that jaq filter references resolve to available data sources. The checks below apply to the composition context model:
 
-- `Previous`: Valid if there is a preceding step (not valid for step 0)
-- `StepOutput { step_index }`: Valid if the referenced index exists and is before the current step
-- `TaskContext { path }`: Valid (the path is checked at execution time against actual task context)
-- `Merged { sources }`: Each source is validated recursively
-- `Mapped { fields }`: Each field mapping's source path must resolve to a field in the referenced output
+- `.prev` references: Valid if there is a preceding invocation (not valid for the first invocation — `.prev` is `null`)
+- `.deps.<step_name>` references: Valid if the named step exists in the task's dependency graph
+- `.context` references: Valid (the path is checked at execution time against actual task context)
+- `.step` references: Always valid (step metadata is always available)
 
 ```yaml
 steps:
   - capability: acquire         # index 0
-  - capability: reshape         # index 1
-    input_mapping: { type: Previous }           # ✓ step 0 exists
+  - capability: transform       # index 1
+    output: { type: object, required: [records], properties: { records: { type: array } } }
+    filter: '{records: .prev.body.data}'     # ✓ .prev is acquire's output
   - capability: validate        # index 2
-    input_mapping: { type: StepOutput, step_index: 5 }  # ✗ step 5 doesn't exist
+    config:
+      schema: "record_v2"
+    # validator checks: .prev references transform's declared output — valid
 ```
-
-**Finding**: `Error — step 2 input_mapping references step_index 5 but composition has only 3 steps`
 
 ---
 
-## The `Mapped` Input Mapping
+## The `Mapped` Input Mapping (Superseded by Composition Context Envelope)
 
-The worked example above revealed a need beyond the input mapping types in the trait boundary proposal. When capability input/output field names don't align, explicit field mapping is needed:
+> **Note**: The `InputMapping` enum described below was part of the original 9-capability design. With the adoption of jaq-core and the composition context envelope model (see `transform-revised-grammar.md`), explicit input mapping is largely superseded. Each capability invocation receives the full composition context (`.context`, `.deps`, `.prev`, `.step`) and jaq filters handle field selection, renaming, and cross-step references inline. The `InputMapping` type may still exist as a lightweight hint for the `CompositionValidator`'s contract chaining analysis, but the runtime data threading is handled entirely by the jaq filter operating on the composition context.
+
+The original design revealed a need beyond simple input mapping types when capability input/output field names don't align. The explicit `Mapped` variant addressed this:
 
 ```rust
 /// How a composition step receives its input.
+/// NOTE: With the composition context envelope model, jaq filters access
+/// .context, .deps, .prev, and .step directly. This enum is retained for
+/// validator hints but is no longer the primary data-threading mechanism.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum InputMapping {
@@ -276,13 +279,13 @@ pub enum InputMapping {
 }
 ```
 
-The `Mapped` variant is the most common for non-trivial compositions. Each entry maps a field name expected by the consumer to a JSONPath-like source expression:
+With jaq-core, the equivalent of `Mapped` field references is expressed directly in the jaq filter:
 
-- `"data": "$.previous.extracted"` — field `data` comes from the previous step's `extracted` field
-- `"records": "$.steps[0].body.data"` — field `records` comes from step 0's `body.data`
-- `"config_value": "$.context.step_inputs.threshold"` — field comes from task context
+- `".prev.extracted"` — previous invocation's `extracted` field (was `"$.previous.extracted"`)
+- `".deps.step_name.body.data"` — a dependency step's nested field (was `"$.steps[0].body.data"`)
+- `".context.threshold"` — task context field (was `"$.context.step_inputs.threshold"`)
 
-The validator resolves each source expression and checks type compatibility of the resolved field against the consumer's input schema.
+The validator can still analyze jaq filter expressions to determine which fields from the composition context are referenced, enabling contract chaining validation without the explicit mapping enum.
 
 ---
 
@@ -355,6 +358,8 @@ This means the composition validator can *depend on* the existing `schema_compar
 
 ## Worked Example: Full Composition
 
+> **Updated**: This example uses the 6-capability model with jaq filters and the composition context envelope. See `transform-revised-grammar.md` for the full revised grammar specification.
+
 A realistic composition that an agent might create for "fetch records from an API, validate them, and persist the valid ones":
 
 ```yaml
@@ -367,68 +372,67 @@ outcome:
     properties:
       persisted_count: { type: integer }
       invalid_count: { type: integer }
-      persist_confirmation: { type: object }
 
 steps:
   - capability: acquire
     config:
-      resource: "${step_inputs.api_endpoint}"
+      resource:
+        type: api
+        endpoint: "${context.api_endpoint}"
+        method: GET
       constraints:
         headers:
-          Authorization: "Bearer ${step_inputs.api_token}"
+          Authorization: "Bearer ${context.api_token}"
         timeout_ms: 10000
       result_shape:
         type: object
         required: [body]
-    input_mapping: { type: TaskContext, path: "$.step_inputs" }
     checkpoint: false
 
-  - capability: reshape
-    config:
-      fields:
-        records: "$.body.data.records"
-    input_mapping: { type: Previous }
+  - capability: transform
+    output:
+      type: object
+      required: [records]
+      properties:
+        records: { type: array, items: { type: object } }
+    filter: |
+      {records: .prev.body.data.records}
     checkpoint: false
 
   - capability: validate
     config:
-      schema: "${step_inputs.record_schema}"
+      schema: "${context.record_schema}"
       on_failure: partition
-    input_mapping:
-      type: Mapped
-      fields:
-        data: "$.previous.records"
+    # validate reads .prev.records from the transform step's output
     checkpoint: false
 
   - capability: persist
     config:
-      resource: "${step_inputs.target_table}"
-      data: "$.previous.valid"
+      resource:
+        type: database
+        entity: "${context.target_table}"
       constraints:
         conflict_key: "external_id"
-        idempotency_key: "${correlation_id}"
+        idempotency_key: "${context.correlation_id}"
       validate_success:
         min_rows: 1
-      result_shape:
-        type: object
-        required: [persisted_count]
-    input_mapping:
-      type: Mapped
-      fields:
-        records: "$.previous.valid"
+      result_shape: [persisted_count]
+    data: |
+      .prev.valid
     checkpoint: true    # Required: mutating capability
 
-  - capability: compute
-    config:
-      expressions:
-        persisted_count: "$.steps[3].persisted_count"
-        invalid_count: "len($.steps[2].invalid)"
-    input_mapping:
-      type: Merged
-      sources:
-        - type: StepOutput
-          step_index: 2    # validate output (has invalid partition)
-        - type: Previous   # persist confirmation
+  - capability: transform
+    output:
+      type: object
+      required: [persisted_count, invalid_count]
+      properties:
+        persisted_count: { type: integer }
+        invalid_count: { type: integer }
+    filter: |
+      {
+        persisted_count: .prev.persisted_count,
+        invalid_count: (.prev.invalid // [] | length)
+      }
     checkpoint: false
 
 mixins: [with_retry, with_observability]
@@ -438,21 +442,21 @@ mixins: [with_retry, with_observability]
 
 | Check | Step | Result |
 |-------|------|--------|
-| Capability existence | 0-4 | All 5 capabilities exist in vocabulary |
+| Capability existence | 0-4 | All 5 invocations use capabilities from the 6-capability vocabulary |
 | Config validity | 0 | `resource`, `constraints`, `result_shape` match acquire config_schema |
-| Config validity | 1 | `fields` matches reshape config_schema |
+| Config validity | 1 | `output` is valid JSON Schema, `filter` is valid jaq expression |
 | Config validity | 2 | `schema`, `on_failure` match validate config_schema |
-| Config validity | 3 | `resource`, `data`, `constraints`, `validate_success`, `result_shape` match persist config_schema |
-| Config validity | 4 | `expressions` matches compute config_schema |
-| Contract chain | 0→1 | acquire outputs `{status_code, body, headers}` — reshape needs `{body}` via Previous — compatible |
-| Contract chain | 1→2 | reshape outputs `{records}` — validate needs `{data}` via Mapped `data←records` — compatible |
-| Contract chain | 2→3 | validate outputs `{valid, invalid, total_checked}` — persist needs `{records}` via Mapped `records←valid` — compatible |
-| Contract chain | 3→4 | Merged from steps 2+3 — compute needs merged fields — compatible |
+| Config validity | 3 | `resource`, `constraints`, `validate_success`, `result_shape` match persist config_schema; `data` is valid jaq |
+| Config validity | 4 | `output` is valid JSON Schema, `filter` is valid jaq expression |
+| Contract chain | 0→1 | acquire outputs `{body, ...}` — transform filter reads `.prev.body` — compatible |
+| Contract chain | 1→2 | transform declares output `{records}` — validate reads `.prev.records` — compatible |
+| Contract chain | 2→3 | validate outputs `{valid, invalid, total_checked}` — persist data reads `.prev.valid` — compatible |
+| Contract chain | 3→4 | persist outputs `{persisted_count}` — transform filter reads `.prev.persisted_count` — compatible |
 | Checkpoint coverage | 3 | persist is Persist/Mutating, checkpoint=true — valid |
-| Outcome convergence | 4→outcome | compute outputs `{persisted_count, invalid_count}` — matches declared outcome — compatible |
+| Outcome convergence | 4→outcome | transform declares output `{persisted_count, invalid_count}` — matches declared outcome — compatible |
 | Grammar constraints | all | No category-specific constraint violations |
 
-**Result**: Valid composition. 5 steps, 1 mutation, 1 checkpoint.
+**Result**: Valid composition. 5 invocations, 1 mutation, 1 checkpoint.
 
 ---
 
@@ -476,13 +480,13 @@ Composition validation runs at resolution time — when the `GrammarActionResolv
 
 The Tasker step-level retry (from `RetryConfiguration` on `StepDefinition`) retries the *entire composition* from the last checkpoint. Should individual composition steps have their own retry behavior?
 
-**Proposal**: Yes, but limited. Non-mutating capability steps (Acquire, Transform, Validate, and pure data capabilities like `reshape`, `compute`, `evaluate`, `assert`, `evaluate_rules`) can retry internally based on their capability's `retry_profile` — this handles transient failures, rate limits, etc. Mutating steps (Persist, Emit) do NOT retry internally — failure at a mutation boundary triggers the step-level retry, which resumes from the checkpoint. This keeps the checkpoint model clean: checkpoints are the resume points, and the step-level retry is the only mechanism that crosses checkpoint boundaries.
+**Proposal**: Yes, but limited. Non-mutating capability invocations (`acquire`, `transform`, `validate`, `assert`) can retry internally based on their capability's `retry_profile` — this handles transient failures, rate limits, etc. Mutating invocations (`persist`, `emit`) do NOT retry internally — failure at a mutation boundary triggers the step-level retry, which resumes from the checkpoint. This keeps the checkpoint model clean: checkpoints are the resume points, and the step-level retry is the only mechanism that crosses checkpoint boundaries.
 
 ### Conditional steps within compositions
 
 Should a composition support "if condition X from step N's output, skip step M"?
 
-**Proposal**: Not in the initial design. Conditional logic within a composition adds significant complexity to validation (branches in the contract chain, multiple possible output schemas). If a workflow needs conditional branching, that's what Tasker's step-level decision patterns are for — the composition produces its output, and separate steps use `evaluate` or `evaluate_rules` capabilities to route to different downstream steps. Keep compositions as linear (or Mapped/Merged) chains toward a singular outcome.
+**Proposal**: Not in the initial design. Conditional logic within a composition adds significant complexity to validation (branches in the contract chain, multiple possible output schemas). If a workflow needs conditional branching, that's what Tasker's step-level decision patterns are for — the composition produces its output, and separate steps use `transform` capabilities (with boolean/conditional jaq filters) to route to different downstream steps. Keep compositions as linear chains toward a singular outcome.
 
 If real-world usage reveals this is too limiting, conditional steps can be added later as a composition feature without changing the trait boundary or the grammar categories.
 
@@ -494,4 +498,4 @@ One addition needed: **type coercion rules**. JSON Schema's type hierarchy (`int
 
 ---
 
-*This proposal should be read alongside `actions-traits-and-capabilities.md` for the trait design and architectural rationale, and `checkpoint-generalization.md` for how compositions checkpoint during execution.*
+*This proposal should be read alongside `actions-traits-and-capabilities.md` for the trait design and architectural rationale, `checkpoint-generalization.md` for how compositions checkpoint during execution, and `transform-revised-grammar.md` for the finalized 6-capability model with jaq-core expressions and the composition context envelope.*

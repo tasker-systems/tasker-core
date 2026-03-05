@@ -4,6 +4,8 @@
 
 *Branch: `jcoletaylor/genai-workflows-research` — March 2026*
 
+> **Revision note**: This document established the foundational grammar architecture (trait-based extensibility, three-layer model, singular-outcome constraint). The capability model has since been refined from 9 capabilities to 6, with **jaq-core** (Rust-native jq) as the unified expression language. See [`transform-revised-grammar.md`](transform-revised-grammar.md) for the current 6-capability model, composition context envelope, and virtual handler wrapper types.
+
 ---
 
 ## Motivation
@@ -47,6 +49,8 @@ The original Phase 1 design conflates two concepts that should be separate layer
 **Action grammars** answer "what kind of action is this?" They define *categories* of action — Acquire, Transform, Validate, Persist, Emit — and declare what properties each category guarantees. A grammar category says: "things of this kind are non-mutating and idempotent" or "things of this kind require checkpointing and represent a commitment point."
 
 **Capability vocabularies** answer "how will I perform this action?" They are the concrete, discoverable, composable surface that agents and planners interact with. An `acquire` capability fetches data from a named resource. A `persist` capability writes data to a named resource. Each capability declares its contracts via JSON Schema — input, output, mutation profile, checkpoint behavior — and is expressed as an (action, resource, context) triple.
+
+The refined model defines **6 core capabilities**: `transform`, `validate`, `assert`, `persist`, `acquire`, `emit`. Pure data operations (projection, computation, boolean derivation, rule matching, grouping, ranking) are unified under a single `transform` capability powered by **jaq-core** (Rust-native jq). JSON Schema declares the output shape; a jaq filter declares how to produce it. This replaces bespoke configuration schemas with a single, well-understood expression language. See [`transform-revised-grammar.md`](transform-revised-grammar.md) for the full capability model.
 
 This is a general-to-specific relationship. The grammar provides categorical guarantees; the vocabulary provides concrete implementations. They are two views of the same thing — the grammar is the implementation contract; the vocabulary is the consumer interface.
 
@@ -93,7 +97,7 @@ The vocabulary grows through two channels:
 
 ### 5. Trait-Based Extensibility via Build-from-Source
 
-The grammar must not be a closed system. The core ships with fundamental grammar categories (Acquire, Transform, Validate, Persist, Emit), but organizations need to extend both the grammar and the vocabulary for their domain.
+The grammar must not be a closed system. The core ships with fundamental grammar categories (Acquire, Transform, Validate, Persist, Emit) mapping to 6 capabilities (`acquire`, `transform`, `validate`, `assert`, `persist`, `emit`), but organizations need to extend both the grammar and the vocabulary for their domain.
 
 Grammar categories should be defined by a `dyn GrammarCategory` trait, not a bounded enum. Organizations extend the system by depending on Tasker's public crates, implementing the traits, and building their own binary — the same model as custom handler registration today. A financial services company implements a domain-specific category, registers it at startup alongside standard handlers, and builds their worker binary from source.
 
@@ -110,7 +114,7 @@ The original vision describes a "two-tier trust model" — developer-authored ha
 **Layer 1: Action Grammars (trait-based, extensible)**
 - Define categories of action and their guaranteed properties
 - `dyn GrammarAction` trait with build-from-source extensibility (no dynamic library loading required)
-- Core set: Acquire, Transform, Validate, Persist, Emit
+- Core set: Acquire, Transform, Validate, Persist, Emit (5 grammar categories mapping to 6 capabilities — Validate encompasses both `validate` and `assert`)
 - Each category declares: mutation profile, checkpoint requirements, idempotency characteristics
 - Composition rules operate at this level — the validator knows what properties each category guarantees
 
@@ -220,6 +224,8 @@ enum IdempotencyProfile {
 
 ### Capability Declaration
 
+> **Updated**: The initial design anticipated a larger set of capabilities (reshape, compute, evaluate, evaluate\_rules, group\_by, rank, validate, assert, persist, acquire, emit). The refined model consolidates all pure data operations into a single `transform` capability using jaq-core. The 6 canonical capabilities are: `transform`, `validate`, `assert`, `persist`, `acquire`, `emit`. The struct below remains structurally valid — the `grammar_category` field references one of the 5 grammar categories (Acquire, Transform, Validate, Persist, Emit).
+
 A capability is a concrete, registered implementation within a grammar category:
 
 ```rust
@@ -267,6 +273,8 @@ enum CapabilityImplementation {
 ```
 
 ### Composition Model
+
+> **Updated**: The `input_mapping` field in `CompositionStep` below has been superseded by the **composition context envelope**. Instead of an `InputMapping` enum (Previous, StepOutput, TaskContext, Mapped, Merged), each capability invocation receives a unified context object with `.context` (task input), `.deps` (dependency results), `.prev` (previous capability output), and `.step` (step metadata). jaq filters operate directly on this envelope, eliminating the need for a separate input mapping abstraction. See [`transform-revised-grammar.md`](transform-revised-grammar.md) for the revised data flow model.
 
 A composition chains capabilities toward a singular outcome:
 
@@ -362,19 +370,19 @@ Note what is *not* checked: a rigid single-mutation boundary. Multiple mutations
 
 ### Trait Boundary Design
 - What methods does `GrammarAction` need beyond what's sketched above?
-- What crate should own the public traits? `tasker-shared` or a new `tasker-grammar` crate?
+- What crate should own the public traits? `tasker-shared` or a new `tasker-grammar` crate? **Resolved**: `tasker-grammar` — new workspace member, no dependency on tasker-worker/orchestration/DB. See `implementation-phases.md`.
 - Should there be sub-traits for specific grammar properties (e.g., `Checkpointable`, `Idempotent`)?
 - How do grammar categories compose with each other? Can a composition step belong to multiple categories?
 
 ### Composition Validation
-- What does JSON Schema "compatibility" mean precisely? Subset? Structural subtyping? Exact match?
+- What does JSON Schema "compatibility" mean precisely? Subset? Structural subtyping? Exact match? **Partially resolved**: The `transform` capability uses explicit `output` JSON Schema declarations, enabling contract chaining via schema comparison. See `composition-validation.md`.
 - How should optional fields be handled in contract chaining? (Step A produces `{a, b?, c}`; Step B requires `{a, b}`)
 - What error messages does the validator produce? How actionable are they for agents?
 - What's the performance profile of JSON Schema validation at composition scale?
 
 ### Checkpoint Generalization
 - How does the existing batch checkpoint model extend to arbitrary multi-mutation steps?
-- What does the step state machine need to look like for "resume from checkpoint N"?
+- What does the step state machine need to look like for "resume from checkpoint N"? **Partially resolved**: The composition context envelope includes `.prev` which is restored from checkpoint on resumption. See `transform-revised-grammar.md` "Checkpoint resumption" section.
 - How are checkpoint states stored? Inline in step results? Separate checkpoint table?
 - What happens when a checkpointed step is retried — does it resume from last checkpoint or restart?
 
@@ -389,6 +397,12 @@ Note what is *not* checked: a rigid single-mutation boundary. Multiple mutations
 - How does the agent iterate on a composition when validation fails?
 - Should the MCP server offer "suggest capabilities for this task" functionality?
 - How does the agent know when to compose from the vocabulary vs. when to write a traditional handler?
+
+### Resolved in Subsequent Documents
+- **Expression language**: jaq-core (Rust-native jq) selected as the unified expression language for all data transformation. See `transform-revised-grammar.md`.
+- **Capability consolidation**: 9 capabilities refined to 6. Pure data operations unified under `transform`. See `transform-revised-grammar.md`.
+- **Input mapping**: `InputMapping` enum replaced by composition context envelope (`.context`, `.deps`, `.prev`, `.step`). See `transform-revised-grammar.md`.
+- **Decision and batch step grammar scope**: Virtual handler wrapper types (`DecisionCompositionHandler`, `BatchAnalyzerCompositionHandler`, `BatchWorkerCompositionHandler`) bridge grammar JSON output to orchestration protocol types. See `transform-revised-grammar.md` "Virtual Handler Wrapper Types" section.
 
 ---
 

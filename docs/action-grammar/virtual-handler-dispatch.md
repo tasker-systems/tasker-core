@@ -413,7 +413,7 @@ No changes to Ruby's `ResolverChain`, Python's `ResolverChain`, or TypeScript's 
 
 ## TaskTemplate YAML: What Changes
 
-A TaskTemplate that mixes virtual and domain handlers:
+A TaskTemplate that mixes virtual and domain handlers. Note: this uses the 6-capability model from `transform-revised-grammar.md`, where `reshape`, `compute`, `evaluate`, and `evaluate_rules` are unified into a single `transform` capability powered by jaq (jq) filters. The composition context envelope provides `.context` (task input), `.deps` (dependency results), `.step` (step metadata), and `.prev` (previous capability output).
 
 ```yaml
 name: process_order
@@ -433,14 +433,21 @@ steps:
             coercion: strict
             unknown_fields: drop
             on_failure: fail
-          input_mapping: { type: task_context }
-        - capability: compute
-          config:
-            expressions:
-              subtotal: "sum(items[*].price * items[*].quantity)"
-              tax: "subtotal * tax_rate"
-              total: "subtotal + tax"
-          input_mapping: { type: previous }
+        - capability: transform
+          output:
+            type: object
+            required: [items, customer_id, subtotal, tax, total]
+            properties:
+              items: { type: array }
+              customer_id: { type: string }
+              subtotal: { type: number }
+              tax: { type: number }
+              total: { type: number }
+          filter: |
+            .prev
+            | . + {subtotal: ([.items[].price * .items[].quantity] | add)}
+            | . + {tax: ((.subtotal * .context.tax_rate) * 100 | round / 100)}
+            | . + {total: (.subtotal + .tax)}
     result_schema:
       items: { type: array }
       customer_id: { type: string }
@@ -459,29 +466,37 @@ steps:
     composition:
       grammar: Persist
       compose:
-        - capability: reshape
-          config:
-            fields:
-              total: "validate_cart.total"
-              items: "validate_cart.items"
-              payment_id: "process_payment.payment_id"
-          input_mapping: { type: task_context }
+        - capability: transform
+          output:
+            type: object
+            required: [total, items, payment_id]
+            properties:
+              total: { type: number }
+              items: { type: array }
+              payment_id: { type: string }
+          filter: |
+            {
+              total: .deps.validate_cart.total,
+              items: .deps.validate_cart.items,
+              payment_id: .deps.process_payment.payment_id
+            }
         - capability: persist
           config:
             resource:
               type: database
               entity: orders
-            data:
-              total: "$.total"
-              items: "$.items"
-              payment_id: "$.payment_id"
             constraints:
-              uniqueness: [payment_id]
+              unique_key: payment_id
             validate_success:
               order_id: { type: string, required: true }
-            result_shape:
-              fields: [order_id, created_at]
-          input_mapping: { type: previous }
+            result_shape: [order_id, created_at]
+          data: |
+            {
+              total: .prev.total,
+              items: .prev.items,
+              payment_id: .prev.payment_id
+            }
+          checkpoint: true
     dependencies: [validate_cart, process_payment]
     result_schema:
       order_id: { type: string }
@@ -492,24 +507,32 @@ steps:
     composition:
       grammar: Emit
       compose:
-        - capability: reshape
-          config:
-            fields:
-              order_id: "create_order.order_id"
-              customer_email: "validate_cart.customer_email"
-              total: "validate_cart.total"
-          input_mapping: { type: task_context }
+        - capability: transform
+          output:
+            type: object
+            required: [order_id, customer_email, total]
+            properties:
+              order_id: { type: string }
+              customer_email: { type: string }
+              total: { type: number }
+          filter: |
+            {
+              order_id: .deps.create_order.order_id,
+              customer_email: .deps.validate_cart.customer_email,
+              total: .deps.validate_cart.total
+            }
         - capability: emit
           config:
             event_name: "order.confirmed"
             event_version: "1.0"
             delivery_mode: durable
             condition: success
-            payload:
-              order_id: "$.order_id"
-              customer_email: "$.customer_email"
-              total: "$.total"
-          input_mapping: { type: previous }
+          payload: |
+            {
+              order_id: .prev.order_id,
+              customer_email: .prev.customer_email,
+              total: .prev.total
+            }
     dependencies: [create_order]
 ```
 
@@ -588,26 +611,35 @@ workers/composition/src/main.rs
    → Namespace queues + composition queues subscribed automatically
 3. Take DispatchHandles from worker handle
 4. Spawn HandlerDispatchService with CompositionOnlyRegistry
-   → Registry.get() always returns the built-in CompositionExecutor
+   → Registry.get() selects the appropriate wrapper type by step type
    → No domain handler lookup, no resolver chain consulted
 5. Wait for shutdown signal
 6. Graceful shutdown
 ```
 
-The `CompositionOnlyRegistry` is a trivial implementation of `StepHandlerRegistry`:
+The `CompositionOnlyRegistry` is a trivial implementation of `StepHandlerRegistry`. It selects the appropriate virtual handler wrapper type based on the step's `step_type` — `CompositionHandler` for standard steps, `DecisionCompositionHandler` for decision steps, and so on (see "Virtual Handler Wrapper Types" below for the full family):
 
 ```rust
 pub struct CompositionOnlyRegistry {
-    executor: Arc<CompositionExecutor>,
+    standard: Arc<CompositionHandler>,
+    decision: Arc<DecisionCompositionHandler>,
+    batch_analyzer: Arc<BatchAnalyzerCompositionHandler>,
+    batch_worker: Arc<BatchWorkerCompositionHandler>,
 }
 
 impl StepHandlerRegistry for CompositionOnlyRegistry {
     fn get(&self, step: &StepDefinition) -> Option<Arc<dyn StepHandler>> {
         // Only accept steps with composition specs
-        if step.composition.is_some() {
-            Some(self.executor.clone())
-        } else {
-            None  // Cannot handle domain handler steps
+        if step.composition.is_none() {
+            return None;  // Cannot handle domain handler steps
+        }
+
+        // Select wrapper type based on step type
+        match step.step_type {
+            StepType::Decision => Some(self.decision.clone()),
+            StepType::Batchable => Some(self.batch_analyzer.clone()),
+            StepType::BatchWorker => Some(self.batch_worker.clone()),
+            _ => Some(self.standard.clone()),
         }
     }
 
@@ -617,7 +649,7 @@ impl StepHandlerRegistry for CompositionOnlyRegistry {
 }
 ```
 
-This is the entire handler dispatch logic. No resolver chain, no priority ordering, no class path inference. The composition spec is the handler — if the step has one, execute it; if not, this worker can't process it (and shouldn't have claimed it).
+This is the entire handler dispatch logic. No resolver chain, no priority ordering, no class path inference. The composition spec is the handler — if the step has one, the registry selects the appropriate wrapper type for its step kind; if not, this worker can't process it (and shouldn't have claimed it).
 
 ### Binary Size and Dependencies
 
@@ -792,28 +824,47 @@ The domain workers' virtual handler capability isn't removed — it's supplement
 
 ---
 
+## Virtual Handler Wrapper Types
+
+The original concept of a single `CompositionExecutor` has evolved into a **family of virtual handler wrappers** in `tasker-worker`. Each wrapper implements `StepHandler` and handles the orchestration protocol mechanics for its step type, delegating pure data transformation to the `tasker-grammar` composition engine.
+
+| Wrapper | Step Type | Behavior |
+|---------|-----------|----------|
+| **`CompositionHandler`** | Standard | Runs the grammar composition, returns result as `StepExecutionResult` |
+| **`DecisionCompositionHandler`** | Decision | Runs grammar composition producing a decision shape (route + steps), translates JSON output into `DecisionPointOutcome` |
+| **`BatchAnalyzerCompositionHandler`** | Batchable | Runs grammar composition producing cursor partitions, translates JSON output into `BatchProcessingOutcome` |
+| **`BatchWorkerCompositionHandler`** | Batch Worker | Provides the cursor loop + checkpoint yield machinery; runs a per-chunk grammar composition for the transform/persist body |
+
+The key architectural boundary: `tasker-grammar` remains pure — it produces `serde_json::Value` matching declared `output` schemas. The wrapper types in `tasker-worker` handle all translation to orchestrator protocol types (`DecisionPointOutcome`, `BatchProcessingOutcome`, `StepExecutionResult`). This keeps the grammar crate free of orchestration dependencies.
+
+For decision and batch compositions, the grammar's `output` schema declares the expected shape (e.g., `{route, steps}` for decisions, `{batch_size, worker_count, cursors}` for batch analysis), and the wrapper validates the grammar output against that shape before translating it. For batch workers, the wrapper manages the iteration loop, checkpoint saves, and `checkpoint_yield()` calls — the grammar composition only sees one chunk at a time.
+
+See `transform-revised-grammar.md` sections "Open Design: Decision and Batch Outcome Expression" and "Virtual Handler Wrapper Types" for the full design rationale and examples.
+
+---
+
 ## Summary
 
 | Property | Domain Handlers | Virtual Handlers |
 |----------|----------------|------------------|
 | **Defined by** | `handler.callable` in StepDefinition | `composition` spec in StepDefinition |
-| **Resolved by** | ResolverChain (priority-ordered) | Built-in composition executor |
+| **Resolved by** | ResolverChain (priority-ordered) | Built-in wrapper type family (selected by step type) |
 | **Registration** | Required (per-worker, per-language) | None (always available) |
 | **Language dependency** | Yes (Ruby/Python/TS/Rust runtime) | None (compiled Rust) |
 | **Claimable by** | Workers with matching handler | All online workers (default) |
 | **Queue** | `worker_{namespace}_queue` | `worker_composition_queue_N` (default) or namespace queue (configurable) |
 | **Lifecycle** | Standard step states | Same lifecycle |
-| **Output** | `StepExecutionResult` | Same type |
+| **Output** | `StepExecutionResult` | Same type (wrapper translates for decision/batch steps) |
 | **Timeout/concurrency** | Semaphore-bounded | Same bounds |
-| **Checkpointing** | Handler-driven (batch yields) | Spec-driven (between capabilities) |
+| **Checkpointing** | Handler-driven (batch yields) | Spec-driven (between capabilities); batch wrapper manages cursor loop |
 | **Load shedding** | TAS-75 CapacityChecker | Same infrastructure |
 | **Queue override** | N/A | `composition_queue: false` on TaskTemplate routes to namespace queue |
 | **Routing authority** | N/A (namespace queue always) | Template only — orchestrator never consults worker config |
-| **Dedicated worker** | Per-language worker binary | Composition-only worker (no FFI, no registry, minimal image) |
+| **Dedicated worker** | Per-language worker binary | Composition-only worker (no FFI, wrapper family registry, minimal image) |
 | **Deployment prerequisite** | Workers for each namespace used | At least one composition-only worker for grammar features |
 
 The virtual handler dispatch architecture adds a new execution path, a new queue routing strategy, and a new deployment target (the composition-only worker) while preserving the worker lifecycle and orchestration protocol. The routing model is intentionally simple: the template is the sole authority on whether virtual handler steps use composition queues or namespace queues. The orchestrator never consults worker configuration — workers choose what to subscribe to for their own operational reasons, and the composition-only worker serves as the deployment-level guarantee that composition queue steps will be processed. This preserves the existing architectural boundary where the orchestrator manages step lifecycle and workers manage step execution, with no coupling between the two.
 
 ---
 
-*This document should be read alongside `grammar-trait-boundary.md` for the trait design, `composition-validation.md` for how compositions are validated before execution, `checkpoint-generalization.md` for the checkpoint model, the case studies in `case-studies/` for the grammar proposals that motivate this architecture, and `implementation-phases.md` for the phased roadmap from research to production.*
+*This document should be read alongside `transform-revised-grammar.md` for the 6-capability model and wrapper type design, `grammar-trait-boundary.md` for the trait design, `composition-validation.md` for how compositions are validated before execution, `checkpoint-generalization.md` for the checkpoint model, the case studies in `case-studies/` for the grammar proposals that motivate this architecture, and `implementation-phases.md` for the phased roadmap from research to production.*

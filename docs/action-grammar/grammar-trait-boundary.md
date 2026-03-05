@@ -112,18 +112,33 @@ steps:
             description: "Validated analysis results"
             output_schema: { type: object, required: [results], properties: { results: { type: array } } }
           steps:
-            - capability: http_get
-              config: { url: "${step_inputs.endpoint}" }
-            - capability: json_extract
-              config: { path: "$.data.records" }
-              input_mapping: { data: "$.previous" }
-            - capability: schema_validate
-              config: { schema_ref: "record_v2" }
-              input_mapping: { data: "$.previous" }
+            - capability: acquire
+              config:
+                resource:
+                  type: api
+                  endpoint: "${step_inputs.endpoint}"
+                  method: GET
+                validate_success:
+                  status: { in: [200] }
+                result_shape: [data.records]
+            - capability: transform
+              output:
+                type: object
+                required: [results]
+                properties:
+                  results: { type: array, items: { type: object } }
+              filter: |
+                .prev.data.records
+                | map(select(.active))
+                | {results: .}
+            - capability: validate
+              config:
+                schema: { $ref: "record_v2" }
+                on_failure: fail
           mixins: [with_retry, with_observability]
 ```
 
-The resolver detects `grammar:inline`, extracts the composition spec from `initialization`, validates it, and constructs the handler. This is the primary path for agent-composed workflows.
+The resolver detects `grammar:inline`, extracts the composition spec from `initialization`, validates it, and constructs the handler. This is the primary path for agent-composed workflows. See [`transform-revised-grammar.md`](transform-revised-grammar.md) for the full revised capability model with jaq filters and composition context envelope.
 
 ---
 
@@ -233,16 +248,16 @@ The system ships with these built-in categories. Each is a struct implementing `
 | Category | Mutation | Idempotency | Checkpoint | Purpose |
 |----------|----------|-------------|------------|---------|
 | `Acquire` | NonMutating | Inherent | No | Fetch data from external sources |
-| `Transform` | NonMutating | Inherent | No | Reshape, compute, and evaluate data |
-| `Validate` | NonMutating | Inherent | No | Assert invariants, evaluate rules, partition valid/invalid |
+| `Transform` | NonMutating | Inherent | No | Pure data transformation via jaq (jq) filters |
+| `Validate` | NonMutating | Inherent | No | Assert invariants, validate schemas, gate execution |
 | `Persist` | Mutating | WithKey | Yes | Write state to external systems |
 | `Emit` | Mutating | WithKey | Yes | Send notifications or events |
 
-These five grammar categories map to the canonical capability set:
+These five grammar categories map to the 6 core capabilities (see [`transform-revised-grammar.md`](transform-revised-grammar.md) for the full revised model):
 
 - **Acquire**: `acquire` capability (side-effecting, fetches external data)
-- **Transform**: `reshape`, `compute`, `evaluate` capabilities (pure data transformations)
-- **Validate**: `validate`, `assert`, `evaluate_rules` capabilities (pure data validation)
+- **Transform**: `transform` capability (pure data transformation — `output` JSON Schema + `filter` jaq expression)
+- **Validate**: `validate`, `assert` capabilities (schema validation and execution gating)
 - **Persist**: `persist` capability (side-effecting, writes to external systems)
 - **Emit**: `emit` capability (side-effecting, sends events/notifications)
 
@@ -288,22 +303,26 @@ A capability is a concrete, registered implementation within a grammar category:
 /// category and declares its contracts via JSON Schema.
 ///
 /// Every capability expresses a deterministic (action, resource, context) triple:
-/// - **Action**: What to do (one of the canonical 9: validate, reshape, compute,
-///   evaluate, assert, evaluate_rules, persist, acquire, emit)
+/// - **Action**: What to do (one of the 6 core capabilities: transform, validate,
+///   assert, persist, acquire, emit)
 /// - **Resource**: The target upon which the action is effected
 /// - **Context**: Configuration, constraints, success validation, result shape
 ///
-/// Core data capabilities (validate, reshape, compute, evaluate, assert,
-/// evaluate_rules) use capability-specific config. Action capabilities
-/// (persist, acquire, emit) use a typed Rust envelope with JSON Schema-flexible
-/// contents for resource, data, constraints, validate_success, and result_shape.
+/// The `transform` capability uses `output` (JSON Schema) + `filter` (jaq expression)
+/// for pure data transformation. `validate` uses JSON Schema + coercion/failure config.
+/// `assert` uses a jaq boolean filter + error message. Action capabilities (persist,
+/// acquire, emit) use a typed Rust envelope with JSON Schema-flexible contents for
+/// resource, data, constraints, validate_success, and result_shape.
+///
+/// See `transform-revised-grammar.md` for the rationale behind the 6-capability model
+/// (which replaced the earlier 9-capability model).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityDeclaration {
     /// Unique identifier (e.g., "http_get", "postgres_upsert", "json_extract")
     pub name: String,
 
     /// The canonical action this capability performs (e.g., "acquire", "persist",
-    /// "validate", "reshape", "compute", "evaluate", "assert", "evaluate_rules", "emit")
+    /// "validate", "transform", "assert", "emit")
     pub action: String,
 
     /// Which grammar category this belongs to (e.g., "Acquire", "Persist")
@@ -319,11 +338,13 @@ pub struct CapabilityDeclaration {
     pub output_schema: serde_json::Value,
 
     /// JSON Schema: configuration parameters for this capability.
-    /// For action capabilities (persist, acquire, emit), this schema describes
-    /// the typed envelope structure: resource, data, constraints,
-    /// validate_success, result_shape.
-    /// For core data capabilities, this is capability-specific config
-    /// (e.g., schema for validate, fields for reshape, expressions for evaluate).
+    /// For `transform`: config contains `output` (JSON Schema declaring the
+    /// promised output shape) and `filter` (jaq expression producing the output).
+    /// For `validate`: JSON Schema + coercion/filtering/failure config.
+    /// For `assert`: `filter` (jaq boolean expression) + `error` message.
+    /// For action capabilities (persist, acquire, emit): typed envelope with
+    /// resource, data/params/payload (jaq filters), constraints, validate_success,
+    /// result_shape.
     pub config_schema: serde_json::Value,
 
     /// Concrete mutation profile (must be compatible with grammar category).
@@ -465,24 +486,34 @@ pub struct CompositionSpec {
 /// A single step within a composition.
 ///
 /// Each composition step expresses the (action, resource, context) triple
-/// from the capability vocabulary. For action capabilities (persist, acquire,
-/// emit), the config contains a typed envelope with resource, data,
-/// constraints, validate_success, and result_shape fields. For core data
-/// capabilities (validate, reshape, compute, evaluate, assert, evaluate_rules),
-/// the config is capability-specific.
+/// from the capability vocabulary. For `transform`, config contains `output`
+/// (JSON Schema) + `filter` (jaq expression). For `assert`, config contains
+/// `filter` (jaq boolean) + `error` message. For `validate`, config contains
+/// JSON Schema + coercion/failure settings. For action capabilities (persist,
+/// acquire, emit), the config contains a typed envelope with resource,
+/// data/params/payload (jaq filters), constraints, validate_success, and
+/// result_shape fields.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompositionStep {
     /// Which capability to invoke (must exist in vocabulary)
     pub capability: String,
 
     /// Configuration for this invocation.
-    /// For action capabilities: typed envelope with resource, data,
-    /// constraints, validate_success, result_shape.
-    /// For data capabilities: capability-specific config (e.g., schema
-    /// for validate, fields for reshape, expressions for evaluate).
+    /// For `transform`: `output` (JSON Schema) + `filter` (jaq expression).
+    /// For `assert`: `filter` (jaq boolean) + `error` message.
+    /// For `validate`: JSON Schema + coercion/failure config.
+    /// For action capabilities: typed envelope with resource, data/params/payload
+    /// (jaq filters), constraints, validate_success, result_shape.
     pub config: serde_json::Value,
 
-    /// Where this step's input comes from
+    /// How this step's input is resolved.
+    ///
+    /// **Revised model**: In the 6-capability model (see `transform-revised-grammar.md`),
+    /// explicit input mapping is superseded by the **composition context envelope**.
+    /// jaq filters access `.context` (task input), `.deps.{step_name}` (dependency
+    /// results), `.prev` (previous capability output), and `.step` (step metadata)
+    /// directly, making the `InputMapping` enum unnecessary. This field is retained
+    /// for backward compatibility with the original design sketch.
     pub input_mapping: InputMapping,
 
     /// Whether this is a checkpoint boundary.
@@ -493,6 +524,19 @@ pub struct CompositionStep {
 }
 
 /// How a composition step receives its input.
+///
+/// **Note**: This enum has been superseded by the **composition context envelope**
+/// model in `transform-revised-grammar.md`. In the revised model, jaq filters
+/// access the full composition context directly:
+/// - `.context` — task input data (replaces `TaskContext`)
+/// - `.deps.{step_name}` — dependency step results (replaces `StepOutput`)
+/// - `.prev` — previous capability invocation output (replaces `Previous`)
+/// - `.step` — step metadata (name, attempts, inputs)
+///
+/// This makes explicit input mapping unnecessary — the jaq filter itself
+/// determines what data it reads. The `Merged` variant is also superseded,
+/// since a jaq filter can freely reference `.context`, `.deps`, and `.prev`
+/// in a single expression.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum InputMapping {
@@ -549,8 +593,13 @@ impl CompositionValidator {
         // Each step's config is validated against its capability's config_schema
 
         // 3. Contract chaining
-        // Output schema of step N must be compatible with input schema of step N+1
-        // Uses the same JSON Schema compatibility logic as schema_comparator
+        // Output schema of step N must be compatible with input schema of step N+1.
+        // In the revised model (transform-revised-grammar.md), `transform` steps
+        // declare an `output` JSON Schema. The validator checks that `.prev`
+        // references in downstream jaq filters are compatible with the declared
+        // output schema of the preceding step. This replaces the ad-hoc inference
+        // that was needed when each capability had its own bespoke config format.
+        // Uses the same JSON Schema compatibility logic as schema_comparator.
 
         // 4. Checkpoint coverage
         // Every mutating capability must be a checkpoint boundary
@@ -574,7 +623,9 @@ impl CompositionValidator {
         // Each category's composition_constraints() are checked
 
         // 7. Input mapping resolution
-        // Every input_mapping resolves to an available data source
+        // Every input_mapping resolves to an available data source.
+        // In the revised model, this becomes: validate that jaq filter references
+        // to .context, .deps.{name}, and .prev resolve to declared data sources.
 
         CompositionValidationReport { findings, valid: !has_errors(&findings) }
     }
@@ -603,8 +654,10 @@ pub struct CompositionCheckpoint {
     pub step_output: serde_json::Value,
 
     /// Accumulated outputs from all completed steps, indexed by step position.
-    /// Needed for InputMapping::StepOutput and InputMapping::Merged
-    /// that reference earlier (non-previous) steps.
+    /// In the original model, needed for InputMapping::StepOutput and
+    /// InputMapping::Merged. In the revised model (transform-revised-grammar.md),
+    /// this supports checkpoint resumption — restoring `.prev` from the last
+    /// completed capability invocation's output.
     pub all_step_outputs: HashMap<usize, serde_json::Value>,
 
     /// Whether the completed step was a mutation
@@ -616,7 +669,7 @@ On resume after failure:
 1. The `CompositionExecutor` loads the checkpoint
 2. Skips steps 0..=`completed_step_index`
 3. Feeds `step_output` as input to step `completed_step_index + 1`
-4. Uses `all_step_outputs` for `StepOutput` and `Merged` input mappings
+4. Uses `all_step_outputs` if needed for non-linear data references
 5. Continues execution from there
 
 This means non-mutating steps before a mutation are re-executed on retry (they're idempotent, so this is safe), while mutating steps that checkpointed are skipped. The checkpoint boundary is the resume point.
@@ -704,9 +757,9 @@ Dynamic library loading could be added later if demand warrants it — the trait
 
 ## Open Questions
 
-1. **Should compositions support conditional steps?** (If condition X from a previous step's output, skip this step.) This adds complexity but enables more expressive compositions without requiring separate Tasker steps.
+1. **~~Should compositions support conditional steps?~~** Resolved. jaq handles field/value-level conditionals via `if-elif-else` within `transform` filters. Execution gating (proceed or fail the composition) is handled by `assert` capability steps with jaq boolean filters. See [`transform-revised-grammar.md`](transform-revised-grammar.md).
 
-2. **How should the `Merged` input mapping work?** When a step needs data from multiple sources, how is the merge performed? JSON merge-patch? Deep merge? Explicit field mapping?
+2. **~~How should the `Merged` input mapping work?~~** Superseded. The composition context envelope provides `.context`, `.deps.{step_name}`, `.prev`, and `.step` — jaq filters access all of these directly in a single expression, eliminating the need for explicit input mapping. See [`transform-revised-grammar.md`](transform-revised-grammar.md).
 
 3. **Should the `GrammarActionResolver` cache validated compositions?** Inline compositions (`grammar:inline`) require validation on every resolution. Caching valid compositions by content hash would improve performance for repeated template executions.
 
@@ -718,4 +771,4 @@ Dynamic library loading could be added later if demand warrants it — the trait
 
 ---
 
-*This proposal should be read alongside `actions-traits-and-capabilities.md` for the architectural rationale, `composition-validation.md` for JSON Schema contract chaining mechanics, `checkpoint-generalization.md` for the checkpoint integration design, `virtual-handler-dispatch.md` for how the composition executor integrates with the worker dispatch infrastructure, and `phase-0-completion-assessment.md` for the current state of the system.*
+*This proposal should be read alongside `actions-traits-and-capabilities.md` for the architectural rationale, `transform-revised-grammar.md` for the 6-capability model with jaq filters and composition context envelope, `composition-validation.md` for JSON Schema contract chaining mechanics, `checkpoint-generalization.md` for the checkpoint integration design, `virtual-handler-dispatch.md` for how the composition executor integrates with the worker dispatch infrastructure, and `phase-0-completion-assessment.md` for the current state of the system.*

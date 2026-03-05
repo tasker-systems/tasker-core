@@ -1318,12 +1318,21 @@ The three action capabilities express all side-effecting operations through the 
 | check_refund_policy | Split: virtual handler asserts preconditions + routes approval; domain handler evaluates policy window (organization-specific) |
 | execute_refund_workflow | Cross-namespace delegation — orchestration concern |
 | get_manager_approval | Single conditional branch — too simple for composition |
-| All decision handlers | Runtime step creation — outside grammar scope |
-| All batch analyzers | Dynamic step creation — outside grammar scope |
-| All batch workers | Cursor/checkpoint lifecycle — different execution model |
-| All aggregators | Scenario detection + multi-parent aggregation — tightly coupled to batch lifecycle |
 
-**The dividing line is clear**: handlers whose internal logic can be fully expressed as sequences of (action, resource, context) triples are grammar-composable. Handlers containing opaque domain operations — where the "how" cannot be parameterized through a generic configuration surface — remain as traditional domain handler code.
+### Composable via Virtual Handler Wrappers
+
+| Handler Category | Wrapper Type | Grammar Expresses | Wrapper Provides |
+|------------------|-------------|-------------------|------------------|
+| All decision handlers | `DecisionCompositionHandler` | Routing logic as JSON (`route`, `steps`) | Translation to `DecisionPointOutcome` |
+| All batch analyzers | `BatchAnalyzerCompositionHandler` | Partitioning logic as JSON (`batch_size`, `worker_count`, `cursors`) | Translation to `BatchProcessingOutcome` |
+| All batch workers (per-chunk body) | `BatchWorkerCompositionHandler` | Per-chunk transform/persist composition | Cursor iteration + checkpoint_yield lifecycle |
+| Aggregators (WithBatches path) | `CompositionHandler` (standard) | Multi-parent merge + metric derivation | Already expressible as standard composition |
+
+Note: aggregator scenario detection (NoBatches vs WithBatches routing) remains outside grammar scope — this is an orchestration concern. The WithBatches aggregation path itself, which merges batch results and derives summary metrics, is already expressible as a standard composition (see `advanced-patterns.md`).
+
+The virtual handler wrapper pattern extends grammar's reach to decision, batch analyzer, and batch worker steps without compromising grammar purity. The grammar composition produces JSON matching a declared output schema; the wrapper in `tasker-worker` translates that JSON to the appropriate orchestration protocol type (`DecisionPointOutcome`, `BatchProcessingOutcome`, etc.). The `tasker-grammar` crate remains entirely unaware of orchestration types. See `transform-revised-grammar.md` §"Open Design: Decision and Batch Outcome Expression" for the full wrapper architecture.
+
+**The dividing line**: handlers whose internal logic can be fully expressed as sequences of (action, resource, context) triples are grammar-composable via `CompositionHandler`. Handlers whose *output* must be orchestration protocol types are *also* composable when a virtual handler wrapper provides the protocol translation — the grammar expresses the logic, the wrapper bridges to the protocol. Handlers containing irreducibly opaque domain operations — where the "how" cannot be parameterized through a generic configuration surface — remain as traditional domain handler code.
 
 ---
 

@@ -14,7 +14,7 @@
 
 ## Phase 1: Grammar Primitives & Independent Testing
 
-*Goal: Implement the 9 core capabilities, prove they compose correctly, and validate the expression language — all without touching the worker lifecycle.*
+*Goal: Implement the 6 core capabilities (transform, validate, assert, persist, acquire, emit), prove they compose correctly, and validate the jaq-core expression language — all without touching the worker lifecycle.*
 
 This phase produces a standalone `tasker-grammar` crate — a new workspace member with no dependencies on `tasker-worker`, `tasker-orchestration`, or database/messaging infrastructure. The grammar system is a distinct responsibility: expression evaluation, capability execution, composition validation, and composition execution are all pure data transformations that operate on `serde_json::Value` inputs and produce `Value` outputs. The crate can be tested with `cargo test` against pure data — no database, no messaging, no workers.
 
@@ -30,7 +30,7 @@ This phase produces a standalone `tasker-grammar` crate — a new workspace memb
 tasker-grammar (new)          ← pure data transformation library
   ├── types/                  ← GrammarCategory, CapabilityDeclaration, CompositionSpec
   ├── expression/             ← ExpressionEngine (jaq-core wrapper, sandboxing)
-  ├── capabilities/           ← 9 capability executors (validate, reshape, compute, ...)
+  ├── capabilities/           ← 6 capability executors (transform, validate, assert, persist, acquire, emit)
   ├── validation/             ← CompositionValidator (contract chaining, schema checks)
   └── executor/               ← CompositionExecutor (standalone, not StepHandler)
 
@@ -44,7 +44,7 @@ tasker-sdk                    ← depends on tasker-grammar
 
 ### 1A: Expression Language Integration — jaq-core (Sequential — blocks 1B)
 
-**Decision**: Use `jaq-core` as the unified expression language for all grammar capabilities.
+**Decision (finalized)**: Use `jaq-core` as the unified expression language for all grammar capabilities. This decision is confirmed — see `transform-revised-grammar.md` for how jaq-core integration led to the 6-capability model.
 
 jq syntax is widely adopted, well-understood, and provides a single consistent language for path traversal, data transformation, arithmetic, boolean logic, and aggregation. Rather than stitching together separate libraries for path selection (JSONPath), computation (evalexpr), and boolean evaluation (CEL), jq covers all three concerns natively. This eliminates the cognitive overhead of switching between expression syntaxes across capabilities and gives template authors one language to learn.
 
@@ -52,17 +52,17 @@ jq syntax is widely adopted, well-understood, and provides a single consistent l
 
 | Concern | jq Capability | Example |
 |---------|--------------|---------|
-| Path traversal (`reshape`) | Native | `.items[].price`, `.customer.address.city` |
-| Field projection (`reshape`) | Native | `{total: .subtotal + .tax, items: .line_items}` |
-| Arithmetic (`compute`) | Native | `.items | map(.price * .quantity) | add` |
-| Aggregation (`compute`) | Native | `[.records[] | .amount] | add`, `length` |
-| String construction (`compute`) | Native | `"Order \(.order_id) confirmed"` |
-| Boolean expressions (`evaluate`) | Native | `.amount > 1000 and .status == "pending"` |
-| Conditional selection (`evaluate`) | Native | `if .tier == "gold" then "priority" else "standard" end` |
+| Path traversal (`transform`) | Native | `.items[].price`, `.customer.address.city` |
+| Field projection (`transform`) | Native | `{total: .subtotal + .tax, items: .line_items}` |
+| Arithmetic (`transform`) | Native | `.items | map(.price * .quantity) | add` |
+| Aggregation (`transform`) | Native | `[.records[] | .amount] | add`, `length` |
+| String construction (`transform`) | Native | `"Order \(.order_id) confirmed"` |
+| Boolean expressions (`transform`) | Native | `.amount > 1000 and .status == "pending"` |
+| Conditional selection (`transform`) | Native | `if .tier == "gold" then "priority" else "standard" end` |
 | Assertions (`assert`) | Native | `.total == (.subtotal + .tax)`, `.items | length > 0` |
-| Rule matching (`evaluate_rules`) | Native | First-match over condition array |
+| Rule matching (`transform`) | Native | First-match via jq if-elif-else chains |
 | Payload construction (`emit`, `persist`) | Native | `{event_name: "order.confirmed", payload: {id: .order_id}}` |
-| Cross-step references | Convention | `.steps.validate_cart.total` or `.dependency_results.validate_cart.total` |
+| Cross-step references | Convention | `.deps.validate_cart.total`, `.prev.subtotal`, `.context.customer_id` |
 
 **jaq-core specifics**:
 - Pure Rust implementation (no C dependencies)
@@ -73,7 +73,7 @@ jq syntax is widely adopted, well-understood, and provides a single consistent l
 
 **The "overkill" concern and why it doesn't matter**:
 
-jq is more expressive than strictly necessary for any single capability. An author *could* write a `reshape` step that also performs computation, or a `compute` step that also restructures data. This blurs the semantic distinction between capabilities — but that distinction is a **convention for maintainability**, not an enforcement boundary. The grammar categories (Transform, Validate, Persist, etc.) provide structural guidance; the expression language provides power. If a template author writes a `reshape` that also computes, their composition still validates, still executes, and still produces the declared output schema. The "misuse" is a readability concern for the author, not a correctness concern for the system.
+jq is more expressive than strictly necessary for any single capability. With the 6-capability model (see `transform-revised-grammar.md`), the `transform` capability intentionally embraces this expressiveness — a single `transform` step can project fields, compute derived values, evaluate conditions, and match rules, all in one jaq filter. The grammar categories (Transform, Validate, Persist, etc.) provide structural guidance; the expression language provides power. Composition authors can choose whether to use one large `transform` or multiple focused ones — either way, the composition validates against the declared `output` schemas and produces the correct result.
 
 This is the same principle as any general-purpose language: you *can* write SQL in a single expression, but good practice separates concerns. Our MCP tooling and documentation guide authors toward clean separation; the grammar system doesn't need to enforce it.
 
@@ -85,22 +85,28 @@ jq filters can be complex. For grammar evaluation, we need:
 - **No I/O**: jq in `jaq-core` has no file/network access — it operates on in-memory `Value` only (safe by construction)
 - **Error propagation**: `jaq-core` produces structured errors on malformed filters — surfaceable in validation tooling
 
-**Cross-step data referencing convention**:
+**Cross-step data referencing convention — Composition Context Envelope**:
 
-When a capability expression references data from other steps, the composition executor assembles a context object:
+When a capability expression references data from other steps, the composition executor assembles a **composition context envelope** (see `transform-revised-grammar.md` for the full specification):
 
 ```json
 {
-  "input": { /* current step's resolved input */ },
-  "steps": {
-    "validate_cart": { /* step output */ },
-    "process_payment": { /* step output */ }
+  "context": { /* task.task.context — the original task input data */ },
+  "deps": {
+    "validate_cart": { "total": 99.99, "validated_items": [ ... ] },
+    "process_payment": { "payment_id": "pay_123" }
   },
-  "task": { /* task source_input */ }
+  "step": { "name": "create_order", "attempts": 1, "inputs": null },
+  "prev": null
 }
 ```
 
-Expressions reference this context naturally: `.input.items`, `.steps.validate_cart.total`, `.task.customer_id`. The `InputMapping` enum determines which subset is available to each step, but the expression syntax is always jq operating on a JSON value.
+- `.context` — the original task input data (immutable across invocations)
+- `.deps` — dependency step results keyed by step name (immutable across invocations)
+- `.step` — step metadata: name, attempt count, inputs (immutable across invocations)
+- `.prev` — output of the most recent capability invocation (`null` for the first; **updated after each invocation**)
+
+Expressions reference this context naturally: `.context.customer_id`, `.deps.validate_cart.total`, `.prev.subtotal`. The composition context envelope replaces the earlier `InputMapping` enum as the primary data-threading mechanism — jaq filters access whatever they need directly from the envelope.
 
 **Deliverables**:
 - Integrate `jaq-core` as a workspace dependency
@@ -141,16 +147,16 @@ CompositionSpec (data, serializable)
 
 CompositionStep
   ├── capability: String
-  ├── config: Value
-  ├── input_mapping: InputMapping
+  ├── config: Value              # capability-specific config (e.g., resource for persist)
+  ├── output: Option<Value>      # JSON Schema declaring output shape (required for transform)
+  ├── filter: Option<String>     # jaq expression (required for transform, assert)
   └── checkpoint: bool
 
-InputMapping (enum)
-  ├── Previous
-  ├── StepOutput { index: usize }
-  ├── TaskContext { path: String }
-  ├── Mapped { fields: Map<String, String> }
-  └── Merged { sources: Vec<InputMapping> }
+# NOTE: InputMapping is superseded by the composition context envelope.
+# Each capability invocation receives the full context (.context, .deps, .prev, .step)
+# and jaq filters handle data selection directly. InputMapping may be retained as a
+# lightweight validator hint but is no longer the primary data-threading mechanism.
+# See transform-revised-grammar.md for details.
 
 CapabilityExecutor (trait)
   ├── name() → &str
@@ -166,7 +172,9 @@ These types live in `tasker-grammar` and have zero runtime dependencies — pure
 
 ### 1C: Capability Executor Implementations (Parallelizable after 1B)
 
-Implement each of the 9 capability executors independently. Each executor is a pure function: `(input: Value, config: Value) → Result<Value>`. No database, no messaging, no worker context.
+Implement each of the 6 capability executors independently. Each executor is a pure function: `(input: Value, config: Value) → Result<Value>`. No database, no messaging, no worker context.
+
+> **Updated**: The original 9-capability model has been consolidated to 6 capabilities. `reshape`, `compute`, `evaluate`, and `evaluate_rules` are replaced by a single `transform` capability that uses jaq filters with JSON Schema output declarations. See `transform-revised-grammar.md` for the rationale.
 
 These can be developed in parallel by multiple contributors once the types from 1B and the `jaq-core` expression engine from 1A are in place.
 
@@ -174,20 +182,17 @@ These can be developed in parallel by multiple contributors once the types from 
 
 | Ticket | Capability | Complexity | Notes |
 |--------|-----------|------------|-------|
+| `TAS-xxx` | `transform` | Medium | jaq filter execution + JSON Schema output validation. Replaces reshape, compute, evaluate, evaluate_rules. |
 | `TAS-xxx` | `validate` | Medium | JSON Schema validation, coercion modes, partition (valid/invalid) |
-| `TAS-xxx` | `reshape` | Medium | Path-based field extraction/reorganization using chosen traversal library |
-| `TAS-xxx` | `compute` | Medium | Expression evaluation using chosen compute library |
-| `TAS-xxx` | `evaluate` | Low | Boolean expression evaluation (subset of compute) |
-| `TAS-xxx` | `assert` | Medium | Composable conditions with quantifiers (all/any/none) |
-| `TAS-xxx` | `evaluate_rules` | Medium | First-match/all-match rule engine |
+| `TAS-xxx` | `assert` | Medium | jaq boolean filter evaluation; gates execution (proceed or fail) |
 
 **Action capabilities** (side-effecting — but in this phase, tested with mocks/stubs):
 
 | Ticket | Capability | Complexity | Notes |
 |--------|-----------|------------|-------|
-| `TAS-xxx` | `persist` | High | Resource abstraction layer. Phase 1 tests with in-memory stub. |
-| `TAS-xxx` | `acquire` | High | Resource abstraction layer. Phase 1 tests with fixture data. |
-| `TAS-xxx` | `emit` | Medium | Domain event construction. Phase 1 tests event shape only, no actual publishing. |
+| `TAS-xxx` | `persist` | High | Resource abstraction layer + jaq data filter. Phase 1 tests with in-memory stub. |
+| `TAS-xxx` | `acquire` | High | Resource abstraction layer + jaq result filter. Phase 1 tests with fixture data. |
+| `TAS-xxx` | `emit` | Medium | Domain event construction + jaq payload filter. Phase 1 tests event shape only, no actual publishing. |
 
 Each capability ticket includes:
 - Executor implementation
@@ -203,10 +208,10 @@ The composition engine chains capabilities together, threading output → input 
 **Composition Validator** — Validates a `CompositionSpec` is well-formed without executing it:
 - Capability existence check (all referenced capabilities are registered)
 - Config validation (each step's config validates against capability's config_schema)
-- Contract chaining (producer output schema compatible with consumer input schema)
+- Contract chaining (`output` schemas on `transform` steps enable static analysis — the validator checks that each invocation's declared output schema is compatible with the next invocation's expected input, without executing jaq filters)
 - Checkpoint coverage (mutating capabilities have checkpoint markers)
-- Outcome convergence (final step output compatible with declared outcome_schema)
-- Input mapping resolution (all referenced sources are available)
+- Outcome convergence (final invocation's output schema compatible with declared outcome_schema)
+- jaq filter syntax validation (filters parse correctly)
 
 Reuses existing `schema_comparator` from `tasker-sdk`.
 
@@ -230,7 +235,7 @@ Identify and model 3 rich real-world workflows that exercise the full grammar vo
 
 Each workflow should:
 - Have 6-10 steps mixing virtual handlers and domain handlers
-- Exercise at least 5 of the 9 capabilities
+- Exercise at least 4 of the 6 capabilities
 - Include at least one `acquire` (external data), one `persist` (write), and one `emit` (event)
 - Represent a genuinely useful business process (not a toy example)
 - Include steps that clearly CANNOT be grammar-composed (domain handlers) to validate the boundary
@@ -239,9 +244,9 @@ Each workflow should:
 
 | Workflow | Domain | Grammar Steps | Domain Handler Steps | Key Capabilities Exercised |
 |----------|--------|--------------|---------------------|--------------------------|
-| **Invoice reconciliation** | Finance | validate invoices, reshape line items, compute totals, evaluate matching rules, assert balance, persist reconciliation record, emit reconciliation event | fetch invoices from AP system (acquire), match against PO system (domain — fuzzy matching logic), flag exceptions (domain — org-specific rules) | validate, reshape, compute, evaluate, assert, persist, emit, acquire |
-| **Customer onboarding pipeline** | SaaS/CRM | validate application data, reshape for internal format, evaluate eligibility rules, compute risk score inputs, persist customer record, emit welcome event | credit check (domain — third-party API), compliance screening (domain — regulatory rules), provision account (domain — platform-specific) | validate, reshape, evaluate, evaluate_rules, compute, persist, emit |
-| **Content moderation pipeline** | Platform | validate submission metadata, reshape content for analysis, evaluate auto-approve rules, assert policy compliance, compute moderation scores, persist moderation decision, emit moderation event | classify content (domain — ML model inference), detect prohibited content (domain — specialized detection), human review routing (domain — org-specific escalation) | validate, reshape, evaluate, evaluate_rules, assert, compute, persist, emit |
+| **Invoice reconciliation** | Finance | validate invoices, transform line items + compute totals + evaluate matching rules, assert balance, persist reconciliation record, emit reconciliation event | fetch invoices from AP system (acquire), match against PO system (domain — fuzzy matching logic), flag exceptions (domain — org-specific rules) | validate, transform, assert, persist, emit, acquire |
+| **Customer onboarding pipeline** | SaaS/CRM | validate application data, transform to internal format + evaluate eligibility + compute risk score inputs, persist customer record, emit welcome event | credit check (domain — third-party API), compliance screening (domain — regulatory rules), provision account (domain — platform-specific) | validate, transform, persist, emit |
+| **Content moderation pipeline** | Platform | validate submission metadata, transform for analysis + evaluate auto-approve rules + compute moderation scores, assert policy compliance, persist moderation decision, emit moderation event | classify content (domain — ML model inference), detect prohibited content (domain — specialized detection), human review routing (domain — org-specific escalation) | validate, transform, assert, persist, emit |
 
 Each workflow produces:
 - A complete `TaskTemplate` YAML with mixed virtual/domain handler steps
@@ -259,8 +264,8 @@ This ticket is research-heavy and can run in parallel with capability implementa
 With capabilities implemented and workflows modeled, build end-to-end composition tests that execute full workflow compositions against fixture data.
 
 These tests validate:
-- Multi-step chaining works correctly (validate → reshape → compute → persist)
-- Input mapping resolves correctly across steps (Previous, StepOutput, TaskContext, Mapped)
+- Multi-step chaining works correctly (validate → transform → persist)
+- Composition context envelope threads correctly across invocations (.context, .deps, .prev, .step)
 - Error propagation works (failure at step 3 of 5 produces clear diagnostics)
 - Checkpoint markers are respected (mutating steps produce checkpoint data)
 - The 3 modeled workflows execute correctly against their fixture data
@@ -278,7 +283,7 @@ No database, no workers, no messaging. Pure composition execution against test d
 1B (Core Type Definitions)
  │
  ├──→ 1C (Capability Executors) ──→ 1F (Integration Tests)
- │         [9 tickets, parallelizable]        ↑
+ │         [6 tickets, parallelizable]        ↑
  │                                            │
  ├──→ 1D (Composition Engine) ───────────────→│
  │         [validator + executor]              │
@@ -287,8 +292,8 @@ No database, no workers, no messaging. Pure composition execution against test d
            [3 workflows, parallel with 1C/1D]
 ```
 
-**Phase 1 Total**: ~15-17 tickets
-**Parallelism**: After 1A and 1B complete, up to 11 tickets can proceed in parallel (9 capabilities + validator + executor, with workflow modeling running alongside)
+**Phase 1 Total**: ~12-14 tickets
+**Parallelism**: After 1A and 1B complete, up to 8 tickets can proceed in parallel (6 capabilities + validator + executor, with workflow modeling running alongside)
 
 ---
 
@@ -315,16 +320,16 @@ Add composition-aware checks:
 - Contract chaining validates across capability boundaries
 - Checkpoint markers cover all mutating capabilities
 - `result_schema` on the step is compatible with the composition's outcome
-- Expression syntax is valid (paths parse, compute expressions parse, evaluate expressions parse)
-- Input mappings reference valid sources (step names that exist in the DAG, task context paths that are plausible)
+- jaq filter syntax is valid (all `filter` expressions parse correctly)
+- jaq filter context references resolve (`.deps.<name>` references existing dependency steps, `.prev` is valid for non-first invocations)
 
 This is the **formal correctness** check — syntactic and structural validity.
 
 | Ticket | Component | Complexity | Notes |
 |--------|-----------|------------|-------|
 | `TAS-xxx` | Composition-aware template validator | High | Extends existing tasker-sdk validation |
-| `TAS-xxx` | Expression syntax validation | Medium | Validates path/compute/evaluate expressions parse correctly |
-| `TAS-xxx` | Cross-step input mapping validation | Medium | Validates Mapped/Merged/StepOutput references resolve |
+| `TAS-xxx` | jaq filter syntax validation | Medium | Validates all jaq filter expressions parse correctly |
+| `TAS-xxx` | Composition context reference validation | Medium | Validates .prev, .deps, .context references resolve against available data |
 
 ### 2B: Capability Compatibility Checker (Parallel with 2A)
 
@@ -333,15 +338,15 @@ Beyond structural correctness, validate that compositions are **behaviorally com
 - Validate that `persist` config references a resource type the system knows about (database entity names, API endpoints)
 - Validate that `acquire` config references accessible data sources
 - Validate that `emit` config produces events compatible with registered domain event schemas
-- Validate that `compute` expressions are evaluable (variables referenced exist in input schema)
-- Validate that `evaluate` / `assert` / `evaluate_rules` conditions reference fields that exist
+- Validate that `transform` jaq filters reference fields that exist in the composition context or declared output schemas of prior invocations
+- Validate that `assert` jaq filters reference fields that exist in the composition context
 
 This is the **semantic compatibility** check — does the composition make sense given the system's actual capabilities?
 
 | Ticket | Component | Complexity | Notes |
 |--------|-----------|------------|-------|
 | `TAS-xxx` | Capability compatibility checker | High | Requires capability registry introspection |
-| `TAS-xxx` | Expression variable resolution checker | Medium | Validates expression variables against available schemas |
+| `TAS-xxx` | jaq filter field resolution checker | Medium | Validates jaq filter field references against available schemas |
 
 ### 2C: MCP & CLI Tool Integration (Parallel with 2A/2B)
 
@@ -564,7 +569,7 @@ Phase 3 (3C complete)
 
 ```
 Phase 1: Grammar Primitives & Independent Testing
-  │  ~15-17 tickets, high internal parallelism after 1A+1B
+  │  ~12-14 tickets, high internal parallelism after 1A+1B
   │
   ↓
 Phase 2: Validation Tooling & Confidence Building
@@ -580,7 +585,7 @@ Phase 4: Composition Queues & Orchestration
      ~5 tickets, high parallelism (4A and 4B parallel)
 ```
 
-**Total estimated tickets**: ~32-35
+**Total estimated tickets**: ~29-32
 
 ### What Can Be Parallelized Across Phases
 
@@ -594,7 +599,7 @@ Phase 4: Composition Queues & Orchestration
 
 | Dependency | Reason |
 |-----------|--------|
-| 1A → 1B → 1C | jaq-core integration provides the expression engine that type definitions reference and executor implementations depend on |
+| 1A → 1B → 1C | jaq-core integration provides the expression engine that type definitions reference and all 6 executor implementations depend on |
 | 1D → 2A | Composition validator logic feeds template-level validation |
 | Phase 2 confidence gate → Phase 3 | Worker integration should only proceed with validated grammar viability |
 | 3A → 3B/3C | StepDefinition extension must land before dispatch routing |
@@ -657,7 +662,7 @@ This means a 5-step composition does **not** incur 15 schema validations at runt
 
 | Phase | Gate | Measurement |
 |-------|------|-------------|
-| **1** | All 9 capability executors pass unit tests; 3 workflow compositions execute correctly against fixture data | `cargo make test-no-infra` passes all grammar tests |
+| **1** | All 6 capability executors pass unit tests; 3 workflow compositions execute correctly against fixture data | `cargo make test-no-infra` passes all grammar tests |
 | **2** | Template validation catches known-bad compositions with actionable errors; 3 workflow templates validate cleanly | `tasker-ctl composition validate` exits 0 for valid, non-zero with clear messages for invalid |
 | **3** | Virtual handler steps execute through worker lifecycle; dependency resolution works across virtual/domain handler boundaries | `cargo make test-rust-e2e` passes with mixed-handler TaskTemplates |
 | **4** | Composition-only workers claim and execute virtual handler steps from composition queues; routing precedence works correctly | `cargo make test-rust-cluster` passes with composition queue routing |

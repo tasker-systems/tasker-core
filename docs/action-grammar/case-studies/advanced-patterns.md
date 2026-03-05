@@ -146,14 +146,11 @@ compose:
         else {route: "dual_approval", steps: ["manager_approval", "finance_review"]} end
 ```
 
-**But there's a problem**: The output must be a `DecisionPointOutcome` that the orchestrator understands — it's a protocol type, not a domain result. The composition executor would need special handling for decision-point steps: the final output must be translated into the `create_steps` protocol.
+**The key insight**: The output must be a `DecisionPointOutcome` that the orchestrator understands — it's a protocol type, not a domain result. But the grammar doesn't need to produce that type directly. Instead, a `DecisionCompositionHandler` wrapper in `tasker-worker` bridges the gap: the grammar composition produces a plain JSON object with `route` and `steps` fields, and the wrapper translates that into `DecisionPointOutcome::create_steps()`.
 
-**Options**:
-1. **Dedicated grammar**: A `Decide` grammar category whose outcome type is `DecisionPointOutcome`. The composition executor knows that `Decide` grammars produce step creation instructions.
-2. **Adapter capability**: A final `emit_decision` capability that wraps the rule evaluation output in the decision protocol.
-3. **Stay as domain handlers**: Decision handlers are tightly coupled to the orchestrator protocol. Keep them as domain handler code.
+The grammar remains pure — it knows nothing about `DecisionPointOutcome` or any orchestration types. It produces `serde_json::Value` matching the declared `output` schema. The wrapper, which implements `StepHandler`, knows the step is a decision point (from `StepDefinition.step_type`) and handles the protocol translation.
 
-**Recommendation**: Option 3 for now. Decision routing logic is simple (threshold checks) and tightly bound to Tasker's step creation protocol. The value of grammar composition is low here. A future `Decide` grammar category could revisit this when the decision patterns become more complex.
+**Assessment**: This is a composition candidate via the `DecisionCompositionHandler` wrapper. The routing logic (threshold checks, multi-input comparisons) is exactly what `transform` with jaq `if-then-elif-else` expresses well. The orchestration protocol mechanics stay in the Rust wrapper — a thin translation from JSON fields to Rust struct fields. See `transform-revised-grammar.md`, "Open Design: Decision and Batch Outcome Expression" for the full design.
 
 ---
 
@@ -225,9 +222,7 @@ compose:
 
 ### Grammar Proposal
 
-**Not a composition candidate.** Like decision handlers, batch analyzers produce orchestrator protocol types (`BatchProcessingOutcome`). The cursor calculation logic is specific to Tasker's batch system. Batch cursor calculation stays outside grammar scope — the (action, resource, context) triple cannot be deterministically expressed because the output is an orchestrator protocol type, not a domain result.
-
-A hypothetical composition would use `transform` for the arithmetic:
+This is a composition candidate via the `BatchAnalyzerCompositionHandler` wrapper. Like decision handlers, batch analyzers produce orchestrator protocol types (`BatchProcessingOutcome`). But the grammar doesn't need to produce that type directly — it expresses the partitioning logic as plain JSON, and the wrapper translates it into `BatchProcessingOutcome::create_batches()`.
 
 ```yaml
 grammar: Transform
@@ -235,16 +230,35 @@ compose:
   - capability: transform
     output:
       type: object
-      required: [worker_count]
+      required: [batch_size, worker_count, cursors]
       properties:
+        batch_size: { type: integer }
         worker_count: { type: integer }
+        cursors:
+          type: array
+          items:
+            type: object
+            properties:
+              start: { type: integer }
+              end: { type: integer }
     filter: |
-      .context as $c
-      | (($c.dataset_size / $c.batch_size) | ceil) as $needed
-      | {worker_count: ([$needed, $c.max_workers] | min)}
+      .context as $ctx
+      | ($ctx.dataset_size / $ctx.batch_size | ceil) as $num_batches
+      | [limit($num_batches; range(0; $num_batches))]
+      | map({
+          start: (. * $ctx.batch_size),
+          end: ([(. + 1) * $ctx.batch_size, $ctx.dataset_size] | min)
+        })
+      | {
+          batch_size: $ctx.batch_size,
+          worker_count: ([length, $ctx.max_workers] | min),
+          cursors: .
+        }
 ```
 
-But the result must be a `BatchProcessingOutcome` with cursor configs — an orchestrator protocol type that grammar compositions cannot produce. If different batch strategies existed (fixed-size batches, count-based batches, key-range partitioning), a dedicated grammar category (like the hypothetical `Decide` grammar for decisions) could revisit this. For now, batch analyzers should stay as domain handlers.
+The `BatchAnalyzerCompositionHandler` wrapper in `tasker-worker` takes this JSON output and constructs the `BatchProcessingOutcome::create_batches()` call with the cursor configs. The grammar computes the partitioning arithmetic (batch count, cursor ranges, worker count capping); the wrapper handles the orchestrator protocol. See `transform-revised-grammar.md`, "Open Design: Decision and Batch Outcome Expression" for the full design.
+
+**Assessment**: The cursor partitioning logic — division, ceiling, range generation, min-capping — is a natural fit for `transform` with jaq. Different batch strategies (fixed-size, count-based, key-range partitioning) could share the same wrapper with different grammar compositions. This makes batch partitioning configurable without writing new Rust handler code.
 
 ### BatchWorkerHandler (Batch Worker)
 
@@ -257,7 +271,44 @@ But the result must be a `BatchProcessingOutcome` with cursor configs — an orc
 
 ### Grammar Proposal
 
-Not a composition candidate. Batch workers have their own execution lifecycle (cursor iteration, checkpoint yield, resume from checkpoint) that is fundamentally different from composition's sequential capability chain. The handler loop (`while cursor < end`) is stateful iteration, not a sequence of discrete capabilities.
+This is a composition candidate via the `BatchWorkerCompositionHandler` wrapper. Batch workers have their own execution lifecycle (cursor iteration, checkpoint yield, resume from checkpoint) that is fundamentally different from composition's sequential capability chain. The handler loop (`while cursor < end`) is stateful iteration, not a sequence of discrete capabilities.
+
+**The architectural split**: The wrapper provides the loop, checkpoint management, and chunk extraction. The grammar composition provides the per-chunk body — it receives `.chunk` in its context and handles transform/persist for that chunk. It doesn't know it's inside a batch loop.
+
+```yaml
+# The per-chunk composition — called once per chunk by the wrapper
+compose:
+  - capability: transform
+    output:
+      type: object
+      required: [processed_records]
+      properties:
+        processed_records:
+          type: array
+          items: { type: object }
+        processed_count: { type: integer }
+    filter: |
+      .chunk
+      | map(. + {processed: true, processed_at: now | todate})
+      | {processed_records: ., processed_count: length}
+
+  - capability: persist
+    config:
+      resource: { ref: "analytics-db", entity: processed_records }
+      constraints: { batch_insert: true }
+    data: |
+      .prev.processed_records
+    checkpoint: true
+```
+
+The `BatchWorkerCompositionHandler` wrapper manages:
+- Cursor iteration and chunk extraction (feeds `.chunk` into the composition context)
+- Checkpoint save/restore via `CheckpointService`
+- `checkpoint_yield()` calls at configurable chunk boundaries
+- Accumulated result tracking across chunks
+- The final `StepExecutionResult` with batch metrics
+
+**Assessment**: The per-chunk logic (which is often "transform this subset of records and persist the results") becomes grammar-composable, while the batch lifecycle stays in Rust wrapper code. This is valuable when per-chunk logic is configurable (different transform rules, different persist targets). Domain-specific batch workers with opaque per-chunk logic (e.g., ML model inference per batch) would still use traditional handlers. See `transform-revised-grammar.md`, "Batch Worker Compositions: Wrapper Around Grammar" for the full design.
 
 ### ResultsAggregatorHandler (Deferred Convergence)
 
@@ -312,13 +363,15 @@ compose:
 
 ### Grammar Proposal
 
-**Not a composition candidate.** The handler's core logic is a stateful loop with checkpoint yields *within* the loop. Grammar compositions checkpoint *between* capabilities (discrete steps), not within a capability's iteration. The checkpoint yield pattern is fundamentally about intra-handler state management, which is orthogonal to composition's inter-capability state management.
+**The checkpoint yield mechanism itself is not a composition candidate.** The handler's core logic is a stateful loop with checkpoint yields *within* the loop. Grammar compositions checkpoint *between* capabilities (discrete steps), not within a capability's iteration. The checkpoint yield pattern is fundamentally about intra-handler state management, which is orthogonal to composition's inter-capability state management.
+
+However, the `BatchWorkerCompositionHandler` wrapper addresses this gap: the wrapper owns the loop and checkpoint_yield mechanics, while the grammar composition provides the per-chunk processing logic (see BatchWorkerHandler section above). The per-chunk logic — which is where most of the configurable business rules live — becomes grammar-composable. The checkpoint yield calls, cursor management, and resume-from-checkpoint behavior stay in the Rust wrapper.
 
 **What this confirms**: Composition checkpointing (from `checkpoint-generalization.md`) and batch worker checkpointing serve different needs:
 - Composition checkpoint: "I completed capability 3 of 5, save my progress"
 - Batch worker checkpoint: "I processed 50 of 200 items in this batch, save my cursor"
 
-Both use the same `CheckpointService` infrastructure, but the execution models are distinct.
+Both use the same `CheckpointService` infrastructure, but the execution models are distinct. The `BatchWorkerCompositionHandler` wrapper bridges these two worlds — it uses batch worker checkpoints at the loop level, while the composition running inside each iteration can independently use composition checkpoints between its capabilities.
 
 ---
 
@@ -376,7 +429,7 @@ This would test composition retry behavior: the second capability (an `assert` g
 
 ### Grammar Proposal
 
-Same as the standalone decision handler — decision protocol output keeps this outside grammar scope. But the *input reshaping and routing logic* is exactly what `transform` expresses well:
+Same as the standalone decision handler — this is a composition candidate via the `DecisionCompositionHandler` wrapper. The *input reshaping and routing logic* is exactly what `transform` expresses well:
 
 ```yaml
 compose:
@@ -393,7 +446,7 @@ compose:
         else {route: "odd", steps: ["odd_batch_analyzer"]} end
 ```
 
-The composition *expresses* the logic well — what was previously a `reshape` + `evaluate_rules` two-step chain becomes a single `transform` since jaq combines projection, comparison, and conditional logic in one filter. The issue is only the output protocol requirement.
+The composition expresses the logic well — what was previously a `reshape` + `evaluate_rules` two-step chain becomes a single `transform` since jaq combines projection, comparison, and conditional logic in one filter. The `DecisionCompositionHandler` wrapper handles the output protocol translation, making this fully composable.
 
 ---
 
@@ -408,26 +461,29 @@ From the handler survey, handlers fall into four complexity bands:
 | **Trivial** (1 op) | Single arithmetic or assignment | Math steps, auto-approve, assertions | **None** — composition adds overhead |
 | **Simple** (2-3 ops) | Validate + transform, or project + compute | Branch handlers, simple approval | **Low** — handler is already clear |
 | **Moderate** (4-6 ops) | Multi-step validation, aggregation, rule evaluation | Cart validation, insights, policy checks | **Medium** — composition enables configurability |
-| **Complex** (7+ ops) | Stateful loops, multi-source aggregation, checkpoint management | Batch workers, convergence handlers | **Low** — execution model doesn't fit |
+| **Complex** (7+ ops) | Stateful loops, multi-source aggregation, checkpoint management | Batch workers, convergence handlers | **Medium** — per-chunk logic composable via wrapper; lifecycle stays in Rust |
 
 ### The Sweet Spot
 
 Grammar compositions add the most value for **moderate-complexity handlers** where:
 1. Internal logic follows a recognizable pattern (validate → transform → persist)
 2. The steps are configurable (different rules, different thresholds, different schemas)
-3. The handler doesn't need special orchestrator protocol interactions
+3. The handler either produces domain results directly, or its orchestrator protocol interactions can be handled by a virtual handler wrapper
 4. The operations are individually useful as vocabulary capabilities
 
 ### What Stays Outside Grammar Scope
 
-| Pattern | Why Outside |
-|---------|------------|
-| Decision point step creation | Orchestrator protocol output — (action, resource, context) cannot be deterministically expressed |
-| Batch cursor calculation | Orchestrator protocol output — (action, resource, context) cannot be deterministically expressed |
-| Checkpoint yield within loops | Intra-handler stateful iteration — not a discrete capability chain |
-| Deferred convergence detection | Orchestrator batch lifecycle — scenario branching is protocol-specific |
-| Cross-namespace delegation | Orchestration coordination — not a domain data operation |
-| Single-operation domain handlers | Composition adds ceremony without value |
+| Pattern | Status |
+|---------|--------|
+| Decision point step creation | **Composable via `DecisionCompositionHandler` wrapper** — grammar produces JSON, wrapper translates to `DecisionPointOutcome` |
+| Batch cursor calculation | **Composable via `BatchAnalyzerCompositionHandler` wrapper** — grammar produces JSON, wrapper translates to `BatchProcessingOutcome` |
+| Batch worker per-chunk logic | **Composable via `BatchWorkerCompositionHandler` wrapper** — wrapper provides loop/checkpoint, grammar provides per-chunk body |
+| Checkpoint yield mechanism | Still outside — the yield calls and cursor management stay in the wrapper; per-chunk logic is composable |
+| Deferred convergence detection | Still outside — orchestrator batch lifecycle scenario branching is protocol-specific |
+| Cross-namespace delegation | Still outside — orchestration coordination, not a domain data operation |
+| Domain-specific opaque batch logic | Still outside — e.g., ML inference per batch, where per-chunk logic is not expressible as transform/persist |
+| Single-operation domain handlers | Still outside — composition adds ceremony without value |
+| Virtual handler wrapper implementations | Always outside — Rust code in `tasker-worker` that owns the orchestrator protocol bridge |
 
 ### Capabilities That Emerged from Test Fixtures
 
@@ -439,6 +495,23 @@ Grammar compositions add the most value for **moderate-complexity handlers** whe
 
 The side-effecting capabilities (`persist`, `acquire`, `emit`) did not surface in the test fixture handlers — these fixtures focus on orchestration mechanics (DAG topology, decision routing, batch lifecycle) rather than domain data operations. The contrib case studies (`workflow-patterns.md`) exercise the full 6-capability vocabulary.
 
+### Virtual Handler Wrapper Types
+
+The virtual handler wrapper pattern extends grammar's reach beyond standard steps into orchestrator-protocol step types. Rather than a single executor that branches on step type, the model uses a **family of wrapper `StepHandler` implementations** in `tasker-worker`:
+
+| Wrapper | Step Type | What the Grammar Produces | What the Wrapper Handles |
+|---------|-----------|--------------------------|--------------------------|
+| `CompositionHandler` | Standard | Domain result as JSON | Return as `StepExecutionResult` |
+| `DecisionCompositionHandler` | Decision | `{route, steps}` JSON | Translate to `DecisionPointOutcome::create_steps()` |
+| `BatchAnalyzerCompositionHandler` | Batchable | `{batch_size, worker_count, cursors}` JSON | Translate to `BatchProcessingOutcome::create_batches()` |
+| `BatchWorkerCompositionHandler` | Batch Worker | Per-chunk transform/persist result | Cursor loop, checkpoint_yield, chunk extraction, metrics |
+
+Each wrapper implements `StepHandler` and is registered via the normal handler resolution path. The `HandlerDispatchService` treats them identically to domain handlers — it calls `handler.call(step)` and gets back the appropriate result type.
+
+The `tasker-grammar` crate remains pure — it produces `serde_json::Value` matching a declared output schema and knows nothing about orchestration types. The translation layer is thin and lives at the crate boundary where `tasker-worker` already depends on both `tasker-grammar` and `tasker-shared`.
+
+This pattern means that grammar compositions can express the data logic for *all four* Tasker step types, not just standard steps. The grammar handles "what to compute"; the wrapper handles "how to present it to the orchestrator." See `transform-revised-grammar.md`, "Open Design: Decision and Batch Outcome Expression" for the full design.
+
 ### Impact of the Transform Unification
 
 The move from 9 capabilities to 6 has a notable effect on the test fixture proposals:
@@ -447,9 +520,10 @@ The move from 9 capabilities to 6 has a notable effect on the test fixture propo
 2. **Decision logic simplifies**: What was `evaluate_rules` with a bespoke rule engine config becomes a `transform` with jaq `if-then-elif-else` — no custom rule syntax to learn.
 3. **Aggregation simplifies**: What was `reshape` (flatten) + `compute` (sum) becomes a single `transform` using jaq's native `group_by`, `add`, and array operations.
 4. **Input mapping disappears**: The old `input_mapping: { type: task_context }` / `{ type: previous }` / `{ type: merged }` configuration is replaced by jaq's direct access to `.context`, `.deps`, `.prev`, and `.step` — the data routing is in the expression itself, not a separate config field.
+5. **Wrapper pattern extends reach**: The virtual handler wrapper types mean that decision routing, batch partitioning, and per-chunk batch processing — previously marked as "outside grammar scope" — are now composition candidates. The grammar expresses the data logic; the wrapper bridges to the orchestrator protocol.
 
-The net effect: compositions are shorter, the capability vocabulary is smaller, and the expression language is a well-documented standard (jq) rather than a bespoke DSL.
+The net effect: compositions are shorter, the capability vocabulary is smaller, the expression language is a well-documented standard (jq) rather than a bespoke DSL, and the grammar's applicability extends to all four Tasker step types via the wrapper pattern.
 
 ---
 
-*This case study should be read alongside `workflow-patterns.md` for the contrib handler grammar proposals, `transform-revised-grammar.md` for the 6-capability model design, `grammar-trait-boundary.md` for the trait design, and `checkpoint-generalization.md` for the composition vs. batch checkpoint distinction.*
+*This case study should be read alongside `workflow-patterns.md` for the contrib handler grammar proposals, `transform-revised-grammar.md` for the 6-capability model design and the virtual handler wrapper pattern (see "Open Design: Decision and Batch Outcome Expression"), `grammar-trait-boundary.md` for the trait design, and `checkpoint-generalization.md` for the composition vs. batch checkpoint distinction.*
