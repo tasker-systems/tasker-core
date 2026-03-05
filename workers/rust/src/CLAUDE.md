@@ -8,10 +8,4 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #5426 | 2:14 PM | 🔵 | Rust Worker Library Documentation | ~514 |
-
-### Feb 16, 2026
-
-| ID | Time | T | Title | Read |
-|----|------|---|-------|------|
-| #7640 | 12:40 AM | 🔵 | Rust Worker as Native Performance Demonstration | ~467 |
 </claude-mem-context>

@@ -131,7 +131,8 @@ if changes_match '^\.github/|^cargo-make/|^Makefile\.toml$'; then
 fi
 
 # Config changes (broad impact)
-if changes_match '^config/|^Cargo\.(toml|lock)$|^\.env'; then
+# Use code_changes_match so .md files under config/ don't trigger builds
+if code_changes_match '^config/' || changes_match '^Cargo\.(toml|lock)$|^\.env'; then
     HAS_CONFIG=true
 fi
 
