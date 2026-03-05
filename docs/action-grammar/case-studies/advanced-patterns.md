@@ -2,13 +2,21 @@
 
 *Expressing test fixture handler logic as grammar compositions, and identifying orchestration boundaries*
 
-*March 2026 — Research Spike*
+*March 2026 — Research Spike (revised for 6-capability model)*
 
 ---
 
 ## Approach
 
 The `tests/fixtures/` handlers test Tasker's core orchestration features — mathematical DAGs, decision routing, batch processing, checkpoint resumption. Many are deliberately simple (single-operation handlers for verifiable math). This case study evaluates each handler's internal logic for grammar expressibility, and draws sharper lines around what grammars can and cannot represent.
+
+With the adoption of **jaq-core** as the unified expression language, the original 9-capability model has been refined to 6 capabilities. The pure data capabilities (`reshape`, `compute`, `evaluate`, `evaluate_rules`, `group_by`, `rank`) all collapse into a single `transform` capability — jaq natively expresses projection, arithmetic, boolean derivation, and conditional logic in one filter expression. The remaining capabilities are `validate` (JSON Schema trust boundary), `assert` (execution gate), `persist` (write), `acquire` (read), and `emit` (domain event). See `transform-revised-grammar.md` for the full design rationale.
+
+**Input data convention**: All jaq filters operate on the composition context envelope:
+- `.context` — the task's original input data
+- `.deps.{step_name}` — upstream workflow step dependency results
+- `.prev` — output of the previous capability invocation within this composition
+- `.step` — minimal step metadata (name, attempts, inputs)
 
 ---
 
@@ -29,12 +37,14 @@ All mathematical handlers follow one pattern: extract input → apply arithmetic
 ```yaml
 grammar: Transform
 compose:
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive: { result: "value ^ 2" }
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [result]
+      properties:
+        result: { type: number }
+    filter: |
+      { result: (.context.value | . * .) }
 ```
 
 **Two-input convergence** (DiamondEnd, DagValidate):
@@ -42,17 +52,16 @@ compose:
 ```yaml
 grammar: Transform
 compose:
-  - capability: reshape
-    config:
-      fields:
-        a: "branch_b.result"
-        b: "branch_c.result"
-    input_mapping: { type: task_context }
-
-  - capability: compute
-    config:
-      formula: "(a * b) ^ 2"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [result]
+      properties:
+        result: { type: number }
+    filter: |
+      .deps.branch_b.result as $a | .deps.branch_c.result as $b
+      | ($a * $b) as $prod
+      | { result: ($prod * $prod) }
 ```
 
 **Four-input convergence** (TreeFinalConvergence):
@@ -60,61 +69,49 @@ compose:
 ```yaml
 grammar: Transform
 compose:
-  - capability: reshape
-    config:
-      fields:
-        d: "leaf_d.result"
-        e: "leaf_e.result"
-        f: "leaf_f.result"
-        g: "leaf_g.result"
-    input_mapping: { type: task_context }
-
-  - capability: compute
-    config:
-      formula: "(d * e * f * g) ^ 2"
-      precision: arbitrary  # BigUint needed for large numbers
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [result]
+      properties:
+        result: { type: number }
+    filter: |
+      .deps.leaf_d.result as $d | .deps.leaf_e.result as $e
+      | .deps.leaf_f.result as $f | .deps.leaf_g.result as $g
+      | ($d * $e * $f * $g) as $prod
+      | { result: ($prod * $prod) }
 ```
+
+Note: The `precision: arbitrary` concern from the original proposal remains relevant — jaq operates on JSON numbers (IEEE 754 double-precision). For the very large numbers these DAG fixtures produce, a BigUint-aware computation would need a custom jaq function or a traditional handler. This is a known limitation of the expression language approach for arbitrary-precision math.
 
 **Triple convergence with verification** (DagFinalize):
 
 ```yaml
 grammar: Transform
 compose:
-  - capability: reshape
-    config:
-      fields:
-        validate: "dag_validate.result"
-        transform: "dag_transform.result"
-        analyze: "dag_analyze.result"
-    input_mapping: { type: task_context }
-
-  - capability: compute
-    config:
-      formula: "(validate * transform * analyze) ^ 2"
-      overflow_handling: saturate
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [computed, original]
+      properties:
+        computed: { type: number }
+        original: { type: number }
+    filter: |
+      .deps.dag_validate.result as $v | .deps.dag_transform.result as $t
+      | .deps.dag_analyze.result as $a
+      | ($v * $t * $a) as $prod
+      | { computed: ($prod * $prod), original: .context.even_number }
 
   - capability: assert
-    config:
-      conditions:
-        result_matches_expected:
-          expr: "computed == original ^ 64"
-      quantifier: all
-      on_failure: fail
-      original_source: task_context.even_number
-    input_mapping:
-      type: merged
-      sources:
-        - { type: step_output, index: 1 }
-        - { type: task_context }
+    filter: '.prev.computed == (.prev.original | pow(.; 64))'
+    error: "Verification failed: computed result does not match original^64"
 ```
 
 ### Assessment
 
-**Are these good composition candidates?** No. Each mathematical handler is a single operation — the composition adds ceremony without value. The `reshape` + `compute` pattern is two capabilities for what is one line of code in a handler function.
+**Are these good composition candidates?** No. Each mathematical handler is a single operation — the composition adds ceremony without value. A single `transform` is one capability for what is one line of code in a handler function.
 
-**What they *do* validate**: The grammar system must handle multi-input convergence (reshaping 2, 3, or 4 dependency results into a single structure) and arbitrary-precision arithmetic. The `reshape` + `compute` pattern works structurally, even if these specific handlers don't benefit from it.
+**What they *do* validate**: The grammar system must handle multi-input convergence (projecting 2, 3, or 4 dependency results via `.deps` into a single computation). The `transform` capability handles this naturally — jaq can reference multiple `.deps.{step_name}` paths and combine them in a single filter expression. This is more concise than the old `reshape` + `compute` two-step pattern, since jaq natively combines projection and arithmetic.
 
 ---
 
@@ -133,19 +130,20 @@ compose:
 ### Grammar Proposal
 
 ```yaml
-grammar: Transform  # or a hypothetical "Decide" grammar
+grammar: Transform
 compose:
-  - capability: evaluate_rules
-    config:
-      rules:
-        - condition: "amount < 1000"
-          result: { route: auto_approval, steps: [auto_approve] }
-        - condition: "amount < 5000"
-          result: { route: manager_only, steps: [manager_approval] }
-        - condition: "amount >= 5000"
-          result: { route: dual_approval, steps: [manager_approval, finance_review] }
-      first_match: true
-    input_mapping: { type: task_context }
+  - capability: transform
+    output:
+      type: object
+      required: [route, steps]
+      properties:
+        route: { type: string, enum: [auto_approval, manager_only, dual_approval] }
+        steps: { type: array, items: { type: string } }
+    filter: |
+      .context.amount as $amt
+      | if $amt < 1000 then {route: "auto_approval", steps: ["auto_approve"]}
+        elif $amt < 5000 then {route: "manager_only", steps: ["manager_approval"]}
+        else {route: "dual_approval", steps: ["manager_approval", "finance_review"]} end
 ```
 
 **But there's a problem**: The output must be a `DecisionPointOutcome` that the orchestrator understands — it's a protocol type, not a domain result. The composition executor would need special handling for decision-point steps: the final output must be translated into the `create_steps` protocol.
@@ -175,13 +173,16 @@ compose:
 ```yaml
 grammar: Transform
 compose:
-  - capability: compute
-    config:
-      static:
-        approved: true
-        approval_type: automatic
-        approved_by: system
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [approved, approval_type, approved_by]
+      properties:
+        approved: { type: boolean }
+        approval_type: { type: string }
+        approved_by: { type: string }
+    filter: |
+      {approved: true, approval_type: "automatic", approved_by: "system"}
 ```
 
 **ManagerApprovalHandler**:
@@ -195,15 +196,16 @@ compose:
         amount: { type: number, max: 10000 }
       coercion: strict
       on_failure: fail
-    input_mapping: { type: previous }
 
-  - capability: compute
-    config:
-      fields:
-        approved: true
-        approval_type: manager
-        approved_by: { type: generate, prefix: "mgr_" }
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [approved, approval_type]
+      properties:
+        approved: { type: boolean }
+        approval_type: { type: string }
+    filter: |
+      {approved: true, approval_type: "manager"}
 ```
 
 **Assessment**: These are too simple for composition. One or two operations per handler. The grammar adds overhead without benefit. Keep as domain handlers.
@@ -225,17 +227,21 @@ compose:
 
 **Not a composition candidate.** Like decision handlers, batch analyzers produce orchestrator protocol types (`BatchProcessingOutcome`). The cursor calculation logic is specific to Tasker's batch system. Batch cursor calculation stays outside grammar scope — the (action, resource, context) triple cannot be deterministically expressed because the output is an orchestrator protocol type, not a domain result.
 
-A hypothetical composition would use `compute` for the arithmetic:
+A hypothetical composition would use `transform` for the arithmetic:
 
 ```yaml
 grammar: Transform
 compose:
-  - capability: compute
-    config:
-      operations:
-        - derive:
-            worker_count: "min(ceil(dataset_size / batch_size), max_workers)"
-    input_mapping: { type: task_context }
+  - capability: transform
+    output:
+      type: object
+      required: [worker_count]
+      properties:
+        worker_count: { type: integer }
+    filter: |
+      .context as $c
+      | (($c.dataset_size / $c.batch_size) | ceil) as $needed
+      | {worker_count: ([$needed, $c.max_workers] | min)}
 ```
 
 But the result must be a `BatchProcessingOutcome` with cursor configs — an orchestrator protocol type that grammar compositions cannot produce. If different batch strategies existed (fixed-size batches, count-based batches, key-range partitioning), a dedicated grammar category (like the hypothetical `Decide` grammar for decisions) could revisit this. For now, batch analyzers should stay as domain handlers.
@@ -267,36 +273,26 @@ Not a composition candidate. Batch workers have their own execution lifecycle (c
 ```yaml
 grammar: Transform
 compose:
-  - capability: reshape
-    config:
-      fields:
-        batch_results: "process_batch_*.result"
-      flatten: true
-    input_mapping: { type: task_context }
-
-  - capability: compute
-    config:
-      operations:
-        - derive:
-            total_processed: "sum(batch_results, 'processed_count')"
-            total_checkpoints: "sum(batch_results, 'checkpoint_count')"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [total_processed, total_checkpoints]
+      properties:
+        total_processed: { type: integer }
+        total_checkpoints: { type: integer }
+    filter: |
+      [.deps | to_entries[] | select(.key | startswith("process_batch_")) | .value] as $results
+      | {
+          total_processed: ([$results[].processed_count] | add // 0),
+          total_checkpoints: ([$results[].checkpoint_count] | add // 0)
+        }
 
   - capability: assert
-    config:
-      conditions:
-        all_items_processed:
-          expr: "total_processed == expected_dataset_size"
-      quantifier: all
-      on_failure: fail
-    input_mapping:
-      type: merged
-      sources:
-        - { type: previous }
-        - { type: task_context }
+    filter: '.prev.total_processed == .context.expected_dataset_size'
+    error: "Not all items were processed: total does not match expected dataset size"
 ```
 
-**Assessment**: Three canonical capabilities — `reshape` to project batch worker results into a flat structure, `compute` for summation, and `assert` to validate totals. The pattern uses only canonical grammar primitives. However, the NoBatches vs. WithBatches scenario detection is specific to Tasker's batch lifecycle (deferred convergence detection), which stays outside grammar scope. This composition would only cover the WithBatches path; the handler would still need domain logic for scenario branching.
+**Assessment**: Two capabilities — a `transform` that projects and aggregates batch worker results, and an `assert` to validate totals. This is more concise than the original three-capability (`reshape` + `compute` + `assert`) proposal because jaq naturally combines projection and aggregation in a single filter. However, the NoBatches vs. WithBatches scenario detection is specific to Tasker's batch lifecycle (deferred convergence detection), which stays outside grammar scope. This composition would only cover the WithBatches path; the handler would still need domain logic for scenario branching.
 
 ---
 
@@ -344,21 +340,28 @@ Not a meaningful composition candidate — this is a test utility, not business 
 # Test fixture: composition that fails at a specific capability
 grammar: Transform
 compose:
-  - capability: identity
-    config: {}
-    input_mapping: { type: task_context }
+  - capability: transform
+    output:
+      type: object
+      properties:
+        passthrough: { type: boolean }
+    filter: |
+      {passthrough: true}
 
-  - capability: fail_n_times
-    config:
-      fail_count: 2
-    input_mapping: { type: previous }
+  - capability: assert
+    filter: '.step.attempts >= 3'
+    error: "Simulated failure: not enough attempts yet"
 
-  - capability: identity
-    config: {}
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      properties:
+        passthrough: { type: boolean }
+    filter: |
+      {passthrough: true}
 ```
 
-This would test composition retry behavior: the second capability fails twice, causing two step-level retries. On the third attempt, it succeeds and the composition completes. If capability 1 were checkpointed, it would be skipped on retry.
+This would test composition retry behavior: the second capability (an `assert` gate on attempt count) fails on attempts 1 and 2, causing step-level retries. On the third attempt, it succeeds and the composition completes. If capability 1 were checkpointed, it would be skipped on retry. Note the use of `.step.attempts` from the composition context envelope — this is exactly the kind of retry-aware logic the envelope was designed to support.
 
 ---
 
@@ -373,28 +376,24 @@ This would test composition retry behavior: the second capability fails twice, c
 
 ### Grammar Proposal
 
-Same as the standalone decision handler — decision protocol output keeps this outside grammar scope. But the *input reshaping* pattern (two branches → comparison → routing) is exactly what `reshape` + `evaluate_rules` express well:
+Same as the standalone decision handler — decision protocol output keeps this outside grammar scope. But the *input reshaping and routing logic* is exactly what `transform` expresses well:
 
 ```yaml
 compose:
-  - capability: reshape
-    config:
-      fields:
-        evens: "branch_evens.count"
-        odds: "branch_odds.count"
-    input_mapping: { type: task_context }
-
-  - capability: evaluate_rules
-    config:
-      rules:
-        - condition: "evens >= odds"
-          result: { route: even, steps: [even_batch_analyzer] }
-        - condition: "true"
-          result: { route: odd, steps: [odd_batch_analyzer] }
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [route, steps]
+      properties:
+        route: { type: string, enum: [even, odd] }
+        steps: { type: array, items: { type: string } }
+    filter: |
+      .deps.branch_evens.count as $evens | .deps.branch_odds.count as $odds
+      | if $evens >= $odds then {route: "even", steps: ["even_batch_analyzer"]}
+        else {route: "odd", steps: ["odd_batch_analyzer"]} end
 ```
 
-The composition *expresses* the logic well; the issue is only the output protocol requirement.
+The composition *expresses* the logic well — what was previously a `reshape` + `evaluate_rules` two-step chain becomes a single `transform` since jaq combines projection, comparison, and conditional logic in one filter. The issue is only the output protocol requirement.
 
 ---
 
@@ -407,14 +406,14 @@ From the handler survey, handlers fall into four complexity bands:
 | Band | Operations | Examples | Composition Value |
 |------|-----------|----------|-------------------|
 | **Trivial** (1 op) | Single arithmetic or assignment | Math steps, auto-approve, assertions | **None** — composition adds overhead |
-| **Simple** (2-3 ops) | Validate + compute, or reshape + compute | Branch handlers, simple approval | **Low** — handler is already clear |
+| **Simple** (2-3 ops) | Validate + transform, or project + compute | Branch handlers, simple approval | **Low** — handler is already clear |
 | **Moderate** (4-6 ops) | Multi-step validation, aggregation, rule evaluation | Cart validation, insights, policy checks | **Medium** — composition enables configurability |
 | **Complex** (7+ ops) | Stateful loops, multi-source aggregation, checkpoint management | Batch workers, convergence handlers | **Low** — execution model doesn't fit |
 
 ### The Sweet Spot
 
 Grammar compositions add the most value for **moderate-complexity handlers** where:
-1. Internal logic follows a recognizable pattern (validate → compute → persist)
+1. Internal logic follows a recognizable pattern (validate → transform → persist)
 2. The steps are configurable (different rules, different thresholds, different schemas)
 3. The handler doesn't need special orchestrator protocol interactions
 4. The operations are individually useful as vocabulary capabilities
@@ -434,14 +433,23 @@ Grammar compositions add the most value for **moderate-complexity handlers** whe
 
 | Capability | Fixture Context | Generalizability |
 |-----------|----------------|-----------------|
-| `reshape` | Convergence handlers (2, 3, 4 inputs) | High — multi-source projection is common |
-| `compute` | Math handlers, derived metrics, aggregation sums | High — unified formula evaluation |
-| `evaluate` | Conditional routing, boolean determination | High — evaluability primitive |
-| `assert` | Math verification, total validation, execution gates | High — cross-validation and precondition checks |
-| `evaluate_rules` | Decision routing, approval paths | High — configurable first-match rule engine |
+| `transform` | Convergence handlers (multi-input projection + arithmetic), derived metrics, boolean routing, aggregation sums, conditional rule evaluation | High — unified data transformation primitive; replaces reshape, compute, evaluate, evaluate_rules |
 | `validate` | Input schema enforcement, approval checks | High — trust boundary with coercion |
-| `fail_n_times` | Error testing | Test utility only |
+| `assert` | Math verification, total validation, execution gates, retry-aware gating | High — cross-validation and precondition checks |
+
+The side-effecting capabilities (`persist`, `acquire`, `emit`) did not surface in the test fixture handlers — these fixtures focus on orchestration mechanics (DAG topology, decision routing, batch lifecycle) rather than domain data operations. The contrib case studies (`workflow-patterns.md`) exercise the full 6-capability vocabulary.
+
+### Impact of the Transform Unification
+
+The move from 9 capabilities to 6 has a notable effect on the test fixture proposals:
+
+1. **Convergence patterns simplify**: What was `reshape` + `compute` (two capabilities, two input mappings) becomes a single `transform` — jaq naturally projects multiple `.deps` paths and computes in one expression.
+2. **Decision logic simplifies**: What was `evaluate_rules` with a bespoke rule engine config becomes a `transform` with jaq `if-then-elif-else` — no custom rule syntax to learn.
+3. **Aggregation simplifies**: What was `reshape` (flatten) + `compute` (sum) becomes a single `transform` using jaq's native `group_by`, `add`, and array operations.
+4. **Input mapping disappears**: The old `input_mapping: { type: task_context }` / `{ type: previous }` / `{ type: merged }` configuration is replaced by jaq's direct access to `.context`, `.deps`, `.prev`, and `.step` — the data routing is in the expression itself, not a separate config field.
+
+The net effect: compositions are shorter, the capability vocabulary is smaller, and the expression language is a well-documented standard (jq) rather than a bespoke DSL.
 
 ---
 
-*This case study should be read alongside `workflow-patterns.md` for the contrib handler grammar proposals, `grammar-trait-boundary.md` for the trait design, and `checkpoint-generalization.md` for the composition vs. batch checkpoint distinction.*
+*This case study should be read alongside `workflow-patterns.md` for the contrib handler grammar proposals, `transform-revised-grammar.md` for the 6-capability model design, `grammar-trait-boundary.md` for the trait design, and `checkpoint-generalization.md` for the composition vs. batch checkpoint distinction.*

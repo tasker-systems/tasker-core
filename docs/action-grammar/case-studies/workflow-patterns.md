@@ -2,7 +2,7 @@
 
 *Expressing the internal logic of each handler as a grammar composition*
 
-*March 2026 — Research Spike*
+*March 2026 — Research Spike (revised for transform-centric 6-capability model)*
 
 ---
 
@@ -10,7 +10,7 @@
 
 Each contrib example workflow has 4-8 handlers, each implemented identically across Rust, Python, Ruby, and TypeScript. For each handler, we analyze the internal logic and propose a grammar composition that would express the same operations using capability vocabularies. Where a handler is too simple or too domain-specific for composition, we note why.
 
-The grammar categories used here follow the taxonomy from `actions-traits-and-capabilities.md`: **Acquire** (retrieve/compute), **Transform** (reshape/enrich), **Validate** (check/assert), **Persist** (write/commit), **Emit** (domain event publication).
+The grammar categories used here follow the taxonomy from `actions-traits-and-capabilities.md`: **Acquire** (retrieve), **Transform** (reshape/enrich/compute/evaluate), **Validate** (check/assert), **Persist** (write/commit), **Emit** (domain event publication). The 6-capability model (`transform`, `validate`, `assert`, `persist`, `acquire`, `emit`) uses jaq (Rust-native jq) as the unified expression language for all data transformation — see `transform-revised-grammar.md` for the full design rationale.
 
 ---
 
@@ -41,40 +41,29 @@ compose:
       coercion: permissive
       unknown_fields: passthrough
       on_failure: collect
-    input_mapping: { type: task_context, path: cart_items }
 
-  - capability: compute
-    config:
-      operations:
-        - select: "items[*]"
-          derive:
-            line_total: "quantity * unit_price"
-          cast: decimal(2)
-        - select: "$"
-          derive:
-            subtotal: "sum(items[*].line_total)"
-            tax: "subtotal * 0.0875"
-          cast: decimal(2)
-    input_mapping: { type: previous }
-
-  - capability: evaluate
-    config:
-      expressions:
-        free_shipping: "subtotal >= 75.00"
-    input_mapping: { type: previous }
-
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive:
-            shipping: "select(free_shipping, 0, 9.99)"
-            total: "subtotal + tax + shipping"
-          cast: decimal(2)
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [items, subtotal, tax, free_shipping, shipping, total]
+      properties:
+        items: { type: array, items: { type: object, properties: { line_total: { type: number } } } }
+        subtotal: { type: number }
+        tax: { type: number }
+        free_shipping: { type: boolean }
+        shipping: { type: number }
+        total: { type: number }
+    filter: |
+      .prev
+      | .items |= map(. + {line_total: ((.quantity * .unit_price) * 100 | round / 100)})
+      | . + {subtotal: ([.items[].line_total] | add)}
+      | . + {tax: ((.subtotal * 0.0875) * 100 | round / 100)}
+      | . + {free_shipping: (.subtotal >= 75.00)}
+      | . + {shipping: (if .free_shipping then 0 else 9.99 end)}
+      | . + {total: ((.subtotal + .tax + .shipping) * 100 | round / 100)}
 ```
 
-**Observations**: Four capabilities — validate (boundary gate), compute (arithmetic), evaluate (boolean), compute (final derivation). The `validate` capability is the trust boundary: it asserts that cart items have required fields with correct types, permissively coerces (e.g., string `"2"` → integer `2`), passes unknown fields through (items may have extra attributes), and collects all violations rather than failing on the first. The first `compute` handles pure arithmetic: per-item line totals and aggregate subtotal/tax. The `evaluate` capability determines the boolean `free_shipping` field. The second `compute` references that evaluated boolean via `select()` to derive the shipping cost, then sums the total. No checkpoint needed (no mutations).
+**Observations**: Two capabilities — validate (boundary gate) and transform (arithmetic, boolean evaluation, and conditional derivation in a single jaq filter). The `validate` capability is the trust boundary: it asserts that cart items have required fields with correct types, permissively coerces (e.g., string `"2"` to integer `2`), passes unknown fields through (items may have extra attributes), and collects all violations rather than failing on the first. The `transform` does all the work that previously required three separate capabilities (compute, evaluate, compute): per-item line totals, aggregate subtotal/tax, the boolean `free_shipping` determination, conditional shipping cost, and the final total — all in one jaq expression. The `|=` (update) and `| . +` (merge) patterns thread state through the computation naturally. Note that jq uses IEEE 754 floats; the `(. * 100 | round / 100)` pattern provides 2-decimal rounding for monetary values.
 
 ### Handler: process_payment
 
@@ -95,12 +84,18 @@ The gateway charge is a domain operation — it cannot be a capability within a 
 ```yaml
 grammar: Validate
 compose:
-  - capability: reshape
-    config:
-      fields:
-        total: "validate_cart.total"
-        payment_token: "$.payment_token"
-    input_mapping: { type: task_context }
+  - capability: transform
+    output:
+      type: object
+      required: [total, payment_token]
+      properties:
+        total: { type: number }
+        payment_token: { type: string }
+    filter: |
+      {
+        total: .deps.validate_cart.total,
+        payment_token: .context.payment_token
+      }
 
   - capability: validate
     config:
@@ -110,29 +105,17 @@ compose:
       coercion: strict
       unknown_fields: drop
       on_failure: fail
-    input_mapping: { type: previous }
-
-  - capability: evaluate
-    config:
-      expressions:
-        is_test_decline: "payment_token in ['tok_test_declined', 'tok_test_insufficient_funds']"
-    input_mapping: { type: previous }
 
   - capability: assert
-    config:
-      conditions:
-        - name: not_test_decline
-          none: [is_test_decline]
-          error: "Payment token rejected"
-      on_failure: fail
-    input_mapping: { type: previous }
+    filter: '.prev.payment_token | IN("tok_test_declined","tok_test_insufficient_funds") | not'
+    error: "Payment token rejected"
 ```
 
 **Step 2: `process_payment` (domain handler — traditional curated code)**:
 
 Depends on `prepare_payment`. Consumes the validated, asserted `result_schema` from step 1. Handles gateway-specific API calls, processing fee calculation, PCI compliance, nuanced error handling (declined vs. insufficient funds vs. timeout), and idempotency key management. This is irreducibly domain-specific logic.
 
-**Observations**: The virtual handler (step 1) does the grammar-composable work: reshape from dependencies, validate the payment data at the trust boundary, evaluate whether the token is a test/decline token, and assert the precondition. Its `result_schema` becomes the input to the domain handler (step 2). The TaskTemplate DAG freely mixes virtual handlers and domain handlers — the composition boundary is the `result_schema` of the StepDefinition. No capability within a grammar composition may invoke domain handler logic.
+**Observations**: The virtual handler (step 1) does the grammar-composable work: transform to project from dependencies and task context, validate the payment data at the trust boundary, and assert the token precondition. The assert's jaq filter directly evaluates the boolean condition — no separate evaluate capability is needed because jq's `IN()` operator handles membership testing natively. Its `result_schema` becomes the input to the domain handler (step 2). The TaskTemplate DAG freely mixes virtual handlers and domain handlers — the composition boundary is the `result_schema` of the StepDefinition. No capability within a grammar composition may invoke domain handler logic.
 
 ### Handler: update_inventory
 
@@ -146,7 +129,7 @@ Depends on `prepare_payment`. Consumes the validated, asserted `result_schema` f
 
 The inventory reservation is a domain operation. The TaskTemplate DAG could optionally split this into a virtual handler that prepares data, followed by the domain handler that performs the reservation:
 
-**Option A: Single domain handler step** (current approach — the reshape is trivial enough to stay in handler code)
+**Option A: Single domain handler step** (current approach — the projection is trivial enough to stay in handler code)
 
 **Option B: Split into two steps**:
 
@@ -155,18 +138,25 @@ Step 1: `prepare_inventory_update` (virtual handler):
 ```yaml
 grammar: Transform
 compose:
-  - capability: reshape
-    config:
-      fields:
-        validated_items: "validate_cart.validated_items"
-        item_skus: "validate_cart.validated_items[*].sku"
-        item_quantities: "validate_cart.validated_items[*].quantity"
-    input_mapping: { type: task_context }
+  - capability: transform
+    output:
+      type: object
+      required: [validated_items, item_skus, item_quantities]
+      properties:
+        validated_items: { type: array, items: { type: object } }
+        item_skus: { type: array, items: { type: string } }
+        item_quantities: { type: array, items: { type: integer } }
+    filter: |
+      {
+        validated_items: .deps.validate_cart.validated_items,
+        item_skus: [.deps.validate_cart.validated_items[].sku],
+        item_quantities: [.deps.validate_cart.validated_items[].quantity]
+      }
 ```
 
-Step 2: `reserve_inventory` (domain handler): Consumes the reshaped data and handles warehouse selection logic, distributed reservation protocols, stock management, and TTL enforcement.
+Step 2: `reserve_inventory` (domain handler): Consumes the projected data and handles warehouse selection logic, distributed reservation protocols, stock management, and TTL enforcement.
 
-**Observations**: This handler is simple enough that Option A (single domain handler) is preferable. The reshape is a single selector-path projection — creating a virtual handler step for it adds DAG complexity without meaningful benefit. The grammar composition boundary should be drawn where it adds value, not applied mechanically to every step.
+**Observations**: This handler is simple enough that Option A (single domain handler) is preferable. The projection is a single jaq object construction — creating a virtual handler step for it adds DAG complexity without meaningful benefit. The grammar composition boundary should be drawn where it adds value, not applied mechanically to every step.
 
 ### Handler: create_order
 
@@ -182,57 +172,58 @@ Step 2: `reserve_inventory` (domain handler): Consumes the reshaped data and han
 ```yaml
 grammar: Persist
 compose:
-  - capability: reshape
-    config:
-      fields:
-        validated_items: "validate_cart.validated_items"
-        subtotal: "validate_cart.subtotal"
-        tax: "validate_cart.tax"
-        shipping: "validate_cart.shipping"
-        total: "validate_cart.total"
-        payment_id: "process_payment.payment_id"
-        transaction_id: "process_payment.transaction_id"
-        updated_products: "update_inventory.updated_products"
-    input_mapping: { type: task_context }
-
-  - capability: evaluate
-    config:
-      expressions:
-        expedited_shipping: "shipping > 0"
-    input_mapping: { type: previous }
-
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive:
-            estimated_delivery_days: "select(expedited_shipping, 3, 5)"
-            estimated_delivery: "date_add(now(), estimated_delivery_days, 'days')"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [validated_items, subtotal, tax, shipping, total, payment_id, transaction_id, updated_products, estimated_delivery]
+      properties:
+        validated_items: { type: array, items: { type: object } }
+        subtotal: { type: number }
+        tax: { type: number }
+        shipping: { type: number }
+        total: { type: number }
+        payment_id: { type: string }
+        transaction_id: { type: string }
+        updated_products: { type: array }
+        expedited_shipping: { type: boolean }
+        estimated_delivery: { type: string }
+    filter: |
+      {
+        validated_items: .deps.validate_cart.validated_items,
+        subtotal: .deps.validate_cart.subtotal,
+        tax: .deps.validate_cart.tax,
+        shipping: .deps.validate_cart.shipping,
+        total: .deps.validate_cart.total,
+        payment_id: .deps.process_payment.payment_id,
+        transaction_id: .deps.process_payment.transaction_id,
+        updated_products: .deps.update_inventory.updated_products,
+        expedited_shipping: (.deps.validate_cart.shipping > 0),
+        estimated_delivery: (if .deps.validate_cart.shipping > 0 then "3_days" else "5_days" end)
+      }
 
   - capability: persist
     config:
       resource:
         type: database
         entity: orders
-      data:
-        order_ref: "$.order_ref"
-        customer_email: "$.customer_email"
-        items: "$.validated_items"
-        total: "$.total"
-        estimated_delivery: "$.estimated_delivery"
       constraints:
         unique_key: order_ref
         id_pattern: "ORD-{YYYYMMDD}-{hex}"
       validate_success:
         order_id: { type: string, required: true }
-      result_shape:
-        fields: [order_id, order_ref, created_at, estimated_delivery]
-    input_mapping: { type: previous }
+      result_shape: [order_id, order_ref, created_at, estimated_delivery]
+    data: |
+      {
+        order_ref: .prev.order_ref,
+        customer_email: .context.customer_email,
+        items: .prev.validated_items,
+        total: .prev.total,
+        estimated_delivery: .prev.estimated_delivery
+      }
     checkpoint: true
 ```
 
-**Observations**: Four capabilities — reshape (project from three dependencies), evaluate (determine shipping speed), compute (derive delivery estimate), persist. The `reshape` capability uses selector-paths to project fields from three upstream dependency outputs into one flat structure. The `persist` capability expresses the (action, resource, context) triple: write to the orders entity with uniqueness constraints, validate that an order_id was generated, and return a specific result shape for downstream capabilities.
+**Observations**: Two capabilities — transform (project from three dependencies plus derive delivery estimate) and persist. The single `transform` replaces what was previously three separate capabilities (reshape, evaluate, compute): it projects fields from three upstream dependency outputs, derives the boolean `expedited_shipping`, and computes the delivery estimate — all in one jaq object construction. The `persist` capability expresses the (action, resource, context) triple: write to the orders entity with uniqueness constraints, validate that an order_id was generated, and return a specific result shape for downstream use. The jaq `data` filter maps from `.prev` (the transform's output) into the persistence shape.
 
 ### Handler: send_confirmation
 
@@ -247,14 +238,22 @@ compose:
 ```yaml
 grammar: Emit
 compose:
-  - capability: reshape
-    config:
-      fields:
-        order_number: "create_order.order_number"
-        total: "create_order.total"
-        estimated_delivery: "create_order.estimated_delivery"
-        customer_email: "create_order.customer_email"
-    input_mapping: { type: task_context }
+  - capability: transform
+    output:
+      type: object
+      required: [order_number, total, customer_email]
+      properties:
+        order_number: { type: string }
+        total: { type: number }
+        estimated_delivery: { type: string }
+        customer_email: { type: string }
+    filter: |
+      {
+        order_number: .deps.create_order.order_number,
+        total: .deps.create_order.total,
+        estimated_delivery: .deps.create_order.estimated_delivery,
+        customer_email: .deps.create_order.customer_email
+      }
 
   - capability: emit
     config:
@@ -262,23 +261,24 @@ compose:
       event_version: "1.0"
       delivery_mode: durable
       condition: success
-      payload:
-        order_number: "$.order_number"
-        total: "$.total"
-        estimated_delivery: "$.estimated_delivery"
-        customer_email: "$.customer_email"
-      schema:
-        type: object
-        required: [order_number, total, customer_email]
-        properties:
-          order_number: { type: string }
-          total: { type: number }
-          customer_email: { type: string }
-          estimated_delivery: { type: string }
-    input_mapping: { type: previous }
+    payload: |
+      {
+        order_number: .prev.order_number,
+        total: .prev.total,
+        estimated_delivery: .prev.estimated_delivery,
+        customer_email: .prev.customer_email
+      }
+    schema:
+      type: object
+      required: [order_number, total, customer_email]
+      properties:
+        order_number: { type: string }
+        total: { type: number }
+        customer_email: { type: string }
+        estimated_delivery: { type: string }
 ```
 
-**Observations**: This is an `Emit` grammar — the outcome is a domain event. Two capabilities: reshape (gather from dependencies), emit (fire domain event). The `emit` fires an `order.confirmed` event with the order data as payload. What happens downstream — sending a confirmation email, updating a CRM, triggering a webhook — is entirely outside the grammar's concern. Some downstream consumer reads from the `{namespace}_domain_events` PGMQ queue and acts on the event. This is much cleaner than the previous model where the grammar tried to construct email subjects and bodies — content construction is the consumer's responsibility.
+**Observations**: This is an `Emit` grammar — the outcome is a domain event. Two capabilities: transform (gather from dependencies), emit (fire domain event). The `emit` fires an `order.confirmed` event with the order data as payload. What happens downstream — sending a confirmation email, updating a CRM, triggering a webhook — is entirely outside the grammar's concern. Some downstream consumer reads from the `{namespace}_domain_events` PGMQ queue and acts on the event. This is much cleaner than the previous model where the grammar tried to construct email subjects and bodies — content construction is the consumer's responsibility.
 
 ---
 
@@ -303,39 +303,41 @@ compose:
         type: api
         endpoint: "/api/sales"
         method: GET
-        params_from: [source, date_range_start, date_range_end]
       constraints:
         timeout_ms: 5000
       validate_success:
         status: { in: [200] }
-      result_shape:
-        fields: [data.sales_records]
-    input_mapping: { type: task_context }
+      result_shape: [data.sales_records]
+    params: |
+      {
+        source: .context.source,
+        date_range_start: .context.date_range_start,
+        date_range_end: .context.date_range_end
+      }
 
-  - capability: reshape
-    config:
-      fields:
-        records: "$.data.sales_records[*].{date, sku, quantity, unit_price}"
-    input_mapping: { type: previous }
-
-  - capability: compute
-    config:
-      operations:
-        - select: "records[*]"
-          derive:
-            revenue: "quantity * unit_price"
-          cast: decimal(2)
-        - select: "$"
-          derive:
-            total_revenue: "sum(records[*].revenue)"
-            total_quantity: "sum(records[*].quantity)"
-            record_count: "count(records[*])"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [records, total_revenue, total_quantity, record_count]
+      properties:
+        records: { type: array, items: { type: object, properties: { revenue: { type: number } } } }
+        total_revenue: { type: number }
+        total_quantity: { type: integer }
+        record_count: { type: integer }
+    filter: |
+      .prev.data.sales_records
+      | map({date, sku, quantity, unit_price, revenue: ((.quantity * .unit_price) * 100 | round / 100)})
+      | {
+          records: .,
+          total_revenue: ([.[].revenue] | add),
+          total_quantity: ([.[].quantity] | add),
+          record_count: length
+        }
 ```
 
-**Observations**: Three capabilities — acquire, reshape, compute. The `acquire` is the I/O boundary (true acquisition). The `reshape` projects the relevant fields from the API response — this is the extraction step, using selector-paths to sub-select the record attributes of concern from the raw response. The `compute` handles per-record enrichment and whole-input aggregation. This three-step pattern (acquire → reshape → compute) separates I/O, projection, and derivation cleanly.
+**Observations**: Two capabilities — acquire and transform. The `acquire` is the I/O boundary (true acquisition), with a jaq `params` filter that navigates to `.context` for the request parameters. The `transform` replaces what was previously a reshape followed by a compute: it projects the relevant fields from the API response, enriches each record with a computed `revenue` field, and aggregates totals — all in a single jaq pipeline. The `map()` + object construction pattern naturally combines field selection and per-record arithmetic. Note that jq uses IEEE 754 floats; the `(. * 100 | round / 100)` pattern provides 2-decimal rounding.
 
-All three extract handlers have the same structure (fetch + reshape + compute) but different configurations. This is exactly where grammar composition shines: **same grammar, same capabilities, different config**.
+All three extract handlers have the same structure (acquire, transform) but different configurations. This is exactly where grammar composition shines: **same grammar, same capabilities, different config**.
 
 ### Handlers: transform_sales, transform_inventory, transform_customers
 
@@ -351,39 +353,47 @@ All three extract handlers have the same structure (fetch + reshape + compute) b
 ```yaml
 grammar: Transform
 compose:
-  - capability: group_by
-    config:
-      dimensions: [category]
-      metrics:
-        revenue: { sum: revenue }
-        quantity: { sum: quantity }
-        transaction_count: { count: "*" }
-        avg_revenue: { formula: "revenue / transaction_count" }
-    input_mapping: { type: previous }
-
-  - capability: rank
-    config:
-      by: revenue
-      direction: desc
-      output_field: top_category
-      limit: 1
-    input_mapping: { type: previous }
-
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive:
-            total_revenue: "sum(groups[*].revenue)"
-            total_categories: "count(groups[*])"
-    input_mapping:
-      type: merged
-      sources:
-        - { type: step_output, index: 0 }
-        - { type: step_output, index: 1 }
+  - capability: transform
+    output:
+      type: object
+      required: [groups, top_category, total_revenue, total_categories]
+      properties:
+        groups:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string }
+              revenue: { type: number }
+              quantity: { type: integer }
+              transaction_count: { type: integer }
+              avg_revenue: { type: number }
+        top_category:
+          type: object
+          properties:
+            category: { type: string }
+            revenue: { type: number }
+        total_revenue: { type: number }
+        total_categories: { type: integer }
+    filter: |
+      .deps.extract_sales_data.records
+      | group_by(.category)
+      | map({
+          category: .[0].category,
+          revenue: ([.[].revenue] | add),
+          quantity: ([.[].quantity] | add),
+          transaction_count: length,
+          avg_revenue: (([.[].revenue] | add) / length * 100 | round / 100)
+        })
+      | {
+          groups: .,
+          top_category: (sort_by(.revenue) | reverse | .[0]),
+          total_revenue: ([.[].revenue] | add),
+          total_categories: length
+        }
 ```
 
-**Observations**: Three capabilities — group, rank, compute. This is a natural `Transform` grammar. The `group_by` and `rank` capabilities are distinct data operations (reshaping vs. ordering). The `compute` capability handles the final aggregation using the same selector-path + expression model as elsewhere. Different transform handlers would use the same capabilities with different dimension/metric configurations.
+**Observations**: A single `transform` replaces what was previously three separate capabilities (group_by, rank, compute). jq's native `group_by(.category)` handles dimensional grouping, `sort_by(.revenue) | reverse` handles ranking, and the `map()` with arithmetic handles per-group aggregation — all within one expression. The `output` JSON Schema declares the full contract (groups array, top category, totals), enabling static analysis of downstream dependencies without executing the filter. Different transform handlers would use the same single-transform pattern with different grouping dimensions and metrics.
 
 ### Handler: aggregate_metrics
 
@@ -398,29 +408,35 @@ compose:
 ```yaml
 grammar: Transform
 compose:
-  - capability: reshape
-    config:
-      fields:
-        total_revenue: "transform_sales.total_revenue"
-        record_count: "transform_sales.record_count"
-        total_quantity: "transform_inventory.total_quantity"
-        reorder_alerts: "transform_inventory.reorder_alerts"
-        total_customers: "transform_customers.total_customers"
-        total_ltv: "transform_customers.total_ltv"
-    input_mapping: { type: task_context }
-
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive:
-            revenue_per_customer: "total_revenue / total_customers"
-            inventory_turnover: "total_revenue / total_quantity"
-          cast: decimal(2)
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [total_revenue, record_count, total_quantity, reorder_alerts, total_customers, total_ltv, revenue_per_customer, inventory_turnover]
+      properties:
+        total_revenue: { type: number }
+        record_count: { type: integer }
+        total_quantity: { type: integer }
+        reorder_alerts: { type: integer }
+        total_customers: { type: integer }
+        total_ltv: { type: number }
+        revenue_per_customer: { type: number }
+        inventory_turnover: { type: number }
+    filter: |
+      {
+        total_revenue: .deps.transform_sales.total_revenue,
+        record_count: .deps.transform_sales.record_count,
+        total_quantity: .deps.transform_inventory.total_quantity,
+        reorder_alerts: .deps.transform_inventory.reorder_alerts,
+        total_customers: .deps.transform_customers.total_customers,
+        total_ltv: .deps.transform_customers.total_ltv
+      }
+      | . + {
+          revenue_per_customer: ((.total_revenue / .total_customers) * 100 | round / 100),
+          inventory_turnover: ((.total_revenue / .total_quantity) * 100 | round / 100)
+        }
 ```
 
-**Observations**: Two capabilities — reshape (project from three dependency outputs into flat structure), compute (derive cross-source ratios). The `reshape` projects exactly the fields needed from each upstream transform, and the `compute` expressions reference the reshaped field names directly — no nested path traversal needed because `reshape` has already flattened the structure.
+**Observations**: A single `transform` replaces what was previously two capabilities (reshape then compute). The jaq filter first constructs an object projecting from three dependency outputs, then derives cross-source ratios by referencing the fields just projected — the `| . +` pattern threads state through the computation naturally. No separate reshape is needed because jq's object construction is already projection, and no separate compute is needed because arithmetic operators work inline.
 
 ### Handler: generate_insights
 
@@ -435,55 +451,58 @@ compose:
 ```yaml
 grammar: Transform
 compose:
-  - capability: evaluate_rules
-    config:
-      rules:
-        - condition: "revenue_per_customer < 500"
-          insight: { type: revenue, severity: medium, recommendation: "Focus on upselling" }
-        - condition: "reorder_alerts > 5"
-          insight: { type: inventory, severity: high, recommendation: "Immediate reorder needed" }
-        - condition: "avg_ltv > 3000"
-          insight: { type: customer, severity: low, recommendation: "Retention program effective" }
-    input_mapping: { type: previous }
-
-  - capability: evaluate
-    config:
-      expressions:
-        has_best_source: "has(best_source)"
-        high_volume: "total_records > 50"
-        low_stock_warning: "low_stock_alerts > 5"
-    input_mapping:
-      type: merged
-      sources:
-        - { type: step_output, index: 0 }
-        - { type: previous }
-
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive:
-            health_score_raw: "75 + select(has_best_source, 5, 0) + select(high_volume, 10, 0) + select(low_stock_warning, -15, 0)"
-            health_score: "clamp(health_score_raw, 0, 100)"
-          cast: integer
-    input_mapping: { type: previous }
-
-  - capability: evaluate
-    config:
-      expressions:
-        health_rating:
-          case:
-            - when: "health_score >= 80"
-              then: "excellent"
-            - when: "health_score >= 60"
-              then: "good"
-            - when: "health_score >= 40"
-              then: "fair"
-            - default: "needs_improvement"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [insights, has_best_source, high_volume, low_stock_warning, health_score, health_rating]
+      properties:
+        insights:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              severity: { type: string }
+              recommendation: { type: string }
+        has_best_source: { type: boolean }
+        high_volume: { type: boolean }
+        low_stock_warning: { type: boolean }
+        health_score: { type: integer }
+        health_rating: { type: string, enum: [excellent, good, fair, needs_improvement] }
+    filter: |
+      .deps.aggregate_metrics
+      | . + {
+          insights: [
+            (if .revenue_per_customer < 500 then {type: "revenue", severity: "medium", recommendation: "Focus on upselling"} else empty end),
+            (if .reorder_alerts > 5 then {type: "inventory", severity: "high", recommendation: "Immediate reorder needed"} else empty end),
+            (if .total_ltv / .total_customers > 3000 then {type: "customer", severity: "low", recommendation: "Retention program effective"} else empty end)
+          ]
+        }
+      | . + {
+          has_best_source: (has("best_source")),
+          high_volume: (.record_count > 50),
+          low_stock_warning: (.reorder_alerts > 5)
+        }
+      | . + {
+          health_score: (
+            75
+            + (if .has_best_source then 5 else 0 end)
+            + (if .high_volume then 10 else 0 end)
+            + (if .low_stock_warning then -15 else 0 end)
+            | if . > 100 then 100 elif . < 0 then 0 else . end
+          )
+        }
+      | . + {
+          health_rating: (
+            if .health_score >= 80 then "excellent"
+            elif .health_score >= 60 then "good"
+            elif .health_score >= 40 then "fair"
+            else "needs_improvement" end
+          )
+        }
 ```
 
-**Observations**: Four capabilities — rule evaluation, evaluate (boolean factors), compute (score calculation), evaluate (rating classification). The `evaluate_rules` capability maps conditions to insights. The first `evaluate` determines three boolean factors (has best source, high volume, low stock). `compute` then references those booleans via `select()` to calculate the weighted health score. The second `evaluate` classifies the score into a rating using a case expression — this is a selection operation (mapping a numeric range to a label), which is evaluability, not computation.
+**Observations**: A single `transform` replaces what was previously four separate capabilities (evaluate_rules, evaluate, compute, evaluate). The jaq filter chains four computation stages using `| . +`: (1) rule-based insight generation using conditional `if-then-else` with `empty` to produce variable-length arrays, (2) boolean factor derivation, (3) weighted health score calculation with clamping, and (4) rating classification via `if-elif-else`. Each stage adds fields to the accumulating object. This demonstrates that the semantic distinctions between "rule evaluation", "boolean evaluation", "arithmetic computation", and "classification" are conventions about what the jq filter does — not different execution models requiring separate capabilities.
 
 This handler is a strong composition candidate because the rules, scoring weights, and rating brackets are pure configuration — different deployments would have different thresholds and weights.
 
@@ -512,29 +531,28 @@ compose:
       coercion: strict
       unknown_fields: drop
       on_failure: collect
-    input_mapping: { type: task_context }
 
   - capability: persist
     config:
       resource:
         type: database
         entity: user_accounts
-      data:
-        email: "$.email"
-        full_name: "$.full_name"
-        username: "$.username"
-        status: pending_verification
       constraints:
         unique_key: email
       validate_success:
         user_id: { type: string, required: true }
-      result_shape:
-        fields: [user_id, email, status, created_at]
-    input_mapping: { type: previous }
+      result_shape: [user_id, email, status, created_at]
+    data: |
+      {
+        email: .prev.email,
+        full_name: .prev.full_name,
+        username: .prev.username,
+        status: "pending_verification"
+      }
     checkpoint: true
 ```
 
-**Observations**: Two capabilities — validate, persist. The `validate` capability is the trust boundary: strict coercion (exact types required for user registration), drop unknown fields (defensive filtering at account creation boundary), and collect all violations for user-facing error reporting. The `persist` expresses the full (action, resource, context) triple: write to user_accounts with uniqueness constraint on email, validate that a user_id was generated, and return a specific result shape. **Note**: The original handler also generates credentials (user_id, API key, verification token) — this is security-sensitive logic that should remain as traditional handler code. A grammar-composed version would handle the validate → persist flow, while credential generation would either be a pre-step in a domain handler or a separate workflow step.
+**Observations**: Two capabilities — validate, persist. The `validate` capability is the trust boundary: strict coercion (exact types required for user registration), drop unknown fields (defensive filtering at account creation boundary), and collect all violations for user-facing error reporting. The `persist` expresses the full (action, resource, context) triple: write to user_accounts with uniqueness constraint on email, validate that a user_id was generated, and return a specific result shape. The jaq `data` filter maps from `.prev` (the validated output) and adds the literal `status` value. **Note**: The original handler also generates credentials (user_id, API key, verification token) — this is security-sensitive logic that should remain as traditional handler code. A grammar-composed version would handle the validate then persist flow, while credential generation would either be a pre-step in a domain handler or a separate workflow step.
 
 ### Handler: setup_billing
 
@@ -558,47 +576,55 @@ compose:
         key_field: plan
       constraints:
         required: true
-      result_shape:
-        fields: [price, trial_days, api_limit, storage_gb]
-    input_mapping: { type: previous }
+      result_shape: [price, trial_days, api_limit, storage_gb]
+    params: |
+      {
+        plan: .deps.create_user_account.plan
+      }
 
-  - capability: evaluate
-    config:
-      expressions:
-        billing_required: "price > 0"
-    input_mapping: { type: previous }
-
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive:
-            billing_status: "select(billing_required, 'active', 'skipped_free_plan')"
-            next_billing_date: "select(billing_required, date_add(now(), 30, 'days'), null)"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [user_id, plan, billing_status, billing_required]
+      properties:
+        user_id: { type: string }
+        plan: { type: string }
+        price: { type: number }
+        trial_days: { type: integer }
+        billing_required: { type: boolean }
+        billing_status: { type: string }
+        next_billing_date: { type: string }
+    filter: |
+      .prev + {
+        user_id: .deps.create_user_account.user_id,
+        plan: .deps.create_user_account.plan,
+        billing_required: (.prev.price > 0),
+        billing_status: (if .prev.price > 0 then "active" else "skipped_free_plan" end),
+        next_billing_date: (if .prev.price > 0 then "30_days_from_now" else null end)
+      }
 
   - capability: persist
     config:
       resource:
         type: database
         entity: billing_profiles
-      data:
-        user_id: "$.user_id"
-        plan: "$.plan"
-        billing_status: "$.billing_status"
-        next_billing_date: "$.next_billing_date"
-        trial_days: "$.trial_days"
       constraints:
         id_prefix: "bill_"
       validate_success:
         billing_id: { type: string, required: true }
-      result_shape:
-        fields: [billing_id, billing_status, next_billing_date]
-    input_mapping: { type: previous }
+      result_shape: [billing_id, billing_status, next_billing_date]
+    data: |
+      {
+        user_id: .prev.user_id,
+        plan: .prev.plan,
+        billing_status: .prev.billing_status,
+        next_billing_date: .prev.next_billing_date,
+        trial_days: .prev.trial_days
+      }
     checkpoint: true
 ```
 
-**Observations**: Four capabilities — acquire (config lookup), evaluate, compute, persist. The `acquire` expresses (action, resource, context): read billing tier configuration by plan key, requiring a match, and returning specific fields. The `evaluate` capability determines the boolean `billing_required` field. The `compute` capability then references it via `select()` to derive billing status and next billing date. The `persist` writes the billing profile with all the (action, resource, context) surface: resource target, data mapping, constraints, success validation, and result shape.
+**Observations**: Three capabilities — acquire (config lookup), transform, persist. The `acquire` expresses (action, resource, context): read billing tier configuration by plan key, requiring a match, and returning specific fields. The jaq `params` filter navigates to `.deps` for the plan value. The `transform` replaces what was previously two separate capabilities (evaluate then compute): it merges the acquire output with dependency data, derives the boolean `billing_required`, and conditionally computes billing status and next billing date — all in one jaq expression using `if-then-else`. The `persist` writes the billing profile with the full (action, resource, context) surface: resource target, jaq data mapping from `.prev`, constraints, success validation, and result shape.
 
 ### Handler: initialize_preferences
 
@@ -621,44 +647,48 @@ compose:
         key_field: plan
       constraints:
         required: true
-      result_shape:
-        fields: [notifications, ui_settings, feature_flags]
-    input_mapping: { type: previous }
+      result_shape: [notifications, ui_settings, feature_flags]
+    params: |
+      {
+        plan: .deps.create_user_account.plan
+      }
 
-  - capability: reshape
-    config:
-      fields:
-        notifications: "$.notifications"
-        ui_settings: "$.ui_settings"
-        feature_flags: "$.feature_flags"
-        custom_notifications: "task_context.metadata.custom_preferences.notifications"
-        custom_ui: "task_context.metadata.custom_preferences.ui_settings"
-      merge_strategy: overlay  # later fields override earlier when paths overlap
-    input_mapping:
-      type: merged
-      sources:
-        - { type: step_output, index: 0 }
-        - { type: task_context, path: metadata.custom_preferences }
+  - capability: transform
+    output:
+      type: object
+      required: [user_id, notifications, ui_settings, feature_flags]
+      properties:
+        user_id: { type: string }
+        notifications: { type: object }
+        ui_settings: { type: object }
+        feature_flags: { type: object }
+    filter: |
+      {
+        user_id: .deps.create_user_account.user_id,
+        notifications: (.prev.notifications * (.context.metadata.custom_preferences.notifications // {})),
+        ui_settings: (.prev.ui_settings * (.context.metadata.custom_preferences.ui_settings // {})),
+        feature_flags: .prev.feature_flags
+      }
 
   - capability: persist
     config:
       resource:
         type: database
         entity: user_preferences
-      data:
-        user_id: "$.user_id"
-        notifications: "$.notifications"
-        ui_settings: "$.ui_settings"
-        feature_flags: "$.feature_flags"
       validate_success:
         preferences_id: { type: string, required: true }
-      result_shape:
-        fields: [preferences_id, defaults_applied_count, customizations_count]
-    input_mapping: { type: previous }
+      result_shape: [preferences_id, defaults_applied_count, customizations_count]
+    data: |
+      {
+        user_id: .prev.user_id,
+        notifications: .prev.notifications,
+        ui_settings: .prev.ui_settings,
+        feature_flags: .prev.feature_flags
+      }
     checkpoint: true
 ```
 
-**Observations**: The `acquire` reads plan defaults from a config store — expressing (action, resource, context) clearly. The `reshape` capability handles the deep merge pattern — projecting fields from both the defaults (acquire output) and customizations (task context), with an overlay merge strategy. The `persist` writes the merged preferences with full (action, resource, context): resource target, data mapping, success validation, and result shape. The composition captures the handler's logic (acquire defaults → reshape with overlay → persist) cleanly.
+**Observations**: The `acquire` reads plan defaults from a config store — expressing (action, resource, context) clearly. The `transform` handles the deep merge pattern using jq's `*` (recursive merge) operator — custom preferences override defaults, with `// {}` providing an empty fallback when no customizations exist. This replaces the previous `reshape` with `merge_strategy: overlay` using a standard jq idiom that is well-documented and widely understood. The `persist` writes the merged preferences with full (action, resource, context): resource target, jaq data mapping, success validation, and result shape.
 
 ### Handler: send_welcome_sequence
 
@@ -673,27 +703,36 @@ compose:
 ```yaml
 grammar: Emit
 compose:
-  - capability: reshape
-    config:
-      fields:
-        user_id: "create_user_account.user_id"
-        email: "create_user_account.email"
-        trial_end: "setup_billing.trial_end"
-        email_updates: "initialize_preferences.notifications.email_updates"
-    input_mapping: { type: task_context }
-
-  - capability: evaluate_rules
-    config:
-      rules:
-        - condition: "email_updates == true"
-          emit: { type: welcome_email, channel: email }
-        - condition: "true"
-          emit: { type: verification_email, channel: email }
-        - condition: "true"
-          emit: { type: onboarding_guide, channel: in_app }
-        - condition: "trial_end != null"
-          emit: { type: trial_notification, channel: email }
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [user_id, email, notifications]
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        trial_end: { type: string }
+        notifications:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              channel: { type: string }
+    filter: |
+      {
+        user_id: .deps.create_user_account.user_id,
+        email: .deps.create_user_account.email,
+        trial_end: .deps.setup_billing.trial_end,
+        email_updates: .deps.initialize_preferences.notifications.email_updates
+      }
+      | . + {
+          notifications: [
+            (if .email_updates then {type: "welcome_email", channel: "email"} else empty end),
+            {type: "verification_email", channel: "email"},
+            {type: "onboarding_guide", channel: "in_app"},
+            (if .trial_end != null then {type: "trial_notification", channel: "email"} else empty end)
+          ]
+        }
 
   - capability: emit
     config:
@@ -701,22 +740,23 @@ compose:
       event_version: "1.0"
       delivery_mode: durable
       condition: success
-      payload:
-        user_id: "$.user_id"
-        email: "$.email"
-        trial_end: "$.trial_end"
-        notifications: "$.matched_rules"
-      schema:
-        type: object
-        required: [user_id, email, notifications]
-        properties:
-          user_id: { type: string }
-          email: { type: string }
-          notifications: { type: array }
-    input_mapping: { type: previous }
+    payload: |
+      {
+        user_id: .prev.user_id,
+        email: .prev.email,
+        trial_end: .prev.trial_end,
+        notifications: .prev.notifications
+      }
+    schema:
+      type: object
+      required: [user_id, email, notifications]
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        notifications: { type: array }
 ```
 
-**Observations**: Three capabilities — reshape (project relevant fields from three dependencies), evaluate rules (determine which notifications to send), emit (fire domain event). The `reshape` flattens the three dependency outputs into the exact fields needed for rule evaluation — note how the evaluate_rules conditions reference simple field names (`email_updates`, `trial_end`) rather than nested dependency paths. The `emit` fires a `user.welcome_sequence` domain event with the matched notification rules as payload. Downstream consumers decide how to deliver each notification (email, in-app, etc.) — the grammar's job ends at expressing what happened and what data is relevant.
+**Observations**: Two capabilities — transform (project and evaluate rules), emit (fire domain event). The single `transform` replaces what was previously three separate capabilities (reshape, evaluate_rules, and implicit merging): it projects relevant fields from three dependencies, then builds the conditional notification array using jq's `if-then-else` with `empty` to produce variable-length arrays. This is more expressive than the previous `evaluate_rules` approach because jq's conditional array construction handles both "always include" (no condition) and "conditionally include" (with `if`) naturally in the same array literal. The `emit` fires a `user.welcome_sequence` domain event with the matched notification rules as payload. Downstream consumers decide how to deliver each notification — the grammar's job ends at expressing what happened and what data is relevant.
 
 ### Handler: update_user_status
 
@@ -731,47 +771,54 @@ compose:
 ```yaml
 grammar: Persist
 compose:
-  - capability: reshape
-    config:
-      fields:
-        user_id: "create_user_account.user_id"
-        email: "create_user_account.email"
-        plan: "create_user_account.plan"
-        billing_id: "setup_billing.billing_id"
-        preferences_count: "initialize_preferences.preferences_count"
-        channels_used: "send_welcome_sequence.channels_used"
-        messages_sent: "send_welcome_sequence.messages_sent"
-    input_mapping: { type: task_context }
-
-  - capability: evaluate
-    config:
-      expressions:
-        include_billing: "plan != 'free'"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [user_id, email, plan, include_billing]
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        plan: { type: string }
+        billing_id: { type: string }
+        preferences_count: { type: integer }
+        channels_used: { type: array }
+        messages_sent: { type: integer }
+        include_billing: { type: boolean }
+    filter: |
+      {
+        user_id: .deps.create_user_account.user_id,
+        email: .deps.create_user_account.email,
+        plan: .deps.create_user_account.plan,
+        billing_id: .deps.setup_billing.billing_id,
+        preferences_count: .deps.initialize_preferences.preferences_count,
+        channels_used: .deps.send_welcome_sequence.channels_used,
+        messages_sent: .deps.send_welcome_sequence.messages_sent,
+        include_billing: (.deps.create_user_account.plan != "free")
+      }
 
   - capability: persist
     config:
       resource:
         type: database
         entity: user_accounts
-      data:
-        status: active
-        billing_id: "select(include_billing, $.billing_id, null)"
-        preferences_count: "$.preferences_count"
-        channels_used: "$.channels_used"
-        messages_sent: "$.messages_sent"
       constraints:
         key: user_id
         operation: update
       validate_success:
         status: { equals: active }
-      result_shape:
-        fields: [user_id, status, updated_at]
-    input_mapping: { type: previous }
+      result_shape: [user_id, status, updated_at]
+    data: |
+      {
+        status: "active",
+        billing_id: (if .prev.include_billing then .prev.billing_id else null end),
+        preferences_count: .prev.preferences_count,
+        channels_used: .prev.channels_used,
+        messages_sent: .prev.messages_sent
+      }
     checkpoint: true
 ```
 
-**Observations**: Three capabilities — reshape (project from four dependencies), evaluate (determine conditional inclusion), persist. The `reshape` projects relevant fields from all upstream dependencies into a flat structure. The `evaluate` determines whether billing should be included. The `persist` writes the status update with full (action, resource, context): the resource target (user_accounts), the data to write (using `select()` to conditionally include billing_id based on the evaluate output), update constraints, success validation, and result shape.
+**Observations**: Two capabilities — transform (project from four dependencies plus boolean derivation) and persist. The single `transform` replaces the previous reshape then evaluate chain: it projects relevant fields from all upstream dependencies and derives the boolean `include_billing` — all in one jaq object construction. The `persist` uses a jaq `data` filter with an inline `if-then-else` to conditionally include billing_id based on the transform's output, writing the status update with full (action, resource, context): the resource target (user_accounts), the data to write, update constraints, success validation, and result shape.
 
 ---
 
@@ -802,7 +849,6 @@ compose:
       coercion: permissive
       unknown_fields: passthrough
       on_failure: fail
-    input_mapping: { type: task_context }
 
   - capability: acquire
     config:
@@ -812,25 +858,34 @@ compose:
         key_field: payment_id
       constraints:
         required: true
-      result_shape:
-        fields: [original_amount, payment_method, payment_status]
-    input_mapping: { type: previous }
+      result_shape: [original_amount, payment_method, payment_status]
+    params: |
+      {
+        payment_id: .prev.payment_id
+      }
 
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive:
-            refund_percentage: "(refund_amount / original_amount) * 100"
-          cast: decimal(2)
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [refund_amount, original_amount, refund_percentage]
+      properties:
+        refund_amount: { type: number }
+        original_amount: { type: number }
+        payment_method: { type: string }
+        payment_status: { type: string }
+        refund_percentage: { type: number }
+    filter: |
+      .prev + {
+        refund_amount: .context.refund_amount,
+        refund_percentage: ((.context.refund_amount / .prev.original_amount * 100) * 100 | round / 100)
+      }
 ```
 
 **Step 2: `check_fraud_score` (domain handler — traditional curated code)**:
 
 Depends on `validate_payment_data`. Consumes the validated, computed `result_schema` from step 1. Runs the proprietary fraud scoring algorithm — hash-based scoring, model inference, or third-party API integration. The fraud check's "how" is irreducibly domain-specific (algorithm selection, seed field handling, threshold behavior, rejection semantics).
 
-**Observations**: The virtual handler (step 1) does the grammar-composable work: validate refund amount at the trust boundary, acquire the original payment data, and compute the refund percentage. The domain handler (step 2) consumes this prepared data and runs the opaque fraud scoring. The `result_schema` of step 1 becomes the upstream dependency for step 2. This respects the architectural boundary: no capability within a grammar composition invokes domain handler logic.
+**Observations**: The virtual handler (step 1) does the grammar-composable work: validate refund amount at the trust boundary, acquire the original payment data, and compute the refund percentage via a `transform`. The `transform` merges the acquire output with context data and derives the percentage in one expression. The domain handler (step 2) consumes this prepared data and runs the opaque fraud scoring. The `result_schema` of step 1 becomes the upstream dependency for step 2. This respects the architectural boundary: no capability within a grammar composition invokes domain handler logic. Note that jq uses IEEE 754 floats for the percentage calculation; the rounding pattern ensures 2-decimal precision.
 
 ### Handler: process_gateway_refund
 
@@ -850,27 +905,16 @@ The gateway refund is a domain operation. The TaskTemplate DAG should split this
 ```yaml
 grammar: Validate
 compose:
-  - capability: evaluate
-    config:
-      expressions:
-        payment_validated: "payment_status == 'completed'"
-    input_mapping: { type: previous }
-
   - capability: assert
-    config:
-      conditions:
-        - name: payment_ready
-          all: [payment_validated]
-          error: "Payment not validated"
-      on_failure: fail
-    input_mapping: { type: previous }
+    filter: '.deps.check_fraud_score.payment_status == "completed"'
+    error: "Payment not validated"
 ```
 
 **Step 2: `process_gateway_refund` (domain handler — traditional curated code)**:
 
 Depends on `validate_refund_eligibility`. Consumes the validated, asserted `result_schema` from step 1. Handles Stripe/provider-specific API calls, refund ID generation, authorization code computation, settlement delay calculation, and gateway response recording. This is irreducibly domain-specific — every payment provider has different refund APIs, error codes, and idempotency semantics.
 
-**Observations**: The virtual handler (step 1) gates execution: evaluate the payment status, assert the precondition. Its `result_schema` passes through the validated payment data to the domain handler (step 2). The evaluate → assert pattern is pure grammar composition. The gateway interaction is pure domain handler code. The TaskTemplate DAG connects them through dependency declarations.
+**Observations**: The virtual handler (step 1) is now a single assert — the jaq filter directly evaluates the payment status condition against the dependency output. No separate evaluate capability is needed because the assert's filter can navigate to `.deps` and perform the boolean comparison inline. This is the simplest possible grammar composition: one capability, one boolean gate. The gateway interaction is pure domain handler code. The TaskTemplate DAG connects them through dependency declarations.
 
 ### Handler: update_payment_records
 
@@ -886,39 +930,30 @@ Depends on `validate_refund_eligibility`. Consumes the validated, asserted `resu
 ```yaml
 grammar: Persist
 compose:
-  - capability: evaluate
-    config:
-      expressions:
-        refund_processed: "refund_status == 'processed'"
-    input_mapping: { type: previous }
-
   - capability: assert
-    config:
-      conditions:
-        - name: refund_confirmed
-          all: [refund_processed]
-          error: "Refund must be processed before updating records"
-      on_failure: fail
-    input_mapping: { type: previous }
+    filter: '.deps.process_gateway_refund.refund_status == "processed"'
+    error: "Refund must be processed before updating records"
 
   - capability: persist
     config:
       resource:
         type: database
         entity: ledger_entries
-      data:
-        entries:
-          - { type: debit, account: refunds_payable, amount: "$.refund_amount" }
-          - { type: credit, account: accounts_receivable, amount: "$.refund_amount" }
       constraints:
         fiscal_period_format: "{year}-{month}"
-        idempotency_key: "$.refund_id"
+        idempotency_key: refund_id
       validate_success:
         record_id: { type: string, required: true }
         journal_id: { type: string, required: true }
-      result_shape:
-        fields: [record_id, journal_id, fiscal_period, created_at]
-    input_mapping: { type: previous }
+      result_shape: [record_id, journal_id, fiscal_period, created_at]
+    data: |
+      {
+        entries: [
+          {type: "debit", account: "refunds_payable", amount: .deps.process_gateway_refund.refund_amount},
+          {type: "credit", account: "accounts_receivable", amount: .deps.process_gateway_refund.refund_amount}
+        ],
+        refund_id: .deps.process_gateway_refund.refund_id
+      }
     checkpoint: true
 
   - capability: persist
@@ -926,18 +961,18 @@ compose:
       resource:
         type: database
         entity: reconciliation_status
-      data:
-        status: pending
-        refund_id: "$.refund_id"
-        journal_id: "$.journal_id"
       validate_success:
         reconciliation_id: { type: string, required: true }
-      result_shape:
-        fields: [reconciliation_id, status]
-    input_mapping: { type: previous }
+      result_shape: [reconciliation_id, status]
+    data: |
+      {
+        status: "pending",
+        refund_id: .deps.process_gateway_refund.refund_id,
+        journal_id: .prev.journal_id
+      }
 ```
 
-**Observations**: Four capabilities — evaluate, assert, persist (ledger entries), persist (reconciliation status). The `evaluate` → `assert` pair gates execution with composable boolean evaluation. Both `persist` capabilities express the full (action, resource, context) triple. The ledger entry persist specifies the double-entry data structure, idempotency constraints, and expects record/journal IDs in the result. The reconciliation persist is a simple status write. Both are `persist` with different resource configurations — domain specificity comes from the configuration envelope, not capability naming.
+**Observations**: Three capabilities — assert, persist (ledger entries), persist (reconciliation status). The assert's jaq filter directly evaluates the refund status condition against the dependency output — no separate evaluate capability is needed. Both `persist` capabilities express the full (action, resource, context) triple. The ledger entry persist's jaq `data` filter constructs the double-entry array structure inline, navigating to `.deps` for the refund amount and ID. The reconciliation persist references `.prev.journal_id` from the first persist's result. Both are `persist` with different resource configurations — domain specificity comes from the configuration envelope, not capability naming.
 
 ### Handler: notify_customer
 
@@ -953,14 +988,22 @@ compose:
 ```yaml
 grammar: Emit
 compose:
-  - capability: reshape
-    config:
-      fields:
-        customer_email: "coalesce($.customer_email, validate_payment_eligibility.customer_email)"
-        refund_id: "process_gateway_refund.refund_id"
-        amount_refunded: "process_gateway_refund.amount_refunded"
-        estimated_arrival: "process_gateway_refund.estimated_arrival"
-    input_mapping: { type: task_context }
+  - capability: transform
+    output:
+      type: object
+      required: [customer_email, refund_id, amount_refunded]
+      properties:
+        customer_email: { type: string }
+        refund_id: { type: string }
+        amount_refunded: { type: number }
+        estimated_arrival: { type: string }
+    filter: |
+      {
+        customer_email: (.context.customer_email // .deps.validate_payment_eligibility.customer_email),
+        refund_id: .deps.process_gateway_refund.refund_id,
+        amount_refunded: .deps.process_gateway_refund.amount_refunded,
+        estimated_arrival: .deps.process_gateway_refund.estimated_arrival
+      }
 
   - capability: emit
     config:
@@ -968,23 +1011,24 @@ compose:
       event_version: "1.0"
       delivery_mode: durable
       condition: success
-      payload:
-        refund_id: "$.refund_id"
-        amount_refunded: "$.amount_refunded"
-        customer_email: "$.customer_email"
-        estimated_arrival: "$.estimated_arrival"
-      schema:
-        type: object
-        required: [refund_id, amount_refunded, customer_email]
-        properties:
-          refund_id: { type: string }
-          amount_refunded: { type: number }
-          customer_email: { type: string }
-          estimated_arrival: { type: string }
-    input_mapping: { type: previous }
+    payload: |
+      {
+        refund_id: .prev.refund_id,
+        amount_refunded: .prev.amount_refunded,
+        customer_email: .prev.customer_email,
+        estimated_arrival: .prev.estimated_arrival
+      }
+    schema:
+      type: object
+      required: [refund_id, amount_refunded, customer_email]
+      properties:
+        refund_id: { type: string }
+        amount_refunded: { type: number }
+        customer_email: { type: string }
+        estimated_arrival: { type: string }
 ```
 
-**Observations**: Same Emit pattern as e-commerce confirmation — reshape, emit. The `reshape` uses `coalesce()` to resolve the customer email from multiple sources and projects the refund data. The `emit` fires a `refund.processed` domain event with the relevant data as payload. Downstream consumers (notification service, CRM, audit trail) decide what to do with the event. The composition structure is identical across Emit grammars: reshape gathers the data, emit fires the event. Content construction (email templates, notification formatting) is the downstream consumer's responsibility.
+**Observations**: Same Emit pattern as e-commerce confirmation — transform, emit. The `transform` uses jq's `//` (alternative) operator to resolve the customer email from multiple sources — this replaces the previous `coalesce()` from the custom expression language with standard jq syntax that is well-documented and widely understood. The `emit` fires a `refund.processed` domain event with the relevant data as payload. Downstream consumers (notification service, CRM, audit trail) decide what to do with the event. The composition structure is identical across Emit grammars: transform gathers the data, emit fires the event. Content construction (email templates, notification formatting) is the downstream consumer's responsibility.
 
 ---
 
@@ -1018,7 +1062,6 @@ compose:
       coercion: permissive
       unknown_fields: drop
       on_failure: fail
-    input_mapping: { type: task_context }
 
   - capability: acquire
     config:
@@ -1028,9 +1071,11 @@ compose:
         key_field: payment_id
       constraints:
         required: true
-      result_shape:
-        fields: [original_purchase_date, original_amount]
-    input_mapping: { type: previous }
+      result_shape: [original_purchase_date, original_amount]
+    params: |
+      {
+        payment_id: .prev.payment_id
+      }
 
 result_schema: { refund_amount, refund_reason, customer_id, payment_id, original_purchase_date, original_amount }
 ```
@@ -1059,44 +1104,41 @@ The original handler mixes composable precondition checking and approval routing
 ```yaml
 grammar: Validate
 compose:
-  - capability: reshape
-    config:
-      fields:
-        validation_status: "classify_and_enrich_refund.validation_status"
-        refund_amount: "classify_and_enrich_refund.refund_amount"
-        refund_reason: "classify_and_enrich_refund.refund_reason"
-        customer_tier: "classify_and_enrich_refund.customer_tier"
-        original_purchase_date: "classify_and_enrich_refund.original_purchase_date"
-    input_mapping: { type: task_context }
-
-  - capability: evaluate
-    config:
-      expressions:
-        request_validated: "validation_status == 'passed'"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [validation_status, refund_amount, refund_reason, customer_tier, original_purchase_date]
+      properties:
+        validation_status: { type: string }
+        refund_amount: { type: number }
+        refund_reason: { type: string }
+        customer_tier: { type: string }
+        original_purchase_date: { type: string }
+    filter: |
+      {
+        validation_status: .deps.classify_and_enrich_refund.validation_status,
+        refund_amount: .deps.classify_and_enrich_refund.refund_amount,
+        refund_reason: .deps.classify_and_enrich_refund.refund_reason,
+        customer_tier: .deps.classify_and_enrich_refund.customer_tier,
+        original_purchase_date: .deps.classify_and_enrich_refund.original_purchase_date
+      }
 
   - capability: assert
-    config:
-      conditions:
-        - name: request_valid
-          all: [request_validated]
-          error: "Request must be validated before checking refund policy"
-      on_failure: fail
-    input_mapping: { type: previous }
+    filter: '.prev.validation_status == "passed"'
+    error: "Request must be validated before checking refund policy"
 
-  - capability: evaluate_rules
-    config:
-      rules:
-        - condition: "refund_amount <= 50"
-          result: { approval_path: auto_approved }
-        - condition: "refund_reason in auto_approve_reasons AND refund_amount <= 500"
-          result: { approval_path: auto_approved }
-        - condition: "refund_amount > 500"
-          result: { approval_path: manager_review }
-        - condition: "true"
-          result: { approval_path: standard_review }
-      first_match: true
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [approval_path]
+      properties:
+        approval_path: { type: string, enum: [auto_approved, manager_review, standard_review] }
+    filter: |
+      .prev
+      | if .refund_amount <= 50 then . + {approval_path: "auto_approved"}
+        elif (.refund_reason | IN("defective","wrong_item")) and .refund_amount <= 500 then . + {approval_path: "auto_approved"}
+        elif .refund_amount > 500 then . + {approval_path: "manager_review"}
+        else . + {approval_path: "standard_review"} end
 
 result_schema: { refund_amount, refund_reason, customer_tier, original_purchase_date, approval_path }
 ```
@@ -1105,7 +1147,7 @@ result_schema: { refund_amount, refund_reason, customer_tier, original_purchase_
 
 Consumes `evaluate_refund_routing.result_schema`. Applies organization-specific tier-based policy rules: refund window duration per tier (premium=90d, gold=60d, standard=30d), maximum refund amounts per tier, date arithmetic against purchase date, and any special-case overrides (seasonal policies, loyalty exceptions, escalation paths). This logic is opaque domain code — policy rules, tier thresholds, and window calculations are organization-specific and change independently of the workflow structure.
 
-**Observations**: The virtual handler handles the composable work — precondition assertion, approval path routing via configurable rules. The domain handler handles what grammars cannot express: organization-specific policy window evaluation with tier-dependent thresholds. The `evaluate_rules` capability appears again in a different context (approval routing vs. insight generation vs. notification selection), confirming it as a core vocabulary capability — configurable rule evaluation with first-match semantics.
+**Observations**: The virtual handler handles the composable work — precondition assertion via jaq boolean filter, approval path routing via jq `if-elif-else` chain. The assert's filter directly evaluates the validation status — no separate evaluate capability needed. The second transform uses jq's conditional chain to implement first-match rule logic: the `if-elif-else` pattern naturally expresses the same semantics as the previous `evaluate_rules` with `first_match: true`, but using standard jq syntax. The domain handler handles what grammars cannot express: organization-specific policy window evaluation with tier-dependent thresholds.
 
 ### Handler: get_manager_approval / approve_refund
 
@@ -1117,26 +1159,26 @@ Consumes `evaluate_refund_routing.result_schema`. Applies organization-specific 
 **Grammar proposal**:
 
 ```yaml
-grammar: Acquire
+grammar: Transform
 compose:
-  - capability: evaluate
-    config:
-      expressions:
-        requires_manager: "requires_approval == true"
-    input_mapping: { type: previous }
-
-  - capability: compute
-    config:
-      operations:
-        - select: "$"
-          derive:
-            approved: true
-            approver: "select(requires_manager, generate_id('mgr_'), 'system')"
-            approval_type: "select(requires_manager, 'manager', 'auto')"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [approved, approver, approval_type]
+      properties:
+        approved: { type: boolean }
+        approver: { type: string }
+        approval_type: { type: string, enum: [manager, auto] }
+    filter: |
+      .deps.evaluate_refund_routing
+      | {
+          approved: true,
+          approver: (if .requires_approval then "mgr_generated" else "system" end),
+          approval_type: (if .requires_approval then "manager" else "auto" end)
+        }
 ```
 
-**Observations**: Two capabilities — evaluate (boolean determination) and compute (value derivation). This handler is still very simple, and the composition adds overhead over a single function with a branch. Keep as domain handler.
+**Observations**: A single `transform` replaces the previous evaluate then compute chain. The jaq filter navigates to the dependency output and derives all three fields using `if-then-else` — boolean determination and value derivation happen in the same expression. This handler is still very simple, and the composition adds overhead over a single function with a branch. Keep as domain handler.
 
 ### Handler: execute_refund_workflow
 
@@ -1160,53 +1202,50 @@ compose:
 ```yaml
 grammar: Persist
 compose:
-  - capability: evaluate
-    config:
-      expressions:
-        task_delegated: "delegation_status == 'completed'"
-    input_mapping: { type: previous }
-
   - capability: assert
-    config:
-      conditions:
-        - name: delegation_confirmed
-          all: [task_delegated]
-          error: "Task delegation must be completed before updating ticket"
-      on_failure: fail
-    input_mapping: { type: previous }
+    filter: '.deps.execute_refund_workflow.delegation_status == "completed"'
+    error: "Task delegation must be completed before updating ticket"
 
-  - capability: reshape
-    config:
-      fields:
-        resolution_note: "concat('Refund of ', $.refund_amount, ' processed via ', $.delegated_task_id)"
-        refund_id: "$.refund_id"
-        correlation_id: "$.correlation_id"
-        estimated_arrival: "$.estimated_arrival"
-    input_mapping: { type: previous }
+  - capability: transform
+    output:
+      type: object
+      required: [resolution_note, refund_id, correlation_id]
+      properties:
+        resolution_note: { type: string }
+        refund_id: { type: string }
+        correlation_id: { type: string }
+        estimated_arrival: { type: string }
+    filter: |
+      {
+        resolution_note: "Refund of \(.deps.execute_refund_workflow.refund_amount) processed via \(.deps.execute_refund_workflow.delegated_task_id)",
+        refund_id: .deps.execute_refund_workflow.refund_id,
+        correlation_id: .deps.execute_refund_workflow.correlation_id,
+        estimated_arrival: .deps.execute_refund_workflow.estimated_arrival
+      }
 
   - capability: persist
     config:
       resource:
         type: database
         entity: tickets
-      data:
-        status: resolved
-        customer_notified: true
-        resolution_note: "$.resolution_note"
-        refund_id: "$.refund_id"
-        correlation_id: "$.correlation_id"
       constraints:
         key: ticket_id
         operation: update
       validate_success:
         status: { equals: resolved }
-      result_shape:
-        fields: [ticket_id, status, resolution_note, updated_at]
-    input_mapping: { type: previous }
+      result_shape: [ticket_id, status, resolution_note, updated_at]
+    data: |
+      {
+        status: "resolved",
+        customer_notified: true,
+        resolution_note: .prev.resolution_note,
+        refund_id: .prev.refund_id,
+        correlation_id: .prev.correlation_id
+      }
     checkpoint: true
 ```
 
-**Observations**: Four capabilities — evaluate, assert, reshape (project fields and construct resolution note), persist. The `evaluate` → `assert` pair gates execution with composable boolean evaluation. The `reshape` uses `concat()` from the expression language to construct the resolution note string. The `persist` expresses the full (action, resource, context) triple: update the tickets entity keyed by ticket_id, write specific data including the reshaped resolution note, validate that status is resolved, and return a specific result shape. The ticket update pattern (evaluate → assert → reshape → persist) is common in case management systems.
+**Observations**: Three capabilities — assert, transform, persist. The assert's jaq filter directly evaluates the delegation status condition against the dependency output — no separate evaluate capability needed. The `transform` constructs the resolution note using jq's string interpolation (`\(...)`) and projects the relevant fields from the dependency — this replaces the previous `reshape` with `concat()` from the custom expression language. The `persist` expresses the full (action, resource, context) triple: update the tickets entity keyed by ticket_id, write specific data via jaq filter including the transformed resolution note, validate that status is resolved, and return a specific result shape. The assert then transform then persist pattern is common in case management systems.
 
 ---
 
@@ -1214,40 +1253,32 @@ compose:
 
 | Capability | Occurrences | Grammar(s) | Description |
 |-----------|-------------|------------|-------------|
-| `reshape` | 12 | All | Selector-path projection/reorganization |
-| `evaluate` | 12 | All | Boolean/selection field derivation using shared expression language |
-| `compute` | 10 | All | Arithmetic/aggregation/derivation: expressions, numeric casting, content construction |
-| `persist` | 8 | Persist | Write data to resource target: (action, resource, context) with typed envelope |
-| `validate` | 5 | Validate, Persist | Boundary gate: schema conformance, type coercion, attribute filtering, configurable failure |
-| `assert` | 5 | Validate, Persist | Composable execution gate: named conditions with set-logic quantifiers (all/any/none) |
-| `acquire` | 5 | Acquire, Validate, Persist | Read data from resource source: (action, resource, context) with typed envelope |
-| `evaluate_rules` | 3 | Validate, Transform, Emit | First-match/all-match rule engine (built on evaluate) |
-| `emit` | 3 | Emit | Fire domain event: maps to Tasker's `DomainEvent` system (event name, payload, delivery mode, schema) |
-| `group_by` | 1 | Transform | Group records by dimension and aggregate |
-| `rank` | 1 | Transform | Sort/rank grouped results |
+| `transform` | 18 | All | Unified pure data transformation: projection, arithmetic, boolean derivation, conditional logic, grouping, ranking — all via jaq filters with JSON Schema output contracts |
+| `persist` | 8 | Persist | Write data to resource target: typed envelope (resource, constraints, validate_success, result_shape) + jaq `data` filter |
+| `validate` | 5 | Validate, Persist | Boundary gate: JSON Schema conformance, type coercion, attribute filtering, configurable failure modes |
+| `assert` | 5 | Validate, Persist | Execution gate: jaq boolean `filter` + `error` message |
+| `acquire` | 5 | Acquire, Validate, Persist | Read data from resource source: typed envelope (resource, constraints, result_shape) + jaq `params` filter |
+| `emit` | 3 | Emit | Fire domain event: typed envelope (event_name, delivery_mode, condition) + jaq `payload` filter + payload schema |
 
 **All capabilities express the (action, resource, context) triple.** The vocabulary divides into two groups:
 
-**Core data operations** (pure, no side effects) share a common expression language infrastructure:
+**Pure data capabilities** (no side effects):
 
-| Capability | Selector-paths | Expressions | Concern |
-|-----------|---------------|------------|---------|
-| `reshape` | yes | no | Reorganize data shape |
-| `evaluate` | yes | boolean/selection | Determine boolean/selection fields |
-| `compute` | yes | arithmetic/aggregation | Derive numeric/data fields |
-| `validate` | yes (schema) | no | Verify conformance at boundaries |
-| `assert` | no (references evaluated fields) | set-logic | Gate execution |
-| `evaluate_rules` | yes | boolean (condition matching) | Map conditions to results |
-| `group_by` | yes | aggregation | Dimensional aggregation |
-| `rank` | yes | comparison | Sorting/ranking |
+| Capability | Role | Mechanism |
+|-----------|------|-----------|
+| `transform` | Reshape, compute, evaluate, classify, group, rank | jaq filter + JSON Schema output contract |
+| `validate` | Verify conformance at trust boundaries | JSON Schema + coercion/filtering/failure config |
+| `assert` | Gate execution (proceed or fail) | jaq boolean filter + error message |
 
-**Action capabilities** (side-effecting, typed Rust envelope + JSON Schema-flexible config):
+The `transform` capability subsumes what was previously six separate capabilities (`reshape`, `compute`, `evaluate`, `evaluate_rules`, `group_by`, `rank`). The semantic distinctions between these operations — "reorganize shape" vs. "derive numeric values" vs. "determine booleans" vs. "match rules" — are conventions for how the jaq filter is written, not different execution models. JSON Schema declares what a step promises to produce; the jaq filter declares how.
 
-| Capability | Action | Config Envelope |
-|-----------|--------|----------------|
-| `persist` | Write data to target | `resource`, `data`, `constraints`, `validate_success`, `result_shape` |
-| `acquire` | Read data from source | `resource`, `constraints`, `validate_success`, `result_shape` |
-| `emit` | Fire domain event | `event_name`, `event_version`, `delivery_mode`, `condition`, `payload`, `schema` |
+**Action capabilities** (side-effecting, typed Rust envelope + jaq data mapping):
+
+| Capability | Action | Config Envelope | jaq Field |
+|-----------|--------|----------------|-----------|
+| `persist` | Write data to target | `resource`, `constraints`, `validate_success`, `result_shape` | `data` |
+| `acquire` | Read data from source | `resource`, `constraints`, `validate_success`, `result_shape` | `params` |
+| `emit` | Fire domain event | `event_name`, `event_version`, `delivery_mode`, `condition`, `schema` | `payload` |
 
 The three action capabilities express all side-effecting operations through the (action, resource, context) triple — domain specificity comes from the configuration envelope, not capability naming. The `emit` capability maps directly onto Tasker's existing `DomainEvent` system — it fires domain events with payloads, not emails or notifications. Content construction and delivery are downstream consumer responsibilities.
 
@@ -1261,21 +1292,21 @@ The three action capabilities express all side-effecting operations through the 
 
 | Handler | Why | Pattern |
 |---------|-----|---------|
-| All extract_* handlers | Same structure, different config (source, fields) | acquire → reshape → compute |
-| All transform_* handlers | Same structure, different dimensions/metrics | group_by → rank → compute |
-| aggregate_metrics | Cross-source metric derivation | reshape → compute |
-| generate_insights | Rule evaluation + scoring — pure configuration | evaluate_rules → evaluate → compute → evaluate |
-| validate_cart | Multi-step validation pipeline | validate → compute → evaluate → compute |
-| create_user_account | Trust boundary → persist with constraints | validate → persist |
-| create_order | Multi-dependency assembly → persist | reshape → evaluate → compute → persist |
-| setup_billing | Config lookup → conditional logic → persist | acquire → evaluate → compute → persist |
-| initialize_preferences | Config defaults → merge → persist | acquire → reshape → persist |
-| update_payment_records | Assert → double-entry persist | evaluate → assert → persist → persist |
-| update_ticket_status | Assert → reshape → persist | evaluate → assert → reshape → persist |
-| update_user_status | Multi-dependency → conditional persist | reshape → evaluate → persist |
-| send_confirmation | Gather → fire domain event | reshape → emit |
-| send_welcome_sequence | Merge → evaluate rules → fire domain event | reshape → evaluate_rules → emit |
-| notify_customer | Gather → fire domain event | reshape → emit |
+| All extract_* handlers | Same structure, different config (source, fields) | acquire, transform |
+| All transform_* handlers | Same structure, different dimensions/metrics | transform (single) |
+| aggregate_metrics | Cross-source metric derivation | transform (single) |
+| generate_insights | Rule evaluation + scoring — pure configuration | transform (single) |
+| validate_cart | Multi-step validation pipeline | validate, transform |
+| create_user_account | Trust boundary then persist with constraints | validate, persist |
+| create_order | Multi-dependency assembly then persist | transform, persist |
+| setup_billing | Config lookup then conditional logic then persist | acquire, transform, persist |
+| initialize_preferences | Config defaults then merge then persist | acquire, transform, persist |
+| update_payment_records | Assert then double-entry persist | assert, persist, persist |
+| update_ticket_status | Assert then transform then persist | assert, transform, persist |
+| update_user_status | Multi-dependency then conditional persist | transform, persist |
+| send_confirmation | Gather then fire domain event | transform, emit |
+| send_welcome_sequence | Merge then conditional rules then fire domain event | transform, emit |
+| notify_customer | Gather then fire domain event | transform, emit |
 
 ### Should Stay as Traditional Domain Handlers
 
@@ -1296,4 +1327,4 @@ The three action capabilities express all side-effecting operations through the 
 
 ---
 
-*This case study should be read alongside `actions-traits-and-capabilities.md` for the grammar architecture, `grammar-trait-boundary.md` for the trait design, `composition-validation.md` for how these compositions would be validated, and `virtual-handler-dispatch.md` for how virtual handlers execute within the worker infrastructure.*
+*This case study should be read alongside `actions-traits-and-capabilities.md` for the grammar architecture, `transform-revised-grammar.md` for the 6-capability model design rationale, `grammar-trait-boundary.md` for the trait design, `composition-validation.md` for how these compositions would be validated, and `virtual-handler-dispatch.md` for how virtual handlers execute within the worker infrastructure.*

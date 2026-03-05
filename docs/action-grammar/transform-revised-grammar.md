@@ -557,7 +557,7 @@ pub trait CapabilityExecutor: Send + Sync + fmt::Debug {
 ```
 
 The `TransformExecutor` implementation:
-1. Receives `input` (the standard envelope: task_context + deps + prev)
+1. Receives `input` (the composition context envelope: context + deps + step + prev)
 2. Receives `config` containing `output` (JSON Schema) and `filter` (jaq expression string)
 3. Compiles and executes the jaq filter against the input
 4. Optionally validates the result against the `output` schema
@@ -575,14 +575,181 @@ The `TransformExecutor` implementation:
 
 ### What Stays Outside Grammar Scope
 
-Unchanged from previous analysis. Operations where the (action, resource, context) triple cannot be deterministically expressed remain as traditional domain handlers:
+Operations where the (action, resource, context) triple cannot be deterministically expressed remain as traditional domain handlers:
 
 - `fraud_check`, `payment_gateway_charge`, `gateway_refund`
 - `inventory_reserve`, `classify_customer`, `generate_credentials`
 - `check_policy_window`
-- Decision point step creation (orchestrator protocol)
-- Batch cursor calculation (orchestrator protocol)
-- Checkpoint yield within loops (intra-handler state)
+
+**Revised**: Decision point step creation and batch cursor calculation are no longer categorically outside grammar scope. See "Open Design: Decision and Batch Outcome Expression" below.
+
+---
+
+## Open Design: Infrastructure Injection for Action Capabilities
+
+*This section identifies a significant architectural concern that requires its own research spike.*
+
+### The Problem
+
+With domain handlers, infrastructure management follows the "bring Tasker to your code" model. The handler developer owns their database pools, API clients, secrets management, and encryption concerns. Tasker provides the orchestration framework; the handler provides the infrastructure access.
+
+With virtual handlers and grammar-composed action capabilities (`persist`, `acquire`, `emit`), **Tasker becomes the code**. The `CompositionExecutor` is responsible for executing these capabilities, which means the platform must provide:
+
+1. **Database connections**: `persist` and `acquire` with `resource.type: database` need connection pools. Questions:
+   - Does each virtual handler step get its own connection, or is there a shared pool?
+   - How is connection information configured per-composition? Per-namespace? Per-resource entity?
+   - Can multiple compositions share a pool if they target the same database?
+
+2. **API credentials and HTTP clients**: `acquire` with `resource.type: api` needs authenticated HTTP access. Questions:
+   - Where are API credentials stored? Tasker's config? An external secrets manager?
+   - How are credentials scoped (per-namespace, per-template, per-step)?
+   - Does Tasker manage HTTP client lifecycle (connection pooling, TLS, retries)?
+
+3. **Secrets management**: Action capabilities may need secrets (API keys, database passwords, encryption keys) that were previously the handler developer's concern. Questions:
+   - Does Tasker integrate with external secrets managers (Vault, AWS Secrets Manager, etc.)?
+   - How are secrets referenced in composition configs without embedding them in YAML?
+   - What's the secret rotation model?
+
+4. **Data protection**: With domain handlers, encryption of data in transit and at rest was the handler developer's responsibility. Virtual handlers shift some of this responsibility to the platform:
+   - Data flowing through `persist` may need encryption at rest
+   - Data flowing through `acquire` may need TLS/mTLS
+   - Data flowing through `emit` (domain events via PGMQ) may need payload encryption
+   - The platform now handles data that it previously never saw in cleartext
+
+### Design Direction (Not Yet Specified)
+
+The likely model is a **resource registry** — a configured set of named resources with connection details, credential references, and security policies. Action capability configs would reference resources by name rather than embedding connection details:
+
+```yaml
+# Hypothetical — NOT a finalized design
+- capability: persist
+  config:
+    resource:
+      ref: "orders-db"        # Named resource from registry
+      entity: orders
+    constraints:
+      unique_key: order_ref
+  data: |
+    { ... }
+```
+
+The resource registry would be configured at the namespace or deployment level, with secrets resolved at runtime. This follows the twelve-factor app pattern (configuration in the environment, not in code) and parallels how domain handlers already access databases — but managed by the platform rather than by handler code.
+
+This is a substantial body of work that should be scoped as its own research spike after the core grammar primitives (Phase 1) are validated.
+
+---
+
+## Open Design: Decision and Batch Outcome Expression
+
+*This section proposes extending the grammar to express orchestration outcomes, replacing the earlier conclusion that these were "outside grammar scope."*
+
+### The Insight
+
+The earlier case studies concluded that decision point step creation and batch cursor calculation were outside grammar scope because they produce orchestrator protocol types (`DecisionPointOutcome`, `BatchProcessingOutcome`), not domain results. The grammar couldn't produce these types.
+
+**The revised insight**: The grammar doesn't need to produce these types directly. It can express the **outcome shape** — the data that determines what decision to make or how to partition batches — and the `CompositionExecutor` bridge in `tasker-worker` can translate that shape into the formal orchestrator protocol types.
+
+### How It Would Work
+
+**Decision compositions**: A grammar composition produces a JSON result whose `output` schema matches a decision shape. The `CompositionExecutor` recognizes this and translates it into a `DecisionPointOutcome`:
+
+```yaml
+# Virtual handler for a decision point step
+compose:
+  - capability: transform
+    output:
+      type: object
+      required: [route, steps]
+      properties:
+        route: { type: string }
+        steps:
+          type: array
+          items:
+            type: object
+            required: [name]
+            properties:
+              name: { type: string }
+              handler: { type: string }
+              config: { type: object }
+    filter: |
+      if .deps.diamond_start.evens >= .deps.diamond_start.odds
+      then {route: "even", steps: [{name: "even_batch_analyzer"}]}
+      else {route: "odd", steps: [{name: "odd_batch_analyzer"}]}
+      end
+```
+
+The grammar composition produces a plain JSON object. The `CompositionExecutor` — which knows this is a decision point step (from the `StepDefinition.step_type`) — takes that JSON and constructs the `DecisionPointOutcome::create_steps()` call. The grammar never imports or references Tasker's orchestration types. The bridge layer in `tasker-worker` handles the translation.
+
+**Batch compositions**: Similarly, a batchable step's grammar composition could produce the cursor configuration:
+
+```yaml
+# Virtual handler for a batch analyzer step
+compose:
+  - capability: transform
+    output:
+      type: object
+      required: [batch_size, worker_count, cursors]
+      properties:
+        batch_size: { type: integer }
+        worker_count: { type: integer }
+        cursors:
+          type: array
+          items:
+            type: object
+            properties:
+              start: { type: integer }
+              end: { type: integer }
+    filter: |
+      .context as $ctx
+      | ($ctx.dataset_size / $ctx.batch_size | ceil) as $num_batches
+      | [limit($num_batches; range(0; $num_batches))]
+      | map({
+          start: (. * $ctx.batch_size),
+          end: ([(. + 1) * $ctx.batch_size, $ctx.dataset_size] | min)
+        })
+      | {
+          batch_size: $ctx.batch_size,
+          worker_count: ([length, $ctx.max_workers] | min),
+          cursors: .
+        }
+```
+
+The `CompositionExecutor` translates this into `BatchProcessingOutcome::create_batches()` with the cursor configs. The grammar computes the partitioning; the worker layer bridges it into the orchestrator protocol.
+
+### Architectural Boundary
+
+The grammar system (`tasker-grammar` crate) remains pure — it knows nothing about `DecisionPointOutcome`, `BatchProcessingOutcome`, or any `tasker-shared` orchestration types. It produces `serde_json::Value` matching a declared `output` schema.
+
+The bridge lives in `tasker-worker`, where the `CompositionExecutor` (which implements `StepHandler`) knows the step type from `StepDefinition.step_type` and can translate the grammar's JSON output into the appropriate orchestrator protocol type:
+
+```
+tasker-grammar (pure):
+  CompositionSpec → jaq filters → serde_json::Value output
+
+tasker-worker (bridge):
+  CompositionExecutor::call(step: &TaskSequenceStep)
+    → runs composition via tasker-grammar
+    → inspects step.step_definition.step_type
+    → if Decision: translate output → DecisionPointOutcome
+    → if Batchable: translate output → BatchProcessingOutcome
+    → if Standard: return output as StepExecutionResult
+```
+
+This separation keeps `tasker-grammar` free of orchestration dependencies while enabling the grammar to express the full range of Tasker step types. The translation layer is thin — it maps JSON fields to Rust struct fields — and lives at the crate boundary where `tasker-worker` already depends on both `tasker-grammar` and `tasker-shared`.
+
+### Checkpoint Yield Within Batch Workers
+
+Batch *worker* checkpoint yields (the `while cursor < end` pattern with periodic `checkpoint_yield()`) remain outside grammar scope. These involve stateful iteration within a single execution — fundamentally different from the composition model's sequential capability invocations. A batch *analyzer* (which computes the cursor partitioning) can be grammar-composed; the batch *workers* that process each partition remain domain handlers.
+
+### Impact on Case Studies
+
+This insight means several handlers previously marked as "outside grammar scope" in the case studies become potential composition candidates:
+
+- `RoutingDecisionHandler` — threshold-based routing can be a `transform` with jq `if-elif-else`
+- `DatasetAnalyzerHandler` — cursor partitioning can be a `transform` with jq math
+- `ResultsAggregatorHandler` (WithBatches path) — aggregation across batch results is already expressible
+
+The batch *workers* and checkpoint yield handlers remain outside scope.
 
 ---
 
