@@ -48,6 +48,7 @@ impl FromStr for ToolTier {
 pub const TIER2_TOOLS: &[&str] = &[
     "task_list",
     "task_inspect",
+    "task_visualize",
     "step_inspect",
     "step_audit",
     "dlq_list",
@@ -287,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_tier2_tools_count() {
-        assert_eq!(TIER2_TOOLS.len(), 15);
+        assert_eq!(TIER2_TOOLS.len(), 16);
     }
 
     #[test]

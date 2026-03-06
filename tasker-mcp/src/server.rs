@@ -19,6 +19,7 @@
 //! **Tier 2 — Connected Read-Only Tools (require live server)**
 //! - `task_list` — List tasks with filtering by namespace/status
 //! - `task_inspect` — Get task details with step breakdown
+//! - `task_visualize` — Visualize task execution state as a Mermaid flowchart diagram
 //! - `step_inspect` — Get step details including results and timing
 //! - `step_audit` — Get SOC2-compliant audit trail for a step
 //! - `dlq_list` — List dead letter queue entries with filtering
@@ -246,7 +247,7 @@ impl ServerHandler for TaskerMcpServer {
         } else if has_tier2 && !has_tier3 {
             format!(
                 "{}\nProfile management: connection_status to check environment health.\n\
-                 Read-only tools: task_list/task_inspect for task inspection, step_inspect/step_audit for step details, \
+                 Read-only tools: task_list/task_inspect/task_visualize for task inspection, step_inspect/step_audit for step details, \
                  dlq_list/dlq_inspect/dlq_stats/dlq_queue/staleness_check for DLQ investigation, \
                  analytics_performance/analytics_bottlenecks for performance analysis, \
                  system_health/system_config for system status, \
@@ -258,7 +259,7 @@ impl ServerHandler for TaskerMcpServer {
         } else {
             format!(
                 "{}\nProfile management: connection_status to check environment health.\n\
-                 Read-only tools: task_list/task_inspect for task inspection, step_inspect/step_audit for step details, \
+                 Read-only tools: task_list/task_inspect/task_visualize for task inspection, step_inspect/step_audit for step details, \
                  dlq_list/dlq_inspect/dlq_stats/dlq_queue/staleness_check for DLQ investigation, \
                  analytics_performance/analytics_bottlenecks for performance analysis, \
                  system_health/system_config for system status, \
@@ -460,6 +461,22 @@ impl TaskerMcpServer {
             Err(e) => return e,
         };
         connected::task_inspect(&client, params).await
+    }
+
+    /// Visualize task execution state as a Mermaid flowchart diagram.
+    #[tool(
+        name = "task_visualize",
+        description = "Visualize task execution state as a Mermaid flowchart diagram. Shows step DAG with nodes colored by execution status (completed/in-progress/pending/error/retrying), edge styling for dependency satisfaction, decision workflow paths (including untraversed branches), batch worker instances, DLQ status, and a detail table with timing, attempts, and error types. Requires a running server."
+    )]
+    pub async fn task_visualize(
+        &self,
+        Parameters(params): Parameters<TaskVisualizeParams>,
+    ) -> String {
+        let client = match self.resolve_client(params.profile.as_deref()).await {
+            Ok(c) => c,
+            Err(e) => return e,
+        };
+        connected::task_visualize(&client, params).await
     }
 
     /// Get detailed step information including results and timing.
@@ -980,11 +997,11 @@ base_url = "http://localhost:8080"
         let tools = server.tool_router.list_all();
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
 
-        // 8 Tier 1 + 1 connection_status + 15 Tier 2 = 24
+        // 8 Tier 1 + 1 connection_status + 16 Tier 2 = 25
         assert_eq!(
             names.len(),
-            24,
-            "Expected 24 tools (T1+profile+T2), got: {:?}",
+            25,
+            "Expected 25 tools (T1+profile+T2), got: {:?}",
             names
         );
         assert!(names.contains(&"template_validate"));
@@ -1002,8 +1019,8 @@ base_url = "http://localhost:8080"
         let server = TaskerMcpServer::with_profile_manager(pm, false, None);
 
         let tools = server.tool_router.list_all();
-        // 8 T1 + 1 profile + 15 T2 + 6 T3 = 30
-        assert_eq!(tools.len(), 30, "Expected all 30 tools");
+        // 8 T1 + 1 profile + 16 T2 + 6 T3 = 31
+        assert_eq!(tools.len(), 31, "Expected all 31 tools");
     }
 
     #[tokio::test]
@@ -1115,8 +1132,8 @@ base_url = "http://localhost:8080"
         // Should have T1 + profile + T2, no T3
         assert_eq!(
             names.len(),
-            24,
-            "Expected 24 tools from profile config, got: {:?}",
+            25,
+            "Expected 25 tools from profile config, got: {:?}",
             names
         );
         assert!(!names.contains(&"task_submit"));
