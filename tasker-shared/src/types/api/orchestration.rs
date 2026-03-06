@@ -1011,7 +1011,7 @@ fn extract_template_summary(config: Option<&serde_json::Value>) -> TemplateSumma
                         .unwrap_or("standard")
                         .to_string();
                     let dependencies: Vec<String> = step
-                        .get("depends_on")
+                        .get("dependencies")
                         .and_then(|d| d.as_array())
                         .map(|arr| {
                             arr.iter()
