@@ -149,7 +149,6 @@ fn capability_declaration_roundtrip() {
             }
         }),
         mutation_profile: MutationProfile::NonMutating,
-        retry_profile: RetryProfile::default(),
         tags: vec!["json".into(), "transform".into()],
         version: "1.0.0".into(),
     };
@@ -161,24 +160,6 @@ fn capability_declaration_roundtrip() {
     assert_eq!(back.grammar_category, "Transform");
     assert_eq!(back.mutation_profile, MutationProfile::NonMutating);
     assert_eq!(back.tags, vec!["json", "transform"]);
-}
-
-// ---------------------------------------------------------------------------
-// RetryProfile defaults
-// ---------------------------------------------------------------------------
-
-#[test]
-fn retry_profile_defaults() {
-    let profile = RetryProfile::default();
-    assert!(profile.retriable);
-    assert_eq!(profile.max_attempts, 3);
-    assert!(matches!(
-        profile.backoff,
-        BackoffStrategy::Exponential {
-            initial_ms: 100,
-            ..
-        }
-    ));
 }
 
 // ---------------------------------------------------------------------------

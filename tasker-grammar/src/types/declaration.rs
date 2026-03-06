@@ -13,6 +13,11 @@ use super::categories::MutationProfile;
 /// - **Action**: What to do (transform, validate, assert, persist, acquire, emit)
 /// - **Resource**: The target upon which the action is effected
 /// - **Context**: Configuration, constraints, success validation, result shape
+///
+/// Retry and backoff are step-level concerns handled by the orchestration layer
+/// (see `tasker-shared::models::core::task_template::RetryConfiguration`), not
+/// the grammar layer. Capabilities declare their mutation and idempotency
+/// profiles so the orchestration layer can make informed retry decisions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityDeclaration {
     /// Unique identifier (e.g., "http_get", "postgres_upsert", "json_extract").
@@ -45,63 +50,9 @@ pub struct CapabilityDeclaration {
     /// Concrete mutation profile (must be compatible with grammar category).
     pub mutation_profile: MutationProfile,
 
-    /// Retry behavior specific to this capability.
-    pub retry_profile: RetryProfile,
-
     /// Tags for capability discovery (e.g., `["http", "rest", "api"]`).
     pub tags: Vec<String>,
 
     /// Version of this capability declaration.
     pub version: String,
-}
-
-/// Retry behavior for a capability.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RetryProfile {
-    /// Whether the capability supports automatic retry.
-    pub retriable: bool,
-
-    /// Maximum number of retry attempts.
-    pub max_attempts: u32,
-
-    /// Backoff strategy for retries.
-    pub backoff: BackoffStrategy,
-}
-
-impl Default for RetryProfile {
-    fn default() -> Self {
-        Self {
-            retriable: true,
-            max_attempts: 3,
-            backoff: BackoffStrategy::Exponential {
-                initial_ms: 100,
-                multiplier: 2.0,
-                max_ms: 10_000,
-            },
-        }
-    }
-}
-
-/// Backoff strategy for retry behavior.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum BackoffStrategy {
-    /// Fixed delay between retries.
-    Fixed {
-        /// Delay in milliseconds.
-        delay_ms: u64,
-    },
-
-    /// Exponential backoff with configurable parameters.
-    Exponential {
-        /// Initial delay in milliseconds.
-        initial_ms: u64,
-        /// Multiplier applied after each attempt.
-        multiplier: f64,
-        /// Maximum delay in milliseconds.
-        max_ms: u64,
-    },
-
-    /// No delay between retries.
-    None,
 }

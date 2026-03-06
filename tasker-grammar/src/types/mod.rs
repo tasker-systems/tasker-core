@@ -32,7 +32,7 @@ pub use categories::{
 };
 pub use checkpoint::CompositionCheckpoint;
 pub use composition::{CompositionSpec, CompositionStep, InputMapping, OutcomeDeclaration};
-pub use declaration::{BackoffStrategy, CapabilityDeclaration, RetryProfile};
+pub use declaration::CapabilityDeclaration;
 pub use error::{CapabilityError, CompositionError, RegistrationError};
 pub use executor::{CapabilityExecutor, ExecutionContext};
 pub use validation::{CompositionConstraint, Severity, ValidationFinding};
