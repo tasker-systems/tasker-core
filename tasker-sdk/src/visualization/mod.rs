@@ -73,3 +73,83 @@ fn build_markdown(name: &str, mermaid: &str, detail_table: Option<&str>) -> Stri
     }
     doc
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::template_parser::parse_template_str;
+
+    #[test]
+    fn test_full_markdown_output() {
+        let yaml =
+            include_str!("../../../tests/fixtures/task_templates/codegen_test_template.yaml");
+        let template = parse_template_str(yaml).unwrap();
+        let output = visualize_template(&template, &HashMap::new(), &VisualizeOptions::default());
+
+        // Markdown contains fenced mermaid block
+        assert!(output.markdown.contains("```mermaid"));
+        assert!(output.markdown.contains("graph TD"));
+        // Markdown contains detail table
+        assert!(output.markdown.contains("## Step Details"));
+        assert!(output.markdown.contains("| Step |"));
+        // detail_table is present
+        assert!(output.detail_table.is_some());
+        assert!(output.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_graph_only_mode() {
+        let yaml =
+            include_str!("../../../tests/fixtures/task_templates/codegen_test_template.yaml");
+        let template = parse_template_str(yaml).unwrap();
+        let options = VisualizeOptions { graph_only: true };
+        let output = visualize_template(&template, &HashMap::new(), &options);
+
+        assert!(output.detail_table.is_none());
+        assert!(!output.markdown.contains("## Step Details"));
+        // But mermaid should still be present
+        assert!(output.markdown.contains("```mermaid"));
+    }
+
+    #[test]
+    fn test_annotation_warning_for_unknown_step() {
+        let yaml =
+            include_str!("../../../tests/fixtures/task_templates/codegen_test_template.yaml");
+        let template = parse_template_str(yaml).unwrap();
+        let mut annotations = HashMap::new();
+        annotations.insert("nonexistent_step".to_string(), "note".to_string());
+
+        let output = visualize_template(&template, &annotations, &VisualizeOptions::default());
+
+        assert_eq!(output.warnings.len(), 1);
+        assert!(output.warnings[0].contains("nonexistent_step"));
+    }
+
+    #[test]
+    fn test_diamond_dag_full_output() {
+        let yaml = include_str!(
+            "../../../tests/fixtures/task_templates/python/diamond_workflow_handler_py.yaml"
+        );
+        let template = parse_template_str(yaml).unwrap();
+        let output = visualize_template(&template, &HashMap::new(), &VisualizeOptions::default());
+
+        assert!(output
+            .mermaid
+            .contains("diamond_start_py --> diamond_branch_b_py"));
+        assert!(output.detail_table.is_some());
+    }
+
+    #[test]
+    fn test_linear_chain_full_output() {
+        let yaml = include_str!(
+            "../../../tests/fixtures/task_templates/python/linear_workflow_handler_py.yaml"
+        );
+        let template = parse_template_str(yaml).unwrap();
+        let output = visualize_template(&template, &HashMap::new(), &VisualizeOptions::default());
+
+        assert!(output
+            .mermaid
+            .contains("linear_step_1_py --> linear_step_2_py"));
+        assert!(output.detail_table.is_some());
+    }
+}
