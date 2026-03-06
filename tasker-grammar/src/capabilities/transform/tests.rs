@@ -106,6 +106,71 @@ fn filter_with_output_schema_fail() {
 }
 
 #[test]
+fn output_validation_errors_do_not_leak_values() {
+    let exec = executor();
+    // Simulate PII flowing through the composition context — the email value
+    // should never appear in the error message.
+    let input = json!({
+        "context": {"email": "alice@secret.com"},
+        "deps": {}, "step": {}, "prev": null
+    });
+    let config = json!({
+        "filter": "{email: .context.email}",
+        "output": {
+            "type": "object",
+            "properties": {"email": {"type": "integer"}}
+        }
+    });
+    let err = exec.execute(&input, &config, &ctx()).unwrap_err();
+    let msg = err.to_string();
+
+    assert!(
+        matches!(err, CapabilityError::OutputValidation(_)),
+        "expected OutputValidation, got {err:?}"
+    );
+    assert!(
+        !msg.contains("alice@secret.com"),
+        "error message must not contain the actual value: {msg}"
+    );
+    assert!(
+        msg.contains("expected type"),
+        "error should describe the constraint violation: {msg}"
+    );
+}
+
+#[test]
+fn output_validation_error_includes_path() {
+    let exec = executor();
+    let input = json!({
+        "context": {}, "deps": {}, "step": {},
+        "prev": {"nested": {"value": "wrong_type"}}
+    });
+    let config = json!({
+        "filter": ".prev",
+        "output": {
+            "type": "object",
+            "properties": {
+                "nested": {
+                    "type": "object",
+                    "properties": {"value": {"type": "number"}}
+                }
+            }
+        }
+    });
+    let err = exec.execute(&input, &config, &ctx()).unwrap_err();
+    let msg = err.to_string();
+
+    assert!(
+        !msg.contains("wrong_type"),
+        "error must not contain actual value: {msg}"
+    );
+    assert!(
+        msg.contains("/nested/value"),
+        "error should include the instance path: {msg}"
+    );
+}
+
+#[test]
 fn missing_filter_config() {
     let exec = executor();
     let config = json!({"output": {"type": "object"}});
