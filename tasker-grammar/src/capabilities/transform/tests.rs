@@ -1,9 +1,15 @@
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::expression::ExpressionEngine;
-use crate::types::{CapabilityError, CapabilityExecutor, ExecutionContext};
+use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 
 use super::TransformExecutor;
+
+/// Execute transform against a raw envelope value, wrapping in CompositionEnvelope.
+fn exec_transform(input: &Value, config: &Value) -> Result<Value, CapabilityError> {
+    let envelope = CompositionEnvelope::new(input);
+    executor().execute(&envelope, config, &ctx())
+}
 
 fn executor() -> TransformExecutor {
     TransformExecutor::new(ExpressionEngine::with_defaults())
@@ -64,16 +70,14 @@ fn envelope() -> serde_json::Value {
 
 #[test]
 fn simple_filter_execution() {
-    let exec = executor();
     let input = json!({"value": 42});
     let config = json!({"filter": ".value + 1"});
-    let result = exec.execute(&input, &config, &ctx()).unwrap();
+    let result = exec_transform(&input, &config).unwrap();
     assert_eq!(result, json!(43));
 }
 
 #[test]
 fn filter_with_output_schema_pass() {
-    let exec = executor();
     let input = json!({"x": 10});
     let config = json!({
         "filter": "{result: .x}",
@@ -83,13 +87,12 @@ fn filter_with_output_schema_pass() {
             "properties": {"result": {"type": "integer"}}
         }
     });
-    let result = exec.execute(&input, &config, &ctx()).unwrap();
+    let result = exec_transform(&input, &config).unwrap();
     assert_eq!(result, json!({"result": 10}));
 }
 
 #[test]
 fn filter_with_output_schema_fail() {
-    let exec = executor();
     let input = json!({"x": "not_a_number"});
     let config = json!({
         "filter": "{result: .x}",
@@ -98,7 +101,7 @@ fn filter_with_output_schema_fail() {
             "properties": {"result": {"type": "number"}}
         }
     });
-    let err = exec.execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec_transform(&input, &config).unwrap_err();
     assert!(
         matches!(err, CapabilityError::OutputValidation(_)),
         "expected OutputValidation, got {err:?}"
@@ -107,7 +110,6 @@ fn filter_with_output_schema_fail() {
 
 #[test]
 fn output_validation_errors_do_not_leak_values() {
-    let exec = executor();
     // Simulate PII flowing through the composition context — the email value
     // should never appear in the error message.
     let input = json!({
@@ -121,7 +123,7 @@ fn output_validation_errors_do_not_leak_values() {
             "properties": {"email": {"type": "integer"}}
         }
     });
-    let err = exec.execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec_transform(&input, &config).unwrap_err();
     let msg = err.to_string();
 
     assert!(
@@ -140,7 +142,6 @@ fn output_validation_errors_do_not_leak_values() {
 
 #[test]
 fn output_validation_error_includes_path() {
-    let exec = executor();
     let input = json!({
         "context": {}, "deps": {}, "step": {},
         "prev": {"nested": {"value": "wrong_type"}}
@@ -157,7 +158,7 @@ fn output_validation_error_includes_path() {
             }
         }
     });
-    let err = exec.execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec_transform(&input, &config).unwrap_err();
     let msg = err.to_string();
 
     assert!(
@@ -172,17 +173,15 @@ fn output_validation_error_includes_path() {
 
 #[test]
 fn missing_filter_config() {
-    let exec = executor();
     let config = json!({"output": {"type": "object"}});
-    let err = exec.execute(&json!({}), &config, &ctx()).unwrap_err();
+    let err = exec_transform(&json!({}), &config).unwrap_err();
     assert!(matches!(err, CapabilityError::ConfigValidation(_)));
 }
 
 #[test]
 fn invalid_filter_syntax() {
-    let exec = executor();
     let config = json!({"filter": ".foo ||| bar"});
-    let err = exec.execute(&json!({}), &config, &ctx()).unwrap_err();
+    let err = exec_transform(&json!({}), &config).unwrap_err();
     assert!(matches!(err, CapabilityError::ExpressionEvaluation(_)));
 }
 
@@ -193,57 +192,50 @@ fn capability_name_is_transform() {
 
 #[test]
 fn envelope_context_access() {
-    let exec = executor();
     let config = json!({"filter": ".context.order_id"});
-    let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+    let result = exec_transform(&envelope(), &config).unwrap();
     assert_eq!(result, json!("ORD-001"));
 }
 
 #[test]
 fn envelope_deps_access() {
-    let exec = executor();
     let config = json!({"filter": ".deps.validate_cart.total"});
-    let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+    let result = exec_transform(&envelope(), &config).unwrap();
     assert_eq!(result, json!(100.0));
 }
 
 #[test]
 fn envelope_step_access() {
-    let exec = executor();
     let config = json!({"filter": ".step.name"});
-    let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+    let result = exec_transform(&envelope(), &config).unwrap();
     assert_eq!(result, json!("create_order"));
 }
 
 #[test]
 fn envelope_prev_null_for_first_invocation() {
-    let exec = executor();
     let config = json!({"filter": ".prev"});
-    let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+    let result = exec_transform(&envelope(), &config).unwrap();
     assert_eq!(result, json!(null));
 }
 
 #[test]
 fn envelope_prev_chaining() {
-    let exec = executor();
     let mut env = envelope();
     env["prev"] = json!({"total": 100.0, "tax": 8.75});
     let config = json!({"filter": ".prev.total + .prev.tax"});
-    let result = exec.execute(&env, &config, &ctx()).unwrap();
+    let result = exec_transform(&env, &config).unwrap();
     assert_eq!(result, json!(108.75));
 }
 
 #[test]
 fn null_field_handling() {
-    let exec = executor();
     let config = json!({"filter": ".context.nonexistent"});
-    let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+    let result = exec_transform(&envelope(), &config).unwrap();
     assert_eq!(result, json!(null));
 }
 
 #[test]
 fn output_schema_required_field_missing() {
-    let exec = executor();
     let input = json!({"x": 1});
     let config = json!({
         "filter": "{a: .x}",
@@ -256,27 +248,25 @@ fn output_schema_required_field_missing() {
             }
         }
     });
-    let err = exec.execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec_transform(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::OutputValidation(_)));
 }
 
 #[test]
 fn no_output_schema_skips_validation() {
-    let exec = executor();
     let config = json!({"filter": "{anything: 123}"});
-    let result = exec.execute(&json!({}), &config, &ctx()).unwrap();
+    let result = exec_transform(&json!({}), &config).unwrap();
     assert_eq!(result, json!({"anything": 123}));
 }
 
 #[test]
 fn invalid_output_schema_returns_config_error() {
-    let exec = executor();
     let config = json!({
         "filter": "42",
         "output": {"type": "not_a_real_type"}
     });
     // jsonschema may accept unknown types gracefully; we just verify no panic
-    let _ = exec.execute(&json!({}), &config, &ctx());
+    let _ = exec_transform(&json!({}), &config);
 }
 
 // ---------------------------------------------------------------------------
@@ -305,7 +295,6 @@ mod projection {
     /// contract this step promises to downstream consumers.
     #[test]
     fn field_projection() {
-        let exec = executor();
         let config = json!({
             "filter": "{total: .deps.validate_cart.total, payment_id: .deps.process_payment.payment_id}",
             "output": {
@@ -317,7 +306,7 @@ mod projection {
                 }
             }
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["total"], json!(100.0));
         assert_eq!(result["payment_id"], json!("pay_123"));
     }
@@ -328,11 +317,10 @@ mod projection {
     /// consumers expect a different naming convention.
     #[test]
     fn field_renaming() {
-        let exec = executor();
         let config = json!({
             "filter": "{email: .context.customer_email, ref_id: .context.order_id}"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["email"], json!("user@example.com"));
         assert_eq!(result["ref_id"], json!("ORD-001"));
     }
@@ -343,13 +331,12 @@ mod projection {
     /// intermediate keys produce `null` rather than errors.
     #[test]
     fn nested_extraction() {
-        let exec = executor();
         let input = json!({
             "context": {"billing": {"address": {"city": "Portland", "zip": "97201"}}},
             "deps": {}, "step": {}, "prev": null
         });
         let config = json!({"filter": ".context.billing.address.city"});
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result, json!("Portland"));
     }
 
@@ -360,7 +347,6 @@ mod projection {
     /// downstream only needs a few fields per item.
     #[test]
     fn array_element_restructuring() {
-        let exec = executor();
         let config = json!({
             "filter": "[.deps.validate_cart.validated_items[] | {sku, qty: .quantity}]",
             "output": {
@@ -374,7 +360,7 @@ mod projection {
                 }
             }
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(
             result,
             json!([
@@ -390,7 +376,6 @@ mod projection {
     /// flat inputs into hierarchical outputs expected by downstream consumers.
     #[test]
     fn nested_object_construction() {
-        let exec = executor();
         let input = json!({
             "context": {"addr": "123 Main St", "postal_code": "97201", "name": "Alice"},
             "deps": {}, "step": {}, "prev": null
@@ -398,7 +383,7 @@ mod projection {
         let config = json!({
             "filter": "{customer: {name: .context.name, billing: {address: .context.addr, zip: .context.postal_code}}}"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(
             result,
             json!({
@@ -416,13 +401,12 @@ mod projection {
     /// expect a flat record from a hierarchical source.
     #[test]
     fn flattening() {
-        let exec = executor();
         let input = json!({
             "context": {"deep": {"nested": {"value": 42}}},
             "deps": {}, "step": {}, "prev": null
         });
         let config = json!({"filter": "{flat_field: .context.deep.nested.value}"});
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result, json!({"flat_field": 42}));
     }
 
@@ -433,11 +417,10 @@ mod projection {
     /// from the task context and from upstream dependency step outputs.
     #[test]
     fn multi_source_projection() {
-        let exec = executor();
         let config = json!({
             "filter": "{order_id: .context.order_id, customer_name: .deps.customer_profile.name, total: .deps.validate_cart.total}"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["order_id"], json!("ORD-001"));
         assert_eq!(result["customer_name"], json!("Alice"));
         assert_eq!(result["total"], json!(100.0));
@@ -450,11 +433,10 @@ mod projection {
     /// This eliminates the need for explicit null-checking in projections.
     #[test]
     fn missing_optional_fields() {
-        let exec = executor();
         let config = json!({
             "filter": "{present: .context.order_id, absent: .context.nonexistent}"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["present"], json!("ORD-001"));
         assert_eq!(result["absent"], json!(null));
     }
@@ -466,14 +448,13 @@ mod projection {
     /// output without re-reading `.context` or `.deps`.
     #[test]
     fn prev_chaining() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] =
             json!({"items": [{"sku": "A1", "price": 25.0}, {"sku": "B2", "price": 50.0}]});
         let config = json!({
             "filter": "{skus: [.prev.items[].sku], count: (.prev.items | length)}"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result, json!({"skus": ["A1", "B2"], "count": 2}));
     }
 
@@ -484,7 +465,6 @@ mod projection {
     /// unexpected shape — e.g., missing a required field or wrong type.
     #[test]
     fn output_schema_validates_projection() {
-        let exec = executor();
         let config = json!({
             "filter": "{customer: .deps.customer_profile.name, items: .deps.validate_cart.validated_items}",
             "output": {
@@ -496,7 +476,7 @@ mod projection {
                 }
             }
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["customer"], json!("Alice"));
         assert!(result["items"].is_array());
     }
@@ -507,13 +487,12 @@ mod projection {
     /// existing structure without restating every field.
     #[test]
     fn object_merge() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"name": "Alice", "email": "alice@example.com"});
         let config = json!({
             "filter": ".prev + {source: \"import\", verified: false}"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["name"], json!("Alice"));
         assert_eq!(result["source"], json!("import"));
         assert_eq!(result["verified"], json!(false));
@@ -525,11 +504,10 @@ mod projection {
     /// columnar data from row-oriented input.
     #[test]
     fn collect_into_parallel_arrays() {
-        let exec = executor();
         let config = json!({
             "filter": "{skus: [.deps.validate_cart.validated_items[].sku], totals: [.deps.validate_cart.validated_items[].line_total]}"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["skus"], json!(["A1", "B2"]));
         assert_eq!(result["totals"], json!([50.0, 50.0]));
     }
@@ -541,11 +519,10 @@ mod projection {
     /// computing new values.
     #[test]
     fn conditional_array_selection() {
-        let exec = executor();
         let config = json!({
             "filter": "[.context.cart_items[] | select(.price >= 50) | {sku, price}]"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!([{"sku": "B2", "price": 50.0}]));
     }
 }
@@ -575,10 +552,9 @@ mod computation {
     /// arithmetic follows IEEE 754 (the same as JSON numbers).
     #[test]
     fn basic_arithmetic() {
-        let exec = executor();
         let input = json!({"context": {"price": 25.0, "quantity": 4}, "deps": {}, "step": {}, "prev": null});
         let config = json!({"filter": ".context.price * .context.quantity"});
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result, json!(100.0));
     }
 
@@ -588,11 +564,10 @@ mod computation {
     /// This is the jq equivalent of SQL's `SUM()`.
     #[test]
     fn array_aggregation() {
-        let exec = executor();
         let config = json!({
             "filter": "[.deps.validate_cart.validated_items[].line_total] | add"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(100.0));
     }
 
@@ -602,11 +577,10 @@ mod computation {
     /// and `null` (returns 0).
     #[test]
     fn array_length() {
-        let exec = executor();
         let config = json!({
             "filter": ".deps.validate_cart.validated_items | length"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(2));
     }
 
@@ -616,11 +590,10 @@ mod computation {
     /// Useful for constructing confirmation messages, log lines, or IDs.
     #[test]
     fn string_interpolation() {
-        let exec = executor();
         let config = json!({
             "filter": "\"Order \\(.context.order_id) confirmed\""
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!("Order ORD-001 confirmed"));
     }
 
@@ -631,7 +604,6 @@ mod computation {
     /// intermediate values like subtotals before deriving tax and total.
     #[test]
     fn variable_binding() {
-        let exec = executor();
         let config = json!({
             "filter": "([.deps.validate_cart.validated_items[].line_total] | add) as $subtotal | ($subtotal * .context.tax_rate) as $tax | {subtotal: $subtotal, tax: ($tax * 100 | round / 100), total: (($subtotal + $tax) * 100 | round / 100)}",
             "output": {
@@ -644,7 +616,7 @@ mod computation {
                 }
             }
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["subtotal"], json!(100.0));
         assert_eq!(result["tax"], json!(8.75));
         assert_eq!(result["total"], json!(108.75));
@@ -656,11 +628,10 @@ mod computation {
     /// that combine results from independent upstream steps.
     #[test]
     fn cross_dependency_computation() {
-        let exec = executor();
         let config = json!({
             "filter": "{combined: (.deps.validate_cart.total + .deps.customer_profile.lifetime_value)}"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["combined"], json!(15100.0));
     }
 
@@ -670,7 +641,6 @@ mod computation {
     /// This replaces what was a separate `rank` capability in earlier designs.
     #[test]
     fn sorting_and_ranking() {
-        let exec = executor();
         let input = json!({
             "context": {"scores": [{"name": "A", "score": 50}, {"name": "B", "score": 90}, {"name": "C", "score": 70}]},
             "deps": {}, "step": {}, "prev": null
@@ -678,7 +648,7 @@ mod computation {
         let config = json!({
             "filter": ".context.scores | sort_by(.score) | reverse | to_entries | map({rank: (.key + 1), name: .value.name, score: .value.score})"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result[0]["rank"], json!(1));
         assert_eq!(result[0]["name"], json!("B"));
         assert_eq!(result[1]["rank"], json!(2));
@@ -692,11 +662,10 @@ mod computation {
     /// the unified model — no need to chain separate reshape→compute steps.
     #[test]
     fn mixed_projection_and_computation() {
-        let exec = executor();
         let config = json!({
             "filter": "{order_id: .context.order_id, item_count: (.deps.validate_cart.validated_items | length), total: .deps.validate_cart.total, confirmation: \"Order \\(.context.order_id) for $\\(.deps.validate_cart.total)\"}"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["order_id"], json!("ORD-001"));
         assert_eq!(result["item_count"], json!(2));
         assert_eq!(result["total"], json!(100.0));
@@ -709,7 +678,6 @@ mod computation {
     /// This replaces what was a separate `group_by` capability in earlier designs.
     #[test]
     fn group_by_aggregation() {
-        let exec = executor();
         let input = json!({
             "context": {
                 "records": [
@@ -724,7 +692,7 @@ mod computation {
         let config = json!({
             "filter": ".context.records | group_by(.category) | map({category: .[0].category, total: (map(.amount) | add)})"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result[0], json!({"category": "A", "total": 40}));
         assert_eq!(result[1], json!({"category": "B", "total": 25}));
     }
@@ -735,13 +703,12 @@ mod computation {
     /// projection transform that gathered the needed fields.
     #[test]
     fn prev_computation() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"items": [{"price": 10, "qty": 2}, {"price": 5, "qty": 3}]});
         let config = json!({
             "filter": ".prev.items | map(.price * .qty) | add"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result, json!(35));
     }
 
@@ -751,7 +718,6 @@ mod computation {
     /// functions to control precision: `* 100 | round / 100` for 2 decimal places.
     #[test]
     fn division_and_rounding() {
-        let exec = executor();
         let input = json!({
             "context": {"total": 100, "count": 3},
             "deps": {}, "step": {}, "prev": null
@@ -759,7 +725,7 @@ mod computation {
         let config = json!({
             "filter": "(.context.total / .context.count * 100 | round / 100) as $avg | {average: $avg, floored: ($avg | floor), ceiled: ($avg | ceil)}"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result["average"], json!(33.33));
         assert_eq!(result["floored"], json!(33));
         assert_eq!(result["ceiled"], json!(34));
@@ -771,7 +737,6 @@ mod computation {
     /// `min_by` and `max_by` accept a key function for object arrays.
     #[test]
     fn min_max() {
-        let exec = executor();
         let input = json!({
             "context": {"scores": [72, 95, 88, 61, 90]},
             "deps": {}, "step": {}, "prev": null
@@ -779,7 +744,7 @@ mod computation {
         let config = json!({
             "filter": "{min: (.context.scores | min), max: (.context.scores | max), range: ((.context.scores | max) - (.context.scores | min))}"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result["min"], json!(61));
         assert_eq!(result["max"], json!(95));
         assert_eq!(result["range"], json!(34));
@@ -791,7 +756,6 @@ mod computation {
     /// the standard idiom. Use rounding for clean output.
     #[test]
     fn average() {
-        let exec = executor();
         let input = json!({
             "context": {"values": [10, 20, 30, 40]},
             "deps": {}, "step": {}, "prev": null
@@ -799,7 +763,7 @@ mod computation {
         let config = json!({
             "filter": ".context.values | (add / length)"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result, json!(25.0));
     }
 
@@ -809,7 +773,6 @@ mod computation {
     /// deduplicates by a key function.
     #[test]
     fn unique_values() {
-        let exec = executor();
         let input = json!({
             "context": {"tags": ["rust", "jq", "rust", "json", "jq"]},
             "deps": {}, "step": {}, "prev": null
@@ -817,7 +780,7 @@ mod computation {
         let config = json!({
             "filter": "{unique_tags: (.context.tags | unique), count: (.context.tags | unique | length)}"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result["unique_tags"], json!(["jq", "json", "rust"]));
         assert_eq!(result["count"], json!(3));
     }
@@ -828,13 +791,12 @@ mod computation {
     /// output is a derived numeric value rather than a boolean/classification.
     #[test]
     fn conditional_computation() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"quantity": 25, "unit_price": 10.0});
         let config = json!({
             "filter": "(.prev.quantity * .prev.unit_price) as $subtotal | if .prev.quantity >= 20 then {subtotal: $subtotal, discount: ($subtotal * 0.1), total: ($subtotal * 0.9)} else {subtotal: $subtotal, discount: 0, total: $subtotal} end"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["subtotal"], json!(250.0));
         assert_eq!(result["discount"], json!(25.0));
         assert_eq!(result["total"], json!(225.0));
@@ -867,9 +829,8 @@ mod evaluation {
     /// not wrapped in an object.
     #[test]
     fn simple_boolean() {
-        let exec = executor();
         let config = json!({"filter": ".deps.validate_cart.total > 50"});
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
@@ -878,11 +839,10 @@ mod evaluation {
     /// jq's `and`/`or` are short-circuiting boolean operators.
     #[test]
     fn compound_boolean() {
-        let exec = executor();
         let config = json!({
             "filter": ".deps.validate_cart.total > 50 and .deps.customer_profile.tier == \"gold\""
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
@@ -893,12 +853,11 @@ mod evaluation {
     /// catching bugs where the filter produces an unexpected category.
     #[test]
     fn conditional_classification() {
-        let exec = executor();
         let config = json!({
             "filter": "if .deps.customer_profile.lifetime_value > 10000 then \"gold\" elif .deps.customer_profile.lifetime_value > 1000 then \"silver\" else \"standard\" end",
             "output": {"type": "string", "enum": ["gold", "silver", "standard"]}
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!("gold"));
     }
 
@@ -908,11 +867,10 @@ mod evaluation {
     /// Useful for checking if a collection contains flagged items.
     #[test]
     fn array_predicate_any() {
-        let exec = executor();
         let config = json!({
             "filter": ".context.flags | any(. == \"manual_review\")"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
@@ -922,13 +880,12 @@ mod evaluation {
     /// Useful for validating that all items in a batch meet criteria.
     #[test]
     fn array_predicate_all() {
-        let exec = executor();
         let input = json!({
             "context": {"items": [{"valid": true}, {"valid": true}]},
             "deps": {}, "step": {}, "prev": null
         });
         let config = json!({"filter": ".context.items | all(.valid)"});
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
@@ -938,10 +895,9 @@ mod evaluation {
     /// `and` to combine two comparisons.
     #[test]
     fn comparison_chains() {
-        let exec = executor();
         let input = json!({"context": {"score": 85}, "deps": {}, "step": {}, "prev": null});
         let config = json!({"filter": ".context.score >= 80 and .context.score < 90"});
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
@@ -951,9 +907,8 @@ mod evaluation {
     /// patterns that check whether optional fields are present.
     #[test]
     fn null_comparison() {
-        let exec = executor();
         let config = json!({"filter": ".context.nonexistent == null"});
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
@@ -965,7 +920,6 @@ mod evaluation {
     /// the types of each answer field.
     #[test]
     fn multi_field_evaluation() {
-        let exec = executor();
         let config = json!({
             "filter": "{is_high_value: (.deps.validate_cart.total > 50), needs_review: (.context.flags | any(. == \"manual_review\")), customer_tier: (if .deps.customer_profile.lifetime_value > 10000 then \"gold\" elif .deps.customer_profile.lifetime_value > 1000 then \"silver\" else \"standard\" end)}",
             "output": {
@@ -978,7 +932,7 @@ mod evaluation {
                 }
             }
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["is_high_value"], json!(true));
         assert_eq!(result["needs_review"], json!(true));
         assert_eq!(result["customer_tier"], json!("gold"));
@@ -990,11 +944,10 @@ mod evaluation {
     /// `.deps`, and `.prev` to make decisions based on the full workflow state.
     #[test]
     fn cross_dependency_evaluation() {
-        let exec = executor();
         let config = json!({
             "filter": ".deps.validate_cart.total > 50 and .deps.customer_profile.tier == \"gold\""
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
@@ -1004,11 +957,10 @@ mod evaluation {
     /// Useful for "none of these flags are present" checks.
     #[test]
     fn negation_pattern() {
-        let exec = executor();
         let config = json!({
             "filter": "(.context.flags | any(. == \"blocked\")) | not"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
@@ -1020,23 +972,21 @@ mod evaluation {
     /// silently work in jq but violate the declared contract.
     #[test]
     fn boolean_schema_validation_pass() {
-        let exec = executor();
         let config = json!({
             "filter": ".deps.validate_cart.total > 50",
             "output": {"type": "boolean"}
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result, json!(true));
     }
 
     #[test]
     fn boolean_schema_validation_fail() {
-        let exec = executor();
         let config = json!({
             "filter": ".deps.validate_cart.total",
             "output": {"type": "boolean"}
         });
-        let err = exec.execute(&envelope(), &config, &ctx()).unwrap_err();
+        let err = exec_transform(&envelope(), &config).unwrap_err();
         assert!(matches!(err, CapabilityError::OutputValidation(_)));
     }
 
@@ -1046,11 +996,10 @@ mod evaluation {
     /// idiomatic way to check for presence.
     #[test]
     fn existence_check() {
-        let exec = executor();
         let config = json!({
             "filter": "{has_promo: (.context.promo_code != null), has_referral: (.context.referral_code != null)}"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["has_promo"], json!(true));
         assert_eq!(result["has_referral"], json!(false));
     }
@@ -1062,7 +1011,6 @@ mod evaluation {
     /// false in that case.
     #[test]
     fn has_key_check() {
-        let exec = executor();
         let input = json!({
             "context": {"data": {"name": "Alice", "nickname": null}},
             "deps": {}, "step": {}, "prev": null
@@ -1070,7 +1018,7 @@ mod evaluation {
         let config = json!({
             "filter": "{has_name: (.context.data | has(\"name\")), has_nickname: (.context.data | has(\"nickname\")), has_age: (.context.data | has(\"age\"))}"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result["has_name"], json!(true));
         assert_eq!(result["has_nickname"], json!(true));
         assert_eq!(result["has_age"], json!(false));
@@ -1083,7 +1031,6 @@ mod evaluation {
     /// schema validation fails immediately rather than propagating bad data.
     #[test]
     fn enum_classification_with_schema() {
-        let exec = executor();
         let input = json!({
             "context": {"score": 45},
             "deps": {}, "step": {}, "prev": null
@@ -1098,7 +1045,7 @@ mod evaluation {
                 }
             }
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result["grade"], json!("F"));
     }
 
@@ -1107,11 +1054,10 @@ mod evaluation {
     /// Pattern: `(.array | length) > 0` or `(.array | length) == 0`
     #[test]
     fn array_emptiness_check() {
-        let exec = executor();
         let config = json!({
             "filter": "{has_items: ((.context.cart_items | length) > 0), has_flags: ((.context.flags | length) > 0)}"
         });
-        let result = exec.execute(&envelope(), &config, &ctx()).unwrap();
+        let result = exec_transform(&envelope(), &config).unwrap();
         assert_eq!(result["has_items"], json!(true));
         assert_eq!(result["has_flags"], json!(true));
     }
@@ -1155,7 +1101,6 @@ mod rules {
     /// branch produces a consistent object.
     #[test]
     fn first_match_single() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"total": 1500, "tier": "gold"});
         let config = json!({
@@ -1169,7 +1114,7 @@ mod rules {
                 }
             }
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["priority"], json!("urgent"));
         assert_eq!(result["routing"], json!("vip_queue"));
     }
@@ -1181,14 +1126,13 @@ mod rules {
     /// all-match, which would collect both.
     #[test]
     fn first_match_short_circuits() {
-        let exec = executor();
         let mut env = envelope();
         // total > 500 AND total > 0 both true, but first-match returns first
         env["prev"] = json!({"total": 750, "tier": "silver"});
         let config = json!({
             "filter": "if .prev.total > 1000 and .prev.tier == \"gold\" then {priority: \"urgent\"} elif .prev.total > 500 then {priority: \"high\"} elif .prev.total > 0 then {priority: \"normal\"} else {priority: \"low\"} end"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["priority"], json!("high"));
     }
 
@@ -1199,13 +1143,12 @@ mod rules {
     /// produce `null`, which may violate the output schema.
     #[test]
     fn first_match_default() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"total": -5, "tier": "none"});
         let config = json!({
             "filter": "if .prev.total > 1000 then {priority: \"urgent\"} elif .prev.total > 0 then {priority: \"normal\"} else {priority: \"low\"} end"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["priority"], json!("low"));
     }
 
@@ -1220,7 +1163,6 @@ mod rules {
     /// simultaneously (e.g., stacking discounts, accumulating flags).
     #[test]
     fn all_match_collects() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"total": 600});
         env["context"]["promo_code"] = json!("SAVE15");
@@ -1235,7 +1177,7 @@ mod rules {
                 }
             }
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         let discounts = result["applicable_discounts"].as_array().unwrap();
         assert_eq!(discounts.len(), 3);
         assert_eq!(discounts[0]["rule"], json!("bulk_discount"));
@@ -1249,7 +1191,6 @@ mod rules {
     /// is `[]`. This is a safe, well-typed result (an array with zero items).
     #[test]
     fn all_match_no_matches() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"total": 10});
         env["deps"]["customer_profile"]["tier"] = json!("standard");
@@ -1258,7 +1199,7 @@ mod rules {
         let config = json!({
             "filter": "[(if .prev.total > 500 then {rule: \"bulk\"} else empty end), (if .deps.customer_profile.tier == \"gold\" then {rule: \"loyalty\"} else empty end), (if .context.promo_code != null then {rule: \"promo\"} else empty end)] | {applicable_discounts: .}"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         let discounts = result["applicable_discounts"].as_array().unwrap();
         assert!(discounts.is_empty());
     }
@@ -1270,13 +1211,12 @@ mod rules {
     /// conditions spanning amount, reason, and eligibility rules.
     #[test]
     fn complex_conditions() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"refund_amount": 300, "refund_reason": "defective"});
         let config = json!({
             "filter": "if .prev.refund_amount <= 50 then {approval_path: \"auto_approved\"} elif (.prev.refund_reason == \"defective\" or .prev.refund_reason == \"wrong_item\") and .prev.refund_amount <= 500 then {approval_path: \"auto_approved\"} elif .prev.refund_amount > 500 then {approval_path: \"manager_review\"} else {approval_path: \"standard_review\"} end"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["approval_path"], json!("auto_approved"));
     }
 
@@ -1287,13 +1227,12 @@ mod rules {
     /// schema.
     #[test]
     fn nested_rule_results() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"score": 95});
         let config = json!({
             "filter": "if .prev.score >= 90 then {grade: \"A\", pass: true, honors: true} elif .prev.score >= 80 then {grade: \"B\", pass: true, honors: false} else {grade: \"F\", pass: false, honors: false} end"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["grade"], json!("A"));
         assert_eq!(result["pass"], json!(true));
         assert_eq!(result["honors"], json!(true));
@@ -1305,13 +1244,12 @@ mod rules {
     /// Here the discount rate is doubled when the total exceeds a threshold.
     #[test]
     fn dynamic_rule_values() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"base_discount": 0.05, "total": 1000});
         let config = json!({
             "filter": "if .prev.total > 500 then {discount: (.prev.base_discount * 2), savings: (.prev.total * .prev.base_discount * 2)} else {discount: .prev.base_discount, savings: (.prev.total * .prev.base_discount)} end"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["discount"], json!(0.1));
         assert_eq!(result["savings"], json!(100.0));
     }
@@ -1322,12 +1260,11 @@ mod rules {
     /// semantics mean that `.prev == null` is safe even if `.prev` is absent.
     #[test]
     fn empty_input_handling() {
-        let exec = executor();
         let input = json!({"context": {}, "deps": {}, "step": {}, "prev": null});
         let config = json!({
             "filter": "if .prev == null then {status: \"no_input\"} else {status: \"has_input\"} end"
         });
-        let result = exec.execute(&input, &config, &ctx()).unwrap();
+        let result = exec_transform(&input, &config).unwrap();
         assert_eq!(result["status"], json!("no_input"));
     }
 
@@ -1338,7 +1275,6 @@ mod rules {
     /// field, schema validation catches it at runtime.
     #[test]
     fn rule_output_schema_validation() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"total": 100});
         let config = json!({
@@ -1351,7 +1287,7 @@ mod rules {
                 }
             }
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["priority"], json!("high"));
     }
 
@@ -1362,14 +1298,13 @@ mod rules {
     /// computation in a single filter using variable binding.
     #[test]
     fn all_match_with_aggregate() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"total": 600});
 
         let config = json!({
             "filter": ".prev.total as $total | [(if $total > 500 then {rule: \"bulk\", rate: 0.10} else empty end), (if .deps.customer_profile.tier == \"gold\" then {rule: \"loyalty\", rate: 0.05} else empty end)] | {rules: ., combined_rate: (map(.rate) | add), savings: ($total * (map(.rate) | add))}"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["rules"].as_array().unwrap().len(), 2);
         assert_eq!(result["combined_rate"], json!(0.15000000000000002));
         assert_eq!(result["savings"], json!(90.00000000000001));
@@ -1381,13 +1316,12 @@ mod rules {
     /// chain scales cleanly to any number of conditions.
     #[test]
     fn many_branch_routing() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"severity": "medium", "customer_tier": "silver"});
         let config = json!({
             "filter": "if .prev.severity == \"critical\" then {sla_hours: 1, team: \"on_call\"} elif .prev.severity == \"high\" and .prev.customer_tier == \"gold\" then {sla_hours: 4, team: \"senior\"} elif .prev.severity == \"high\" then {sla_hours: 8, team: \"standard\"} elif .prev.severity == \"medium\" then {sla_hours: 24, team: \"standard\"} elif .prev.severity == \"low\" then {sla_hours: 72, team: \"junior\"} else {sla_hours: 168, team: \"backlog\"} end"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["sla_hours"], json!(24));
         assert_eq!(result["team"], json!("standard"));
     }
@@ -1398,13 +1332,12 @@ mod rules {
     /// non-matching ones (via `empty`).
     #[test]
     fn all_match_partial() {
-        let exec = executor();
         let mut env = envelope();
         env["prev"] = json!({"total": 200, "is_returning": true, "has_coupon": false});
         let config = json!({
             "filter": "[(if .prev.total > 500 then {tag: \"high_value\"} else empty end), (if .prev.is_returning then {tag: \"returning_customer\"} else empty end), (if .prev.has_coupon then {tag: \"coupon_user\"} else empty end)] | {tags: map(.tag)}"
         });
-        let result = exec.execute(&env, &config, &ctx()).unwrap();
+        let result = exec_transform(&env, &config).unwrap();
         assert_eq!(result["tags"], json!(["returning_customer"]));
     }
 }

@@ -1,11 +1,17 @@
-use serde_json::json;
+use serde_json::{json, Value};
 
-use crate::types::{CapabilityError, CapabilityExecutor, ExecutionContext};
+use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 
 use super::ValidateExecutor;
 
 fn executor() -> ValidateExecutor {
     ValidateExecutor::new()
+}
+
+/// Execute validate against a raw envelope value, wrapping in CompositionEnvelope.
+fn exec(input: &Value, config: &Value) -> Result<Value, CapabilityError> {
+    let envelope = CompositionEnvelope::new(input);
+    executor().execute(&envelope, config, &ctx())
 }
 
 fn ctx() -> ExecutionContext {
@@ -64,7 +70,7 @@ fn valid_object_passes_through_unchanged() {
         }
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(
         result,
         json!({
@@ -86,7 +92,7 @@ fn valid_array_passes_through() {
         }
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result, json!([1, 2, 3]));
 }
 
@@ -98,7 +104,7 @@ fn valid_scalar_passes_through() {
         "schema": {"type": "string"}
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result, json!("hello"));
 }
 
@@ -122,7 +128,7 @@ fn validates_context_when_prev_is_null() {
         }
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["order_id"], json!("ORD-001"));
     assert_eq!(result["amount"], json!(99.99));
 }
@@ -149,7 +155,7 @@ fn invalid_input_produces_structured_error() {
         }
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::InputValidation(msg) => {
             assert!(
@@ -178,7 +184,7 @@ fn missing_required_field_reports_field_name() {
         }
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::InputValidation(msg) => {
             assert!(
@@ -208,7 +214,7 @@ fn error_does_not_leak_actual_values() {
         }
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     let msg = err.to_string();
     // The SSN value must NOT appear in error messages
     assert!(
@@ -244,7 +250,7 @@ fn coerce_string_to_number() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["amount"], json!(123.45));
     assert_eq!(result["quantity"], json!(7.0));
 }
@@ -265,7 +271,7 @@ fn coerce_string_to_integer() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["count"], json!(42));
 }
 
@@ -287,7 +293,7 @@ fn coerce_string_to_boolean() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["active"], json!(true));
     assert_eq!(result["deleted"], json!(false));
 }
@@ -308,7 +314,7 @@ fn coerce_number_to_string() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["code"], json!("12345"));
 }
 
@@ -328,7 +334,7 @@ fn coerce_boolean_to_string() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["flag"], json!("true"));
 }
 
@@ -357,7 +363,7 @@ fn coerce_nested_objects() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["payment"]["amount"], json!(99.99));
     assert_eq!(result["payment"]["approved"], json!(true));
 }
@@ -381,7 +387,7 @@ fn coerce_array_items() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["quantities"], json!([1, 2, 3]));
 }
 
@@ -402,7 +408,7 @@ fn coerce_non_coercible_string_leaves_value_unchanged() {
     });
 
     // Should fail validation since "not-a-number" can't be coerced
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::InputValidation(_)));
 }
 
@@ -422,7 +428,7 @@ fn no_coercion_by_default() {
         // coerce not specified — defaults to false
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::InputValidation(_)));
 }
 
@@ -451,7 +457,7 @@ fn filter_extra_removes_undeclared_fields() {
         "filter_extra": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result, json!({"name": "Alice", "age": 30}));
     assert!(result.get("internal_id").is_none());
     assert!(result.get("debug_info").is_none());
@@ -481,7 +487,7 @@ fn filter_extra_recurses_into_nested_objects() {
         "filter_extra": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["user"], json!({"name": "Alice"}));
     assert!(result["user"].get("password_hash").is_none());
 }
@@ -513,7 +519,7 @@ fn filter_extra_recurses_into_array_items() {
         "filter_extra": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["items"][0], json!({"sku": "A1"}));
     assert_eq!(result["items"][1], json!({"sku": "B2"}));
 }
@@ -535,7 +541,7 @@ fn without_filter_extra_keeps_all_fields() {
         // filter_extra not specified — defaults to false
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["extra_field"], json!("kept"));
 }
 
@@ -558,7 +564,7 @@ fn on_failure_error_is_default() {
         // on_failure not specified — defaults to "error"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::InputValidation(_)));
 }
 
@@ -576,7 +582,7 @@ fn on_failure_error_explicit() {
         "on_failure": "error"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::InputValidation(_)));
 }
 
@@ -598,7 +604,7 @@ fn on_failure_warn_passes_data_with_warnings() {
         "on_failure": "warn"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     // Original data is preserved
     assert_eq!(result["name"], json!("Alice"));
     assert_eq!(result["age"], json!("not a number"));
@@ -630,7 +636,7 @@ fn on_failure_skip_passes_invalid_data_through() {
         "on_failure": "skip"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     // Data passes through unchanged
     assert_eq!(
         result,
@@ -657,7 +663,7 @@ fn on_failure_warn_valid_data_has_no_warnings() {
         "on_failure": "warn"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result, json!({"name": "Alice"}));
     assert!(result.get("_validation_warnings").is_none());
 }
@@ -671,12 +677,12 @@ fn on_failure_invalid_value_rejected() {
         "on_failure": "panic"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::ConfigValidation(msg) => {
             assert!(
-                msg.contains("on_failure"),
-                "should mention on_failure: {msg}"
+                msg.contains("panic"),
+                "should mention the invalid value: {msg}"
             );
         }
         other => panic!("expected ConfigValidation, got: {other:?}"),
@@ -695,7 +701,7 @@ fn missing_schema_in_config() {
         "coerce": true
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::ConfigValidation(msg) => {
             assert!(msg.contains("schema"), "should mention 'schema': {msg}");
@@ -714,7 +720,7 @@ fn invalid_json_schema_in_config() {
         }
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::ConfigValidation(_)));
 }
 
@@ -744,7 +750,7 @@ fn coercion_and_filter_extra_combined() {
         "filter_extra": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result, json!({"amount": 99.99, "active": true}));
 }
 
@@ -769,7 +775,7 @@ fn empty_object_validates_against_empty_schema() {
         "schema": {"type": "object"}
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result, json!({}));
 }
 
@@ -786,7 +792,7 @@ fn null_context_and_null_prev() {
         "schema": {"type": "null"}
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result, Value::Null);
 }
 
@@ -832,7 +838,7 @@ fn complex_schema_with_nested_required() {
         }
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["order"]["id"], json!("ORD-001"));
     assert_eq!(result["order"]["total"], json!(100.0));
 }
@@ -856,7 +862,7 @@ fn multiple_validation_errors_joined() {
         }
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::InputValidation(msg) => {
             // Multiple errors should be joined with "; "
@@ -875,8 +881,6 @@ fn default_impl() {
     let exec = ValidateExecutor;
     assert_eq!(exec.capability_name(), "validate");
 }
-
-use serde_json::Value;
 
 // ---------------------------------------------------------------------------
 // Date format coercion — coerce: true with format: "date-time" or "date"
@@ -898,7 +902,7 @@ fn coerce_iso_date_only_to_datetime() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["created_at"], json!("2026-03-05T00:00:00Z"));
 }
 
@@ -918,7 +922,7 @@ fn coerce_iso_datetime_without_timezone() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["timestamp"], json!("2026-03-05T14:30:00Z"));
 }
 
@@ -938,7 +942,7 @@ fn coerce_rfc3339_passthrough() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["ts"], json!("2026-03-05T14:30:00Z"));
 }
 
@@ -958,7 +962,7 @@ fn coerce_us_date_format_to_datetime() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["date"], json!("2026-03-05T00:00:00Z"));
 }
 
@@ -978,7 +982,7 @@ fn coerce_european_date_format_to_datetime() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["date"], json!("2026-03-05T00:00:00Z"));
 }
 
@@ -998,7 +1002,7 @@ fn coerce_epoch_string_to_datetime() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["ts"], json!("2024-03-06T00:00:00Z"));
 }
 
@@ -1020,7 +1024,7 @@ fn coerce_non_date_string_left_unchanged_for_datetime() {
 
     // Coercion can't parse it, so it stays as-is. Whether this then
     // fails validation depends on whether jsonschema enforces format.
-    let result = executor().execute(&input, &config, &ctx());
+    let result = exec(&input, &config);
     // The value should either pass through or fail validation —
     // the key point is coercion doesn't panic
     match result {
@@ -1046,7 +1050,7 @@ fn coerce_us_format_to_date() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["dob"], json!("2026-03-05"));
 }
 
@@ -1066,7 +1070,7 @@ fn coerce_european_format_to_date() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["dob"], json!("2026-03-05"));
 }
 
@@ -1086,7 +1090,7 @@ fn coerce_rfc3339_to_date_extracts_date() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["dob"], json!("2026-03-05"));
 }
 
@@ -1106,7 +1110,7 @@ fn coerce_date_passthrough() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["dob"], json!("2026-03-05"));
 }
 
@@ -1135,7 +1139,7 @@ fn coerce_datetime_nested_in_object() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["event"]["start"], json!("2026-03-05T00:00:00Z"));
     assert_eq!(result["event"]["end"], json!("2026-03-06T18:00:00Z"));
 }
@@ -1159,7 +1163,7 @@ fn coerce_datetime_in_array_items() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     let ts = result["timestamps"].as_array().unwrap();
     assert_eq!(ts[0], json!("2026-03-05T00:00:00Z"));
     assert_eq!(ts[1], json!("2026-03-06T00:00:00Z"));
@@ -1183,7 +1187,7 @@ fn no_date_coercion_without_coerce_flag() {
     });
 
     // Without coerce, the US-format date is left as-is
-    let result = executor().execute(&input, &config, &ctx());
+    let result = exec(&input, &config);
     match result {
         Ok(v) => assert_eq!(v["ts"], json!("03/05/2026")),
         Err(CapabilityError::InputValidation(_)) => {} // format validation may reject it
@@ -1207,6 +1211,6 @@ fn coerce_datetime_with_fractional_seconds() {
         "coerce": true
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["ts"], json!("2026-03-05T14:30:00.123Z"));
 }

@@ -2,6 +2,7 @@ use std::fmt;
 
 use serde_json::Value;
 
+use super::envelope::CompositionEnvelope;
 use super::error::CapabilityError;
 
 /// Executes a capability against concrete inputs.
@@ -10,20 +11,19 @@ use super::error::CapabilityError;
 /// the declaration is data (serializable, discoverable) while the executor is
 /// behavior (may hold connections, state, configuration).
 ///
-/// The executor receives the composition context envelope as `input` and
-/// capability-specific config as `config`. The action is implicit in the
-/// capability identity.
+/// The executor receives the typed [`CompositionEnvelope`] and capability-specific
+/// config as `config`. The action is implicit in the capability identity.
 pub trait CapabilityExecutor: Send + Sync + fmt::Debug {
-    /// Execute this capability with the given input and config.
+    /// Execute this capability with the given envelope and config.
     ///
-    /// - `input`: The composition context envelope (`serde_json::Value`).
-    /// - `config`: Capability-specific configuration.
+    /// - `envelope`: The typed composition context envelope.
+    /// - `config`: Capability-specific configuration (`serde_json::Value`).
     /// - `context`: Execution metadata (step identity, checkpoint state).
     ///
     /// Returns the output conforming to the capability's `output_schema`.
     fn execute(
         &self,
-        input: &Value,
+        envelope: &CompositionEnvelope<'_>,
         config: &Value,
         context: &ExecutionContext,
     ) -> Result<Value, CapabilityError>;

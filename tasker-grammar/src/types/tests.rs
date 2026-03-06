@@ -614,7 +614,7 @@ struct MockExecutor;
 impl CapabilityExecutor for MockExecutor {
     fn execute(
         &self,
-        _input: &serde_json::Value,
+        _envelope: &CompositionEnvelope<'_>,
         _config: &serde_json::Value,
         _context: &ExecutionContext,
     ) -> Result<serde_json::Value, CapabilityError> {
@@ -630,9 +630,11 @@ impl CapabilityExecutor for MockExecutor {
 fn capability_executor_is_object_safe() {
     let executor: Box<dyn CapabilityExecutor> = Box::new(MockExecutor);
     assert_eq!(executor.capability_name(), "mock");
+    let raw = json!({"context": {}, "deps": {}, "step": {}, "prev": null});
+    let envelope = CompositionEnvelope::new(&raw);
     let result = executor
         .execute(
-            &json!({}),
+            &envelope,
             &json!({}),
             &ExecutionContext {
                 step_name: "test".into(),

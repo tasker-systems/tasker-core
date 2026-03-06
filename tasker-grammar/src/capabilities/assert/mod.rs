@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::expression::ExpressionEngine;
@@ -63,7 +64,7 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// ```
 /// # use serde_json::json;
 /// # use tasker_grammar::ExpressionEngine;
-/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::types::{CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 /// # use tasker_grammar::capabilities::assert::AssertExecutor;
 /// let exec = AssertExecutor::new(ExpressionEngine::with_defaults());
 /// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
@@ -72,11 +73,12 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 ///     "context": {}, "deps": {}, "step": {},
 ///     "prev": {"total": 100, "subtotal": 90, "tax": 10}
 /// });
+/// let envelope = CompositionEnvelope::new(&input);
 /// let config = json!({
 ///     "filter": ".prev.total == (.prev.subtotal + .prev.tax)",
 ///     "error": "Totals do not balance"
 /// });
-/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// let result = exec.execute(&envelope, &config, &ctx).unwrap();
 /// assert_eq!(result["total"], json!(100));
 /// ```
 ///
@@ -85,7 +87,7 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// ```
 /// # use serde_json::json;
 /// # use tasker_grammar::ExpressionEngine;
-/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::types::{CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 /// # use tasker_grammar::capabilities::assert::AssertExecutor;
 /// let exec = AssertExecutor::new(ExpressionEngine::with_defaults());
 /// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
@@ -94,6 +96,7 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 ///     "context": {}, "deps": {}, "step": {},
 ///     "prev": {"total": 100, "items": [1, 2, 3]}
 /// });
+/// let envelope = CompositionEnvelope::new(&input);
 /// let config = json!({
 ///     "conditions": [
 ///         {"name": "positive_total", "expression": ".prev.total > 0"},
@@ -101,7 +104,7 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 ///     ],
 ///     "quantifier": "all"
 /// });
-/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// let result = exec.execute(&envelope, &config, &ctx).unwrap();
 /// assert_eq!(result["total"], json!(100));
 /// ```
 #[derive(Debug)]
@@ -115,33 +118,113 @@ impl AssertExecutor {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Typed config structs
+// ---------------------------------------------------------------------------
+
+/// Typed configuration for the `assert` capability.
+///
+/// Supports two forms via optional fields:
+/// - **Simple**: `filter` (required) + `error` (optional)
+/// - **Conditions**: `conditions` (required) + `quantifier` (optional)
+///
+/// Both forms support `dependency_precedent` for conditional skip.
+/// Exactly one of `filter` or `conditions` must be present.
+#[derive(Debug, Deserialize)]
+pub struct AssertConfig {
+    /// Simple form: jaq boolean expression.
+    pub filter: Option<String>,
+
+    /// Error message for simple form (default: "assertion failed").
+    #[serde(default = "default_error_message")]
+    pub error: String,
+
+    /// Named conditions form: array of conditions.
+    pub conditions: Option<Vec<Condition>>,
+
+    /// Quantifier for named conditions (default: `All`).
+    #[serde(default)]
+    pub quantifier: Quantifier,
+
+    /// Skip assertion if the named dependency is missing/null.
+    pub dependency_precedent: Option<String>,
+}
+
+fn default_error_message() -> String {
+    "assertion failed".into()
+}
+
+/// A single named assertion condition.
+#[derive(Debug, Deserialize)]
+pub struct Condition {
+    /// Human-readable name for error reporting.
+    #[serde(default = "default_condition_name")]
+    pub name: String,
+    /// jaq boolean expression to evaluate.
+    pub expression: String,
+}
+
+fn default_condition_name() -> String {
+    "unnamed".into()
+}
+
+/// Quantifier for combining multiple condition results.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Quantifier {
+    /// Every condition must evaluate to `true`.
+    #[default]
+    All,
+    /// At least one condition must evaluate to `true`.
+    Any,
+    /// Every condition must evaluate to `false` (all must fail).
+    None,
+}
+
+impl std::fmt::Display for Quantifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::All => write!(f, "all"),
+            Self::Any => write!(f, "any"),
+            Self::None => write!(f, "none"),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CapabilityExecutor impl
+// ---------------------------------------------------------------------------
+
 impl CapabilityExecutor for AssertExecutor {
     fn execute(
         &self,
-        input: &Value,
+        envelope: &CompositionEnvelope<'_>,
         config: &Value,
         _context: &ExecutionContext,
     ) -> Result<Value, CapabilityError> {
-        let envelope = CompositionEnvelope::new(input);
+        let config: AssertConfig = serde_json::from_value(config.clone()).map_err(|e| {
+            CapabilityError::ConfigValidation(format!("invalid assert config: {e}"))
+        })?;
 
         // Check dependency_precedent: skip assertion if the named dep is missing/null
-        if let Some(dep_name) = config.get("dependency_precedent").and_then(Value::as_str) {
+        if let Some(dep_name) = &config.dependency_precedent {
             let dep = envelope.dep(dep_name);
             if dep.is_null() {
-                // Prior step didn't produce a result — skip this assertion
                 return Ok(envelope.resolve_target().clone());
             }
         }
 
-        // Determine config form: simple (filter+error) or named conditions
-        if config.get("filter").is_some() {
-            self.execute_simple(config, &envelope)
-        } else if config.get("conditions").is_some() {
-            self.execute_conditions(config, &envelope)
-        } else {
-            Err(CapabilityError::ConfigValidation(
+        match (&config.filter, &config.conditions) {
+            (Some(filter), None) => self.execute_simple(filter, &config.error, envelope),
+            (None, Some(conditions)) => {
+                self.execute_conditions(conditions, config.quantifier, envelope)
+            }
+            (Some(_), Some(_)) => Err(CapabilityError::ConfigValidation(
+                "assert config must contain either 'filter' or 'conditions', not both".into(),
+            )),
+            (None, None) => Err(CapabilityError::ConfigValidation(
                 "assert config must contain either 'filter' (simple form) or 'conditions' (named conditions form)".into(),
-            ))
+            )),
         }
     }
 
@@ -154,21 +237,10 @@ impl AssertExecutor {
     /// Simple form: single `filter` expression with `error` message.
     fn execute_simple(
         &self,
-        config: &Value,
+        filter: &str,
+        error_msg: &str,
         envelope: &CompositionEnvelope<'_>,
     ) -> Result<Value, CapabilityError> {
-        let filter = config
-            .get("filter")
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                CapabilityError::ConfigValidation("assert config 'filter' must be a string".into())
-            })?;
-
-        let error_msg = config
-            .get("error")
-            .and_then(Value::as_str)
-            .unwrap_or("assertion failed");
-
         let result = self
             .engine
             .evaluate(filter, envelope.raw())
@@ -186,81 +258,50 @@ impl AssertExecutor {
     /// Named conditions form: `conditions` array with `quantifier`.
     fn execute_conditions(
         &self,
-        config: &Value,
+        conditions: &[Condition],
+        quantifier: Quantifier,
         envelope: &CompositionEnvelope<'_>,
     ) -> Result<Value, CapabilityError> {
-        let conditions = config
-            .get("conditions")
-            .and_then(Value::as_array)
-            .ok_or_else(|| {
-                CapabilityError::ConfigValidation(
-                    "assert config 'conditions' must be an array".into(),
-                )
-            })?;
-
         if conditions.is_empty() {
             return Err(CapabilityError::ConfigValidation(
                 "assert config 'conditions' must not be empty".into(),
             ));
         }
 
-        let quantifier = config
-            .get("quantifier")
-            .and_then(Value::as_str)
-            .unwrap_or("all");
-
         // Evaluate each condition
         let mut results: Vec<ConditionResult> = Vec::with_capacity(conditions.len());
 
-        for (i, condition) in conditions.iter().enumerate() {
-            let name = condition
-                .get("name")
-                .and_then(Value::as_str)
-                .unwrap_or("unnamed");
-
-            let expression = condition
-                .get("expression")
-                .and_then(Value::as_str)
-                .ok_or_else(|| {
-                    CapabilityError::ConfigValidation(format!(
-                        "condition at index {i} ('{name}') must have an 'expression' string"
+        for condition in conditions {
+            let eval_result = self
+                .engine
+                .evaluate(&condition.expression, envelope.raw())
+                .map_err(|e| {
+                    CapabilityError::ExpressionEvaluation(format!(
+                        "condition '{}': {e}",
+                        condition.name
                     ))
                 })?;
 
-            let eval_result = self
-                .engine
-                .evaluate(expression, envelope.raw())
-                .map_err(|e| {
-                    CapabilityError::ExpressionEvaluation(format!("condition '{name}': {e}"))
-                })?;
-
             results.push(ConditionResult {
-                name: name.to_string(),
-                expression: expression.to_string(),
+                name: &condition.name,
+                expression: &condition.expression,
                 passed: is_truthy(&eval_result),
             });
         }
 
         // Apply quantifier
         let assertion_passed = match quantifier {
-            "all" => results.iter().all(|r| r.passed),
-            "any" => results.iter().any(|r| r.passed),
-            "none" => results.iter().all(|r| !r.passed),
-            other => {
-                return Err(CapabilityError::ConfigValidation(format!(
-                    "unknown quantifier '{other}': expected 'all', 'any', or 'none'"
-                )));
-            }
+            Quantifier::All => results.iter().all(|r| r.passed),
+            Quantifier::Any => results.iter().any(|r| r.passed),
+            Quantifier::None => results.iter().all(|r| !r.passed),
         };
 
         if assertion_passed {
             Ok(envelope.resolve_target().clone())
         } else {
             let failed: Vec<&ConditionResult> = match quantifier {
-                "all" => results.iter().filter(|r| !r.passed).collect(),
-                "any" => results.iter().filter(|r| !r.passed).collect(),
-                "none" => results.iter().filter(|r| r.passed).collect(),
-                _ => unreachable!(),
+                Quantifier::All | Quantifier::Any => results.iter().filter(|r| !r.passed).collect(),
+                Quantifier::None => results.iter().filter(|r| r.passed).collect(),
             };
 
             let details: Vec<String> = failed
@@ -283,9 +324,9 @@ fn is_truthy(value: &Value) -> bool {
     !matches!(value, Value::Null | Value::Bool(false))
 }
 
-struct ConditionResult {
-    name: String,
-    expression: String,
+struct ConditionResult<'a> {
+    name: &'a str,
+    expression: &'a str,
     passed: bool,
 }
 

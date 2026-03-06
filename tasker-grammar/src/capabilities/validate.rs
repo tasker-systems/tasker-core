@@ -36,7 +36,7 @@ use crate::types::{
 ///
 /// ```
 /// # use serde_json::json;
-/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::types::{CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 /// # use tasker_grammar::capabilities::validate::ValidateExecutor;
 /// let exec = ValidateExecutor::new();
 /// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
@@ -55,7 +55,8 @@ use crate::types::{
 ///         }
 ///     }
 /// });
-/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// let envelope = CompositionEnvelope::new(&input);
+/// let result = exec.execute(&envelope, &config, &ctx).unwrap();
 /// assert_eq!(result, json!({"name": "Alice", "age": 30}));
 /// ```
 ///
@@ -63,7 +64,7 @@ use crate::types::{
 ///
 /// ```
 /// # use serde_json::json;
-/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::types::{CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 /// # use tasker_grammar::capabilities::validate::ValidateExecutor;
 /// let exec = ValidateExecutor::new();
 /// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
@@ -82,7 +83,8 @@ use crate::types::{
 ///     },
 ///     "coerce": true
 /// });
-/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// let envelope = CompositionEnvelope::new(&input);
+/// let result = exec.execute(&envelope, &config, &ctx).unwrap();
 /// assert_eq!(result["amount"], json!(123.45));
 /// assert_eq!(result["count"], json!(7));
 /// ```
@@ -101,58 +103,56 @@ impl Default for ValidateExecutor {
     }
 }
 
+/// Typed configuration for the `validate` capability.
+///
+/// Deserialized from the `config` JSON at the trait boundary, eliminating
+/// runtime field picking throughout the executor.
+#[derive(Debug, serde::Deserialize)]
+pub struct ValidateConfig {
+    /// JSON Schema to validate against.
+    pub schema: Value,
+
+    /// Attempt type coercion before validation (default: `false`).
+    #[serde(default)]
+    pub coerce: bool,
+
+    /// Strip fields not declared in the schema's `properties` (default: `false`).
+    #[serde(default)]
+    pub filter_extra: bool,
+
+    /// Behavior when validation fails (default: `Error`).
+    #[serde(default)]
+    pub on_failure: OnFailure,
+}
+
 impl CapabilityExecutor for ValidateExecutor {
     fn execute(
         &self,
-        input: &Value,
+        envelope: &CompositionEnvelope<'_>,
         config: &Value,
         _context: &ExecutionContext,
     ) -> Result<Value, CapabilityError> {
-        let envelope = CompositionEnvelope::new(input);
-
-        // Extract required schema from config
-        let schema = config.get("schema").ok_or_else(|| {
-            CapabilityError::ConfigValidation(
-                "validate config must contain a 'schema' object".into(),
-            )
+        let config: ValidateConfig = serde_json::from_value(config.clone()).map_err(|e| {
+            CapabilityError::ConfigValidation(format!("invalid validate config: {e}"))
         })?;
 
         // Compile schema upfront — errors here are config problems
-        let validator = jsonschema::validator_for(schema)
+        let validator = jsonschema::validator_for(&config.schema)
             .map_err(|e| CapabilityError::ConfigValidation(format!("invalid JSON Schema: {e}")))?;
-
-        let coerce = config
-            .get("coerce")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-
-        let filter_extra = config
-            .get("filter_extra")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-
-        let on_failure: OnFailure = config
-            .get("on_failure")
-            .and_then(Value::as_str)
-            .unwrap_or("error")
-            .parse()
-            .map_err(|e: crate::types::UnknownOnFailureError| {
-                CapabilityError::ConfigValidation(e.to_string())
-            })?;
 
         // Determine what to validate: .prev if present, otherwise .context
         let target = envelope.resolve_target().clone();
 
         // Apply coercion if requested
-        let mut data = if coerce {
-            apply_coercion(&target, schema)
+        let mut data = if config.coerce {
+            apply_coercion(&target, &config.schema)
         } else {
             target
         };
 
         // Apply extra field filtering if requested
-        if filter_extra {
-            filter_extra_fields(&mut data, schema);
+        if config.filter_extra {
+            filter_extra_fields(&mut data, &config.schema);
         }
 
         // Validate against schema
@@ -164,7 +164,7 @@ impl CapabilityExecutor for ValidateExecutor {
         if errors.is_empty() {
             Ok(data)
         } else {
-            match on_failure {
+            match config.on_failure {
                 OnFailure::Error => Err(CapabilityError::InputValidation(errors.join("; "))),
                 OnFailure::Warn => {
                     // Pass data through with validation warnings attached

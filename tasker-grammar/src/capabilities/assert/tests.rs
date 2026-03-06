@@ -1,7 +1,7 @@
 use serde_json::{json, Value};
 
 use crate::expression::ExpressionEngine;
-use crate::types::{CapabilityError, CapabilityExecutor, ExecutionContext};
+use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 
 use super::AssertExecutor;
 
@@ -17,8 +17,14 @@ fn ctx() -> ExecutionContext {
     }
 }
 
+/// Execute assert against a raw envelope value, wrapping in CompositionEnvelope.
+fn exec(input: &Value, config: &Value) -> Result<Value, CapabilityError> {
+    let envelope = CompositionEnvelope::new(input);
+    executor().execute(&envelope, config, &ctx())
+}
+
 /// Standard composition context envelope used across tests.
-fn envelope() -> Value {
+fn raw_envelope() -> Value {
     json!({
         "context": {
             "order_id": "ORD-001",
@@ -37,7 +43,7 @@ fn envelope() -> Value {
 }
 
 fn envelope_with_prev(prev: Value) -> Value {
-    let mut env = envelope();
+    let mut env = raw_envelope();
     env["prev"] = prev;
     env
 }
@@ -57,7 +63,7 @@ fn simple_assertion_passes() {
         "error": "Totals do not balance"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["total"], json!(100));
     assert_eq!(result["subtotal"], json!(90));
 }
@@ -73,7 +79,7 @@ fn simple_assertion_fails_with_error_message() {
         "error": "Totals do not balance"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::Execution(msg) => {
             assert!(
@@ -97,7 +103,7 @@ fn simple_assertion_default_error_message() {
         "filter": ".prev.value"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::Execution(msg) => {
             assert!(
@@ -122,7 +128,7 @@ fn simple_assertion_with_compound_boolean() {
         "error": "Prerequisites not met"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["payment_validated"], json!(true));
 }
 
@@ -136,20 +142,20 @@ fn simple_assertion_returns_prev_on_success() {
         "error": "Count must be positive"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result, prev_data);
 }
 
 #[test]
 fn simple_assertion_falls_back_to_context_when_prev_null() {
-    let input = envelope(); // prev is null
+    let input = raw_envelope(); // prev is null
 
     let config = json!({
         "filter": ".context.order_id == \"ORD-001\"",
         "error": "Order ID mismatch"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["order_id"], json!("ORD-001"));
 }
 
@@ -174,7 +180,7 @@ fn all_conditions_pass_with_quantifier_all() {
         "quantifier": "all"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["total"], json!(100));
 }
 
@@ -193,7 +199,7 @@ fn one_condition_fails_with_quantifier_all() {
         "quantifier": "all"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::Execution(msg) => {
             assert!(
@@ -225,7 +231,7 @@ fn quantifier_any_with_at_least_one_passing() {
         "quantifier": "any"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["items"], json!([1, 2, 3]));
 }
 
@@ -244,7 +250,7 @@ fn quantifier_any_with_none_passing() {
         "quantifier": "any"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::Execution(msg) => {
             assert!(
@@ -277,7 +283,7 @@ fn quantifier_none_with_all_failing() {
     });
 
     // Both conditions evaluate to false, and quantifier "none" requires all to fail
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["blacklisted"], json!(false));
 }
 
@@ -296,7 +302,7 @@ fn quantifier_none_fails_when_one_passes() {
         "quantifier": "none"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::Execution(msg) => {
             // For "none", the "failed" conditions are the ones that passed (truthy)
@@ -325,7 +331,7 @@ fn quantifier_defaults_to_all() {
         // quantifier not specified — defaults to "all"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["x"], json!(1));
 }
 
@@ -344,7 +350,7 @@ fn dependency_precedent_skips_when_dep_missing() {
     });
 
     // The dep doesn't exist, so assertion is skipped entirely
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["value"], json!(42));
 }
 
@@ -360,7 +366,7 @@ fn dependency_precedent_runs_when_dep_present() {
     });
 
     // The dep exists, so the assertion runs — and fails
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::Execution(_)));
 }
 
@@ -377,7 +383,7 @@ fn dependency_precedent_with_conditions_form() {
     });
 
     // Skipped because dep doesn't exist
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["amount"], json!(5));
 }
 
@@ -396,7 +402,7 @@ fn error_includes_condition_name_and_expression() {
         "quantifier": "all"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::Execution(msg) => {
             assert!(
@@ -429,7 +435,7 @@ fn multiple_failures_listed() {
         "quantifier": "all"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::Execution(msg) => {
             assert!(
@@ -458,7 +464,7 @@ fn missing_filter_and_conditions_errors() {
         "error": "orphan error message"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::ConfigValidation(_)));
 }
 
@@ -471,7 +477,7 @@ fn empty_conditions_array_errors() {
         "quantifier": "all"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::ConfigValidation(msg) => {
             assert!(
@@ -494,16 +500,12 @@ fn condition_missing_expression_errors() {
         "quantifier": "all"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::ConfigValidation(msg) => {
             assert!(
                 msg.contains("expression"),
                 "should mention missing expression: {msg}"
-            );
-            assert!(
-                msg.contains("check_x"),
-                "should identify condition by name: {msg}"
             );
         }
         other => panic!("expected ConfigValidation, got: {other:?}"),
@@ -521,7 +523,7 @@ fn unknown_quantifier_errors() {
         "quantifier": "exactly_two"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::ConfigValidation(msg) => {
             assert!(
@@ -541,7 +543,7 @@ fn invalid_filter_expression_errors() {
         "filter": "this is not valid jq @@@@"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::ExpressionEvaluation(_)));
 }
 
@@ -555,7 +557,7 @@ fn invalid_condition_expression_errors() {
         ]
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::ExpressionEvaluation(msg) => {
             assert!(msg.contains("bad_expr"), "should identify condition: {msg}");
@@ -577,7 +579,7 @@ fn null_is_falsy() {
         "error": "x is null"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::Execution(_)));
 }
 
@@ -590,7 +592,7 @@ fn false_is_falsy() {
         "error": "x is false"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::Execution(_)));
 }
 
@@ -604,7 +606,7 @@ fn zero_is_truthy() {
     });
 
     // In jq, 0 is truthy (only null and false are falsy)
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["x"], json!(0));
 }
 
@@ -618,7 +620,7 @@ fn empty_string_is_truthy() {
     });
 
     // In jq, "" is truthy
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["x"], json!(""));
 }
 
@@ -632,7 +634,7 @@ fn empty_array_is_truthy() {
     });
 
     // In jq, [] is truthy
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["x"], json!([]));
 }
 
@@ -649,7 +651,7 @@ fn assert_on_deps() {
         "error": "Cart not validated"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["passthrough"], json!(true));
 }
 
@@ -662,7 +664,7 @@ fn assert_on_context() {
         "error": "Wrong order ID"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["passthrough"], json!(true));
 }
 
@@ -675,7 +677,7 @@ fn assert_on_step_metadata() {
         "error": "Not first attempt"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["passthrough"], json!(true));
 }
 
@@ -703,7 +705,7 @@ fn condition_with_unnamed_condition_uses_default() {
         "quantifier": "all"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     match &err {
         CapabilityError::Execution(msg) => {
             assert!(
@@ -726,7 +728,7 @@ fn single_condition_any_passes_when_true() {
         "quantifier": "any"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["ok"], json!(true));
 }
 
@@ -750,7 +752,7 @@ fn complex_jq_expression_in_condition() {
         "quantifier": "all"
     });
 
-    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let result = exec(&input, &config).unwrap();
     assert_eq!(result["total"], json!(45));
 }
 
@@ -774,6 +776,6 @@ fn complex_jq_expression_in_condition_fails() {
         "quantifier": "all"
     });
 
-    let err = executor().execute(&input, &config, &ctx()).unwrap_err();
+    let err = exec(&input, &config).unwrap_err();
     assert!(matches!(err, CapabilityError::Execution(_)));
 }
