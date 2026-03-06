@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 use tasker_client::{ClientConfig, ClientResult, OrchestrationApiClient, OrchestrationApiConfig};
 use tasker_sdk::operational::responses::{StepSummary, TaskSummary};
+use tasker_sdk::visualization::{self, TaskVisualizationInput};
 use tasker_shared::models::core::{task::TaskListQuery, task_request::TaskRequest};
 use tasker_shared::types::api::orchestration::{ManualCompletionData, StepManualAction};
 use uuid::Uuid;
@@ -455,6 +456,58 @@ pub(crate) async fn handle_task_command(
                 }
                 Err(e) => {
                     output::api_error("get audit history", &e, "step_audit");
+                    return Err(e.into());
+                }
+            }
+        }
+        TaskCommands::Visualize {
+            task_id,
+            format,
+            base_url,
+            output: output_path,
+            graph_only,
+        } => {
+            let task_uuid = Uuid::parse_str(&task_id).map_err(|e| {
+                tasker_client::ClientError::InvalidInput(format!("Invalid UUID: {}", e))
+            })?;
+
+            output::dim(format!("Fetching task summary for: {task_id}"));
+
+            match client.get_task_summary(task_uuid).await {
+                Ok(summary) => {
+                    let input = TaskVisualizationInput::from(&summary);
+                    let viz = visualization::visualize_task(&input);
+
+                    let content = match format.as_str() {
+                        "json" => serde_json::to_string_pretty(&viz)
+                            .expect("visualization output is always serializable"),
+                        "markdown" => visualization::render_markdown(
+                            &summary.task.name,
+                            &viz,
+                            base_url.as_deref(),
+                            graph_only,
+                        ),
+                        _ => visualization::render_mermaid(&viz.graph),
+                    };
+
+                    if let Some(path) = output_path {
+                        std::fs::write(&path, &content).map_err(|e| {
+                            tasker_client::ClientError::InvalidInput(format!(
+                                "Failed to write to {}: {}",
+                                path, e
+                            ))
+                        })?;
+                        output::success(format!("Written to {path}"));
+                    } else {
+                        println!("{content}");
+                    }
+
+                    for w in &viz.warnings {
+                        output::warning(w);
+                    }
+                }
+                Err(e) => {
+                    output::api_error("get task summary", &e, "task_visualize");
                     return Err(e.into());
                 }
             }

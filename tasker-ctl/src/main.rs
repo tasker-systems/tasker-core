@@ -240,6 +240,24 @@ pub(crate) enum TaskCommands {
         #[arg(value_name = "STEP_UUID")]
         step_id: String,
     },
+    /// Visualize task execution state as Mermaid diagram
+    Visualize {
+        /// Task UUID
+        #[arg(value_name = "UUID")]
+        task_id: String,
+        /// Output format: mermaid (default), markdown, json
+        #[arg(short, long, default_value = "mermaid")]
+        format: String,
+        /// Base URL to prepend to resource links
+        #[arg(long)]
+        base_url: Option<String>,
+        /// Write output to file instead of stdout
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Emit only the graph (no detail table)
+        #[arg(long)]
+        graph_only: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
