@@ -1,7 +1,9 @@
 use chrono::NaiveDate;
 use serde_json::Value;
 
-use crate::types::{CapabilityError, CapabilityExecutor, ExecutionContext};
+use crate::types::{
+    CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext, OnFailure,
+};
 
 /// Executor for the `validate` capability — the boundary gate in the action grammar.
 ///
@@ -106,6 +108,8 @@ impl CapabilityExecutor for ValidateExecutor {
         config: &Value,
         _context: &ExecutionContext,
     ) -> Result<Value, CapabilityError> {
+        let envelope = CompositionEnvelope::new(input);
+
         // Extract required schema from config
         let schema = config.get("schema").ok_or_else(|| {
             CapabilityError::ConfigValidation(
@@ -127,23 +131,17 @@ impl CapabilityExecutor for ValidateExecutor {
             .and_then(Value::as_bool)
             .unwrap_or(false);
 
-        let on_failure = config
+        let on_failure: OnFailure = config
             .get("on_failure")
             .and_then(Value::as_str)
-            .unwrap_or("error");
-
-        // Validate on_failure is a known value
-        if !matches!(on_failure, "error" | "warn" | "skip") {
-            return Err(CapabilityError::ConfigValidation(format!(
-                "on_failure must be one of 'error', 'warn', 'skip'; got '{on_failure}'"
-            )));
-        }
+            .unwrap_or("error")
+            .parse()
+            .map_err(|e: crate::types::UnknownOnFailureError| {
+                CapabilityError::ConfigValidation(e.to_string())
+            })?;
 
         // Determine what to validate: .prev if present, otherwise .context
-        let target = match input.get("prev") {
-            Some(prev) if !prev.is_null() => prev.clone(),
-            _ => input.get("context").cloned().unwrap_or(Value::Null),
-        };
+        let target = envelope.resolve_target().clone();
 
         // Apply coercion if requested
         let mut data = if coerce {
@@ -167,8 +165,8 @@ impl CapabilityExecutor for ValidateExecutor {
             Ok(data)
         } else {
             match on_failure {
-                "error" => Err(CapabilityError::InputValidation(errors.join("; "))),
-                "warn" => {
+                OnFailure::Error => Err(CapabilityError::InputValidation(errors.join("; "))),
+                OnFailure::Warn => {
                     // Pass data through with validation warnings attached
                     let mut result = serde_json::Map::new();
                     if let Value::Object(map) = data {
@@ -182,9 +180,7 @@ impl CapabilityExecutor for ValidateExecutor {
                     );
                     Ok(Value::Object(result))
                 }
-                "skip" => Ok(data),
-                // unreachable due to earlier validation, but satisfy exhaustiveness
-                _ => Err(CapabilityError::InputValidation(errors.join("; "))),
+                OnFailure::Skip => Ok(data),
             }
         }
     }

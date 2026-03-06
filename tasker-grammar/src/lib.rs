@@ -32,8 +32,9 @@ pub mod validation;
 pub use expression::{ExpressionEngine, ExpressionEngineConfig, ExpressionError};
 pub use types::{
     AcquireCategory, AssertCategory, CapabilityDeclaration, CapabilityError, CapabilityExecutor,
-    CapabilityInvocation, CompositionCheckpoint, CompositionConstraint, CompositionError,
-    CompositionSpec, EmitCategory, ExecutionContext, GrammarCategory, GrammarCategoryKind,
-    IdempotencyProfile, MutationProfile, OutcomeDeclaration, PersistCategory, RegistrationError,
-    Severity, TransformCategory, UnknownCategoryError, ValidateCategory, ValidationFinding,
+    CapabilityInvocation, CompositionCheckpoint, CompositionConstraint, CompositionEnvelope,
+    CompositionError, CompositionSpec, EmitCategory, ExecutionContext, GrammarCategory,
+    GrammarCategoryKind, IdempotencyProfile, MutationProfile, OnFailure, OutcomeDeclaration,
+    PersistCategory, RegistrationError, Severity, TransformCategory, UnknownCategoryError,
+    UnknownOnFailureError, ValidateCategory, ValidationFinding,
 };

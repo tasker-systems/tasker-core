@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use crate::expression::ExpressionEngine;
-use crate::types::{CapabilityError, CapabilityExecutor, ExecutionContext};
+use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 
 /// Executor for the `transform` capability — the unified pure data transformation
 /// primitive in the action grammar.
@@ -142,6 +142,8 @@ impl CapabilityExecutor for TransformExecutor {
         config: &Value,
         _context: &ExecutionContext,
     ) -> Result<Value, CapabilityError> {
+        let envelope = CompositionEnvelope::new(input);
+
         let filter = config
             .get("filter")
             .and_then(Value::as_str)
@@ -151,9 +153,10 @@ impl CapabilityExecutor for TransformExecutor {
                 )
             })?;
 
+        // Pass the raw envelope to jaq — filters access .context, .deps, .prev, .step directly
         let result = self
             .engine
-            .evaluate(filter, input)
+            .evaluate(filter, envelope.raw())
             .map_err(|e| CapabilityError::ExpressionEvaluation(e.to_string()))?;
 
         if let Some(output_schema) = config.get("output") {
