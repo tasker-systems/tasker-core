@@ -34,7 +34,9 @@ use tasker_shared::database::sql_functions::SqlFunctionExecutor;
 use tasker_shared::models::core::task::{Task, TaskListQuery};
 use tasker_shared::models::core::task_request::TaskRequest;
 use tasker_shared::system_context::SystemContext;
-use tasker_shared::types::api::orchestration::{TaskListResponse, TaskResponse};
+use tasker_shared::types::api::orchestration::{
+    TaskListResponse, TaskResponse, TaskSummaryResponse,
+};
 
 /// Errors that can occur during task service operations.
 #[derive(Error, Debug)]
@@ -281,6 +283,21 @@ impl TaskService {
             tasks,
             pagination: result.pagination,
         })
+    }
+
+    /// Get a task summary by UUID.
+    ///
+    /// Returns a rich, pre-computed summary including step details, execution context,
+    /// and DLQ status — designed for visualization rendering.
+    pub async fn get_task_summary(&self, uuid: Uuid) -> TaskServiceResult<TaskSummaryResponse> {
+        self.query_service
+            .get_task_summary(uuid)
+            .await
+            .map_err(|e| match e {
+                TaskQueryError::NotFound(id) => TaskServiceError::NotFound(id),
+                TaskQueryError::Database(e) => TaskServiceError::Database(e.to_string()),
+                TaskQueryError::MetadataError(msg) => TaskServiceError::Database(msg),
+            })
     }
 
     /// Cancel a task.

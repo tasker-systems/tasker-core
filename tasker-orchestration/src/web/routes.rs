@@ -73,6 +73,14 @@ pub fn api_v1_routes() -> Router<AppState> {
                 handlers::tasks::cancel_task,
             )),
         )
+        .route(
+            "/tasks/{uuid}/summary",
+            get(authorize(
+                Resource::Tasks,
+                Action::Read,
+                handlers::tasks::get_task_summary,
+            )),
+        )
         // Workflow Steps API
         .route(
             "/tasks/{uuid}/workflow_steps",
