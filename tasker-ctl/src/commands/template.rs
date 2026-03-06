@@ -1,7 +1,11 @@
 //! Template listing, info, and generation commands.
 
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::Path;
+
+use tasker_sdk::template_parser::parse_template_str;
+use tasker_sdk::visualization::{self, VisualizeOptions};
 
 use crate::cli_config::CliConfig;
 use crate::output;
@@ -54,6 +58,18 @@ pub(crate) async fn handle_template_command(
                 output.as_deref(),
             )
         }
+
+        TemplateCommands::Visualize {
+            template,
+            annotations,
+            output: output_path,
+            graph_only,
+        } => visualize_template_command(
+            &template,
+            annotations.as_deref(),
+            output_path.as_deref(),
+            graph_only,
+        ),
     }
 }
 
@@ -302,4 +318,72 @@ fn parse_params(params: &[String]) -> tasker_client::ClientResult<HashMap<String
         map.insert(key.to_string(), value.to_string());
     }
     Ok(map)
+}
+
+fn visualize_template_command(
+    template_path: &str,
+    annotations_path: Option<&str>,
+    output_path: Option<&str>,
+    graph_only: bool,
+) -> tasker_client::ClientResult<()> {
+    // Read template YAML from file or stdin
+    let yaml = if template_path == "-" {
+        let mut buf = String::new();
+        std::io::stdin().read_to_string(&mut buf).map_err(|e| {
+            tasker_client::ClientError::ConfigError(format!("failed to read stdin: {e}"))
+        })?;
+        buf
+    } else {
+        std::fs::read_to_string(template_path).map_err(|e| {
+            tasker_client::ClientError::ConfigError(format!(
+                "failed to read template '{template_path}': {e}"
+            ))
+        })?
+    };
+
+    // Parse template
+    let template = parse_template_str(&yaml).map_err(|e| {
+        tasker_client::ClientError::ConfigError(format!("invalid template YAML: {e}"))
+    })?;
+
+    // Load annotations if provided
+    let annotations: HashMap<String, String> = if let Some(path) = annotations_path {
+        let content = std::fs::read_to_string(path).map_err(|e| {
+            tasker_client::ClientError::ConfigError(format!(
+                "failed to read annotations '{path}': {e}"
+            ))
+        })?;
+        serde_yaml::from_str(&content).map_err(|e| {
+            tasker_client::ClientError::ConfigError(format!("invalid annotations YAML: {e}"))
+        })?
+    } else {
+        HashMap::new()
+    };
+
+    let options = VisualizeOptions { graph_only };
+    let result = visualization::visualize_template(&template, &annotations, &options);
+
+    // Print warnings
+    for warning in &result.warnings {
+        output::warning(warning);
+    }
+
+    // Determine output content
+    let content = if graph_only {
+        &result.mermaid
+    } else {
+        &result.markdown
+    };
+
+    // Write to file or stdout
+    if let Some(path) = output_path {
+        std::fs::write(path, content).map_err(|e| {
+            tasker_client::ClientError::ConfigError(format!("failed to write output '{path}': {e}"))
+        })?;
+        output::success(format!("Wrote visualization to {path}"));
+    } else {
+        print!("{content}");
+    }
+
+    Ok(())
 }

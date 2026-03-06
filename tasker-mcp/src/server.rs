@@ -5,6 +5,7 @@
 //!
 //! **Tier 1 — Developer Tooling (offline)**
 //! - `template_validate` — Validate a task template for structural correctness
+//! - `template_visualize` — Generate Mermaid flowchart diagram from a template
 //! - `template_inspect` — Inspect template DAG structure and step details
 //! - `template_generate` — Generate task template YAML from a structured spec
 //! - `handler_generate` — Generate typed handler code for a template
@@ -306,6 +307,19 @@ impl TaskerMcpServer {
         Parameters(params): Parameters<TemplateValidateParams>,
     ) -> String {
         developer::template_validate(params)
+    }
+
+    /// Generate a Mermaid flowchart diagram from a task template, showing the step
+    /// DAG with dependency edges and per-step details.
+    #[tool(
+        name = "template_visualize",
+        description = "Generate a Mermaid flowchart diagram from a task template. Shows step DAG with dependency edges, node styling for step types (standard/decision), optional developer annotations, and a detail table with handler, schema, and retry information. Works entirely offline."
+    )]
+    pub async fn template_visualize(
+        &self,
+        Parameters(params): Parameters<TemplateVisualizeParams>,
+    ) -> String {
+        developer::template_visualize(params)
     }
 
     /// Inspect a task template's DAG structure: execution order, root/leaf steps,
@@ -941,9 +955,10 @@ base_url = "http://localhost:8080"
         let tools = server.tool_router.list_all();
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
 
-        // Should have only Tier 1 tools (7), no connection_status (offline)
-        assert_eq!(names.len(), 7, "Expected 7 Tier 1 tools, got: {:?}", names);
+        // Should have only Tier 1 tools (8), no connection_status (offline)
+        assert_eq!(names.len(), 8, "Expected 8 Tier 1 tools, got: {:?}", names);
         assert!(names.contains(&"template_validate"));
+        assert!(names.contains(&"template_visualize"));
         assert!(names.contains(&"template_inspect"));
         assert!(names.contains(&"template_generate"));
         assert!(names.contains(&"handler_generate"));
@@ -965,11 +980,11 @@ base_url = "http://localhost:8080"
         let tools = server.tool_router.list_all();
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
 
-        // 7 Tier 1 + 1 connection_status + 15 Tier 2 = 23
+        // 8 Tier 1 + 1 connection_status + 15 Tier 2 = 24
         assert_eq!(
             names.len(),
-            23,
-            "Expected 23 tools (T1+profile+T2), got: {:?}",
+            24,
+            "Expected 24 tools (T1+profile+T2), got: {:?}",
             names
         );
         assert!(names.contains(&"template_validate"));
@@ -987,8 +1002,8 @@ base_url = "http://localhost:8080"
         let server = TaskerMcpServer::with_profile_manager(pm, false, None);
 
         let tools = server.tool_router.list_all();
-        // 7 T1 + 1 profile + 15 T2 + 6 T3 = 29
-        assert_eq!(tools.len(), 29, "Expected all 29 tools");
+        // 8 T1 + 1 profile + 15 T2 + 6 T3 = 30
+        assert_eq!(tools.len(), 30, "Expected all 30 tools");
     }
 
     #[tokio::test]
@@ -1100,8 +1115,8 @@ base_url = "http://localhost:8080"
         // Should have T1 + profile + T2, no T3
         assert_eq!(
             names.len(),
-            23,
-            "Expected 23 tools from profile config, got: {:?}",
+            24,
+            "Expected 24 tools from profile config, got: {:?}",
             names
         );
         assert!(!names.contains(&"task_submit"));

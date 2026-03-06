@@ -14,6 +14,7 @@
 //! - [`template_generator`] — Structured spec → task template YAML generation
 //! - [`template_parser`] — Task template YAML parsing with rich error reporting
 //! - [`template_validator`] — Structural validation, cycle detection, and DAG analysis
+//! - [`visualization`] — Mermaid diagram and detail table generation from task templates
 //!
 //! ## Operational Tooling
 //! - [`operational`] — Client factory, enum parsing, and shared response types for connected tools
@@ -27,3 +28,4 @@ pub mod template_engine;
 pub mod template_generator;
 pub mod template_parser;
 pub mod template_validator;
+pub mod visualization;
