@@ -314,15 +314,21 @@ impl GrammarCategory for ValidateCategory {
             "type": "object",
             "properties": {
                 "schema": { "type": "object", "description": "JSON Schema to validate against" },
-                "coercion": {
-                    "type": "string",
-                    "enum": ["strict", "permissive"],
-                    "description": "Whether to coerce types (string-to-number, string-to-date, etc.)"
+                "coerce": {
+                    "type": "boolean",
+                    "description": "Attempt type coercion before validation (string-to-number, date format normalization, etc.)",
+                    "default": false
+                },
+                "filter_extra": {
+                    "type": "boolean",
+                    "description": "Strip fields not declared in the schema's properties",
+                    "default": false
                 },
                 "on_failure": {
                     "type": "string",
-                    "enum": ["fail", "filter", "default"],
-                    "description": "Behavior when validation fails"
+                    "enum": ["error", "warn", "skip"],
+                    "description": "Behavior when validation fails: error (reject), warn (pass with warnings), skip (pass silently)",
+                    "default": "error"
                 }
             },
             "required": ["schema"]

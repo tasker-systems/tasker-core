@@ -486,6 +486,168 @@ fn sandbox_timeout_infinite_loop_protection() {
     }
 }
 
+// ─── Date/Time Functions ──────────────────────────────────────────────────
+
+#[test]
+fn date_fromdateiso8601() {
+    let input = json!("2026-03-05T14:30:00Z");
+    let result = engine().evaluate("fromdateiso8601", &input).unwrap();
+    // Should be epoch seconds
+    assert_eq!(result, json!(1772721000));
+}
+
+#[test]
+fn date_todateiso8601() {
+    let input = json!(1772721000);
+    let result = engine().evaluate("todateiso8601", &input).unwrap();
+    assert_eq!(result, json!("2026-03-05T14:30:00Z"));
+}
+
+#[test]
+fn date_roundtrip_iso8601() {
+    let input = json!("2026-03-05T14:30:00Z");
+    let result = engine()
+        .evaluate("fromdateiso8601 | todateiso8601", &input)
+        .unwrap();
+    assert_eq!(result, json!("2026-03-05T14:30:00Z"));
+}
+
+#[test]
+fn date_strftime_custom_format() {
+    let input = json!(1772721000);
+    let result = engine().evaluate("strftime(\"%Y-%m-%d\")", &input).unwrap();
+    assert_eq!(result, json!("2026-03-05"));
+}
+
+#[test]
+fn date_comparison_before() {
+    let input = json!({
+        "start": "2026-03-05T00:00:00Z",
+        "end": "2026-03-06T00:00:00Z"
+    });
+    let result = engine()
+        .evaluate(
+            "(.start | fromdateiso8601) < (.end | fromdateiso8601)",
+            &input,
+        )
+        .unwrap();
+    assert_eq!(result, json!(true));
+}
+
+#[test]
+fn date_comparison_after() {
+    let input = json!({
+        "start": "2026-03-06T00:00:00Z",
+        "end": "2026-03-05T00:00:00Z"
+    });
+    let result = engine()
+        .evaluate(
+            "(.start | fromdateiso8601) < (.end | fromdateiso8601)",
+            &input,
+        )
+        .unwrap();
+    assert_eq!(result, json!(false));
+}
+
+#[test]
+fn date_duration_arithmetic() {
+    let input = json!("2026-03-05T14:30:00Z");
+    // Add 24 hours (86400 seconds)
+    let result = engine()
+        .evaluate("fromdateiso8601 + 86400 | todateiso8601", &input)
+        .unwrap();
+    assert_eq!(result, json!("2026-03-06T14:30:00Z"));
+}
+
+#[test]
+fn date_difference_in_days() {
+    let input = json!({
+        "start": "2026-03-01T00:00:00Z",
+        "end": "2026-03-06T00:00:00Z"
+    });
+    let result = engine()
+        .evaluate(
+            "((.end | fromdateiso8601) - (.start | fromdateiso8601)) / 86400",
+            &input,
+        )
+        .unwrap();
+    assert_eq!(result, json!(5.0));
+}
+
+#[test]
+fn date_range_overlap_check() {
+    let input = json!({
+        "a_start": "2026-03-01T00:00:00Z",
+        "a_end": "2026-03-05T00:00:00Z",
+        "b_start": "2026-03-03T00:00:00Z",
+        "b_end": "2026-03-07T00:00:00Z"
+    });
+    let result = engine()
+        .evaluate(
+            r#"(.a_start | fromdateiso8601) < (.b_end | fromdateiso8601)
+            and (.b_start | fromdateiso8601) < (.a_end | fromdateiso8601)"#,
+            &input,
+        )
+        .unwrap();
+    assert_eq!(result, json!(true));
+}
+
+#[test]
+fn date_range_no_overlap() {
+    let input = json!({
+        "a_start": "2026-03-01T00:00:00Z",
+        "a_end": "2026-03-03T00:00:00Z",
+        "b_start": "2026-03-05T00:00:00Z",
+        "b_end": "2026-03-07T00:00:00Z"
+    });
+    let result = engine()
+        .evaluate(
+            r#"(.a_start | fromdateiso8601) < (.b_end | fromdateiso8601)
+            and (.b_start | fromdateiso8601) < (.a_end | fromdateiso8601)"#,
+            &input,
+        )
+        .unwrap();
+    assert_eq!(result, json!(false));
+}
+
+#[test]
+fn date_filter_items_by_date_range() {
+    let input = json!({
+        "cutoff": "2026-03-03T00:00:00Z",
+        "events": [
+            {"name": "early", "date": "2026-03-01T00:00:00Z"},
+            {"name": "mid", "date": "2026-03-03T00:00:00Z"},
+            {"name": "late", "date": "2026-03-05T00:00:00Z"}
+        ]
+    });
+    let result = engine()
+        .evaluate(
+            r#"(.cutoff | fromdateiso8601) as $cutoff |
+            [.events[] | select((.date | fromdateiso8601) >= $cutoff) | .name]"#,
+            &input,
+        )
+        .unwrap();
+    assert_eq!(result, json!(["mid", "late"]));
+}
+
+#[test]
+fn date_now_returns_number() {
+    let result = engine().evaluate("now | type", &json!(null)).unwrap();
+    assert_eq!(result, json!("number"));
+}
+
+#[test]
+fn date_strptime_and_mktime() {
+    let input = json!("2026-03-05T00:00:00");
+    let result = engine()
+        .evaluate(
+            "strptime(\"%Y-%m-%dT%H:%M:%S\") | mktime | todateiso8601",
+            &input,
+        )
+        .unwrap();
+    assert_eq!(result, json!("2026-03-05T00:00:00Z"));
+}
+
 // ─── Edge Cases ──────────────────────────────────────────────────────────
 
 #[test]

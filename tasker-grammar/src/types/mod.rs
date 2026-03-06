@@ -23,8 +23,10 @@ mod categories;
 mod checkpoint;
 mod composition;
 mod declaration;
+mod envelope;
 mod error;
 mod executor;
+mod on_failure;
 mod validation;
 
 pub use categories::{
@@ -35,8 +37,10 @@ pub use categories::{
 pub use checkpoint::CompositionCheckpoint;
 pub use composition::{CapabilityInvocation, CompositionSpec, OutcomeDeclaration};
 pub use declaration::CapabilityDeclaration;
+pub use envelope::CompositionEnvelope;
 pub use error::{CapabilityError, CompositionError, RegistrationError};
 pub use executor::{CapabilityExecutor, ExecutionContext};
+pub use on_failure::{OnFailure, UnknownOnFailureError};
 pub use validation::{CompositionConstraint, Severity, ValidationFinding};
 
 #[cfg(test)]

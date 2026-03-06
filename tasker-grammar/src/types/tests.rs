@@ -197,8 +197,12 @@ fn validate_category_properties() {
         "validate needs a 'schema' property"
     );
     assert!(
-        props.get("coercion").is_some(),
-        "validate needs a 'coercion' property"
+        props.get("coerce").is_some(),
+        "validate needs a 'coerce' property"
+    );
+    assert!(
+        props.get("filter_extra").is_some(),
+        "validate needs a 'filter_extra' property"
     );
     assert!(
         props.get("on_failure").is_some(),
@@ -410,8 +414,8 @@ fn composition_spec_roundtrip() {
                 capability: "validate".into(),
                 config: json!({
                     "schema": {"type": "object", "required": ["email", "items"]},
-                    "coercion": "permissive",
-                    "on_failure": "fail"
+                    "coerce": true,
+                    "on_failure": "error"
                 }),
                 checkpoint: false,
             },
@@ -638,4 +642,142 @@ fn capability_executor_is_object_safe() {
         )
         .unwrap();
     assert_eq!(result, json!({"mock": true}));
+}
+
+// ---------------------------------------------------------------------------
+// CompositionEnvelope
+// ---------------------------------------------------------------------------
+
+#[test]
+fn envelope_context_accessor() {
+    let raw = json!({"context": {"id": 1}, "deps": {}, "step": {}, "prev": null});
+    let env = CompositionEnvelope::new(&raw);
+    assert_eq!(env.context()["id"], json!(1));
+}
+
+#[test]
+fn envelope_deps_accessor() {
+    let raw = json!({"context": {}, "deps": {"step_a": {"total": 42}}, "step": {}, "prev": null});
+    let env = CompositionEnvelope::new(&raw);
+    assert_eq!(env.deps()["step_a"]["total"], json!(42));
+    assert_eq!(env.dep("step_a")["total"], json!(42));
+    assert_eq!(env.dep("missing"), &json!(null));
+}
+
+#[test]
+fn envelope_step_accessor() {
+    let raw =
+        json!({"context": {}, "deps": {}, "step": {"name": "s1", "attempts": 1}, "prev": null});
+    let env = CompositionEnvelope::new(&raw);
+    assert_eq!(env.step()["name"], json!("s1"));
+}
+
+#[test]
+fn envelope_prev_null_means_no_prev() {
+    let raw = json!({"context": {}, "deps": {}, "step": {}, "prev": null});
+    let env = CompositionEnvelope::new(&raw);
+    assert!(!env.has_prev());
+    assert_eq!(env.prev(), &json!(null));
+}
+
+#[test]
+fn envelope_prev_present() {
+    let raw = json!({"context": {}, "deps": {}, "step": {}, "prev": {"result": true}});
+    let env = CompositionEnvelope::new(&raw);
+    assert!(env.has_prev());
+    assert_eq!(env.prev()["result"], json!(true));
+}
+
+#[test]
+fn envelope_resolve_target_uses_prev_when_present() {
+    let raw = json!({"context": {"orig": true}, "deps": {}, "step": {}, "prev": {"data": 1}});
+    let env = CompositionEnvelope::new(&raw);
+    assert_eq!(env.resolve_target()["data"], json!(1));
+}
+
+#[test]
+fn envelope_resolve_target_falls_back_to_context() {
+    let raw = json!({"context": {"orig": true}, "deps": {}, "step": {}, "prev": null});
+    let env = CompositionEnvelope::new(&raw);
+    assert_eq!(env.resolve_target()["orig"], json!(true));
+}
+
+#[test]
+fn envelope_raw_returns_original() {
+    let raw = json!({"context": {}, "deps": {}, "step": {}, "prev": null});
+    let env = CompositionEnvelope::new(&raw);
+    assert_eq!(env.raw(), &raw);
+}
+
+#[test]
+fn envelope_missing_fields_return_null() {
+    let raw = json!({});
+    let env = CompositionEnvelope::new(&raw);
+    assert_eq!(env.context(), &json!(null));
+    assert_eq!(env.deps(), &json!(null));
+    assert_eq!(env.step(), &json!(null));
+    assert_eq!(env.prev(), &json!(null));
+    assert!(!env.has_prev());
+}
+
+// ---------------------------------------------------------------------------
+// OnFailure enum
+// ---------------------------------------------------------------------------
+
+#[test]
+fn on_failure_default_is_error() {
+    assert_eq!(OnFailure::default(), OnFailure::Error);
+}
+
+#[test]
+fn on_failure_from_str() {
+    assert_eq!("error".parse::<OnFailure>().unwrap(), OnFailure::Error);
+    assert_eq!("warn".parse::<OnFailure>().unwrap(), OnFailure::Warn);
+    assert_eq!("skip".parse::<OnFailure>().unwrap(), OnFailure::Skip);
+}
+
+#[test]
+fn on_failure_from_str_case_insensitive() {
+    assert_eq!("ERROR".parse::<OnFailure>().unwrap(), OnFailure::Error);
+    assert_eq!("Warn".parse::<OnFailure>().unwrap(), OnFailure::Warn);
+    assert_eq!("SKIP".parse::<OnFailure>().unwrap(), OnFailure::Skip);
+}
+
+#[test]
+fn on_failure_from_str_unknown() {
+    let err = "fail".parse::<OnFailure>().unwrap_err();
+    assert!(err.to_string().contains("fail"));
+    assert!(err.to_string().contains("error, warn, skip"));
+}
+
+#[test]
+fn on_failure_display() {
+    assert_eq!(OnFailure::Error.to_string(), "error");
+    assert_eq!(OnFailure::Warn.to_string(), "warn");
+    assert_eq!(OnFailure::Skip.to_string(), "skip");
+}
+
+#[test]
+fn on_failure_serde_roundtrip() {
+    for variant in [OnFailure::Error, OnFailure::Warn, OnFailure::Skip] {
+        let json = serde_json::to_value(variant).unwrap();
+        let back: OnFailure = serde_json::from_value(json).unwrap();
+        assert_eq!(back, variant);
+    }
+}
+
+#[test]
+fn on_failure_serde_lowercase() {
+    assert_eq!(
+        serde_json::to_value(OnFailure::Error).unwrap(),
+        json!("error")
+    );
+    assert_eq!(
+        serde_json::to_value(OnFailure::Warn).unwrap(),
+        json!("warn")
+    );
+    assert_eq!(
+        serde_json::to_value(OnFailure::Skip).unwrap(),
+        json!("skip")
+    );
 }
