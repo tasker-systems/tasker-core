@@ -701,6 +701,25 @@ pub(crate) enum TemplateCommands {
         #[arg(long, conflicts_with = "remote")]
         url: Option<String>,
     },
+
+    /// Generate a Mermaid diagram visualization of a task template's DAG structure
+    Visualize {
+        /// Path to template YAML file, or "-" for stdin
+        #[arg(value_name = "TEMPLATE")]
+        template: String,
+
+        /// Path to annotations YAML file (step_name: "note" pairs)
+        #[arg(short, long)]
+        annotations: Option<String>,
+
+        /// Write output to file instead of stdout
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Emit only the raw Mermaid graph (no markdown fences or detail table)
+        #[arg(long)]
+        graph_only: bool,
+    },
 }
 
 /// TAS-270: Remote repository management commands
