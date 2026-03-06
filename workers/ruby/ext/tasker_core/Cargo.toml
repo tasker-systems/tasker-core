@@ -34,7 +34,7 @@ anyhow = "1.0"
 # Async trait support for FrameworkIntegration
 async-trait = "0.1"
 # Time handling for Ruby Time ↔ Rust DateTime conversion
-chrono = { version = "0.4.43", features = ["serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 # Environment variable loading
 dotenvy = "0.15"
 # Ruby FFI
