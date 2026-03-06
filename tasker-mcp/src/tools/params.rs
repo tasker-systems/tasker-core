@@ -1,5 +1,7 @@
 //! Parameter and response structs for all MCP tools.
 
+use std::collections::HashMap;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tasker_sdk::template_generator::{FieldSpec, StepSpec, TemplateSpec};
@@ -12,6 +14,26 @@ pub struct TemplateValidateParams {
     /// Task template YAML content to validate.
     #[schemars(description = "Task template YAML content to validate")]
     pub template_yaml: String,
+}
+
+// ── template_visualize ──
+
+/// Parameters for the `template_visualize` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TemplateVisualizeParams {
+    /// Task template YAML content to visualize.
+    #[schemars(description = "Task template YAML content to visualize as a Mermaid flowchart")]
+    pub template_yaml: String,
+    /// Optional annotations mapping step names to developer notes.
+    #[schemars(
+        description = "Optional annotations: step_name -> note text (rendered as callouts on diagram nodes)"
+    )]
+    #[serde(default)]
+    pub annotations: Option<HashMap<String, String>>,
+    /// When true, returns only the Mermaid graph without detail table.
+    #[schemars(description = "When true, returns only the Mermaid graph (no detail table)")]
+    #[serde(default)]
+    pub graph_only: Option<bool>,
 }
 
 // ── template_inspect ──

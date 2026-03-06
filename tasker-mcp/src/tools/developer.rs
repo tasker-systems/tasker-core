@@ -17,6 +17,7 @@ use super::params::{
     FieldDetail, HandlerGenerateParams, HandlerGenerateResponse, SchemaCompareParams,
     SchemaDiffParams, SchemaInspectParams, SchemaInspectResponse, StepInspection, StepSchemaDetail,
     TemplateGenerateParams, TemplateInspectParams, TemplateInspectResponse, TemplateValidateParams,
+    TemplateVisualizeParams,
 };
 
 pub fn template_validate(params: TemplateValidateParams) -> String {
@@ -24,6 +25,22 @@ pub fn template_validate(params: TemplateValidateParams) -> String {
         Ok(template) => {
             let report = tasker_sdk::template_validator::validate(&template);
             serde_json::to_string_pretty(&report)
+                .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+        }
+        Err(e) => error_json("yaml_parse_error", &e.to_string()),
+    }
+}
+
+pub fn template_visualize(params: TemplateVisualizeParams) -> String {
+    match parse_template_str(&params.template_yaml) {
+        Ok(template) => {
+            let annotations = params.annotations.unwrap_or_default();
+            let options = tasker_sdk::visualization::VisualizeOptions {
+                graph_only: params.graph_only.unwrap_or(false),
+            };
+            let output =
+                tasker_sdk::visualization::visualize_template(&template, &annotations, &options);
+            serde_json::to_string_pretty(&output)
                 .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
         }
         Err(e) => error_json("yaml_parse_error", &e.to_string()),
@@ -594,5 +611,55 @@ steps:
         assert!(parsed["types"].as_str().unwrap().contains("class"));
         assert!(parsed["handlers"].as_str().unwrap().contains("def"));
         assert!(parsed["tests"].as_str().unwrap().contains("def test_"));
+    }
+
+    #[test]
+    fn test_template_visualize() {
+        let yaml =
+            include_str!("../../../tests/fixtures/task_templates/codegen_test_template.yaml");
+        let result = template_visualize(TemplateVisualizeParams {
+            template_yaml: yaml.to_string(),
+            annotations: None,
+            graph_only: None,
+        });
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed["mermaid"].as_str().unwrap().contains("graph TD"));
+        assert!(parsed["detail_table"].is_string());
+        assert!(parsed["markdown"].as_str().unwrap().contains("```mermaid"));
+        assert!(parsed["warnings"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_template_visualize_with_annotations() {
+        let yaml =
+            include_str!("../../../tests/fixtures/task_templates/codegen_test_template.yaml");
+        let mut annotations = std::collections::HashMap::new();
+        annotations.insert("validate_order".to_string(), "Needs schema".to_string());
+        annotations.insert("ghost_step".to_string(), "Does not exist".to_string());
+
+        let result = template_visualize(TemplateVisualizeParams {
+            template_yaml: yaml.to_string(),
+            annotations: Some(annotations),
+            graph_only: None,
+        });
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed["mermaid"].as_str().unwrap().contains("Needs schema"));
+        // Should warn about unknown step
+        let warnings = parsed["warnings"].as_array().unwrap();
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].as_str().unwrap().contains("ghost_step"));
+    }
+
+    #[test]
+    fn test_template_visualize_graph_only() {
+        let yaml =
+            include_str!("../../../tests/fixtures/task_templates/codegen_test_template.yaml");
+        let result = template_visualize(TemplateVisualizeParams {
+            template_yaml: yaml.to_string(),
+            annotations: None,
+            graph_only: Some(true),
+        });
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed["detail_table"].is_null());
     }
 }
