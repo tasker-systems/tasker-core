@@ -38,8 +38,11 @@ pub fn template_visualize(params: TemplateVisualizeParams) -> String {
             let options = tasker_sdk::visualization::VisualizeOptions {
                 graph_only: params.graph_only.unwrap_or(false),
             };
-            let output =
-                tasker_sdk::visualization::visualize_template(&template, &annotations, &options);
+            let output = tasker_sdk::visualization::visualize_template_rendered(
+                &template,
+                &annotations,
+                &options,
+            );
             serde_json::to_string_pretty(&output)
                 .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
         }

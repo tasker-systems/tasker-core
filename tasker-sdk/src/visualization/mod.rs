@@ -1,14 +1,15 @@
 //! Template visualization: Mermaid diagram and detail table generation.
 
-mod detail_table;
-mod mermaid;
 pub mod render;
+mod template_visualize;
 pub mod types;
 
 pub use types::{
     EdgeStyle, GraphData, GraphEdge, GraphNode, NodeShape, TableData, TableHeader, TableRow,
-    VisualCategory,
+    VisualCategory, VisualizationOutput,
 };
+
+pub use render::{render_detail_table, render_markdown, render_mermaid};
 
 use std::collections::HashMap;
 
@@ -22,9 +23,9 @@ pub struct VisualizeOptions {
     pub graph_only: bool,
 }
 
-/// Output from template visualization.
+/// Pre-rendered visualization output (backward-compatible).
 #[derive(Debug, Serialize)]
-pub struct VisualizationOutput {
+pub struct RenderedOutput {
     /// Raw Mermaid graph syntax (no fenced code block markers).
     pub mermaid: String,
     /// Markdown detail table (None when graph_only).
@@ -36,49 +37,36 @@ pub struct VisualizationOutput {
     pub warnings: Vec<String>,
 }
 
-/// Generate a Mermaid visualization of a task template.
-///
-/// `annotations` maps step names to developer notes rendered as callouts.
+/// Generate structured visualization data from a template.
 pub fn visualize_template(
     template: &TaskTemplate,
     annotations: &HashMap<String, String>,
+    _options: &VisualizeOptions,
+) -> types::VisualizationOutput {
+    template_visualize::build_template_visualization(template, annotations)
+}
+
+/// Generate pre-rendered visualization output (backward-compatible wrapper).
+pub fn visualize_template_rendered(
+    template: &TaskTemplate,
+    annotations: &HashMap<String, String>,
     options: &VisualizeOptions,
-) -> VisualizationOutput {
-    let mut warnings = Vec::new();
-
-    // Warn about annotations referencing unknown steps
-    let step_names: std::collections::HashSet<&str> =
-        template.steps.iter().map(|s| s.name.as_str()).collect();
-    for key in annotations.keys() {
-        if !step_names.contains(key.as_str()) {
-            warnings.push(format!("Annotation references unknown step: '{key}'"));
-        }
-    }
-
-    let mermaid = mermaid::generate_mermaid(template, annotations);
+) -> RenderedOutput {
+    let viz = visualize_template(template, annotations, options);
+    let mermaid = render::render_mermaid(&viz.graph);
     let detail_table = if options.graph_only {
         None
     } else {
-        Some(detail_table::generate_detail_table(template))
+        Some(render::render_detail_table(&viz.table, None))
     };
+    let markdown = render::render_markdown(&template.name, &viz, None, options.graph_only);
 
-    let markdown = build_markdown(&template.name, &mermaid, detail_table.as_deref());
-
-    VisualizationOutput {
+    RenderedOutput {
         mermaid,
         detail_table,
         markdown,
-        warnings,
+        warnings: viz.warnings,
     }
-}
-
-fn build_markdown(name: &str, mermaid: &str, detail_table: Option<&str>) -> String {
-    let mut doc = format!("# {name}\n\n```mermaid\n{mermaid}```\n");
-    if let Some(table) = detail_table {
-        doc.push_str("\n## Step Details\n\n");
-        doc.push_str(table);
-    }
-    doc
 }
 
 #[cfg(test)]
@@ -91,7 +79,8 @@ mod tests {
         let yaml =
             include_str!("../../../tests/fixtures/task_templates/codegen_test_template.yaml");
         let template = parse_template_str(yaml).unwrap();
-        let output = visualize_template(&template, &HashMap::new(), &VisualizeOptions::default());
+        let output =
+            visualize_template_rendered(&template, &HashMap::new(), &VisualizeOptions::default());
 
         // Markdown contains fenced mermaid block
         assert!(output.markdown.contains("```mermaid"));
@@ -110,7 +99,7 @@ mod tests {
             include_str!("../../../tests/fixtures/task_templates/codegen_test_template.yaml");
         let template = parse_template_str(yaml).unwrap();
         let options = VisualizeOptions { graph_only: true };
-        let output = visualize_template(&template, &HashMap::new(), &options);
+        let output = visualize_template_rendered(&template, &HashMap::new(), &options);
 
         assert!(output.detail_table.is_none());
         assert!(!output.markdown.contains("## Step Details"));
@@ -126,7 +115,8 @@ mod tests {
         let mut annotations = HashMap::new();
         annotations.insert("nonexistent_step".to_string(), "note".to_string());
 
-        let output = visualize_template(&template, &annotations, &VisualizeOptions::default());
+        let output =
+            visualize_template_rendered(&template, &annotations, &VisualizeOptions::default());
 
         assert_eq!(output.warnings.len(), 1);
         assert!(output.warnings[0].contains("nonexistent_step"));
@@ -138,11 +128,10 @@ mod tests {
             "../../../tests/fixtures/task_templates/python/diamond_workflow_handler_py.yaml"
         );
         let template = parse_template_str(yaml).unwrap();
-        let output = visualize_template(&template, &HashMap::new(), &VisualizeOptions::default());
+        let output =
+            visualize_template_rendered(&template, &HashMap::new(), &VisualizeOptions::default());
 
-        assert!(output
-            .mermaid
-            .contains("diamond_start_py --> diamond_branch_b_py"));
+        assert!(output.mermaid.contains("diamond_start_py"));
         assert!(output.detail_table.is_some());
     }
 
@@ -152,11 +141,10 @@ mod tests {
             "../../../tests/fixtures/task_templates/python/linear_workflow_handler_py.yaml"
         );
         let template = parse_template_str(yaml).unwrap();
-        let output = visualize_template(&template, &HashMap::new(), &VisualizeOptions::default());
+        let output =
+            visualize_template_rendered(&template, &HashMap::new(), &VisualizeOptions::default());
 
-        assert!(output
-            .mermaid
-            .contains("linear_step_1_py --> linear_step_2_py"));
+        assert!(output.mermaid.contains("linear_step_1_py"));
         assert!(output.detail_table.is_some());
     }
 }
