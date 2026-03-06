@@ -1,0 +1,391 @@
+use serde_json::Value;
+
+use crate::types::{CapabilityError, CapabilityExecutor, ExecutionContext};
+
+/// Executor for the `validate` capability — the boundary gate in the action grammar.
+///
+/// `validate` applies JSON Schema validation to incoming data at trust boundaries
+/// where external or untrusted data enters a composition (API responses, file reads,
+/// data connectors). It is the *only* capability that performs JSON Schema checks
+/// at runtime — all other inter-capability data flow trusts design-time validation.
+///
+/// ## Config shape
+///
+/// - **`schema`** (required): JSON Schema to validate against.
+/// - **`coerce`** (optional, default `false`): Attempt type coercion before
+///   validation (e.g. string `"123"` → number `123`, `"true"` → boolean `true`).
+/// - **`filter_extra`** (optional, default `false`): Strip fields not declared in
+///   the schema's `properties`.
+/// - **`on_failure`** (optional, default `"error"`): Behavior when validation fails.
+///   - `"error"` — return `CapabilityError::InputValidation` with field-level details.
+///   - `"warn"` — pass data through with `_validation_warnings` metadata attached.
+///   - `"skip"` — pass data through unchanged, silently.
+///
+/// ## Composition context envelope
+///
+/// The executor receives the composition context envelope and validates `.prev`
+/// (the output of the previous capability invocation). If `.prev` is `null` (first
+/// invocation), it validates `.context` instead.
+///
+/// ## Examples
+///
+/// **Valid input passes through:**
+///
+/// ```
+/// # use serde_json::json;
+/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::capabilities::validate::ValidateExecutor;
+/// let exec = ValidateExecutor::new();
+/// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
+///
+/// let input = json!({
+///     "context": {}, "deps": {}, "step": {},
+///     "prev": {"name": "Alice", "age": 30}
+/// });
+/// let config = json!({
+///     "schema": {
+///         "type": "object",
+///         "required": ["name", "age"],
+///         "properties": {
+///             "name": {"type": "string"},
+///             "age": {"type": "integer"}
+///         }
+///     }
+/// });
+/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// assert_eq!(result, json!({"name": "Alice", "age": 30}));
+/// ```
+///
+/// **Coercion converts string to number:**
+///
+/// ```
+/// # use serde_json::json;
+/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::capabilities::validate::ValidateExecutor;
+/// let exec = ValidateExecutor::new();
+/// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
+///
+/// let input = json!({
+///     "context": {}, "deps": {}, "step": {},
+///     "prev": {"amount": "123.45", "count": "7"}
+/// });
+/// let config = json!({
+///     "schema": {
+///         "type": "object",
+///         "properties": {
+///             "amount": {"type": "number"},
+///             "count": {"type": "integer"}
+///         }
+///     },
+///     "coerce": true
+/// });
+/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// assert_eq!(result["amount"], json!(123.45));
+/// assert_eq!(result["count"], json!(7));
+/// ```
+#[derive(Debug)]
+pub struct ValidateExecutor;
+
+impl ValidateExecutor {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for ValidateExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CapabilityExecutor for ValidateExecutor {
+    fn execute(
+        &self,
+        input: &Value,
+        config: &Value,
+        _context: &ExecutionContext,
+    ) -> Result<Value, CapabilityError> {
+        // Extract required schema from config
+        let schema = config.get("schema").ok_or_else(|| {
+            CapabilityError::ConfigValidation(
+                "validate config must contain a 'schema' object".into(),
+            )
+        })?;
+
+        // Compile schema upfront — errors here are config problems
+        let validator = jsonschema::validator_for(schema)
+            .map_err(|e| CapabilityError::ConfigValidation(format!("invalid JSON Schema: {e}")))?;
+
+        let coerce = config
+            .get("coerce")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+
+        let filter_extra = config
+            .get("filter_extra")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+
+        let on_failure = config
+            .get("on_failure")
+            .and_then(Value::as_str)
+            .unwrap_or("error");
+
+        // Validate on_failure is a known value
+        if !matches!(on_failure, "error" | "warn" | "skip") {
+            return Err(CapabilityError::ConfigValidation(format!(
+                "on_failure must be one of 'error', 'warn', 'skip'; got '{on_failure}'"
+            )));
+        }
+
+        // Determine what to validate: .prev if present, otherwise .context
+        let target = match input.get("prev") {
+            Some(prev) if !prev.is_null() => prev.clone(),
+            _ => input.get("context").cloned().unwrap_or(Value::Null),
+        };
+
+        // Apply coercion if requested
+        let mut data = if coerce {
+            apply_coercion(&target, schema)
+        } else {
+            target
+        };
+
+        // Apply extra field filtering if requested
+        if filter_extra {
+            filter_extra_fields(&mut data, schema);
+        }
+
+        // Validate against schema
+        let errors: Vec<String> = validator
+            .iter_errors(&data)
+            .map(|e| format_validation_error(&e))
+            .collect();
+
+        if errors.is_empty() {
+            Ok(data)
+        } else {
+            match on_failure {
+                "error" => Err(CapabilityError::InputValidation(errors.join("; "))),
+                "warn" => {
+                    // Pass data through with validation warnings attached
+                    let mut result = serde_json::Map::new();
+                    if let Value::Object(map) = data {
+                        result = map;
+                    } else {
+                        result.insert("_value".to_string(), data);
+                    }
+                    result.insert(
+                        "_validation_warnings".to_string(),
+                        Value::Array(errors.into_iter().map(Value::String).collect()),
+                    );
+                    Ok(Value::Object(result))
+                }
+                "skip" => Ok(data),
+                // unreachable due to earlier validation, but satisfy exhaustiveness
+                _ => Err(CapabilityError::InputValidation(errors.join("; "))),
+            }
+        }
+    }
+
+    fn capability_name(&self) -> &str {
+        "validate"
+    }
+}
+
+/// Apply type coercion to data based on schema type expectations.
+///
+/// Coercion targets:
+/// - String → Number: `"123"` → `123`, `"1.5"` → `1.5`
+/// - String → Integer: `"42"` → `42` (only if no fractional part)
+/// - String → Boolean: `"true"` → `true`, `"false"` → `false`
+/// - Number → String: `42` → `"42"` (when schema expects string)
+/// - Boolean → String: `true` → `"true"` (when schema expects string)
+///
+/// Coercion is applied recursively for objects and arrays.
+fn apply_coercion(value: &Value, schema: &Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let properties = schema.get("properties").and_then(Value::as_object);
+
+            let mut result = serde_json::Map::new();
+            for (key, val) in map {
+                let coerced = if let Some(prop_schema) = properties.and_then(|p| p.get(key)) {
+                    apply_coercion(val, prop_schema)
+                } else {
+                    val.clone()
+                };
+                result.insert(key.clone(), coerced);
+            }
+            Value::Object(result)
+        }
+
+        Value::Array(arr) => {
+            let items_schema = schema.get("items");
+            Value::Array(
+                arr.iter()
+                    .map(|item| {
+                        if let Some(item_schema) = items_schema {
+                            apply_coercion(item, item_schema)
+                        } else {
+                            item.clone()
+                        }
+                    })
+                    .collect(),
+            )
+        }
+
+        Value::String(s) => {
+            let schema_type = schema.get("type").and_then(Value::as_str);
+            match schema_type {
+                Some("number") => s
+                    .parse::<f64>()
+                    .map(|n| serde_json::Number::from_f64(n).map_or(value.clone(), Value::Number))
+                    .unwrap_or_else(|_| value.clone()),
+                Some("integer") => s
+                    .parse::<i64>()
+                    .map(|n| Value::Number(n.into()))
+                    .unwrap_or_else(|_| value.clone()),
+                Some("boolean") => match s.as_str() {
+                    "true" => Value::Bool(true),
+                    "false" => Value::Bool(false),
+                    _ => value.clone(),
+                },
+                _ => value.clone(),
+            }
+        }
+
+        Value::Number(_) => {
+            let schema_type = schema.get("type").and_then(Value::as_str);
+            if schema_type == Some("string") {
+                Value::String(value.to_string())
+            } else {
+                value.clone()
+            }
+        }
+
+        Value::Bool(b) => {
+            let schema_type = schema.get("type").and_then(Value::as_str);
+            if schema_type == Some("string") {
+                Value::String(b.to_string())
+            } else {
+                value.clone()
+            }
+        }
+
+        _ => value.clone(),
+    }
+}
+
+/// Remove fields from `data` that are not declared in the schema's `properties`.
+///
+/// Only applies to object values where the schema declares `properties`.
+/// Recurses into nested objects whose property schemas also declare `properties`.
+fn filter_extra_fields(data: &mut Value, schema: &Value) {
+    if let Value::Object(map) = data {
+        if let Some(properties) = schema.get("properties").and_then(Value::as_object) {
+            map.retain(|key, _| properties.contains_key(key));
+
+            // Recurse into nested objects
+            for (key, val) in map.iter_mut() {
+                if let Some(prop_schema) = properties.get(key) {
+                    filter_extra_fields(val, prop_schema);
+                }
+            }
+        }
+    }
+
+    // Recurse into array items
+    if let Value::Array(arr) = data {
+        if let Some(items_schema) = schema.get("items") {
+            for item in arr.iter_mut() {
+                filter_extra_fields(item, items_schema);
+            }
+        }
+    }
+}
+
+/// Format a JSON Schema validation error without leaking instance data.
+///
+/// Mirrors the safe formatting from the transform executor — only structural
+/// information (field path and constraint violated) is emitted, never the
+/// actual value that failed validation.
+fn format_validation_error(e: &jsonschema::ValidationError<'_>) -> String {
+    use jsonschema::error::ValidationErrorKind;
+
+    let path = e.instance_path.to_string();
+    let at = if path.is_empty() {
+        String::new()
+    } else {
+        format!("at {path}: ")
+    };
+
+    let constraint = match &e.kind {
+        ValidationErrorKind::Type { kind } => format!("expected type {kind:?}"),
+        ValidationErrorKind::Required { property } => {
+            format!("missing required property {property}")
+        }
+        ValidationErrorKind::AdditionalProperties { unexpected } => {
+            format!("unexpected properties: {}", unexpected.join(", "))
+        }
+        ValidationErrorKind::MinLength { limit } => {
+            format!("string length below minimum of {limit}")
+        }
+        ValidationErrorKind::MaxLength { limit } => {
+            format!("string length exceeds maximum of {limit}")
+        }
+        ValidationErrorKind::Minimum { limit } => {
+            format!("value below minimum of {limit}")
+        }
+        ValidationErrorKind::Maximum { limit } => {
+            format!("value exceeds maximum of {limit}")
+        }
+        ValidationErrorKind::ExclusiveMinimum { limit } => {
+            format!("value at or below exclusive minimum of {limit}")
+        }
+        ValidationErrorKind::ExclusiveMaximum { limit } => {
+            format!("value at or above exclusive maximum of {limit}")
+        }
+        ValidationErrorKind::MinItems { limit } => {
+            format!("array has fewer than {limit} items")
+        }
+        ValidationErrorKind::MaxItems { limit } => {
+            format!("array has more than {limit} items")
+        }
+        ValidationErrorKind::MinProperties { limit } => {
+            format!("object has fewer than {limit} properties")
+        }
+        ValidationErrorKind::MaxProperties { limit } => {
+            format!("object has more than {limit} properties")
+        }
+        ValidationErrorKind::Pattern { pattern } => {
+            format!("value does not match pattern {pattern:?}")
+        }
+        ValidationErrorKind::MultipleOf { multiple_of } => {
+            format!("value is not a multiple of {multiple_of}")
+        }
+        ValidationErrorKind::Enum { options } => {
+            format!("value not in enum {options}")
+        }
+        ValidationErrorKind::Constant { expected_value } => {
+            format!("value does not match const {expected_value}")
+        }
+        ValidationErrorKind::Format { format } => {
+            format!("value does not match format {format:?}")
+        }
+        ValidationErrorKind::UniqueItems => "array contains duplicate items".into(),
+        ValidationErrorKind::FalseSchema => "value rejected by false schema".into(),
+        ValidationErrorKind::Not { .. } => "value matched a negated schema".into(),
+        ValidationErrorKind::AnyOf => "value does not match any 'anyOf' schemas".into(),
+        ValidationErrorKind::OneOfNotValid => "value does not match any 'oneOf' schema".into(),
+        ValidationErrorKind::OneOfMultipleValid => "value matches multiple 'oneOf' schemas".into(),
+        ValidationErrorKind::Contains => "array does not contain a required element".into(),
+        // Fallback: use Debug which is less likely to embed raw values than Display
+        _ => format!("{:?}", e.kind),
+    };
+
+    format!("{at}{constraint}")
+}
+
+#[cfg(test)]
+mod tests;

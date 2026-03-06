@@ -18,3 +18,4 @@
 //! **Tickets**: TAS-324 through TAS-332
 
 pub mod transform;
+pub mod validate;
