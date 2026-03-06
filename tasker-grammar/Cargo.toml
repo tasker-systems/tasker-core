@@ -2,7 +2,7 @@
 name = "tasker-grammar"
 version = "0.1.6"
 edition = "2021"
-description = "Action grammar expression engine for Tasker workflow orchestration"
+description = "Action grammar: expression evaluation, capability execution, composition validation and execution for Tasker workflows"
 readme = "README.md"
 repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
@@ -17,6 +17,8 @@ name = "tasker_grammar"
 jaq-core = "2.1"
 jaq-std = "2.1"
 jaq-json = { version = "1.1", features = ["serde_json"] }
+jsonschema = "0.28"
+serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
