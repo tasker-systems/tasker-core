@@ -32,6 +32,7 @@ members = [
   "tasker-orchestration",
   "tasker-shared",
   "tasker-worker",
+  "tasker-grammar",  # TAS-321: Action grammar expression engine
   "workers/python",  # TAS-72: PyO3 Python worker
   "workers/ruby/ext/tasker_core",
   "workers/rust",
