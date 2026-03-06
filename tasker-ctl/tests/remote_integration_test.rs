@@ -30,7 +30,7 @@ fn create_bare_git_repo(source_dir: &Path, bare_dir: &Path) {
     let work_dir = source_dir.parent().unwrap().join("_work_repo");
     fs::create_dir_all(&work_dir).unwrap();
 
-    run_git(&work_dir, &["init"]);
+    run_git(&work_dir, &["init", "-b", "main"]);
     run_git(&work_dir, &["config", "user.email", "test@test.com"]);
     run_git(&work_dir, &["config", "user.name", "Test"]);
 
