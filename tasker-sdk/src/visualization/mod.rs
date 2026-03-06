@@ -2,6 +2,7 @@
 
 mod detail_table;
 mod mermaid;
+pub mod render;
 pub mod types;
 
 pub use types::{
