@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use serde_json::Value;
 
 use crate::types::{CapabilityError, CapabilityExecutor, ExecutionContext};
@@ -237,6 +238,7 @@ fn apply_coercion(value: &Value, schema: &Value) -> Value {
 
         Value::String(s) => {
             let schema_type = schema.get("type").and_then(Value::as_str);
+            let schema_format = schema.get("format").and_then(Value::as_str);
             match schema_type {
                 Some("number") => s
                     .parse::<f64>()
@@ -249,6 +251,15 @@ fn apply_coercion(value: &Value, schema: &Value) -> Value {
                 Some("boolean") => match s.as_str() {
                     "true" => Value::Bool(true),
                     "false" => Value::Bool(false),
+                    _ => value.clone(),
+                },
+                Some("string") => match schema_format {
+                    Some("date-time") => coerce_to_rfc3339(s)
+                        .map(Value::String)
+                        .unwrap_or_else(|| value.clone()),
+                    Some("date") => coerce_to_date(s)
+                        .map(Value::String)
+                        .unwrap_or_else(|| value.clone()),
                     _ => value.clone(),
                 },
                 _ => value.clone(),
@@ -385,6 +396,123 @@ fn format_validation_error(e: &jsonschema::ValidationError<'_>) -> String {
     };
 
     format!("{at}{constraint}")
+}
+
+/// Attempt to coerce a string into RFC 3339 date-time format.
+///
+/// Handles common date formats that appear at trust boundaries:
+/// - Already RFC 3339: `"2026-03-05T14:30:00Z"` (passed through)
+/// - ISO 8601 without timezone: `"2026-03-05T14:30:00"` (assumes UTC)
+/// - Date only: `"2026-03-05"` (becomes `"2026-03-05T00:00:00Z"`)
+/// - US format: `"03/05/2026"` (MM/DD/YYYY → UTC midnight)
+/// - European format: `"05.03.2026"` (DD.MM.YYYY → UTC midnight)
+/// - Unix epoch seconds as string: `"1709683200"` (→ RFC 3339)
+///
+/// Returns `None` if the string cannot be recognized as a date, leaving it
+/// unchanged so JSON Schema validation will report the format error.
+fn coerce_to_rfc3339(s: &str) -> Option<String> {
+    use chrono::{DateTime, NaiveDateTime, Utc};
+
+    let trimmed = s.trim();
+
+    // Already valid RFC 3339 — pass through
+    if DateTime::parse_from_rfc3339(trimmed).is_ok() {
+        return Some(trimmed.to_string());
+    }
+
+    // ISO 8601 without timezone offset → assume UTC
+    if let Ok(naive) = NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%dT%H:%M:%S") {
+        return Some(
+            naive
+                .and_utc()
+                .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        );
+    }
+    if let Ok(naive) = NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%dT%H:%M:%S%.f") {
+        return Some(
+            naive
+                .and_utc()
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        );
+    }
+
+    // Date-only ISO → midnight UTC
+    if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
+        let dt = date.and_hms_opt(0, 0, 0)?.and_utc();
+        return Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+    }
+
+    // US format MM/DD/YYYY
+    if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%m/%d/%Y") {
+        let dt = date.and_hms_opt(0, 0, 0)?.and_utc();
+        return Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+    }
+
+    // European format DD.MM.YYYY
+    if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%d.%m.%Y") {
+        let dt = date.and_hms_opt(0, 0, 0)?.and_utc();
+        return Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+    }
+
+    // Unix epoch seconds as string
+    if let Ok(epoch) = trimmed.parse::<i64>() {
+        if let Some(dt) = DateTime::<Utc>::from_timestamp(epoch, 0) {
+            return Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+        }
+    }
+
+    // Unix epoch seconds with fractional part
+    if let Ok(epoch_f) = trimmed.parse::<f64>() {
+        let secs = epoch_f.trunc() as i64;
+        let nanos = ((epoch_f.fract()) * 1e9) as u32;
+        if let Some(dt) = DateTime::<Utc>::from_timestamp(secs, nanos) {
+            return Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+        }
+    }
+
+    None
+}
+
+/// Attempt to coerce a string into ISO 8601 date format (YYYY-MM-DD).
+///
+/// Handles:
+/// - Already correct: `"2026-03-05"` (passed through)
+/// - Full date-time: `"2026-03-05T14:30:00Z"` (extracts date portion)
+/// - US format: `"03/05/2026"` (MM/DD/YYYY)
+/// - European format: `"05.03.2026"` (DD.MM.YYYY)
+///
+/// Returns `None` if unrecognizable.
+fn coerce_to_date(s: &str) -> Option<String> {
+    use chrono::DateTime;
+
+    let trimmed = s.trim();
+
+    // Already YYYY-MM-DD
+    if NaiveDate::parse_from_str(trimmed, "%Y-%m-%d").is_ok() {
+        return Some(trimmed.to_string());
+    }
+
+    // Full RFC 3339 date-time → extract date
+    if let Ok(dt) = DateTime::parse_from_rfc3339(trimmed) {
+        return Some(dt.format("%Y-%m-%d").to_string());
+    }
+
+    // ISO 8601 without timezone → extract date
+    if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%dT%H:%M:%S") {
+        return Some(naive.format("%Y-%m-%d").to_string());
+    }
+
+    // US format MM/DD/YYYY
+    if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%m/%d/%Y") {
+        return Some(date.format("%Y-%m-%d").to_string());
+    }
+
+    // European format DD.MM.YYYY
+    if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%d.%m.%Y") {
+        return Some(date.format("%Y-%m-%d").to_string());
+    }
+
+    None
 }
 
 #[cfg(test)]

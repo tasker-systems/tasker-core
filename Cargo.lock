@@ -6588,6 +6588,7 @@ dependencies = [
 name = "tasker-grammar"
 version = "0.1.6"
 dependencies = [
+ "chrono",
  "jaq-core",
  "jaq-json",
  "jaq-std",

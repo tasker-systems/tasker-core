@@ -877,3 +877,336 @@ fn default_impl() {
 }
 
 use serde_json::Value;
+
+// ---------------------------------------------------------------------------
+// Date format coercion — coerce: true with format: "date-time" or "date"
+// ---------------------------------------------------------------------------
+
+#[test]
+fn coerce_iso_date_only_to_datetime() {
+    let input = envelope_with_prev(json!({
+        "created_at": "2026-03-05"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "created_at": {"type": "string", "format": "date-time"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["created_at"], json!("2026-03-05T00:00:00Z"));
+}
+
+#[test]
+fn coerce_iso_datetime_without_timezone() {
+    let input = envelope_with_prev(json!({
+        "timestamp": "2026-03-05T14:30:00"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "timestamp": {"type": "string", "format": "date-time"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["timestamp"], json!("2026-03-05T14:30:00Z"));
+}
+
+#[test]
+fn coerce_rfc3339_passthrough() {
+    let input = envelope_with_prev(json!({
+        "ts": "2026-03-05T14:30:00Z"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ts": {"type": "string", "format": "date-time"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["ts"], json!("2026-03-05T14:30:00Z"));
+}
+
+#[test]
+fn coerce_us_date_format_to_datetime() {
+    let input = envelope_with_prev(json!({
+        "date": "03/05/2026"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "format": "date-time"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["date"], json!("2026-03-05T00:00:00Z"));
+}
+
+#[test]
+fn coerce_european_date_format_to_datetime() {
+    let input = envelope_with_prev(json!({
+        "date": "05.03.2026"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "format": "date-time"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["date"], json!("2026-03-05T00:00:00Z"));
+}
+
+#[test]
+fn coerce_epoch_string_to_datetime() {
+    let input = envelope_with_prev(json!({
+        "ts": "1709683200"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ts": {"type": "string", "format": "date-time"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["ts"], json!("2024-03-06T00:00:00Z"));
+}
+
+#[test]
+fn coerce_non_date_string_left_unchanged_for_datetime() {
+    let input = envelope_with_prev(json!({
+        "ts": "not-a-date"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ts": {"type": "string", "format": "date-time"}
+            }
+        },
+        "coerce": true
+    });
+
+    // Coercion can't parse it, so it stays as-is. Whether this then
+    // fails validation depends on whether jsonschema enforces format.
+    let result = executor().execute(&input, &config, &ctx());
+    // The value should either pass through or fail validation —
+    // the key point is coercion doesn't panic
+    match result {
+        Ok(v) => assert_eq!(v["ts"], json!("not-a-date")),
+        Err(CapabilityError::InputValidation(_)) => {} // also acceptable
+        Err(other) => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn coerce_us_format_to_date() {
+    let input = envelope_with_prev(json!({
+        "dob": "03/05/2026"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "dob": {"type": "string", "format": "date"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["dob"], json!("2026-03-05"));
+}
+
+#[test]
+fn coerce_european_format_to_date() {
+    let input = envelope_with_prev(json!({
+        "dob": "05.03.2026"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "dob": {"type": "string", "format": "date"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["dob"], json!("2026-03-05"));
+}
+
+#[test]
+fn coerce_rfc3339_to_date_extracts_date() {
+    let input = envelope_with_prev(json!({
+        "dob": "2026-03-05T14:30:00Z"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "dob": {"type": "string", "format": "date"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["dob"], json!("2026-03-05"));
+}
+
+#[test]
+fn coerce_date_passthrough() {
+    let input = envelope_with_prev(json!({
+        "dob": "2026-03-05"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "dob": {"type": "string", "format": "date"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["dob"], json!("2026-03-05"));
+}
+
+#[test]
+fn coerce_datetime_nested_in_object() {
+    let input = envelope_with_prev(json!({
+        "event": {
+            "start": "03/05/2026",
+            "end": "2026-03-06T18:00:00"
+        }
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "event": {
+                    "type": "object",
+                    "properties": {
+                        "start": {"type": "string", "format": "date-time"},
+                        "end": {"type": "string", "format": "date-time"}
+                    }
+                }
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["event"]["start"], json!("2026-03-05T00:00:00Z"));
+    assert_eq!(result["event"]["end"], json!("2026-03-06T18:00:00Z"));
+}
+
+#[test]
+fn coerce_datetime_in_array_items() {
+    let input = envelope_with_prev(json!({
+        "timestamps": ["2026-03-05", "03/06/2026", "2026-03-07T10:00:00Z"]
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "timestamps": {
+                    "type": "array",
+                    "items": {"type": "string", "format": "date-time"}
+                }
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    let ts = result["timestamps"].as_array().unwrap();
+    assert_eq!(ts[0], json!("2026-03-05T00:00:00Z"));
+    assert_eq!(ts[1], json!("2026-03-06T00:00:00Z"));
+    assert_eq!(ts[2], json!("2026-03-07T10:00:00Z"));
+}
+
+#[test]
+fn no_date_coercion_without_coerce_flag() {
+    let input = envelope_with_prev(json!({
+        "ts": "03/05/2026"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ts": {"type": "string", "format": "date-time"}
+            }
+        }
+        // coerce not set — no coercion
+    });
+
+    // Without coerce, the US-format date is left as-is
+    let result = executor().execute(&input, &config, &ctx());
+    match result {
+        Ok(v) => assert_eq!(v["ts"], json!("03/05/2026")),
+        Err(CapabilityError::InputValidation(_)) => {} // format validation may reject it
+        Err(other) => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn coerce_datetime_with_fractional_seconds() {
+    let input = envelope_with_prev(json!({
+        "ts": "2026-03-05T14:30:00.123"
+    }));
+
+    let config = json!({
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ts": {"type": "string", "format": "date-time"}
+            }
+        },
+        "coerce": true
+    });
+
+    let result = executor().execute(&input, &config, &ctx()).unwrap();
+    assert_eq!(result["ts"], json!("2026-03-05T14:30:00.123Z"));
+}
