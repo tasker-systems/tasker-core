@@ -13,7 +13,11 @@ use prost_types::Timestamp;
 
 use crate::proto::v1 as proto;
 use crate::state_machine::states::{TaskState, WorkflowStepState};
-use crate::types::api::orchestration::{StepAuditResponse, StepResponse, TaskResponse};
+use crate::types::api::orchestration::{
+    DlqSummaryInfo, StepAuditResponse, StepErrorSummary, StepResponse, StepSummaryInfo,
+    TaskResponse, TaskSummaryLinks, TaskSummaryMetadata, TaskSummaryResponse, TemplateStepSummary,
+    TemplateSummary,
+};
 
 // ============================================================================
 // Timestamp Conversions (helper functions due to orphan rules)
@@ -741,6 +745,133 @@ impl From<&HandlerMetadata> for proto::WorkerHandlerMetadata {
             version: metadata.version.clone(),
             description: None,  // HandlerMetadata doesn't have description
             step_names: vec![], // Would need to be populated from template
+        }
+    }
+}
+
+// ============================================================================
+// Task Summary Conversions
+// ============================================================================
+
+impl From<&TaskSummaryResponse> for proto::GetTaskSummaryResponse {
+    fn from(response: &TaskSummaryResponse) -> Self {
+        proto::GetTaskSummaryResponse {
+            task: Some(proto::TaskSummaryMetadata::from(&response.task)),
+            template: Some(proto::TaskSummaryTemplate::from(&response.template)),
+            steps: response
+                .steps
+                .iter()
+                .map(proto::StepSummaryInfo::from)
+                .collect(),
+            dlq: Some(proto::DlqSummaryInfo::from(&response.dlq)),
+            links: Some(proto::TaskSummaryLinks::from(&response.links)),
+        }
+    }
+}
+
+impl From<TaskSummaryResponse> for proto::GetTaskSummaryResponse {
+    fn from(response: TaskSummaryResponse) -> Self {
+        proto::GetTaskSummaryResponse::from(&response)
+    }
+}
+
+impl From<&TaskSummaryMetadata> for proto::TaskSummaryMetadata {
+    fn from(meta: &TaskSummaryMetadata) -> Self {
+        proto::TaskSummaryMetadata {
+            task_uuid: meta.task_uuid.clone(),
+            name: meta.name.clone(),
+            namespace: meta.namespace.clone(),
+            version: meta.version.clone(),
+            status: meta.status.clone(),
+            created_at: meta.created_at.to_rfc3339(),
+            updated_at: meta.updated_at.to_rfc3339(),
+            completed_at: meta.completed_at.map(|dt| dt.to_rfc3339()),
+            initiator: meta.initiator.clone(),
+            source_system: meta.source_system.clone(),
+            reason: meta.reason.clone(),
+            correlation_id: meta.correlation_id.to_string(),
+            total_steps: meta.total_steps,
+            pending_steps: meta.pending_steps,
+            in_progress_steps: meta.in_progress_steps,
+            completed_steps: meta.completed_steps,
+            failed_steps: meta.failed_steps,
+            completion_percentage: meta.completion_percentage,
+            health_status: meta.health_status.clone(),
+            execution_status: meta.execution_status.clone(),
+            recommended_action: meta.recommended_action.clone(),
+        }
+    }
+}
+
+impl From<&TemplateSummary> for proto::TaskSummaryTemplate {
+    fn from(template: &TemplateSummary) -> Self {
+        proto::TaskSummaryTemplate {
+            steps: template
+                .steps
+                .iter()
+                .map(proto::TaskSummaryTemplateStep::from)
+                .collect(),
+        }
+    }
+}
+
+impl From<&TemplateStepSummary> for proto::TaskSummaryTemplateStep {
+    fn from(step: &TemplateStepSummary) -> Self {
+        proto::TaskSummaryTemplateStep {
+            name: step.name.clone(),
+            step_type: step.step_type.clone(),
+            handler: step.handler.clone(),
+            dependencies: step.dependencies.clone(),
+            retryable: step.retryable,
+            max_attempts: step.max_attempts,
+        }
+    }
+}
+
+impl From<&StepSummaryInfo> for proto::StepSummaryInfo {
+    fn from(step: &StepSummaryInfo) -> Self {
+        proto::StepSummaryInfo {
+            step_uuid: step.step_uuid.clone(),
+            name: step.name.clone(),
+            current_state: step.current_state.clone(),
+            created_at: step.created_at.clone(),
+            completed_at: step.completed_at.clone(),
+            last_attempted_at: step.last_attempted_at.clone(),
+            attempts: step.attempts,
+            max_attempts: step.max_attempts,
+            dependencies_satisfied: step.dependencies_satisfied,
+            retry_eligible: step.retry_eligible,
+            error: step.error.as_ref().map(proto::StepErrorSummary::from),
+        }
+    }
+}
+
+impl From<&StepErrorSummary> for proto::StepErrorSummary {
+    fn from(err: &StepErrorSummary) -> Self {
+        proto::StepErrorSummary {
+            error_type: err.error_type.clone(),
+            retryable: err.retryable,
+            status_code: err.status_code.map(u32::from),
+        }
+    }
+}
+
+impl From<&DlqSummaryInfo> for proto::DlqSummaryInfo {
+    fn from(dlq: &DlqSummaryInfo) -> Self {
+        proto::DlqSummaryInfo {
+            in_dlq: dlq.in_dlq,
+            dlq_reason: dlq.dlq_reason.clone(),
+            resolution_status: dlq.resolution_status.clone(),
+        }
+    }
+}
+
+impl From<&TaskSummaryLinks> for proto::TaskSummaryLinks {
+    fn from(links: &TaskSummaryLinks) -> Self {
+        proto::TaskSummaryLinks {
+            task: links.task.clone(),
+            steps: links.steps.clone(),
+            dlq: links.dlq.clone(),
         }
     }
 }

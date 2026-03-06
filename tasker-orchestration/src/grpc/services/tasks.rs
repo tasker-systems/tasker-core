@@ -310,6 +310,37 @@ impl TaskServiceTrait for TaskServiceImpl {
         }
     }
 
+    /// Get a task summary for visualization.
+    async fn get_task_summary(
+        &self,
+        request: Request<proto::GetTaskSummaryRequest>,
+    ) -> Result<Response<proto::GetTaskSummaryResponse>, Status> {
+        // Authenticate and authorize
+        let _ctx = self
+            .authenticate_and_authorize(&request, Permission::TasksRead)
+            .await?;
+
+        let req = request.into_inner();
+        let task_id = parse_uuid(&req.task_uuid)?;
+
+        debug!(task_id = %task_id, "gRPC get task summary");
+
+        // Get task summary via service layer
+        let result = self
+            .state
+            .services
+            .task_service
+            .get_task_summary(task_id)
+            .await;
+
+        match result {
+            Ok(response) => Ok(Response::new(proto::GetTaskSummaryResponse::from(
+                &response,
+            ))),
+            Err(e) => Err(task_service_error_to_status(&e)),
+        }
+    }
+
     /// Stream task status updates.
     type StreamTaskStatusStream = ReceiverStream<Result<proto::TaskStatusUpdate, Status>>;
 
