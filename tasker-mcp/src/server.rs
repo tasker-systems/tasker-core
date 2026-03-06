@@ -1115,8 +1115,8 @@ base_url = "http://localhost:8080"
         // Should have T1 + profile + T2, no T3
         assert_eq!(
             names.len(),
-            23,
-            "Expected 23 tools from profile config, got: {:?}",
+            24,
+            "Expected 24 tools from profile config, got: {:?}",
             names
         );
         assert!(!names.contains(&"task_submit"));

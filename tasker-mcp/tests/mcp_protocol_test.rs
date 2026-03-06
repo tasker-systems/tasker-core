@@ -129,9 +129,10 @@ async fn test_list_tools_offline_returns_tier1() -> anyhow::Result<()> {
             "template_generate",
             "template_inspect",
             "template_validate",
+            "template_visualize",
         ]
     );
-    assert_eq!(names.len(), 7, "Expected 7 Tier 1 tools in offline mode");
+    assert_eq!(names.len(), 8, "Expected 8 Tier 1 tools in offline mode");
 
     client.cancel().await?;
     server_handle.await??;
@@ -178,12 +179,13 @@ async fn test_list_tools_connected_returns_all() -> anyhow::Result<()> {
             "template_inspect_remote",
             "template_list_remote",
             "template_validate",
+            "template_visualize",
         ]
     );
     assert_eq!(
         names.len(),
-        29,
-        "Expected 29 tools: 7 Tier 1 + 1 profile + 15 Tier 2 connected + 6 Tier 3 write"
+        30,
+        "Expected 30 tools: 8 Tier 1 + 1 profile + 15 Tier 2 connected + 6 Tier 3 write"
     );
 
     client.cancel().await?;
@@ -199,8 +201,8 @@ async fn test_list_tools_tier_filtered() -> anyhow::Result<()> {
     let tools = client.list_tools(None).await?;
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_ref()).collect();
 
-    // 7 T1 + 1 connection_status + 15 T2 = 23
-    assert_eq!(names.len(), 23, "Expected 23 tools (T1+profile+T2)");
+    // 8 T1 + 1 connection_status + 15 T2 = 24
+    assert_eq!(names.len(), 24, "Expected 24 tools (T1+profile+T2)");
     assert!(names.contains(&"template_validate"));
     assert!(names.contains(&"task_list"));
     assert!(names.contains(&"connection_status"));
