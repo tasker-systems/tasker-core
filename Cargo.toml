@@ -59,7 +59,7 @@ bon = "3.8"
 # Coverage tools (used in CI)
 cargo-llvm-cov = "0.7"
 # Time and date handling
-chrono = { version = "0.4.43", features = ["serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 # CLI tool dependencies
 clap = { version = "4.5", features = ["derive"] }
 # Configuration
