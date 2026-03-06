@@ -35,6 +35,6 @@ pub use types::{
     CapabilityInvocation, CompositionCheckpoint, CompositionConstraint, CompositionEnvelope,
     CompositionError, CompositionSpec, EmitCategory, ExecutionContext, GrammarCategory,
     GrammarCategoryKind, IdempotencyProfile, MutationProfile, OnFailure, OutcomeDeclaration,
-    PersistCategory, RegistrationError, Severity, TransformCategory, UnknownCategoryError,
-    UnknownOnFailureError, ValidateCategory, ValidationFinding,
+    PersistCategory, RegistrationError, Severity, TransformCategory, TypedCapabilityExecutor,
+    UnknownCategoryError, UnknownOnFailureError, ValidateCategory, ValidationFinding,
 };

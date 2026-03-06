@@ -1,7 +1,9 @@
 use serde_json::Value;
 
 use crate::expression::ExpressionEngine;
-use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext};
+use crate::types::{
+    CapabilityError, CompositionEnvelope, ExecutionContext, TypedCapabilityExecutor,
+};
 
 /// Executor for the `transform` capability — the unified pure data transformation
 /// primitive in the action grammar.
@@ -40,7 +42,7 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// ```
 /// # use serde_json::json;
 /// # use tasker_grammar::ExpressionEngine;
-/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::types::{CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 /// # use tasker_grammar::capabilities::transform::TransformExecutor;
 /// let exec = TransformExecutor::new(ExpressionEngine::with_defaults());
 /// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
@@ -61,7 +63,8 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 ///         }
 ///     }
 /// });
-/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// let envelope = CompositionEnvelope::new(&input);
+/// let result = exec.execute(&envelope, &config, &ctx).unwrap();
 /// assert_eq!(result, json!({"email": "alice@example.com", "total": 99.99}));
 /// ```
 ///
@@ -70,7 +73,7 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// ```
 /// # use serde_json::json;
 /// # use tasker_grammar::ExpressionEngine;
-/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::types::{CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 /// # use tasker_grammar::capabilities::transform::TransformExecutor;
 /// let exec = TransformExecutor::new(ExpressionEngine::with_defaults());
 /// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
@@ -83,7 +86,8 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// let config = json!({
 ///     "filter": "(.prev.items | map(.price * .qty) | add) as $sub | {subtotal: $sub, tax: ($sub * .context.tax_rate), total: ($sub + $sub * .context.tax_rate)}"
 /// });
-/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// let envelope = CompositionEnvelope::new(&input);
+/// let result = exec.execute(&envelope, &config, &ctx).unwrap();
 /// assert_eq!(result["subtotal"], json!(45));
 /// assert_eq!(result["total"], json!(48.6));
 /// ```
@@ -93,7 +97,7 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// ```
 /// # use serde_json::json;
 /// # use tasker_grammar::ExpressionEngine;
-/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::types::{CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 /// # use tasker_grammar::capabilities::transform::TransformExecutor;
 /// let exec = TransformExecutor::new(ExpressionEngine::with_defaults());
 /// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
@@ -102,7 +106,8 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// let config = json!({
 ///     "filter": "{high_value: (.prev.total > 1000), tier: (if .prev.total > 1000 then \"gold\" else \"standard\" end)}"
 /// });
-/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// let envelope = CompositionEnvelope::new(&input);
+/// let result = exec.execute(&envelope, &config, &ctx).unwrap();
 /// assert_eq!(result["high_value"], json!(true));
 /// assert_eq!(result["tier"], json!("gold"));
 /// ```
@@ -112,7 +117,7 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// ```
 /// # use serde_json::json;
 /// # use tasker_grammar::ExpressionEngine;
-/// # use tasker_grammar::types::{CapabilityExecutor, ExecutionContext};
+/// # use tasker_grammar::types::{CapabilityExecutor, CompositionEnvelope, ExecutionContext};
 /// # use tasker_grammar::capabilities::transform::TransformExecutor;
 /// let exec = TransformExecutor::new(ExpressionEngine::with_defaults());
 /// let ctx = ExecutionContext { step_name: "s".into(), attempt: 1, checkpoint_state: None };
@@ -121,7 +126,8 @@ use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, Exe
 /// let config = json!({
 ///     "filter": "if .prev.amount > 1000 then {queue: \"vip\"} elif .prev.amount > 500 then {queue: \"priority\"} else {queue: \"standard\"} end"
 /// });
-/// let result = exec.execute(&input, &config, &ctx).unwrap();
+/// let envelope = CompositionEnvelope::new(&input);
+/// let result = exec.execute(&envelope, &config, &ctx).unwrap();
 /// assert_eq!(result["queue"], json!("priority"));
 /// ```
 #[derive(Debug)]
@@ -135,31 +141,37 @@ impl TransformExecutor {
     }
 }
 
-impl CapabilityExecutor for TransformExecutor {
-    fn execute(
+/// Typed configuration for the `transform` capability.
+///
+/// Deserialized from the `config` JSON at the trait boundary, eliminating
+/// runtime field picking throughout the executor.
+#[derive(Debug, serde::Deserialize)]
+pub struct TransformConfig {
+    /// jaq expression applied to the composition context envelope.
+    pub filter: String,
+
+    /// Optional JSON Schema for output validation. When present, the filter
+    /// result is validated against it; violations produce
+    /// [`CapabilityError::OutputValidation`].
+    pub output: Option<Value>,
+}
+
+impl TypedCapabilityExecutor for TransformExecutor {
+    type Config = TransformConfig;
+
+    fn execute_typed(
         &self,
-        input: &Value,
-        config: &Value,
+        envelope: &CompositionEnvelope<'_>,
+        config: &TransformConfig,
         _context: &ExecutionContext,
     ) -> Result<Value, CapabilityError> {
-        let envelope = CompositionEnvelope::new(input);
-
-        let filter = config
-            .get("filter")
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                CapabilityError::ConfigValidation(
-                    "transform config must contain a 'filter' string".into(),
-                )
-            })?;
-
         // Pass the raw envelope to jaq — filters access .context, .deps, .prev, .step directly
         let result = self
             .engine
-            .evaluate(filter, envelope.raw())
+            .evaluate(&config.filter, envelope.raw())
             .map_err(|e| CapabilityError::ExpressionEvaluation(e.to_string()))?;
 
-        if let Some(output_schema) = config.get("output") {
+        if let Some(output_schema) = &config.output {
             validate_output(&result, output_schema)?;
         }
 

@@ -608,13 +608,14 @@ fn grammar_category_is_object_safe() {
 // CapabilityExecutor trait is object-safe
 // ---------------------------------------------------------------------------
 
+/// Direct impl of CapabilityExecutor (for test mocks / truly dynamic config).
 #[derive(Debug)]
-struct MockExecutor;
+struct DirectMockExecutor;
 
-impl CapabilityExecutor for MockExecutor {
+impl CapabilityExecutor for DirectMockExecutor {
     fn execute(
         &self,
-        _input: &serde_json::Value,
+        _envelope: &CompositionEnvelope<'_>,
         _config: &serde_json::Value,
         _context: &ExecutionContext,
     ) -> Result<serde_json::Value, CapabilityError> {
@@ -622,17 +623,19 @@ impl CapabilityExecutor for MockExecutor {
     }
 
     fn capability_name(&self) -> &str {
-        "mock"
+        "direct_mock"
     }
 }
 
 #[test]
-fn capability_executor_is_object_safe() {
-    let executor: Box<dyn CapabilityExecutor> = Box::new(MockExecutor);
-    assert_eq!(executor.capability_name(), "mock");
+fn direct_executor_is_object_safe() {
+    let executor: Box<dyn CapabilityExecutor> = Box::new(DirectMockExecutor);
+    assert_eq!(executor.capability_name(), "direct_mock");
+    let raw = json!({"context": {}, "deps": {}, "step": {}, "prev": null});
+    let envelope = CompositionEnvelope::new(&raw);
     let result = executor
         .execute(
-            &json!({}),
+            &envelope,
             &json!({}),
             &ExecutionContext {
                 step_name: "test".into(),
@@ -642,6 +645,112 @@ fn capability_executor_is_object_safe() {
         )
         .unwrap();
     assert_eq!(result, json!({"mock": true}));
+}
+
+// ---------------------------------------------------------------------------
+// TypedCapabilityExecutor — blanket impl provides CapabilityExecutor
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, serde::Deserialize)]
+struct TypedMockConfig {
+    greeting: String,
+}
+
+#[derive(Debug)]
+struct TypedMockExecutor;
+
+impl TypedCapabilityExecutor for TypedMockExecutor {
+    type Config = TypedMockConfig;
+
+    fn execute_typed(
+        &self,
+        _envelope: &CompositionEnvelope<'_>,
+        config: &TypedMockConfig,
+        _context: &ExecutionContext,
+    ) -> Result<serde_json::Value, CapabilityError> {
+        Ok(json!({ "message": config.greeting }))
+    }
+
+    fn capability_name(&self) -> &str {
+        "typed_mock"
+    }
+}
+
+#[test]
+fn typed_executor_is_object_safe_via_blanket() {
+    // TypedCapabilityExecutor → CapabilityExecutor via blanket impl
+    let executor: Box<dyn CapabilityExecutor> = Box::new(TypedMockExecutor);
+    assert_eq!(executor.capability_name(), "typed_mock");
+
+    let raw = json!({"context": {}, "deps": {}, "step": {}, "prev": null});
+    let envelope = CompositionEnvelope::new(&raw);
+    let config = json!({"greeting": "hello"});
+
+    let result = executor
+        .execute(
+            &envelope,
+            &config,
+            &ExecutionContext {
+                step_name: "test".into(),
+                attempt: 1,
+                checkpoint_state: None,
+            },
+        )
+        .unwrap();
+    assert_eq!(result, json!({"message": "hello"}));
+}
+
+#[test]
+fn typed_executor_validate_config_accepts_valid() {
+    let executor: Box<dyn CapabilityExecutor> = Box::new(TypedMockExecutor);
+    assert!(executor.validate_config(&json!({"greeting": "hi"})).is_ok());
+}
+
+#[test]
+fn typed_executor_validate_config_rejects_invalid() {
+    let executor: Box<dyn CapabilityExecutor> = Box::new(TypedMockExecutor);
+    let err = executor
+        .validate_config(&json!({"wrong_field": 42}))
+        .unwrap_err();
+    match &err {
+        CapabilityError::ConfigValidation(msg) => {
+            assert!(
+                msg.contains("greeting"),
+                "should mention the missing field: {msg}"
+            );
+        }
+        other => panic!("expected ConfigValidation, got: {other:?}"),
+    }
+}
+
+#[test]
+fn typed_executor_execute_rejects_bad_config() {
+    let executor: Box<dyn CapabilityExecutor> = Box::new(TypedMockExecutor);
+    let raw = json!({"context": {}, "deps": {}, "step": {}, "prev": null});
+    let envelope = CompositionEnvelope::new(&raw);
+    let bad_config = json!({"wrong": true});
+
+    let err = executor
+        .execute(
+            &envelope,
+            &bad_config,
+            &ExecutionContext {
+                step_name: "test".into(),
+                attempt: 1,
+                checkpoint_state: None,
+            },
+        )
+        .unwrap_err();
+    assert!(matches!(err, CapabilityError::ConfigValidation(_)));
+}
+
+#[test]
+fn direct_executor_validate_config_defaults_to_ok() {
+    // Direct impl has no typed config — default validate_config returns Ok
+    let executor: Box<dyn CapabilityExecutor> = Box::new(DirectMockExecutor);
+    assert!(executor
+        .validate_config(&json!({"anything": "works"}))
+        .is_ok());
 }
 
 // ---------------------------------------------------------------------------

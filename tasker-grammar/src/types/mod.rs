@@ -39,7 +39,7 @@ pub use composition::{CapabilityInvocation, CompositionSpec, OutcomeDeclaration}
 pub use declaration::CapabilityDeclaration;
 pub use envelope::CompositionEnvelope;
 pub use error::{CapabilityError, CompositionError, RegistrationError};
-pub use executor::{CapabilityExecutor, ExecutionContext};
+pub use executor::{CapabilityExecutor, ExecutionContext, TypedCapabilityExecutor};
 pub use on_failure::{OnFailure, UnknownOnFailureError};
 pub use validation::{CompositionConstraint, Severity, ValidationFinding};
 
