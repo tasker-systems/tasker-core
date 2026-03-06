@@ -1,6 +1,7 @@
 //! Template visualization: Mermaid diagram and detail table generation.
 
 pub mod render;
+pub mod task_visualize;
 mod template_visualize;
 pub mod types;
 
@@ -10,6 +11,7 @@ pub use types::{
 };
 
 pub use render::{render_detail_table, render_markdown, render_mermaid};
+pub use task_visualize::{visualize_task, TaskVisualizationInput};
 
 use std::collections::HashMap;
 

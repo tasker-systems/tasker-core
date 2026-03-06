@@ -37,8 +37,10 @@ thiserror = { workspace = true }
 # Logging
 tracing = { workspace = true }
 
-[dev-dependencies]
+# Date/time handling (for task visualization duration calculations)
 chrono = { workspace = true }
+
+[dev-dependencies]
 tempfile = { workspace = true }
 uuid = { workspace = true }
 
