@@ -41,18 +41,32 @@ pub enum IdempotencyProfile {
     CapabilityDefined,
 }
 
-/// The finite set of grammar categories.
+/// The finite set of grammar categories — one per capability in the
+/// 6-capability model.
 ///
-/// This enum enables exhaustive matching over the known category kinds.
-/// Each variant corresponds to a category struct that implements [`GrammarCategory`].
+/// Each variant corresponds to a capability with a distinct execution model:
+///
+/// - **Transform**: Pure data transformation via jaq filter + output schema.
+/// - **Validate**: Trust boundary gate — JSON Schema conformance with coercion
+///   modes, attribute filtering, and failure mechanics. Not a jaq concern.
+/// - **Assert**: Execution gate — jaq boolean filter that passes or fails.
+///   Produces no new data; `.prev` passes through unchanged on success.
+/// - **Acquire**: Side-effecting read from an external system via typed
+///   resource envelope.
+/// - **Persist**: Side-effecting write to an external system via typed
+///   resource envelope.
+/// - **Emit**: Side-effecting domain event publication via typed envelope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GrammarCategoryKind {
     /// Pure data transformation via jaq (jq) filters.
     Transform,
 
-    /// Execution gating — boolean filter evaluation that gates whether
-    /// the composition continues. Covers both schema validation and
-    /// jaq boolean assertions.
+    /// Trust boundary gate — JSON Schema validation with coercion modes,
+    /// attribute filtering, and failure mechanics.
+    Validate,
+
+    /// Execution gate — jaq boolean filter that gates whether the
+    /// composition continues. Produces no new data.
     Assert,
 
     /// Fetch data from external sources.
@@ -69,6 +83,7 @@ impl fmt::Display for GrammarCategoryKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Transform => write!(f, "Transform"),
+            Self::Validate => write!(f, "Validate"),
             Self::Assert => write!(f, "Assert"),
             Self::Acquire => write!(f, "Acquire"),
             Self::Persist => write!(f, "Persist"),
@@ -79,10 +94,9 @@ impl fmt::Display for GrammarCategoryKind {
 
 /// A category of action in the grammar.
 ///
-/// Grammar categories define the *kind* of action (Acquire, Transform, Assert,
-/// Persist, Emit) and declare what properties actions of this kind guarantee.
-/// This is the extension point for organizations that need domain-specific
-/// action categories.
+/// Grammar categories define the *kind* of action and declare what properties
+/// actions of this kind guarantee. Each of the 6 capabilities has its own
+/// category with a distinct execution model.
 ///
 /// Object-safe: suitable for `dyn` dispatch and build-from-source extensibility.
 pub trait GrammarCategory: Send + Sync + fmt::Debug {
@@ -123,10 +137,14 @@ pub trait GrammarCategory: Send + Sync + fmt::Debug {
 }
 
 // ---------------------------------------------------------------------------
-// Built-in grammar categories
+// Built-in grammar categories — one per capability
 // ---------------------------------------------------------------------------
 
 /// Pure data transformation via jaq (jq) filters.
+///
+/// Config model: `output` (JSON Schema declaring output shape) + `filter`
+/// (jaq expression producing the output). The single primitive that replaced
+/// reshape, compute, evaluate, and evaluate_rules.
 #[derive(Debug)]
 pub struct TransformCategory;
 
@@ -174,26 +192,30 @@ impl GrammarCategory for TransformCategory {
     }
 }
 
-/// Execution gating — boolean evaluation that gates whether the composition
-/// continues.
+/// Trust boundary gate — JSON Schema validation with coercion modes,
+/// attribute filtering, and failure mechanics.
 ///
-/// Covers both schema validation (`validate` capability) and jaq boolean
-/// assertions (`assert` capability). Both evaluate to a boolean: the filter
-/// or schema check is satisfied, or it is not.
+/// Validate sits at the boundary where external or untrusted data enters
+/// a composition. It checks conformance against a JSON Schema, optionally
+/// coerces types (e.g. `"1.00"` → `1.0`, string dates → date types),
+/// filters attributes, and declares failure behavior.
+///
+/// This is a schema engine concern, not a jaq concern. The execution model
+/// is fundamentally different from `assert` (which evaluates a jaq boolean).
 #[derive(Debug)]
-pub struct AssertCategory;
+pub struct ValidateCategory;
 
-impl GrammarCategory for AssertCategory {
+impl GrammarCategory for ValidateCategory {
     fn name(&self) -> &str {
-        "Assert"
+        "Validate"
     }
 
     fn kind(&self) -> GrammarCategoryKind {
-        GrammarCategoryKind::Assert
+        GrammarCategoryKind::Validate
     }
 
     fn description(&self) -> &str {
-        "Assert invariants, validate schemas, gate execution"
+        "Trust boundary gate — JSON Schema conformance with coercion and failure mechanics"
     }
 
     fn mutation_profile(&self) -> MutationProfile {
@@ -211,7 +233,77 @@ impl GrammarCategory for AssertCategory {
     fn config_schema(&self) -> Value {
         serde_json::json!({
             "type": "object",
-            "description": "Config varies by capability: validate uses schema + coercion, assert uses filter + error"
+            "properties": {
+                "schema": { "type": "object", "description": "JSON Schema to validate against" },
+                "coercion": {
+                    "type": "string",
+                    "enum": ["strict", "permissive"],
+                    "description": "Whether to coerce types (string-to-number, string-to-date, etc.)"
+                },
+                "on_failure": {
+                    "type": "string",
+                    "enum": ["fail", "filter", "default"],
+                    "description": "Behavior when validation fails"
+                }
+            },
+            "required": ["schema"]
+        })
+    }
+
+    fn validate_capability_declaration(
+        &self,
+        _declaration: &CapabilityDeclaration,
+    ) -> Vec<ValidationFinding> {
+        Vec::new()
+    }
+}
+
+/// Execution gate — jaq boolean filter that gates whether the composition
+/// continues.
+///
+/// Assert evaluates a jaq expression that must produce a boolean. On `true`,
+/// the composition continues and `.prev` passes through unchanged. On `false`,
+/// the step fails with the declared error message.
+///
+/// Assert produces no new data — it is semantically distinct from `transform`
+/// (which produces data) and from `validate` (which does schema conformance
+/// checking, not jaq evaluation).
+#[derive(Debug)]
+pub struct AssertCategory;
+
+impl GrammarCategory for AssertCategory {
+    fn name(&self) -> &str {
+        "Assert"
+    }
+
+    fn kind(&self) -> GrammarCategoryKind {
+        GrammarCategoryKind::Assert
+    }
+
+    fn description(&self) -> &str {
+        "Execution gate — jaq boolean filter that passes or fails the step"
+    }
+
+    fn mutation_profile(&self) -> MutationProfile {
+        MutationProfile::NonMutating
+    }
+
+    fn idempotency(&self) -> IdempotencyProfile {
+        IdempotencyProfile::Inherent
+    }
+
+    fn requires_checkpointing(&self) -> bool {
+        false
+    }
+
+    fn config_schema(&self) -> Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "filter": { "type": "string", "description": "jaq boolean expression" },
+                "error": { "type": "string", "description": "Error message when assertion fails" }
+            },
+            "required": ["filter", "error"]
         })
     }
 
@@ -224,6 +316,10 @@ impl GrammarCategory for AssertCategory {
 }
 
 /// Fetch data from external sources.
+///
+/// Typed resource envelope for targeting (API endpoint, database query, etc.)
+/// with jaq `params` filter for parameter mapping and `result_filter` for
+/// shaping the response.
 #[derive(Debug)]
 pub struct AcquireCategory;
 
@@ -275,6 +371,10 @@ impl GrammarCategory for AcquireCategory {
 }
 
 /// Write state to external systems.
+///
+/// Typed resource envelope for targeting with jaq `data` filter for mapping
+/// the data to persist. Supports constraints (unique keys, ID patterns),
+/// success validation, and result shape declarations.
 #[derive(Debug)]
 pub struct PersistCategory;
 
@@ -327,7 +427,12 @@ impl GrammarCategory for PersistCategory {
     }
 }
 
-/// Send notifications or events.
+/// Fire domain events.
+///
+/// Typed envelope for event configuration (name, version, delivery mode)
+/// with jaq `payload` filter for mapping event data. Optionally declares
+/// a JSON Schema for the event payload and a jaq boolean `condition` for
+/// conditional emission.
 #[derive(Debug)]
 pub struct EmitCategory;
 
@@ -341,7 +446,7 @@ impl GrammarCategory for EmitCategory {
     }
 
     fn description(&self) -> &str {
-        "Send notifications or events"
+        "Fire domain events"
     }
 
     fn mutation_profile(&self) -> MutationProfile {

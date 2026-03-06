@@ -29,7 +29,7 @@ mod validation;
 
 pub use categories::{
     AcquireCategory, AssertCategory, EmitCategory, GrammarCategory, GrammarCategoryKind,
-    IdempotencyProfile, MutationProfile, PersistCategory, TransformCategory,
+    IdempotencyProfile, MutationProfile, PersistCategory, TransformCategory, ValidateCategory,
 };
 pub use checkpoint::CompositionCheckpoint;
 pub use composition::{CompositionSpec, CompositionStep, OutcomeDeclaration};

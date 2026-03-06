@@ -10,8 +10,8 @@
 //! - [`expression`] — jaq-core expression engine with sandboxed evaluation (TAS-321)
 //! - [`types`] — core type definitions: `GrammarCategory`, `CapabilityDeclaration`,
 //!   `CompositionSpec`, `CapabilityExecutor` (TAS-323)
-//! - [`capabilities`] — capability executor implementations: transform, assert,
-//!   persist, acquire, emit (TAS-324–332)
+//! - [`capabilities`] — capability executor implementations: transform, validate,
+//!   assert, persist, acquire, emit (TAS-324–332)
 //! - [`validation`] — `CompositionValidator` with JSON Schema contract chaining (TAS-333)
 //! - [`executor`] — standalone `CompositionExecutor` with capability chaining (TAS-334)
 //!
@@ -35,5 +35,5 @@ pub use types::{
     CompositionCheckpoint, CompositionConstraint, CompositionError, CompositionSpec,
     CompositionStep, EmitCategory, ExecutionContext, GrammarCategory, GrammarCategoryKind,
     IdempotencyProfile, MutationProfile, OutcomeDeclaration, PersistCategory, RegistrationError,
-    Severity, TransformCategory, ValidationFinding,
+    Severity, TransformCategory, ValidateCategory, ValidationFinding,
 };

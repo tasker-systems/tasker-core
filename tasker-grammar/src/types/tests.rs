@@ -44,13 +44,14 @@ fn idempotency_profile_roundtrip() {
 }
 
 // ---------------------------------------------------------------------------
-// GrammarCategoryKind enum
+// GrammarCategoryKind enum — 6 variants, one per capability
 // ---------------------------------------------------------------------------
 
 #[test]
 fn grammar_category_kind_exhaustive_match() {
     let kinds = [
         GrammarCategoryKind::Transform,
+        GrammarCategoryKind::Validate,
         GrammarCategoryKind::Assert,
         GrammarCategoryKind::Acquire,
         GrammarCategoryKind::Persist,
@@ -60,6 +61,7 @@ fn grammar_category_kind_exhaustive_match() {
     for kind in kinds {
         match kind {
             GrammarCategoryKind::Transform => assert_eq!(kind.to_string(), "Transform"),
+            GrammarCategoryKind::Validate => assert_eq!(kind.to_string(), "Validate"),
             GrammarCategoryKind::Assert => assert_eq!(kind.to_string(), "Assert"),
             GrammarCategoryKind::Acquire => assert_eq!(kind.to_string(), "Acquire"),
             GrammarCategoryKind::Persist => assert_eq!(kind.to_string(), "Persist"),
@@ -72,6 +74,7 @@ fn grammar_category_kind_exhaustive_match() {
 fn grammar_category_kind_roundtrip() {
     for kind in [
         GrammarCategoryKind::Transform,
+        GrammarCategoryKind::Validate,
         GrammarCategoryKind::Assert,
         GrammarCategoryKind::Acquire,
         GrammarCategoryKind::Persist,
@@ -84,7 +87,7 @@ fn grammar_category_kind_roundtrip() {
 }
 
 // ---------------------------------------------------------------------------
-// Built-in GrammarCategory implementations
+// Built-in GrammarCategory implementations — all 6
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -99,6 +102,32 @@ fn transform_category_properties() {
 }
 
 #[test]
+fn validate_category_properties() {
+    let cat = ValidateCategory;
+    assert_eq!(cat.name(), "Validate");
+    assert_eq!(cat.kind(), GrammarCategoryKind::Validate);
+    assert_eq!(cat.mutation_profile(), MutationProfile::NonMutating);
+    assert_eq!(cat.idempotency(), IdempotencyProfile::Inherent);
+    assert!(!cat.requires_checkpointing());
+
+    // Validate config schema requires a JSON Schema
+    let schema = cat.config_schema();
+    let props = schema.get("properties").unwrap();
+    assert!(
+        props.get("schema").is_some(),
+        "validate needs a 'schema' property"
+    );
+    assert!(
+        props.get("coercion").is_some(),
+        "validate needs a 'coercion' property"
+    );
+    assert!(
+        props.get("on_failure").is_some(),
+        "validate needs an 'on_failure' property"
+    );
+}
+
+#[test]
 fn assert_category_properties() {
     let cat = AssertCategory;
     assert_eq!(cat.name(), "Assert");
@@ -106,6 +135,18 @@ fn assert_category_properties() {
     assert_eq!(cat.mutation_profile(), MutationProfile::NonMutating);
     assert_eq!(cat.idempotency(), IdempotencyProfile::Inherent);
     assert!(!cat.requires_checkpointing());
+
+    // Assert config schema requires filter + error
+    let schema = cat.config_schema();
+    let props = schema.get("properties").unwrap();
+    assert!(
+        props.get("filter").is_some(),
+        "assert needs a 'filter' property"
+    );
+    assert!(
+        props.get("error").is_some(),
+        "assert needs an 'error' property"
+    );
 }
 
 #[test]
@@ -152,6 +193,7 @@ fn emit_category_properties() {
 fn grammar_category_config_schemas_are_valid_json() {
     let categories: Vec<Box<dyn GrammarCategory>> = vec![
         Box::new(TransformCategory),
+        Box::new(ValidateCategory),
         Box::new(AssertCategory),
         Box::new(AcquireCategory),
         Box::new(PersistCategory),
@@ -165,11 +207,6 @@ fn grammar_category_config_schemas_are_valid_json() {
             "{} config schema should be an object",
             cat.name()
         );
-        assert!(
-            schema.get("type").is_some() || schema.get("description").is_some(),
-            "{} config schema should have a 'type' or 'description' field",
-            cat.name()
-        );
     }
 }
 
@@ -177,6 +214,7 @@ fn grammar_category_config_schemas_are_valid_json() {
 fn category_kind_matches_trait_impl() {
     let cases: Vec<(Box<dyn GrammarCategory>, GrammarCategoryKind)> = vec![
         (Box::new(TransformCategory), GrammarCategoryKind::Transform),
+        (Box::new(ValidateCategory), GrammarCategoryKind::Validate),
         (Box::new(AssertCategory), GrammarCategoryKind::Assert),
         (Box::new(AcquireCategory), GrammarCategoryKind::Acquire),
         (Box::new(PersistCategory), GrammarCategoryKind::Persist),
@@ -226,7 +264,8 @@ fn capability_declaration_roundtrip() {
 }
 
 // ---------------------------------------------------------------------------
-// CompositionSpec serialization
+// CompositionSpec serialization — mirrors spec Shape 1:
+// Validate → Transform → Assert → Persist → Emit
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -239,8 +278,12 @@ fn composition_spec_roundtrip() {
         },
         steps: vec![
             CompositionStep {
-                capability: "assert".into(),
-                config: json!({"filter": ".context.total > 0", "error": "Order total must be positive"}),
+                capability: "validate".into(),
+                config: json!({
+                    "schema": {"type": "object", "required": ["email", "items"]},
+                    "coercion": "permissive",
+                    "on_failure": "fail"
+                }),
                 checkpoint: false,
             },
             CompositionStep {
@@ -252,8 +295,13 @@ fn composition_spec_roundtrip() {
                 checkpoint: false,
             },
             CompositionStep {
+                capability: "assert".into(),
+                config: json!({"filter": ".prev.total > 0", "error": "Order total must be positive"}),
+                checkpoint: false,
+            },
+            CompositionStep {
                 capability: "persist".into(),
-                config: json!({"resource": {"type": "postgres", "table": "orders"}, "data": ".prev"}),
+                config: json!({"resource": {"type": "database", "entity": "orders"}, "data": ".prev"}),
                 checkpoint: true,
             },
             CompositionStep {
@@ -270,11 +318,14 @@ fn composition_spec_roundtrip() {
     let json = serde_json::to_value(&spec).unwrap();
     let back: CompositionSpec = serde_json::from_value(json).unwrap();
     assert_eq!(back.name, Some("order_processing".into()));
-    assert_eq!(back.steps.len(), 4);
-    assert_eq!(back.steps[0].capability, "assert");
-    assert_eq!(back.steps[2].capability, "persist");
-    assert!(back.steps[2].checkpoint);
+    assert_eq!(back.steps.len(), 5);
+    assert_eq!(back.steps[0].capability, "validate");
+    assert_eq!(back.steps[1].capability, "transform");
+    assert_eq!(back.steps[2].capability, "assert");
+    assert_eq!(back.steps[3].capability, "persist");
+    assert_eq!(back.steps[4].capability, "emit");
     assert!(back.steps[3].checkpoint);
+    assert!(back.steps[4].checkpoint);
     assert!(!back.steps[0].checkpoint);
 }
 
@@ -392,13 +443,14 @@ fn registration_error_display() {
 }
 
 // ---------------------------------------------------------------------------
-// GrammarCategory trait is object-safe
+// GrammarCategory trait is object-safe — all 6 categories
 // ---------------------------------------------------------------------------
 
 #[test]
 fn grammar_category_is_object_safe() {
     let categories: Vec<Box<dyn GrammarCategory>> = vec![
         Box::new(TransformCategory),
+        Box::new(ValidateCategory),
         Box::new(AssertCategory),
         Box::new(AcquireCategory),
         Box::new(PersistCategory),
@@ -406,7 +458,17 @@ fn grammar_category_is_object_safe() {
     ];
 
     let names: Vec<&str> = categories.iter().map(|c| c.name()).collect();
-    assert_eq!(names, ["Transform", "Assert", "Acquire", "Persist", "Emit"]);
+    assert_eq!(
+        names,
+        [
+            "Transform",
+            "Validate",
+            "Assert",
+            "Acquire",
+            "Persist",
+            "Emit"
+        ]
+    );
 }
 
 // ---------------------------------------------------------------------------
