@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use serde_json::Value;
 
 use crate::types::{
-    CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext, OnFailure,
+    CapabilityError, CompositionEnvelope, ExecutionContext, OnFailure, TypedCapabilityExecutor,
 };
 
 /// Executor for the `validate` capability — the boundary gate in the action grammar.
@@ -125,17 +125,15 @@ pub struct ValidateConfig {
     pub on_failure: OnFailure,
 }
 
-impl CapabilityExecutor for ValidateExecutor {
-    fn execute(
+impl TypedCapabilityExecutor for ValidateExecutor {
+    type Config = ValidateConfig;
+
+    fn execute_typed(
         &self,
         envelope: &CompositionEnvelope<'_>,
-        config: &Value,
+        config: &ValidateConfig,
         _context: &ExecutionContext,
     ) -> Result<Value, CapabilityError> {
-        let config: ValidateConfig = serde_json::from_value(config.clone()).map_err(|e| {
-            CapabilityError::ConfigValidation(format!("invalid validate config: {e}"))
-        })?;
-
         // Compile schema upfront — errors here are config problems
         let validator = jsonschema::validator_for(&config.schema)
             .map_err(|e| CapabilityError::ConfigValidation(format!("invalid JSON Schema: {e}")))?;

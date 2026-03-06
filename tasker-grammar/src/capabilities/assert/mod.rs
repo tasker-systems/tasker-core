@@ -2,7 +2,9 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::expression::ExpressionEngine;
-use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext};
+use crate::types::{
+    CapabilityError, CompositionEnvelope, ExecutionContext, TypedCapabilityExecutor,
+};
 
 /// Executor for the `assert` capability — the composable execution gate in the
 /// action grammar.
@@ -192,20 +194,18 @@ impl std::fmt::Display for Quantifier {
 }
 
 // ---------------------------------------------------------------------------
-// CapabilityExecutor impl
+// TypedCapabilityExecutor impl
 // ---------------------------------------------------------------------------
 
-impl CapabilityExecutor for AssertExecutor {
-    fn execute(
+impl TypedCapabilityExecutor for AssertExecutor {
+    type Config = AssertConfig;
+
+    fn execute_typed(
         &self,
         envelope: &CompositionEnvelope<'_>,
-        config: &Value,
+        config: &AssertConfig,
         _context: &ExecutionContext,
     ) -> Result<Value, CapabilityError> {
-        let config: AssertConfig = serde_json::from_value(config.clone()).map_err(|e| {
-            CapabilityError::ConfigValidation(format!("invalid assert config: {e}"))
-        })?;
-
         // Check dependency_precedent: skip assertion if the named dep is missing/null
         if let Some(dep_name) = &config.dependency_precedent {
             let dep = envelope.dep(dep_name);

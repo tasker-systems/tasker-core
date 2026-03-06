@@ -1,7 +1,9 @@
 use serde_json::Value;
 
 use crate::expression::ExpressionEngine;
-use crate::types::{CapabilityError, CapabilityExecutor, CompositionEnvelope, ExecutionContext};
+use crate::types::{
+    CapabilityError, CompositionEnvelope, ExecutionContext, TypedCapabilityExecutor,
+};
 
 /// Executor for the `transform` capability — the unified pure data transformation
 /// primitive in the action grammar.
@@ -154,17 +156,15 @@ pub struct TransformConfig {
     pub output: Option<Value>,
 }
 
-impl CapabilityExecutor for TransformExecutor {
-    fn execute(
+impl TypedCapabilityExecutor for TransformExecutor {
+    type Config = TransformConfig;
+
+    fn execute_typed(
         &self,
         envelope: &CompositionEnvelope<'_>,
-        config: &Value,
+        config: &TransformConfig,
         _context: &ExecutionContext,
     ) -> Result<Value, CapabilityError> {
-        let config: TransformConfig = serde_json::from_value(config.clone()).map_err(|e| {
-            CapabilityError::ConfigValidation(format!("invalid transform config: {e}"))
-        })?;
-
         // Pass the raw envelope to jaq — filters access .context, .deps, .prev, .step directly
         let result = self
             .engine
