@@ -20,8 +20,9 @@ pub struct ValidationFinding {
     /// Machine-readable code (e.g., "MISSING_CAPABILITY", "CONTRACT_MISMATCH").
     pub code: String,
 
-    /// Which composition step produced this finding (if applicable).
-    pub step_index: Option<usize>,
+    /// Which capability invocation produced this finding (0-indexed position
+    /// within the composition's `invocations` list, if applicable).
+    pub invocation_index: Option<usize>,
 
     /// Human-readable description of the finding.
     pub message: String,
@@ -33,8 +34,8 @@ pub struct ValidationFinding {
 /// A constraint that a grammar category imposes on compositions.
 ///
 /// For example, a "Persist" category might require that it's preceded
-/// by a Validate step, or a domain-specific category might impose
-/// ordering constraints on subsequent steps.
+/// by a Validate invocation, or a domain-specific category might impose
+/// ordering constraints on subsequent invocations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompositionConstraint {
     /// Machine-readable constraint identifier.

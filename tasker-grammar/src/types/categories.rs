@@ -352,11 +352,18 @@ impl GrammarCategory for AcquireCategory {
         serde_json::json!({
             "type": "object",
             "properties": {
-                "resource": { "type": "object" },
-                "params": { "type": "string", "description": "jaq expression for parameters" },
-                "constraints": { "type": "object" },
-                "validate_success": { "type": "object" },
-                "result_shape": { "type": "array" }
+                "resource": { "type": "object", "description": "Typed resource targeting (type, endpoint, method, etc.)" },
+                "params": { "type": "string", "description": "jaq expression producing parameters for the request" },
+                "constraints": { "type": "object", "description": "Operational constraints (timeout_ms, retries, etc.)" },
+                "success_criteria": {
+                    "type": "object",
+                    "description": "Criteria for determining whether the external operation succeeded (e.g., { status: { in: [200] } })"
+                },
+                "result_shape": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Field paths to include from the external response (e.g., [\"data.sales_records\"]). Unlike transform's 'output' (a full JSON Schema contract), this is a field-path filter on the external system's response."
+                }
             },
             "required": ["resource"]
         })
@@ -374,7 +381,7 @@ impl GrammarCategory for AcquireCategory {
 ///
 /// Typed resource envelope for targeting with jaq `data` filter for mapping
 /// the data to persist. Supports constraints (unique keys, ID patterns),
-/// success validation, and result shape declarations.
+/// success criteria, and result shape declarations.
 #[derive(Debug)]
 pub struct PersistCategory;
 
@@ -409,11 +416,18 @@ impl GrammarCategory for PersistCategory {
         serde_json::json!({
             "type": "object",
             "properties": {
-                "resource": { "type": "object" },
-                "data": { "type": "string", "description": "jaq expression for data to persist" },
-                "constraints": { "type": "object" },
-                "validate_success": { "type": "object" },
-                "result_shape": { "type": "array" }
+                "resource": { "type": "object", "description": "Typed resource targeting (type, entity, etc.)" },
+                "data": { "type": "string", "description": "jaq expression producing the data to persist" },
+                "constraints": { "type": "object", "description": "Operational constraints (unique_key, id_pattern, batch_insert, etc.)" },
+                "success_criteria": {
+                    "type": "object",
+                    "description": "Criteria for determining whether the persist succeeded (e.g., { order_id: { type: string, required: true } })"
+                },
+                "result_shape": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Field paths to include from the operation's response (e.g., [\"order_id\", \"order_ref\", \"created_at\"]). Unlike transform's 'output' (a full JSON Schema contract), this is a field-path filter on the external system's response."
+                }
             },
             "required": ["resource", "data"]
         })

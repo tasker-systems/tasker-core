@@ -8,7 +8,7 @@
 //! - [`CapabilityDeclaration`] — serializable declaration of a capability's contracts
 //! - [`CapabilityExecutor`] — trait for executing a capability
 //! - [`CompositionSpec`] — ordered list of capability invocations with checkpoints
-//! - [`CompositionStep`] — a single step within a composition
+//! - [`CapabilityInvocation`] — a single capability invocation within a composition
 //! - [`CompositionCheckpoint`] — resumable execution state
 //! - [`OutcomeDeclaration`] — declared output contract for a composition
 //! - Grammar-specific error types ([`CapabilityError`], [`CompositionError`])
@@ -32,7 +32,7 @@ pub use categories::{
     IdempotencyProfile, MutationProfile, PersistCategory, TransformCategory, ValidateCategory,
 };
 pub use checkpoint::CompositionCheckpoint;
-pub use composition::{CompositionSpec, CompositionStep, OutcomeDeclaration};
+pub use composition::{CapabilityInvocation, CompositionSpec, OutcomeDeclaration};
 pub use declaration::CapabilityDeclaration;
 pub use error::{CapabilityError, CompositionError, RegistrationError};
 pub use executor::{CapabilityExecutor, ExecutionContext};

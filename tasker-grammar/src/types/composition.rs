@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// A composed virtual handler — a chain of capabilities toward a singular outcome.
+/// A composed virtual handler — a chain of capability invocations toward a singular outcome.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompositionSpec {
     /// Optional name for registered compositions.
@@ -11,23 +11,32 @@ pub struct CompositionSpec {
     pub outcome: OutcomeDeclaration,
 
     /// Ordered sequence of capability invocations.
-    pub steps: Vec<CompositionStep>,
+    ///
+    /// Each entry is a single invocation of a capability from the vocabulary.
+    /// These are NOT workflow steps — they are the internal execution sequence
+    /// within a single step's virtual handler.
+    pub invocations: Vec<CapabilityInvocation>,
 }
 
-/// A single step within a composition.
+/// A single capability invocation within a composition.
 ///
-/// Each step invokes a capability from the vocabulary. The `config` field
+/// Each invocation targets a capability from the vocabulary. The `config` field
 /// is capability-specific:
 /// - `transform`: `output` (JSON Schema) + `filter` (jaq expression)
-/// - `assert`: `filter` (jaq boolean) + `error` message
 /// - `validate`: JSON Schema + coercion/failure config
+/// - `assert`: `filter` (jaq boolean) + `error` message
 /// - `persist`/`acquire`/`emit`: typed envelope with resource, data/params/payload,
-///   constraints, validate_success, result_shape
+///   constraints, success_criteria, result_shape
 ///
 /// Input is always the composition context envelope. jaq filters access
 /// `.context`, `.deps.{step_name}`, `.prev`, and `.step` directly.
+///
+/// **Terminology note**: These are capability invocations, not workflow steps.
+/// In Tasker, "step" refers to `WorkflowStep` — a node in the task DAG.
+/// A composition is the internal execution sequence within a single step's
+/// virtual handler.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompositionStep {
+pub struct CapabilityInvocation {
     /// Which capability to invoke (must exist in vocabulary).
     pub capability: String,
 

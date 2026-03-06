@@ -39,10 +39,10 @@ pub enum CapabilityError {
 /// Errors that can occur during composition execution.
 #[derive(Debug, thiserror::Error)]
 pub enum CompositionError {
-    /// A step within the composition failed.
-    #[error("step {step_index} ({capability}) failed: {cause}")]
-    StepExecution {
-        step_index: usize,
+    /// A capability invocation within the composition failed.
+    #[error("invocation {invocation_index} ({capability}) failed: {cause}")]
+    InvocationFailure {
+        invocation_index: usize,
         capability: String,
         #[source]
         cause: CapabilityError,

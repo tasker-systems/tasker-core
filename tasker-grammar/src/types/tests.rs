@@ -1,4 +1,5 @@
 use serde_json::json;
+use validator::Validate;
 
 use super::*;
 
@@ -157,6 +158,18 @@ fn acquire_category_properties() {
     assert_eq!(cat.mutation_profile(), MutationProfile::NonMutating);
     assert_eq!(cat.idempotency(), IdempotencyProfile::Inherent);
     assert!(!cat.requires_checkpointing());
+
+    // Acquire config schema has success_criteria and result_shape
+    let schema = cat.config_schema();
+    let props = schema.get("properties").unwrap();
+    assert!(
+        props.get("success_criteria").is_some(),
+        "acquire needs 'success_criteria'"
+    );
+    assert!(
+        props.get("result_shape").is_some(),
+        "acquire needs 'result_shape'"
+    );
 }
 
 #[test]
@@ -172,6 +185,18 @@ fn persist_category_properties() {
     );
     assert_eq!(cat.idempotency(), IdempotencyProfile::WithKey);
     assert!(cat.requires_checkpointing());
+
+    // Persist config schema has success_criteria and result_shape
+    let schema = cat.config_schema();
+    let props = schema.get("properties").unwrap();
+    assert!(
+        props.get("success_criteria").is_some(),
+        "persist needs 'success_criteria'"
+    );
+    assert!(
+        props.get("result_shape").is_some(),
+        "persist needs 'result_shape'"
+    );
 }
 
 #[test]
@@ -232,14 +257,12 @@ fn category_kind_matches_trait_impl() {
 }
 
 // ---------------------------------------------------------------------------
-// CapabilityDeclaration serialization
+// CapabilityDeclaration serialization + validation
 // ---------------------------------------------------------------------------
 
-#[test]
-fn capability_declaration_roundtrip() {
-    let decl = CapabilityDeclaration {
+fn make_test_declaration() -> CapabilityDeclaration {
+    CapabilityDeclaration {
         name: "json_transform".into(),
-        action: "transform".into(),
         grammar_category: GrammarCategoryKind::Transform,
         description: "Transform JSON data using jaq filters".into(),
         config_schema: json!({
@@ -252,15 +275,43 @@ fn capability_declaration_roundtrip() {
         mutation_profile: MutationProfile::NonMutating,
         tags: vec!["json".into(), "transform".into()],
         version: "1.0.0".into(),
-    };
+    }
+}
+
+#[test]
+fn capability_declaration_roundtrip() {
+    let decl = make_test_declaration();
 
     let json = serde_json::to_value(&decl).unwrap();
     let back: CapabilityDeclaration = serde_json::from_value(json).unwrap();
     assert_eq!(back.name, "json_transform");
-    assert_eq!(back.action, "transform");
     assert_eq!(back.grammar_category, GrammarCategoryKind::Transform);
     assert_eq!(back.mutation_profile, MutationProfile::NonMutating);
     assert_eq!(back.tags, vec!["json", "transform"]);
+}
+
+#[test]
+fn capability_declaration_no_action_field() {
+    let decl = make_test_declaration();
+    let json = serde_json::to_value(&decl).unwrap();
+    assert!(
+        json.get("action").is_none(),
+        "action field should not exist — grammar_category is 1:1 with capability"
+    );
+}
+
+#[test]
+fn capability_declaration_validates_name_not_empty() {
+    let mut decl = make_test_declaration();
+    decl.name = String::new();
+    assert!(decl.validate().is_err());
+}
+
+#[test]
+fn capability_declaration_validates_version_not_empty() {
+    let mut decl = make_test_declaration();
+    decl.version = String::new();
+    assert!(decl.validate().is_err());
 }
 
 // ---------------------------------------------------------------------------
@@ -276,8 +327,8 @@ fn composition_spec_roundtrip() {
             description: "Process and confirm an order".into(),
             output_schema: json!({"type": "object", "properties": {"order_id": {"type": "string"}}}),
         },
-        steps: vec![
-            CompositionStep {
+        invocations: vec![
+            CapabilityInvocation {
                 capability: "validate".into(),
                 config: json!({
                     "schema": {"type": "object", "required": ["email", "items"]},
@@ -286,7 +337,7 @@ fn composition_spec_roundtrip() {
                 }),
                 checkpoint: false,
             },
-            CompositionStep {
+            CapabilityInvocation {
                 capability: "transform".into(),
                 config: json!({
                     "filter": ".context | {order_id: .id, total: .items | map(.price * .qty) | add}",
@@ -294,17 +345,17 @@ fn composition_spec_roundtrip() {
                 }),
                 checkpoint: false,
             },
-            CompositionStep {
+            CapabilityInvocation {
                 capability: "assert".into(),
                 config: json!({"filter": ".prev.total > 0", "error": "Order total must be positive"}),
                 checkpoint: false,
             },
-            CompositionStep {
+            CapabilityInvocation {
                 capability: "persist".into(),
                 config: json!({"resource": {"type": "database", "entity": "orders"}, "data": ".prev"}),
                 checkpoint: true,
             },
-            CompositionStep {
+            CapabilityInvocation {
                 capability: "emit".into(),
                 config: json!({
                     "event_name": "order.confirmed",
@@ -318,25 +369,25 @@ fn composition_spec_roundtrip() {
     let json = serde_json::to_value(&spec).unwrap();
     let back: CompositionSpec = serde_json::from_value(json).unwrap();
     assert_eq!(back.name, Some("order_processing".into()));
-    assert_eq!(back.steps.len(), 5);
-    assert_eq!(back.steps[0].capability, "validate");
-    assert_eq!(back.steps[1].capability, "transform");
-    assert_eq!(back.steps[2].capability, "assert");
-    assert_eq!(back.steps[3].capability, "persist");
-    assert_eq!(back.steps[4].capability, "emit");
-    assert!(back.steps[3].checkpoint);
-    assert!(back.steps[4].checkpoint);
-    assert!(!back.steps[0].checkpoint);
+    assert_eq!(back.invocations.len(), 5);
+    assert_eq!(back.invocations[0].capability, "validate");
+    assert_eq!(back.invocations[1].capability, "transform");
+    assert_eq!(back.invocations[2].capability, "assert");
+    assert_eq!(back.invocations[3].capability, "persist");
+    assert_eq!(back.invocations[4].capability, "emit");
+    assert!(back.invocations[3].checkpoint);
+    assert!(back.invocations[4].checkpoint);
+    assert!(!back.invocations[0].checkpoint);
 }
 
 #[test]
-fn composition_step_defaults() {
-    let step: CompositionStep = serde_json::from_value(json!({
+fn capability_invocation_defaults() {
+    let invocation: CapabilityInvocation = serde_json::from_value(json!({
         "capability": "transform",
         "config": {"filter": "."}
     }))
     .unwrap();
-    assert!(!step.checkpoint);
+    assert!(!invocation.checkpoint);
 }
 
 // ---------------------------------------------------------------------------
@@ -346,10 +397,10 @@ fn composition_step_defaults() {
 #[test]
 fn composition_checkpoint_roundtrip() {
     let checkpoint = CompositionCheckpoint {
-        completed_step_index: 2,
+        completed_invocation_index: 2,
         completed_capability: "persist".into(),
-        step_output: json!({"order_id": "ord_123"}),
-        all_step_outputs: [
+        invocation_output: json!({"order_id": "ord_123"}),
+        all_invocation_outputs: [
             (0, json!("valid")),
             (1, json!({"total": 99.99})),
             (2, json!({"order_id": "ord_123"})),
@@ -361,10 +412,10 @@ fn composition_checkpoint_roundtrip() {
 
     let json = serde_json::to_value(&checkpoint).unwrap();
     let back: CompositionCheckpoint = serde_json::from_value(json).unwrap();
-    assert_eq!(back.completed_step_index, 2);
+    assert_eq!(back.completed_invocation_index, 2);
     assert_eq!(back.completed_capability, "persist");
     assert!(back.was_mutation);
-    assert_eq!(back.all_step_outputs.len(), 3);
+    assert_eq!(back.all_invocation_outputs.len(), 3);
 }
 
 // ---------------------------------------------------------------------------
@@ -376,9 +427,9 @@ fn validation_finding_display() {
     let finding = ValidationFinding {
         severity: Severity::Error,
         code: "MISSING_CAPABILITY".into(),
-        step_index: Some(3),
+        invocation_index: Some(3),
         message: "capability 'postgres_upsert' not found".into(),
-        field_path: Some("steps[3].capability".into()),
+        field_path: Some("invocations[3].capability".into()),
     };
 
     let display = format!("{finding}");
@@ -426,13 +477,13 @@ fn capability_error_display() {
 
 #[test]
 fn composition_error_display() {
-    let err = CompositionError::StepExecution {
-        step_index: 2,
+    let err = CompositionError::InvocationFailure {
+        invocation_index: 2,
         capability: "persist".into(),
         cause: CapabilityError::Timeout,
     };
     let display = err.to_string();
-    assert!(display.contains("step 2"));
+    assert!(display.contains("invocation 2"));
     assert!(display.contains("persist"));
 }
 
