@@ -2,6 +2,12 @@
 
 mod detail_table;
 mod mermaid;
+pub mod types;
+
+pub use types::{
+    EdgeStyle, GraphData, GraphEdge, GraphNode, NodeShape, TableData, TableHeader, TableRow,
+    VisualCategory,
+};
 
 use std::collections::HashMap;
 
