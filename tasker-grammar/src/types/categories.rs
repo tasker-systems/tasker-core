@@ -120,6 +120,40 @@ impl GrammarCategoryKind {
     /// This is the factory bridge from the enum (parsed from API/YAML/JSON input)
     /// to the trait object that carries behavior (config schema, mutation profile,
     /// validation, composition constraints).
+    ///
+    /// # Examples
+    ///
+    /// Parse a capability name from API/YAML input and get the hydrated category:
+    ///
+    /// ```
+    /// use tasker_grammar::{GrammarCategoryKind, GrammarCategory, MutationProfile};
+    ///
+    /// // An API request or YAML composition contains: `capability: persist`
+    /// let kind: GrammarCategoryKind = "persist".parse().unwrap();
+    /// let category = kind.into_category();
+    ///
+    /// // The category carries all behavioral properties for the capability
+    /// assert_eq!(category.name(), "Persist");
+    /// assert_eq!(category.kind(), GrammarCategoryKind::Persist);
+    /// assert!(category.requires_checkpointing());
+    /// assert_eq!(
+    ///     category.mutation_profile(),
+    ///     MutationProfile::Mutating { supports_idempotency_key: true },
+    /// );
+    ///
+    /// // Config schema is available for request validation
+    /// let schema = category.config_schema();
+    /// assert!(schema.get("required").is_some());
+    /// ```
+    ///
+    /// Unknown capability names produce a descriptive error:
+    ///
+    /// ```
+    /// use tasker_grammar::GrammarCategoryKind;
+    ///
+    /// let err = "compute".parse::<GrammarCategoryKind>().unwrap_err();
+    /// assert!(err.to_string().contains("unknown grammar category"));
+    /// ```
     pub fn into_category(self) -> Box<dyn GrammarCategory> {
         match self {
             Self::Transform => Box::new(TransformCategory),
