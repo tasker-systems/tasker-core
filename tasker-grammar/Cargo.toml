@@ -1,0 +1,29 @@
+[package]
+name = "tasker-grammar"
+version = "0.1.6"
+edition = "2021"
+description = "Action grammar expression engine for Tasker workflow orchestration"
+readme = "../README.md"
+repository = "https://github.com/tasker-systems/tasker-core"
+license = "MIT"
+keywords = ["grammar", "jq", "expression", "workflow", "orchestration"]
+categories = ["data-structures", "compilers"]
+
+[lib]
+crate-type = ["rlib"]
+name = "tasker_grammar"
+
+[dependencies]
+jaq-core = "2.1"
+jaq-std = "2.1"
+jaq-json = { version = "1.1", features = ["serde_json"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true
