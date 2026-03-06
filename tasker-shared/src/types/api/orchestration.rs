@@ -808,3 +808,240 @@ pub struct SafeMessagingConfig {
     /// Queue names owned by this component
     pub queues: Vec<String>,
 }
+
+// ============================================================================
+// TASK SUMMARY RESPONSE TYPES (TAS-317: Task visualization)
+// ============================================================================
+
+/// Task summary response for visualization — enriched single-call endpoint.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "web-api", derive(ToSchema))]
+pub struct TaskSummaryResponse {
+    pub task: TaskSummaryMetadata,
+    pub template: TemplateSummary,
+    pub steps: Vec<StepSummaryInfo>,
+    pub dlq: DlqSummaryInfo,
+    pub links: TaskSummaryLinks,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "web-api", derive(ToSchema))]
+pub struct TaskSummaryMetadata {
+    pub task_uuid: String,
+    pub name: String,
+    pub namespace: String,
+    pub version: String,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub initiator: String,
+    pub source_system: String,
+    pub reason: String,
+    pub correlation_id: Uuid,
+    pub total_steps: i64,
+    pub pending_steps: i64,
+    pub in_progress_steps: i64,
+    pub completed_steps: i64,
+    pub failed_steps: i64,
+    pub completion_percentage: f64,
+    pub health_status: String,
+    pub execution_status: String,
+    pub recommended_action: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "web-api", derive(ToSchema))]
+pub struct TemplateSummary {
+    pub steps: Vec<TemplateStepSummary>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "web-api", derive(ToSchema))]
+pub struct TemplateStepSummary {
+    pub name: String,
+    pub step_type: String,
+    pub handler: String,
+    pub dependencies: Vec<String>,
+    pub retryable: bool,
+    pub max_attempts: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "web-api", derive(ToSchema))]
+pub struct StepSummaryInfo {
+    pub step_uuid: String,
+    pub name: String,
+    pub current_state: String,
+    pub created_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub last_attempted_at: Option<String>,
+    pub attempts: i32,
+    pub max_attempts: i32,
+    pub dependencies_satisfied: bool,
+    pub retry_eligible: bool,
+    pub error: Option<StepErrorSummary>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "web-api", derive(ToSchema))]
+pub struct StepErrorSummary {
+    pub error_type: Option<String>,
+    pub retryable: bool,
+    pub status_code: Option<u16>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "web-api", derive(ToSchema))]
+pub struct DlqSummaryInfo {
+    pub in_dlq: bool,
+    pub dlq_reason: Option<String>,
+    pub resolution_status: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "web-api", derive(ToSchema))]
+pub struct TaskSummaryLinks {
+    pub task: String,
+    pub steps: String,
+    pub dlq: String,
+}
+
+impl From<crate::models::orchestration::task_summary::TaskSummaryRow> for TaskSummaryResponse {
+    fn from(row: crate::models::orchestration::task_summary::TaskSummaryRow) -> Self {
+        let exec = row.execution_context();
+        let dlq = row.dlq();
+        let steps: Vec<StepSummaryInfo> = row
+            .step_summaries()
+            .into_iter()
+            .map(|s| {
+                let error = if s.error_type.is_some() {
+                    Some(StepErrorSummary {
+                        error_type: s.error_type,
+                        retryable: s.error_retryable.unwrap_or(false),
+                        status_code: s.error_status_code.map(|c| c as u16),
+                    })
+                } else {
+                    None
+                };
+                StepSummaryInfo {
+                    step_uuid: s.step_uuid,
+                    name: s.name,
+                    current_state: s.current_state,
+                    created_at: s.created_at,
+                    completed_at: s.completed_at,
+                    last_attempted_at: s.last_attempted_at,
+                    attempts: s.attempts,
+                    max_attempts: s.max_attempts,
+                    dependencies_satisfied: s.dependencies_satisfied,
+                    retry_eligible: s.retry_eligible,
+                    error,
+                }
+            })
+            .collect();
+
+        // Parse template_configuration JSONB to extract step definitions
+        let template = extract_template_summary(row.template_configuration.as_ref());
+
+        let task_uuid_str = row.task_uuid.to_string();
+
+        TaskSummaryResponse {
+            task: TaskSummaryMetadata {
+                task_uuid: task_uuid_str.clone(),
+                name: row.task_name,
+                namespace: row.namespace_name,
+                version: row.task_version,
+                status: row.task_status,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+                completed_at: row.completed_at,
+                initiator: row.initiator.unwrap_or_default(),
+                source_system: row.source_system.unwrap_or_default(),
+                reason: row.reason.unwrap_or_default(),
+                correlation_id: row.correlation_id,
+                total_steps: exec.total_steps,
+                pending_steps: exec.pending_steps,
+                in_progress_steps: exec.in_progress_steps,
+                completed_steps: exec.completed_steps,
+                failed_steps: exec.failed_steps,
+                completion_percentage: exec.completion_percentage,
+                health_status: exec.health_status,
+                execution_status: exec.execution_status,
+                recommended_action: exec.recommended_action,
+            },
+            template,
+            steps,
+            dlq: DlqSummaryInfo {
+                in_dlq: dlq.in_dlq,
+                dlq_reason: dlq.dlq_reason,
+                resolution_status: dlq.resolution_status,
+            },
+            links: TaskSummaryLinks {
+                task: format!("/v1/tasks/{}", task_uuid_str),
+                steps: format!("/v1/tasks/{}/workflow_steps", task_uuid_str),
+                dlq: "/v1/dlq".to_string(),
+            },
+        }
+    }
+}
+
+/// Extract template step definitions from the configuration JSONB
+fn extract_template_summary(config: Option<&serde_json::Value>) -> TemplateSummary {
+    let Some(config) = config else {
+        return TemplateSummary { steps: vec![] };
+    };
+
+    let steps = config
+        .get("steps")
+        .and_then(|s| s.as_array())
+        .map(|steps_arr| {
+            steps_arr
+                .iter()
+                .filter_map(|step| {
+                    let name = step.get("name")?.as_str()?.to_string();
+                    let handler = step
+                        .get("handler")
+                        .and_then(|h| h.get("callable"))
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let step_type = step
+                        .get("type")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("standard")
+                        .to_string();
+                    let dependencies: Vec<String> = step
+                        .get("depends_on")
+                        .and_then(|d| d.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let retryable = step
+                        .get("retry")
+                        .and_then(|r| r.get("retryable"))
+                        .and_then(|r| r.as_bool())
+                        .unwrap_or(true);
+                    let max_attempts = step
+                        .get("retry")
+                        .and_then(|r| r.get("max_attempts"))
+                        .and_then(|m| m.as_u64())
+                        .unwrap_or(3) as u32;
+
+                    Some(TemplateStepSummary {
+                        name,
+                        step_type,
+                        handler,
+                        dependencies,
+                        retryable,
+                        max_attempts,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    TemplateSummary { steps }
+}
