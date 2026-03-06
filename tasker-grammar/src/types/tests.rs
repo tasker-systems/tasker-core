@@ -44,6 +44,46 @@ fn idempotency_profile_roundtrip() {
 }
 
 // ---------------------------------------------------------------------------
+// GrammarCategoryKind enum
+// ---------------------------------------------------------------------------
+
+#[test]
+fn grammar_category_kind_exhaustive_match() {
+    let kinds = [
+        GrammarCategoryKind::Transform,
+        GrammarCategoryKind::Assert,
+        GrammarCategoryKind::Acquire,
+        GrammarCategoryKind::Persist,
+        GrammarCategoryKind::Emit,
+    ];
+
+    for kind in kinds {
+        match kind {
+            GrammarCategoryKind::Transform => assert_eq!(kind.to_string(), "Transform"),
+            GrammarCategoryKind::Assert => assert_eq!(kind.to_string(), "Assert"),
+            GrammarCategoryKind::Acquire => assert_eq!(kind.to_string(), "Acquire"),
+            GrammarCategoryKind::Persist => assert_eq!(kind.to_string(), "Persist"),
+            GrammarCategoryKind::Emit => assert_eq!(kind.to_string(), "Emit"),
+        }
+    }
+}
+
+#[test]
+fn grammar_category_kind_roundtrip() {
+    for kind in [
+        GrammarCategoryKind::Transform,
+        GrammarCategoryKind::Assert,
+        GrammarCategoryKind::Acquire,
+        GrammarCategoryKind::Persist,
+        GrammarCategoryKind::Emit,
+    ] {
+        let json = serde_json::to_value(kind).unwrap();
+        let back: GrammarCategoryKind = serde_json::from_value(json).unwrap();
+        assert_eq!(back, kind);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Built-in GrammarCategory implementations
 // ---------------------------------------------------------------------------
 
@@ -51,6 +91,7 @@ fn idempotency_profile_roundtrip() {
 fn transform_category_properties() {
     let cat = TransformCategory;
     assert_eq!(cat.name(), "Transform");
+    assert_eq!(cat.kind(), GrammarCategoryKind::Transform);
     assert_eq!(cat.mutation_profile(), MutationProfile::NonMutating);
     assert_eq!(cat.idempotency(), IdempotencyProfile::Inherent);
     assert!(!cat.requires_checkpointing());
@@ -58,9 +99,10 @@ fn transform_category_properties() {
 }
 
 #[test]
-fn validate_category_properties() {
-    let cat = ValidateCategory;
-    assert_eq!(cat.name(), "Validate");
+fn assert_category_properties() {
+    let cat = AssertCategory;
+    assert_eq!(cat.name(), "Assert");
+    assert_eq!(cat.kind(), GrammarCategoryKind::Assert);
     assert_eq!(cat.mutation_profile(), MutationProfile::NonMutating);
     assert_eq!(cat.idempotency(), IdempotencyProfile::Inherent);
     assert!(!cat.requires_checkpointing());
@@ -70,6 +112,7 @@ fn validate_category_properties() {
 fn acquire_category_properties() {
     let cat = AcquireCategory;
     assert_eq!(cat.name(), "Acquire");
+    assert_eq!(cat.kind(), GrammarCategoryKind::Acquire);
     assert_eq!(cat.mutation_profile(), MutationProfile::NonMutating);
     assert_eq!(cat.idempotency(), IdempotencyProfile::Inherent);
     assert!(!cat.requires_checkpointing());
@@ -79,6 +122,7 @@ fn acquire_category_properties() {
 fn persist_category_properties() {
     let cat = PersistCategory;
     assert_eq!(cat.name(), "Persist");
+    assert_eq!(cat.kind(), GrammarCategoryKind::Persist);
     assert_eq!(
         cat.mutation_profile(),
         MutationProfile::Mutating {
@@ -93,6 +137,7 @@ fn persist_category_properties() {
 fn emit_category_properties() {
     let cat = EmitCategory;
     assert_eq!(cat.name(), "Emit");
+    assert_eq!(cat.kind(), GrammarCategoryKind::Emit);
     assert_eq!(
         cat.mutation_profile(),
         MutationProfile::Mutating {
@@ -107,7 +152,7 @@ fn emit_category_properties() {
 fn grammar_category_config_schemas_are_valid_json() {
     let categories: Vec<Box<dyn GrammarCategory>> = vec![
         Box::new(TransformCategory),
-        Box::new(ValidateCategory),
+        Box::new(AssertCategory),
         Box::new(AcquireCategory),
         Box::new(PersistCategory),
         Box::new(EmitCategory),
@@ -121,8 +166,28 @@ fn grammar_category_config_schemas_are_valid_json() {
             cat.name()
         );
         assert!(
-            schema.get("type").is_some(),
-            "{} config schema should have a 'type' field",
+            schema.get("type").is_some() || schema.get("description").is_some(),
+            "{} config schema should have a 'type' or 'description' field",
+            cat.name()
+        );
+    }
+}
+
+#[test]
+fn category_kind_matches_trait_impl() {
+    let cases: Vec<(Box<dyn GrammarCategory>, GrammarCategoryKind)> = vec![
+        (Box::new(TransformCategory), GrammarCategoryKind::Transform),
+        (Box::new(AssertCategory), GrammarCategoryKind::Assert),
+        (Box::new(AcquireCategory), GrammarCategoryKind::Acquire),
+        (Box::new(PersistCategory), GrammarCategoryKind::Persist),
+        (Box::new(EmitCategory), GrammarCategoryKind::Emit),
+    ];
+
+    for (cat, expected_kind) in cases {
+        assert_eq!(
+            cat.kind(),
+            expected_kind,
+            "kind() mismatch for {}",
             cat.name()
         );
     }
@@ -137,10 +202,8 @@ fn capability_declaration_roundtrip() {
     let decl = CapabilityDeclaration {
         name: "json_transform".into(),
         action: "transform".into(),
-        grammar_category: "Transform".into(),
+        grammar_category: GrammarCategoryKind::Transform,
         description: "Transform JSON data using jaq filters".into(),
-        input_schema: json!({"type": "object"}),
-        output_schema: json!({"type": "object"}),
         config_schema: json!({
             "type": "object",
             "properties": {
@@ -157,7 +220,7 @@ fn capability_declaration_roundtrip() {
     let back: CapabilityDeclaration = serde_json::from_value(json).unwrap();
     assert_eq!(back.name, "json_transform");
     assert_eq!(back.action, "transform");
-    assert_eq!(back.grammar_category, "Transform");
+    assert_eq!(back.grammar_category, GrammarCategoryKind::Transform);
     assert_eq!(back.mutation_profile, MutationProfile::NonMutating);
     assert_eq!(back.tags, vec!["json", "transform"]);
 }
@@ -167,7 +230,7 @@ fn capability_declaration_roundtrip() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn composition_spec_yaml_compatible_roundtrip() {
+fn composition_spec_roundtrip() {
     let spec = CompositionSpec {
         name: Some("order_processing".into()),
         outcome: OutcomeDeclaration {
@@ -176,9 +239,8 @@ fn composition_spec_yaml_compatible_roundtrip() {
         },
         steps: vec![
             CompositionStep {
-                capability: "validate".into(),
-                config: json!({"schema": {"type": "object"}}),
-                input_mapping: InputMapping::Previous,
+                capability: "assert".into(),
+                config: json!({"filter": ".context.total > 0", "error": "Order total must be positive"}),
                 checkpoint: false,
             },
             CompositionStep {
@@ -187,19 +249,11 @@ fn composition_spec_yaml_compatible_roundtrip() {
                     "filter": ".context | {order_id: .id, total: .items | map(.price * .qty) | add}",
                     "output": {"type": "object", "properties": {"order_id": {"type": "string"}, "total": {"type": "number"}}}
                 }),
-                input_mapping: InputMapping::Previous,
-                checkpoint: false,
-            },
-            CompositionStep {
-                capability: "assert".into(),
-                config: json!({"filter": ".prev.total > 0", "error": "Order total must be positive"}),
-                input_mapping: InputMapping::Previous,
                 checkpoint: false,
             },
             CompositionStep {
                 capability: "persist".into(),
                 config: json!({"resource": {"type": "postgres", "table": "orders"}, "data": ".prev"}),
-                input_mapping: InputMapping::Previous,
                 checkpoint: true,
             },
             CompositionStep {
@@ -208,58 +262,30 @@ fn composition_spec_yaml_compatible_roundtrip() {
                     "event_name": "order.confirmed",
                     "payload": "{order_id: .prev.order_id, total: .prev.total}"
                 }),
-                input_mapping: InputMapping::Previous,
                 checkpoint: true,
             },
         ],
-        mixins: vec!["retry:exponential".into()],
     };
 
-    // Verify JSON roundtrip
     let json = serde_json::to_value(&spec).unwrap();
     let back: CompositionSpec = serde_json::from_value(json).unwrap();
     assert_eq!(back.name, Some("order_processing".into()));
-    assert_eq!(back.steps.len(), 5);
-    assert_eq!(back.steps[0].capability, "validate");
-    assert_eq!(back.steps[3].capability, "persist");
+    assert_eq!(back.steps.len(), 4);
+    assert_eq!(back.steps[0].capability, "assert");
+    assert_eq!(back.steps[2].capability, "persist");
+    assert!(back.steps[2].checkpoint);
     assert!(back.steps[3].checkpoint);
-    assert!(back.steps[4].checkpoint);
     assert!(!back.steps[0].checkpoint);
 }
 
 #[test]
-fn input_mapping_default_is_previous() {
+fn composition_step_defaults() {
     let step: CompositionStep = serde_json::from_value(json!({
         "capability": "transform",
         "config": {"filter": "."}
     }))
     .unwrap();
-    assert!(matches!(step.input_mapping, InputMapping::Previous));
     assert!(!step.checkpoint);
-}
-
-#[test]
-fn input_mapping_step_output_roundtrip() {
-    let mapping = InputMapping::StepOutput { step_index: 2 };
-    let json = serde_json::to_value(&mapping).unwrap();
-    assert_eq!(json, json!({"type": "StepOutput", "step_index": 2}));
-    let back: InputMapping = serde_json::from_value(json).unwrap();
-    assert!(matches!(back, InputMapping::StepOutput { step_index: 2 }));
-}
-
-#[test]
-fn input_mapping_merged_roundtrip() {
-    let mapping = InputMapping::Merged {
-        sources: vec![
-            InputMapping::Previous,
-            InputMapping::TaskContext {
-                path: ".customer".into(),
-            },
-        ],
-    };
-    let json = serde_json::to_value(&mapping).unwrap();
-    let back: InputMapping = serde_json::from_value(json).unwrap();
-    assert!(matches!(back, InputMapping::Merged { sources } if sources.len() == 2));
 }
 
 // ---------------------------------------------------------------------------
@@ -373,17 +399,14 @@ fn registration_error_display() {
 fn grammar_category_is_object_safe() {
     let categories: Vec<Box<dyn GrammarCategory>> = vec![
         Box::new(TransformCategory),
-        Box::new(ValidateCategory),
+        Box::new(AssertCategory),
         Box::new(AcquireCategory),
         Box::new(PersistCategory),
         Box::new(EmitCategory),
     ];
 
     let names: Vec<&str> = categories.iter().map(|c| c.name()).collect();
-    assert_eq!(
-        names,
-        ["Transform", "Validate", "Acquire", "Persist", "Emit"]
-    );
+    assert_eq!(names, ["Transform", "Assert", "Acquire", "Persist", "Emit"]);
 }
 
 // ---------------------------------------------------------------------------

@@ -3,9 +3,10 @@
 //! This module defines the foundational types that all grammar capabilities depend on:
 //!
 //! - [`GrammarCategory`] — trait describing a category of capabilities
+//! - [`GrammarCategoryKind`] — enum for exhaustive matching over categories
 //! - [`MutationProfile`], [`IdempotencyProfile`] — category behavioral properties
 //! - [`CapabilityDeclaration`] — serializable declaration of a capability's contracts
-//! - [`CapabilityExecutor`] — async trait for executing a capability
+//! - [`CapabilityExecutor`] — trait for executing a capability
 //! - [`CompositionSpec`] — ordered list of capability invocations with checkpoints
 //! - [`CompositionStep`] — a single step within a composition
 //! - [`CompositionCheckpoint`] — resumable execution state
@@ -27,11 +28,11 @@ mod executor;
 mod validation;
 
 pub use categories::{
-    AcquireCategory, EmitCategory, GrammarCategory, IdempotencyProfile, MutationProfile,
-    PersistCategory, TransformCategory, ValidateCategory,
+    AcquireCategory, AssertCategory, EmitCategory, GrammarCategory, GrammarCategoryKind,
+    IdempotencyProfile, MutationProfile, PersistCategory, TransformCategory,
 };
 pub use checkpoint::CompositionCheckpoint;
-pub use composition::{CompositionSpec, CompositionStep, InputMapping, OutcomeDeclaration};
+pub use composition::{CompositionSpec, CompositionStep, OutcomeDeclaration};
 pub use declaration::CapabilityDeclaration;
 pub use error::{CapabilityError, CompositionError, RegistrationError};
 pub use executor::{CapabilityExecutor, ExecutionContext};

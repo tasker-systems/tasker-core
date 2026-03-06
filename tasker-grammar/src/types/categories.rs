@@ -41,9 +41,45 @@ pub enum IdempotencyProfile {
     CapabilityDefined,
 }
 
+/// The finite set of grammar categories.
+///
+/// This enum enables exhaustive matching over the known category kinds.
+/// Each variant corresponds to a category struct that implements [`GrammarCategory`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GrammarCategoryKind {
+    /// Pure data transformation via jaq (jq) filters.
+    Transform,
+
+    /// Execution gating — boolean filter evaluation that gates whether
+    /// the composition continues. Covers both schema validation and
+    /// jaq boolean assertions.
+    Assert,
+
+    /// Fetch data from external sources.
+    Acquire,
+
+    /// Write state to external systems.
+    Persist,
+
+    /// Send notifications or events.
+    Emit,
+}
+
+impl fmt::Display for GrammarCategoryKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Transform => write!(f, "Transform"),
+            Self::Assert => write!(f, "Assert"),
+            Self::Acquire => write!(f, "Acquire"),
+            Self::Persist => write!(f, "Persist"),
+            Self::Emit => write!(f, "Emit"),
+        }
+    }
+}
+
 /// A category of action in the grammar.
 ///
-/// Grammar categories define the *kind* of action (Acquire, Transform, Validate,
+/// Grammar categories define the *kind* of action (Acquire, Transform, Assert,
 /// Persist, Emit) and declare what properties actions of this kind guarantee.
 /// This is the extension point for organizations that need domain-specific
 /// action categories.
@@ -52,6 +88,9 @@ pub enum IdempotencyProfile {
 pub trait GrammarCategory: Send + Sync + fmt::Debug {
     /// Unique name of this grammar category (e.g., "Acquire", "Transform").
     fn name(&self) -> &str;
+
+    /// The enum variant for this category.
+    fn kind(&self) -> GrammarCategoryKind;
 
     /// Human-readable description for agent discoverability.
     fn description(&self) -> &str;
@@ -96,6 +135,10 @@ impl GrammarCategory for TransformCategory {
         "Transform"
     }
 
+    fn kind(&self) -> GrammarCategoryKind {
+        GrammarCategoryKind::Transform
+    }
+
     fn description(&self) -> &str {
         "Pure data transformation via jaq (jq) filters"
     }
@@ -131,16 +174,22 @@ impl GrammarCategory for TransformCategory {
     }
 }
 
-/// Schema validation and execution gating.
+/// Execution gating — boolean evaluation that gates whether the composition
+/// continues.
 ///
-/// Covers both `validate` (JSON Schema trust boundary) and `assert`
-/// (jaq boolean gate) capabilities.
+/// Covers both schema validation (`validate` capability) and jaq boolean
+/// assertions (`assert` capability). Both evaluate to a boolean: the filter
+/// or schema check is satisfied, or it is not.
 #[derive(Debug)]
-pub struct ValidateCategory;
+pub struct AssertCategory;
 
-impl GrammarCategory for ValidateCategory {
+impl GrammarCategory for AssertCategory {
     fn name(&self) -> &str {
-        "Validate"
+        "Assert"
+    }
+
+    fn kind(&self) -> GrammarCategoryKind {
+        GrammarCategoryKind::Assert
     }
 
     fn description(&self) -> &str {
@@ -181,6 +230,10 @@ pub struct AcquireCategory;
 impl GrammarCategory for AcquireCategory {
     fn name(&self) -> &str {
         "Acquire"
+    }
+
+    fn kind(&self) -> GrammarCategoryKind {
+        GrammarCategoryKind::Acquire
     }
 
     fn description(&self) -> &str {
@@ -230,6 +283,10 @@ impl GrammarCategory for PersistCategory {
         "Persist"
     }
 
+    fn kind(&self) -> GrammarCategoryKind {
+        GrammarCategoryKind::Persist
+    }
+
     fn description(&self) -> &str {
         "Write state to external systems"
     }
@@ -277,6 +334,10 @@ pub struct EmitCategory;
 impl GrammarCategory for EmitCategory {
     fn name(&self) -> &str {
         "Emit"
+    }
+
+    fn kind(&self) -> GrammarCategoryKind {
+        GrammarCategoryKind::Emit
     }
 
     fn description(&self) -> &str {
