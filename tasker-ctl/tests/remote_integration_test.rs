@@ -454,13 +454,16 @@ fn test_init_creates_default_config() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(
-        stdout.contains("Created .tasker-ctl.toml"),
+        stdout.contains("Created .config/tasker.toml"),
         "Should show success message: {}",
         stdout
     );
 
-    let config_path = work.join(".tasker-ctl.toml");
-    assert!(config_path.exists(), ".tasker-ctl.toml should be created");
+    let config_path = work.join(".config").join("tasker.toml");
+    assert!(
+        config_path.exists(),
+        ".config/tasker.toml should be created"
+    );
 
     let content = fs::read_to_string(&config_path).unwrap();
     assert!(
@@ -469,8 +472,8 @@ fn test_init_creates_default_config() {
         content
     );
     assert!(
-        content.contains("[[remotes]]"),
-        "Should have remotes section: {}",
+        content.contains("[[cli.remotes]]"),
+        "Should have cli.remotes section: {}",
         content
     );
     assert!(
@@ -493,19 +496,22 @@ fn test_init_no_contrib_flag() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let config_path = work.join(".tasker-ctl.toml");
-    assert!(config_path.exists(), ".tasker-ctl.toml should be created");
+    let config_path = work.join(".config").join("tasker.toml");
+    assert!(
+        config_path.exists(),
+        ".config/tasker.toml should be created"
+    );
 
     let content = fs::read_to_string(&config_path).unwrap();
     // The remotes section should be commented out
     assert!(
-        !content.contains("\n[[remotes]]"),
-        "Should not have active remotes section: {}",
+        !content.contains("\n[[cli.remotes]]"),
+        "Should not have active cli.remotes section: {}",
         content
     );
     assert!(
-        content.contains("# [[remotes]]"),
-        "Should have commented remotes section: {}",
+        content.contains("# [[cli.remotes]]"),
+        "Should have commented cli.remotes section: {}",
         content
     );
 }
@@ -514,11 +520,12 @@ fn test_init_no_contrib_flag() {
 fn test_init_refuses_to_overwrite() {
     let temp = TempDir::new().unwrap();
     let work = temp.path().join("work");
-    fs::create_dir_all(&work).unwrap();
+    let config_dir = work.join(".config");
+    fs::create_dir_all(&config_dir).unwrap();
 
     // Create existing config with custom content
     let original_content = "# my custom config\nplugin-paths = [\"./my-plugins\"]\n";
-    fs::write(work.join(".tasker-ctl.toml"), original_content).unwrap();
+    fs::write(config_dir.join("tasker.toml"), original_content).unwrap();
 
     let output = run_tasker_ctl(&work, &["init"]);
     assert!(
@@ -527,7 +534,7 @@ fn test_init_refuses_to_overwrite() {
     );
 
     // Verify original content preserved
-    let content = fs::read_to_string(work.join(".tasker-ctl.toml")).unwrap();
+    let content = fs::read_to_string(config_dir.join("tasker.toml")).unwrap();
     assert_eq!(
         content, original_content,
         "Original config should be preserved"

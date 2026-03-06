@@ -38,6 +38,9 @@ members = [
   "workers/typescript",  # TAS-100: TypeScript FFI worker (napi-rs)
   # "workers/wasm",      # Future
 ]
+exclude = [
+  "vendor/rb-sys-build",  # Patched build dep, not a workspace member
+]
 
 [workspace.dependencies]
 anyhow = "1.0"
@@ -186,6 +189,15 @@ tokio-stream = { version = "0.1", features = ["net"] }
 # wasm-bindgen-futures = { version = "0.4", optional = true }
 # js-sys = { version = "0.3", optional = true }
 # web-sys = { version = "0.3", optional = true }
+
+# Patch rb-sys-build to use bindgen 0.72 (fixes opaque rb_data_type_struct generation)
+# bindgen 0.69-0.71 generates rb_data_type_struct as opaque {_address: u8}, which means
+# rb_data_type_struct__bindgen_ty_1 (the anonymous inner struct for function pointers)
+# is never generated. Magnus imports this type and fails to compile.
+# bindgen 0.72 fixes this and generates the full struct with all fields.
+# TODO: Remove this patch when rb-sys-build upgrades to bindgen >= 0.72
+[patch.crates-io]
+rb-sys-build = { path = "vendor/rb-sys-build" }
 
 # Workspace-level linting configuration (TAS-58)
 # Based on Microsoft Universal Guidelines and Rust API Guidelines
