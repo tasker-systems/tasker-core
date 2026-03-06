@@ -88,6 +88,84 @@ fn grammar_category_kind_roundtrip() {
 }
 
 // ---------------------------------------------------------------------------
+// GrammarCategoryKind — FromStr (case-insensitive parsing)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn grammar_category_kind_from_str_lowercase() {
+    for (input, expected) in [
+        ("transform", GrammarCategoryKind::Transform),
+        ("validate", GrammarCategoryKind::Validate),
+        ("assert", GrammarCategoryKind::Assert),
+        ("acquire", GrammarCategoryKind::Acquire),
+        ("persist", GrammarCategoryKind::Persist),
+        ("emit", GrammarCategoryKind::Emit),
+    ] {
+        let parsed: GrammarCategoryKind = input.parse().unwrap();
+        assert_eq!(parsed, expected);
+    }
+}
+
+#[test]
+fn grammar_category_kind_from_str_case_insensitive() {
+    assert_eq!(
+        "Transform".parse::<GrammarCategoryKind>().unwrap(),
+        GrammarCategoryKind::Transform
+    );
+    assert_eq!(
+        "PERSIST".parse::<GrammarCategoryKind>().unwrap(),
+        GrammarCategoryKind::Persist
+    );
+}
+
+#[test]
+fn grammar_category_kind_from_str_unknown() {
+    let err = "compute".parse::<GrammarCategoryKind>().unwrap_err();
+    assert!(err.to_string().contains("compute"));
+    assert!(err.to_string().contains("unknown grammar category"));
+}
+
+// ---------------------------------------------------------------------------
+// GrammarCategoryKind — into_category factory
+// ---------------------------------------------------------------------------
+
+#[test]
+fn grammar_category_kind_into_category_roundtrip() {
+    for kind in [
+        GrammarCategoryKind::Transform,
+        GrammarCategoryKind::Validate,
+        GrammarCategoryKind::Assert,
+        GrammarCategoryKind::Acquire,
+        GrammarCategoryKind::Persist,
+        GrammarCategoryKind::Emit,
+    ] {
+        let category = kind.into_category();
+        assert_eq!(
+            category.kind(),
+            kind,
+            "into_category().kind() should round-trip"
+        );
+    }
+}
+
+#[test]
+fn grammar_category_kind_from_str_to_category() {
+    let category = "persist"
+        .parse::<GrammarCategoryKind>()
+        .unwrap()
+        .into_category();
+
+    assert_eq!(category.name(), "Persist");
+    assert!(category.requires_checkpointing());
+    assert_eq!(
+        category.mutation_profile(),
+        MutationProfile::Mutating {
+            supports_idempotency_key: true,
+        }
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Built-in GrammarCategory implementations — all 6
 // ---------------------------------------------------------------------------
 

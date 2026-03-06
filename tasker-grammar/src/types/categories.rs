@@ -1,4 +1,5 @@
 use std::fmt;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -91,6 +92,50 @@ impl fmt::Display for GrammarCategoryKind {
         }
     }
 }
+
+impl FromStr for GrammarCategoryKind {
+    type Err = UnknownCategoryError;
+
+    /// Parse a grammar category kind from a string (case-insensitive).
+    ///
+    /// Accepts the canonical names used in composition YAML/JSON:
+    /// `"transform"`, `"validate"`, `"assert"`, `"acquire"`, `"persist"`, `"emit"`
+    /// as well as PascalCase variants (`"Transform"`, etc.).
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "transform" => Ok(Self::Transform),
+            "validate" => Ok(Self::Validate),
+            "assert" => Ok(Self::Assert),
+            "acquire" => Ok(Self::Acquire),
+            "persist" => Ok(Self::Persist),
+            "emit" => Ok(Self::Emit),
+            _ => Err(UnknownCategoryError(s.to_owned())),
+        }
+    }
+}
+
+impl GrammarCategoryKind {
+    /// Instantiate the concrete [`GrammarCategory`] implementation for this kind.
+    ///
+    /// This is the factory bridge from the enum (parsed from API/YAML/JSON input)
+    /// to the trait object that carries behavior (config schema, mutation profile,
+    /// validation, composition constraints).
+    pub fn into_category(self) -> Box<dyn GrammarCategory> {
+        match self {
+            Self::Transform => Box::new(TransformCategory),
+            Self::Validate => Box::new(ValidateCategory),
+            Self::Assert => Box::new(AssertCategory),
+            Self::Acquire => Box::new(AcquireCategory),
+            Self::Persist => Box::new(PersistCategory),
+            Self::Emit => Box::new(EmitCategory),
+        }
+    }
+}
+
+/// Error returned when parsing an unknown grammar category name.
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("unknown grammar category: '{0}' (expected one of: transform, validate, assert, acquire, persist, emit)")]
+pub struct UnknownCategoryError(pub String);
 
 /// A category of action in the grammar.
 ///
