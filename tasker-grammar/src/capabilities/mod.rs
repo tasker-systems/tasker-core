@@ -16,3 +16,5 @@
 //! - `emit` — domain event construction with jaq payload filter (TAS-332)
 //!
 //! **Tickets**: TAS-324 through TAS-332
+
+pub mod transform;
