@@ -55,7 +55,7 @@ fi
 # Publish in dependency order
 # ---------------------------------------------------------------------------
 PHASE_1=("tasker-pgmq")
-PHASE_2=("tasker-shared")
+PHASE_2=("tasker-shared" "tasker-grammar")
 PHASE_3=("tasker-client" "tasker-orchestration" "tasker-sdk")
 PHASE_4=("tasker-worker" "tasker-ctl" "tasker-mcp")
 
