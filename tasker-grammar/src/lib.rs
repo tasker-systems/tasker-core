@@ -30,3 +30,10 @@ pub mod types;
 pub mod validation;
 
 pub use expression::{ExpressionEngine, ExpressionEngineConfig, ExpressionError};
+pub use types::{
+    AcquireCategory, BackoffStrategy, CapabilityDeclaration, CapabilityError, CapabilityExecutor,
+    CompositionCheckpoint, CompositionConstraint, CompositionError, CompositionSpec,
+    CompositionStep, EmitCategory, ExecutionContext, GrammarCategory, IdempotencyProfile,
+    InputMapping, MutationProfile, OutcomeDeclaration, PersistCategory, RegistrationError,
+    RetryProfile, Severity, TransformCategory, ValidateCategory, ValidationFinding,
+};
