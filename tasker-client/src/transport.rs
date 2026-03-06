@@ -31,7 +31,7 @@ use tasker_shared::{
     types::api::orchestration::{
         BottleneckAnalysis, BottleneckQuery, DetailedHealthResponse, HealthResponse, MetricsQuery,
         OrchestrationConfigResponse, PerformanceMetrics, StepAuditResponse, StepManualAction,
-        StepResponse, TaskListResponse, TaskResponse, WorkerConfigResponse,
+        StepResponse, TaskListResponse, TaskResponse, TaskSummaryResponse, WorkerConfigResponse,
     },
     types::api::templates::{TemplateDetail, TemplateListResponse},
     types::api::worker::{
@@ -81,6 +81,9 @@ pub trait OrchestrationClient: Send + Sync {
 
     /// Cancel a task.
     async fn cancel_task(&self, task_uuid: Uuid) -> ClientResult<()>;
+
+    /// Get a task summary for visualization.
+    async fn get_task_summary(&self, task_uuid: Uuid) -> ClientResult<TaskSummaryResponse>;
 
     // ===================================================================================
     // STEP OPERATIONS
@@ -282,6 +285,13 @@ impl OrchestrationClient for RestOrchestrationClient {
             .cancel_task(task_uuid)
             .await
             .map_err(|e| ClientError::Internal(format!("Cancel task failed: {}", e)))
+    }
+
+    async fn get_task_summary(&self, task_uuid: Uuid) -> ClientResult<TaskSummaryResponse> {
+        self.inner
+            .get_task_summary(task_uuid)
+            .await
+            .map_err(|e| ClientError::Internal(format!("Get task summary failed: {}", e)))
     }
 
     async fn list_task_steps(&self, task_uuid: Uuid) -> ClientResult<Vec<StepResponse>> {
@@ -532,6 +542,10 @@ impl OrchestrationClient for GrpcOrchestrationClient {
         self.inner.cancel_task(task_uuid).await
     }
 
+    async fn get_task_summary(&self, task_uuid: Uuid) -> ClientResult<TaskSummaryResponse> {
+        self.inner.get_task_summary(task_uuid).await
+    }
+
     async fn list_task_steps(&self, task_uuid: Uuid) -> ClientResult<Vec<StepResponse>> {
         self.inner.list_task_steps(task_uuid).await
     }
@@ -766,6 +780,14 @@ impl OrchestrationClient for UnifiedOrchestrationClient {
             UnifiedOrchestrationClient::Rest(c) => c.cancel_task(task_uuid).await,
             #[cfg(feature = "grpc")]
             UnifiedOrchestrationClient::Grpc(c) => c.cancel_task(task_uuid).await,
+        }
+    }
+
+    async fn get_task_summary(&self, task_uuid: Uuid) -> ClientResult<TaskSummaryResponse> {
+        match self {
+            UnifiedOrchestrationClient::Rest(c) => c.get_task_summary(task_uuid).await,
+            #[cfg(feature = "grpc")]
+            UnifiedOrchestrationClient::Grpc(c) => c.get_task_summary(task_uuid).await,
         }
     }
 

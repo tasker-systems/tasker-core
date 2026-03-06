@@ -23,7 +23,7 @@ use tasker_shared::{
         orchestration::{
             BottleneckAnalysis, DetailedHealthResponse, HealthResponse, MetricsQuery,
             OrchestrationConfigResponse, PerformanceMetrics, ReadinessResponse, StepAuditResponse,
-            StepManualAction, StepResponse, TaskListResponse, TaskResponse,
+            StepManualAction, StepResponse, TaskListResponse, TaskResponse, TaskSummaryResponse,
         },
         templates::{TemplateDetail, TemplateListResponse},
     },
@@ -281,6 +281,25 @@ impl OrchestrationGrpcClient {
             .and_then(|ctx| ctx.merged)
             .map(conversions::proto_struct_to_json)
             .unwrap_or(serde_json::Value::Null))
+    }
+
+    /// Get a task summary for visualization.
+    pub async fn get_task_summary(
+        &self,
+        task_uuid: Uuid,
+    ) -> Result<TaskSummaryResponse, ClientError> {
+        debug!(task_uuid = %task_uuid, "Getting task summary via gRPC");
+
+        let response = self
+            .task_client
+            .clone()
+            .get_task_summary(proto::GetTaskSummaryRequest {
+                task_uuid: task_uuid.to_string(),
+            })
+            .await?
+            .into_inner();
+
+        conversions::proto_get_task_summary_response_to_domain(response)
     }
 
     // ===================================================================================

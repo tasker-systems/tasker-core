@@ -1235,6 +1235,110 @@ pub fn proto_config_to_domain(
 }
 
 // ============================================================================
+// Task Summary Response Conversions
+// ============================================================================
+
+use tasker_shared::types::api::orchestration::{
+    DlqSummaryInfo, StepErrorSummary, StepSummaryInfo, TaskSummaryLinks, TaskSummaryMetadata,
+    TaskSummaryResponse, TemplateStepSummary, TemplateSummary as TaskTemplateSummary,
+};
+
+/// Convert proto GetTaskSummaryResponse to domain TaskSummaryResponse.
+pub fn proto_get_task_summary_response_to_domain(
+    response: proto::GetTaskSummaryResponse,
+) -> Result<TaskSummaryResponse, ClientError> {
+    let task_meta = response
+        .task
+        .ok_or_else(|| ClientError::Internal("Server returned empty task summary".to_string()))?;
+
+    let template = response.template.ok_or_else(|| {
+        ClientError::Internal("Server returned empty template in task summary".to_string())
+    })?;
+
+    let links = response.links.ok_or_else(|| {
+        ClientError::Internal("Server returned empty links in task summary".to_string())
+    })?;
+
+    let dlq = response.dlq.ok_or_else(|| {
+        ClientError::Internal("Server returned empty DLQ info in task summary".to_string())
+    })?;
+
+    let task_uuid_str = task_meta.task_uuid.clone();
+    let correlation_id = task_uuid_str.parse().unwrap_or_else(|_| uuid::Uuid::nil());
+
+    Ok(TaskSummaryResponse {
+        task: TaskSummaryMetadata {
+            task_uuid: task_meta.task_uuid,
+            name: task_meta.name,
+            namespace: task_meta.namespace,
+            version: task_meta.version,
+            status: task_meta.status,
+            created_at: task_meta.created_at.parse().unwrap_or_default(),
+            updated_at: task_meta.updated_at.parse().unwrap_or_default(),
+            completed_at: task_meta.completed_at.and_then(|s| s.parse().ok()),
+            initiator: task_meta.initiator,
+            source_system: task_meta.source_system,
+            reason: task_meta.reason,
+            correlation_id: task_meta.correlation_id.parse().unwrap_or(correlation_id),
+            total_steps: task_meta.total_steps,
+            pending_steps: task_meta.pending_steps,
+            in_progress_steps: task_meta.in_progress_steps,
+            completed_steps: task_meta.completed_steps,
+            failed_steps: task_meta.failed_steps,
+            completion_percentage: task_meta.completion_percentage,
+            health_status: task_meta.health_status,
+            execution_status: task_meta.execution_status,
+            recommended_action: task_meta.recommended_action,
+        },
+        template: TaskTemplateSummary {
+            steps: template
+                .steps
+                .into_iter()
+                .map(|s| TemplateStepSummary {
+                    name: s.name,
+                    step_type: s.step_type,
+                    handler: s.handler,
+                    dependencies: s.dependencies,
+                    retryable: s.retryable,
+                    max_attempts: s.max_attempts,
+                })
+                .collect(),
+        },
+        steps: response
+            .steps
+            .into_iter()
+            .map(|s| StepSummaryInfo {
+                step_uuid: s.step_uuid,
+                name: s.name,
+                current_state: s.current_state,
+                created_at: s.created_at,
+                completed_at: s.completed_at,
+                last_attempted_at: s.last_attempted_at,
+                attempts: s.attempts,
+                max_attempts: s.max_attempts,
+                dependencies_satisfied: s.dependencies_satisfied,
+                retry_eligible: s.retry_eligible,
+                error: s.error.map(|e| StepErrorSummary {
+                    error_type: e.error_type,
+                    retryable: e.retryable,
+                    status_code: e.status_code.map(|c| c as u16),
+                }),
+            })
+            .collect(),
+        dlq: DlqSummaryInfo {
+            in_dlq: dlq.in_dlq,
+            dlq_reason: dlq.dlq_reason,
+            resolution_status: dlq.resolution_status,
+        },
+        links: TaskSummaryLinks {
+            task: links.task,
+            steps: links.steps,
+            dlq: links.dlq,
+        },
+    })
+}
+
+// ============================================================================
 // DLQ Response Conversions
 // ============================================================================
 
