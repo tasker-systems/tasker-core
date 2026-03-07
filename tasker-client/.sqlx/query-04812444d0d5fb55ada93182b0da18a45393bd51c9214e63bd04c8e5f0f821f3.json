@@ -1,0 +1,118 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                task_uuid as \"task_uuid!: Uuid\",\n                named_task_uuid as \"named_task_uuid!: Uuid\",\n                task_name as \"task_name!: String\",\n                task_version as \"task_version!: String\",\n                namespace_name as \"namespace_name!: String\",\n                task_status as \"task_status!: String\",\n                created_at as \"created_at!: DateTime<Utc>\",\n                updated_at as \"updated_at!: DateTime<Utc>\",\n                completed_at as \"completed_at: DateTime<Utc>\",\n                initiator,\n                source_system,\n                reason,\n                correlation_id as \"correlation_id!: Uuid\",\n                template_configuration as \"template_configuration: serde_json::Value\",\n                step_summaries as \"step_summaries!: serde_json::Value\",\n                execution_context as \"execution_context!: serde_json::Value\",\n                dlq_status as \"dlq_status!: serde_json::Value\"\n            FROM get_task_summaries($1::uuid[])\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "task_uuid!: Uuid",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "named_task_uuid!: Uuid",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "task_name!: String",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "task_version!: String",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "namespace_name!: String",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "task_status!: String",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at!: DateTime<Utc>",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_at!: DateTime<Utc>",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "completed_at: DateTime<Utc>",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "initiator",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "source_system",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "reason",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "correlation_id!: Uuid",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 13,
+        "name": "template_configuration: serde_json::Value",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 14,
+        "name": "step_summaries!: serde_json::Value",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 15,
+        "name": "execution_context!: serde_json::Value",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 16,
+        "name": "dlq_status!: serde_json::Value",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "04812444d0d5fb55ada93182b0da18a45393bd51c9214e63bd04c8e5f0f821f3"
+}

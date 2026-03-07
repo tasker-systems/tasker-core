@@ -39,22 +39,19 @@ AS $$
 BEGIN
   RETURN QUERY
   WITH
-  -- Reuse get_step_readiness_status_batch for step-level data
-  step_readiness AS (
-    SELECT srs.*
-    FROM unnest(input_task_uuids) AS task_uuid_list(task_uuid)
-    CROSS JOIN LATERAL get_step_readiness_status(task_uuid_list.task_uuid, NULL) srs
+  -- Reuse get_task_execution_contexts_batch for execution context
+  exec_context AS (
+    SELECT ctx.*
+    FROM get_task_execution_contexts_batch(input_task_uuids) ctx
   ),
 
-  -- Task metadata with status, namespace, and template info
-  task_info AS (
+  -- Task metadata not covered by execution context: namespace, template config, timestamps
+  task_metadata AS (
     SELECT
       t.task_uuid,
-      t.named_task_uuid,
       nt.name::TEXT AS task_name,
       nt.version::TEXT AS task_version,
       tns.name::TEXT AS namespace_name,
-      COALESCE(tt.to_state, 'pending')::TEXT AS task_status,
       t.created_at::timestamptz AS created_at,
       t.updated_at::timestamptz AS updated_at,
       t.completed_at::timestamptz AS completed_at,
@@ -66,10 +63,14 @@ BEGIN
     FROM tasks t
     JOIN named_tasks nt ON nt.named_task_uuid = t.named_task_uuid
     JOIN task_namespaces tns ON tns.task_namespace_uuid = nt.task_namespace_uuid
-    LEFT JOIN task_transitions tt
-      ON tt.task_uuid = t.task_uuid
-      AND tt.most_recent = true
     WHERE t.task_uuid = ANY(input_task_uuids)
+  ),
+
+  -- Reuse get_step_readiness_status for per-step detail (step summaries need raw step data)
+  step_readiness AS (
+    SELECT srs.*
+    FROM unnest(input_task_uuids) AS task_uuid_list(task_uuid)
+    CROSS JOIN LATERAL get_step_readiness_status(task_uuid_list.task_uuid, NULL) srs
   ),
 
   -- Build per-step JSONB summaries with error info from results
@@ -101,24 +102,6 @@ BEGIN
     GROUP BY sr.task_uuid
   ),
 
-  -- Aggregated execution context (counts + derived status)
-  exec_context AS (
-    SELECT
-      sr.task_uuid,
-      COUNT(*) AS total_steps,
-      COUNT(CASE WHEN sr.current_state = 'pending' THEN 1 END) AS pending_steps,
-      COUNT(CASE WHEN sr.current_state = 'in_progress' THEN 1 END) AS in_progress_steps,
-      COUNT(CASE WHEN sr.current_state IN ('complete', 'resolved_manually') THEN 1 END) AS completed_steps,
-      COUNT(CASE WHEN sr.current_state = 'error' THEN 1 END) AS failed_steps,
-      COUNT(CASE WHEN sr.current_state = 'enqueued' THEN 1 END) AS enqueued_steps,
-      COUNT(CASE WHEN sr.current_state = 'enqueued_for_orchestration' THEN 1 END) AS enqueued_for_orch_steps,
-      COUNT(CASE WHEN sr.current_state = 'enqueued_as_error_for_orchestration' THEN 1 END) AS enqueued_as_error_steps,
-      COUNT(CASE WHEN sr.ready_for_execution = true THEN 1 END) AS ready_steps,
-      COUNT(CASE WHEN sr.current_state = 'error' THEN 1 END) AS permanently_blocked_steps
-    FROM step_readiness sr
-    GROUP BY sr.task_uuid
-  ),
-
   -- DLQ status (pending investigations only)
   dlq_info AS (
     SELECT
@@ -134,66 +117,35 @@ BEGIN
   )
 
   SELECT
-    ti.task_uuid,
-    ti.named_task_uuid,
-    ti.task_name,
-    ti.task_version,
-    ti.namespace_name,
-    ti.task_status,
-    ti.created_at,
-    ti.updated_at,
-    ti.completed_at,
-    ti.initiator,
-    ti.source_system,
-    ti.reason,
-    ti.correlation_id,
-    ti.template_configuration,
+    ec.task_uuid,
+    ec.named_task_uuid,
+    tm.task_name,
+    tm.task_version,
+    tm.namespace_name,
+    ec.status AS task_status,
+    tm.created_at,
+    tm.updated_at,
+    tm.completed_at,
+    tm.initiator,
+    tm.source_system,
+    tm.reason,
+    tm.correlation_id,
+    tm.template_configuration,
 
     -- Step summaries (JSONB array)
     COALESCE(ssa.step_summaries, '[]'::jsonb),
 
-    -- Execution context (JSONB object)
+    -- Execution context (JSONB object) - reuse computed values from get_task_execution_contexts_batch
     json_build_object(
-      'total_steps', COALESCE(ec.total_steps, 0),
-      'pending_steps', COALESCE(ec.pending_steps, 0),
-      'in_progress_steps', COALESCE(ec.in_progress_steps, 0),
-      'completed_steps', COALESCE(ec.completed_steps, 0),
-      'failed_steps', COALESCE(ec.failed_steps, 0),
-      'completion_percentage',
-        CASE
-          WHEN COALESCE(ec.total_steps, 0) = 0 THEN 0.0
-          ELSE ROUND((COALESCE(ec.completed_steps, 0)::decimal / COALESCE(ec.total_steps, 1)::decimal) * 100, 2)
-        END,
-      'health_status',
-        CASE
-          WHEN COALESCE(ec.permanently_blocked_steps, 0) > 0 THEN 'blocked'
-          WHEN COALESCE(ec.failed_steps, 0) = 0 THEN 'healthy'
-          WHEN COALESCE(ec.failed_steps, 0) > 0 AND COALESCE(ec.ready_steps, 0) > 0 THEN 'recovering'
-          WHEN COALESCE(ec.failed_steps, 0) > 0 AND COALESCE(ec.permanently_blocked_steps, 0) = 0 AND COALESCE(ec.ready_steps, 0) = 0 THEN 'recovering'
-          ELSE 'unknown'
-        END,
-      'execution_status',
-        CASE
-          WHEN COALESCE(ec.permanently_blocked_steps, 0) > 0 THEN 'blocked_by_failures'
-          WHEN COALESCE(ec.ready_steps, 0) > 0 THEN 'has_ready_steps'
-          WHEN COALESCE(ec.in_progress_steps, 0) > 0
-               OR COALESCE(ec.enqueued_steps, 0) > 0
-               OR COALESCE(ec.enqueued_for_orch_steps, 0) > 0
-               OR COALESCE(ec.enqueued_as_error_steps, 0) > 0 THEN 'processing'
-          WHEN COALESCE(ec.completed_steps, 0) = COALESCE(ec.total_steps, 0) AND COALESCE(ec.total_steps, 0) > 0 THEN 'all_complete'
-          ELSE 'waiting_for_dependencies'
-        END,
-      'recommended_action',
-        CASE
-          WHEN COALESCE(ec.permanently_blocked_steps, 0) > 0 THEN 'handle_failures'
-          WHEN COALESCE(ec.ready_steps, 0) > 0 THEN 'execute_ready_steps'
-          WHEN COALESCE(ec.in_progress_steps, 0) > 0
-               OR COALESCE(ec.enqueued_steps, 0) > 0
-               OR COALESCE(ec.enqueued_for_orch_steps, 0) > 0
-               OR COALESCE(ec.enqueued_as_error_steps, 0) > 0 THEN 'wait_for_completion'
-          WHEN COALESCE(ec.completed_steps, 0) = COALESCE(ec.total_steps, 0) AND COALESCE(ec.total_steps, 0) > 0 THEN 'finalize_task'
-          ELSE 'wait_for_dependencies'
-        END
+      'total_steps', ec.total_steps,
+      'pending_steps', ec.pending_steps,
+      'in_progress_steps', ec.in_progress_steps,
+      'completed_steps', ec.completed_steps,
+      'failed_steps', ec.failed_steps,
+      'completion_percentage', ec.completion_percentage,
+      'health_status', ec.health_status,
+      'execution_status', ec.execution_status,
+      'recommended_action', ec.recommended_action
     )::jsonb AS execution_context,
 
     -- DLQ status (JSONB object)
@@ -206,10 +158,10 @@ BEGIN
       )::jsonb
     ) AS dlq_status
 
-  FROM task_info ti
-  LEFT JOIN step_summaries_agg ssa ON ssa.task_uuid = ti.task_uuid
-  LEFT JOIN exec_context ec ON ec.task_uuid = ti.task_uuid
-  LEFT JOIN dlq_info di ON di.task_uuid = ti.task_uuid;
+  FROM exec_context ec
+  JOIN task_metadata tm ON tm.task_uuid = ec.task_uuid
+  LEFT JOIN step_summaries_agg ssa ON ssa.task_uuid = ec.task_uuid
+  LEFT JOIN dlq_info di ON di.task_uuid = ec.task_uuid;
 END;
 $$;
 
