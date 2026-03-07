@@ -14,7 +14,7 @@
 //! For compatibility with existing code, this module provides the same exports:
 //!
 //! ```ignore
-//! use tasker_worker_rust::step_handlers::capabilities::{APICapable, DecisionCapable};
+//! use tasker_example_rs::step_handlers::capabilities::{APICapable, DecisionCapable};
 //! ```
 
 // Re-export all capability types from tasker_worker

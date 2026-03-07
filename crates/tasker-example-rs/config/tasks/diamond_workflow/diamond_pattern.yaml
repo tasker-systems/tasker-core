@@ -51,7 +51,7 @@ steps:
   - name: diamond_start
     description: "Initial step: Square the input even number"
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_workflow::DiamondStartHandler
+      callable: tasker_example_rs::step_handlers::diamond_workflow::DiamondStartHandler
       initialization:
         operation: square
         step_type: initial
@@ -72,7 +72,7 @@ steps:
   - name: diamond_branch_b
     description: "Left parallel branch: Square the start result"
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_workflow::DiamondBranchBHandler
+      callable: tasker_example_rs::step_handlers::diamond_workflow::DiamondBranchBHandler
       initialization:
         operation: square
         step_type: single_parent
@@ -92,7 +92,7 @@ steps:
   - name: diamond_branch_c
     description: "Right parallel branch: Square the start result"
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_workflow::DiamondBranchCHandler
+      callable: tasker_example_rs::step_handlers::diamond_workflow::DiamondBranchCHandler
       initialization:
         operation: square
         step_type: single_parent
@@ -112,7 +112,7 @@ steps:
   - name: diamond_end
     description: "Convergence step: Multiply both branch results and square"
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_workflow::DiamondEndHandler
+      callable: tasker_example_rs::step_handlers::diamond_workflow::DiamondEndHandler
       initialization:
         operation: multiply_and_square
         step_type: multiple_parent

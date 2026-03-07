@@ -24,7 +24,7 @@
 //! use async_trait::async_trait;
 //! use tasker_shared::messaging::StepExecutionResult;
 //! use tasker_shared::types::TaskSequenceStep;
-//! use tasker_worker_rust::step_handlers::{RustStepHandler, StepHandlerConfig, success_result};
+//! use tasker_example_rs::step_handlers::{RustStepHandler, StepHandlerConfig, success_result};
 //! use serde_json::Value;
 //! use std::collections::HashMap;
 //!

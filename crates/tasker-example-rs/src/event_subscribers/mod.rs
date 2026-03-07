@@ -16,7 +16,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use tasker_worker_rust::event_subscribers::{
+//! use tasker_example_rs::event_subscribers::{
 //!     logging_subscriber::create_logging_subscriber,
 //!     metrics_subscriber::EventMetricsCollector,
 //! };

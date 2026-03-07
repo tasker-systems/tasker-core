@@ -11,7 +11,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use tasker_worker_rust::event_subscribers::logging_subscriber::create_logging_subscriber;
+//! use tasker_example_rs::event_subscribers::logging_subscriber::create_logging_subscriber;
 //! use tasker_worker::worker::in_process_event_bus::InProcessEventBus;
 //!
 //! let mut bus = InProcessEventBus::new(config);

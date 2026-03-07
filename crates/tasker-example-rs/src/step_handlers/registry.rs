@@ -14,7 +14,7 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use tasker_worker_rust::step_handlers::RustStepHandlerRegistry;
+//! use tasker_example_rs::step_handlers::RustStepHandlerRegistry;
 //! use anyhow::Result;
 //!
 //! async fn example() -> Result<()> {
@@ -993,7 +993,7 @@ impl StepHandler for RustStepHandlerAdapter {
 /// ## Usage
 ///
 /// ```rust,ignore
-/// use tasker_worker_rust::step_handlers::{RustStepHandlerRegistry, RustStepHandlerRegistryAdapter};
+/// use tasker_example_rs::step_handlers::{RustStepHandlerRegistry, RustStepHandlerRegistryAdapter};
 ///
 /// // Create adapter from existing registry
 /// let registry = RustStepHandlerRegistry::new();
@@ -1053,7 +1053,7 @@ impl RustStepHandlerRegistryAdapter {
     /// # Example
     ///
     /// ```rust,ignore
-    /// use tasker_worker_rust::step_handlers::RustStepHandlerRegistryAdapter;
+    /// use tasker_example_rs::step_handlers::RustStepHandlerRegistryAdapter;
     ///
     /// let adapter = RustStepHandlerRegistryAdapter::with_default_handlers();
     /// let resolver = adapter.to_explicit_resolver();
@@ -1087,7 +1087,7 @@ impl RustStepHandlerRegistryAdapter {
     /// # Example
     ///
     /// ```rust,ignore
-    /// use tasker_worker_rust::step_handlers::RustStepHandlerRegistryAdapter;
+    /// use tasker_example_rs::step_handlers::RustStepHandlerRegistryAdapter;
     /// use tasker_worker::worker::handlers::ResolverChainRegistry;
     /// use std::sync::Arc;
     ///
@@ -1116,7 +1116,7 @@ impl StepHandlerRegistry for RustStepHandlerRegistryAdapter {
         }
 
         // Fall back to template_step_name (for backward compatibility with existing templates
-        // that use fully qualified names like tasker_worker_rust::step_handlers::...)
+        // that use fully qualified names like tasker_example_rs::step_handlers::...)
         let template_step_name = &step.workflow_step.template_step_name;
         inner.get_handler(template_step_name).ok().map(|handler| {
             let adapter: Arc<dyn StepHandler> = Arc::new(RustStepHandlerAdapter::new(handler));

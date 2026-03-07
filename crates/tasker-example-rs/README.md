@@ -581,7 +581,7 @@ The Rust worker uses YAML configuration files located in `config/tasks/`. Each w
 :steps:
   - :name: linear_step_1
     :handler:
-      :callable: tasker_worker_rust::step_handlers::linear_workflow::LinearStep1Handler
+      :callable: tasker_example_rs::step_handlers::linear_workflow::LinearStep1Handler
     :dependencies: []
   # ... additional steps
 ```
@@ -921,15 +921,15 @@ pub.subscribe(step_execution_handler, 'step_execution')
 The worker logs detailed event flow information for debugging:
 
 ```
-INFO  tasker_worker_rust: 🚀 Starting Native Rust Worker Demonstration
-INFO  tasker_worker_rust: ✅ Registry created with 23 handlers
-INFO  tasker_worker_rust: 🔗 Setting up event system connection...
-INFO  tasker_worker_rust: ✅ Event handler connected - ready to receive StepExecutionEvents
-INFO  tasker_worker_rust: 🏗️ Bootstrapping worker with tasker-worker foundation...
-DEBUG tasker_worker_rust::event_handler: Received step execution event
-DEBUG tasker_worker_rust::event_handler: Found handler - executing
-DEBUG tasker_worker_rust::event_handler: Publishing step completion event
-INFO  tasker_worker_rust::event_handler: Successfully handled step execution event
+INFO  tasker_example_rs: 🚀 Starting Native Rust Worker Demonstration
+INFO  tasker_example_rs: ✅ Registry created with 23 handlers
+INFO  tasker_example_rs: 🔗 Setting up event system connection...
+INFO  tasker_example_rs: ✅ Event handler connected - ready to receive StepExecutionEvents
+INFO  tasker_example_rs: 🏗️ Bootstrapping worker with tasker-worker foundation...
+DEBUG tasker_example_rs::event_handler: Received step execution event
+DEBUG tasker_example_rs::event_handler: Found handler - executing
+DEBUG tasker_example_rs::event_handler: Publishing step completion event
+INFO  tasker_example_rs::event_handler: Successfully handled step execution event
 ```
 
 ## 🤝 Contributing

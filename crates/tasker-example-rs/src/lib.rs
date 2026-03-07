@@ -24,7 +24,7 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use tasker_worker_rust::{WorkerBootstrap, WorkerBootstrapConfig, RustStepHandlerRegistry};
+//! use tasker_example_rs::{WorkerBootstrap, WorkerBootstrapConfig, RustStepHandlerRegistry};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {

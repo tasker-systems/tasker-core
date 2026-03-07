@@ -11,7 +11,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use tasker_worker_rust::event_subscribers::metrics_subscriber::EventMetricsCollector;
+//! use tasker_example_rs::event_subscribers::metrics_subscriber::EventMetricsCollector;
 //! use tasker_worker::worker::in_process_event_bus::InProcessEventBus;
 //!
 //! // Create a metrics collector
