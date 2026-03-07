@@ -136,7 +136,7 @@ brew "markdownlint-cli2"
 # Linux CI Note:
 #   Linux would use perf-based tools (cargo-flamegraph, heaptrack).
 #   Benchmarking and profiling are LOCAL ONLY for this project due to
-#   GHA runner constraints. See docs/ticket-specs/TAS-71/profiling-tool-evaluation.md
+#   GHA runner constraints. See docs/plans/ticket-specs/TAS-71/profiling-tool-evaluation.md
 #
 # Usage:
 #   cargo build --profile profiling    # Build with debug symbols

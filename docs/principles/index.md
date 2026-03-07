@@ -42,4 +42,4 @@ These principles emerged from:
 
 - **Architecture Decisions**: `docs/decisions/` for specific ADRs
 - **Historical Context**: `docs/CHRONOLOGY.md` for development timeline
-- **Implementation Details**: `docs/ticket-specs/` for original specifications
+- **Implementation Details**: `docs/plans/ticket-specs/` for original specifications

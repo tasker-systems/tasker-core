@@ -11,7 +11,7 @@ name: Integration Tests
 #   cargo make cluster-start
 #   cargo make test-rust-cluster  # or: cargo make tc
 #
-# See docs/ticket-specs/TAS-73/test-feature-flags-design.md for details.
+# See docs/plans/ticket-specs/TAS-73/test-feature-flags-design.md for details.
 # =============================================================================
 
 on:

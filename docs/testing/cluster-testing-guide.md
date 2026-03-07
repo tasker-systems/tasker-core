@@ -283,7 +283,7 @@ Initial testing revealed intermittent failures under high parallelization:
 - **Additional Tuning**: Increased pool sizes (20→30 max, 1→2 min connections)
 - **Status**: ✅ Fixed - all 9 cluster tests now pass in parallel
 
-See the connection pool deadlock pattern documentation in `docs/ticket-specs/` for details.
+See the connection pool deadlock pattern documentation in `docs/plans/ticket-specs/` for details.
 
 ### Domain Event Tests
 

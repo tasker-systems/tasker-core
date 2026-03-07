@@ -816,7 +816,7 @@ If needed, create:
 
 ## Related Documentation
 
-- [TAS-42 Specification](../../docs/ticket-specs/TAS-42/TAS-42-ci-and-e2e.md)
+- [TAS-42 Specification](../../docs/plans/ticket-specs/TAS-42/TAS-42-ci-and-e2e.md)
 - [E2E Testing Guide](../../docs/testing-e2e.md) (TODO)
 - [Ruby Framework Testing](../../workers/ruby/docs/framework-testing.md) (TODO)
 

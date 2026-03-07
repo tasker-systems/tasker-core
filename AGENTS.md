@@ -399,7 +399,7 @@ Dual-channel system: dispatch channel + completion channel
 
 ### Ticket Specs (Historical)
 
-Detailed feature specifications: `docs/ticket-specs/TAS-{37,39,40,41,46,49,51,53,54,58,59,67,69,73,75}/`
+Detailed feature specifications: `docs/plans/ticket-specs/TAS-{37,39,40,41,46,49,51,53,54,58,59,67,69,73,75}/`
 
 ---
 

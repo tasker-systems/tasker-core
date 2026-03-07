@@ -158,7 +158,7 @@ dependencies = ["rust-fmt-check", "rust-clippy", "rust-docs", "rust-doctests", "
 #   test-services   → + running services (E2E tests)
 #   test-cluster    → + multi-instance cluster (LOCAL ONLY - not in CI)
 #
-# See docs/ticket-specs/TAS-73/test-feature-flags-design.md for details.
+# See docs/plans/ticket-specs/TAS-73/test-feature-flags-design.md for details.
 # =============================================================================
 
 [tasks.test-rust]
@@ -1368,7 +1368,7 @@ args = ["make", "status"]
 #   TASKER_WORKER_PYTHON_INSTANCES   - Number of python worker instances (default: 2)
 #   TASKER_WORKER_TS_INSTANCES       - Number of typescript worker instances (default: 2)
 #
-# See: docs/ticket-specs/TAS-73/multi-instance-deployment.md
+# See: docs/plans/ticket-specs/TAS-73/multi-instance-deployment.md
 
 [tasks.cluster-start]
 description = "Start full multi-instance cluster (orchestration + workers)"
@@ -1537,7 +1537,7 @@ fi
 # standard builds. This is opt-in rather than default to avoid impacting
 # normal development workflows.
 #
-# See: docs/ticket-specs/TAS-71/tokio-analysis.md
+# See: docs/plans/ticket-specs/TAS-71/tokio-analysis.md
 
 [tasks.build-console]
 description = "Build all crates with tokio-console support (TAS-158)"
@@ -1661,7 +1661,7 @@ description = "Shortcut for run-console-worker-rust"
 #   - Debug symbols (debug=true, strip=false)
 #   - Stack unwinding (panic=unwind instead of abort)
 #
-# See: docs/ticket-specs/TAS-71/TAS-161-profiling.md
+# See: docs/plans/ticket-specs/TAS-71/TAS-161-profiling.md
 
 [tasks.build-profiling]
 description = "Build with profiling profile (release + debug symbols)"
@@ -1810,7 +1810,7 @@ script = '''
 #!/bin/bash
 set -euo pipefail
 
-PROFILE_DIR="docs/ticket-specs/TAS-71/profile-data"
+PROFILE_DIR="tmp/profile-data"
 
 if [ ! -d "$PROFILE_DIR" ]; then
     echo "❌ No profile data found at $PROFILE_DIR"
@@ -1844,7 +1844,7 @@ script = '''
 #!/bin/bash
 set -euo pipefail
 
-PROFILE_DIR="docs/ticket-specs/TAS-71/profile-data"
+PROFILE_DIR="tmp/profile-data"
 
 for profile in "$PROFILE_DIR"/*.json; do
     if [ -f "$profile" ]; then
@@ -2186,7 +2186,7 @@ echo "All generated schemas are up-to-date."
 #   cargo make coverage-report             Generate aggregate report
 #   cargo make coverage-check     (covc)   Check against thresholds
 #
-# See: docs/ticket-specs/TAS-63/ for detailed documentation
+# See: docs/plans/ticket-specs/TAS-63/ for detailed documentation
 
 [tasks.coverage-tools-setup]
 description = "Ensure coverage tooling dependencies are installed"
