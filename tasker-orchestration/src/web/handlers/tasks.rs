@@ -13,7 +13,9 @@ use crate::web::circuit_breaker::record_backpressure_rejection;
 use crate::web::state::AppState;
 use tasker_shared::models::core::task::TaskListQuery;
 use tasker_shared::models::core::task_request::TaskRequest;
-use tasker_shared::types::api::orchestration::{TaskListResponse, TaskResponse};
+use tasker_shared::types::api::orchestration::{
+    TaskListResponse, TaskResponse, TaskSummaryResponse,
+};
 use tasker_shared::types::web::{ApiError, ApiResult};
 
 /// Create a new task: POST /v1/tasks
@@ -201,6 +203,47 @@ pub async fn cancel_task(
     state
         .task_service()
         .cancel_task(uuid)
+        .await
+        .map(Json)
+        .map_err(task_service_error_to_api_error)
+}
+
+/// Get task summary: GET /v1/tasks/{uuid}/summary
+///
+/// Returns a rich, pre-computed summary including step details, execution context,
+/// and DLQ status. Designed for visualization rendering (Mermaid/SVG).
+///
+/// **Required Permission:** `tasks:read`
+#[cfg_attr(feature = "web-api", utoipa::path(
+    get,
+    path = "/v1/tasks/{uuid}/summary",
+    params(
+        ("uuid" = String, Path, description = "Task UUID")
+    ),
+    responses(
+        (status = 200, description = "Task summary", body = TaskSummaryResponse),
+        (status = 401, description = "Authentication required", body = ApiError),
+        (status = 403, description = "Insufficient permissions", body = ApiError),
+        (status = 404, description = "Task not found", body = ApiError),
+        (status = 503, description = "Service unavailable", body = ApiError)
+    ),
+    security(("bearer_auth" = []), ("api_key_auth" = [])),
+    extensions(
+        ("x-required-permission" = json!("tasks:read"))
+    ),
+    tag = "tasks"
+))]
+pub async fn get_task_summary(
+    State(state): State<AppState>,
+    Path(task_uuid): Path<String>,
+) -> ApiResult<Json<TaskSummaryResponse>> {
+    debug!(task_uuid = %task_uuid, "Retrieving task summary for visualization");
+
+    let uuid = Uuid::parse_str(&task_uuid).map_err(|_| ApiError::invalid_uuid(task_uuid))?;
+
+    state
+        .task_service()
+        .get_task_summary(uuid)
         .await
         .map(Json)
         .map_err(task_service_error_to_api_error)

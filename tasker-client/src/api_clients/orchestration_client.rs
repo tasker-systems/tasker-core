@@ -19,7 +19,7 @@ use tasker_shared::{
         api::orchestration::{
             BottleneckAnalysis, BottleneckQuery, DetailedHealthResponse, HealthResponse,
             MetricsQuery, PerformanceMetrics, StepAuditResponse, StepManualAction, StepResponse,
-            TaskListResponse, TaskResponse,
+            TaskListResponse, TaskResponse, TaskSummaryResponse,
         },
         api::templates::{TemplateDetail, TemplateListResponse},
         auth::JwtAuthenticator,
@@ -593,6 +593,56 @@ impl OrchestrationApiClient {
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
             error!(status = %status, error = %error_text, "Failed to cancel task");
+            Err(TaskerError::OrchestrationError(format!(
+                "HTTP {}: {}",
+                status, error_text
+            )))
+        }
+    }
+
+    /// Get a task summary for visualization
+    ///
+    /// GET /`v1/tasks/{task_uuid}/summary`
+    pub async fn get_task_summary(&self, task_uuid: Uuid) -> TaskerResult<TaskSummaryResponse> {
+        let url = self
+            .base_url
+            .join(&format!("/v1/tasks/{}/summary", task_uuid))
+            .map_err(|e| {
+                TaskerError::ConfigurationError(format!("Failed to construct URL: {}", e))
+            })?;
+
+        debug!(
+            url = %url,
+            task_uuid = %task_uuid,
+            "Getting task summary via orchestration API"
+        );
+
+        let response = self.client.get(url.clone()).send().await.map_err(|e| {
+            TaskerError::OrchestrationError(format!("Failed to send request: {}", e))
+        })?;
+
+        if response.status().is_success() {
+            let summary = response.json::<TaskSummaryResponse>().await.map_err(|e| {
+                TaskerError::OrchestrationError(format!(
+                    "Failed to parse task summary response: {}",
+                    e
+                ))
+            })?;
+
+            debug!(
+                task_uuid = %task_uuid,
+                status = %summary.task.status,
+                "Successfully retrieved task summary"
+            );
+
+            Ok(summary)
+        } else {
+            let status = response.status();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            error!(status = %status, error = %error_text, "Failed to get task summary");
             Err(TaskerError::OrchestrationError(format!(
                 "HTTP {}: {}",
                 status, error_text

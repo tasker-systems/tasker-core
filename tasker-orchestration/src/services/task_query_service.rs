@@ -27,8 +27,9 @@ use tasker_shared::database::sql_functions::{
     SqlFunctionExecutor, StepReadinessStatus, TaskExecutionContext,
 };
 use tasker_shared::models::core::task::{PaginationInfo, Task, TaskListQuery};
+use tasker_shared::models::orchestration::task_summary::TaskSummaryRow;
 use tasker_shared::models::orchestration::{ExecutionStatus, RecommendedAction};
-use tasker_shared::types::api::orchestration::TaskResponse;
+use tasker_shared::types::api::orchestration::{TaskResponse, TaskSummaryResponse};
 
 /// Errors that can occur during task query operations.
 #[derive(Error, Debug)]
@@ -253,6 +254,17 @@ impl TaskQueryService {
             correlation_id: task.correlation_id,
             parent_correlation_id: task.parent_correlation_id,
         }
+    }
+
+    /// Get a task summary by UUID using the `get_task_summary` SQL function.
+    ///
+    /// Returns a rich, pre-computed summary including step details, execution context,
+    /// and DLQ status — designed for visualization rendering.
+    pub async fn get_task_summary(&self, task_uuid: Uuid) -> TaskQueryResult<TaskSummaryResponse> {
+        let row = TaskSummaryRow::get_for_task(&self.pool, task_uuid)
+            .await?
+            .ok_or(TaskQueryError::NotFound(task_uuid))?;
+        Ok(TaskSummaryResponse::from(row))
     }
 
     /// Create a default execution context for tasks without one.

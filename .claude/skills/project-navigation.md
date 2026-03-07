@@ -65,7 +65,7 @@ The docs follow a "why / what / how" hierarchy:
 
 1. Check `docs/principles/tasker-core-tenets.md` for relevant tenet
 2. Check `docs/CHRONOLOGY.md` for historical context
-3. Check `docs/ticket-specs/TAS-*/` if specific ticket referenced
+3. Check `docs/plans/ticket-specs/TAS-*/` if specific ticket referenced
 
 ### "How do I add a new capability?"
 
@@ -80,7 +80,7 @@ The docs follow a "why / what / how" hierarchy:
 
 ## Ticket-Spec Patterns
 
-- Active tickets reference `docs/ticket-specs/TAS-XXX/` for detailed specs
+- Active tickets reference `docs/plans/ticket-specs/TAS-XXX/` for detailed specs
 - Key insights are extracted to `docs/principles/` and `docs/CHRONOLOGY.md`
 - Don't read full ticket-specs directories unless specifically asked
 - Ticket-specs are historical records; principles docs are the living reference

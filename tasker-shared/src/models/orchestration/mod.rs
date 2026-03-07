@@ -33,6 +33,7 @@ pub mod step_dag_relationship;
 pub mod step_readiness_status;
 pub mod step_transitive_dependencies;
 pub mod task_execution_context;
+pub mod task_summary;
 
 // Re-export for easy access
 pub use dlq::{
@@ -48,3 +49,4 @@ pub use step_transitive_dependencies::{
     StepDependencyResultMap, StepTransitiveDependencies, StepTransitiveDependenciesQuery,
 };
 pub use task_execution_context::TaskExecutionContext;
+pub use task_summary::{DlqSummaryData, ExecutionContextData, StepSummaryData, TaskSummaryRow};

@@ -361,7 +361,7 @@ fn visualize_template_command(
     };
 
     let options = VisualizeOptions { graph_only };
-    let result = visualization::visualize_template(&template, &annotations, &options);
+    let result = visualization::visualize_template_rendered(&template, &annotations, &options);
 
     // Print warnings
     for warning in &result.warnings {

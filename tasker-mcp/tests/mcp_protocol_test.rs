@@ -2,7 +2,7 @@
 //!
 //! Uses the real `TaskerMcpServer` from the library target to verify protocol
 //! round-trips: tool discovery via `list_tools` and tool invocation via `call_tool`
-//! for all 29 tools (8 Tier 1/profile + 15 Tier 2 connected + 6 Tier 3 write).
+//! for all 30 tools (8 Tier 1/profile + 16 Tier 2 connected + 6 Tier 3 write).
 
 use rmcp::model::{CallToolRequestParams, ClientInfo};
 use rmcp::service::{RoleClient, RunningService};
@@ -174,6 +174,7 @@ async fn test_list_tools_connected_returns_all() -> anyhow::Result<()> {
             "task_inspect",
             "task_list",
             "task_submit",
+            "task_visualize",
             "template_generate",
             "template_inspect",
             "template_inspect_remote",
@@ -184,8 +185,8 @@ async fn test_list_tools_connected_returns_all() -> anyhow::Result<()> {
     );
     assert_eq!(
         names.len(),
-        30,
-        "Expected 30 tools: 8 Tier 1 + 1 profile + 15 Tier 2 connected + 6 Tier 3 write"
+        31,
+        "Expected 31 tools: 8 Tier 1 + 1 profile + 16 Tier 2 connected + 6 Tier 3 write"
     );
 
     client.cancel().await?;
@@ -201,8 +202,8 @@ async fn test_list_tools_tier_filtered() -> anyhow::Result<()> {
     let tools = client.list_tools(None).await?;
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_ref()).collect();
 
-    // 8 T1 + 1 connection_status + 15 T2 = 24
-    assert_eq!(names.len(), 24, "Expected 24 tools (T1+profile+T2)");
+    // 8 T1 + 1 connection_status + 16 T2 = 25
+    assert_eq!(names.len(), 25, "Expected 25 tools (T1+profile+T2)");
     assert!(names.contains(&"template_validate"));
     assert!(names.contains(&"task_list"));
     assert!(names.contains(&"connection_status"));

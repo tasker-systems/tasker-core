@@ -132,5 +132,5 @@ Each publish script checks if the version already exists on the registry before 
 
 ## References
 
-- Release plan: `docs/ticket-specs/TAS-170/plan.md`
+- Release plan: `docs/plans/ticket-specs/TAS-170/plan.md`
 - Release scripts: `scripts/release/`

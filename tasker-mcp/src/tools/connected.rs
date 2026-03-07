@@ -10,13 +10,17 @@ use tasker_sdk::operational::responses::{
     BottleneckFilter, BottleneckReport, DlqSummary, HealthReport, PerformanceReport, StepSummary,
     TaskDetail, TaskSummary,
 };
+use tasker_sdk::visualization::{
+    render_detail_table, render_markdown, render_mermaid, visualize_task, TaskVisualizationInput,
+};
 
 use super::helpers::error_json;
 use super::params::{
     AnalyticsBottlenecksParams, AnalyticsPerformanceParams, DlqInspectToolParams,
     DlqListToolParams, DlqQueueToolParams, DlqStatsToolParams, StalenessCheckParams,
     StepAuditParams, StepInspectToolParams, SystemConfigParams, SystemHealthParams,
-    TaskInspectParams, TaskListParams, TemplateInspectRemoteParams, TemplateListRemoteParams,
+    TaskInspectParams, TaskListParams, TaskVisualizeParams, TemplateInspectRemoteParams,
+    TemplateListRemoteParams,
 };
 
 pub async fn task_list(client: &UnifiedOrchestrationClient, params: TaskListParams) -> String {
@@ -75,6 +79,46 @@ pub async fn task_inspect(
 
     serde_json::to_string_pretty(&detail)
         .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+}
+
+pub async fn task_visualize(
+    client: &UnifiedOrchestrationClient,
+    params: TaskVisualizeParams,
+) -> String {
+    let task_uuid = match Uuid::parse_str(&params.task_uuid) {
+        Ok(u) => u,
+        Err(e) => return error_json("invalid_uuid", &format!("Invalid task_uuid: {}", e)),
+    };
+
+    let summary = match client.as_client().get_task_summary(task_uuid).await {
+        Ok(s) => s,
+        Err(e) => return error_json("api_error", &e.to_string()),
+    };
+
+    let input = TaskVisualizationInput::from(&summary);
+    let viz = visualize_task(&input);
+    let graph_only = params.graph_only.unwrap_or(false);
+    let mermaid = render_mermaid(&viz.graph);
+    let detail_table = if graph_only {
+        None
+    } else {
+        Some(render_detail_table(&viz.table, params.base_url.as_deref()))
+    };
+    let markdown = render_markdown(
+        &summary.task.name,
+        &viz,
+        params.base_url.as_deref(),
+        graph_only,
+    );
+
+    serde_json::to_string_pretty(&serde_json::json!({
+        "graph": viz.graph,
+        "mermaid": mermaid,
+        "detail_table": detail_table,
+        "markdown": markdown,
+        "warnings": viz.warnings,
+    }))
+    .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
 }
 
 pub async fn step_inspect(

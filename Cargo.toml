@@ -327,7 +327,7 @@ test-utils = [
 
 # TAS-73: Test infrastructure levels (cumulative hierarchy)
 # Each level implies the previous, representing increasing infrastructure requirements.
-# See docs/ticket-specs/TAS-73/test-feature-flags-design.md for details.
+# See docs/plans/ticket-specs/TAS-73/test-feature-flags-design.md for details.
 #
 # Hierarchy:
 #   test-db       → Database available (PostgreSQL)

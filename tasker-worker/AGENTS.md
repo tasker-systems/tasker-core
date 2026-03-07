@@ -112,5 +112,5 @@ pub trait StepHandlerRegistry: Send + Sync {
 - Worker event systems: `docs/worker-event-systems.md`
 - Worker actors: `docs/worker-actors.md`
 - FFI patterns: `docs/ffi-telemetry-pattern.md`
-- TAS-67 spec: `docs/ticket-specs/TAS-67/`
-- TAS-69 spec: `docs/ticket-specs/TAS-69/`
+- TAS-67 spec: `docs/plans/ticket-specs/TAS-67/`
+- TAS-69 spec: `docs/plans/ticket-specs/TAS-69/`

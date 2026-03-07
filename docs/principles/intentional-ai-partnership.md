@@ -174,7 +174,7 @@ Every significant piece of Tasker work follows a pattern:
 
 7. **Human accountability gate**: The human partner reviews not just for correctness but for understanding. Can they defend the choices? Do they know why alternatives were rejected? Are they prepared to maintain this code?
 
-This workflow produces comprehensive documentation as a side effect of doing the work. The `docs/ticket-specs/` directories in Tasker contain detailed specifications that serve both as implementation guides and as institutional memory. Future engineers—and future AI sessions—can understand not just what was built but why.
+This workflow produces comprehensive documentation as a side effect of doing the work. The `docs/plans/ticket-specs/` directories in Tasker contain detailed specifications that serve both as implementation guides and as institutional memory. Future engineers—and future AI sessions—can understand not just what was built but why.
 
 ### The Tenets as Guardrails
 

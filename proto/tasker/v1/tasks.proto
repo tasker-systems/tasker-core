@@ -27,6 +27,9 @@ service TaskService {
   // Get task execution context (inputs/outputs)
   rpc GetTaskContext(GetTaskContextRequest) returns (GetTaskContextResponse);
 
+  // Get a task summary for visualization
+  rpc GetTaskSummary(GetTaskSummaryRequest) returns (GetTaskSummaryResponse);
+
   // Stream task status updates
   rpc StreamTaskStatus(StreamTaskStatusRequest) returns (stream TaskStatusUpdate);
 }
@@ -293,4 +296,100 @@ message TaskContext {
   google.protobuf.Struct outputs = 2;
   // Merged context (inputs + outputs)
   google.protobuf.Struct merged = 3;
+}
+
+// Request to get a task summary for visualization
+message GetTaskSummaryRequest {
+  // Task ID (UUID)
+  string task_uuid = 1;
+}
+
+// Response containing task summary for visualization
+message GetTaskSummaryResponse {
+  // Task metadata with execution counts
+  TaskSummaryMetadata task = 1;
+  // Template definition summary
+  TaskSummaryTemplate template = 2;
+  // Per-step execution summaries
+  repeated StepSummaryInfo steps = 3;
+  // Dead-letter queue status
+  DlqSummaryInfo dlq = 4;
+  // HATEOAS links
+  TaskSummaryLinks links = 5;
+}
+
+// Task metadata with execution counts for summary view
+message TaskSummaryMetadata {
+  string task_uuid = 1;
+  string name = 2;
+  string namespace = 3;
+  string version = 4;
+  string status = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  optional string completed_at = 8;
+  string initiator = 9;
+  string source_system = 10;
+  string reason = 11;
+  string correlation_id = 12;
+  int64 total_steps = 13;
+  int64 pending_steps = 14;
+  int64 in_progress_steps = 15;
+  int64 completed_steps = 16;
+  int64 failed_steps = 17;
+  double completion_percentage = 18;
+  string health_status = 19;
+  string execution_status = 20;
+  optional string recommended_action = 21;
+}
+
+// Template definition summary for task summary view
+message TaskSummaryTemplate {
+  repeated TaskSummaryTemplateStep steps = 1;
+}
+
+// Template step definition summary for task summary view
+message TaskSummaryTemplateStep {
+  string name = 1;
+  string step_type = 2;
+  string handler = 3;
+  repeated string dependencies = 4;
+  bool retryable = 5;
+  uint32 max_attempts = 6;
+}
+
+// Step execution summary info
+message StepSummaryInfo {
+  string step_uuid = 1;
+  string name = 2;
+  string current_state = 3;
+  optional string created_at = 4;
+  optional string completed_at = 5;
+  optional string last_attempted_at = 6;
+  int32 attempts = 7;
+  int32 max_attempts = 8;
+  bool dependencies_satisfied = 9;
+  bool retry_eligible = 10;
+  optional StepErrorSummary error = 11;
+}
+
+// Step error summary
+message StepErrorSummary {
+  optional string error_type = 1;
+  bool retryable = 2;
+  optional uint32 status_code = 3;
+}
+
+// Dead-letter queue summary info
+message DlqSummaryInfo {
+  bool in_dlq = 1;
+  optional string dlq_reason = 2;
+  optional string resolution_status = 3;
+}
+
+// HATEOAS links for task summary
+message TaskSummaryLinks {
+  string task = 1;
+  string steps = 2;
+  string dlq = 3;
 }

@@ -215,7 +215,7 @@ setup_profiling_tools() {
         success "tokio-console is installed"
         echo ""
         echo "  tokio-console requires code changes to use. See:"
-        echo "  docs/ticket-specs/TAS-71/profiling-tool-evaluation.md"
+        echo "  docs/plans/ticket-specs/TAS-71/profiling-tool-evaluation.md"
         echo ""
     else
         warn "tokio-console not installed. Run: cargo install tokio-console"

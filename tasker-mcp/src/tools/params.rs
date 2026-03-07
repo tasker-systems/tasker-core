@@ -279,6 +279,28 @@ pub struct SchemaDiffParams {
     pub step_filter: Option<String>,
 }
 
+// ── task_visualize ──
+
+/// Parameters for the `task_visualize` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TaskVisualizeParams {
+    /// UUID of the task to visualize.
+    #[schemars(description = "UUID of the task to visualize")]
+    pub task_uuid: String,
+    /// Optional profile name for multi-environment setups.
+    #[schemars(description = "Optional profile name for multi-environment setups")]
+    #[serde(default)]
+    pub profile: Option<String>,
+    /// When true, returns only the Mermaid graph (no detail table).
+    #[schemars(description = "When true, returns only the Mermaid graph (no detail table)")]
+    #[serde(default)]
+    pub graph_only: Option<bool>,
+    /// Base URL to prepend to resource links in output.
+    #[schemars(description = "Base URL to prepend to resource links in output")]
+    #[serde(default)]
+    pub base_url: Option<String>,
+}
+
 // ── connection_status ──
 
 /// Parameters for the `connection_status` tool.

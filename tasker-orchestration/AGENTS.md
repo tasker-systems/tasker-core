@@ -126,6 +126,6 @@ pub trait Handler<M: Message>: OrchestrationActor {
 - Events and commands: `docs/architecture/events-and-commands.md`
 - State machines: `docs/architecture/states-and-lifecycles.md`
 - SQL functions: `docs/reference/task-and-step-readiness-and-execution.md`
-- TAS-46 spec: `docs/ticket-specs/TAS-46/`
-- TAS-133 spec: `docs/ticket-specs/TAS-133/`
-- TAS-148 spec: `docs/ticket-specs/TAS-148.md`
+- TAS-46 spec: `docs/plans/ticket-specs/TAS-46/`
+- TAS-133 spec: `docs/plans/ticket-specs/TAS-133/`
+- TAS-148 spec: `docs/plans/ticket-specs/TAS-148.md`

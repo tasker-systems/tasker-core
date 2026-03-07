@@ -18,7 +18,7 @@
 #   1. PGMQ_DATABASE_URL is set AND
 #   2. PGMQ_DATABASE_URL differs from DATABASE_URL
 #
-# See: docs/ticket-specs/TAS-78/split-database-design.md
+# See: docs/plans/ticket-specs/TAS-78/split-database-design.md
 # =============================================================================
 
 is_split_db_mode() {
