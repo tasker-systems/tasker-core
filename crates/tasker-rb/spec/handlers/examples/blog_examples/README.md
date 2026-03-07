@@ -5,7 +5,7 @@ This directory contains Ruby handler implementations for blog examples, demonstr
 ## Structure
 
 ```
-crates/workers/ruby/spec/handlers/examples/blog_examples/
+crates/tasker-rb/spec/handlers/examples/blog_examples/
 ├── post_01_ecommerce/
 │   ├── handlers/
 │   │   └── order_processing_handler.rb      # Task handler

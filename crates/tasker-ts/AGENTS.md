@@ -29,11 +29,11 @@ cargo make typecheck      # TypeScript type check
 
 ### Build Output Location
 
-`napi build --platform` places `.node` files directly in the package root (`crates/workers/typescript/`):
+`napi build --platform` places `.node` files directly in the package root (`crates/tasker-ts/`):
 
 ```bash
 # Check built .node files
-ls crates/workers/typescript/tasker_ts.*.node
+ls crates/tasker-ts/tasker_ts.*.node
 ```
 
 FfiLayer auto-discovers these files — no env vars needed for local development.
@@ -44,7 +44,7 @@ FfiLayer auto-discovers these files — no env vars needed for local development
 
 ### Directory Structure
 ```
-crates/workers/typescript/
+crates/tasker-ts/
 ├── Cargo.toml          # Rust cdylib crate definition (napi-rs)
 ├── build.rs            # napi-build setup
 ├── Makefile.toml       # cargo-make task definitions

@@ -76,13 +76,13 @@ runtime.block_on(async {
 
 **File Structure:**
 
-- `crates/workers/ruby/ext/tasker_core/src/ffi_logging.rs` - Phase 1
-- `crates/workers/ruby/ext/tasker_core/src/bootstrap.rs` - Phase 2
+- `crates/tasker-rb/ext/tasker_core/src/ffi_logging.rs` - Phase 1
+- `crates/tasker-rb/ext/tasker_core/src/bootstrap.rs` - Phase 2
 
 **Phase 1: Magnus Initialization**
 
 ```rust
-// crates/workers/ruby/ext/tasker_core/src/ffi_logging.rs
+// crates/tasker-rb/ext/tasker_core/src/ffi_logging.rs
 
 pub fn init_ffi_logger() -> Result<(), Box<dyn std::error::Error>> {
     // Check if telemetry is enabled
@@ -110,7 +110,7 @@ pub fn init_ffi_logger() -> Result<(), Box<dyn std::error::Error>> {
 **Phase 2: After Runtime Creation**
 
 ```rust
-// crates/workers/ruby/ext/tasker_core/src/bootstrap.rs
+// crates/tasker-rb/ext/tasker_core/src/bootstrap.rs
 
 pub fn bootstrap_worker() -> Result<Value, Error> {
     // Create tokio runtime
@@ -135,7 +135,7 @@ pub fn bootstrap_worker() -> Result<Value, Error> {
 **Phase 1: PyO3 Module Initialization**
 
 ```rust
-// crates/workers/python/src/lib.rs
+// crates/tasker-py/src/lib.rs
 
 #[pymodule]
 fn tasker_core(py: Python, m: &PyModule) -> PyResult<()> {
@@ -159,7 +159,7 @@ fn tasker_core(py: Python, m: &PyModule) -> PyResult<()> {
 **Phase 2: After Runtime Creation**
 
 ```rust
-// crates/workers/python/src/bootstrap.rs
+// crates/tasker-py/src/bootstrap.rs
 
 #[pyfunction]
 pub fn bootstrap_worker() -> PyResult<String> {
@@ -561,7 +561,7 @@ pub struct StepExecutionCompletionEvent {
 
 ### Implementation: Ruby Side Propagation
 
-**File:** `crates/workers/ruby/lib/tasker_core/event_bridge.rb`
+**File:** `crates/tasker-rb/lib/tasker_core/event_bridge.rb`
 
 **Propagate trace context like correlation_id:**
 
@@ -586,7 +586,7 @@ def wrap_step_execution_event(event_data)
 end
 ```
 
-**File:** `crates/workers/ruby/lib/tasker_core/subscriber.rb`
+**File:** `crates/tasker-rb/lib/tasker_core/subscriber.rb`
 
 **Include trace context in completion:**
 
@@ -755,7 +755,7 @@ The exact same pattern applies to Python workers:
 **Python Side (PyO3):**
 
 ```python
-# crates/workers/python/tasker_core/event_bridge.py
+# crates/tasker-py/tasker_core/event_bridge.py
 
 def wrap_step_execution_event(event_data):
     wrapped = {
@@ -854,7 +854,7 @@ let span = span!(
 ## Related Documentation
 
 - `crates/tasker-shared/src/logging.rs` - Core logging implementation
-- `crates/workers/rust/README.md` - Event-driven FFI architecture
+- `crates/tasker-example-rs/README.md` - Event-driven FFI architecture
 - `docs/batch-processing.md` - Distributed tracing integration
 - `docker/docker-compose.test.yml` - Observability stack configuration
 

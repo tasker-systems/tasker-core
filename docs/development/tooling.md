@@ -40,14 +40,14 @@ Crate-level Makefile.toml files:
     crates/tasker-shared/Makefile.toml    → extends → tools/cargo-make/base-tasks.toml
     crates/tasker-orchestration/Makefile.toml → extends → tools/cargo-make/base-tasks.toml
     crates/tasker-worker/Makefile.toml    → extends → tools/cargo-make/base-tasks.toml
-    crates/workers/rust/Makefile.toml     → extends → tools/cargo-make/base-tasks.toml
+    crates/tasker-example-rs/Makefile.toml     → extends → tools/cargo-make/base-tasks.toml
 ```
 
 Worker directories have their own complete Makefile.toml files (not extending base-tasks):
 
-- `crates/workers/python/Makefile.toml` - Uses uv, maturin, ruff, mypy, pytest
-- `crates/workers/ruby/Makefile.toml` - Uses bundler, rake, rubocop, rspec
-- `crates/workers/typescript/Makefile.toml` - Uses bun, biome, vitest
+- `crates/tasker-py/Makefile.toml` - Uses uv, maturin, ruff, mypy, pytest
+- `crates/tasker-rb/Makefile.toml` - Uses bundler, rake, rubocop, rspec
+- `crates/tasker-ts/Makefile.toml` - Uses bun, biome, vitest
 
 ---
 
@@ -343,48 +343,48 @@ args = ["nextest", "run", "-p", "${CRATE_NAME}", "--all-features"]
 
 ## Worker-Specific Details
 
-### Python Worker (`crates/workers/python/`)
+### Python Worker (`crates/tasker-py/`)
 
 **Tools**: uv (package manager), maturin (Rust extension builder), ruff (linter/formatter), mypy (type checker), pytest
 
 ```bash
-cd crates/workers/python
+cd crates/tasker-py
 cargo make check    # format-check, lint, typecheck, test
 cargo make build    # Build Rust extension with maturin
 cargo make fix      # Auto-fix with ruff
 cargo make test-ffi # Run FFI tests
 ```
 
-### Ruby Worker (`crates/workers/ruby/`)
+### Ruby Worker (`crates/tasker-rb/`)
 
 **Tools**: bundler (package manager), rake (build), rubocop (linter), rspec (tests), magnus (Rust FFI)
 
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 cargo make check    # lint, rust-check, build, test
 cargo make build    # Compile Rust extension
 cargo make fix      # Auto-fix with rubocop
 cargo make test-ffi # Run FFI tests (spec/ffi/)
 ```
 
-### TypeScript Worker (`crates/workers/typescript/`)
+### TypeScript Worker (`crates/tasker-ts/`)
 
 **Tools**: bun (runtime/package manager), biome (linter/formatter), vitest (tests)
 
 ```bash
-cd crates/workers/typescript
+cd crates/tasker-ts
 cargo make check    # lint, typecheck, test
 cargo make build    # Build with bun
 cargo make fix      # Auto-fix with biome
 cargo make test-ffi-all # Run FFI tests (Bun, Node)
 ```
 
-### Rust Worker (`crates/workers/rust/`)
+### Rust Worker (`crates/tasker-example-rs/`)
 
 **Tools**: Standard Rust toolchain (cargo, clippy, rustfmt)
 
 ```bash
-cd crates/workers/rust
+cd crates/tasker-example-rs
 cargo make check    # format-check, lint, test
 cargo make build    # Build worker binary
 cargo make run      # Run the worker service

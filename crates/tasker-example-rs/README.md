@@ -311,7 +311,7 @@ impl TaskSequenceStep {
 ## 📁 Project Structure
 
 ```
-crates/workers/rust/
+crates/tasker-example-rs/
 ├── Cargo.toml                    # Rust project configuration with dependencies
 ├── README.md                     # This comprehensive documentation
 ├── src/

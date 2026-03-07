@@ -16,7 +16,7 @@ The TypeScript worker provides a native Node-API (napi-rs) interface for integra
 ### Installation
 
 ```bash
-cd crates/workers/typescript
+cd crates/tasker-ts
 bun install                     # Install dependencies
 bun run build:napi:release          # Build napi-rs native addon
 ```
@@ -49,7 +49,7 @@ npx tsx bin/server.ts
 
 ### Server Mode
 
-**Location**: `crates/workers/typescript/bin/server.ts`
+**Location**: `crates/tasker-ts/bin/server.ts`
 
 The server bootstraps the Rust foundation and manages TypeScript handler execution:
 
@@ -205,7 +205,7 @@ The class-based patterns below remain fully supported.
 
 ### Base Handler
 
-**Location**: `crates/workers/typescript/src/handler/base.ts`
+**Location**: `crates/tasker-ts/src/handler/base.ts`
 
 All handlers extend `StepHandler`:
 
@@ -352,7 +352,7 @@ class MyHandler extends ApiHandler {
 
 ### API Handler
 
-**Location**: `crates/workers/typescript/src/handler/api.ts`
+**Location**: `crates/tasker-ts/src/handler/api.ts`
 
 For HTTP API integration with automatic error classification:
 
@@ -425,7 +425,7 @@ response.retryAfter      // Retry-After header value in seconds
 
 ### Decision Handler
 
-**Location**: `crates/workers/typescript/src/handler/decision.ts`
+**Location**: `crates/tasker-ts/src/handler/decision.ts`
 
 For dynamic workflow routing:
 
@@ -478,7 +478,7 @@ return this.decisionNoBranches('condition not met');
 
 ### BatchableStepHandler
 
-**Location**: `crates/workers/typescript/src/handler/batchable.ts`
+**Location**: `crates/tasker-ts/src/handler/batchable.ts`
 
 For processing large datasets in chunks. Cross-language aligned with Ruby and Python implementations.
 
@@ -610,7 +610,7 @@ export class CsvAggregatorHandler extends StepHandler {
 
 ### Registration
 
-**Location**: `crates/workers/typescript/src/handler/registry.ts`
+**Location**: `crates/tasker-ts/src/handler/registry.ts`
 
 ```typescript
 import { HandlerRegistry } from '@tasker-systems/tasker';
@@ -693,7 +693,7 @@ const config: BootstrapConfig = {
 
 ### EventEmitter
 
-**Location**: `crates/workers/typescript/src/events/event-emitter.ts`
+**Location**: `crates/tasker-ts/src/events/event-emitter.ts`
 
 ```typescript
 import { EventEmitter } from '@tasker-systems/tasker';
@@ -730,7 +730,7 @@ StepEventNames.STEP_COMPLETION_SENT     // Result sent to FFI
 
 ### EventPoller
 
-**Location**: `crates/workers/typescript/src/events/event-poller.ts`
+**Location**: `crates/tasker-ts/src/events/event-poller.ts`
 
 ```typescript
 import { EventPoller } from '@tasker-systems/tasker';
@@ -758,7 +758,7 @@ poller.stop();
 
 TypeScript has full domain event support, matching Ruby and Python capabilities. The domain events module provides BasePublisher, BaseSubscriber, and registries for custom event handling.
 
-**Location**: `crates/workers/typescript/src/handler/domain-events.ts`
+**Location**: `crates/tasker-ts/src/handler/domain-events.ts`
 
 ### BasePublisher
 
@@ -993,7 +993,7 @@ logger.info({ orderId: '123' }, 'Processing order');
 ## File Structure
 
 ```
-crates/workers/typescript/
+crates/tasker-ts/
 ├── bin/
 │   └── server.ts               # Production server
 ├── src/
@@ -1044,7 +1044,7 @@ crates/workers/typescript/
 ### Unit Tests
 
 ```bash
-cd crates/workers/typescript
+cd crates/tasker-ts
 bun test                        # Run all tests
 bun test tests/unit/            # Run unit tests only
 ```
@@ -1250,9 +1250,9 @@ FROM oven/bun:1.1.38 AS runtime
 WORKDIR /app
 
 # Copy built artifacts
-COPY crates/workers/typescript/dist/ ./dist/
-COPY crates/workers/typescript/package.json ./
-COPY crates/workers/typescript/*.node ./
+COPY crates/tasker-ts/dist/ ./dist/
+COPY crates/tasker-ts/package.json ./
+COPY crates/tasker-ts/*.node ./
 
 # Install production dependencies
 RUN bun install --production

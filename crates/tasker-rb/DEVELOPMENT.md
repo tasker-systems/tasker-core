@@ -11,7 +11,7 @@ cd /path/to/tasker-core
 docker compose -f docker/docker-compose.test.yml up --build -d
 
 # 2. Run Ruby tests
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle install
 bundle exec rspec --format documentation
 
@@ -27,7 +27,7 @@ cd /path/to/tasker-core
 docker compose -f docker/docker-compose.test.yml up postgres -d
 
 # 2. Setup Ruby environment
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle install
 bundle exec rake compile
 
@@ -36,7 +36,7 @@ cd ../..
 cargo build --all-features
 
 # 4. Run tests locally
-cd crates/workers/ruby
+cd crates/tasker-rb
 export DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test"
 bundle exec rspec --format documentation
 ```
@@ -53,7 +53,7 @@ export DATABASE_URL="postgresql://localhost/tasker_rust_test"
 cargo sqlx migrate run
 
 # 3. Setup Ruby
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle install
 bundle exec rake compile
 
@@ -70,7 +70,7 @@ bundle exec rake compile
 
 ### Ruby Dependencies
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle install
 
 # Key dependencies installed:
@@ -156,7 +156,7 @@ export MAGNUS_DEBUG="true"
 
 #### Unit Tests (Ruby)
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 
 # Run all unit tests
 bundle exec rspec spec/ffi/ spec/types/ spec/worker/ --format documentation
@@ -172,7 +172,7 @@ bundle exec rspec spec/ffi/ spec/types/ spec/worker/ --format documentation --re
 
 #### Integration Tests (Docker-based)
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 
 # Prerequisites: Start Docker services first
 docker compose -f ../../docker/docker-compose.test.yml up --build -d
@@ -261,7 +261,7 @@ cargo build --all-features --bin tasker-server
 
 ### 3. Start Ruby Worker Service
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 export DATABASE_URL="postgresql://localhost/tasker_rust_dev"
 export TASKER_TEMPLATE_PATH="$(pwd)/spec/fixtures/templates"
 export RUBY_HANDLER_PATH="$(pwd)/spec/handlers/examples"
@@ -357,7 +357,7 @@ ruby -v
 gem list ffi
 
 # Clean and rebuild
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle exec rake clean
 bundle exec rake compile
 
@@ -443,7 +443,7 @@ bundle exec ruby benchmarks/workflow_performance_benchmark.rb
 ### Local CI Simulation
 ```bash
 # Run the same commands as CI
-cd crates/workers/ruby
+cd crates/tasker-rb
 
 # Install dependencies (like CI)
 bundle install
@@ -518,7 +518,7 @@ export RUBY_HANDLER_PATH="$(pwd)/spec/handlers/examples"
 #### "Ruby worker FFI bootstrap failed"
 ```bash
 # Solution: Check Ruby extension compilation
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle exec rake clean
 bundle exec rake compile
 

@@ -104,7 +104,7 @@ cargo make sqlx-check     # SQLX_OFFLINE=true cargo check
 
 ## Python Worker Tasks
 
-Located in `crates/workers/python/`. Uses:
+Located in `crates/tasker-py/`. Uses:
 
 - **uv**: Fast Python package manager
 - **maturin**: Rust-Python FFI builds (PyO3)
@@ -113,7 +113,7 @@ Located in `crates/workers/python/`. Uses:
 - **pytest**: Testing
 
 ```bash
-cd crates/workers/python
+cd crates/tasker-py
 
 cargo make check       # format-check, lint, typecheck, test
 cargo make build       # Build Rust extension with maturin
@@ -131,13 +131,13 @@ cargo make rust-fmt
 ### First-Time Setup
 
 ```bash
-cd crates/workers/python
+cd crates/tasker-py
 cargo make setup   # Creates .venv, syncs dependencies
 ```
 
 ## Ruby Worker Tasks
 
-Located in `crates/workers/ruby/`. Uses:
+Located in `crates/tasker-rb/`. Uses:
 
 - **Bundler**: Ruby dependency management
 - **Magnus**: Rust-Ruby FFI (via rake compile)
@@ -145,7 +145,7 @@ Located in `crates/workers/ruby/`. Uses:
 - **RSpec**: Testing
 
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 
 cargo make check       # lint, rust-check, build, test
 cargo make build       # Bundle install + rake compile
@@ -164,13 +164,13 @@ cargo make rust-fmt
 ### First-Time Setup
 
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 cargo make setup   # bundle install
 ```
 
 ## TypeScript Worker Tasks
 
-Located in `crates/workers/typescript/`. Uses:
+Located in `crates/tasker-ts/`. Uses:
 
 - **Bun**: JavaScript runtime and package manager
 - **Biome**: Fast linting and formatting
@@ -178,7 +178,7 @@ Located in `crates/workers/typescript/`. Uses:
 - **vitest**: Testing (via bun test)
 
 ```bash
-cd crates/workers/typescript
+cd crates/tasker-ts
 
 cargo make check       # lint, typecheck, test
 cargo make build       # Build FFI + TypeScript
@@ -196,7 +196,7 @@ cargo make build-ts         # bun run build
 ### First-Time Setup
 
 ```bash
-cd crates/workers/typescript
+cd crates/tasker-ts
 cargo make install   # bun install --frozen-lockfile
 ```
 
@@ -269,7 +269,7 @@ cargo make watch        # Watch + run tests on change
 cargo make watch-check  # Watch + run clippy on change
 
 # TypeScript-specific
-cd crates/workers/typescript
+cd crates/tasker-ts
 cargo make dev   # Build debug FFI + watch TypeScript
 ```
 
@@ -382,7 +382,7 @@ cargo install cargo-make
 Ensure you've run setup first:
 
 ```bash
-cd crates/workers/<language>
+cd crates/tasker-<lang>
 cargo make setup
 ```
 
@@ -397,14 +397,14 @@ git add .sqlx/
 ### TypeScript FFI library not found
 
 ```bash
-cd crates/workers/typescript
+cd crates/tasker-ts
 cargo make build-ffi   # Build the Rust FFI library first
 ```
 
 ### Ruby extension compilation fails
 
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 cargo make compile-clean   # Clean and recompile
 ```
 

@@ -24,7 +24,7 @@
 | tasker-shared * | rust | 78.94% | 70% | PASS |
 | tasker-worker * | rust | 49.93% | 55% | **FAIL** |
 | tasker-rb | ruby | 70.44% | 70% | PASS |
-| tasker-worker-rust * | rust | 64.37% | 55% | PASS |
+| tasker-example-rs * | rust | 64.37% | 55% | PASS |
 | tasker-ts | typescript | 75.88% | 60% | PASS |
 
 *\* Merged from multiple reports (unit/integration + E2E test coverage).*

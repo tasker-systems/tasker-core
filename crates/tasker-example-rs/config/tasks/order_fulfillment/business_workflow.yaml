@@ -4,7 +4,7 @@
 # Demonstrates sophisticated business workflow with external service integration
 #
 # Template: order_fulfillment/business_workflow:1.0.0
-# Implementation: Native Rust with tasker-worker-rust
+# Implementation: Native Rust with tasker-example-rs
 # Created: 2025-08-29 (TAS-41 Implementation)
 #
 # Business Workflow Pattern (4 steps):

@@ -50,21 +50,21 @@ COPY proto/ ./proto/
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/rust workers/ruby workers/python
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs tasker-rb tasker-py
 COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY crates/workers/rust/Cargo.toml ./workers/rust/
-COPY crates/workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY crates/workers/python/Cargo.toml ./workers/python/
+COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
 
 # Copy TypeScript worker source code to proper workspace location
-COPY crates/workers/typescript/ ./workers/typescript/
+COPY crates/tasker-ts/ ./tasker-ts/
 COPY migrations/ ./migrations/
 
 # Set environment for build
 ENV SQLX_OFFLINE=true
 
 # Install Bun dependencies (includes @napi-rs/cli for building)
-WORKDIR /app/workers/typescript
+WORKDIR /app/tasker-ts
 RUN bun install --frozen-lockfile
 
 # Build napi-rs FFI module (places .node file in package root)
@@ -99,15 +99,15 @@ COPY --from=typescript_builder /usr/local/bin/bun /usr/local/bin/bun
 
 # Copy TypeScript worker from builder (NOT test handlers — those are volume-mounted)
 WORKDIR /app/typescript_worker
-COPY --from=typescript_builder /app/workers/typescript/bin ./bin
-COPY --from=typescript_builder /app/workers/typescript/src ./src
-COPY --from=typescript_builder /app/workers/typescript/dist ./dist
-COPY --from=typescript_builder /app/workers/typescript/package.json ./
-COPY --from=typescript_builder /app/workers/typescript/tsconfig.json ./
-COPY --from=typescript_builder /app/workers/typescript/node_modules ./node_modules
+COPY --from=typescript_builder /app/tasker-ts/bin ./bin
+COPY --from=typescript_builder /app/tasker-ts/src ./src
+COPY --from=typescript_builder /app/tasker-ts/dist ./dist
+COPY --from=typescript_builder /app/tasker-ts/package.json ./
+COPY --from=typescript_builder /app/tasker-ts/tsconfig.json ./
+COPY --from=typescript_builder /app/tasker-ts/node_modules ./node_modules
 
 # Copy napi-rs .node FFI modules (built by `bunx napi build --platform`)
-COPY --from=typescript_builder /app/workers/typescript/tasker_ts.*.node ./
+COPY --from=typescript_builder /app/tasker-ts/tasker_ts.*.node ./
 
 # Ensure all files are readable
 RUN chmod -R 755 ./bin && \

@@ -278,7 +278,7 @@ impl GenericStepEventPublisher {
 
 Custom publishers extend `TaskerCore::DomainEvents::BasePublisher` (Ruby) to provide specialized event handling with payload transformation, conditional publishing, and lifecycle hooks.
 
-**Real Example: PaymentEventPublisher** (`crates/workers/ruby/spec/handlers/examples/domain_events/publishers/payment_event_publisher.rb`):
+**Real Example: PaymentEventPublisher** (`crates/tasker-rb/spec/handlers/examples/domain_events/publishers/payment_event_publisher.rb`):
 
 ```ruby
 # Custom publisher for payment-related domain events
@@ -449,7 +449,7 @@ Subscriber patterns apply **only to fast (in-process) events**. Durable events a
 
 Rust subscribers are registered with the `InProcessEventBus` using the `EventHandler` type. Subscribers are async closures that receive `DomainEvent` instances.
 
-**Real Example: Logging Subscriber** (`crates/workers/rust/src/event_subscribers/logging_subscriber.rs`):
+**Real Example: Logging Subscriber** (`crates/tasker-example-rs/src/event_subscribers/logging_subscriber.rs`):
 
 ```rust
 use std::sync::Arc;
@@ -484,7 +484,7 @@ pub fn create_logging_subscriber(prefix: &str) -> EventHandler {
 }
 ```
 
-**Real Example: Metrics Collector** (`crates/workers/rust/src/event_subscribers/metrics_subscriber.rs`):
+**Real Example: Metrics Collector** (`crates/tasker-example-rs/src/event_subscribers/metrics_subscriber.rs`):
 
 ```rust
 use std::sync::Arc;
@@ -556,7 +556,7 @@ bus.subscribe("*", metrics.create_handler()).unwrap();
 
 Ruby subscribers extend `TaskerCore::DomainEvents::BaseSubscriber` and use the class-level `subscribes_to` pattern declaration.
 
-**Real Example: LoggingSubscriber** (`crates/workers/ruby/spec/handlers/examples/domain_events/subscribers/logging_subscriber.rb`):
+**Real Example: LoggingSubscriber** (`crates/tasker-rb/spec/handlers/examples/domain_events/subscribers/logging_subscriber.rb`):
 
 ```ruby
 # Example logging subscriber for fast/in-process domain events
@@ -582,7 +582,7 @@ module DomainEvents
 end
 ```
 
-**Real Example: MetricsSubscriber** (`crates/workers/ruby/spec/handlers/examples/domain_events/subscribers/metrics_subscriber.rb`):
+**Real Example: MetricsSubscriber** (`crates/tasker-rb/spec/handlers/examples/domain_events/subscribers/metrics_subscriber.rb`):
 
 ```ruby
 # Example metrics subscriber for fast/in-process domain events

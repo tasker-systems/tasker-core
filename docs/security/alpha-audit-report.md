@@ -498,19 +498,19 @@ All 4 language workers share common architecture via `FfiDispatchChannel` for po
 
 ### Finding LW-1 (MEDIUM): TypeScript FFI Missing Safety Documentation
 
-**Location**: `crates/workers/typescript/src-rust/lib.rs:38`
+**Location**: `crates/tasker-ts/src-rust/lib.rs:38`
 
 `#![allow(clippy::missing_safety_doc)]` — suppresses docs for 9 `unsafe extern "C"` functions. Should use `#[expect]` per lint policy and add `# Safety` sections.
 
 ### Finding LW-2 (MEDIUM): Rust Worker `#[allow(dead_code)]` (Lint Policy)
 
-**Location**: `crates/workers/rust/src/event_subscribers/logging_subscriber.rs:60,98,132`
+**Location**: `crates/tasker-example-rs/src/event_subscribers/logging_subscriber.rs:60,98,132`
 
 3 instances of `#[allow(dead_code)]` instead of `#[expect]`.
 
 ### Finding LW-3 (LOW): Ruby Bootstrap Uses `expect()` on Ruby Runtime
 
-**Location**: `crates/workers/ruby/ext/tasker_core/src/bridge.rs:19-20`, `bootstrap.rs:29-30`
+**Location**: `crates/tasker-rb/ext/tasker_core/src/bridge.rs:19-20`, `bootstrap.rs:29-30`
 
 `Ruby::get().expect("Ruby runtime should be available")` — safe in practice (guaranteed by Magnus FFI contract) but could use `?` for defensive programming.
 
@@ -520,7 +520,7 @@ All 4 language workers share common architecture via `FfiDispatchChannel` for po
 
 ### Finding LW-5 (LOW): Ruby Tokio Thread Pool Hardcoded to 8
 
-**Location**: `crates/workers/ruby/ext/tasker_core/src/bootstrap.rs:74-79`
+**Location**: `crates/tasker-rb/ext/tasker_core/src/bootstrap.rs:74-79`
 
 Hardcoded `.worker_threads(8)` for M2/M4 Pro compatibility. Python/TypeScript use defaults. Consider making configurable.
 

@@ -11,7 +11,7 @@
 #
 # Example:
 #   # For orchestration build (needs stubs for worker crates)
-#   ./create-workspace-stubs.sh tasker-worker workers/rust workers/ruby workers/python workers/typescript
+#   ./create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts
 #
 # Each stub consists of:
 #   - A minimal src/lib.rs with a stub function
@@ -29,10 +29,10 @@ declare -A CRATE_PATHS=(
     ["tasker-client"]="tasker-client"
     ["tasker-ctl"]="tasker-ctl"
     ["tasker-pgmq"]="tasker-pgmq"
-    ["workers/rust"]="workers/rust"
-    ["workers/ruby"]="workers/ruby/ext/tasker_core"
-    ["workers/python"]="workers/python"
-    ["workers/typescript"]="workers/typescript"
+    ["tasker-example-rs"]="tasker-example-rs"
+    ["tasker-rb"]="tasker-rb/ext/tasker_core"
+    ["tasker-py"]="tasker-py"
+    ["tasker-ts"]="tasker-ts"
 )
 
 create_stub() {

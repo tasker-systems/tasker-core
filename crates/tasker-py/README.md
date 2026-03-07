@@ -83,7 +83,7 @@ maturin build --release --all-features
 ## Project Structure
 
 ```
-crates/workers/python/
+crates/tasker-py/
 ├── src/                           # Rust FFI source
 │   └── lib.rs                     # PyO3 module initialization
 ├── python/                        # Python source (maturin src layout)

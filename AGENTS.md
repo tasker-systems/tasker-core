@@ -97,7 +97,7 @@ git add .sqlx/
 ### Ruby Integration
 
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle install && bundle exec rake compile
 
 # Run integration tests
@@ -203,10 +203,10 @@ source tools/cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_mi
 - crates/tasker-orchestration # Core orchestration logic (see AGENTS.md)
 - crates/tasker-shared        # Shared types, traits, utilities
 - crates/tasker-worker        # Worker implementation (see AGENTS.md)
-- crates/workers/python       # Python FFI bindings (maturin/pyo3)
-- crates/workers/ruby         # Ruby FFI bindings (magnus)
-- crates/workers/rust         # Rust worker implementation
-- crates/workers/typescript   # TypeScript FFI bindings (Bun/Node/Deno)
+- crates/tasker-py            # Python FFI bindings (maturin/pyo3)
+- crates/tasker-rb            # Ruby FFI bindings (magnus)
+- crates/tasker-example-rs    # Rust example worker implementation
+- crates/tasker-ts            # TypeScript FFI bindings (Bun/Node/Deno)
 
 [build tooling]
 - tools/cargo-make/          # Shared task runner configuration
@@ -421,7 +421,7 @@ Detailed feature specifications: `docs/plans/ticket-specs/TAS-{37,39,40,41,46,49
 
 ### Ruby Extension
 
-- Clean rebuild: `cd crates/workers/ruby && rake clean && rake compile`
+- Clean rebuild: `cd crates/tasker-rb && rake clean && rake compile`
 - Check magnus version in Cargo.toml
 
 ### Configuration

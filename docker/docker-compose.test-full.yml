@@ -295,7 +295,7 @@ services:
       # Mount test fixtures for CSV and other data files
       - ../tests/fixtures:/app/tests/fixtures:ro
       # Mount handler source code for discovery (must match Dockerfile structure)
-      - ../crates/workers/ruby/spec/handlers:/app/ruby_worker/spec/handlers:ro
+      - ../crates/tasker-rb/spec/handlers:/app/ruby_worker/spec/handlers:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -362,7 +362,7 @@ services:
       # Mount test fixtures for CSV and other data files
       - ../tests/fixtures:/app/tests/fixtures:ro
       # Mount handler source code for discovery (must match Dockerfile structure)
-      - ../crates/workers/python/tests/handlers:/app/python_worker/tests/handlers:ro
+      - ../crates/tasker-py/tests/handlers:/app/python_worker/tests/handlers:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -430,7 +430,7 @@ services:
       # Mount test fixtures for CSV and other data files
       - ../tests/fixtures:/app/tests/fixtures:ro
       # Mount handler source code for discovery (must match Dockerfile structure)
-      - ../crates/workers/typescript/tests/handlers:/app/typescript_worker/tests/handlers:ro
+      - ../crates/tasker-ts/tests/handlers:/app/typescript_worker/tests/handlers:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -3,7 +3,7 @@
 # =============================================================================
 # Optimized for production deployment with minimal size and maximum security
 # Context: tasker-core/ directory (workspace root)
-# Usage: docker build -f docker/build/rust-worker.prod.Dockerfile -t tasker-worker-rust:prod .
+# Usage: docker build -f docker/build/rust-worker.prod.Dockerfile -t tasker-example-rs:prod .
 
 FROM rust:1.90-bookworm AS chef
 
@@ -41,18 +41,18 @@ COPY crates/tasker-client/ ./tasker-client/
 COPY crates/tasker-ctl/ ./tasker-ctl/
 COPY crates/tasker-pgmq/ ./tasker-pgmq/
 COPY crates/tasker-worker/ ./tasker-worker/
-COPY crates/workers/rust/ ./workers/rust/
+COPY crates/tasker-example-rs/ ./tasker-example-rs/
 COPY migrations/ ./migrations/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/ruby workers/python workers/typescript
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-rb tasker-py tasker-ts
 COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY crates/workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY crates/workers/python/Cargo.toml ./workers/python/
-COPY crates/workers/typescript/Cargo.toml ./workers/typescript/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Generate dependency recipe
 RUN cargo chef prepare --recipe-path recipe.json
@@ -79,18 +79,18 @@ COPY crates/tasker-client/ ./tasker-client/
 COPY crates/tasker-ctl/ ./tasker-ctl/
 COPY crates/tasker-pgmq/ ./tasker-pgmq/
 COPY crates/tasker-worker/ ./tasker-worker/
-COPY crates/workers/rust/ ./workers/rust/
+COPY crates/tasker-example-rs/ ./tasker-example-rs/
 COPY migrations/ ./migrations/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/ruby workers/python workers/typescript
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-rb tasker-py tasker-ts
 COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY crates/workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY crates/workers/python/Cargo.toml ./workers/python/
-COPY crates/workers/typescript/Cargo.toml ./workers/typescript/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Set offline mode for SQLx
 ENV SQLX_OFFLINE=true
@@ -99,7 +99,7 @@ ENV SQLX_OFFLINE=true
 # IMPORTANT: Use --locked to ensure Cargo.lock is respected (prevents serde version conflicts)
 # NOTE: Do NOT use --all-features here. Using --all-features would pull in tokio-console,
 # which panics at runtime without RUSTFLAGS="--cfg tokio_unstable" (TAS-278).
-RUN cargo build --release --locked --bin rust-worker -p tasker-worker-rust
+RUN cargo build --release --locked --bin rust-worker -p tasker-example-rs
 
 # Strip binary for minimal size
 RUN strip target/release/rust-worker
@@ -134,7 +134,7 @@ COPY docker/scripts/worker-entrypoint.sh ./scripts/worker-entrypoint.sh
 RUN chmod +x ./scripts/*.sh
 
 # Set environment variables for the service
-ENV APP_NAME=tasker-worker-rust
+ENV APP_NAME=tasker-example-rs
 
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \

@@ -350,7 +350,7 @@ steps:
 
 ### Ruby Handler Implementation
 
-**Actual Implementation** (from `crates/workers/ruby/spec/handlers/examples/conditional_approval/step_handlers/routing_decision_handler.rb`):
+**Actual Implementation** (from `crates/tasker-rb/spec/handlers/examples/conditional_approval/step_handlers/routing_decision_handler.rb`):
 
 ```ruby
 # frozen_string_literal: true
@@ -799,7 +799,7 @@ end
 ### Type Definitions
 
 ```ruby
-# crates/workers/ruby/lib/tasker_core/types/decision_point_outcome.rb
+# crates/tasker-rb/lib/tasker_core/types/decision_point_outcome.rb
 
 module TaskerCore
   module Types
@@ -836,7 +836,7 @@ end
 
 ### Decision Handler Implementation
 
-**Actual Implementation** (from `crates/workers/rust/src/step_handlers/conditional_approval_rust.rs`):
+**Actual Implementation** (from `crates/tasker-example-rs/src/step_handlers/conditional_approval_rust.rs`):
 
 ```rust
 use super::{error_result, success_result, RustStepHandler, StepHandlerConfig};

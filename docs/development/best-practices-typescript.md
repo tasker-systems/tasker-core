@@ -1,6 +1,6 @@
 # TypeScript Best Practices for Tasker Core
 
-**Purpose**: Codify TypeScript-specific coding standards for the tasker-core crates/workers/typescript project.
+**Purpose**: Codify TypeScript-specific coding standards for the tasker-core crates/tasker-ts project.
 
 ---
 
@@ -592,5 +592,5 @@ export class OrderCompletedPublisher extends BasePublisher {
 - [Biome Documentation](https://biomejs.dev/)
 - [API Convergence Matrix](../../workers/api-convergence-matrix.md)
 - [TypeScript Worker Documentation](../../workers/typescript.md)
-- [TypeScript Worker AGENTS.md](../../crates/workers/typescript/AGENTS.md)
+- [TypeScript Worker AGENTS.md](../../crates/tasker-ts/AGENTS.md)
 - [Composition Over Inheritance](../../principles/composition-over-inheritance.md)

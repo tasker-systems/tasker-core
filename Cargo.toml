@@ -37,7 +37,7 @@ members = [
   "crates/tasker-rb/ext/tasker_core",
   "crates/tasker-example-rs",
   "crates/tasker-ts",  # TAS-100: TypeScript FFI worker (napi-rs)
-  # "crates/workers/wasm",      # Future
+  # "crates/tasker-wasm",        # Future
 ]
 exclude = [
   "vendor/rb-sys-build",  # Patched build dep, not a workspace member

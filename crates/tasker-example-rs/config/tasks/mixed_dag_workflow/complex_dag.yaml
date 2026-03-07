@@ -4,7 +4,7 @@
 # Demonstrates complex DAG with mixed dependency patterns: linear, parallel, and convergence
 #
 # Template: mixed_dag_workflow/complex_dag:1.0.0
-# Implementation: Native Rust with tasker-worker-rust
+# Implementation: Native Rust with tasker-example-rs
 # Created: 2025-08-29 (TAS-41 Implementation)
 #
 # Complex DAG Pattern (7 steps):

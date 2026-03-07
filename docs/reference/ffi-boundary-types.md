@@ -58,7 +58,7 @@ pub struct CursorConfig {
 ### TypeScript Definition
 
 ```typescript
-// crates/workers/typescript/src/types/batch.ts
+// crates/tasker-ts/src/types/batch.ts
 export interface RustCursorConfig {
   batch_id: string;
   start_cursor: unknown;  // Flexible: number | string | object
@@ -70,7 +70,7 @@ export interface RustCursorConfig {
 ### Python Definition
 
 ```python
-# crates/workers/python/python/tasker_core/types.py
+# crates/tasker-py/python/tasker_core/types.py
 class RustCursorConfig(BaseModel):
     batch_id: str
     start_cursor: Any  # Flexible: int | str | dict
@@ -112,7 +112,7 @@ pub enum BatchProcessingOutcome {
 ### TypeScript Definition
 
 ```typescript
-// crates/workers/typescript/src/types/batch.ts
+// crates/tasker-ts/src/types/batch.ts
 export interface NoBatchesOutcome {
   type: 'no_batches';
 }
@@ -131,7 +131,7 @@ export type BatchProcessingOutcome = NoBatchesOutcome | CreateBatchesOutcome;
 ### Python Definition
 
 ```python
-# crates/workers/python/python/tasker_core/types.py
+# crates/tasker-py/python/tasker_core/types.py
 class NoBatchesOutcome(BaseModel):
     type: str = "no_batches"
 
@@ -200,7 +200,7 @@ pub enum FailureStrategy {
 ### TypeScript Definition
 
 ```typescript
-// crates/workers/typescript/src/types/batch.ts
+// crates/tasker-ts/src/types/batch.ts
 export type FailureStrategy = 'continue_on_failure' | 'fail_fast' | 'isolate';
 
 export interface BatchMetadata {
@@ -219,7 +219,7 @@ export interface RustBatchWorkerInputs {
 ### Python Definition
 
 ```python
-# crates/workers/python/python/tasker_core/types.py
+# crates/tasker-py/python/tasker_core/types.py
 class FailureStrategy(str, Enum):
     CONTINUE_ON_FAILURE = "continue_on_failure"
     FAIL_FAST = "fail_fast"

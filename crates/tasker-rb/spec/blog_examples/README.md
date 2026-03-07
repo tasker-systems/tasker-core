@@ -9,7 +9,7 @@ These tests validate individual Ruby handler logic and component integration, se
 ## Structure
 
 ```
-crates/workers/ruby/spec/blog_examples/
+crates/tasker-rb/spec/blog_examples/
 ├── support/
 │   ├── mock_services/               # Mock external services
 │   │   ├── base_mock_service.rb     # Base class for all mocks
@@ -197,7 +197,7 @@ end
 
 ```bash
 # Run all blog example tests
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle exec rspec spec/blog_examples/
 
 # Run specific post tests

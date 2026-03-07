@@ -48,12 +48,12 @@ COPY proto/ ./proto/
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-worker workers/rust workers/ruby workers/python workers/typescript
+    /tmp/create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts
 COPY crates/tasker-worker/Cargo.toml ./tasker-worker/
-COPY crates/workers/rust/Cargo.toml ./workers/rust/
-COPY crates/workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY crates/workers/python/Cargo.toml ./workers/python/
-COPY crates/workers/typescript/Cargo.toml ./workers/typescript/
+COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Generate dependency recipe
 RUN cargo chef prepare --recipe-path recipe.json
@@ -86,12 +86,12 @@ COPY proto/ ./proto/
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-worker workers/rust workers/ruby workers/python workers/typescript
+    /tmp/create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts
 COPY crates/tasker-worker/Cargo.toml ./tasker-worker/
-COPY crates/workers/rust/Cargo.toml ./workers/rust/
-COPY crates/workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY crates/workers/python/Cargo.toml ./workers/python/
-COPY crates/workers/typescript/Cargo.toml ./workers/typescript/
+COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Set offline mode for SQLx
 ENV SQLX_OFFLINE=true

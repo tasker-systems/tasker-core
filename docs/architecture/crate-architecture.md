@@ -611,11 +611,11 @@ tasker-ctl docs generate
 
 ## Worker Implementations
 
-### crates/workers/ruby/ext/tasker_core
+### crates/tasker-rb/ext/tasker_core
 
 **Purpose**: Ruby FFI bindings enabling Ruby workers to execute Rust-orchestrated workflows
 
-**Location**: `crates/workers/ruby/ext/tasker_core/`
+**Location**: `crates/tasker-rb/ext/tasker_core/`
 
 **Key Responsibilities**:
 
@@ -632,7 +632,7 @@ tasker-ctl docs generate
 result = TaskerCore::Worker::Bootstrap.start!
 
 # Template registration (automatic)
-# Ruby templates in crates/workers/ruby/app/tasker/tasks/templates/
+# Ruby templates in crates/tasker-rb/app/tasker/tasks/templates/
 
 # Handler execution (automatic via FFI)
 class MyHandler < TaskerCore::StepHandler::Base
@@ -665,11 +665,11 @@ end
 
 ---
 
-### crates/workers/rust
+### crates/tasker-example-rs
 
 **Purpose**: Native Rust worker implementation for maximum performance
 
-**Location**: `crates/workers/rust/`
+**Location**: `crates/tasker-example-rs/`
 
 **Key Responsibilities**:
 
@@ -755,7 +755,7 @@ tasker-worker::event_systems::WorkerEventSystem
   ↓ [Claims step]
 tasker-worker::handlers::execute_handler
   ↓ [FFI or native]
-crates/workers/ruby or crates/workers/rust
+crates/tasker-rb or crates/tasker-example-rs
   ↓ [Returns result]
 tasker-worker::orchestration_result_sender
   ↓ [pgmq_send_with_notify]

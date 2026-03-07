@@ -181,7 +181,7 @@ pub fn init_tracing() {
 **Worker Bootstrap Integration**:
 
 ```rust
-// crates/workers/rust/src/bootstrap.rs — `bootstrap()`
+// crates/tasker-example-rs/src/bootstrap.rs — `bootstrap()`
 
 pub async fn bootstrap() -> Result<(WorkerSystemHandle, RustEventHandler)> {
     info!("📋 Creating native Rust step handler registry...");

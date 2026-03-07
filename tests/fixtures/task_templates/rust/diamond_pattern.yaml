@@ -4,7 +4,7 @@
 # Demonstrates parallel execution followed by convergence using compiled Rust handlers
 #
 # Template: diamond_workflow/diamond_pattern:1.0.0
-# Implementation: Native Rust with tasker-worker-rust
+# Implementation: Native Rust with tasker-example-rs
 # Created: 2025-08-29 (TAS-41 Implementation)
 #
 # Diamond Pattern:
