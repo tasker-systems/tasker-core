@@ -75,7 +75,7 @@ tokio = { version = "1.49", features = ["rt-multi-thread"] }
 # Logging
 tracing = "0.1"
 # UUID generation for event bridge
-uuid = { version = "1.11", features = ["serde", "v4", "v7"] }
+uuid = { version = "1.22", features = ["serde", "v4", "v7"] }
 # Project root detection
 workspace_tools = { version = "0.11.0", features = ["full"] }
 
