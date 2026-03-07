@@ -13,7 +13,9 @@ fn tasker_ctl_bin() -> PathBuf {
 
 /// Path to the codegen test fixture.
 fn fixture_path() -> PathBuf {
-    tasker_shared::testing::workspace_path("tests/fixtures/task_templates/codegen_test_template.yaml")
+    tasker_shared::testing::workspace_path(
+        "tests/fixtures/task_templates/codegen_test_template.yaml",
+    )
 }
 
 /// Run `tasker-ctl generate handler` with given language and optional extra args.

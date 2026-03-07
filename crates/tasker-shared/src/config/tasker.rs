@@ -2740,7 +2740,8 @@ mod tests {
     #[test]
     fn test_deserialize_complete_test_toml() {
         // Test that the actual complete-test.toml file can be deserialized
-        let toml_path = crate::testing::workspace_path("config/tasker/generated/complete-test.toml");
+        let toml_path =
+            crate::testing::workspace_path("config/tasker/generated/complete-test.toml");
 
         if !toml_path.exists() {
             eprintln!("Warning: complete-test.toml not found at {:?}", toml_path);
