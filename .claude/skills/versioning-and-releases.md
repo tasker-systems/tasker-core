@@ -37,12 +37,12 @@ Examples:
 |------|-------|
 | `VERSION` (root) | Central source of truth |
 | `Cargo.toml` (root + all 6 crates) | `version` field |
-| `crates/workers/ruby/lib/tasker_core/version.rb` | `VERSION`, `RUST_CORE_VERSION` |
-| `crates/workers/ruby/ext/tasker_core/Cargo.toml` | `version` |
-| `crates/workers/python/pyproject.toml` | `version` |
-| `crates/workers/python/Cargo.toml` | `version` |
-| `crates/workers/typescript/package.json` | `version` |
-| `crates/workers/typescript/Cargo.toml` | `version` |
+| `crates/tasker-rb/lib/tasker_core/version.rb` | `VERSION`, `RUST_CORE_VERSION` |
+| `crates/tasker-rb/ext/tasker_core/Cargo.toml` | `version` |
+| `crates/tasker-py/pyproject.toml` | `version` |
+| `crates/tasker-py/Cargo.toml` | `version` |
+| `crates/tasker-ts/package.json` | `version` |
+| `crates/tasker-ts/Cargo.toml` | `version` |
 
 ## Release Tooling
 
@@ -87,7 +87,7 @@ FFI-facing core changed (tasker-pgmq, tasker-shared, tasker-worker):
 Server/client core changed (tasker-orchestration, tasker-client, tasker-ctl):
   -> Publish core crates only (no FFI rebuild needed)
 
-Individual binding changed (crates/workers/ruby, crates/workers/python, crates/workers/typescript):
+Individual binding changed (crates/tasker-rb, crates/tasker-py, crates/tasker-ts):
   -> Publish that binding only (increment .P)
 ```
 
@@ -114,7 +114,7 @@ Individual binding changed (crates/workers/ruby, crates/workers/python, crates/w
 
 ### Not Published
 
-- `tasker-worker-rust` (crates/workers/rust) -- example crate
+- `tasker-example-rs` (crates/tasker-example-rs) -- example crate
 - Root `tasker-core` crate -- workspace root
 
 ### Idempotent Publishing

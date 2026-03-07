@@ -10,10 +10,10 @@ Tasker supports step handler execution in multiple languages through FFI (Foreig
 
 | Language | Crate | Build Tool | FFI Framework | Package Manager |
 |----------|-------|------------|---------------|-----------------|
-| **Ruby** | `crates/workers/ruby/ext/tasker_core` | `rake compile` (rb_sys) | magnus | bundle |
-| **Python** | `crates/workers/python` | maturin | pyo3 | uv |
-| **TypeScript** | `crates/workers/typescript` | cargo build + tsup | C ABI (napi-like) | bun |
-| **Rust** | `crates/workers/rust` | cargo build | native | cargo |
+| **Ruby** | `crates/tasker-rb/ext/tasker_core` | `rake compile` (rb_sys) | magnus | bundle |
+| **Python** | `crates/tasker-py` | maturin | pyo3 | uv |
+| **TypeScript** | `crates/tasker-ts` | cargo build + tsup | C ABI (napi-like) | bun |
+| **Rust** | `crates/tasker-example-rs` | cargo build | native | cargo |
 
 ## Cross-Language Consistency Tenet
 
@@ -59,7 +59,7 @@ failure(message, error_type, error_code?, retryable?, metadata?) -> StepResult
 ### Ruby Worker
 
 ```bash
-cd crates/workers/ruby
+cd crates/tasker-rb
 bundle install
 bundle exec rake compile        # Build native extension
 bundle exec rake spec           # Run tests
@@ -69,13 +69,13 @@ DATABASE_URL=postgresql://tasker:tasker@localhost/tasker_rust_test \
 TASKER_ENV=test bundle exec rspec spec/integration/ --format documentation
 
 # Clean rebuild
-cd crates/workers/ruby && rake clean && rake compile
+cd crates/tasker-rb && rake clean && rake compile
 ```
 
 ### Python Worker
 
 ```bash
-cd crates/workers/python
+cd crates/tasker-py
 uv sync                         # Install dependencies
 uv run maturin develop          # Build in dev mode
 uv run pytest                   # Run tests
@@ -84,7 +84,7 @@ uv run pytest                   # Run tests
 ### TypeScript Worker
 
 ```bash
-cd crates/workers/typescript
+cd crates/tasker-ts
 bun install                     # Install dependencies
 cargo build -p tasker-ts --release  # Build Rust cdylib
 bun run build                   # Build TypeScript
@@ -146,7 +146,7 @@ Queue Message -> Worker (Rust core)
 
 ## Adding a New Language Worker
 
-1. Create Rust cdylib crate in `crates/workers/<language>/`
+1. Create Rust cdylib crate in `crates/tasker-<lang>/`
 2. Implement FFI bindings exposing handler dispatch, context, and result types
 3. Create language-native wrapper providing idiomatic API
 4. Ensure `call(context) -> result` pattern matches other languages

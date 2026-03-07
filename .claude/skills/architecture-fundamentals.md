@@ -21,10 +21,10 @@ tasker-ctl           # CLI binary (config generate/validate, dry-run releases)
 tasker-orchestration # Core orchestration logic (actors, services)
 tasker-shared        # Shared types, traits, utilities, state machines
 tasker-worker        # Worker implementation (handler dispatch, FFI)
-crates/workers/python       # Python FFI bindings (maturin/pyo3)
-crates/workers/ruby         # Ruby FFI bindings (magnus)
-crates/workers/rust         # Rust worker implementation
-crates/workers/typescript   # TypeScript FFI bindings (Bun/Node/Deno)
+tasker-py            # Python FFI bindings (maturin/pyo3)
+tasker-rb            # Ruby FFI bindings (magnus)
+tasker-example-rs    # Example Rust worker implementation
+tasker-ts            # TypeScript FFI bindings (Bun/Node/Deno)
 ```
 
 Crate-level documentation in `crates/tasker-orchestration/AGENTS.md` and `crates/tasker-worker/AGENTS.md`.
