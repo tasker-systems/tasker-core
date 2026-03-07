@@ -34,8 +34,8 @@ dotenvy = { workspace = true }
 # Serialization (serde-json feature on napi handles FFI boundary)
 serde_json = { workspace = true }
 # Core tasker libraries
-tasker-shared = { path = "../../tasker-shared" }
-tasker-worker = { path = "../../tasker-worker" }
+tasker-shared = { path = "../tasker-shared" }
+tasker-worker = { path = "../tasker-worker" }
 # Error handling
 thiserror = { workspace = true }
 # Async runtime (needed for FFI blocking)

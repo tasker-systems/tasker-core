@@ -1,8 +1,8 @@
 [package]
-name = "tasker-worker-rust"
+name = "tasker-example-rs"
 version = "0.1.0"
 edition = "2021"
-description = "Native Rust worker demonstration for tasker-worker foundation"
+description = "Example Rust worker with sample step handlers for tasker-worker"
 repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
 keywords = ["async", "execution", "rust", "task", "worker"]
@@ -23,7 +23,7 @@ ignored = [
 ]
 
 [lib]
-name = "tasker_worker_rust"
+name = "tasker_example_rs"
 path = "src/lib.rs"
 
 [[bin]]
@@ -43,10 +43,10 @@ once_cell = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tasker-core = { package = "tasker-core", path = "../../../" }
-tasker-shared = { path = "../../tasker-shared" }
+tasker-core = { package = "tasker-core", path = "../../" }
+tasker-shared = { path = "../tasker-shared" }
 # Core tasker dependencies
-tasker-worker = { path = "../../tasker-worker" }
+tasker-worker = { path = "../tasker-worker" }
 thiserror = { workspace = true }
 # Async runtime and utilities
 tokio = { workspace = true }
@@ -60,7 +60,7 @@ uuid = { workspace = true }
 dotenvy = { workspace = true }
 # Integration testing with database
 sqlx = { workspace = true }
-tasker-orchestration = { path = "../../tasker-orchestration" }
+tasker-orchestration = { path = "../tasker-orchestration" }
 # Testing utilities
 tokio-test = { workspace = true }
 tracing-subscriber = { workspace = true }

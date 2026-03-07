@@ -12,14 +12,14 @@
 #
 # =============================================================================
 
-extend = "../../../tools/cargo-make/base-tasks.toml"
+extend = "../../tools/cargo-make/base-tasks.toml"
 
 [config]
 default_to_workspace = false
 skip_core_tasks = true
 
 [env]
-CRATE_NAME = "tasker-worker-rust"
+CRATE_NAME = "tasker-example-rs"
 
 # =============================================================================
 # Main Tasks
@@ -84,18 +84,18 @@ echo "Running Rust worker coverage..."
 mkdir -p ../../coverage-reports/rust
 
 # Use nextest for test isolation (auth tests set env vars that leak in cargo test)
-cargo llvm-cov nextest --package tasker-worker-rust --all-features \
-  --json --output-path ../../coverage-reports/rust/tasker-worker-rust-raw.json
+cargo llvm-cov nextest --package tasker-example-rs --all-features \
+  --json --output-path ../../coverage-reports/rust/tasker-example-rs-raw.json
 
 # Normalize to standard schema
-uv run --project ../../cargo-make/scripts/coverage python3 \
-  ../../cargo-make/scripts/coverage/normalize-rust.py \
-  ../../coverage-reports/rust/tasker-worker-rust-raw.json \
-  ../../coverage-reports/rust/tasker-worker-rust-coverage.json \
-  --crate tasker-worker-rust
+uv run --project ../../tools/cargo-make/scripts/coverage python3 \
+  ../../tools/cargo-make/scripts/coverage/normalize-rust.py \
+  ../../coverage-reports/rust/tasker-example-rs-raw.json \
+  ../../coverage-reports/rust/tasker-example-rs-coverage.json \
+  --crate tasker-example-rs
 
 echo "Coverage complete"
-echo "  Normalized: ../../coverage-reports/rust/tasker-worker-rust-coverage.json"
+echo "  Normalized: ../../coverage-reports/rust/tasker-example-rs-coverage.json"
 '''
 
 [tasks.test-coverage]
@@ -110,7 +110,7 @@ source ../../.env 2>/dev/null || true
 source .env 2>/dev/null || true
 set +a
 
-cargo llvm-cov nextest --package tasker-worker-rust --all-features --html
+cargo llvm-cov nextest --package tasker-example-rs --all-features --html
 echo "HTML coverage report: target/llvm-cov/html/index.html"
 '''
 
@@ -135,8 +135,8 @@ echo "   Config: ${TASKER_CONFIG_PATH}"
 echo "   Templates: ${TASKER_TEMPLATE_PATH}"
 
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-start.sh rust-worker \
-    cargo run -p tasker-worker-rust
+../../tools/cargo-make/scripts/service-start.sh rust-worker \
+    cargo run -p tasker-example-rs
 '''
 
 [tasks.run-foreground]
@@ -155,7 +155,7 @@ echo "   Port: ${PORT}"
 echo "   Config: ${TASKER_CONFIG_PATH}"
 echo "   Templates: ${TASKER_TEMPLATE_PATH}"
 
-cargo run -p tasker-worker-rust
+cargo run -p tasker-example-rs
 '''
 
 [tasks.run-release]
@@ -175,22 +175,22 @@ echo "   Config: ${TASKER_CONFIG_PATH}"
 echo "   Templates: ${TASKER_TEMPLATE_PATH}"
 
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-start.sh rust-worker \
-    cargo run -p tasker-worker-rust --release
+../../tools/cargo-make/scripts/service-start.sh rust-worker \
+    cargo run -p tasker-example-rs --release
 '''
 
 [tasks.stop]
 description = "Stop Rust worker service"
 script = '''
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-stop.sh rust-worker
+../../tools/cargo-make/scripts/service-stop.sh rust-worker
 '''
 
 [tasks.status]
 description = "Check Rust worker service status"
 script = '''
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-status.sh rust-worker
+../../tools/cargo-make/scripts/service-status.sh rust-worker
 '''
 
 [tasks.logs]

@@ -158,8 +158,8 @@ uv run pytest --cov=python/tasker_core --cov-fail-under=0 \
   --cov-report=json:../../coverage-reports/python/raw-coverage.json
 
 # Normalize to standard schema
-uv run --project ../../cargo-make/scripts/coverage python3 \
-  ../../cargo-make/scripts/coverage/normalize-python.py \
+uv run --project ../../tools/cargo-make/scripts/coverage python3 \
+  ../../tools/cargo-make/scripts/coverage/normalize-python.py \
   ../../coverage-reports/python/raw-coverage.json \
   ../../coverage-reports/python/tasker-py-coverage.json
 
@@ -314,7 +314,7 @@ echo "   Handlers: ${PYTHON_HANDLER_PATH}"
 
 # Start the Python server (use uv run to get dependencies)
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-start.sh python-worker \
+../../tools/cargo-make/scripts/service-start.sh python-worker \
     uv run python bin/server.py
 '''
 
@@ -342,14 +342,14 @@ uv run python bin/server.py
 description = "Stop running Python worker service"
 script = '''
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-stop.sh python-worker
+../../tools/cargo-make/scripts/service-stop.sh python-worker
 '''
 
 [tasks.status]
 description = "Check Python worker service status"
 script = '''
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-status.sh python-worker
+../../tools/cargo-make/scripts/service-status.sh python-worker
 '''
 
 [tasks.logs]

@@ -205,8 +205,8 @@ mkdir -p ../../coverage-reports/ruby
 COVERAGE=true COVERAGE_COLLECT_ONLY=true bundle exec rspec
 
 # Normalize to standard schema
-uv run --project ../../cargo-make/scripts/coverage python3 \
-  ../../cargo-make/scripts/coverage/normalize-ruby.py \
+uv run --project ../../tools/cargo-make/scripts/coverage python3 \
+  ../../tools/cargo-make/scripts/coverage/normalize-ruby.py \
   coverage/.resultset.json \
   ../../coverage-reports/ruby/tasker-rb-coverage.json
 
@@ -325,7 +325,7 @@ echo "   Handlers: ${RUBY_HANDLER_PATH}"
 
 # Start the Ruby server
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-start.sh ruby-worker \
+../../tools/cargo-make/scripts/service-start.sh ruby-worker \
     bundle exec ruby bin/server.rb
 '''
 
@@ -353,14 +353,14 @@ bundle exec ruby bin/server.rb
 description = "Stop running Ruby worker service"
 script = '''
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-stop.sh ruby-worker
+../../tools/cargo-make/scripts/service-stop.sh ruby-worker
 '''
 
 [tasks.status]
 description = "Check Ruby worker service status"
 script = '''
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-status.sh ruby-worker
+../../tools/cargo-make/scripts/service-status.sh ruby-worker
 '''
 
 [tasks.logs]

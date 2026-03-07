@@ -39,9 +39,9 @@ pythonize = "0.27"
 # Serialization for Python type conversion
 serde = { workspace = true }
 serde_json = { workspace = true }
-tasker-shared = { path = "../../tasker-shared" }
+tasker-shared = { path = "../tasker-shared" }
 # Workspace dependencies for worker integration
-tasker-worker = { path = "../../tasker-worker" }
+tasker-worker = { path = "../tasker-worker" }
 thiserror = { workspace = true }
 # Async runtime (needed for FFI blocking)
 tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }

@@ -33,10 +33,10 @@ members = [
   "crates/tasker-shared",
   "crates/tasker-worker",
   "crates/tasker-grammar",  # TAS-321: Action grammar expression engine
-  "crates/workers/python",  # TAS-72: PyO3 Python worker
-  "crates/workers/ruby/ext/tasker_core",
-  "crates/workers/rust",
-  "crates/workers/typescript",  # TAS-100: TypeScript FFI worker (napi-rs)
+  "crates/tasker-py",  # TAS-72: PyO3 Python worker
+  "crates/tasker-rb/ext/tasker_core",
+  "crates/tasker-example-rs",
+  "crates/tasker-ts",  # TAS-100: TypeScript FFI worker (napi-rs)
   # "crates/workers/wasm",      # Future
 ]
 exclude = [

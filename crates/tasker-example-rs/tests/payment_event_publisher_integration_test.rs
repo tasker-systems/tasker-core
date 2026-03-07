@@ -38,9 +38,9 @@ use tasker_shared::types::TaskSequenceStep;
 use tasker_worker::worker::step_event_publisher::StepEventContext;
 use tasker_worker::worker::step_event_publisher_registry::StepEventPublisherRegistry;
 
-use tasker_worker_rust::step_handlers::payment_event_publisher::PaymentEventPublisher;
-use tasker_worker_rust::step_handlers::payment_example::ProcessPaymentHandler;
-use tasker_worker_rust::step_handlers::{RustStepHandler, StepHandlerConfig};
+use tasker_example_rs::step_handlers::payment_event_publisher::PaymentEventPublisher;
+use tasker_example_rs::step_handlers::payment_example::ProcessPaymentHandler;
+use tasker_example_rs::step_handlers::{RustStepHandler, StepHandlerConfig};
 
 /// Helper to create a payment TaskSequenceStep for testing
 fn create_payment_task_sequence_step(

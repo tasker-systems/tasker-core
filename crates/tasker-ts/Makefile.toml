@@ -164,8 +164,8 @@ source scripts/load-env.sh
 bun test --coverage --coverage-reporter=lcov --coverage-dir=../../coverage-reports/typescript
 
 # Normalize to standard schema
-uv run --project ../../cargo-make/scripts/coverage python3 \
-  ../../cargo-make/scripts/coverage/normalize-typescript.py \
+uv run --project ../../tools/cargo-make/scripts/coverage python3 \
+  ../../tools/cargo-make/scripts/coverage/normalize-typescript.py \
   ../../coverage-reports/typescript \
   ../../coverage-reports/typescript/tasker-ts-coverage.json
 
@@ -315,7 +315,7 @@ echo "   FFI Module: ${TASKER_FFI_MODULE_PATH}"
 
 # Start the TypeScript server
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-start.sh typescript-worker \
+../../tools/cargo-make/scripts/service-start.sh typescript-worker \
     bun run bin/server.ts
 '''
 
@@ -341,14 +341,14 @@ bun run bin/server.ts
 description = "Stop running TypeScript worker service"
 script = '''
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-stop.sh typescript-worker
+../../tools/cargo-make/scripts/service-stop.sh typescript-worker
 '''
 
 [tasks.status]
 description = "Check TypeScript worker service status"
 script = '''
 PROJECT_ROOT="$(cd ../.. && pwd)" \
-../../cargo-make/scripts/service-status.sh typescript-worker
+../../tools/cargo-make/scripts/service-status.sh typescript-worker
 '''
 
 [tasks.logs]

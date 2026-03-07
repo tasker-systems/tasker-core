@@ -5,7 +5,7 @@
 //! while achieving significant performance improvements over Ruby equivalents.
 
 use anyhow::Result;
-use tasker_worker_rust::bootstrap::bootstrap;
+use tasker_example_rs::bootstrap::bootstrap;
 use tracing::{info, warn};
 
 #[tokio::main]
