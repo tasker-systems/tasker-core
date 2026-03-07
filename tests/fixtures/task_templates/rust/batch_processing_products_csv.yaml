@@ -37,7 +37,7 @@ steps:
     type: batchable
     dependencies: []
     handler:
-      callable: tasker_worker_rust::step_handlers::batch_processing_products_csv::CsvAnalyzerHandler
+      callable: tasker_example_rs::step_handlers::batch_processing_products_csv::CsvAnalyzerHandler
       initialization:
         batch_size: 200       # Rows per batch
         max_workers: 5        # Maximum parallel workers
@@ -78,7 +78,7 @@ steps:
     dependencies:
       - analyze_csv
     handler:
-      callable: tasker_worker_rust::step_handlers::batch_processing_products_csv::CsvBatchProcessorHandler
+      callable: tasker_example_rs::step_handlers::batch_processing_products_csv::CsvBatchProcessorHandler
       initialization:
         operation: "inventory_analysis"
         # cursor and batch_metadata will be added by orchestration
@@ -116,7 +116,7 @@ steps:
     dependencies:
       - process_csv_batch  # Depends on worker template (orchestration creates dynamic edges)
     handler:
-      callable: tasker_worker_rust::step_handlers::batch_processing_products_csv::CsvResultsAggregatorHandler
+      callable: tasker_example_rs::step_handlers::batch_processing_products_csv::CsvResultsAggregatorHandler
       initialization:
         aggregation_type: "inventory_metrics"
 

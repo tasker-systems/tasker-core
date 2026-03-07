@@ -56,7 +56,7 @@ steps:
   - name: tree_root
     description: "Tree root: Square the input even number"
     handler:
-      callable: tasker_worker_rust::step_handlers::tree_workflow::TreeRootHandler
+      callable: tasker_example_rs::step_handlers::tree_workflow::TreeRootHandler
       initialization:
         operation: square
         step_type: root
@@ -77,7 +77,7 @@ steps:
   - name: tree_branch_left
     description: "Left branch: Square the root result"
     handler:
-      callable: tasker_worker_rust::step_handlers::tree_workflow::TreeBranchLeftHandler
+      callable: tasker_example_rs::step_handlers::tree_workflow::TreeBranchLeftHandler
       initialization:
         operation: square
         step_type: branch
@@ -100,7 +100,7 @@ steps:
   - name: tree_branch_right
     description: "Right branch: Square the root result"
     handler:
-      callable: tasker_worker_rust::step_handlers::tree_workflow::TreeBranchRightHandler
+      callable: tasker_example_rs::step_handlers::tree_workflow::TreeBranchRightHandler
       initialization:
         operation: square
         step_type: branch
@@ -123,7 +123,7 @@ steps:
   - name: tree_leaf_d
     description: "Leaf D: Square the left branch result"
     handler:
-      callable: tasker_worker_rust::step_handlers::tree_workflow::TreeLeafDHandler
+      callable: tasker_example_rs::step_handlers::tree_workflow::TreeLeafDHandler
       initialization:
         operation: square
         step_type: leaf
@@ -144,7 +144,7 @@ steps:
   - name: tree_leaf_e
     description: "Leaf E: Square the left branch result"
     handler:
-      callable: tasker_worker_rust::step_handlers::tree_workflow::TreeLeafEHandler
+      callable: tasker_example_rs::step_handlers::tree_workflow::TreeLeafEHandler
       initialization:
         operation: square
         step_type: leaf
@@ -165,7 +165,7 @@ steps:
   - name: tree_leaf_f
     description: "Leaf F: Square the right branch result"
     handler:
-      callable: tasker_worker_rust::step_handlers::tree_workflow::TreeLeafFHandler
+      callable: tasker_example_rs::step_handlers::tree_workflow::TreeLeafFHandler
       initialization:
         operation: square
         step_type: leaf
@@ -186,7 +186,7 @@ steps:
   - name: tree_leaf_g
     description: "Leaf G: Square the right branch result"
     handler:
-      callable: tasker_worker_rust::step_handlers::tree_workflow::TreeLeafGHandler
+      callable: tasker_example_rs::step_handlers::tree_workflow::TreeLeafGHandler
       initialization:
         operation: square
         step_type: leaf
@@ -207,7 +207,7 @@ steps:
   - name: tree_final_convergence
     description: "Final convergence: Multiply all 4 leaf results and square"
     handler:
-      callable: tasker_worker_rust::step_handlers::tree_workflow::TreeFinalConvergenceHandler
+      callable: tasker_example_rs::step_handlers::tree_workflow::TreeFinalConvergenceHandler
       initialization:
         operation: multiply_all_and_square
         step_type: final_convergence

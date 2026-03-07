@@ -114,7 +114,7 @@ steps:
   - name: validate_order
     description: "Validate customer information, order items, and calculate totals"
     handler:
-      callable: tasker_worker_rust::step_handlers::order_fulfillment::ValidateOrderHandler
+      callable: tasker_example_rs::step_handlers::order_fulfillment::ValidateOrderHandler
       initialization:
         validation_rules:
           customer_validation: strict
@@ -142,7 +142,7 @@ steps:
   - name: reserve_inventory
     description: "Check inventory availability and create reservations"
     handler:
-      callable: tasker_worker_rust::step_handlers::order_fulfillment::ReserveInventoryHandler
+      callable: tasker_example_rs::step_handlers::order_fulfillment::ReserveInventoryHandler
       initialization:
         inventory_rules:
           availability_check: real_time
@@ -169,7 +169,7 @@ steps:
   - name: process_payment
     description: "Process payment using customer payment information"
     handler:
-      callable: tasker_worker_rust::step_handlers::order_fulfillment::ProcessPaymentHandler
+      callable: tasker_example_rs::step_handlers::order_fulfillment::ProcessPaymentHandler
       initialization:
         payment_processing:
           gateway_integration: simulated
@@ -198,7 +198,7 @@ steps:
   - name: ship_order
     description: "Create shipment and schedule delivery"
     handler:
-      callable: tasker_worker_rust::step_handlers::order_fulfillment::ShipOrderHandler
+      callable: tasker_example_rs::step_handlers::order_fulfillment::ShipOrderHandler
       initialization:
         shipping_configuration:
           carrier_integration: simulated
