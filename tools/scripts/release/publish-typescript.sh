@@ -54,7 +54,7 @@ log_info "On duplicate: ${ON_DUPLICATE}"
 # Build
 # ---------------------------------------------------------------------------
 log_section "Building TypeScript package"
-cd "${REPO_ROOT}/crates/workers/typescript"
+cd "${REPO_ROOT}/crates/tasker-ts"
 
 bun install
 bun run build

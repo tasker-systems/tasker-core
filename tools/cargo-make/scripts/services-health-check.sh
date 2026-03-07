@@ -33,10 +33,10 @@ log ""
 # Service definitions: name|default_port|.env path
 services=(
     "Orchestration|8080|"
-    "Rust Worker|8081|crates/workers/rust/.env"
-    "Ruby Worker|8082|crates/workers/ruby/.env"
-    "Python Worker|8083|crates/workers/python/.env"
-    "TypeScript Worker|8085|crates/workers/typescript/.env"
+    "Rust Worker|8081|crates/tasker-example-rs/.env"
+    "Ruby Worker|8082|crates/tasker-rb/.env"
+    "Python Worker|8083|crates/tasker-py/.env"
+    "TypeScript Worker|8085|crates/tasker-ts/.env"
 )
 
 all_healthy=true

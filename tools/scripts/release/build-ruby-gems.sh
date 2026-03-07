@@ -9,7 +9,7 @@
 #
 # Outputs gems to gem-output/ in the current directory.
 #
-# Platform gems are derived from the canonical gemspec (crates/workers/ruby/tasker-rb.gemspec)
+# Platform gems are derived from the canonical gemspec (crates/tasker-rb/tasker-rb.gemspec)
 # with sed patches to: hardcode version, add platform, remove extensions/rb_sys,
 # and simplify the file list to lib/**/* only. This avoids maintaining a separate
 # gemspec that can drift.
@@ -31,7 +31,7 @@ ARTIFACTS_DIR="${2:-}"
 [[ ! -d "$ARTIFACTS_DIR" ]] && die "Artifacts directory not found: $ARTIFACTS_DIR"
 
 GEM_NAME="tasker-rb"
-RUBY_DIR="${REPO_ROOT}/crates/workers/ruby"
+RUBY_DIR="${REPO_ROOT}/crates/tasker-rb"
 OUTPUT_DIR="${REPO_ROOT}/gem-output"
 SOURCE_GEMSPEC="${RUBY_DIR}/${GEM_NAME}.gemspec"
 

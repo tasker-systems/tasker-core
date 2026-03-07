@@ -115,12 +115,12 @@ COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
     /tmp/create-workspace-stubs.sh tasker-orchestration workers/rust
 COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY crates/workers/rust/Cargo.toml ./workers/rust/
+COPY crates/tasker-example-rs/Cargo.toml ./workers/rust/
 
 # Copy all three FFI worker sources
-COPY crates/workers/python/ ./workers/python/
-COPY crates/workers/ruby/ ./workers/ruby/
-COPY crates/workers/typescript/ ./workers/typescript/
+COPY crates/tasker-py/ ./workers/python/
+COPY crates/tasker-rb/ ./workers/ruby/
+COPY crates/tasker-ts/ ./workers/typescript/
 
 # Install Ruby bundle dependencies at image build time
 WORKDIR /app/workers/ruby

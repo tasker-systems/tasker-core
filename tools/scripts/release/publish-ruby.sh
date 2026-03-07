@@ -66,9 +66,9 @@ if [[ -n "$ARTIFACTS_DIR" ]]; then
 else
     # Source gem only (requires Rust toolchain)
     log_section "Building source gem (no pre-built artifacts)"
-    cd "${REPO_ROOT}/crates/workers/ruby"
+    cd "${REPO_ROOT}/crates/tasker-rb"
     gem build "${GEM_NAME}.gemspec"
-    GEM_DIR="${REPO_ROOT}/crates/workers/ruby"
+    GEM_DIR="${REPO_ROOT}/crates/tasker-rb"
 fi
 
 # ---------------------------------------------------------------------------

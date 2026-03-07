@@ -32,7 +32,7 @@ echo "CORE_VERSION=${CORE_VERSION}"
 # ---------------------------------------------------------------------------
 # Ruby version (from version.rb)
 # ---------------------------------------------------------------------------
-RUBY_VERSION_FILE="${REPO_ROOT}/crates/workers/ruby/lib/tasker_core/version.rb"
+RUBY_VERSION_FILE="${REPO_ROOT}/crates/tasker-rb/lib/tasker_core/version.rb"
 if [[ -f "$RUBY_VERSION_FILE" ]]; then
     RUBY_VERSION=$(grep -m1 "VERSION = '" "$RUBY_VERSION_FILE" | sed "s/.*VERSION = '\([^']*\)'.*/\1/")
     echo "RUBY_VERSION=${RUBY_VERSION}"
@@ -44,7 +44,7 @@ fi
 # ---------------------------------------------------------------------------
 # Python version (from pyproject.toml)
 # ---------------------------------------------------------------------------
-PYTHON_PYPROJECT="${REPO_ROOT}/crates/workers/python/pyproject.toml"
+PYTHON_PYPROJECT="${REPO_ROOT}/crates/tasker-py/pyproject.toml"
 if [[ -f "$PYTHON_PYPROJECT" ]]; then
     PYTHON_VERSION=$(grep -m1 '^version = ' "$PYTHON_PYPROJECT" | sed 's/version = "\(.*\)"/\1/')
     echo "PYTHON_VERSION=${PYTHON_VERSION}"
@@ -56,7 +56,7 @@ fi
 # ---------------------------------------------------------------------------
 # TypeScript version (from package.json)
 # ---------------------------------------------------------------------------
-TS_PACKAGE="${REPO_ROOT}/crates/workers/typescript/package.json"
+TS_PACKAGE="${REPO_ROOT}/crates/tasker-ts/package.json"
 if [[ -f "$TS_PACKAGE" ]]; then
     TYPESCRIPT_VERSION=$(grep -m1 '"version"' "$TS_PACKAGE" | sed 's/.*"version": "\([^"]*\)".*/\1/')
     echo "TYPESCRIPT_VERSION=${TYPESCRIPT_VERSION}"

@@ -44,7 +44,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: crates/workers/typescript
+        working-directory: crates/tasker-ts
 
     steps:
       - name: Checkout code
@@ -111,7 +111,7 @@ jobs:
             echo "No artifacts directory found, FFI tests may skip"
           fi
           # napi CLI places .node files in package root — FfiLayer auto-discovers them
-          ls -la crates/workers/typescript/tasker_ts.*.node 2>/dev/null || echo "No FFI module available"
+          ls -la crates/tasker-ts/tasker_ts.*.node 2>/dev/null || echo "No FFI module available"
 
       # ========================================================================
       # Quality Checks and Unit Tests (no FFI required)

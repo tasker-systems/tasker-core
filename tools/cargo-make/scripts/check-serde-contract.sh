@@ -33,14 +33,14 @@ RUST_CONTRACT="crates/tasker-shared/src/messaging/execution_types.rs"
 # If the Rust contract changes, these files likely need updating.
 DEPENDENT_FILES=(
   # TypeScript — builds snake_case objects in buildStepExecutionResult()
-  "crates/workers/typescript/src/subscriber/step-execution-subscriber.ts"
+  "crates/tasker-ts/src/subscriber/step-execution-subscriber.ts"
   # Python — builds snake_case dicts, deserialized via depythonize()
-  "crates/workers/python/python/tasker_core/step_execution_subscriber.py"
+  "crates/tasker-py/python/tasker_core/step_execution_subscriber.py"
   # Ruby — builds snake_case hashes, deserialized via serde_magnus
-  "crates/workers/ruby/lib/tasker_core/subscriber.rb"
+  "crates/tasker-rb/lib/tasker_core/subscriber.rb"
 )
 
-# Find repo root (script may be called from crates/workers/typescript/)
+# Find repo root (script may be called from crates/tasker-ts/)
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [[ -z "$REPO_ROOT" ]]; then
   echo "ERROR: Not in a git repository"

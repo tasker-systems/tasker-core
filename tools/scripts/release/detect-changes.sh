@@ -91,17 +91,17 @@ fi
 
 # Language bindings
 RUBY_CHANGED=false
-if changes_match '^crates/workers/ruby/'; then
+if changes_match '^crates/tasker-rb/'; then
     RUBY_CHANGED=true
 fi
 
 PYTHON_CHANGED=false
-if changes_match '^crates/workers/python/'; then
+if changes_match '^crates/tasker-py/'; then
     PYTHON_CHANGED=true
 fi
 
 TYPESCRIPT_CHANGED=false
-if changes_match '^crates/workers/typescript/'; then
+if changes_match '^crates/tasker-ts/'; then
     TYPESCRIPT_CHANGED=true
 fi
 

@@ -20,7 +20,7 @@
 #   ./tools/cargo-make/scripts/setup-env.sh --mode=test-cluster       # Root .env for cluster test
 #   ./tools/cargo-make/scripts/setup-env.sh --mode=test-cluster-split # Root .env for cluster + split-db
 #   ./tools/cargo-make/scripts/setup-env.sh --mode=claude-web         # Root .env for Claude Code web
-#   ./tools/cargo-make/scripts/setup-env.sh --target=rust-worker      # crates/workers/rust/.env
+#   ./tools/cargo-make/scripts/setup-env.sh --target=rust-worker      # crates/tasker-example-rs/.env
 #   ./tools/cargo-make/scripts/setup-env.sh --target=orchestration    # crates/tasker-orchestration/.env
 
 set -euo pipefail
@@ -81,16 +81,16 @@ determine_output() {
             echo "${PROJECT_ROOT}/crates/tasker-orchestration/.env"
             ;;
         rust-worker)
-            echo "${PROJECT_ROOT}/crates/workers/rust/.env"
+            echo "${PROJECT_ROOT}/crates/tasker-example-rs/.env"
             ;;
         ruby-worker)
-            echo "${PROJECT_ROOT}/crates/workers/ruby/.env"
+            echo "${PROJECT_ROOT}/crates/tasker-rb/.env"
             ;;
         python-worker)
-            echo "${PROJECT_ROOT}/crates/workers/python/.env"
+            echo "${PROJECT_ROOT}/crates/tasker-py/.env"
             ;;
         typescript-worker)
-            echo "${PROJECT_ROOT}/crates/workers/typescript/.env"
+            echo "${PROJECT_ROOT}/crates/tasker-ts/.env"
             ;;
         *)
             echo "Unknown target: $TARGET" >&2

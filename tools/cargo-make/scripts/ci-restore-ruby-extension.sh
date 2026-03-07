@@ -20,7 +20,7 @@ ARTIFACTS_DIR="${ARTIFACTS_DIR:-artifacts/ruby}"
 echo "Restoring Ruby extension from ${ARTIFACTS_DIR}..."
 
 # Create target directory
-mkdir -p crates/workers/ruby/lib/tasker_core
+mkdir -p crates/tasker-rb/lib/tasker_core
 
 if [ -d "${ARTIFACTS_DIR}" ]; then
     restored=false
@@ -28,7 +28,7 @@ if [ -d "${ARTIFACTS_DIR}" ]; then
     # Look for .bundle (macOS) or .so (Linux) files
     for ext in bundle so; do
         if ls "${ARTIFACTS_DIR}"/*.${ext} 2>/dev/null; then
-            cp -f "${ARTIFACTS_DIR}"/*.${ext} crates/workers/ruby/lib/tasker_core/
+            cp -f "${ARTIFACTS_DIR}"/*.${ext} crates/tasker-rb/lib/tasker_core/
             echo "  Restored .${ext} files"
             restored=true
         fi
@@ -36,8 +36,8 @@ if [ -d "${ARTIFACTS_DIR}" ]; then
 
     if [ "$restored" = true ]; then
         echo ""
-        echo "Ruby extension in crates/workers/ruby/lib/tasker_core/:"
-        ls -lh crates/workers/ruby/lib/tasker_core/ 2>/dev/null || true
+        echo "Ruby extension in crates/tasker-rb/lib/tasker_core/:"
+        ls -lh crates/tasker-rb/lib/tasker_core/ 2>/dev/null || true
     else
         echo "  Warning: No extension files found in artifacts"
         echo "  Ruby extension will need to be built from source"

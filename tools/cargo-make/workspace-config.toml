@@ -15,4 +15,4 @@ DATABASE_URL = { value = "postgresql://tasker:tasker@localhost:5432/tasker_rust_
 TASKER_ENV = { value = "test", condition = { env_not_set = ["TASKER_ENV"] } }
 
 # Worker paths for iteration
-WORKER_PATHS = "crates/workers/python,crates/workers/ruby,crates/workers/typescript,crates/workers/rust"
+WORKER_PATHS = "crates/tasker-py,crates/tasker-rb,crates/tasker-ts,crates/tasker-example-rs"

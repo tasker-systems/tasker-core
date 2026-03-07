@@ -7,12 +7,12 @@ WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 echo "📦 Setting up workers..."
 
 echo "  → Python worker..."
-(cd "$WORKSPACE_ROOT/crates/workers/python" && cargo make setup)
+(cd "$WORKSPACE_ROOT/crates/tasker-py" && cargo make setup)
 
 echo "  → Ruby worker..."
-(cd "$WORKSPACE_ROOT/crates/workers/ruby" && cargo make setup)
+(cd "$WORKSPACE_ROOT/crates/tasker-rb" && cargo make setup)
 
 echo "  → TypeScript worker..."
-(cd "$WORKSPACE_ROOT/crates/workers/typescript" && cargo make setup)
+(cd "$WORKSPACE_ROOT/crates/tasker-ts" && cargo make setup)
 
 echo "✓ All workers setup"

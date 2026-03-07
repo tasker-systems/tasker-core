@@ -28,7 +28,7 @@ fi
 log_info "maturin version: $(maturin --version)"
 
 # Build the wheel
-cd "${FFI_REPO_ROOT}/crates/workers/python"
+cd "${FFI_REPO_ROOT}/crates/tasker-py"
 
 BUILD_ARGS=(
     build

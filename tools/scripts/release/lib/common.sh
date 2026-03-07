@@ -173,7 +173,7 @@ update_workspace_dep_versions() {
 
 update_ruby_version() {
     local version="$1"
-    local file="${REPO_ROOT}/crates/workers/ruby/lib/tasker_core/version.rb"
+    local file="${REPO_ROOT}/crates/tasker-rb/lib/tasker_core/version.rb"
 
     if [[ ! -f "$file" ]]; then
         log_warn "Ruby version file not found: $file"
@@ -190,7 +190,7 @@ update_ruby_version() {
 
 update_python_version() {
     local version="$1"
-    local file="${REPO_ROOT}/crates/workers/python/pyproject.toml"
+    local file="${REPO_ROOT}/crates/tasker-py/pyproject.toml"
 
     if [[ ! -f "$file" ]]; then
         log_warn "Python pyproject.toml not found: $file"
@@ -213,7 +213,7 @@ update_python_version() {
 
 update_typescript_version() {
     local version="$1"
-    local file="${REPO_ROOT}/crates/workers/typescript/package.json"
+    local file="${REPO_ROOT}/crates/tasker-ts/package.json"
 
     if [[ ! -f "$file" ]]; then
         log_warn "TypeScript package.json not found: $file"
@@ -239,7 +239,7 @@ update_typescript_version() {
 # The source gem uses explicit crates.io versions instead of workspace deps.
 update_ruby_cargo_dep_pins() {
     local version="$1"
-    local file="${REPO_ROOT}/crates/workers/ruby/ext/tasker_core/Cargo.toml"
+    local file="${REPO_ROOT}/crates/tasker-rb/ext/tasker_core/Cargo.toml"
 
     if [[ ! -f "$file" ]]; then
         log_warn "Ruby ext Cargo.toml not found: $file"

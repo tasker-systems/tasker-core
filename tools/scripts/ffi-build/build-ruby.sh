@@ -34,7 +34,7 @@ fi
 log_info "Ruby version: $(ruby --version)"
 log_info "Bundler version: $(bundle --version)"
 
-cd "${FFI_REPO_ROOT}/crates/workers/ruby"
+cd "${FFI_REPO_ROOT}/crates/tasker-rb"
 
 # Install Ruby dependencies if needed
 if [[ ! -d "vendor/bundle" ]] && [[ ! -f "${BUNDLE_PATH:-/nonexistent}/.bundle/config" ]]; then
@@ -56,7 +56,7 @@ LIB_NAME="tasker_rb.${EXT}"
 DEST_NAME="tasker_rb-${TARGET}.${EXT}"
 
 # rb_sys places the compiled extension in lib/tasker_core/
-SRC_PATH="${FFI_REPO_ROOT}/crates/workers/ruby/lib/tasker_core/${LIB_NAME}"
+SRC_PATH="${FFI_REPO_ROOT}/crates/tasker-rb/lib/tasker_core/${LIB_NAME}"
 
 if [[ ! -f "$SRC_PATH" ]]; then
     # Also check the target directory for release builds

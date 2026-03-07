@@ -181,7 +181,7 @@ def crate_source_prefix(crate_name: str) -> str:
     """
     # Handle worker crates that live under workers/
     worker_crate_map = {
-        "tasker-worker-rust": "workers/rust/src/",
+        "tasker-example-rs": "tasker-example-rs/src/",
     }
     if crate_name in worker_crate_map:
         return worker_crate_map[crate_name]

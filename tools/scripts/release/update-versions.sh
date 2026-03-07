@@ -64,7 +64,7 @@ update_workspace_dep_versions "$CORE_VERSION"
 # ---------------------------------------------------------------------------
 log_section "FFI Rust crates (version tracking)"
 
-for ffi_crate in crates/workers/ruby/ext/tasker_core crates/workers/python crates/workers/typescript; do
+for ffi_crate in crates/tasker-rb/ext/tasker_core crates/tasker-py crates/tasker-ts; do
     update_cargo_version "${ffi_crate}/Cargo.toml" "$CORE_VERSION"
 done
 

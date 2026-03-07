@@ -310,7 +310,7 @@ setup_python() {
 
     # Show Python version that uv will use
     info "uv will manage Python automatically when needed"
-    info "Python versions are installed on-demand in crates/workers/python"
+    info "Python versions are installed on-demand in crates/tasker-py"
 
     success "Python tooling ready"
 }
@@ -357,8 +357,8 @@ setup_workers() {
 
     # Python worker
     info "Setting up Python worker..."
-    if [[ -d "crates/workers/python" ]]; then
-        cd crates/workers/python
+    if [[ -d "crates/tasker-py" ]]; then
+        cd crates/tasker-py
         if command_exists uv; then
             # Recreate venv to ensure it's in the correct location
             if [[ -d ".venv" ]]; then
@@ -376,8 +376,8 @@ setup_workers() {
 
     # Ruby worker
     info "Setting up Ruby worker..."
-    if [[ -d "crates/workers/ruby" ]]; then
-        cd crates/workers/ruby
+    if [[ -d "crates/tasker-rb" ]]; then
+        cd crates/tasker-rb
         if command_exists bundle; then
             bundle install
             success "Ruby worker dependencies installed"
@@ -389,8 +389,8 @@ setup_workers() {
 
     # TypeScript worker
     info "Setting up TypeScript worker..."
-    if [[ -d "crates/workers/typescript" ]]; then
-        cd crates/workers/typescript
+    if [[ -d "crates/tasker-ts" ]]; then
+        cd crates/tasker-ts
         if command_exists bun; then
             bun install
             success "TypeScript worker dependencies installed"

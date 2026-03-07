@@ -37,9 +37,9 @@ RUST_CORE_PROJECTS=(
 )
 
 RUST_WORKER_PROJECTS=(
-    "crates/workers/rust"
-    "crates/workers/ruby/ext/tasker_core"
-    "crates/workers/python"
+    "crates/tasker-example-rs"
+    "crates/tasker-rb/ext/tasker_core"
+    "crates/tasker-py"
 )
 
 # Projects that use SQLX
@@ -49,8 +49,8 @@ SQLX_PROJECTS=(
     "crates/tasker-pgmq"
     "crates/tasker-worker"
     "crates/tasker-orchestration"
-    "crates/workers/rust"
-    "crates/workers/ruby/ext/tasker_core"
+    "crates/tasker-example-rs"
+    "crates/tasker-rb/ext/tasker_core"
     "."
 )
 
@@ -201,8 +201,8 @@ USAGE:
 
 LANGUAGE OPTIONS:
     --rust, -r          Check only Rust code
-    --python, -p        Check only Python code (crates/workers/python)
-    --ruby, -R          Check only Ruby code (crates/workers/ruby)
+    --python, -p        Check only Python code (crates/tasker-py)
+    --ruby, -R          Check only Ruby code (crates/tasker-rb)
     --all, -a           Check all languages (default if no language specified)
 
 OPERATION OPTIONS:
@@ -228,12 +228,12 @@ RUST CHECKS:
     • cargo check       Benchmark compilation (main crate only)
     • sqlx prepare      Query cache preparation (if DATABASE_URL set)
 
-PYTHON CHECKS (crates/workers/python):
+PYTHON CHECKS (crates/tasker-py):
     • ruff check        Fast Python linter (pycodestyle, pyflakes, isort, etc.)
     • ruff format       Code formatting check
     • mypy              Static type checking
 
-RUBY CHECKS (crates/workers/ruby):
+RUBY CHECKS (crates/tasker-rb):
     • rubocop           Ruby linting and style checking
     • cargo clippy      Rust extension linting
     • cargo fmt         Rust extension formatting
@@ -365,7 +365,7 @@ check_rust_clippy() {
             print_substep "Linting ${BLUE}${project}${NC}..."
             # Python worker doesn't use --all-features (no workspace features)
             local cmd="cargo clippy $clippy_args"
-            if [[ "$project" == "crates/workers/python" ]]; then
+            if [[ "$project" == "crates/tasker-py" ]]; then
                 cmd="cargo clippy --all-targets -- -D warnings"
                 if [ "$AUTO_FIX" = true ]; then
                     cmd="cargo clippy --all-targets --fix --allow-dirty --allow-staged -- -D warnings"
@@ -492,7 +492,7 @@ PYTHON_LINT_PASSED=0
 PYTHON_TYPE_PASSED=0
 PYTHON_TEST_PASSED=0
 
-PYTHON_DIR="$PROJECT_ROOT/crates/workers/python"
+PYTHON_DIR="$PROJECT_ROOT/crates/tasker-py"
 
 check_python_available() {
     if [[ ! -d "$PYTHON_DIR" ]]; then
@@ -601,7 +601,7 @@ RUBY_LINT_PASSED=0
 RUBY_RUST_PASSED=0
 RUBY_TEST_PASSED=0
 
-RUBY_DIR="$PROJECT_ROOT/crates/workers/ruby"
+RUBY_DIR="$PROJECT_ROOT/crates/tasker-rb"
 
 check_ruby_available() {
     if [[ ! -d "$RUBY_DIR" ]]; then

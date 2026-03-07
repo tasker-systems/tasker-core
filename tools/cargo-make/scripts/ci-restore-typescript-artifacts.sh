@@ -8,7 +8,7 @@ set -euo pipefail
 # typescript-artifacts artifact produced by build-workers.yml.
 #
 # The napi CLI (`napi build --platform`) places .node files directly in the
-# package root (crates/workers/typescript/). FfiLayer auto-discovers them there.
+# package root (crates/tasker-ts/). FfiLayer auto-discovers them there.
 #
 # Environment variables:
 #   ARTIFACTS_DIR - Directory where artifacts were downloaded (default: artifacts/typescript)
@@ -23,23 +23,23 @@ ARTIFACTS_DIR="${ARTIFACTS_DIR:-artifacts/typescript}"
 echo "Restoring TypeScript artifacts from ${ARTIFACTS_DIR}..."
 
 if [ -d "${ARTIFACTS_DIR}" ]; then
-    # Restore napi-rs .node file to crates/workers/typescript/ (package root)
+    # Restore napi-rs .node file to crates/tasker-ts/ (package root)
     # napi CLI names them: tasker_ts.<platform>.node (e.g., tasker_ts.linux-x64-gnu.node)
-    mkdir -p crates/workers/typescript
+    mkdir -p crates/tasker-ts
 
     NODE_FILES_FOUND=0
     for node_file in "${ARTIFACTS_DIR}"/tasker_ts.*.node; do
         if [ -f "$node_file" ]; then
-            cp -f "$node_file" crates/workers/typescript/
+            cp -f "$node_file" crates/tasker-ts/
             echo "  Restored $(basename "$node_file")"
             NODE_FILES_FOUND=$((NODE_FILES_FOUND + 1))
         fi
     done
 
     # Also check nested structure (artifact may preserve directory structure)
-    for node_file in "${ARTIFACTS_DIR}"/crates/workers/typescript/tasker_ts.*.node; do
+    for node_file in "${ARTIFACTS_DIR}"/crates/tasker-ts/tasker_ts.*.node; do
         if [ -f "$node_file" ]; then
-            cp -f "$node_file" crates/workers/typescript/
+            cp -f "$node_file" crates/tasker-ts/
             echo "  Restored $(basename "$node_file") (nested)"
             NODE_FILES_FOUND=$((NODE_FILES_FOUND + 1))
         fi
@@ -49,18 +49,18 @@ if [ -d "${ARTIFACTS_DIR}" ]; then
         echo "  Warning: No .node files found in artifacts"
     else
         echo ""
-        echo "FFI modules in crates/workers/typescript/:"
-        ls -lh crates/workers/typescript/tasker_ts.*.node 2>/dev/null || true
+        echo "FFI modules in crates/tasker-ts/:"
+        ls -lh crates/tasker-ts/tasker_ts.*.node 2>/dev/null || true
     fi
 
     # Restore TypeScript dist folder
-    mkdir -p crates/workers/typescript/dist
+    mkdir -p crates/tasker-ts/dist
 
     if [ -d "${ARTIFACTS_DIR}/dist" ]; then
-        cp -r "${ARTIFACTS_DIR}/dist/"* crates/workers/typescript/dist/ 2>/dev/null || true
+        cp -r "${ARTIFACTS_DIR}/dist/"* crates/tasker-ts/dist/ 2>/dev/null || true
         echo "  Restored TypeScript dist (flat)"
-    elif [ -d "${ARTIFACTS_DIR}/crates/workers/typescript/dist" ]; then
-        cp -r "${ARTIFACTS_DIR}/crates/workers/typescript/dist/"* crates/workers/typescript/dist/ 2>/dev/null || true
+    elif [ -d "${ARTIFACTS_DIR}/crates/tasker-ts/dist" ]; then
+        cp -r "${ARTIFACTS_DIR}/crates/tasker-ts/dist/"* crates/tasker-ts/dist/ 2>/dev/null || true
         echo "  Restored TypeScript dist (nested)"
     else
         echo "  Note: No dist folder found - will be built fresh"

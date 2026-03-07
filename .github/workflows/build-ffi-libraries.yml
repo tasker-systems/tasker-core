@@ -163,7 +163,7 @@ jobs:
         with:
           ruby-version: '3.4'
           bundler-cache: true
-          working-directory: crates/workers/ruby
+          working-directory: crates/tasker-rb
 
       - name: Setup Bun
         if: matrix.target.method == 'native'

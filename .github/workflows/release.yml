@@ -546,14 +546,14 @@ jobs:
             fi
           }
           try_bundle "ffi-artifacts/typescript/tasker_ts-x86_64-unknown-linux-gnu.node" \
-                     "crates/workers/typescript/tasker_ts.linux-x64-gnu.node" "linux-x64"
+                     "crates/tasker-ts/tasker_ts.linux-x64-gnu.node" "linux-x64"
           try_bundle "ffi-artifacts/typescript/tasker_ts-aarch64-apple-darwin.node" \
-                     "crates/workers/typescript/tasker_ts.darwin-arm64.node" "darwin-arm64"
+                     "crates/tasker-ts/tasker_ts.darwin-arm64.node" "darwin-arm64"
           echo "Bundled ${BUNDLED}/2 native modules"
           if [[ "$BUNDLED" -eq 0 ]]; then
             echo "::warning::No native modules bundled — package will still work with TASKER_FFI_MODULE_PATH"
           else
-            ls -lh crates/workers/typescript/tasker_ts.*.node
+            ls -lh crates/tasker-ts/tasker_ts.*.node
           fi
 
       - name: Publish package

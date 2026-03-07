@@ -49,7 +49,7 @@ LOG_DIR="${PROJECT_ROOT}/.logs"
 # The rust-worker binary links tasker-worker, tasker-shared, tasker-pgmq,
 # and tasker-client as library dependencies, so execution covers their
 # code paths too.
-E2E_CRATES=("tasker-orchestration" "tasker-worker-rust" "tasker-worker" "tasker-shared" "tasker-pgmq" "tasker-client")
+E2E_CRATES=("tasker-orchestration" "tasker-example-rs" "tasker-worker" "tasker-shared" "tasker-pgmq" "tasker-client")
 
 # =============================================================================
 # Backend Selection
@@ -234,9 +234,9 @@ start_services() {
     echo "  Orchestration started (PID: ${ORCH_PID})"
 
     # ---- Rust Worker (port 8081) ----
-    if [ -f "crates/workers/rust/.env" ]; then
+    if [ -f "crates/tasker-example-rs/.env" ]; then
         set -a
-        source "crates/workers/rust/.env"
+        source "crates/tasker-example-rs/.env"
         set +a
     fi
 
@@ -369,7 +369,7 @@ PROFRAW_DIR="${LLVM_COV_TARGET_DIR}"
 # =============================================================================
 echo "Step 3/5: Building instrumented service binaries..."
 cargo build --all-features -p tasker-orchestration --bin tasker-server
-cargo build --all-features -p tasker-worker-rust --bin rust-worker
+cargo build --all-features -p tasker-example-rs --bin rust-worker
 
 ORCH_BIN="${LLVM_COV_TARGET_DIR}/debug/tasker-server"
 WORKER_BIN="${LLVM_COV_TARGET_DIR}/debug/rust-worker"

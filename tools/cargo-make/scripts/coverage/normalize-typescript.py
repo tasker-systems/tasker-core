@@ -40,7 +40,7 @@ def get_git_info() -> tuple[str, str]:
 
 def strip_workspace_prefix(filepath: str) -> str:
     """Strip absolute path prefix, returning a relative path from the worker root."""
-    markers = ["/workers/typescript/", "/tasker-core/workers/typescript/"]
+    markers = ["/tasker-ts/", "/tasker-core/tasker-ts/"]
     for marker in markers:
         idx = filepath.find(marker)
         if idx != -1:

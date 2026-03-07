@@ -13,10 +13,10 @@ CRATES=(
   "crates/tasker-client"
   "crates/tasker-ctl"
   "crates/tasker-pgmq"
-  "crates/workers/ruby/ext/tasker_core"
-  "crates/workers/rust"
-  "crates/workers/python"
-  "crates/workers/typescript"
+  "crates/tasker-rb/ext/tasker_core"
+  "crates/tasker-example-rs"
+  "crates/tasker-py"
+  "crates/tasker-ts"
 )
 
 # Store the workspace root

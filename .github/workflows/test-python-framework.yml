@@ -43,7 +43,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: crates/workers/python
+        working-directory: crates/tasker-py
 
     steps:
       - name: Checkout code
@@ -133,7 +133,7 @@ jobs:
           TASKER_WEB_BIND_ADDRESS: "0.0.0.0:8182"
           TASKER_WORKER_GRPC_BIND_ADDRESS: "0.0.0.0:9182"
           TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
-          PYTHON_HANDLER_PATH: ${{ github.workspace }}/crates/workers/python/tests/handlers
+          PYTHON_HANDLER_PATH: ${{ github.workspace }}/crates/tasker-py/tests/handlers
 
       - name: Stop orchestration server
         if: always()

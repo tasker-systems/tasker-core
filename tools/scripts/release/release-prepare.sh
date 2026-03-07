@@ -194,22 +194,22 @@ log_section "Bumping versions"
 # ---------------------------------------------------------------------------
 log_section "Refreshing lockfiles"
 
-if command -v bundle &>/dev/null && [[ -f "${REPO_ROOT}/crates/workers/ruby/Gemfile.lock" ]]; then
-    (cd "${REPO_ROOT}/crates/workers/ruby" && bundle lock --update)
+if command -v bundle &>/dev/null && [[ -f "${REPO_ROOT}/crates/tasker-rb/Gemfile.lock" ]]; then
+    (cd "${REPO_ROOT}/crates/tasker-rb" && bundle lock --update)
     log_info "Updated Gemfile.lock"
 else
     log_warn "bundle not found or Gemfile.lock missing, skipping Ruby lockfile"
 fi
 
-if command -v uv &>/dev/null && [[ -f "${REPO_ROOT}/crates/workers/python/uv.lock" ]]; then
-    (cd "${REPO_ROOT}/crates/workers/python" && uv lock)
+if command -v uv &>/dev/null && [[ -f "${REPO_ROOT}/crates/tasker-py/uv.lock" ]]; then
+    (cd "${REPO_ROOT}/crates/tasker-py" && uv lock)
     log_info "Updated uv.lock"
 else
     log_warn "uv not found or uv.lock missing, skipping Python lockfile"
 fi
 
-if command -v bun &>/dev/null && [[ -f "${REPO_ROOT}/crates/workers/typescript/bun.lock" ]]; then
-    (cd "${REPO_ROOT}/crates/workers/typescript" && bun install)
+if command -v bun &>/dev/null && [[ -f "${REPO_ROOT}/crates/tasker-ts/bun.lock" ]]; then
+    (cd "${REPO_ROOT}/crates/tasker-ts" && bun install)
     log_info "Updated bun.lock"
 else
     log_warn "bun not found or bun.lock missing, skipping TypeScript lockfile"

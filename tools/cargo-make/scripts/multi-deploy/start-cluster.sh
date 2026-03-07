@@ -60,24 +60,24 @@ case "$SERVICE_TYPE" in
     worker-rust)
         BASE_PORT="${BASE_PORT:-8100}"
         GRPC_BASE_PORT="${TASKER_WORKER_RUST_GRPC_BASE_PORT:-9100}"
-        START_CMD="cargo run --release -p tasker-worker-rust"
+        START_CMD="cargo run --release -p tasker-example-rs"
         RUNTIME_TYPE="cargo"
         ;;
     worker-ruby)
         BASE_PORT="${BASE_PORT:-8200}"
-        WORKER_DIR="${PROJECT_ROOT}/crates/workers/ruby"
+        WORKER_DIR="${PROJECT_ROOT}/crates/tasker-rb"
         START_CMD="bundle exec ruby bin/server.rb"
         RUNTIME_TYPE="bundle"
         ;;
     worker-python)
         BASE_PORT="${BASE_PORT:-8300}"
-        WORKER_DIR="${PROJECT_ROOT}/crates/workers/python"
+        WORKER_DIR="${PROJECT_ROOT}/crates/tasker-py"
         START_CMD="uv run python bin/server.py"
         RUNTIME_TYPE="uv"
         ;;
     worker-ts)
         BASE_PORT="${BASE_PORT:-8400}"
-        WORKER_DIR="${PROJECT_ROOT}/crates/workers/typescript"
+        WORKER_DIR="${PROJECT_ROOT}/crates/tasker-ts"
         START_CMD="bun run bin/server.ts"
         RUNTIME_TYPE="bun"
         ;;

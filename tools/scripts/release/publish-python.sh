@@ -51,7 +51,7 @@ log_info "On duplicate: ${ON_DUPLICATE}"
 # ---------------------------------------------------------------------------
 # Build + Publish
 # ---------------------------------------------------------------------------
-cd "${REPO_ROOT}/crates/workers/python"
+cd "${REPO_ROOT}/crates/tasker-py"
 
 if [[ "$DRY_RUN" == "true" ]]; then
     log_section "Building wheel (dry-run)"
@@ -65,7 +65,7 @@ else
     else
         log_section "Building and publishing wheel"
         # --no-sdist: skip source distribution to avoid maturin README conflict
-        # (workspace root README.md clashes with crates/workers/python/README.md in tarball).
+        # (workspace root README.md clashes with crates/tasker-py/README.md in tarball).
         # --skip-existing: idempotent on re-runs.
         # maturin publish auto-detects the correct manylinux platform tag.
         log_info "Publishing ${PYPI_PACKAGE}==${VERSION} (wheel only)..."

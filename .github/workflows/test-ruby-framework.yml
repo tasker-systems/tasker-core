@@ -43,7 +43,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: crates/workers/ruby
+        working-directory: crates/tasker-rb
 
     steps:
       - name: Checkout code
@@ -57,7 +57,7 @@ jobs:
         with:
           ruby-version: "3.4"
           bundler-cache: true
-          working-directory: crates/workers/ruby
+          working-directory: crates/tasker-rb
 
       - name: Setup Rust (for sqlx-cli)
         uses: dtolnay/rust-toolchain@stable

@@ -8,14 +8,14 @@ echo "🧹 Cleaning workers..."
 
 # Python worker
 echo "  Cleaning Python worker..."
-cd "$WORKSPACE_ROOT/crates/workers/python"
+cd "$WORKSPACE_ROOT/crates/tasker-py"
 rm -rf .venv/ target/ .ruff_cache/ .mypy_cache/ .pytest_cache/ .coverage htmlcov/ *.egg-info/
 rm -f python/tasker_core/*.so python/tasker_core/*.pyd python/tasker_core/*.dylib
 find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
 # Ruby worker
 echo "  Cleaning Ruby worker..."
-cd "$WORKSPACE_ROOT/crates/workers/ruby"
+cd "$WORKSPACE_ROOT/crates/tasker-rb"
 bundle exec rake clean 2>/dev/null || true
 rm -rf tmp/
 rm -f lib/*.bundle lib/*.so lib/*.dylib 2>/dev/null || true
@@ -23,7 +23,7 @@ rm -f lib/*.bundle lib/*.so lib/*.dylib 2>/dev/null || true
 
 # TypeScript worker
 echo "  Cleaning TypeScript worker..."
-cd "$WORKSPACE_ROOT/crates/workers/typescript"
+cd "$WORKSPACE_ROOT/crates/tasker-ts"
 rm -rf dist/
 rm -rf node_modules/
 rm -f *.node

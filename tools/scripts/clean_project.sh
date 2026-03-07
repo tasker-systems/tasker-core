@@ -238,7 +238,7 @@ clean_test_artifacts() {
 clean_ruby() {
     echo -e "${BLUE}━━━ Cleaning Ruby Artifacts ━━━${NC}"
 
-    local ruby_worker_dir="$PROJECT_ROOT/crates/workers/ruby"
+    local ruby_worker_dir="$PROJECT_ROOT/crates/tasker-rb"
 
     if [ ! -d "$ruby_worker_dir" ]; then
         echo -e "${YELLOW}Ruby worker directory not found, skipping${NC}"

@@ -506,19 +506,19 @@ args = ["machete", "--with-metadata"]
 
 [tasks.check-python]
 description = "Run Python worker quality checks"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "check"]
 
 [tasks.test-python]
 description = "Run Python worker tests"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "test"]
 
 [tasks.fix-python]
 description = "Fix Python worker issues"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "fix"]
 
@@ -528,7 +528,7 @@ script = '''
 #!/bin/bash
 set -euo pipefail
 source "tools/cargo-make/scripts/split-db-env.sh"
-cd crates/workers/python && cargo make build
+cd crates/tasker-py && cargo make build
 '''
 
 # =============================================================================
@@ -537,19 +537,19 @@ cd crates/workers/python && cargo make build
 
 [tasks.check-ruby]
 description = "Run Ruby worker quality checks"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "check"]
 
 [tasks.test-ruby]
 description = "Run Ruby worker tests"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "test"]
 
 [tasks.fix-ruby]
 description = "Fix Ruby worker issues"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "fix"]
 
@@ -559,7 +559,7 @@ script = '''
 #!/bin/bash
 set -euo pipefail
 source "tools/cargo-make/scripts/split-db-env.sh"
-cd crates/workers/ruby && cargo make build
+cd crates/tasker-rb && cargo make build
 '''
 
 # =============================================================================
@@ -568,19 +568,19 @@ cd crates/workers/ruby && cargo make build
 
 [tasks.check-typescript]
 description = "Run TypeScript worker quality checks"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "check"]
 
 [tasks.test-typescript]
 description = "Run TypeScript worker tests"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "test"]
 
 [tasks.fix-typescript]
 description = "Fix TypeScript worker issues"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "fix"]
 
@@ -590,12 +590,12 @@ script = '''
 #!/bin/bash
 set -euo pipefail
 source "tools/cargo-make/scripts/split-db-env.sh"
-cd crates/workers/typescript && cargo make build
+cd crates/tasker-ts && cargo make build
 '''
 
 [tasks.test-typescript-ffi]
 description = "Run TypeScript FFI integration tests (all runtimes)"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "test-ffi-all"]
 
@@ -605,19 +605,19 @@ args = ["make", "test-ffi-all"]
 
 [tasks.check-rust-worker]
 description = "Run Rust worker quality checks"
-cwd = "crates/workers/rust"
+cwd = "crates/tasker-example-rs"
 command = "cargo"
 args = ["make", "check"]
 
 [tasks.test-rust-worker]
 description = "Run Rust worker tests"
-cwd = "crates/workers/rust"
+cwd = "crates/tasker-example-rs"
 command = "cargo"
 args = ["make", "test"]
 
 [tasks.build-rust-worker]
 description = "Build Rust worker"
-cwd = "crates/workers/rust"
+cwd = "crates/tasker-example-rs"
 command = "cargo"
 args = ["make", "build"]
 
@@ -627,13 +627,13 @@ args = ["make", "build"]
 
 [tasks.test-python-ffi]
 description = "Run Python FFI integration tests"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "test-ffi"]
 
 [tasks.test-ruby-ffi]
 description = "Run Ruby FFI integration tests"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "test-ffi"]
 
@@ -664,19 +664,19 @@ ${SCRIPTS_DIR}/check-serde-contract.sh --strict
 
 [tasks.test-client-python]
 description = "Run Python client API integration tests"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "test-client"]
 
 [tasks.test-client-ruby]
 description = "Run Ruby client API integration tests"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "test-client"]
 
 [tasks.test-client-typescript]
 description = "Run TypeScript client API integration tests"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "test-client"]
 
@@ -1126,7 +1126,7 @@ echo ""
 
 # Build release first (if not already built)
 echo "=== Building Release ==="
-cargo build --release -p tasker-orchestration -p tasker-worker-rust
+cargo build --release -p tasker-orchestration -p tasker-example-rs
 echo ""
 
 # Start orchestration
@@ -1234,7 +1234,7 @@ fi
 
 [tasks.run-worker-rust]
 description = "Run Rust worker service (port 8081)"
-cwd = "crates/workers/rust"
+cwd = "crates/tasker-example-rs"
 command = "cargo"
 args = ["make", "run"]
 
@@ -1265,18 +1265,18 @@ echo "   Config: ${TASKER_CONFIG_PATH}"
 echo "   Templates: ${TASKER_TEMPLATE_PATH}"
 
 PROJECT_ROOT="$(pwd)" "${SCRIPTS_DIR}/service-start.sh" rust-worker \
-    cargo run --release -p tasker-worker-rust
+    cargo run --release -p tasker-example-rs
 '''
 
 [tasks.stop-worker-rust]
 description = "Stop Rust worker service"
-cwd = "crates/workers/rust"
+cwd = "crates/tasker-example-rs"
 command = "cargo"
 args = ["make", "stop"]
 
 [tasks.status-worker-rust]
 description = "Check Rust worker status"
-cwd = "crates/workers/rust"
+cwd = "crates/tasker-example-rs"
 command = "cargo"
 args = ["make", "status"]
 
@@ -1284,19 +1284,19 @@ args = ["make", "status"]
 
 [tasks.run-worker-ruby]
 description = "Run Ruby worker service (port 8082)"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "run"]
 
 [tasks.stop-worker-ruby]
 description = "Stop Ruby worker service"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "stop"]
 
 [tasks.status-worker-ruby]
 description = "Check Ruby worker status"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "status"]
 
@@ -1304,19 +1304,19 @@ args = ["make", "status"]
 
 [tasks.run-worker-python]
 description = "Run Python worker service (port 8083)"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "run"]
 
 [tasks.stop-worker-python]
 description = "Stop Python worker service"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "stop"]
 
 [tasks.status-worker-python]
 description = "Check Python worker status"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "status"]
 
@@ -1324,19 +1324,19 @@ args = ["make", "status"]
 
 [tasks.run-worker-typescript]
 description = "Run TypeScript worker service (port 8085)"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "run"]
 
 [tasks.stop-worker-typescript]
 description = "Stop TypeScript worker service"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "stop"]
 
 [tasks.status-worker-typescript]
 description = "Check TypeScript worker status"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "status"]
 
@@ -1556,7 +1556,7 @@ echo ""
 # Build orchestration and Rust worker with tokio-console feature
 # Note: tasker-worker is a library crate (embedded by language workers), not standalone
 cargo build --package tasker-orchestration --features tokio-console
-cargo build --package tasker-worker-rust --features tokio-console
+cargo build --package tasker-example-rs --features tokio-console
 
 echo ""
 echo "✅ Build complete. Run services with:"
@@ -1609,7 +1609,7 @@ echo "   Connect with: tokio-console (in another terminal)"
 echo ""
 
 # Build and run the Rust worker with tokio-console feature
-cd crates/workers/rust
+cd crates/tasker-example-rs
 RUSTFLAGS="--cfg tokio_unstable" cargo run --features tokio-console
 '''
 
@@ -1673,7 +1673,7 @@ echo "🔍 Building with profiling profile..."
 echo "   Profile: profiling (release optimizations + debug symbols)"
 echo ""
 
-cargo build --profile profiling -p tasker-orchestration -p tasker-worker-rust
+cargo build --profile profiling -p tasker-orchestration -p tasker-example-rs
 
 echo ""
 echo "✅ Build complete. Binaries at:"
@@ -1693,7 +1693,7 @@ args = ["build", "--profile", "profiling", "-p", "tasker-orchestration"]
 [tasks.build-profiling-worker-rust]
 description = "Build Rust worker with profiling profile"
 command = "cargo"
-args = ["build", "--profile", "profiling", "-p", "tasker-worker-rust"]
+args = ["build", "--profile", "profiling", "-p", "tasker-example-rs"]
 
 [tasks.run-samply-orchestration]
 description = "Run orchestration under samply (foreground, Ctrl-C to profile)"
@@ -2391,7 +2391,7 @@ echo "Core crate coverage complete"
 
 [tasks.coverage-python]
 description = "Run Python worker coverage with normalized JSON output"
-cwd = "crates/workers/python"
+cwd = "crates/tasker-py"
 command = "cargo"
 args = ["make", "coverage"]
 
@@ -2401,7 +2401,7 @@ description = "Shortcut for coverage-python"
 
 [tasks.coverage-ruby]
 description = "Run Ruby worker coverage with normalized JSON output"
-cwd = "crates/workers/ruby"
+cwd = "crates/tasker-rb"
 command = "cargo"
 args = ["make", "coverage"]
 
@@ -2411,7 +2411,7 @@ description = "Shortcut for coverage-ruby"
 
 [tasks.coverage-typescript]
 description = "Run TypeScript worker coverage with normalized JSON output"
-cwd = "crates/workers/typescript"
+cwd = "crates/tasker-ts"
 command = "cargo"
 args = ["make", "coverage"]
 
@@ -2421,7 +2421,7 @@ description = "Shortcut for coverage-typescript"
 
 [tasks.coverage-rust-worker]
 description = "Run coverage for Rust worker crate"
-cwd = "crates/workers/rust"
+cwd = "crates/tasker-example-rs"
 command = "cargo"
 args = ["make", "coverage"]
 
@@ -2487,10 +2487,10 @@ echo "Cleaning coverage artifacts..."
 
 rm -rf coverage-reports/
 rm -f *.profraw *.profdata
-rm -rf crates/workers/ruby/coverage/
-rm -rf crates/workers/python/.coverage
-rm -rf crates/workers/python/htmlcov/
-rm -rf crates/workers/typescript/coverage/
+rm -rf crates/tasker-rb/coverage/
+rm -rf crates/tasker-py/.coverage
+rm -rf crates/tasker-py/htmlcov/
+rm -rf crates/tasker-ts/coverage/
 
 echo "Coverage artifacts cleaned"
 '''
