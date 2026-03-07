@@ -41,7 +41,7 @@ When Ruby calls `complete_step_event()`, the Rust code runs in Ruby's thread con
 
 ## Fire-and-Forget Callback Strategy
 
-**Implementation**: `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs`
+**Implementation**: `crates/tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs`
 
 The post-handler callback (which fires domain events) uses a fire-and-forget pattern:
 

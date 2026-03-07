@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/Services pattern, we need to:
+Before refactoring `crates/tasker-orchestration/src/orchestration/lifecycle/` to Actor/Services pattern, we need to:
 
 1. **Audit Benchmarks**: Review which benchmarks are implemented vs placeholders
 2. **Clean Up**: Remove or complete placeholder benchmarks
@@ -25,7 +25,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 
 #### 1. SQL Function Benchmarks
 
-- **Location**: `tasker-shared/benches/sql_functions.rs`
+- **Location**: `crates/tasker-shared/benches/sql_functions.rs`
 - **Status**: ✅ Complete, Compiles, Well-documented
 - **Coverage**:
   - `get_next_ready_tasks()` (4 batch sizes)
@@ -42,7 +42,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 
 #### 2. Event Propagation Benchmarks
 
-- **Location**: `tasker-shared/benches/event_propagation.rs`
+- **Location**: `crates/tasker-shared/benches/event_propagation.rs`
 - **Status**: ✅ Complete, Compiles
 - **Coverage**: PostgreSQL LISTEN/NOTIFY event propagation
 - **Run Command**:
@@ -53,7 +53,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 
 #### 3. Task Initialization Benchmarks
 
-- **Location**: `tasker-client/benches/task_initialization.rs`
+- **Location**: `crates/tasker-client/benches/task_initialization.rs`
 - **Status**: ✅ Complete, Compiles
 - **Coverage**: API task creation latency
 - **Run Command**:
@@ -84,7 +84,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 
 #### 5. Orchestration Benchmarks
 
-- **Location**: `tasker-orchestration/benches/`
+- **Location**: `crates/tasker-orchestration/benches/`
 - **Files**:
   - `orchestration_benchmarks.rs` - Empty placeholder
   - `step_enqueueing.rs` - Placeholder with documentation
@@ -97,7 +97,7 @@ Before refactoring `tasker-orchestration/src/orchestration/lifecycle/` to Actor/
 
 #### 6. Worker Benchmarks
 
-- **Location**: `tasker-worker/benches/`
+- **Location**: `crates/tasker-worker/benches/`
 - **Files**:
   - `worker_benchmarks.rs` - Empty placeholder
   - `worker_execution.rs` - Placeholder with documentation
@@ -555,8 +555,8 @@ name: Profile Benchmarks
 on:
   pull_request:
     paths:
-      - 'tasker-orchestration/src/orchestration/lifecycle/**'
-      - 'tasker-shared/src/**'
+      - 'crates/tasker-orchestration/src/orchestration/lifecycle/**'
+      - 'crates/tasker-shared/src/**'
 
 jobs:
   profile:

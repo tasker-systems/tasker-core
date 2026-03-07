@@ -157,7 +157,7 @@ jobs:
         with:
           ruby-version: "3.4"
           bundler-cache: true
-          working-directory: workers/ruby
+          working-directory: crates/workers/ruby
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
@@ -171,7 +171,7 @@ jobs:
       - name: Build Ruby FFI extension
         run: |
           echo "🔨 Building Ruby FFI extension..."
-          cd workers/ruby
+          cd crates/workers/ruby
           bundle install
           bundle exec rake compile
         env:
@@ -182,8 +182,8 @@ jobs:
         with:
           name: ruby-extension
           path: |
-            workers/ruby/lib/tasker_core/tasker_rb.bundle
-            workers/ruby/lib/tasker_core/tasker_rb.so
+            crates/workers/ruby/lib/tasker_core/tasker_rb.bundle
+            crates/workers/ruby/lib/tasker_core/tasker_rb.so
           retention-days: 1
           if-no-files-found: warn
 
@@ -238,7 +238,7 @@ jobs:
       - name: Build Python FFI extension
         run: |
           echo "🔨 Building Python FFI extension..."
-          cd workers/python
+          cd crates/workers/python
           uv sync --dev
           uv run maturin develop
         env:
@@ -298,7 +298,7 @@ jobs:
       - name: Build TypeScript worker
         run: |
           echo "🔨 Building TypeScript worker..."
-          cd workers/typescript
+          cd crates/workers/typescript
           cargo make build
         env:
           SQLX_OFFLINE: "true"
@@ -308,8 +308,8 @@ jobs:
         with:
           name: typescript-artifacts
           path: |
-            workers/typescript/dist/
-            workers/typescript/tasker_ts.*.node
+            crates/workers/typescript/dist/
+            crates/workers/typescript/tasker_ts.*.node
           retention-days: 1
           if-no-files-found: warn
 

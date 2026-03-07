@@ -2,7 +2,7 @@
 
 ## When to Use
 
-Use this skill when writing, reviewing, or modifying Ruby code in `workers/ruby/`, including step handlers, FFI bindings, RSpec tests, or the Magnus-based native extension.
+Use this skill when writing, reviewing, or modifying Ruby code in `crates/workers/ruby/`, including step handlers, FFI bindings, RSpec tests, or the Magnus-based native extension.
 
 ## Tooling
 
@@ -16,7 +16,7 @@ Use this skill when writing, reviewing, or modifying Ruby code in `workers/ruby/
 ### Setup
 
 ```bash
-cd workers/ruby
+cd crates/workers/ruby
 cargo make setup          # bundle install
 bundle exec rake compile  # Build native extension
 ```
@@ -200,7 +200,7 @@ TASKER_ENV=test bundle exec rspec spec/integration/ --format documentation
 ### Clean Rebuild
 
 ```bash
-cd workers/ruby && rake clean && rake compile
+cd crates/workers/ruby && rake clean && rake compile
 ```
 
 ## Documentation (YARD)

@@ -119,7 +119,7 @@ services:
       - "${WORKER_PORT:-8081}:8081"
     volumes:
       - ../config/tasker:/app/config/tasker:ro
-      - ../workers/rust/config/tasks:/app/task-templates:ro
+      - ../crates/workers/rust/config/tasks:/app/task-templates:ro
       - worker_logs:/home/tasker/logs
     depends_on:
       postgres:

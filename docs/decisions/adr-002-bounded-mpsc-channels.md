@@ -137,7 +137,7 @@ Migrated MPSC sizing fields from `event_systems.toml` to `mpsc_channels.toml`:
 
 ### Rust Type System
 
-Created comprehensive type system in `tasker-shared/src/config/mpsc_channels.rs`:
+Created comprehensive type system in `crates/tasker-shared/src/config/mpsc_channels.rs`:
 
 ```rust
 pub struct MpscChannelsConfig {
@@ -264,7 +264,7 @@ let (tx, rx) = mpsc::channel(buffer_size);
 ## References
 
 - **Configuration Files**: `config/tasker/base/mpsc_channels.toml`
-- **Rust Module**: `tasker-shared/src/config/mpsc_channels.rs`
+- **Rust Module**: `crates/tasker-shared/src/config/mpsc_channels.rs`
 - **Related ADRs**: Command Pattern, [Actor Pattern](./adr-001-actor-pattern.md)
 
 ## Lessons Learned

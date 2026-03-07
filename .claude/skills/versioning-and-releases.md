@@ -37,19 +37,19 @@ Examples:
 |------|-------|
 | `VERSION` (root) | Central source of truth |
 | `Cargo.toml` (root + all 6 crates) | `version` field |
-| `workers/ruby/lib/tasker_core/version.rb` | `VERSION`, `RUST_CORE_VERSION` |
-| `workers/ruby/ext/tasker_core/Cargo.toml` | `version` |
-| `workers/python/pyproject.toml` | `version` |
-| `workers/python/Cargo.toml` | `version` |
-| `workers/typescript/package.json` | `version` |
-| `workers/typescript/Cargo.toml` | `version` |
+| `crates/workers/ruby/lib/tasker_core/version.rb` | `VERSION`, `RUST_CORE_VERSION` |
+| `crates/workers/ruby/ext/tasker_core/Cargo.toml` | `version` |
+| `crates/workers/python/pyproject.toml` | `version` |
+| `crates/workers/python/Cargo.toml` | `version` |
+| `crates/workers/typescript/package.json` | `version` |
+| `crates/workers/typescript/Cargo.toml` | `version` |
 
 ## Release Tooling
 
 ### Scripts Location
 
 ```
-scripts/release/
+tools/scripts/release/
 ├── release.sh              # Single-command orchestrator
 ├── detect-changes.sh       # Identifies what changed since last release
 ├── calculate-versions.sh   # Determines next version numbers
@@ -62,17 +62,17 @@ scripts/release/
 
 ```bash
 # Show what would happen without modifying files
-./scripts/release/release.sh --dry-run
+./tools/scripts/release/release.sh --dry-run
 
 # Override base reference
-./scripts/release/release.sh --dry-run --from v0.1.0
+./tools/scripts/release/release.sh --dry-run --from v0.1.0
 ```
 
 ### Running a Release
 
 ```bash
 # Apply version changes and create tag
-./scripts/release/release.sh
+./tools/scripts/release/release.sh
 
 # Push tag to trigger CI
 git push origin <tag>
@@ -87,7 +87,7 @@ FFI-facing core changed (tasker-pgmq, tasker-shared, tasker-worker):
 Server/client core changed (tasker-orchestration, tasker-client, tasker-ctl):
   -> Publish core crates only (no FFI rebuild needed)
 
-Individual binding changed (workers/ruby, workers/python, workers/typescript):
+Individual binding changed (crates/workers/ruby, crates/workers/python, crates/workers/typescript):
   -> Publish that binding only (increment .P)
 ```
 
@@ -114,7 +114,7 @@ Individual binding changed (workers/ruby, workers/python, workers/typescript):
 
 ### Not Published
 
-- `tasker-worker-rust` (workers/rust) -- example crate
+- `tasker-worker-rust` (crates/workers/rust) -- example crate
 - Root `tasker-core` crate -- workspace root
 
 ### Idempotent Publishing
@@ -133,4 +133,4 @@ Each publish script checks if the version already exists on the registry before 
 ## References
 
 - Release plan: `docs/plans/ticket-specs/TAS-170/plan.md`
-- Release scripts: `scripts/release/`
+- Release scripts: `tools/scripts/release/`

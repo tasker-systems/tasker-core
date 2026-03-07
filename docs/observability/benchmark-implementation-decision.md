@@ -43,7 +43,7 @@ Which worker do you benchmark? How do you ensure consistent measurement?
 
 ### ✅ What We WILL Measure Directly
 
-#### 1. Event Propagation (`tasker-shared/benches/event_propagation.rs`)
+#### 1. Event Propagation (`crates/tasker-shared/benches/event_propagation.rs`)
 
 **Status**: ✅ **IMPLEMENTED**
 
@@ -157,7 +157,7 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 
 ### 🚧 Benchmarks NOT Implemented (By Design)
 
-#### Worker Processing Cycle (`tasker-worker/benches/worker_execution.rs`)
+#### Worker Processing Cycle (`crates/tasker-worker/benches/worker_execution.rs`)
 
 **Status**: 🚧 Skeleton only (placeholder)
 
@@ -171,7 +171,7 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 
 ---
 
-#### Step Enqueueing (`tasker-orchestration/benches/step_enqueueing.rs`)
+#### Step Enqueueing (`crates/tasker-orchestration/benches/step_enqueueing.rs`)
 
 **Status**: 🚧 Skeleton only (placeholder)
 
@@ -185,7 +185,7 @@ curl "http://localhost:16686/api/traces?service=tasker-worker&tags=correlation_i
 
 ---
 
-#### Handler Overhead (`tasker-worker/benches/handler_overhead.rs`)
+#### Handler Overhead (`crates/tasker-worker/benches/handler_overhead.rs`)
 
 **Status**: 🚧 Skeleton only (placeholder)
 

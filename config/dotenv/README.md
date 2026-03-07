@@ -52,11 +52,11 @@ Layer order ensures later files override earlier ones (e.g., cluster overrides s
 | `setup-env-split` | `.env` | Root env for split DB tests |
 | `setup-env-cluster` | `.env` | Root env for cluster tests (TAS-73) |
 | `setup-env-cluster-split` | `.env` | Root env for cluster + split DB |
-| `setup-env-orchestration` | `tasker-orchestration/.env` | Orchestration service |
-| `setup-env-rust-worker` | `workers/rust/.env` | Rust worker |
-| `setup-env-ruby-worker` | `workers/ruby/.env` | Ruby worker |
-| `setup-env-python-worker` | `workers/python/.env` | Python worker |
-| `setup-env-typescript-worker` | `workers/typescript/.env` | TypeScript worker |
+| `setup-env-orchestration` | `crates/tasker-orchestration/.env` | Orchestration service |
+| `setup-env-rust-worker` | `crates/workers/rust/.env` | Rust worker |
+| `setup-env-ruby-worker` | `crates/workers/ruby/.env` | Ruby worker |
+| `setup-env-python-worker` | `crates/workers/python/.env` | Python worker |
+| `setup-env-typescript-worker` | `crates/workers/typescript/.env` | TypeScript worker |
 | `setup-env-all` | All above | Generate all env files |
 | `setup-env-all-split` | All above | Generate all for split mode |
 | `setup-env-all-cluster` | All above | Generate all for cluster mode |

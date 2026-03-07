@@ -21,7 +21,7 @@ Verify: `cargo make test-rust-unit` passes (serde already ignores the field, so 
 
 ## Commit 2: Add `result_schema` to `StepDefinition`
 
-### File: `tasker-shared/src/models/core/task_template/mod.rs`
+### File: `crates/tasker-shared/src/models/core/task_template/mod.rs`
 
 Add after `batch_config` (line 541):
 ```rust
@@ -36,12 +36,12 @@ pub result_schema: Option<Value>,
 
 ### Update all StepDefinition struct literals — add `result_schema: None`
 
-- `tasker-shared/src/types/base.rs` — test helper constructors
-- `tasker-shared/src/config/orchestration/batch_processing.rs` — 3 construction sites
-- `tasker-shared/src/events/registry.rs`
-- `tasker-shared/src/events/worker_events.rs`
-- `tasker-shared/src/models/core/task_template/mod.rs` — test construction sites
-- `tasker-shared/src/models/core/task_template/event_validator.rs`
+- `crates/tasker-shared/src/types/base.rs` — test helper constructors
+- `crates/tasker-shared/src/config/orchestration/batch_processing.rs` — 3 construction sites
+- `crates/tasker-shared/src/events/registry.rs`
+- `crates/tasker-shared/src/events/worker_events.rs`
+- `crates/tasker-shared/src/models/core/task_template/mod.rs` — test construction sites
+- `crates/tasker-shared/src/models/core/task_template/event_validator.rs`
 
 ### Add serialization tests (same file, test module)
 
@@ -52,7 +52,7 @@ pub result_schema: Option<Value>,
 
 ### Add `result_schema` to API response type
 
-**File:** `tasker-shared/src/types/api/templates.rs`
+**File:** `crates/tasker-shared/src/types/api/templates.rs`
 
 The API-facing `StepDefinition` struct (line 106) is a simplified projection used in template detail responses. Add:
 ```rust
@@ -69,7 +69,7 @@ Verify: `cargo build --all-features && cargo test --features test-messaging --li
 
 ## Commit 3: Create `codegen` module with schema extraction
 
-### New files in `tasker-ctl/src/codegen/`
+### New files in `crates/tasker-ctl/src/codegen/`
 
 **`mod.rs`** — Public API:
 ```rust
@@ -153,15 +153,15 @@ pub struct ValidateOrderResult {
 
 ### Implementation approach: Askama compile-time templates
 
-Use **Askama** (already configured in tasker-ctl via `askama.toml`, templates in `tasker-ctl/templates/`). This is consistent with how `tasker-ctl docs` and `tasker-ctl init` already generate output — compile-time verified, type-safe, no runtime template parsing.
+Use **Askama** (already configured in tasker-ctl via `askama.toml`, templates in `crates/tasker-ctl/templates/`). This is consistent with how `tasker-ctl docs` and `tasker-ctl init` already generate output — compile-time verified, type-safe, no runtime template parsing.
 
-**Template files** (in `tasker-ctl/templates/codegen/`):
+**Template files** (in `crates/tasker-ctl/templates/codegen/`):
 - `python_models.py` — Pydantic BaseModel output
 - `ruby_structs.rb` — Dry::Struct output
 - `typescript_interfaces.ts` — TypeScript interface output
 - `rust_structs.rs` — Rust struct output
 
-**Template structs** (in `tasker-ctl/src/codegen/`):
+**Template structs** (in `crates/tasker-ctl/src/codegen/`):
 Each language module defines a `#[derive(Template)]` struct that receives `&[TypeDef]` and the template name, then renders via `.render()`. The templates use Askama's loops, conditionals, and method calls — same patterns as `config-reference.md` and `annotated-config.toml`.
 
 **Askama escaper config:** Add the language file extensions to `askama.toml` with `Text` escaping (same as TOML — no HTML entity encoding):
@@ -184,9 +184,9 @@ extensions = ["toml", "py", "rb", "ts", "rs"]
 
 ## Commit 5: CLI command + integration
 
-### New file: `tasker-ctl/src/commands/generate.rs`
+### New file: `crates/tasker-ctl/src/commands/generate.rs`
 
-### Modified: `tasker-ctl/src/main.rs`
+### Modified: `crates/tasker-ctl/src/main.rs`
 
 Add new top-level command:
 ```rust
@@ -215,7 +215,7 @@ pub(crate) enum GenerateCommands {
 }
 ```
 
-### Modified: `tasker-ctl/src/commands/mod.rs`
+### Modified: `crates/tasker-ctl/src/commands/mod.rs`
 - Add `pub(crate) mod generate;` and `pub(crate) use generate::handle_generate_command;`
 
 ### Handler flow (`commands/generate.rs`):
@@ -258,32 +258,32 @@ A purpose-built template with `result_schema` on multiple steps, covering:
 ### New files (12):
 | File | Purpose |
 |------|---------|
-| `tasker-ctl/src/codegen/mod.rs` | Module root, `TargetLanguage`, `generate_types()` |
-| `tasker-ctl/src/codegen/schema.rs` | JSON Schema → `TypeDef` extraction |
-| `tasker-ctl/src/codegen/python.rs` | Python Pydantic `#[derive(Template)]` + rendering |
-| `tasker-ctl/src/codegen/ruby.rs` | Ruby Dry::Struct `#[derive(Template)]` + rendering |
-| `tasker-ctl/src/codegen/typescript.rs` | TypeScript interface `#[derive(Template)]` + rendering |
-| `tasker-ctl/src/codegen/rust_gen.rs` | Rust struct `#[derive(Template)]` + rendering |
-| `tasker-ctl/templates/codegen/python_models.py` | Askama template for Python output |
-| `tasker-ctl/templates/codegen/ruby_structs.rb` | Askama template for Ruby output |
-| `tasker-ctl/templates/codegen/typescript_interfaces.ts` | Askama template for TypeScript output |
-| `tasker-ctl/templates/codegen/rust_structs.rs` | Askama template for Rust output |
-| `tasker-ctl/src/commands/generate.rs` | CLI command handler |
+| `crates/tasker-ctl/src/codegen/mod.rs` | Module root, `TargetLanguage`, `generate_types()` |
+| `crates/tasker-ctl/src/codegen/schema.rs` | JSON Schema → `TypeDef` extraction |
+| `crates/tasker-ctl/src/codegen/python.rs` | Python Pydantic `#[derive(Template)]` + rendering |
+| `crates/tasker-ctl/src/codegen/ruby.rs` | Ruby Dry::Struct `#[derive(Template)]` + rendering |
+| `crates/tasker-ctl/src/codegen/typescript.rs` | TypeScript interface `#[derive(Template)]` + rendering |
+| `crates/tasker-ctl/src/codegen/rust_gen.rs` | Rust struct `#[derive(Template)]` + rendering |
+| `crates/tasker-ctl/templates/codegen/python_models.py` | Askama template for Python output |
+| `crates/tasker-ctl/templates/codegen/ruby_structs.rb` | Askama template for Ruby output |
+| `crates/tasker-ctl/templates/codegen/typescript_interfaces.ts` | Askama template for TypeScript output |
+| `crates/tasker-ctl/templates/codegen/rust_structs.rs` | Askama template for Rust output |
+| `crates/tasker-ctl/src/commands/generate.rs` | CLI command handler |
 | `tests/fixtures/task_templates/codegen_test_template.yaml` | Test fixture |
 
 ### Modified files (~13):
 | File | Change |
 |------|--------|
-| `tasker-shared/src/models/core/task_template/mod.rs` | Add `result_schema` field + tests |
-| `tasker-shared/src/types/api/templates.rs` | Add `result_schema` to API `StepDefinition` |
-| `tasker-shared/src/types/base.rs` | Add `result_schema: None` |
-| `tasker-shared/src/config/orchestration/batch_processing.rs` | Add `result_schema: None` (3 sites) |
-| `tasker-shared/src/events/registry.rs` | Add `result_schema: None` |
-| `tasker-shared/src/events/worker_events.rs` | Add `result_schema: None` |
-| `tasker-shared/src/models/core/task_template/event_validator.rs` | Add `result_schema: None` |
-| `tasker-ctl/askama.toml` | Add `py`, `rb`, `ts`, `rs` to Text escaper |
-| `tasker-ctl/src/main.rs` | Add `GenerateCommands` + `Commands::Generate` |
-| `tasker-ctl/src/commands/mod.rs` | Add generate module + re-export |
+| `crates/tasker-shared/src/models/core/task_template/mod.rs` | Add `result_schema` field + tests |
+| `crates/tasker-shared/src/types/api/templates.rs` | Add `result_schema` to API `StepDefinition` |
+| `crates/tasker-shared/src/types/base.rs` | Add `result_schema: None` |
+| `crates/tasker-shared/src/config/orchestration/batch_processing.rs` | Add `result_schema: None` (3 sites) |
+| `crates/tasker-shared/src/events/registry.rs` | Add `result_schema: None` |
+| `crates/tasker-shared/src/events/worker_events.rs` | Add `result_schema: None` |
+| `crates/tasker-shared/src/models/core/task_template/event_validator.rs` | Add `result_schema: None` |
+| `crates/tasker-ctl/askama.toml` | Add `py`, `rb`, `ts`, `rs` to Text escaper |
+| `crates/tasker-ctl/src/main.rs` | Add `GenerateCommands` + `Commands::Generate` |
+| `crates/tasker-ctl/src/commands/mod.rs` | Add generate module + re-export |
 | 51 YAML fixtures | Remove `task_handler` blocks |
 
 ---
@@ -303,7 +303,7 @@ A purpose-built template with `result_schema` on multiple steps, covering:
 
 1. **New top-level `Generate` command** (not under `Template`): The existing `template generate` is plugin-scaffold generation. Schema-driven codegen is a different flow. `tasker-ctl generate types` / `tasker-ctl generate handler` (Phase 2) reads naturally.
 
-2. **Askama compile-time templates** (not Tera, not `write!`/`writeln!`): Consistent with existing tasker-ctl patterns (`docs`, `init`). Compile-time verification catches template errors at build time. Templates live in `tasker-ctl/templates/codegen/` alongside the existing `tasker-ctl/templates/` files. Custom `snake_case`/`pascal_case` Askama filters via `heck`.
+2. **Askama compile-time templates** (not Tera, not `write!`/`writeln!`): Consistent with existing tasker-ctl patterns (`docs`, `init`). Compile-time verification catches template errors at build time. Templates live in `crates/tasker-ctl/templates/codegen/` alongside the existing `crates/tasker-ctl/templates/` files. Custom `snake_case`/`pascal_case` Askama filters via `heck`.
 
 3. **One output file per template**: All step result types for a template go in a single file per language. Keeps imports simple and matches how developers will consume them.
 

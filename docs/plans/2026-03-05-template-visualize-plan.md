@@ -4,7 +4,7 @@
 
 **Goal:** Offline Mermaid diagram + detail table generation from TaskTemplate YAML, exposed via tasker-sdk, tasker-ctl CLI, and tasker-mcp.
 
-**Architecture:** Core visualization logic in `tasker-sdk/src/visualization/` as pure functions. tasker-ctl and tasker-mcp are thin wrappers. No new crate dependencies — just string generation from parsed `TaskTemplate`.
+**Architecture:** Core visualization logic in `crates/tasker-sdk/src/visualization/` as pure functions. tasker-ctl and tasker-mcp are thin wrappers. No new crate dependencies — just string generation from parsed `TaskTemplate`.
 
 **Tech Stack:** Rust, serde_yaml (already in deps), tasker-shared types (`TaskTemplate`, `StepDefinition`, `StepType`, `RetryConfiguration`)
 
@@ -15,12 +15,12 @@
 ### Task 1: SDK visualization module — types and public API
 
 **Files:**
-- Create: `tasker-sdk/src/visualization/mod.rs`
-- Modify: `tasker-sdk/src/lib.rs:21-29`
+- Create: `crates/tasker-sdk/src/visualization/mod.rs`
+- Modify: `crates/tasker-sdk/src/lib.rs:21-29`
 
 **Step 1: Create the module with types and public API stub**
 
-Create `tasker-sdk/src/visualization/mod.rs`:
+Create `crates/tasker-sdk/src/visualization/mod.rs`:
 
 ```rust
 //! Template visualization: Mermaid diagram and detail table generation.
@@ -102,7 +102,7 @@ fn build_markdown(name: &str, mermaid: &str, detail_table: Option<&str>) -> Stri
 
 **Step 2: Register the module in lib.rs**
 
-Modify `tasker-sdk/src/lib.rs`. Add after line 29 (`pub mod template_validator;`):
+Modify `crates/tasker-sdk/src/lib.rs`. Add after line 29 (`pub mod template_validator;`):
 
 ```rust
 pub mod visualization;
@@ -116,7 +116,7 @@ Also add to the doc comment (after the `template_validator` line):
 
 **Step 3: Create stub files for submodules**
 
-Create `tasker-sdk/src/visualization/mermaid.rs`:
+Create `crates/tasker-sdk/src/visualization/mermaid.rs`:
 
 ```rust
 //! Mermaid flowchart generation from TaskTemplate.
@@ -132,7 +132,7 @@ pub(super) fn generate_mermaid(
 }
 ```
 
-Create `tasker-sdk/src/visualization/detail_table.rs`:
+Create `crates/tasker-sdk/src/visualization/detail_table.rs`:
 
 ```rust
 //! Markdown detail table generation from TaskTemplate.
@@ -152,7 +152,7 @@ Expected: compiles (stubs are unused at this point)
 **Step 5: Commit**
 
 ```bash
-git add tasker-sdk/src/visualization/ tasker-sdk/src/lib.rs
+git add crates/tasker-sdk/src/visualization/ crates/tasker-sdk/src/lib.rs
 git commit -m "feat(TAS-316): add visualization module structure with types and public API"
 ```
 
@@ -161,11 +161,11 @@ git commit -m "feat(TAS-316): add visualization module structure with types and 
 ### Task 2: Mermaid graph generation
 
 **Files:**
-- Modify: `tasker-sdk/src/visualization/mermaid.rs`
+- Modify: `crates/tasker-sdk/src/visualization/mermaid.rs`
 
 **Step 1: Write tests for Mermaid generation**
 
-Add to the bottom of `tasker-sdk/src/visualization/mermaid.rs`:
+Add to the bottom of `crates/tasker-sdk/src/visualization/mermaid.rs`:
 
 ```rust
 #[cfg(test)]
@@ -264,7 +264,7 @@ Expected: FAIL (todo! panics)
 
 **Step 3: Implement generate_mermaid**
 
-Replace the stub in `tasker-sdk/src/visualization/mermaid.rs`:
+Replace the stub in `crates/tasker-sdk/src/visualization/mermaid.rs`:
 
 ```rust
 //! Mermaid flowchart generation from TaskTemplate.
@@ -337,7 +337,7 @@ Expected: all 5 tests PASS
 **Step 5: Commit**
 
 ```bash
-git add tasker-sdk/src/visualization/mermaid.rs
+git add crates/tasker-sdk/src/visualization/mermaid.rs
 git commit -m "feat(TAS-316): implement Mermaid graph generation with node styling and annotations"
 ```
 
@@ -346,11 +346,11 @@ git commit -m "feat(TAS-316): implement Mermaid graph generation with node styli
 ### Task 3: Detail table generation
 
 **Files:**
-- Modify: `tasker-sdk/src/visualization/detail_table.rs`
+- Modify: `crates/tasker-sdk/src/visualization/detail_table.rs`
 
 **Step 1: Write tests for detail table**
 
-Add to `tasker-sdk/src/visualization/detail_table.rs`:
+Add to `crates/tasker-sdk/src/visualization/detail_table.rs`:
 
 ```rust
 #[cfg(test)]
@@ -442,7 +442,7 @@ Expected: FAIL (todo! panics)
 
 **Step 3: Implement generate_detail_table**
 
-Replace the stub in `tasker-sdk/src/visualization/detail_table.rs`:
+Replace the stub in `crates/tasker-sdk/src/visualization/detail_table.rs`:
 
 ```rust
 //! Markdown detail table generation from TaskTemplate.
@@ -571,7 +571,7 @@ Expected: all 5 tests PASS
 **Step 5: Commit**
 
 ```bash
-git add tasker-sdk/src/visualization/detail_table.rs
+git add crates/tasker-sdk/src/visualization/detail_table.rs
 git commit -m "feat(TAS-316): implement detail table generation with topological ordering"
 ```
 
@@ -580,11 +580,11 @@ git commit -m "feat(TAS-316): implement detail table generation with topological
 ### Task 4: Integration tests for the public API (visualize_template)
 
 **Files:**
-- Modify: `tasker-sdk/src/visualization/mod.rs` (add tests)
+- Modify: `crates/tasker-sdk/src/visualization/mod.rs` (add tests)
 
 **Step 1: Write integration tests for visualize_template**
 
-Add to the bottom of `tasker-sdk/src/visualization/mod.rs`:
+Add to the bottom of `crates/tasker-sdk/src/visualization/mod.rs`:
 
 ```rust
 #[cfg(test)]
@@ -665,7 +665,7 @@ Expected: all tests PASS (15 total across mermaid, detail_table, and mod)
 **Step 3: Commit**
 
 ```bash
-git add tasker-sdk/src/visualization/mod.rs
+git add crates/tasker-sdk/src/visualization/mod.rs
 git commit -m "test(TAS-316): add integration tests for visualize_template public API"
 ```
 
@@ -674,12 +674,12 @@ git commit -m "test(TAS-316): add integration tests for visualize_template publi
 ### Task 5: tasker-ctl template visualize command
 
 **Files:**
-- Modify: `tasker-ctl/src/main.rs:634-704` (add Visualize variant)
-- Modify: `tasker-ctl/src/commands/template.rs` (add handler)
+- Modify: `crates/tasker-ctl/src/main.rs:634-704` (add Visualize variant)
+- Modify: `crates/tasker-ctl/src/commands/template.rs` (add handler)
 
 **Step 1: Add Visualize variant to TemplateCommands**
 
-In `tasker-ctl/src/main.rs`, add after the `Generate` variant (after line 703, before the closing `}`):
+In `crates/tasker-ctl/src/main.rs`, add after the `Generate` variant (after line 703, before the closing `}`):
 
 ```rust
     /// Generate a Mermaid diagram visualization of a task template's DAG structure
@@ -704,7 +704,7 @@ In `tasker-ctl/src/main.rs`, add after the `Generate` variant (after line 703, b
 
 **Step 2: Add handler in template.rs**
 
-In `tasker-ctl/src/commands/template.rs`, add the match arm in `handle_template_command` (after the `Generate` arm, before the closing `}`):
+In `crates/tasker-ctl/src/commands/template.rs`, add the match arm in `handle_template_command` (after the `Generate` arm, before the closing `}`):
 
 ```rust
         TemplateCommands::Visualize {
@@ -819,7 +819,7 @@ Expected: Same output as file input
 **Step 5: Commit**
 
 ```bash
-git add tasker-ctl/src/main.rs tasker-ctl/src/commands/template.rs
+git add crates/tasker-ctl/src/main.rs crates/tasker-ctl/src/commands/template.rs
 git commit -m "feat(TAS-316): add 'template visualize' CLI command with stdin, annotations, and graph-only support"
 ```
 
@@ -828,13 +828,13 @@ git commit -m "feat(TAS-316): add 'template visualize' CLI command with stdin, a
 ### Task 6: MCP template_visualize tool
 
 **Files:**
-- Modify: `tasker-mcp/src/tools/params.rs` (add param/response types)
-- Modify: `tasker-mcp/src/tools/developer.rs` (add tool function)
-- Modify: `tasker-mcp/src/server.rs` (register tool)
+- Modify: `crates/tasker-mcp/src/tools/params.rs` (add param/response types)
+- Modify: `crates/tasker-mcp/src/tools/developer.rs` (add tool function)
+- Modify: `crates/tasker-mcp/src/server.rs` (register tool)
 
 **Step 1: Add param and response types to params.rs**
 
-Add after the `TemplateValidateParams` section (after line 15) in `tasker-mcp/src/tools/params.rs`:
+Add after the `TemplateValidateParams` section (after line 15) in `crates/tasker-mcp/src/tools/params.rs`:
 
 ```rust
 // ── template_visualize ──
@@ -864,7 +864,7 @@ use std::collections::HashMap;
 
 **Step 2: Add tool function to developer.rs**
 
-Add after the `template_validate` function (after line 31) in `tasker-mcp/src/tools/developer.rs`:
+Add after the `template_validate` function (after line 31) in `crates/tasker-mcp/src/tools/developer.rs`:
 
 ```rust
 pub fn template_visualize(params: TemplateVisualizeParams) -> String {
@@ -891,7 +891,7 @@ TemplateVisualizeParams,
 
 **Step 3: Register tool in server.rs**
 
-Add after the `template_validate` tool registration (after line 309) in `tasker-mcp/src/server.rs`:
+Add after the `template_validate` tool registration (after line 309) in `crates/tasker-mcp/src/server.rs`:
 
 ```rust
     /// Generate a Mermaid flowchart diagram from a task template, showing the step
@@ -977,7 +977,7 @@ Expected: no errors, no warnings
 **Step 7: Commit**
 
 ```bash
-git add tasker-mcp/src/tools/params.rs tasker-mcp/src/tools/developer.rs tasker-mcp/src/server.rs
+git add crates/tasker-mcp/src/tools/params.rs crates/tasker-mcp/src/tools/developer.rs crates/tasker-mcp/src/server.rs
 git commit -m "feat(TAS-316): add template_visualize MCP Tier 1 tool"
 ```
 

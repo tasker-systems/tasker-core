@@ -51,7 +51,7 @@ This is one of the strongest alignments. All runtime configuration flows through
 - `config/tasker/base/*.toml` — role-based defaults with `${ENV_VAR:-default}` interpolation
 - `config/tasker/environments/{test,development,production}/` — environment overrides
 - `docker/.env.prod.template` — production variable template
-- `tasker-shared/src/config/` — config loading with environment variable resolution
+- `crates/tasker-shared/src/config/` — config loading with environment variable resolution
 - No secrets in source: `DATABASE_URL`, `POSTGRES_PASSWORD`, JWT keys all via environment
 
 **For contributors:** Never hard-code connection strings, credentials, or deployment-specific values. Use environment variables with sensible defaults in the TOML layer. The configuration structure is role-based (orchestration/worker/common), not component-based — see `CLAUDE.md` for details.
@@ -151,7 +151,7 @@ This factor gets significant attention due to the distributed nature of task orc
 
 **Where this lives:**
 
-- **Graceful shutdown**: Signal handlers (SIGTERM, SIGINT) in `tasker-orchestration/src/bin/server.rs` and `tasker-worker/src/bin/` — actors drain in-flight work, OpenTelemetry flushes spans, connections close cleanly
+- **Graceful shutdown**: Signal handlers (SIGTERM, SIGINT) in `crates/tasker-orchestration/src/bin/server.rs` and `crates/tasker-worker/src/bin/` — actors drain in-flight work, OpenTelemetry flushes spans, connections close cleanly
 - **Fast startup**: Compiled binary, pooled database connections, environment-driven config (no service discovery delays)
 - **Crash recovery**: PGMQ visibility timeouts requeue unacknowledged messages; steps claimed by a crashed worker reappear for others after `visibility_timeout_seconds`
 - **Entrypoint**: `docker/scripts/orchestration-entrypoint.sh` uses `exec` to replace shell with app process (proper PID 1 signal handling)
@@ -187,7 +187,7 @@ All logging goes to stdout/stderr. No file-based logging is built into the appli
 
 **Where this lives:**
 
-- `tasker-shared/src/logging.rs` — tracing subscriber writes to stdout, JSON format in production, ANSI colors in development (TTY-detected)
+- `crates/tasker-shared/src/logging.rs` — tracing subscriber writes to stdout, JSON format in production, ANSI colors in development (TTY-detected)
 - OpenTelemetry integration exports structured traces via `OTEL_EXPORTER_OTLP_ENDPOINT`
 - Correlation IDs (`correlation_id`) propagate through tasks, steps, actors, and message queues for distributed tracing
 - `docker-compose.dev.yml` includes Loki for log aggregation and Grafana for visualization
@@ -205,7 +205,7 @@ The CLI and deployment scripts serve this role.
 
 **Where this lives:**
 
-- `tasker-ctl/` — task management (`create`, `list`, `cancel`), DLQ investigation (`dlq list`, `dlq recover`), system health, auth token management
+- `crates/tasker-ctl/` — task management (`create`, `list`, `cancel`), DLQ investigation (`dlq list`, `dlq recover`), system health, auth token management
 - `docker/scripts/orchestration-entrypoint.sh` — `DEPLOYMENT_MODE=migrate-only` runs migrations and exits without starting the server
 - `config-validator` binary validates TOML configuration as a one-off check
 - Database migrations run as a distinct phase before application startup, with retry logic and timeout protection

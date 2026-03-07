@@ -20,9 +20,9 @@ The main orchestrator implementing a multi-stage DAG with maximum parallelism.
           code-quality       build-workers        (parallel)
           ┌─────────┐       ┌───────────────────┐
           │ fmt     │       │ 1. core packages  │
-          │ clippy  │       │ 2. workers/rust   │
-          │ audit   │       │ 3. workers/ruby   │
-          │ doc     │       │ 4. workers/python │
+          │ clippy  │       │ 2. crates/workers/rust   │
+          │ audit   │       │ 3. crates/workers/ruby   │
+          │ doc     │       │ 4. crates/workers/python │
           └─────────┘       │ 5. workers/ts     │
                             │ (warms sccache)   │
                             └────────┬──────────┘
@@ -67,10 +67,10 @@ The main orchestrator implementing a multi-stage DAG with maximum parallelism.
 - tasker-client
 
 **Worker Packages** (compiled in build-workers):
-- workers/rust
-- workers/ruby (FFI extension via magnus)
-- workers/python (FFI extension via maturin/pyo3)
-- workers/typescript (TypeScript package via Bun/tsup)
+- crates/workers/rust
+- crates/workers/ruby (FFI extension via magnus)
+- crates/workers/python (FFI extension via maturin/pyo3)
+- crates/workers/typescript (TypeScript package via Bun/tsup)
 
 ---
 
@@ -129,9 +129,9 @@ cargo test --doc \
 **Purpose**: Compile FFI extensions for Ruby and Python workers
 
 **Builds**:
-- `workers/rust` - Rust worker binary
-- `workers/ruby` - Ruby FFI extension (magnus)
-- `workers/python` - Python FFI extension (maturin/pyo3)
+- `crates/workers/rust` - Rust worker binary
+- `crates/workers/ruby` - Ruby FFI extension (magnus)
+- `crates/workers/python` - Python FFI extension (maturin/pyo3)
 
 **Key Features**:
 - **Separate workflow**: Runs as its own workflow, not a job within test-integration
@@ -223,9 +223,9 @@ cargo test --doc --all-features \
 **Purpose**: Ruby-specific framework testing with PostgreSQL service
 
 **Runs**:
-- FFI layer tests (`workers/ruby/spec/ffi/`)
-- Type wrapper tests (`workers/ruby/spec/types/`)
-- Worker core tests (`workers/ruby/spec/worker/`)
+- FFI layer tests (`crates/workers/ruby/spec/ffi/`)
+- Type wrapper tests (`crates/workers/ruby/spec/types/`)
+- Worker core tests (`crates/workers/ruby/spec/worker/`)
 
 **Requirements**:
 - Ruby 3.4
@@ -254,11 +254,11 @@ cargo test --doc --all-features \
 **Purpose**: TypeScript-specific framework testing with multi-runtime FFI integration
 
 **Runs**:
-- Unit tests (`workers/typescript/tests/unit/`)
+- Unit tests (`crates/workers/typescript/tests/unit/`)
   - FFI type tests (`tests/unit/ffi/`)
   - Event system tests (`tests/unit/events/`)
   - Runtime detection tests
-- FFI integration tests (`workers/typescript/tests/integration/ffi/`)
+- FFI integration tests (`crates/workers/typescript/tests/integration/ffi/`)
   - Bun FFI tests (required)
   - Node.js FFI tests (optional - requires ffi-napi)
   - Deno FFI tests (optional)
@@ -358,13 +358,13 @@ tests/e2e/
 
 ### Framework Tests (Language-Specific)
 
-**Ruby Location**: `workers/ruby/spec/`
+**Ruby Location**: `crates/workers/ruby/spec/`
 
 **Purpose**: Test Ruby-specific framework concerns
 
 **Structure**:
 ```
-workers/ruby/spec/
+crates/workers/ruby/spec/
 ├── ffi/           # FFI bootstrap and calls
 ├── types/         # Type wrappers
 ├── worker/        # Worker core logic
@@ -376,13 +376,13 @@ workers/ruby/spec/
 
 ---
 
-**TypeScript Location**: `workers/typescript/tests/`
+**TypeScript Location**: `crates/workers/typescript/tests/`
 
 **Purpose**: Test TypeScript-specific framework concerns
 
 **Structure**:
 ```
-workers/typescript/tests/
+crates/workers/typescript/tests/
 ├── unit/
 │   ├── ffi/       # FFI types and runtime detection
 │   │   ├── types.test.ts
@@ -488,7 +488,7 @@ docker compose -f docker/docker-compose.test.yml up -d postgres
 # Wait for PostgreSQL to be ready
 until pg_isready -h localhost -p 5432 -U tasker; do sleep 1; done
 
-cd workers/ruby
+cd crates/workers/ruby
 bundle install
 
 # Compile with database connection for sqlx query validation
@@ -505,7 +505,7 @@ docker compose -f docker/docker-compose.test.yml down
 ### TypeScript Framework Tests
 
 ```bash
-cd workers/typescript
+cd crates/workers/typescript
 
 # Install dependencies
 bun install
@@ -529,7 +529,7 @@ bun run build
 # Requires FFI library to be built first
 cargo build -p tasker-ts --release
 
-cd workers/typescript
+cd crates/workers/typescript
 
 # Run all FFI tests with cargo-make (recommended)
 cargo make test-ffi-all
@@ -591,14 +591,14 @@ async fn test_my_scenario() -> anyhow::Result<()> {
 
 ### Adding Ruby Framework Test
 
-1. Create test file in `workers/ruby/spec/{ffi,types,worker}/`
+1. Create test file in `crates/workers/ruby/spec/{ffi,types,worker}/`
 2. No Docker dependencies
 3. Test runs automatically via `bundle exec rspec spec/`
 4. No CI changes needed
 
 ### Adding TypeScript Framework Test
 
-1. Create test file in `workers/typescript/tests/unit/{ffi,events}/`
+1. Create test file in `crates/workers/typescript/tests/unit/{ffi,events}/`
 2. Use `describe` / `it` / `expect` from `bun:test`
 3. Test runs automatically via `bun test`
 4. No CI changes needed
@@ -658,7 +658,7 @@ describe('MyFeature', () => {
 1. **Check test output**: Download `ruby-framework-test-results` artifact
 2. **Reproduce locally**:
    ```bash
-   cd workers/ruby
+   cd crates/workers/ruby
    bundle exec rake compile
    bundle exec rspec spec/ --exclude-pattern spec/integration/**/*_spec.rb --format documentation
    ```
@@ -668,7 +668,7 @@ describe('MyFeature', () => {
 1. **Check test output**: Download `typescript-framework-test-results` artifact
 2. **Reproduce locally**:
    ```bash
-   cd workers/typescript
+   cd crates/workers/typescript
    bun install
    bun test
    ```
@@ -818,7 +818,7 @@ If needed, create:
 
 - [TAS-42 Specification](../../docs/plans/ticket-specs/TAS-42/TAS-42-ci-and-e2e.md)
 - [E2E Testing Guide](../../docs/testing-e2e.md) (TODO)
-- [Ruby Framework Testing](../../workers/ruby/docs/framework-testing.md) (TODO)
+- [Ruby Framework Testing](../../crates/workers/ruby/docs/framework-testing.md) (TODO)
 
 ---
 

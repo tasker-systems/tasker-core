@@ -182,7 +182,7 @@ services:
       # Mount test fixtures for CSV and other data files
       - ../tests/fixtures:/app/tests/fixtures:ro
       # Mount handler source code for discovery (must match Dockerfile structure)
-      - ../workers/ruby/spec/handlers:/app/ruby_worker/spec/handlers:ro
+      - ../crates/workers/ruby/spec/handlers:/app/ruby_worker/spec/handlers:ro
     depends_on:
       postgres:
         condition: service_healthy

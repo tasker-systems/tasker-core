@@ -24,15 +24,15 @@ Build offline, deterministic visualization of TaskTemplate YAML as Mermaid diagr
 ### Module Structure
 
 ```
-tasker-sdk/src/visualization/
+crates/tasker-sdk/src/visualization/
   mod.rs              — Public API: visualize_template()
   mermaid.rs          — Mermaid graph generation
   detail_table.rs     — Markdown detail table generation
 ```
 
 Integration points (thin wrappers):
-- `tasker-ctl/src/commands/template.rs` — `Visualize` variant in `TemplateCommands`
-- `tasker-mcp/src/tools/developer.rs` — `template_visualize()` Tier 1 tool
+- `crates/tasker-ctl/src/commands/template.rs` — `Visualize` variant in `TemplateCommands`
+- `crates/tasker-mcp/src/tools/developer.rs` — `template_visualize()` Tier 1 tool
 
 ### Data Flow
 
@@ -140,7 +140,7 @@ pub fn template_visualize(params: TemplateVisualizeParams) -> String
 
 ## Deliverables
 
-1. `tasker-sdk/src/visualization/` module (mermaid.rs, detail_table.rs)
+1. `crates/tasker-sdk/src/visualization/` module (mermaid.rs, detail_table.rs)
 2. `tasker-ctl template visualize` command with stdin/file/output/graph-only support
 3. `tasker-mcp` Tier 1 `template_visualize` tool
 4. Unit tests against existing fixtures

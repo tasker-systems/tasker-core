@@ -244,7 +244,7 @@ jobs:
         with:
           ruby-version: "3.4"
           bundler-cache: true
-          working-directory: workers/ruby
+          working-directory: crates/workers/ruby
 
       - name: Set up Python
         if: inputs.build-python
@@ -313,12 +313,12 @@ jobs:
         continue-on-error: true
 
       - name: Restore artifacts to correct locations
-        run: ARTIFACTS_BASE=artifacts cargo-make/scripts/ci-restore-all-artifacts.sh
+        run: ARTIFACTS_BASE=artifacts tools/cargo-make/scripts/ci-restore-all-artifacts.sh
 
       - name: Build Ruby FFI extension (if not from artifacts)
         if: inputs.build-ruby
         run: |
-          cd workers/ruby
+          cd crates/workers/ruby
           if ls lib/tasker_core/*.so 2>/dev/null || ls lib/tasker_core/*.bundle 2>/dev/null; then
             echo "✅ Ruby extension already available from artifacts"
             ls -lh lib/tasker_core/
@@ -334,7 +334,7 @@ jobs:
         if: inputs.build-python
         run: |
           echo "🔨 Building Python FFI extension (uses warm cache)..."
-          cd workers/python
+          cd crates/workers/python
           uv sync --dev
           uv run maturin develop
         env:
@@ -355,7 +355,7 @@ jobs:
         if: inputs.build-typescript
         run: |
           echo "📜 Setting up TypeScript worker..."
-          cd workers/typescript
+          cd crates/workers/typescript
           bun install --frozen-lockfile
           # Build napi-rs .node file if not already present
           if ls tasker_ts.*.node 1>/dev/null 2>&1; then

@@ -43,7 +43,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: workers/python
+        working-directory: crates/workers/python
 
     steps:
       - name: Checkout code
@@ -113,7 +113,7 @@ jobs:
 
       - name: Start orchestration server
         working-directory: .
-        run: cargo-make/scripts/ci-start-orchestration-server.sh
+        run: tools/cargo-make/scripts/ci-start-orchestration-server.sh
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           REDIS_URL: redis://localhost:6379
@@ -133,12 +133,12 @@ jobs:
           TASKER_WEB_BIND_ADDRESS: "0.0.0.0:8182"
           TASKER_WORKER_GRPC_BIND_ADDRESS: "0.0.0.0:9182"
           TASKER_TEMPLATE_PATH: ${{ github.workspace }}/tests/fixtures/task_templates
-          PYTHON_HANDLER_PATH: ${{ github.workspace }}/workers/python/tests/handlers
+          PYTHON_HANDLER_PATH: ${{ github.workspace }}/crates/workers/python/tests/handlers
 
       - name: Stop orchestration server
         if: always()
         working-directory: .
-        run: cargo-make/scripts/ci-stop-orchestration-server.sh
+        run: tools/cargo-make/scripts/ci-stop-orchestration-server.sh
 
       # ========================================================================
       # Results
@@ -156,4 +156,4 @@ jobs:
       - name: Display test summary
         if: always()
         working-directory: .
-        run: cargo-make/scripts/ci-display-test-summary.sh python
+        run: tools/cargo-make/scripts/ci-display-test-summary.sh python

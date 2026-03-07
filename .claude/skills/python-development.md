@@ -2,7 +2,7 @@
 
 ## When to Use
 
-Use this skill when writing, reviewing, or modifying Python code in `workers/python/`, including step handlers, PyO3/maturin FFI bindings, pytest tests, or type annotations.
+Use this skill when writing, reviewing, or modifying Python code in `crates/workers/python/`, including step handlers, PyO3/maturin FFI bindings, pytest tests, or type annotations.
 
 ## Tooling
 
@@ -17,7 +17,7 @@ Use this skill when writing, reviewing, or modifying Python code in `workers/pyt
 ### Setup
 
 ```bash
-cd workers/python
+cd crates/workers/python
 cargo make setup          # Creates .venv, syncs dependencies
 uv run maturin develop    # Build Rust extension in dev mode
 ```

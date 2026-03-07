@@ -32,7 +32,7 @@ The SQL function system supports several critical categories of operations:
 ### Function Categories
 
 The SQL functions are organized into logical categories as defined in
-`tasker-shared/src/database/sql_functions.rs`:
+`crates/tasker-shared/src/database/sql_functions.rs`:
 
 #### 1. Step Readiness Analysis
 

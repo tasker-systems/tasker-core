@@ -100,7 +100,7 @@ jobs:
 
       - name: Read committed versions
         id: read
-        run: ./scripts/release/read-versions.sh >> "$GITHUB_OUTPUT"
+        run: ./tools/scripts/release/read-versions.sh >> "$GITHUB_OUTPUT"
 
       - name: Detect changes for publish gating
         id: detect
@@ -110,7 +110,7 @@ jobs:
             EXTRA_ARGS="--from ${{ inputs.from_ref }}"
           fi
           # shellcheck disable=SC2086
-          ./scripts/release/detect-changes.sh ${EXTRA_ARGS} >> "$GITHUB_OUTPUT"
+          ./tools/scripts/release/detect-changes.sh ${EXTRA_ARGS} >> "$GITHUB_OUTPUT"
 
       - name: Check registries for already-published FFI packages
         id: registry
@@ -272,7 +272,7 @@ jobs:
       - name: Publish crates
         run: .github/scripts/release/publish-component.sh
         env:
-          PUBLISH_SCRIPT: ./scripts/release/publish-crates.sh
+          PUBLISH_SCRIPT: ./tools/scripts/release/publish-crates.sh
           VERSION: ${{ needs.detect-and-read.outputs.core_version }}
           IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -352,7 +352,7 @@ jobs:
       - name: Build platform gems + source gem
         if: steps.check-published.outputs.already_published != 'true'
         run: |
-          ./scripts/release/build-ruby-gems.sh \
+          ./tools/scripts/release/build-ruby-gems.sh \
             "${{ needs.detect-and-read.outputs.ruby_version }}" \
             "ffi-artifacts"
 
@@ -546,21 +546,21 @@ jobs:
             fi
           }
           try_bundle "ffi-artifacts/typescript/tasker_ts-x86_64-unknown-linux-gnu.node" \
-                     "workers/typescript/tasker_ts.linux-x64-gnu.node" "linux-x64"
+                     "crates/workers/typescript/tasker_ts.linux-x64-gnu.node" "linux-x64"
           try_bundle "ffi-artifacts/typescript/tasker_ts-aarch64-apple-darwin.node" \
-                     "workers/typescript/tasker_ts.darwin-arm64.node" "darwin-arm64"
+                     "crates/workers/typescript/tasker_ts.darwin-arm64.node" "darwin-arm64"
           echo "Bundled ${BUNDLED}/2 native modules"
           if [[ "$BUNDLED" -eq 0 ]]; then
             echo "::warning::No native modules bundled — package will still work with TASKER_FFI_MODULE_PATH"
           else
-            ls -lh workers/typescript/tasker_ts.*.node
+            ls -lh crates/workers/typescript/tasker_ts.*.node
           fi
 
       - name: Publish package
         if: steps.check-published.outputs.already_published != 'true'
         run: .github/scripts/release/publish-component.sh
         env:
-          PUBLISH_SCRIPT: ./scripts/release/publish-typescript.sh
+          PUBLISH_SCRIPT: ./tools/scripts/release/publish-typescript.sh
           VERSION: ${{ needs.detect-and-read.outputs.typescript_version }}
           IS_DRY_RUN: ${{ needs.detect-and-read.outputs.is_dry_run }}
 

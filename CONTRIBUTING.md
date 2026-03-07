@@ -31,7 +31,7 @@ cargo make check    # Lint + format + build
 cargo make test     # Run tests (requires services)
 ```
 
-For a full automated setup (Homebrew, Rust, cargo tools, git hooks, worker dependencies), run `bin/setup-dev.sh`.
+For a full automated setup (Homebrew, Rust, cargo tools, git hooks, worker dependencies), run `tools/bin/setup-dev.sh`.
 
 See [CLAUDE.md](CLAUDE.md) for full development context including all commands and troubleshooting.
 
@@ -98,7 +98,7 @@ git add .sqlx/
 
 The project includes a pre-commit hook that automatically runs `cargo fmt --all` on staged Rust files. It only touches files you've already staged, so unstaged work-in-progress is unaffected.
 
-**Install hooks** (automatic with `bin/setup-dev.sh`, or manual):
+**Install hooks** (automatic with `tools/bin/setup-dev.sh`, or manual):
 
 ```bash
 git config core.hooksPath .githooks

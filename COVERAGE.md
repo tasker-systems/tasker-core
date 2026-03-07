@@ -33,26 +33,26 @@
 
 | Crate | File | Lines |
 |-------|------|-------|
-| tasker-ctl | `tasker-ctl/src/commands/config.rs` | 850 |
-| tasker-ctl | `tasker-ctl/src/commands/task.rs` | 360 |
-| tasker-ctl | `tasker-ctl/src/commands/docs.rs` | 317 |
-| tasker-ctl | `tasker-ctl/src/commands/auth.rs` | 258 |
-| tasker-worker | `tasker-worker/src/worker/step_claim.rs` | 251 |
-| tasker-worker | `tasker-worker/src/testing/factory.rs` | 231 |
-| tasker-ctl | `tasker-ctl/src/commands/system.rs` | 181 |
-| tasker-ctl | `tasker-ctl/src/commands/dlq.rs` | 150 |
-| tasker-worker | `tasker-worker/src/testing/environment.rs` | 143 |
-| tasker-ctl | `tasker-ctl/src/commands/worker.rs` | 122 |
-| tasker-shared | `tasker-shared/src/database/migrator.rs` | 85 |
+| tasker-ctl | `crates/tasker-ctl/src/commands/config.rs` | 850 |
+| tasker-ctl | `crates/tasker-ctl/src/commands/task.rs` | 360 |
+| tasker-ctl | `crates/tasker-ctl/src/commands/docs.rs` | 317 |
+| tasker-ctl | `crates/tasker-ctl/src/commands/auth.rs` | 258 |
+| tasker-worker | `crates/tasker-worker/src/worker/step_claim.rs` | 251 |
+| tasker-worker | `crates/tasker-worker/src/testing/factory.rs` | 231 |
+| tasker-ctl | `crates/tasker-ctl/src/commands/system.rs` | 181 |
+| tasker-ctl | `crates/tasker-ctl/src/commands/dlq.rs` | 150 |
+| tasker-worker | `crates/tasker-worker/src/testing/environment.rs` | 143 |
+| tasker-ctl | `crates/tasker-ctl/src/commands/worker.rs` | 122 |
+| tasker-shared | `crates/tasker-shared/src/database/migrator.rs` | 85 |
 | tasker-py | `python/tasker_core/examples/checkpoint_yield/handlers.py` | 76 |
-| tasker-worker | `tasker-worker/src/bin/server.rs` | 71 |
-| tasker-orchestration | `tasker-orchestration/src/web/extractors.rs` | 47 |
-| tasker-ctl | `tasker-ctl/src/main.rs` | 37 |
-| tasker-worker | `tasker-worker/src/web/middleware/mod.rs` | 30 |
-| tasker-orchestration | `tasker-orchestration/src/web/middleware/mod.rs` | 22 |
-| tasker-worker | `tasker-worker/src/web/middleware/request_id.rs` | 17 |
-| tasker-worker | `tasker-worker/src/worker/actors/messages.rs` | 16 |
-| tasker-orchestration | `tasker-orchestration/src/orchestration/orchestration_queues/events.rs` | 14 |
+| tasker-worker | `crates/tasker-worker/src/bin/server.rs` | 71 |
+| tasker-orchestration | `crates/tasker-orchestration/src/web/extractors.rs` | 47 |
+| tasker-ctl | `crates/tasker-ctl/src/main.rs` | 37 |
+| tasker-worker | `crates/tasker-worker/src/web/middleware/mod.rs` | 30 |
+| tasker-orchestration | `crates/tasker-orchestration/src/web/middleware/mod.rs` | 22 |
+| tasker-worker | `crates/tasker-worker/src/web/middleware/request_id.rs` | 17 |
+| tasker-worker | `crates/tasker-worker/src/worker/actors/messages.rs` | 16 |
+| tasker-orchestration | `crates/tasker-orchestration/src/orchestration/orchestration_queues/events.rs` | 14 |
 | | *...and 10 more* | |
 
 ---

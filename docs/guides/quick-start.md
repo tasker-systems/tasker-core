@@ -363,7 +363,7 @@ Explore practical use cases:
 #### Option A: Rust Handler (Native Performance)
 
 ```rust
-// workers/rust/src/handlers/my_handler.rs
+// crates/workers/rust/src/handlers/my_handler.rs
 use async_trait::async_trait;
 use anyhow::Result;
 use serde_json::json;

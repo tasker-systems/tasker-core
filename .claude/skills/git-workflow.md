@@ -41,7 +41,7 @@ docs(shared): add module-level rustdoc for types
 
 A pre-commit hook auto-formats staged Rust files via `cargo fmt --all`.
 
-**Installation** (automatic via `bin/setup-dev.sh`, or manual):
+**Installation** (automatic via `tools/bin/setup-dev.sh`, or manual):
 ```bash
 git config core.hooksPath .githooks
 ```

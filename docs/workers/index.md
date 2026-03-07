@@ -121,28 +121,28 @@ cargo run -p workers-rust
 **Ruby**:
 
 ```bash
-cd workers/ruby
+cd crates/workers/ruby
 ./bin/server.rb
 ```
 
 **Python**:
 
 ```bash
-cd workers/python
+cd crates/workers/python
 python bin/server.py
 ```
 
 **TypeScript** (Bun):
 
 ```bash
-cd workers/typescript
+cd crates/workers/typescript
 bun run bin/server.ts
 ```
 
 **TypeScript** (Node.js):
 
 ```bash
-cd workers/typescript
+cd crates/workers/typescript
 npx tsx bin/server.ts
 ```
 
@@ -378,7 +378,7 @@ See [Class-Based Handlers](../reference/class-based-handlers.md) for the inherit
 
 ```bash
 # Build and run
-cd workers/rust
+cd crates/workers/rust
 cargo run
 
 # With custom configuration
@@ -389,7 +389,7 @@ TASKER_CONFIG_PATH=/path/to/config.toml cargo run
 
 ```bash
 # Install dependencies
-cd workers/ruby
+cd crates/workers/ruby
 bundle install
 bundle exec rake compile
 
@@ -401,7 +401,7 @@ bundle exec rake compile
 
 ```bash
 # Install dependencies
-cd workers/python
+cd crates/workers/python
 uv sync
 uv run maturin develop
 
@@ -413,7 +413,7 @@ python bin/server.py
 
 ```bash
 # Install dependencies
-cd workers/typescript
+cd crates/workers/typescript
 bun install
 bun run build:napi   # Build napi-rs native addon
 bun run build        # Build TypeScript

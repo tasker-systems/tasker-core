@@ -1,6 +1,6 @@
 # Ruby Best Practices for Tasker Core
 
-**Purpose**: Codify Ruby-specific coding standards for the tasker-core workers/ruby project.
+**Purpose**: Codify Ruby-specific coding standards for the tasker-core crates/workers/ruby project.
 
 ---
 

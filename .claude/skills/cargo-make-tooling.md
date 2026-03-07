@@ -94,10 +94,10 @@ The cargo-make configuration follows hierarchical inheritance:
 
 ```
 Makefile.toml (root)
-    extends -> cargo-make/main.toml
-                   extends -> cargo-make/base-tasks.toml
+    extends -> tools/cargo-make/main.toml
+                   extends -> tools/cargo-make/base-tasks.toml
 
-cargo-make/
+tools/cargo-make/
 ├── main.toml              # Entry point, chains all modules
 ├── base-tasks.toml        # Base task templates for extension
 ├── workspace-config.toml  # Shared workspace configuration
@@ -107,7 +107,7 @@ cargo-make/
 └── scripts/               # Shell scripts for operations
 ```
 
-Crate-level Makefile.toml files extend `cargo-make/base-tasks.toml`. Worker directories (Python, Ruby, TypeScript) have their own complete Makefile.toml files.
+Crate-level Makefile.toml files extend `tools/cargo-make/base-tasks.toml`. Worker directories (Python, Ruby, TypeScript) have their own complete Makefile.toml files.
 
 ## Crate-Level Pattern
 
@@ -115,7 +115,7 @@ All crate Makefile.toml files follow this pattern:
 
 ```toml
 # MUST be at root level, NOT inside [config]
-extend = "../cargo-make/base-tasks.toml"
+extend = "../../tools/cargo-make/base-tasks.toml"
 
 [config]
 default_to_workspace = false
@@ -141,15 +141,15 @@ extend = "base-rust-test"
 
 ## Adding New Tasks
 
-- **Workspace-wide**: Add to `cargo-make/main.toml` or appropriate module file
+- **Workspace-wide**: Add to `tools/cargo-make/main.toml` or appropriate module file
 - **Crate-specific**: Add to the crate's `Makefile.toml`
-- **New base task**: Add to `cargo-make/base-tasks.toml` with `base-` prefix
-- **Shell operations**: Create script in `cargo-make/scripts/`, reference via `script = { file = "${SCRIPTS_DIR}/script-name.sh" }`
+- **New base task**: Add to `tools/cargo-make/base-tasks.toml` with `base-` prefix
+- **Shell operations**: Create script in `tools/cargo-make/scripts/`, reference via `script = { file = "${SCRIPTS_DIR}/script-name.sh" }`
 
 ## Common Troubleshooting
 
 - **`extend` not working**: Must be at root level of TOML, NOT inside `[config]`
-- **Script path errors**: Use relative path `SCRIPTS_DIR = "cargo-make/scripts"`, not absolute
+- **Script path errors**: Use relative path `SCRIPTS_DIR = "tools/cargo-make/scripts"`, not absolute
 - **Task not found**: Check crate's Makefile.toml extends base-tasks correctly
 - **Worker setup failures**: Run `cargo make clean-workers && cargo make setup-workers`
 
@@ -159,7 +159,7 @@ extend = "base-rust-test"
 |----------|---------|-------------|
 | `DATABASE_URL` | `postgresql://tasker:tasker@localhost:5432/tasker_rust_test` | Database connection |
 | `TASKER_ENV` | `test` | Environment (test, development, production) |
-| `SCRIPTS_DIR` | `cargo-make/scripts` | Path to shell scripts |
+| `SCRIPTS_DIR` | `tools/cargo-make/scripts` | Path to shell scripts |
 
 ## References
 

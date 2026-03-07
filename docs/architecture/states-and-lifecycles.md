@@ -24,7 +24,7 @@ Both state machines work in coordination to provide atomic, auditable, and resil
 
 ### Task State Definitions
 
-The task state machine implements 12 comprehensive states as defined in `tasker-shared/src/state_machine/states.rs`:
+The task state machine implements 12 comprehensive states as defined in `crates/tasker-shared/src/state_machine/states.rs`:
 
 #### Initial States
 
@@ -125,7 +125,7 @@ stateDiagram-v2
 
 ### Task Event System
 
-Task state transitions are driven by events defined in `tasker-shared/src/state_machine/events.rs`:
+Task state transitions are driven by events defined in `crates/tasker-shared/src/state_machine/events.rs`:
 
 #### Lifecycle Events
 
@@ -310,7 +310,7 @@ The step state machine integrates tightly with the task state machine:
 
 ## Guard Conditions and Validation
 
-Both state machines implement comprehensive guard conditions in `tasker-shared/src/state_machine/guards.rs`:
+Both state machines implement comprehensive guard conditions in `crates/tasker-shared/src/state_machine/guards.rs`:
 
 ### Task Guards
 
@@ -355,7 +355,7 @@ Orchestration state transitions (e.g., InProgress → EnqueuedForOrchestration, 
 
 ### Delegation Pattern
 
-The persistence layer in `tasker-shared/src/state_machine/persistence.rs` implements a delegation pattern to the model layer:
+The persistence layer in `crates/tasker-shared/src/state_machine/persistence.rs` implements a delegation pattern to the model layer:
 
 ```rust
 // TaskTransitionPersistence -> TaskTransition::create() & TaskTransition::get_current()

@@ -630,7 +630,7 @@ services:
 
   ruby-worker:
     build:
-      context: ./workers/ruby
+      context: ./crates/workers/ruby
       dockerfile: Dockerfile
     environment:
       - TASKER_ENV=development

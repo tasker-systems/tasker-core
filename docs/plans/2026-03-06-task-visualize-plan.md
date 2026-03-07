@@ -17,12 +17,12 @@
 Refactor TAS-316's visualization module to extract shared types that both template and task visualization will use.
 
 **Files:**
-- Create: `tasker-sdk/src/visualization/types.rs`
-- Modify: `tasker-sdk/src/visualization/mod.rs`
+- Create: `crates/tasker-sdk/src/visualization/types.rs`
+- Modify: `crates/tasker-sdk/src/visualization/mod.rs`
 
 **Step 1: Create `types.rs` with shared types**
 
-Create `tasker-sdk/src/visualization/types.rs` with:
+Create `crates/tasker-sdk/src/visualization/types.rs` with:
 
 ```rust
 //! Shared types for template and task visualization.
@@ -128,7 +128,7 @@ pub struct VisualizationOutput {
 
 **Step 2: Register module in `mod.rs`**
 
-Add `pub mod types;` to `tasker-sdk/src/visualization/mod.rs` and re-export the key types.
+Add `pub mod types;` to `crates/tasker-sdk/src/visualization/mod.rs` and re-export the key types.
 
 **Step 3: Verify compilation**
 
@@ -147,8 +147,8 @@ feat(TAS-317): extract shared visualization types into types.rs
 Move Mermaid rendering and detail table rendering into shared renderers that consume the structured types.
 
 **Files:**
-- Create: `tasker-sdk/src/visualization/render.rs`
-- Modify: `tasker-sdk/src/visualization/mod.rs`
+- Create: `crates/tasker-sdk/src/visualization/render.rs`
+- Modify: `crates/tasker-sdk/src/visualization/mod.rs`
 
 **Step 1: Write failing tests for `render_mermaid`**
 
@@ -215,9 +215,9 @@ feat(TAS-317): add shared Mermaid and detail table renderers
 Refactor `visualize_template` to produce `VisualizationOutput` (structured data) and add a backward-compatible `visualize_template_rendered` wrapper.
 
 **Files:**
-- Create: `tasker-sdk/src/visualization/template_visualize.rs`
-- Modify: `tasker-sdk/src/visualization/mod.rs`
-- Delete (absorbed): `tasker-sdk/src/visualization/mermaid.rs`, `tasker-sdk/src/visualization/detail_table.rs`
+- Create: `crates/tasker-sdk/src/visualization/template_visualize.rs`
+- Modify: `crates/tasker-sdk/src/visualization/mod.rs`
+- Delete (absorbed): `crates/tasker-sdk/src/visualization/mermaid.rs`, `crates/tasker-sdk/src/visualization/detail_table.rs`
 
 **Step 1: Create `template_visualize.rs`**
 
@@ -274,11 +274,11 @@ All existing tests in `mod.rs` (test_full_markdown_output, test_graph_only_mode,
 
 **Step 5: Update CLI caller**
 
-In `tasker-ctl/src/commands/template.rs`, update `visualize_template_command` to use `visualize_template_rendered` (just a function rename if the old `visualize_template` returned the same shape — but it now returns `VisualizationOutput`, so callers must switch to the rendered wrapper).
+In `crates/tasker-ctl/src/commands/template.rs`, update `visualize_template_command` to use `visualize_template_rendered` (just a function rename if the old `visualize_template` returned the same shape — but it now returns `VisualizationOutput`, so callers must switch to the rendered wrapper).
 
 **Step 6: Update MCP caller**
 
-In `tasker-mcp/src/tools/developer.rs`, update `template_visualize` to use `visualize_template_rendered`.
+In `crates/tasker-mcp/src/tools/developer.rs`, update `template_visualize` to use `visualize_template_rendered`.
 
 **Step 7: Run full test suite for affected crates**
 
@@ -365,8 +365,8 @@ feat(TAS-317): add get_task_summary/get_task_summaries SQL functions
 Create the Rust model that maps to the SQL function output.
 
 **Files:**
-- Create: `tasker-shared/src/models/orchestration/task_summary.rs`
-- Modify: `tasker-shared/src/models/orchestration/mod.rs`
+- Create: `crates/tasker-shared/src/models/orchestration/task_summary.rs`
+- Modify: `crates/tasker-shared/src/models/orchestration/mod.rs`
 
 **Step 1: Write failing tests**
 
@@ -472,7 +472,7 @@ impl TaskSummaryRow {
 
 **Step 4: Register in `mod.rs`**
 
-Add `pub mod task_summary;` and re-exports in `tasker-shared/src/models/orchestration/mod.rs`.
+Add `pub mod task_summary;` and re-exports in `crates/tasker-shared/src/models/orchestration/mod.rs`.
 
 **Step 5: Run tests**
 
@@ -491,11 +491,11 @@ feat(TAS-317): add TaskSummaryRow model in tasker-shared
 Create the API response type used by REST and gRPC handlers.
 
 **Files:**
-- Modify: `tasker-shared/src/types/api/orchestration.rs`
+- Modify: `crates/tasker-shared/src/types/api/orchestration.rs`
 
 **Step 1: Add response type**
 
-Add to `tasker-shared/src/types/api/orchestration.rs`:
+Add to `crates/tasker-shared/src/types/api/orchestration.rs`:
 
 ```rust
 /// Task summary response for visualization — enriched single-call endpoint.
@@ -615,9 +615,9 @@ feat(TAS-317): add TaskSummaryResponse API type
 Add the summary endpoint to the orchestration server.
 
 **Files:**
-- Modify: `tasker-orchestration/src/web/routes.rs` (add route)
-- Modify: `tasker-orchestration/src/web/handlers/tasks.rs` (add handler)
-- Modify: `tasker-orchestration/src/services/task_query_service.rs` (add query method)
+- Modify: `crates/tasker-orchestration/src/web/routes.rs` (add route)
+- Modify: `crates/tasker-orchestration/src/web/handlers/tasks.rs` (add handler)
+- Modify: `crates/tasker-orchestration/src/services/task_query_service.rs` (add query method)
 
 **Step 1: Add route**
 
@@ -670,8 +670,8 @@ Add gRPC parity for the summary endpoint.
 
 **Files:**
 - Modify: `proto/tasker/v1/tasks.proto` (add messages and RPC)
-- Modify: `tasker-orchestration/src/grpc/services/tasks.rs` (implement RPC)
-- Modify: `tasker-orchestration/src/grpc/conversions.rs` (add conversions)
+- Modify: `crates/tasker-orchestration/src/grpc/services/tasks.rs` (implement RPC)
+- Modify: `crates/tasker-orchestration/src/grpc/conversions.rs` (add conversions)
 
 **Step 1: Add proto definitions**
 
@@ -716,7 +716,7 @@ feat(TAS-317): add GetTaskSummary gRPC RPC
 Add the client method for fetching task summaries.
 
 **Files:**
-- Modify: `tasker-client/src/api_clients/orchestration_client.rs`
+- Modify: `crates/tasker-client/src/api_clients/orchestration_client.rs`
 
 **Step 1: Add REST client method**
 
@@ -748,8 +748,8 @@ feat(TAS-317): add get_task_summary to orchestration client
 Build the core task visualization logic that converts `TaskSummaryResponse` data into structured `VisualizationOutput`.
 
 **Files:**
-- Create: `tasker-sdk/src/visualization/task_visualize.rs`
-- Modify: `tasker-sdk/src/visualization/mod.rs`
+- Create: `crates/tasker-sdk/src/visualization/task_visualize.rs`
+- Modify: `crates/tasker-sdk/src/visualization/mod.rs`
 
 **Step 1: Write failing tests**
 
@@ -813,8 +813,8 @@ feat(TAS-317): implement task execution visualization in SDK
 Add the `task visualize` subcommand to tasker-ctl.
 
 **Files:**
-- Modify: `tasker-ctl/src/main.rs` (add `Visualize` variant to `TaskCommands`)
-- Modify: `tasker-ctl/src/commands/task.rs` (add handler)
+- Modify: `crates/tasker-ctl/src/main.rs` (add `Visualize` variant to `TaskCommands`)
+- Modify: `crates/tasker-ctl/src/commands/task.rs` (add handler)
 
 **Step 1: Add command definition**
 
@@ -888,10 +888,10 @@ feat(TAS-317): add tasker-ctl task visualize command
 Add the MCP tool for task visualization.
 
 **Files:**
-- Modify: `tasker-mcp/src/tools/params.rs` (add params)
-- Modify: `tasker-mcp/src/tools/connected.rs` (add implementation)
-- Modify: `tasker-mcp/src/server.rs` (register tool, update docs)
-- Modify: `tasker-mcp/src/tier.rs` (add to TIER2_TOOLS)
+- Modify: `crates/tasker-mcp/src/tools/params.rs` (add params)
+- Modify: `crates/tasker-mcp/src/tools/connected.rs` (add implementation)
+- Modify: `crates/tasker-mcp/src/server.rs` (register tool, update docs)
+- Modify: `crates/tasker-mcp/src/tier.rs` (add to TIER2_TOOLS)
 
 **Step 1: Add params**
 
@@ -1090,19 +1090,19 @@ Task 4 (SQL) ──► Task 5 (Rust model) ──► Task 6 (API type) ──►
 
 | Component | Key Files |
 |-----------|-----------|
-| SDK types | `tasker-sdk/src/visualization/types.rs` (new) |
-| SDK renderers | `tasker-sdk/src/visualization/render.rs` (new) |
-| SDK template viz | `tasker-sdk/src/visualization/template_visualize.rs` (new, replaces mermaid.rs + detail_table.rs) |
-| SDK task viz | `tasker-sdk/src/visualization/task_visualize.rs` (new) |
-| SDK public API | `tasker-sdk/src/visualization/mod.rs` |
+| SDK types | `crates/tasker-sdk/src/visualization/types.rs` (new) |
+| SDK renderers | `crates/tasker-sdk/src/visualization/render.rs` (new) |
+| SDK template viz | `crates/tasker-sdk/src/visualization/template_visualize.rs` (new, replaces mermaid.rs + detail_table.rs) |
+| SDK task viz | `crates/tasker-sdk/src/visualization/task_visualize.rs` (new) |
+| SDK public API | `crates/tasker-sdk/src/visualization/mod.rs` |
 | SQL migration | `migrations/20260306000001_task_summary_function.sql` (new) |
-| Rust DB model | `tasker-shared/src/models/orchestration/task_summary.rs` (new) |
-| API response type | `tasker-shared/src/types/api/orchestration.rs` |
-| REST endpoint | `tasker-orchestration/src/web/handlers/tasks.rs`, `routes.rs` |
+| Rust DB model | `crates/tasker-shared/src/models/orchestration/task_summary.rs` (new) |
+| API response type | `crates/tasker-shared/src/types/api/orchestration.rs` |
+| REST endpoint | `crates/tasker-orchestration/src/web/handlers/tasks.rs`, `routes.rs` |
 | gRPC proto | `proto/tasker/v1/tasks.proto` |
-| gRPC handler | `tasker-orchestration/src/grpc/services/tasks.rs` |
-| Client method | `tasker-client/src/api_clients/orchestration_client.rs` |
-| CLI command | `tasker-ctl/src/main.rs`, `tasker-ctl/src/commands/task.rs` |
-| MCP tool | `tasker-mcp/src/server.rs`, `tasker-mcp/src/tools/connected.rs`, `tasker-mcp/src/tools/params.rs` |
-| MCP tiers | `tasker-mcp/src/tier.rs` |
-| MCP test assertions | `tasker-mcp/tests/mcp_protocol_test.rs` |
+| gRPC handler | `crates/tasker-orchestration/src/grpc/services/tasks.rs` |
+| Client method | `crates/tasker-client/src/api_clients/orchestration_client.rs` |
+| CLI command | `crates/tasker-ctl/src/main.rs`, `crates/tasker-ctl/src/commands/task.rs` |
+| MCP tool | `crates/tasker-mcp/src/server.rs`, `crates/tasker-mcp/src/tools/connected.rs`, `crates/tasker-mcp/src/tools/params.rs` |
+| MCP tiers | `crates/tasker-mcp/src/tier.rs` |
+| MCP test assertions | `crates/tasker-mcp/tests/mcp_protocol_test.rs` |

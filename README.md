@@ -107,10 +107,10 @@ curl http://localhost:8080/health
 | `tasker-sdk` | Shared SDK — codegen, template parsing, schema inspection, operational tooling |
 | `tasker-ctl` | CLI binary — operations, config management, plugin system |
 | `tasker-mcp` | MCP server exposing Tasker tooling to LLM agents |
-| `workers/rust` | Native Rust worker implementation |
-| `workers/ruby` | Ruby FFI bindings (`tasker-rb` gem) |
-| `workers/python` | Python FFI bindings (`tasker-py` package) |
-| `workers/typescript` | TypeScript FFI bindings (`@tasker-systems/tasker`) |
+| `crates/workers/rust` | Native Rust worker implementation |
+| `crates/workers/ruby` | Ruby FFI bindings (`tasker-rb` gem) |
+| `crates/workers/python` | Python FFI bindings (`tasker-py` package) |
+| `crates/workers/typescript` | TypeScript FFI bindings (`@tasker-systems/tasker`) |
 
 ---
 

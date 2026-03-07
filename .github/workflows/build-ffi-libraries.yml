@@ -38,7 +38,7 @@ on:
 # (all 3 share ~709 compiled rlibs).
 #
 # linux-arm64 removed — QEMU emulation exceeds GHA free runner timeouts.
-# Clone the repo and use scripts/ffi-build/build-all.sh for linux-arm64 builds.
+# Clone the repo and use tools/scripts/ffi-build/build-all.sh for linux-arm64 builds.
 #
 # | Job           | Runner       | Method                    | sccache Backend      |
 # |---------------|-------------|---------------------------|---------------------|
@@ -163,7 +163,7 @@ jobs:
         with:
           ruby-version: '3.4'
           bundler-cache: true
-          working-directory: workers/ruby
+          working-directory: crates/workers/ruby
 
       - name: Setup Bun
         if: matrix.target.method == 'native'
@@ -178,7 +178,7 @@ jobs:
           build_lang() {
             local lang="$1"
             echo "::group::Building ${lang} FFI library"
-            ./scripts/ffi-build/build-all.sh --target ${{ matrix.target.triple }} --language "$lang"
+            ./tools/scripts/ffi-build/build-all.sh --target ${{ matrix.target.triple }} --language "$lang"
             echo "::endgroup::"
           }
           if [[ "${{ inputs.skip_ruby }}" != "true" ]]; then

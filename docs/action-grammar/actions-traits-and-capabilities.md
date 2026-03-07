@@ -370,7 +370,7 @@ Note what is *not* checked: a rigid single-mutation boundary. Multiple mutations
 
 ### Trait Boundary Design
 - What methods does `GrammarAction` need beyond what's sketched above?
-- What crate should own the public traits? `tasker-shared` or a new `tasker-grammar` crate? **Resolved**: `tasker-grammar` — new workspace member, no dependency on tasker-worker/orchestration/DB. See `implementation-phases.md`.
+- What crate should own the public traits? `tasker-shared` or a new `tasker-grammar` crate? **Resolved**: `tasker-grammar` — new workspace member, no dependency on crates/tasker-worker/orchestration/DB. See `implementation-phases.md`.
 - Should there be sub-traits for specific grammar properties (e.g., `Checkpointable`, `Idempotent`)?
 - How do grammar categories compose with each other? Can a composition step belong to multiple categories?
 

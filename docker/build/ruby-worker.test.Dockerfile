@@ -47,10 +47,10 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by Ruby FFI extension
-COPY tasker-shared/ ./tasker-shared/
-COPY tasker-worker/ ./tasker-worker/
-COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-cli/
+COPY crates/tasker-shared/ ./tasker-shared/
+COPY crates/tasker-worker/ ./tasker-worker/
+COPY crates/tasker-client/ ./tasker-client/
+COPY crates/tasker-ctl/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
 
 # Copy minimal workspace structure for crates we don't actually need
@@ -59,13 +59,13 @@ COPY pgmq-notify/ ./pgmq-notify/
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
     /tmp/create-workspace-stubs.sh tasker-orchestration workers/rust workers/python workers/typescript
-COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY workers/rust/Cargo.toml ./workers/rust/
-COPY workers/python/Cargo.toml ./workers/python/
-COPY workers/typescript/Cargo.toml ./workers/typescript/
+COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
+COPY crates/workers/rust/Cargo.toml ./workers/rust/
+COPY crates/workers/python/Cargo.toml ./workers/python/
+COPY crates/workers/typescript/Cargo.toml ./workers/typescript/
 
 # Copy Ruby worker source code to proper workspace location
-COPY workers/ruby/ ./workers/ruby/
+COPY crates/workers/ruby/ ./workers/ruby/
 COPY migrations/ ./migrations/
 
 # Set working directory and environment for Ruby worker

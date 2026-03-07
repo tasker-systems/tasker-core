@@ -104,7 +104,7 @@ cargo test --all-features error_scenarios_test -- --nocapture
 
 ## Test Handlers
 
-Test handlers are located in `workers/typescript/tests/handlers/examples/`:
+Test handlers are located in `crates/workers/typescript/tests/handlers/examples/`:
 
 ```
 examples/
@@ -209,7 +209,7 @@ Assertions (task status, step states, etc.)
 3. **Single Source of Truth** - One test infrastructure, consistent assertions
 4. **Reduced Duplication** - No need for separate Jest integration harness
 
-TypeScript unit tests (`workers/typescript/tests/`) focus on framework concerns:
+TypeScript unit tests (`crates/workers/typescript/tests/`) focus on framework concerns:
 - FFI layer integration
 - Type wrappers and conversions
 - Event system

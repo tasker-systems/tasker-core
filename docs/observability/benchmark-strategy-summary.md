@@ -13,7 +13,7 @@ Complete benchmarking infrastructure for measuring distributed system performanc
 
 ### ✅ Implemented
 
-#### 1. **API Task Creation** (`tasker-client/benches/task_initialization.rs`)
+#### 1. **API Task Creation** (`crates/tasker-client/benches/task_initialization.rs`)
 
 **Status**: ✅ **COMPLETE** - Fully implemented and tested
 
@@ -37,7 +37,7 @@ Diamond (4 steps):  20.8ms  (Target: < 75ms)  ✅ 3.6x better than target
 cargo bench --package tasker-client --features benchmarks
 ```
 
-#### 2. **SQL Function Performance** (`tasker-shared/benches/sql_functions.rs`)
+#### 2. **SQL Function Performance** (`crates/tasker-shared/benches/sql_functions.rs`)
 
 **Status**: ✅ **COMPLETE** - Fully implemented (Phase 5.2)
 
@@ -67,7 +67,7 @@ cargo bench --package tasker-shared --features benchmarks sql_functions
 
 ### 🚧 Placeholders (Ready for Implementation)
 
-#### 3. **Worker Processing Cycle** (`tasker-worker/benches/worker_execution.rs`)
+#### 3. **Worker Processing Cycle** (`crates/tasker-worker/benches/worker_execution.rs`)
 
 **Status**: 🚧 Skeleton created - needs implementation
 
@@ -98,7 +98,7 @@ cargo bench --package tasker-shared --features benchmarks sql_functions
 cargo bench --package tasker-worker --features benchmarks worker_execution
 ```
 
-#### 4. **Event Propagation** (`tasker-shared/benches/event_propagation.rs`)
+#### 4. **Event Propagation** (`crates/tasker-shared/benches/event_propagation.rs`)
 
 **Status**: 🚧 Skeleton created - needs implementation
 
@@ -127,7 +127,7 @@ cargo bench --package tasker-worker --features benchmarks worker_execution
 cargo bench --package tasker-shared --features benchmarks event_propagation
 ```
 
-#### 5. **Step Enqueueing** (`tasker-orchestration/benches/step_enqueueing.rs`)
+#### 5. **Step Enqueueing** (`crates/tasker-orchestration/benches/step_enqueueing.rs`)
 
 **Status**: 🚧 Skeleton created - needs implementation
 
@@ -159,7 +159,7 @@ cargo bench --package tasker-shared --features benchmarks event_propagation
 cargo bench --package tasker-orchestration --features benchmarks step_enqueueing
 ```
 
-#### 6. **Handler Overhead** (`tasker-worker/benches/handler_overhead.rs`)
+#### 6. **Handler Overhead** (`crates/tasker-worker/benches/handler_overhead.rs`)
 
 **Status**: 🚧 Skeleton created - needs implementation
 

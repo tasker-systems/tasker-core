@@ -207,7 +207,7 @@ fn my_handler(ctx: SecurityContext) -> Result<(), ApiError> {
 }
 ```
 
-Source: `tasker-shared/src/web/authorize.rs`, `tasker-shared/src/types/resources.rs`
+Source: `crates/tasker-shared/src/web/authorize.rs`, `crates/tasker-shared/src/types/resources.rs`
 
 ---
 

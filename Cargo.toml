@@ -24,20 +24,20 @@ ignored = [
 [workspace]
 members = [
   ".",  # Current crate temporarily remains during migration
-  "tasker-pgmq",
-  "tasker-client",
-  "tasker-ctl",      # TAS-188: CLI binary (split from tasker-client)
-  "tasker-sdk",      # TAS-304: Shared SDK (codegen, template parsing, schema inspection, operational tooling)
-  "tasker-mcp",      # TAS-304: MCP server scaffold
-  "tasker-orchestration",
-  "tasker-shared",
-  "tasker-worker",
-  "tasker-grammar",  # TAS-321: Action grammar expression engine
-  "workers/python",  # TAS-72: PyO3 Python worker
-  "workers/ruby/ext/tasker_core",
-  "workers/rust",
-  "workers/typescript",  # TAS-100: TypeScript FFI worker (napi-rs)
-  # "workers/wasm",      # Future
+  "crates/tasker-pgmq",
+  "crates/tasker-client",
+  "crates/tasker-ctl",      # TAS-188: CLI binary (split from tasker-client)
+  "crates/tasker-sdk",      # TAS-304: Shared SDK (codegen, template parsing, schema inspection, operational tooling)
+  "crates/tasker-mcp",      # TAS-304: MCP server scaffold
+  "crates/tasker-orchestration",
+  "crates/tasker-shared",
+  "crates/tasker-worker",
+  "crates/tasker-grammar",  # TAS-321: Action grammar expression engine
+  "crates/workers/python",  # TAS-72: PyO3 Python worker
+  "crates/workers/ruby/ext/tasker_core",
+  "crates/workers/rust",
+  "crates/workers/typescript",  # TAS-100: TypeScript FFI worker (napi-rs)
+  # "crates/workers/wasm",      # Future
 ]
 exclude = [
   "vendor/rb-sys-build",  # Patched build dep, not a workspace member
@@ -106,8 +106,8 @@ opentelemetry_sdk = { version = "0.31", features = [
 opentelemetry-semantic-conventions = "0.31"
 # Message queue management
 pgmq = "0.32.0"
-tasker-pgmq = { path = "tasker-pgmq", version = "=0.1.6" }
-tasker-sdk = { path = "tasker-sdk", version = "=0.1.6" }
+tasker-pgmq = { path = "crates/tasker-pgmq", version = "=0.1.6" }
+tasker-sdk = { path = "crates/tasker-sdk", version = "=0.1.6" }
 # MCP protocol server (TAS-304)
 rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
 # JSON Schema generation for MCP tool parameters (TAS-304)
@@ -300,11 +300,11 @@ serde_yaml = { workspace = true }
 serial_test = { workspace = true }
 sqlx = { workspace = true }
 # E2E tests need workspace crates
-tasker-client = { path = "tasker-client" }
-tasker-mcp = { path = "tasker-mcp" }
-tasker-orchestration = { path = "tasker-orchestration" }
-tasker-shared = { path = "tasker-shared" }
-tasker-worker = { path = "tasker-worker" }
+tasker-client = { path = "crates/tasker-client" }
+tasker-mcp = { path = "crates/tasker-mcp" }
+tasker-orchestration = { path = "crates/tasker-orchestration" }
+tasker-shared = { path = "crates/tasker-shared" }
+tasker-worker = { path = "crates/tasker-worker" }
 # MCP protocol + connected integration tests
 rmcp = { workspace = true, features = ["client"] }
 toml = { workspace = true }

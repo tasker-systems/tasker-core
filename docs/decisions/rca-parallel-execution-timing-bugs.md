@@ -82,7 +82,7 @@ steps:
 The original architecture used blocking `.call()` in the event handler:
 
 ```rust
-// workers/rust/src/event_handler.rs (before)
+// crates/workers/rust/src/event_handler.rs (before)
 let result = handler.call(&step).await;  // BLOCKS until handler completes
 ```
 

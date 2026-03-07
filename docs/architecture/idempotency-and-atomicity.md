@@ -121,7 +121,7 @@ Both task and step state machines validate current state before allowing transit
 
 #### Task State Machine
 
-Defined in `tasker-shared/src/state_machine/task_state_machine.rs`, the TaskStateMachine validates:
+Defined in `crates/tasker-shared/src/state_machine/task_state_machine.rs`, the TaskStateMachine validates:
 
 1. **Current state retrieval**: Always fetch latest state from database
 2. **Event applicability**: Check if event is valid for current state
@@ -148,7 +148,7 @@ See [States and Lifecycles](states-and-lifecycles.md) for complete state machine
 
 #### Workflow Step State Machine
 
-Defined in `tasker-shared/src/state_machine/step_state_machine.rs`, the StepStateMachine ensures:
+Defined in `crates/tasker-shared/src/state_machine/step_state_machine.rs`, the StepStateMachine ensures:
 
 1. **Execution claiming**: Only Pending/Enqueued steps can transition to InProgress
 2. **Completion validation**: Only InProgress steps can be marked complete
@@ -372,7 +372,7 @@ See [Events and Commands](events-and-commands.md) for event system details.
 
 **Component**: `TaskRequestActor` and `TaskInitializer` service
 **Operation**: Creating a new task from a template
-**File**: `tasker-orchestration/src/orchestration/lifecycle/task_initialization/`
+**File**: `crates/tasker-orchestration/src/orchestration/lifecycle/task_initialization/`
 
 #### Protection Mechanisms
 
@@ -441,13 +441,13 @@ Prevents invalid workflow definitions:
 // Result: Invalid workflow rejected, no partial data
 ```
 
-See `tasker-shared/src/models/core/workflow_step_edge.rs:236-270` for cycle detection implementation.
+See `crates/tasker-shared/src/models/core/workflow_step_edge.rs:236-270` for cycle detection implementation.
 
 ### Step Enqueueing Idempotency
 
 **Component**: `StepEnqueuerActor` and `StepEnqueuerService`
 **Operation**: Enqueueing ready workflow steps to worker queues
-**File**: `tasker-orchestration/src/orchestration/lifecycle/step_enqueuer_services/`
+**File**: `crates/tasker-orchestration/src/orchestration/lifecycle/step_enqueuer_services/`
 
 #### Multi-Layer Protection
 
@@ -526,7 +526,7 @@ T7: Steps C, D have state = Pending → enqueue
 
 **Component**: `ResultProcessorActor` and `OrchestrationResultProcessor`
 **Operation**: Processing step execution results from workers
-**File**: `tasker-orchestration/src/orchestration/lifecycle/result_processing/`
+**File**: `crates/tasker-orchestration/src/orchestration/lifecycle/result_processing/`
 
 #### Protection Mechanisms
 
@@ -608,7 +608,7 @@ See the [Ownership Removal ADR](../decisions/adr-003-ownership-removal.md) for f
 
 **Component**: `TaskFinalizerActor` and `TaskFinalizer` service
 **Operation**: Finalizing task to terminal state
-**File**: `tasker-orchestration/src/orchestration/lifecycle/task_finalization/`
+**File**: `crates/tasker-orchestration/src/orchestration/lifecycle/task_finalization/`
 
 #### Current Protection (Sufficient for Recovery)
 
@@ -690,7 +690,7 @@ This enhancement is deferred (implementation not yet scheduled).
 
 ## SQL Function Atomicity
 
-**File**: `tasker-shared/src/database/sql/`
+**File**: `crates/tasker-shared/src/database/sql/`
 **Documented**: [Task Readiness & Execution](task-and-step-readiness-and-execution.md)
 
 ### Atomic State Transitions
@@ -807,7 +807,7 @@ WHERE to_step_uuid = $proposed_from;
 - Path check: Would adding edge create cycle?
 - Error before commit: Transaction rolled back on cycle
 
-See `tasker-orchestration/src/orchestration/lifecycle/task_initialization/workflow_step_builder.rs` for enforcement.
+See `crates/tasker-orchestration/src/orchestration/lifecycle/task_initialization/workflow_step_builder.rs` for enforcement.
 
 ---
 

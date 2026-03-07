@@ -583,11 +583,11 @@ The executor is compiled into the worker binary. No dynamic loading, no FFI brid
 
 The universal claimability property has a natural deployment consequence: if every worker can execute virtual handler steps regardless of FFI runtime, then a worker that *only* executes virtual handler steps needs no FFI runtime at all. No Ruby, no Python, no TypeScript, no domain handler registry, no resolver chain. Just the composition executor compiled into a minimal Rust binary.
 
-This isn't a hypothetical — it's the logical extreme of the architecture described above. The `workers/rust` crate already demonstrates the pattern: a thin binary that bootstraps from `tasker-worker` and provides its own handler registry. A composition-only worker would be even thinner: **no handler registry**, because the `CompositionExecutor` is the handler.
+This isn't a hypothetical — it's the logical extreme of the architecture described above. The `crates/workers/rust` crate already demonstrates the pattern: a thin binary that bootstraps from `tasker-worker` and provides its own handler registry. A composition-only worker would be even thinner: **no handler registry**, because the `CompositionExecutor` is the handler.
 
 ### What Today's Rust Worker Does
 
-The existing `workers/rust` bootstrap (`workers/rust/src/bootstrap.rs`) follows this sequence:
+The existing `crates/workers/rust` bootstrap (`crates/workers/rust/src/bootstrap.rs`) follows this sequence:
 
 1. Create a `RustStepHandlerRegistry` with domain-specific step handlers
 2. Create a `RustStepHandlerRegistryAdapter` implementing the `StepHandlerRegistry` trait
@@ -682,7 +682,7 @@ The resulting binary is pure Rust with no FFI bridges — comparable in size and
 
 ### Crate Structure
 
-The composition-only worker follows the same pattern as `workers/rust` — a thin crate in the workspace:
+The composition-only worker follows the same pattern as `crates/workers/rust` — a thin crate in the workspace:
 
 ```
 workers/

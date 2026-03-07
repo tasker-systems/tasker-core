@@ -82,7 +82,7 @@ Batch processing builds on and extends three foundational Tasker patterns:
 - **Edge generation**: Batchable step → worker instances → convergence step
 - **Transactional atomicity**: All workers created in single database transaction
 
-**Code Reference**: `tasker-orchestration/src/orchestration/lifecycle/batch_processing/service.rs:357-400`
+**Code Reference**: `crates/tasker-orchestration/src/orchestration/lifecycle/batch_processing/service.rs:357-400`
 
 ```rust
 // Transaction ensures all-or-nothing worker creation
@@ -176,7 +176,7 @@ convergence_step (depends on worker template)
                  → waits for ALL workers created (intersection)
 ```
 
-**Code Reference**: `tasker-orchestration/src/orchestration/lifecycle/batch_processing/service.rs:600-650`
+**Code Reference**: `crates/tasker-orchestration/src/orchestration/lifecycle/batch_processing/service.rs:600-650`
 
 ```rust
 // Determine and create convergence step with intersection semantics
@@ -230,7 +230,7 @@ pub async fn determine_and_create_convergence_step(
 - `NoBatches`: Dataset too small or empty - create placeholder worker
 - `CreateBatches`: Create N workers with cursor configurations
 
-**Code Reference**: `workers/rust/src/step_handlers/batch_processing_products_csv.rs:60-120`
+**Code Reference**: `crates/workers/rust/src/step_handlers/batch_processing_products_csv.rs:60-120`
 
 ```rust
 // Batchable handler example
@@ -313,7 +313,7 @@ async fn call(&self, step_data: &TaskSequenceStep) -> Result<StepExecutionResult
 }
 ```
 
-**Code Reference**: `workers/rust/src/step_handlers/batch_processing_products_csv.rs:200-280`
+**Code Reference**: `crates/workers/rust/src/step_handlers/batch_processing_products_csv.rs:200-280`
 
 ```rust
 // Batch worker handler example
@@ -424,7 +424,7 @@ pub enum BatchAggregationScenario {
 }
 ```
 
-**Code Reference**: `workers/rust/src/step_handlers/batch_processing_products_csv.rs:400-480`
+**Code Reference**: `crates/workers/rust/src/step_handlers/batch_processing_products_csv.rs:400-480`
 
 ```rust
 // Convergence handler example
@@ -1004,7 +1004,7 @@ Convergence step detects NoBatches scenario:
 
 ### BatchProcessingOutcome
 
-**Location**: `tasker-shared/src/messaging/execution_types.rs`
+**Location**: `crates/tasker-shared/src/messaging/execution_types.rs`
 
 **Purpose**: Returned by batchable handlers to instruct orchestration.
 
@@ -1056,7 +1056,7 @@ impl BatchProcessingOutcome {
 }
 ```
 
-**Ruby Mirror**: `workers/ruby/lib/tasker_core/types/batch_processing_outcome.rb`
+**Ruby Mirror**: `crates/workers/ruby/lib/tasker_core/types/batch_processing_outcome.rb`
 
 ```ruby
 module TaskerCore
@@ -1117,7 +1117,7 @@ end
 
 ### CursorConfig
 
-**Location**: `tasker-shared/src/messaging/execution_types.rs`
+**Location**: `crates/tasker-shared/src/messaging/execution_types.rs`
 
 **Purpose**: Defines batch boundaries for each worker.
 
@@ -1175,7 +1175,7 @@ pub struct CursorConfig {
 
 ### BatchWorkerInputs
 
-**Location**: `tasker-shared/src/models/core/batch_worker.rs`
+**Location**: `crates/tasker-shared/src/models/core/batch_worker.rs`
 
 **Purpose**: Stored in `workflow_steps.inputs` for each worker instance.
 
@@ -1219,7 +1219,7 @@ impl BatchWorkerInputs {
 
 ### BatchMetadata
 
-**Location**: `tasker-shared/src/models/core/batch_worker.rs`
+**Location**: `crates/tasker-shared/src/models/core/batch_worker.rs`
 
 **Purpose**: Runtime configuration for batch processing behavior.
 
@@ -2158,7 +2158,7 @@ This section shows a complete end-to-end implementation processing a 1000-row CS
 
 #### Rust Implementation
 
-**1. Batchable Handler**: `workers/rust/src/step_handlers/batch_processing_products_csv.rs:60-150`
+**1. Batchable Handler**: `crates/workers/rust/src/step_handlers/batch_processing_products_csv.rs:60-150`
 
 ```rust
 pub struct CsvAnalyzerHandler;
@@ -2265,7 +2265,7 @@ impl StepHandler for CsvAnalyzerHandler {
 }
 ```
 
-**2. Batch Worker Handler**: `workers/rust/src/step_handlers/batch_processing_products_csv.rs:200-350`
+**2. Batch Worker Handler**: `crates/workers/rust/src/step_handlers/batch_processing_products_csv.rs:200-350`
 
 ```rust
 pub struct CsvBatchProcessorHandler;
@@ -2407,7 +2407,7 @@ impl StepHandler for CsvBatchProcessorHandler {
 }
 ```
 
-**3. Convergence Handler**: `workers/rust/src/step_handlers/batch_processing_products_csv.rs:400-520`
+**3. Convergence Handler**: `crates/workers/rust/src/step_handlers/batch_processing_products_csv.rs:400-520`
 
 ```rust
 pub struct CsvResultsAggregatorHandler;
@@ -2557,7 +2557,7 @@ impl StepHandler for CsvResultsAggregatorHandler {
 
 #### Ruby Implementation
 
-**1. Batchable Handler**: `workers/ruby/spec/handlers/examples/batch_processing/step_handlers/csv_analyzer_handler.rb`
+**1. Batchable Handler**: `crates/workers/ruby/spec/handlers/examples/batch_processing/step_handlers/csv_analyzer_handler.rb`
 
 ```ruby
 module BatchProcessing
@@ -2630,7 +2630,7 @@ module BatchProcessing
 end
 ```
 
-**2. Batch Worker Handler**: `workers/ruby/spec/handlers/examples/batch_processing/step_handlers/csv_batch_processor_handler.rb`
+**2. Batch Worker Handler**: `crates/workers/ruby/spec/handlers/examples/batch_processing/step_handlers/csv_batch_processor_handler.rb`
 
 ```ruby
 module BatchProcessing
@@ -2747,7 +2747,7 @@ module BatchProcessing
 end
 ```
 
-**3. Convergence Handler**: `workers/ruby/spec/handlers/examples/batch_processing/step_handlers/csv_results_aggregator_handler.rb`
+**3. Convergence Handler**: `crates/workers/ruby/spec/handlers/examples/batch_processing/step_handlers/csv_results_aggregator_handler.rb`
 
 ```ruby
 module BatchProcessing
@@ -3139,4 +3139,4 @@ Batch processing in Tasker provides a robust, production-ready pattern for paral
 
 - **Conditional Workflows**: See `docs/conditional-workflows.md`
 - **DLQ System**: See `docs/dlq-system.md`
-- **Code Examples**: See `workers/rust/src/step_handlers/batch_processing_*.rs`
+- **Code Examples**: See `crates/workers/rust/src/step_handlers/batch_processing_*.rs`

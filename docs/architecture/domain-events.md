@@ -102,12 +102,12 @@ flowchart TB
 
 | Component | Purpose | Location |
 |-----------|---------|----------|
-| `EventRouter` | Routes events based on delivery mode | `tasker-shared/src/events/domain_events/router.rs` |
-| `DomainEventPublisher` | Durable PGMQ-based publishing | `tasker-shared/src/events/domain_events/publisher.rs` |
-| `InProcessEventBus` | Fast in-memory event dispatch | `tasker-shared/src/events/domain_events/in_process_bus.rs` |
-| `EventRegistry` | Pattern-based subscriber registration | `tasker-shared/src/events/domain_events/registry.rs` |
-| `StepEventPublisher` | Handler callback trait | `tasker-shared/src/events/domain_events/step_event_publisher.rs` |
-| `GenericStepEventPublisher` | Default publisher implementation | `tasker-shared/src/events/domain_events/generic_publisher.rs` |
+| `EventRouter` | Routes events based on delivery mode | `crates/tasker-shared/src/events/domain_events/router.rs` |
+| `DomainEventPublisher` | Durable PGMQ-based publishing | `crates/tasker-shared/src/events/domain_events/publisher.rs` |
+| `InProcessEventBus` | Fast in-memory event dispatch | `crates/tasker-shared/src/events/domain_events/in_process_bus.rs` |
+| `EventRegistry` | Pattern-based subscriber registration | `crates/tasker-shared/src/events/domain_events/registry.rs` |
+| `StepEventPublisher` | Handler callback trait | `crates/tasker-shared/src/events/domain_events/step_event_publisher.rs` |
+| `GenericStepEventPublisher` | Default publisher implementation | `crates/tasker-shared/src/events/domain_events/generic_publisher.rs` |
 
 ## Delivery Modes
 
@@ -278,7 +278,7 @@ impl GenericStepEventPublisher {
 
 Custom publishers extend `TaskerCore::DomainEvents::BasePublisher` (Ruby) to provide specialized event handling with payload transformation, conditional publishing, and lifecycle hooks.
 
-**Real Example: PaymentEventPublisher** (`workers/ruby/spec/handlers/examples/domain_events/publishers/payment_event_publisher.rb`):
+**Real Example: PaymentEventPublisher** (`crates/workers/ruby/spec/handlers/examples/domain_events/publishers/payment_event_publisher.rb`):
 
 ```ruby
 # Custom publisher for payment-related domain events
@@ -449,7 +449,7 @@ Subscriber patterns apply **only to fast (in-process) events**. Durable events a
 
 Rust subscribers are registered with the `InProcessEventBus` using the `EventHandler` type. Subscribers are async closures that receive `DomainEvent` instances.
 
-**Real Example: Logging Subscriber** (`workers/rust/src/event_subscribers/logging_subscriber.rs`):
+**Real Example: Logging Subscriber** (`crates/workers/rust/src/event_subscribers/logging_subscriber.rs`):
 
 ```rust
 use std::sync::Arc;
@@ -484,7 +484,7 @@ pub fn create_logging_subscriber(prefix: &str) -> EventHandler {
 }
 ```
 
-**Real Example: Metrics Collector** (`workers/rust/src/event_subscribers/metrics_subscriber.rs`):
+**Real Example: Metrics Collector** (`crates/workers/rust/src/event_subscribers/metrics_subscriber.rs`):
 
 ```rust
 use std::sync::Arc;
@@ -556,7 +556,7 @@ bus.subscribe("*", metrics.create_handler()).unwrap();
 
 Ruby subscribers extend `TaskerCore::DomainEvents::BaseSubscriber` and use the class-level `subscribes_to` pattern declaration.
 
-**Real Example: LoggingSubscriber** (`workers/ruby/spec/handlers/examples/domain_events/subscribers/logging_subscriber.rb`):
+**Real Example: LoggingSubscriber** (`crates/workers/ruby/spec/handlers/examples/domain_events/subscribers/logging_subscriber.rb`):
 
 ```ruby
 # Example logging subscriber for fast/in-process domain events
@@ -582,7 +582,7 @@ module DomainEvents
 end
 ```
 
-**Real Example: MetricsSubscriber** (`workers/ruby/spec/handlers/examples/domain_events/subscribers/metrics_subscriber.rb`):
+**Real Example: MetricsSubscriber** (`crates/workers/ruby/spec/handlers/examples/domain_events/subscribers/metrics_subscriber.rb`):
 
 ```ruby
 # Example metrics subscriber for fast/in-process domain events
@@ -750,7 +750,7 @@ log_dropped_events = false          # Reduce log noise in production
 
 The worker uses an event-driven command pattern for step execution and domain event publishing. Nothing blocks - domain events are dispatched **after** successful orchestration notification using fire-and-forget semantics.
 
-**Flow** (`tasker-worker/src/worker/command_processor.rs`):
+**Flow** (`crates/tasker-worker/src/worker/command_processor.rs`):
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
@@ -771,7 +771,7 @@ The worker uses an event-driven command pattern for step execution and domain ev
 **Implementation**:
 
 ```rust
-// tasker-worker/src/worker/command_processor.rs (lines 512-525)
+// crates/tasker-worker/src/worker/command_processor.rs (lines 512-525)
 // Worker command processor receives step completions via FFI channel
 match self.handle_send_step_result(step_result.clone()).await {
     Ok(()) => {
@@ -802,7 +802,7 @@ match self.handle_send_step_result(step_result.clone()).await {
 **Domain Event Dispatch** (fire-and-forget):
 
 ```rust
-// tasker-worker/src/worker/command_processor.rs (lines 362-432)
+// crates/tasker-worker/src/worker/command_processor.rs (lines 362-432)
 fn dispatch_domain_events(&mut self, step_result: &StepExecutionResult, correlation_id: Option<Uuid>) {
     // Retrieve cached step context (stored when step was claimed)
     let task_sequence_step = match self.step_execution_contexts.remove(&step_result.step_uuid) {
@@ -850,7 +850,7 @@ fn dispatch_domain_events(&mut self, step_result: &StepExecutionResult, correlat
 
 Domain events maintain correlation IDs for end-to-end distributed tracing. The correlation ID originates from the task and flows through all step executions and domain events.
 
-**EventMetadata Structure** (`tasker-shared/src/events/domain_events.rs`):
+**EventMetadata Structure** (`crates/tasker-shared/src/events/domain_events.rs`):
 
 ```rust
 pub struct EventMetadata {
@@ -900,7 +900,7 @@ psql $DATABASE_URL -c "
 
 ### OpenTelemetry Metrics
 
-Domain event publication emits OpenTelemetry counter metrics (`tasker-shared/src/events/domain_events.rs:207-219`):
+Domain event publication emits OpenTelemetry counter metrics (`crates/tasker-shared/src/events/domain_events.rs:207-219`):
 
 ```rust
 // Metric emitted on every domain event publication
@@ -929,7 +929,7 @@ curl http://localhost:8081/metrics
 
 ### OpenTelemetry Tracing
 
-Domain event publication is instrumented with tracing spans (`tasker-shared/src/events/domain_events.rs:157-161`):
+Domain event publication is instrumented with tracing spans (`crates/tasker-shared/src/events/domain_events.rs:157-161`):
 
 ```rust
 #[instrument(skip(self, payload, metadata), fields(

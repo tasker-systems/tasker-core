@@ -63,7 +63,7 @@ Circuit breakers prevent cascading failures by failing fast when a component is 
 
 ## Unified Trait: `CircuitBreakerBehavior`
 
-All circuit breaker implementations share a common trait defined in `tasker-shared/src/resilience/behavior.rs`:
+All circuit breaker implementations share a common trait defined in `crates/tasker-shared/src/resilience/behavior.rs`:
 
 ```rust
 pub trait CircuitBreakerBehavior: Send + Sync + Debug {
@@ -478,10 +478,10 @@ Each circuit breaker operates **independently**:
 
 | Component | Circuit Breaker | Integration Point |
 |-----------|-----------------|-------------------|
-| `tasker-orchestration/src/web` | Web Database | API request handlers |
-| `tasker-orchestration/src/orchestration/task_readiness` | Task Readiness | Fallback poller loop |
-| `tasker-worker/src/worker/handlers` | FFI Completion | Completion channel sends |
-| `tasker-shared/src/messaging/client.rs` | Messaging | `MessageClient` send/receive methods |
+| `crates/tasker-orchestration/src/web` | Web Database | API request handlers |
+| `crates/tasker-orchestration/src/orchestration/task_readiness` | Task Readiness | Fallback poller loop |
+| `crates/tasker-worker/src/worker/handlers` | FFI Completion | Completion channel sends |
+| `crates/tasker-shared/src/messaging/client.rs` | Messaging | `MessageClient` send/receive methods |
 
 ## Troubleshooting
 
@@ -536,16 +536,16 @@ Each circuit breaker operates **independently**:
 
 | Component | File |
 |-----------|------|
-| `CircuitBreakerBehavior` Trait | `tasker-shared/src/resilience/behavior.rs` |
-| Generic `CircuitBreaker` | `tasker-shared/src/resilience/circuit_breaker.rs` |
-| Circuit Breaker Config | `tasker-shared/src/config/circuit_breaker.rs` |
-| `MessageClient` (messaging breaker) | `tasker-shared/src/messaging/client.rs` |
-| `WebDatabaseCircuitBreaker` | `tasker-orchestration/src/api_common/circuit_breaker.rs` |
-| Web CB Helpers | `tasker-orchestration/src/web/circuit_breaker.rs` |
-| `TaskReadinessCircuitBreaker` | `tasker-orchestration/src/orchestration/task_readiness/circuit_breaker.rs` |
-| `FfiCompletionCircuitBreaker` | `tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs` |
-| Worker Health Integration | `tasker-worker/src/web/handlers/health.rs` |
-| Circuit Breaker Types | `tasker-shared/src/types/api/worker.rs` |
+| `CircuitBreakerBehavior` Trait | `crates/tasker-shared/src/resilience/behavior.rs` |
+| Generic `CircuitBreaker` | `crates/tasker-shared/src/resilience/circuit_breaker.rs` |
+| Circuit Breaker Config | `crates/tasker-shared/src/config/circuit_breaker.rs` |
+| `MessageClient` (messaging breaker) | `crates/tasker-shared/src/messaging/client.rs` |
+| `WebDatabaseCircuitBreaker` | `crates/tasker-orchestration/src/api_common/circuit_breaker.rs` |
+| Web CB Helpers | `crates/tasker-orchestration/src/web/circuit_breaker.rs` |
+| `TaskReadinessCircuitBreaker` | `crates/tasker-orchestration/src/orchestration/task_readiness/circuit_breaker.rs` |
+| `FfiCompletionCircuitBreaker` | `crates/tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs` |
+| Worker Health Integration | `crates/tasker-worker/src/web/handlers/health.rs` |
+| Circuit Breaker Types | `crates/tasker-shared/src/types/api/worker.rs` |
 
 ---
 

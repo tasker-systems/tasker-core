@@ -1,0 +1,76 @@
+[package]
+name = "tasker-worker-rust"
+version = "0.1.0"
+edition = "2021"
+description = "Native Rust worker demonstration for tasker-worker foundation"
+repository = "https://github.com/tasker-systems/tasker-core"
+license = "MIT"
+keywords = ["async", "execution", "rust", "task", "worker"]
+categories = ["asynchronous", "concurrency"]
+
+# TAS-145: Ignore false positives from cargo-machete
+[package.metadata.cargo-machete]
+ignored = [
+  # Dev-dependencies
+  "dotenvy",
+  "tasker-orchestration",
+  "tokio-test",
+  "tracing-subscriber",
+  # Used at runtime but not detected
+  "futures",
+  "once_cell",
+  "tasker-core",
+]
+
+[lib]
+name = "tasker_worker_rust"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rust-worker"
+path = "src/main.rs"
+
+[dependencies]
+# Error handling and utilities
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+# Serialization
+csv = "1.4"
+futures = { workspace = true }
+num-bigint = { version = "0.4.6", features = ["rand", "serde"] }
+once_cell = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tasker-core = { package = "tasker-core", path = "../../../" }
+tasker-shared = { path = "../../tasker-shared" }
+# Core tasker dependencies
+tasker-worker = { path = "../../tasker-worker" }
+thiserror = { workspace = true }
+# Async runtime and utilities
+tokio = { workspace = true }
+# Logging and tracing
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+# Other utilities
+uuid = { workspace = true }
+
+[dev-dependencies]
+dotenvy = { workspace = true }
+# Integration testing with database
+sqlx = { workspace = true }
+tasker-orchestration = { path = "../../tasker-orchestration" }
+# Testing utilities
+tokio-test = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[features]
+default = []
+
+# TAS-158: tokio-console async runtime introspection
+# Requires: RUSTFLAGS="--cfg tokio_unstable" cargo build --features tokio-console
+tokio-console = ["tasker-worker/tokio-console", "tasker-shared/tokio-console"]
+
+[lints]
+workspace = true

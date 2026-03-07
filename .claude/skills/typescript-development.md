@@ -2,7 +2,7 @@
 
 ## When to Use
 
-Use this skill when writing, reviewing, or modifying TypeScript code in `workers/typescript/`, including step handlers, Bun/Node/Deno FFI bindings, vitest tests, or the tsup build pipeline.
+Use this skill when writing, reviewing, or modifying TypeScript code in `crates/workers/typescript/`, including step handlers, Bun/Node/Deno FFI bindings, vitest tests, or the tsup build pipeline.
 
 ## Tooling
 
@@ -17,7 +17,7 @@ Use this skill when writing, reviewing, or modifying TypeScript code in `workers
 ### Setup
 
 ```bash
-cd workers/typescript
+cd crates/workers/typescript
 cargo make install                          # bun install --frozen-lockfile
 cargo build -p tasker-ts --release   # Build Rust FFI cdylib
 bun run build                               # Build TypeScript

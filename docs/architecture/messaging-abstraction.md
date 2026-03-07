@@ -61,7 +61,7 @@ Different messaging providers have fundamentally different delivery models:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MessageClient                                      │
 │  Domain-level facade with queue classification                              │
-│  Location: tasker-shared/src/messaging/client.rs                           │
+│  Location: crates/tasker-shared/src/messaging/client.rs                           │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     │ Delegates to
@@ -69,7 +69,7 @@ Different messaging providers have fundamentally different delivery models:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         MessagingProvider Enum                               │
 │  Runtime dispatch without trait objects (zero-cost abstraction)             │
-│  Location: tasker-shared/src/messaging/service/provider.rs                 │
+│  Location: crates/tasker-shared/src/messaging/service/provider.rs                 │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                     ┌───────────────┼───────────────┐
@@ -87,7 +87,7 @@ Different messaging providers have fundamentally different delivery models:
 
 ### MessagingService Trait
 
-**Location**: `tasker-shared/src/messaging/service/traits.rs`
+**Location**: `crates/tasker-shared/src/messaging/service/traits.rs`
 
 The foundational trait defining queue operations:
 
@@ -114,7 +114,7 @@ pub trait MessagingService: Send + Sync {
 
 ### SupportsPushNotifications Trait
 
-**Location**: `tasker-shared/src/messaging/service/traits.rs`
+**Location**: `crates/tasker-shared/src/messaging/service/traits.rs`
 
 Extends `MessagingService` with push notification capabilities:
 
@@ -142,7 +142,7 @@ pub trait SupportsPushNotifications: MessagingService {
 
 ### MessageNotification Enum
 
-**Location**: `tasker-shared/src/messaging/service/traits.rs`
+**Location**: `crates/tasker-shared/src/messaging/service/traits.rs`
 
 Abstracts the two notification models:
 
@@ -167,7 +167,7 @@ pub enum MessageNotification {
 
 ### PGMQ Provider
 
-**Location**: `tasker-shared/src/messaging/service/providers/pgmq.rs`
+**Location**: `crates/tasker-shared/src/messaging/service/providers/pgmq.rs`
 
 PostgreSQL-based message queue with LISTEN/NOTIFY integration:
 
@@ -200,7 +200,7 @@ impl SupportsPushNotifications for PgmqMessagingService {
 
 ### RabbitMQ Provider
 
-**Location**: `tasker-shared/src/messaging/service/providers/rabbitmq.rs`
+**Location**: `crates/tasker-shared/src/messaging/service/providers/rabbitmq.rs`
 
 AMQP-based message broker with native push delivery:
 
@@ -232,7 +232,7 @@ impl SupportsPushNotifications for RabbitMqMessagingService {
 
 ### InMemory Provider
 
-**Location**: `tasker-shared/src/messaging/service/providers/in_memory.rs`
+**Location**: `crates/tasker-shared/src/messaging/service/providers/in_memory.rs`
 
 In-process message queue for testing:
 
@@ -254,7 +254,7 @@ impl SupportsPushNotifications for InMemoryMessagingService {
 
 ## MessagingProvider Enum
 
-**Location**: `tasker-shared/src/messaging/service/provider.rs`
+**Location**: `crates/tasker-shared/src/messaging/service/provider.rs`
 
 Enum dispatch pattern for runtime provider selection without trait objects:
 
@@ -307,7 +307,7 @@ impl MessagingProvider {
 
 ## MessageClient Facade
 
-**Location**: `tasker-shared/src/messaging/client.rs`
+**Location**: `crates/tasker-shared/src/messaging/client.rs`
 
 Domain-level facade providing high-level queue operations:
 
@@ -355,7 +355,7 @@ impl MessageClient {
 Both orchestration and worker queue listeners use `provider.subscribe_many()`:
 
 ```rust
-// tasker-orchestration/src/orchestration/orchestration_queues/listener.rs
+// crates/tasker-orchestration/src/orchestration/orchestration_queues/listener.rs
 impl OrchestrationQueueListener {
     pub async fn start(&mut self) -> Result<(), MessagingError> {
         let queues = vec![
@@ -446,7 +446,7 @@ NewType wrappers for MPSC channels prevent accidental misuse:
 
 ### Orchestration Channels
 
-**Location**: `tasker-orchestration/src/orchestration/channels.rs`
+**Location**: `crates/tasker-orchestration/src/orchestration/channels.rs`
 
 ```rust
 /// Strongly-typed sender for orchestration commands
@@ -468,7 +468,7 @@ pub struct OrchestrationNotificationReceiver(pub(crate) mpsc::Receiver<Orchestra
 
 ### Worker Channels
 
-**Location**: `tasker-worker/src/worker/channels.rs`
+**Location**: `crates/tasker-worker/src/worker/channels.rs`
 
 ```rust
 /// Strongly-typed sender for worker commands

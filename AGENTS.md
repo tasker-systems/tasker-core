@@ -97,7 +97,7 @@ git add .sqlx/
 ### Ruby Integration
 
 ```bash
-cd workers/ruby
+cd crates/workers/ruby
 bundle install && bundle exec rake compile
 
 # Run integration tests
@@ -152,32 +152,32 @@ docker compose -f docker/docker-compose.test.yml up -d  # Test services (include
 
 ### Claude Code on the Web Setup
 
-The SessionStart hook (`bin/setup-claude-web.sh`) is intentionally lightweight — it only
+The SessionStart hook (`tools/bin/setup-claude-web.sh`) is intentionally lightweight — it only
 configures environment variables, PATH, git hooks, and the `.env` file. Heavy tool
 installations and service startup are available on-demand via individual scripts.
 
 **Full setup** (installs everything, takes several minutes):
 
 ```bash
-./bin/setup-claude-web-full.sh
+./tools/bin/setup-claude-web-full.sh
 ```
 
-**Individual setup scripts** (in `cargo-make/scripts/claude-web/`):
+**Individual setup scripts** (in `tools/cargo-make/scripts/claude-web/`):
 
 ```bash
 # Source the common helpers first
-source cargo-make/scripts/claude-web/setup-common.sh
+source tools/cargo-make/scripts/claude-web/setup-common.sh
 
 # Then source and run the specific setup you need:
-source cargo-make/scripts/claude-web/setup-system-deps.sh && setup_system_deps  # apt packages
-source cargo-make/scripts/claude-web/setup-protoc.sh && setup_protoc            # protobuf compiler
-source cargo-make/scripts/claude-web/setup-rust.sh && setup_rust                # Rust toolchain
-source cargo-make/scripts/claude-web/setup-cargo-tools.sh && setup_cargo_tools  # cargo-make, sqlx-cli, nextest
-source cargo-make/scripts/claude-web/setup-gh.sh && setup_gh                    # GitHub CLI
-source cargo-make/scripts/claude-web/setup-grpcurl.sh && setup_grpcurl          # gRPC testing tool
-source cargo-make/scripts/claude-web/setup-postgres.sh && setup_postgres        # PostgreSQL + PGMQ + uuidv7
-source cargo-make/scripts/claude-web/setup-redis.sh && setup_redis              # Redis cache
-source cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migrations  # Run DB migrations
+source tools/cargo-make/scripts/claude-web/setup-system-deps.sh && setup_system_deps  # apt packages
+source tools/cargo-make/scripts/claude-web/setup-protoc.sh && setup_protoc            # protobuf compiler
+source tools/cargo-make/scripts/claude-web/setup-rust.sh && setup_rust                # Rust toolchain
+source tools/cargo-make/scripts/claude-web/setup-cargo-tools.sh && setup_cargo_tools  # cargo-make, sqlx-cli, nextest
+source tools/cargo-make/scripts/claude-web/setup-gh.sh && setup_gh                    # GitHub CLI
+source tools/cargo-make/scripts/claude-web/setup-grpcurl.sh && setup_grpcurl          # gRPC testing tool
+source tools/cargo-make/scripts/claude-web/setup-postgres.sh && setup_postgres        # PostgreSQL + PGMQ + uuidv7
+source tools/cargo-make/scripts/claude-web/setup-redis.sh && setup_redis              # Redis cache
+source tools/cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migrations  # Run DB migrations
 ```
 
 **When to run what:**
@@ -187,7 +187,7 @@ source cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migratio
 - Need to create a PR? → `setup_gh`
 - Need to run database tests manually? → `setup_postgres` then `setup_db_migrations`
 - Need to build (protoc missing)? → `setup_protoc`
-- Fresh environment, need everything? → `./bin/setup-claude-web-full.sh`
+- Fresh environment, need everything? → `./tools/bin/setup-claude-web-full.sh`
 
 ---
 
@@ -195,23 +195,23 @@ source cargo-make/scripts/claude-web/setup-db-migrations.sh && setup_db_migratio
 
 ```
 [workspace.members]
-- tasker-pgmq          # PGMQ wrapper with notification support
-- tasker-client        # API client library (REST + gRPC transport)
-- tasker-ctl           # CLI binary (depends on tasker-client, tasker-sdk)
-- tasker-sdk           # Shared SDK (codegen, templates, schema inspection, operational tooling)
-- tasker-mcp           # MCP server for LLM agent integration
-- tasker-orchestration # Core orchestration logic (see AGENTS.md)
-- tasker-shared        # Shared types, traits, utilities
-- tasker-worker        # Worker implementation (see AGENTS.md)
-- workers/python       # Python FFI bindings (maturin/pyo3)
-- workers/ruby         # Ruby FFI bindings (magnus)
-- workers/rust         # Rust worker implementation
-- workers/typescript   # TypeScript FFI bindings (Bun/Node/Deno)
+- crates/tasker-pgmq          # PGMQ wrapper with notification support
+- crates/tasker-client        # API client library (REST + gRPC transport)
+- crates/tasker-ctl           # CLI binary (depends on tasker-client, tasker-sdk)
+- crates/tasker-sdk           # Shared SDK (codegen, templates, schema inspection, operational tooling)
+- crates/tasker-mcp           # MCP server for LLM agent integration
+- crates/tasker-orchestration # Core orchestration logic (see AGENTS.md)
+- crates/tasker-shared        # Shared types, traits, utilities
+- crates/tasker-worker        # Worker implementation (see AGENTS.md)
+- crates/workers/python       # Python FFI bindings (maturin/pyo3)
+- crates/workers/ruby         # Ruby FFI bindings (magnus)
+- crates/workers/rust         # Rust worker implementation
+- crates/workers/typescript   # TypeScript FFI bindings (Bun/Node/Deno)
 
 [build tooling]
-- cargo-make/          # Shared task runner configuration
-  - scripts/           # Shell scripts for complex operations
-- Makefile.toml        # Root task definitions
+- tools/cargo-make/          # Shared task runner configuration
+  - scripts/                 # Shell scripts for complex operations
+- Makefile.toml              # Root task definitions
 ```
 
 ---
@@ -278,7 +278,7 @@ Four core actors handle orchestration:
 3. **StepEnqueuerActor**: Batch step enqueueing
 4. **TaskFinalizerActor**: Task completion
 
-Details: `docs/architecture/actors.md`, `tasker-orchestration/AGENTS.md`
+Details: `docs/architecture/actors.md`, `crates/tasker-orchestration/AGENTS.md`
 
 ### Worker Architecture
 
@@ -286,7 +286,7 @@ Dual-channel system: dispatch channel + completion channel
 
 - `HandlerDispatchService`: Semaphore-bounded parallel execution
 - `FfiDispatchChannel`: Pull-based polling for Ruby/Python FFI
-- Details: `docs/architecture/worker-event-systems.md`, `tasker-worker/AGENTS.md`
+- Details: `docs/architecture/worker-event-systems.md`, `crates/tasker-worker/AGENTS.md`
 
 ### Deployment Modes
 
@@ -421,7 +421,7 @@ Detailed feature specifications: `docs/plans/ticket-specs/TAS-{37,39,40,41,46,49
 
 ### Ruby Extension
 
-- Clean rebuild: `cd workers/ruby && rake clean && rake compile`
+- Clean rebuild: `cd crates/workers/ruby && rake clean && rake compile`
 - Check magnus version in Cargo.toml
 
 ### Configuration
@@ -432,7 +432,7 @@ Detailed feature specifications: `docs/plans/ticket-specs/TAS-{37,39,40,41,46,49
 ### cargo-make Issues
 
 - **Task not found**: Check crate's `Makefile.toml` extends base-tasks correctly
-- **Script path errors**: Ensure `SCRIPTS_DIR` uses relative path (`cargo-make/scripts`)
+- **Script path errors**: Ensure `SCRIPTS_DIR` uses relative path (`tools/cargo-make/scripts`)
 - **Extend warning**: `extend = "path"` must be at file root, NOT inside `[config]`
 - See: `docs/development/tooling.md` for full troubleshooting
 
@@ -451,5 +451,5 @@ Detailed feature specifications: `docs/plans/ticket-specs/TAS-{37,39,40,41,46,49
 
 For detailed module organization and development patterns:
 
-- `tasker-orchestration/AGENTS.md` - Actor pattern, service decomposition
-- `tasker-worker/AGENTS.md` - Handler dispatch, FFI integration
+- `crates/tasker-orchestration/AGENTS.md` - Actor pattern, service decomposition
+- `crates/tasker-worker/AGENTS.md` - Handler dispatch, FFI integration

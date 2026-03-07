@@ -196,7 +196,7 @@ pub fn client_create_task(request: NapiTaskRequest) -> Result<NapiClientResult> 
 
 #### The Current Multi-Runtime Architecture
 
-The existing TypeScript worker (`workers/typescript/`) has a multi-layer runtime abstraction:
+The existing TypeScript worker (`crates/workers/typescript/`) has a multi-layer runtime abstraction:
 
 ```
 TypeScript Public API (WorkerServer, StepHandler, TaskerClient)
@@ -304,7 +304,7 @@ build-ffi-libraries.yml (matrix: linux-x64, darwin-arm64)
   └── Native build → libtasker_ts-aarch64-apple-darwin.dylib
           ↓
 release.yml: publish-typescript job
-  ├── Download artifacts → workers/typescript/native/
+  ├── Download artifacts → crates/workers/typescript/native/
   ├── bun install && bun run build
   └── npm publish @tasker-systems/tasker
 ```
@@ -313,8 +313,8 @@ Key files:
 
 - `.github/workflows/build-ffi-libraries.yml` — Cross-platform matrix builds
 - `.github/workflows/release.yml` (lines 419-497) — npm publish job
-- `scripts/ffi-build/build-typescript.sh` — `cargo build -p tasker-ts --release`
-- `scripts/release/publish-typescript.sh` — Version check + `npm publish`
+- `tools/scripts/ffi-build/build-typescript.sh` — `cargo build -p tasker-ts --release`
+- `tools/scripts/release/publish-typescript.sh` — Version check + `npm publish`
 - `docker/build/ffi-builder.Dockerfile` — Linux build container
 
 #### What Changes with napi-rs
@@ -345,13 +345,13 @@ The matrix (linux-x64, darwin-arm64) stays the same. Output artifacts change fro
 
 ```diff
 # Bundle step — same pattern, different file names
-- mkdir -p workers/typescript/native
+- mkdir -p crates/workers/typescript/native
 - cp ffi-artifacts/typescript/libtasker_ts-x86_64-unknown-linux-gnu.so \
--    workers/typescript/native/libtasker_ts-linux-x64.so
+-    crates/workers/typescript/native/libtasker_ts-linux-x64.so
 - cp ffi-artifacts/typescript/libtasker_ts-aarch64-apple-darwin.dylib \
--    workers/typescript/native/libtasker_ts-darwin-arm64.dylib
+-    crates/workers/typescript/native/libtasker_ts-darwin-arm64.dylib
 + # napi-rs .node files go at package root (loader expects them there)
-+ cp ffi-artifacts/typescript/*.node workers/typescript/
++ cp ffi-artifacts/typescript/*.node crates/workers/typescript/
 ```
 
 No changes to OIDC, npm environment, or publish command — still `npm publish` of a single `@tasker-systems/tasker` package.
@@ -432,7 +432,7 @@ build-ffi-libraries.yml (matrix: linux-x64, darwin-arm64)
         → tasker-ts-napi.darwin-arm64.node
           ↓
 release.yml: publish-typescript job
-  ├── Download artifacts → cp *.node workers/typescript/
+  ├── Download artifacts → cp *.node crates/workers/typescript/
   ├── bun install && bun run build
   └── npm publish @tasker-systems/tasker   (single package, same OIDC)
 ```
@@ -441,9 +441,9 @@ release.yml: publish-typescript job
 
 | File | Change | Reason |
 |------|--------|--------|
-| `scripts/ffi-build/build-typescript.sh` | Update | `cargo build` → `npx napi build` |
-| `cargo-make/scripts/ci-restore-typescript-artifacts.sh` | Simplify | `.node` files are self-contained (no lib prefix, no extension mapping) |
-| `workers/typescript/deno.json` | Delete | No dedicated Deno adapter |
+| `tools/scripts/ffi-build/build-typescript.sh` | Update | `cargo build` → `npx napi build` |
+| `tools/cargo-make/scripts/ci-restore-typescript-artifacts.sh` | Simplify | `.node` files are self-contained (no lib prefix, no extension mapping) |
+| `crates/workers/typescript/deno.json` | Delete | No dedicated Deno adapter |
 | `test-typescript-framework.yml` | Simplify | Remove multi-runtime test matrix (Node/Deno steps), keep Bun |
 | `docker/build/typescript-worker.prod.Dockerfile` | Simplify | Remove `TASKER_FFI_LIBRARY_PATH` env var, napi-rs loader handles resolution |
 
@@ -455,7 +455,7 @@ The migration is a direct replacement, not incremental. The koffi FFI layer is b
 
 **Phase 1: Replace FFI crate** (Rust side)
 
-1. Rename/replace `workers/typescript/src-rust/` with napi-rs implementation
+1. Rename/replace `crates/workers/typescript/src-rust/` with napi-rs implementation
 2. Update `Cargo.toml`: remove `cdylib` C FFI, add napi dependencies
 3. Port all functions from C FFI signatures to `#[napi]` functions
 4. Delete `conversions.rs` (JSON conversion helpers) — no longer needed

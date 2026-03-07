@@ -156,7 +156,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: tasker-mcp/Dockerfile
+          file: crates/tasker-mcp/Dockerfile
           push: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/tasker-mcp:${{ steps.version.outputs.version }}

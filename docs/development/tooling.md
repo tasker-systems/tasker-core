@@ -31,30 +31,30 @@ The cargo-make configuration follows a hierarchical inheritance pattern:
 
 ```
 Makefile.toml (root)
-    └── extends → cargo-make/main.toml
-                      └── extends → cargo-make/base-tasks.toml
+    └── extends → tools/cargo-make/main.toml
+                      └── extends → tools/cargo-make/base-tasks.toml
 
 Crate-level Makefile.toml files:
-    tasker-pgmq/Makefile.toml      → extends → cargo-make/base-tasks.toml
-    tasker-client/Makefile.toml    → extends → cargo-make/base-tasks.toml
-    tasker-shared/Makefile.toml    → extends → cargo-make/base-tasks.toml
-    tasker-orchestration/Makefile.toml → extends → cargo-make/base-tasks.toml
-    tasker-worker/Makefile.toml    → extends → cargo-make/base-tasks.toml
-    workers/rust/Makefile.toml     → extends → cargo-make/base-tasks.toml
+    crates/tasker-pgmq/Makefile.toml      → extends → tools/cargo-make/base-tasks.toml
+    crates/tasker-client/Makefile.toml    → extends → tools/cargo-make/base-tasks.toml
+    crates/tasker-shared/Makefile.toml    → extends → tools/cargo-make/base-tasks.toml
+    crates/tasker-orchestration/Makefile.toml → extends → tools/cargo-make/base-tasks.toml
+    crates/tasker-worker/Makefile.toml    → extends → tools/cargo-make/base-tasks.toml
+    crates/workers/rust/Makefile.toml     → extends → tools/cargo-make/base-tasks.toml
 ```
 
 Worker directories have their own complete Makefile.toml files (not extending base-tasks):
 
-- `workers/python/Makefile.toml` - Uses uv, maturin, ruff, mypy, pytest
-- `workers/ruby/Makefile.toml` - Uses bundler, rake, rubocop, rspec
-- `workers/typescript/Makefile.toml` - Uses bun, biome, vitest
+- `crates/workers/python/Makefile.toml` - Uses uv, maturin, ruff, mypy, pytest
+- `crates/workers/ruby/Makefile.toml` - Uses bundler, rake, rubocop, rspec
+- `crates/workers/typescript/Makefile.toml` - Uses bun, biome, vitest
 
 ---
 
 ## Directory Structure
 
 ```
-cargo-make/
+tools/cargo-make/
 ├── main.toml              # Entry point, chains all modules
 ├── base-tasks.toml        # Base task templates for extension
 ├── workspace-config.toml  # Shared workspace configuration
@@ -84,7 +84,7 @@ cargo-make/
 
 ## Configuration Files
 
-### `cargo-make/main.toml`
+### `tools/cargo-make/main.toml`
 
 The main entry point that chains all module configurations. This file:
 
@@ -93,7 +93,7 @@ The main entry point that chains all module configurations. This file:
 - Configures workspace-wide parallel operations
 - Sets up CI integration tasks
 
-### `cargo-make/base-tasks.toml`
+### `tools/cargo-make/base-tasks.toml`
 
 Defines base task templates that crate-level Makefile.toml files extend:
 
@@ -123,7 +123,7 @@ The root configuration provides:
 
 ## Shell Scripts
 
-All complex operations are externalized to shell scripts in `cargo-make/scripts/` for easier debugging and maintenance.
+All complex operations are externalized to shell scripts in `tools/cargo-make/scripts/` for easier debugging and maintenance.
 
 ### `check-db.sh`
 
@@ -313,7 +313,7 @@ All crate-level Makefile.toml files follow this pattern:
 
 ```toml
 # Must be at root level, NOT inside [config]
-extend = "../cargo-make/base-tasks.toml"
+extend = "../../tools/cargo-make/base-tasks.toml"
 
 [config]
 default_to_workspace = false
@@ -343,48 +343,48 @@ args = ["nextest", "run", "-p", "${CRATE_NAME}", "--all-features"]
 
 ## Worker-Specific Details
 
-### Python Worker (`workers/python/`)
+### Python Worker (`crates/workers/python/`)
 
 **Tools**: uv (package manager), maturin (Rust extension builder), ruff (linter/formatter), mypy (type checker), pytest
 
 ```bash
-cd workers/python
+cd crates/workers/python
 cargo make check    # format-check, lint, typecheck, test
 cargo make build    # Build Rust extension with maturin
 cargo make fix      # Auto-fix with ruff
 cargo make test-ffi # Run FFI tests
 ```
 
-### Ruby Worker (`workers/ruby/`)
+### Ruby Worker (`crates/workers/ruby/`)
 
 **Tools**: bundler (package manager), rake (build), rubocop (linter), rspec (tests), magnus (Rust FFI)
 
 ```bash
-cd workers/ruby
+cd crates/workers/ruby
 cargo make check    # lint, rust-check, build, test
 cargo make build    # Compile Rust extension
 cargo make fix      # Auto-fix with rubocop
 cargo make test-ffi # Run FFI tests (spec/ffi/)
 ```
 
-### TypeScript Worker (`workers/typescript/`)
+### TypeScript Worker (`crates/workers/typescript/`)
 
 **Tools**: bun (runtime/package manager), biome (linter/formatter), vitest (tests)
 
 ```bash
-cd workers/typescript
+cd crates/workers/typescript
 cargo make check    # lint, typecheck, test
 cargo make build    # Build with bun
 cargo make fix      # Auto-fix with biome
 cargo make test-ffi-all # Run FFI tests (Bun, Node)
 ```
 
-### Rust Worker (`workers/rust/`)
+### Rust Worker (`crates/workers/rust/`)
 
 **Tools**: Standard Rust toolchain (cargo, clippy, rustfmt)
 
 ```bash
-cd workers/rust
+cd crates/workers/rust
 cargo make check    # format-check, lint, test
 cargo make build    # Build worker binary
 cargo make run      # Run the worker service
@@ -400,7 +400,7 @@ The build system uses these environment variables:
 |----------|---------|-------------|
 | `DATABASE_URL` | `postgresql://tasker:tasker@localhost:5432/tasker_rust_test` | Database connection string |
 | `TASKER_ENV` | `test` | Environment (test, development, production) |
-| `SCRIPTS_DIR` | `cargo-make/scripts` | Path to shell scripts |
+| `SCRIPTS_DIR` | `tools/cargo-make/scripts` | Path to shell scripts |
 | `PGPORT` | `5432` | PostgreSQL port for health checks |
 | `PGUSER` | `tasker` | PostgreSQL user for health checks |
 
@@ -633,14 +633,14 @@ The `extend` directive must be at the **root level** of the TOML file, NOT insid
 
 ```toml
 # CORRECT
-extend = "../cargo-make/base-tasks.toml"
+extend = "../../tools/cargo-make/base-tasks.toml"
 
 [config]
 default_to_workspace = false
 
 # WRONG - will show "Found unknown key: config.?.extend"
 [config]
-extend = { path = "../cargo-make/base-tasks.toml" }
+extend = { path = "../../tools/cargo-make/base-tasks.toml" }
 ```
 
 ### Script Path Issues
@@ -649,10 +649,10 @@ Use relative paths for `SCRIPTS_DIR` to avoid path duplication:
 
 ```toml
 # CORRECT
-SCRIPTS_DIR = "cargo-make/scripts"
+SCRIPTS_DIR = "tools/cargo-make/scripts"
 
 # WRONG - causes path duplication
-SCRIPTS_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}/cargo-make/scripts"
+SCRIPTS_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}/tools/cargo-make/scripts"
 ```
 
 ### Task Not Found in Crate
@@ -678,8 +678,8 @@ cargo make setup-workers
 
 ### To Add a Workspace-Wide Task
 
-1. Add the task definition to `cargo-make/main.toml` or the appropriate module file
-2. If it uses shell commands, create a script in `cargo-make/scripts/`
+1. Add the task definition to `tools/cargo-make/main.toml` or the appropriate module file
+2. If it uses shell commands, create a script in `tools/cargo-make/scripts/`
 3. Reference the script using `script = { file = "${SCRIPTS_DIR}/script-name.sh" }`
 
 ### To Add a Crate-Specific Task
@@ -690,7 +690,7 @@ cargo make setup-workers
 
 ### To Add a New Base Task
 
-1. Add the task template to `cargo-make/base-tasks.toml`
+1. Add the task template to `tools/cargo-make/base-tasks.toml`
 2. Name it with `base-` prefix (e.g., `base-rust-doc`)
 3. Update crate Makefile.toml files to extend the new base task
 

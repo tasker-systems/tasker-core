@@ -65,7 +65,7 @@ execution_request_buffer_size = 5000  # Large for production load
 
 ### Step 3: Add Rust Configuration Type
 
-**Location**: `tasker-shared/src/config/mpsc_channels.rs`
+**Location**: `crates/tasker-shared/src/config/mpsc_channels.rs`
 
 ```rust
 // Add to appropriate subsystem config struct

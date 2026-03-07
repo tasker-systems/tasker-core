@@ -91,8 +91,8 @@ Each major crate has its own `AGENTS.md` with module-level detail:
 
 | Crate | AGENTS.md | Focus |
 |-------|-----------|-------|
-| tasker-orchestration | `tasker-orchestration/AGENTS.md` | Actor pattern, services, state machines |
-| tasker-worker | `tasker-worker/AGENTS.md` | Handler dispatch, FFI, completions |
+| tasker-orchestration | `crates/tasker-orchestration/AGENTS.md` | Actor pattern, services, state machines |
+| tasker-worker | `crates/tasker-worker/AGENTS.md` | Handler dispatch, FFI, completions |
 
 ## Deep-Dive Reference Routing
 

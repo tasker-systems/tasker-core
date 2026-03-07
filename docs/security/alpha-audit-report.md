@@ -59,7 +59,7 @@ The `tasker-shared` crate is the largest and most foundational crate in the work
 
 ### Finding S-1 (HIGH): Queue Name Validation Missing
 
-**Location**: `tasker-shared/src/messaging/service/router.rs:96-97`
+**Location**: `crates/tasker-shared/src/messaging/service/router.rs:96-97`
 
 Queue names are constructed via `format!` with unvalidated namespace input:
 
@@ -77,7 +77,7 @@ The `MessagingError::InvalidQueueName` variant exists (`src/messaging/errors.rs:
 
 ### Finding S-2 (HIGH): SQL Error Details Exposed to Clients
 
-**Location**: `tasker-shared/src/errors.rs:71-74, 431-437`
+**Location**: `crates/tasker-shared/src/errors.rs:71-74, 431-437`
 
 ```rust
 impl From<sqlx::Error> for TaskerError {
@@ -193,7 +193,7 @@ The `tasker-pgmq` crate is a PGMQ wrapper providing PostgreSQL LISTEN/NOTIFY sup
 
 ### Finding P-1 (HIGH): SQL Injection via NOTIFY Channel Name
 
-**Location**: `tasker-pgmq/src/emitter.rs:122`
+**Location**: `crates/tasker-pgmq/src/emitter.rs:122`
 
 ```rust
 let sql = format!("NOTIFY {}, $1", channel);
@@ -208,7 +208,7 @@ PostgreSQL's `NOTIFY` does not support parameterized channel identifiers. The ch
 
 ### Finding P-2 (HIGH): CLI Migration SQL Generation with Unescaped Input
 
-**Location**: `tasker-pgmq/src/bin/cli.rs:179-353`
+**Location**: `crates/tasker-pgmq/src/bin/cli.rs:179-353`
 
 User-provided regex patterns and channel prefixes are directly interpolated into SQL migration strings when generating migration files. While these are generated files that should be reviewed before application, the lack of escaping creates a risk if the generation process is automated.
 
@@ -216,7 +216,7 @@ User-provided regex patterns and channel prefixes are directly interpolated into
 
 ### Finding P-3 (MEDIUM): `unwrap_or_default()` on Database Results (Tenet #11)
 
-**Location**: `tasker-pgmq/src/client.rs:164`
+**Location**: `crates/tasker-pgmq/src/client.rs:164`
 
 ```rust
 .read_batch(queue_name, visibility_timeout, l).await?.unwrap_or_default()
@@ -228,7 +228,7 @@ When `read_batch` returns `None`, this silently produces an empty vector instead
 
 ### Finding P-4 (MEDIUM): RwLock Poison Handling Masks Panics
 
-**Location**: `tasker-pgmq/src/listener.rs` (22 instances)
+**Location**: `crates/tasker-pgmq/src/listener.rs` (22 instances)
 
 ```rust
 self.stats.write().unwrap_or_else(|p| p.into_inner())
@@ -240,7 +240,7 @@ Silently recovers from poisoned RwLock without logging. Could propagate corrupte
 
 ### Finding P-5 (MEDIUM): Hardcoded Pool Size
 
-**Location**: `tasker-pgmq/src/client.rs:41-44`
+**Location**: `crates/tasker-pgmq/src/client.rs:41-44`
 
 ```rust
 let pool = sqlx::postgres::PgPoolOptions::new()
@@ -256,7 +256,7 @@ Database operations in `client.rs`, `emitter.rs`, and `listener.rs` lack explici
 
 ### Finding P-7 (LOW): Error Context Loss in Regex Compilation
 
-**Location**: `tasker-pgmq/src/config.rs:169`
+**Location**: `crates/tasker-pgmq/src/config.rs:169`
 
 ```rust
 Regex::new(&self.queue_naming_pattern)
@@ -267,7 +267,7 @@ Original regex error details discarded.
 
 ### Finding P-8 (LOW): `#[allow]` Instead of `#[expect]` (Lint Policy)
 
-**Location**: `tasker-pgmq/src/emitter.rs:299-320` — 3 instances of `#[allow(dead_code)]` on `EmitterFactory`.
+**Location**: `crates/tasker-pgmq/src/emitter.rs:299-320` — 3 instances of `#[allow(dead_code)]` on `EmitterFactory`.
 
 ---
 
@@ -292,7 +292,7 @@ The `tasker-orchestration` crate handles core orchestration logic: actors, state
 
 ### Finding O-1 (HIGH): No Actor Panic Recovery
 
-**Location**: `tasker-orchestration/src/actors/command_processor_actor.rs:139`
+**Location**: `crates/tasker-orchestration/src/actors/command_processor_actor.rs:139`
 
 Actors spawn via `spawn_named!` but have no supervisor/restart logic. If `OrchestrationCommandProcessorActor` panics, the entire orchestration processing stops. Recovery requires full process restart.
 
@@ -302,8 +302,8 @@ Actors spawn via `spawn_named!` but have no supervisor/restart logic. If `Orches
 
 **Locations**:
 
-- `tasker-orchestration/src/orchestration/bootstrap.rs:177-213`
-- `tasker-orchestration/src/bin/server.rs:68-82`
+- `crates/tasker-orchestration/src/orchestration/bootstrap.rs:177-213`
+- `crates/tasker-orchestration/src/bin/server.rs:68-82`
 
 Shutdown calls `coordinator.lock().await.stop().await` and `orchestration_handle.stop().await` with no timeout. If the event coordinator or actors hang during shutdown, the server never completes graceful shutdown.
 
@@ -331,7 +331,7 @@ Shutdown calls `coordinator.lock().await.stop().await` and `orchestration_handle
 
 ### Finding O-5 (MEDIUM): Actor Shutdown May Lose In-Flight Work
 
-**Location**: `tasker-orchestration/src/actors/registry.rs:216-259`
+**Location**: `crates/tasker-orchestration/src/actors/registry.rs:216-259`
 
 Shutdown uses `Arc::get_mut()` which only works if no other references exist. If `get_mut` fails, `stopped()` is silently skipped. In-flight work may be lost.
 
@@ -402,7 +402,7 @@ The `tasker-worker` crate handles handler dispatch, FFI integration, and complet
 
 ### Finding W-1 (HIGH): `checkpoint_yield` Blocks FFI Thread Without Timeout
 
-**Location**: `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs:904`
+**Location**: `crates/tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs:904`
 
 ```rust
 let result = self.config.runtime_handle.block_on(async {
@@ -416,7 +416,7 @@ Uses `block_on` which blocks the Ruby/Python thread while persisting checkpoint 
 
 ### Finding W-2 (MEDIUM): Starvation Detection is Warning-Only
 
-**Location**: `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs:772-793`
+**Location**: `crates/tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs:772-793`
 
 `check_starvation_warnings()` logs warnings but doesn't enforce any action. Also requires manual invocation by the caller — no automatic monitoring loop.
 
@@ -458,13 +458,13 @@ These client crates demonstrate the strongest compliance across all audit dimens
 
 ### Finding C-1 (MEDIUM): TLS Certificate Validation Not Explicitly Enforced
 
-**Location**: `tasker-client/src/api_clients/orchestration_client.rs:220`
+**Location**: `crates/tasker-client/src/api_clients/orchestration_client.rs:220`
 
 HTTP client uses `reqwest::Client::builder()` without explicitly setting `.danger_accept_invalid_certs(false)`. Default is secure, but explicit enforcement prevents accidental changes.
 
 ### Finding C-2 (MEDIUM): Default URLs Use HTTP
 
-**Location**: `tasker-client/src/config.rs:276`
+**Location**: `crates/tasker-client/src/config.rs:276`
 
 Default `base_url` is `http://localhost:8080`. Credentials transmitted over HTTP are vulnerable to interception. Appropriate for local dev, but should warn when HTTP is used with authentication enabled.
 
@@ -474,7 +474,7 @@ Other operations (`get_task`, `list_tasks`, etc.) do not retry on transient fail
 
 ### Finding C-4 (LOW): Production `expect()` in Config Initialization
 
-`tasker-client/src/api_clients/orchestration_client.rs:123` — panics if config is malformed. Acceptable during startup but could return `Result` instead.
+`crates/tasker-client/src/api_clients/orchestration_client.rs:123` — panics if config is malformed. Acceptable during startup but could return `Result` instead.
 
 ---
 
@@ -498,19 +498,19 @@ All 4 language workers share common architecture via `FfiDispatchChannel` for po
 
 ### Finding LW-1 (MEDIUM): TypeScript FFI Missing Safety Documentation
 
-**Location**: `workers/typescript/src-rust/lib.rs:38`
+**Location**: `crates/workers/typescript/src-rust/lib.rs:38`
 
 `#![allow(clippy::missing_safety_doc)]` — suppresses docs for 9 `unsafe extern "C"` functions. Should use `#[expect]` per lint policy and add `# Safety` sections.
 
 ### Finding LW-2 (MEDIUM): Rust Worker `#[allow(dead_code)]` (Lint Policy)
 
-**Location**: `workers/rust/src/event_subscribers/logging_subscriber.rs:60,98,132`
+**Location**: `crates/workers/rust/src/event_subscribers/logging_subscriber.rs:60,98,132`
 
 3 instances of `#[allow(dead_code)]` instead of `#[expect]`.
 
 ### Finding LW-3 (LOW): Ruby Bootstrap Uses `expect()` on Ruby Runtime
 
-**Location**: `workers/ruby/ext/tasker_core/src/bridge.rs:19-20`, `bootstrap.rs:29-30`
+**Location**: `crates/workers/ruby/ext/tasker_core/src/bridge.rs:19-20`, `bootstrap.rs:29-30`
 
 `Ruby::get().expect("Ruby runtime should be available")` — safe in practice (guaranteed by Magnus FFI contract) but could use `?` for defensive programming.
 
@@ -520,7 +520,7 @@ All 4 language workers share common architecture via `FfiDispatchChannel` for po
 
 ### Finding LW-5 (LOW): Ruby Tokio Thread Pool Hardcoded to 8
 
-**Location**: `workers/ruby/ext/tasker_core/src/bootstrap.rs:74-79`
+**Location**: `crates/workers/ruby/ext/tasker_core/src/bootstrap.rs:74-79`
 
 Hardcoded `.worker_threads(8)` for M2/M4 Pro compatibility. Python/TypeScript use defaults. Consider making configurable.
 
@@ -552,7 +552,7 @@ Transitive from `lapin` (RabbitMQ) → `amq-protocol` → `tcp-stream` → `rust
 - tasker-pgmq: 3 instances
 - tasker-orchestration: 21 instances (highest)
 - tasker-worker: 5 instances
-- tasker-client/cli: 0 (compliant)
+- crates/tasker-client/cli: 0 (compliant)
 - Language workers: ~3 instances
 
 **Recommendation**: Batch fix in a single PR — mechanical replacement of `#[allow]` → `#[expect]` with `reason` strings.

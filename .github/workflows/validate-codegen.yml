@@ -44,8 +44,8 @@ jobs:
 
       - name: Validate codegen output
         run: |
-          chmod +x cargo-make/scripts/validate-codegen.sh
-          cargo-make/scripts/validate-codegen.sh \
+          chmod +x tools/cargo-make/scripts/validate-codegen.sh
+          tools/cargo-make/scripts/validate-codegen.sh \
             --binary target/debug/tasker-ctl \
             --fixture tests/fixtures/task_templates/codegen_test_template.yaml \
             --verbose

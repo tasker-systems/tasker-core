@@ -182,7 +182,7 @@ Expected: Should be very fast (30-60 seconds) as cache is fully utilized.
 
 ```bash
 # Make a small change to orchestration code
-echo "// test comment" >> tasker-orchestration/src/lib.rs
+echo "// test comment" >> crates/tasker-orchestration/src/lib.rs
 
 # Build again
 time docker compose -f docker/docker-compose.test-local.yml build orchestration
@@ -194,7 +194,7 @@ Expected: Only orchestration should rebuild, taking 2-3 minutes.
 
 ```bash
 # Add a new dependency to Cargo.toml
-echo 'serde_json = "1.0"' >> tasker-orchestration/Cargo.toml
+echo 'serde_json = "1.0"' >> crates/tasker-orchestration/Cargo.toml
 
 # Build again
 time docker compose -f docker/docker-compose.test-local.yml build orchestration
@@ -444,11 +444,11 @@ export COMPOSE_DOCKER_CLI_BUILD=1
 time docker compose -f docker/docker-compose.test-local.yml build --no-cache
 
 echo "Testing incremental build (original)..."
-echo "// test" >> tasker-orchestration/src/lib.rs
+echo "// test" >> crates/tasker-orchestration/src/lib.rs
 time docker compose -f docker/docker-compose.test.yml build
 
 echo "Testing incremental build (optimized)..."
-echo "// test2" >> tasker-orchestration/src/lib.rs
+echo "// test2" >> crates/tasker-orchestration/src/lib.rs
 time docker compose -f docker/docker-compose.test-local.yml build
 ```
 

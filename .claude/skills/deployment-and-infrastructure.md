@@ -116,7 +116,7 @@ cargo make ci-flow     # Complete CI flow
 
 ### CI Environment Setup
 
-The `cargo-make/scripts/setup-env.sh` script mirrors `.github/actions/setup-env`:
+The `tools/cargo-make/scripts/setup-env.sh` script mirrors `.github/actions/setup-env`:
 - Installs required tools
 - Configures environment variables
 - Validates prerequisites

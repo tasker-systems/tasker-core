@@ -16,8 +16,8 @@ builds a dict/hash/object with snake_case keys matching Rust serde field names, 
 deserializes via `serde_magnus::deserialize()`, `depythonize()`, or `serde_json::from_value()`
 respectively. These types must remain consistent across all four languages.
 
-**Source of Truth**: Rust types in `tasker-shared/src/messaging/execution_types.rs` and
-`tasker-shared/src/models/core/batch_worker.rs`.
+**Source of Truth**: Rust types in `crates/tasker-shared/src/messaging/execution_types.rs` and
+`crates/tasker-shared/src/models/core/batch_worker.rs`.
 
 ## Type Mapping
 
@@ -46,7 +46,7 @@ This enables cursor-based pagination across diverse data sources.
 ### Rust Definition
 
 ```rust
-// tasker-shared/src/messaging/execution_types.rs
+// crates/tasker-shared/src/messaging/execution_types.rs
 pub struct CursorConfig {
     pub batch_id: String,
     pub start_cursor: serde_json::Value,  // Flexible type
@@ -58,7 +58,7 @@ pub struct CursorConfig {
 ### TypeScript Definition
 
 ```typescript
-// workers/typescript/src/types/batch.ts
+// crates/workers/typescript/src/types/batch.ts
 export interface RustCursorConfig {
   batch_id: string;
   start_cursor: unknown;  // Flexible: number | string | object
@@ -70,7 +70,7 @@ export interface RustCursorConfig {
 ### Python Definition
 
 ```python
-# workers/python/python/tasker_core/types.py
+# crates/workers/python/python/tasker_core/types.py
 class RustCursorConfig(BaseModel):
     batch_id: str
     start_cursor: Any  # Flexible: int | str | dict
@@ -96,7 +96,7 @@ Discriminated union representing the outcome of a batchable step.
 ### Rust Definition
 
 ```rust
-// tasker-shared/src/messaging/execution_types.rs
+// crates/tasker-shared/src/messaging/execution_types.rs
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BatchProcessingOutcome {
     NoBatches,
@@ -112,7 +112,7 @@ pub enum BatchProcessingOutcome {
 ### TypeScript Definition
 
 ```typescript
-// workers/typescript/src/types/batch.ts
+// crates/workers/typescript/src/types/batch.ts
 export interface NoBatchesOutcome {
   type: 'no_batches';
 }
@@ -131,7 +131,7 @@ export type BatchProcessingOutcome = NoBatchesOutcome | CreateBatchesOutcome;
 ### Python Definition
 
 ```python
-# workers/python/python/tasker_core/types.py
+# crates/workers/python/python/tasker_core/types.py
 class NoBatchesOutcome(BaseModel):
     type: str = "no_batches"
 
@@ -177,7 +177,7 @@ Initialization inputs for batch worker instances, stored in `workflow_steps.inpu
 ### Rust Definition
 
 ```rust
-// tasker-shared/src/models/core/batch_worker.rs
+// crates/tasker-shared/src/models/core/batch_worker.rs
 pub struct BatchWorkerInputs {
     pub cursor: CursorConfig,
     pub batch_metadata: BatchMetadata,
@@ -200,7 +200,7 @@ pub enum FailureStrategy {
 ### TypeScript Definition
 
 ```typescript
-// workers/typescript/src/types/batch.ts
+// crates/workers/typescript/src/types/batch.ts
 export type FailureStrategy = 'continue_on_failure' | 'fail_fast' | 'isolate';
 
 export interface BatchMetadata {
@@ -219,7 +219,7 @@ export interface RustBatchWorkerInputs {
 ### Python Definition
 
 ```python
-# workers/python/python/tasker_core/types.py
+# crates/workers/python/python/tasker_core/types.py
 class FailureStrategy(str, Enum):
     CONTINUE_ON_FAILURE = "continue_on_failure"
     FAIL_FAST = "fail_fast"

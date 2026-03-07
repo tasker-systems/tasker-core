@@ -16,7 +16,7 @@ The Ruby worker provides a gem-based interface for integrating tasker-core workf
 ### Installation
 
 ```bash
-cd workers/ruby
+cd crates/workers/ruby
 bundle install
 bundle exec rake compile  # Compile FFI extension
 ```
@@ -43,7 +43,7 @@ bundle exec rake compile  # Compile FFI extension
 
 ### Server Mode
 
-**Location**: `workers/ruby/bin/server.rb`
+**Location**: `crates/workers/ruby/bin/server.rb`
 
 The server bootstraps the Rust foundation and manages Ruby handler execution:
 
@@ -649,7 +649,7 @@ Controlled via `RUST_LOG` environment variable:
 ## File Structure
 
 ```
-workers/ruby/
+crates/workers/ruby/
 ├── bin/
 │   ├── server.rb            # Production server
 │   └── health_check.rb      # Health check script
@@ -687,7 +687,7 @@ workers/ruby/
 ### Unit Tests
 
 ```bash
-cd workers/ruby
+cd crates/workers/ruby
 bundle exec rspec spec/
 ```
 
