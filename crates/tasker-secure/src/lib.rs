@@ -31,6 +31,7 @@ pub mod secrets;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod testing;
 
+pub use config::ConfigString;
 #[cfg(feature = "sops")]
 pub use secrets::SopsSecretsProvider;
 pub use secrets::{
