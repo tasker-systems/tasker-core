@@ -33,6 +33,7 @@ members = [
   "crates/tasker-shared",
   "crates/tasker-worker",
   "crates/tasker-grammar",  # TAS-321: Action grammar expression engine
+  "crates/tasker-secure",   # TAS-357: Strategy-pattern secrets resolution
   "crates/tasker-py",  # TAS-72: PyO3 Python worker
   "crates/tasker-rb/ext/tasker_core",
   "crates/tasker-example-rs",
@@ -131,6 +132,7 @@ rust_decimal = { version = "1.40", features = ["serde-with-str"] }
 # NOTE: "std" feature required by pythonize (which uses default-features = false)
 serde = { version = "=1.0.228", features = ["derive", "std"] }
 serde_json = "1.0"
+secrecy = { version = "0.10", features = ["serde"] }
 serde_yaml = "0.9"
 serial_test = "3.3"
 # Database and ORM
@@ -172,6 +174,7 @@ utoipa = { version = "5.4", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
 uuid = { version = "1.22", features = ["serde", "v4", "v7"] }
 validator = { version = "0.20", features = ["derive"] }
+zeroize = "1.8"
 workspace_tools = { version = "0.11.0", features = ["full"] }
 # gRPC framework and Protocol Buffers (TAS-177)
 # Note: Requires protobuf to be installed (brew install protobuf)
