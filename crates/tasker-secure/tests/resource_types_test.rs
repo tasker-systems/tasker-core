@@ -111,6 +111,8 @@ async fn config_value_resolve_secret_ref() {
 async fn config_value_resolve_env_ref() {
     // Use a unique env var name to avoid collisions
     let var_name = "TASKER_SECURE_TEST_ENV_REF_42";
+    // SAFETY: This test runs with a unique env var name to avoid collisions
+    // with other tests. The var is removed at the end of the test.
     unsafe {
         std::env::set_var(var_name, "env-value-42");
     }
@@ -122,6 +124,7 @@ async fn config_value_resolve_env_ref() {
     let resolved = val.resolve(&secrets).await.unwrap();
     assert_eq!(resolved, "env-value-42");
 
+    // SAFETY: Cleaning up the env var set earlier in this test.
     unsafe {
         std::env::remove_var(var_name);
     }
