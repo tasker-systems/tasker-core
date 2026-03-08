@@ -37,11 +37,10 @@ tasker-core/
 ├── crates/tasker-client/            # API client library (REST + gRPC transport)
 ├── crates/tasker-ctl/              # CLI binary (depends on tasker-client, tasker-sdk)
 ├── crates/tasker-mcp/              # MCP server for LLM agent integration
-└── workers/
-    ├── python/              # Python FFI bindings (PyO3/maturin)
-    ├── ruby/ext/tasker_core/ # Ruby FFI bindings (Magnus)
-    ├── rust/                 # Rust native worker
-    └── typescript/           # TypeScript FFI bindings (napi-rs)
+├── crates/tasker-py/               # Python FFI bindings (PyO3/maturin)
+├── crates/tasker-rb/ext/tasker_core/ # Ruby FFI bindings (Magnus)
+├── crates/tasker-example-rs/       # Example Rust worker
+└── crates/tasker-ts/               # TypeScript FFI bindings (napi-rs)
 ```
 
 ### Crate Dependency Graph
@@ -88,17 +87,10 @@ tasker-core/
 ┌──────────────┐   ┌───────┘
 │ tasker-ctl   │   │
 │ (also deps   │   ▼
-│  on client)  │  ┌────────────┬────────────┬────────────┐
-└──────────────┘  │ workers/   │ workers/   │ workers/   │
-                  │ ruby       │ python     │ typescript │
-                  └────────────┴────────────┴────────────┘
-                                    │
-                              ┌─────┘
-                              ▼
-                        ┌────────────┐
-                        │ workers/   │
-                        │ rust       │
-                        └────────────┘
+│  on client)  │  ┌────────────┬────────────┬────────────┬────────────┐
+└──────────────┘  │ tasker-rb  │ tasker-py  │ tasker-ts  │ tasker-    │
+                  │ (Ruby FFI) │(Python FFI)│  (TS FFI)  │ example-rs │
+                  └────────────┴────────────┴────────────┴────────────┘
 ```
 
 > **Note**: `tasker-ctl` depends on both `tasker-client` (API access) and `tasker-sdk` (codegen, template engine). `tasker-mcp` depends on `tasker-sdk` for shared developer tooling capabilities.
