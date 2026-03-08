@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Tasker Core - Claude Code on the Web Environment Setup
+# =============================================================================
+#
+# Lightweight SessionStart hook that runs on every session start/resume.
+# Must complete in seconds, not minutes.
+#
+# This script ONLY handles:
+#   - PATH configuration
+#   - Environment variables (persisted to CLAUDE_ENV_FILE)
+#   - Git hooks
+#   - .env file generation
+#
+# Heavy installations (cargo tools, PostgreSQL, etc.) are handled by
+# individual scripts in tools/cargo-make/scripts/claude-web/ and documented
+# in CLAUDE.md. The web agent can run them on-demand when specific
+# capabilities are needed.
+#
+# Usage:
+#   ./tools/bin/setup-claude-web.sh           # Auto-invoked by SessionStart hook
+#   FORCE_SETUP=1 ./tools/bin/setup-claude-web.sh  # Run even outside remote env
+#
+# For full environment setup (tools + services), run:
+#   ./tools/bin/setup-claude-web-full.sh
+#
+# =============================================================================
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Environment Guard
+# ---------------------------------------------------------------------------
+# Only run in Claude Code remote environments unless FORCE_SETUP is set
+if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ] && [ "${FORCE_SETUP:-}" != "1" ]; then
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Bootstrap
+# ---------------------------------------------------------------------------
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+LIB_DIR="${PROJECT_DIR}/tools/cargo-make/scripts/claude-web"
+
+# Ensure common tool directories are in PATH from the start
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
+# Source the shared helpers (makes log_*, command_exists, persist_env available)
+source "${LIB_DIR}/setup-common.sh"
+
+echo ""
+echo "==> Configuring tasker-core environment for Claude Code on the web"
+echo "  Project: $PROJECT_DIR"
+
+# ---------------------------------------------------------------------------
+# Phase 1: PATH and environment variables (instant, no I/O)
+# ---------------------------------------------------------------------------
+persist_env 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
+
+# Core project paths
+persist_env "export WORKSPACE_PATH=\"$PROJECT_DIR\""
+persist_env "export TASKER_CONFIG_ROOT=\"$PROJECT_DIR/config\""
+persist_env "export TASKER_FIXTURE_PATH=\"$PROJECT_DIR/tests/fixtures\""
+persist_env 'export TASKER_ENV="test"'
+persist_env 'export RUST_LOG="warn"'
+persist_env 'export LOG_LEVEL="warn"'
+
+# Database
+persist_env 'export DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test"'
+persist_env 'export TEST_DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test"'
+persist_env 'export PGMQ_DATABASE_URL="postgresql://tasker:tasker@localhost:5432/tasker_rust_test"'
+persist_env 'export TASKER_MESSAGING_BACKEND="pgmq"'
+
+# Config and template paths
+persist_env "export TASKER_CONFIG_PATH=\"$PROJECT_DIR/config/tasker/generated/complete-test.toml\""
+persist_env "export TASKER_TEMPLATE_PATH=\"$PROJECT_DIR/config/tasks\""
+
+# Web API
+persist_env 'export WEB_API_ENABLED="true"'
+persist_env 'export WEB_API_TLS_ENABLED="false"'
+persist_env "export WEB_API_TLS_CERT_PATH=\"$PROJECT_DIR/tests/web/certs/server.crt\""
+persist_env "export WEB_API_TLS_KEY_PATH=\"$PROJECT_DIR/tests/web/certs/server.key\""
+
+# Authentication
+persist_env 'export WEB_AUTH_ENABLED="true"'
+persist_env 'export WEB_JWT_ISSUER="tasker-core-test"'
+persist_env 'export WEB_JWT_AUDIENCE="tasker-api-test"'
+persist_env 'export WEB_JWT_TOKEN_EXPIRY_HOURS="1"'
+
+# CORS
+persist_env 'export WEB_CORS_ENABLED="true"'
+persist_env 'export WEB_CORS_ALLOWED_ORIGINS="http://localhost:3000,https://localhost:3000"'
+
+# Rate limiting (disabled for test)
+persist_env 'export WEB_RATE_LIMITING_ENABLED="false"'
+
+# Circuit breaker
+persist_env 'export WEB_CIRCUIT_BREAKER_ENABLED="true"'
+
+# Resource monitoring
+persist_env 'export WEB_RESOURCE_MONITORING_ENABLED="true"'
+
+# Redis
+persist_env 'export REDIS_URL="redis://localhost:6379"'
+
+log_ok "environment variables persisted to session"
+
+# ---------------------------------------------------------------------------
+# Phase 2: Git hooks (fast, local filesystem only)
+# ---------------------------------------------------------------------------
+if git rev-parse --is-inside-work-tree &>/dev/null; then
+  git config core.hooksPath .githooks
+  chmod +x "$PROJECT_DIR/.githooks/"* 2>/dev/null || true
+  log_ok "git hooks configured (.githooks/pre-commit)"
+fi
+
+# ---------------------------------------------------------------------------
+# Phase 3: Generate .env file
+# ---------------------------------------------------------------------------
+generate_fallback_env() {
+  cat > "$PROJECT_DIR/.env" << ENVEOF
+# Generated by setup-claude-web.sh
+WORKSPACE_PATH=$PROJECT_DIR
+TASKER_CONFIG_ROOT=$PROJECT_DIR/config
+TASKER_FIXTURE_PATH=$PROJECT_DIR/tests/fixtures
+TASKER_ENV=test
+RUST_LOG=warn
+LOG_LEVEL=warn
+DATABASE_URL=postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+TEST_DATABASE_URL=postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+PGMQ_DATABASE_URL=postgresql://tasker:tasker@localhost:5432/tasker_rust_test
+TASKER_MESSAGING_BACKEND=pgmq
+TASKER_CONFIG_PATH=$PROJECT_DIR/config/tasker/generated/complete-test.toml
+TASKER_TEMPLATE_PATH=$PROJECT_DIR/config/tasks
+WEB_API_ENABLED=true
+WEB_API_TLS_ENABLED=false
+WEB_AUTH_ENABLED=true
+WEB_JWT_ISSUER=tasker-core-test
+WEB_JWT_AUDIENCE=tasker-api-test
+WEB_JWT_TOKEN_EXPIRY_HOURS=1
+WEB_CORS_ENABLED=true
+WEB_RATE_LIMITING_ENABLED=false
+WEB_CIRCUIT_BREAKER_ENABLED=true
+WEB_RESOURCE_MONITORING_ENABLED=true
+REDIS_URL=redis://localhost:6379
+ENVEOF
+  log_ok ".env file created"
+}
+
+export WORKSPACE_PATH="$PROJECT_DIR"
+
+if command_exists cargo-make; then
+  cd "$PROJECT_DIR"
+  if cargo make setup-env-claude-web 2>/dev/null; then
+    log_ok ".env generated via cargo make"
+  elif cargo make setup-env 2>/dev/null; then
+    log_ok ".env generated via cargo make (fallback)"
+  else
+    generate_fallback_env
+  fi
+else
+  generate_fallback_env
+fi
+
+# ---------------------------------------------------------------------------
+# Phase 4: Detect available tools and services
+# ---------------------------------------------------------------------------
+log_section "Environment status"
+
+echo ""
+echo "  Tools:"
+command_exists cargo      && echo "    cargo:         $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'yes')" || echo "    cargo:         NOT INSTALLED (run: source $LIB_DIR/setup-rust.sh && setup_rust)"
+command_exists protoc     && echo "    protoc:        $(protoc --version 2>/dev/null | head -1 || echo 'yes')" || echo "    protoc:        NOT INSTALLED (run: source $LIB_DIR/setup-protoc.sh && setup_protoc)"
+command_exists cargo-make && echo "    cargo-make:    yes" || echo "    cargo-make:    NOT INSTALLED"
+command_exists sqlx       && echo "    sqlx-cli:      yes" || echo "    sqlx-cli:      NOT INSTALLED"
+command_exists cargo-nextest && echo "    cargo-nextest: yes" || echo "    cargo-nextest: NOT INSTALLED"
+command_exists gh         && echo "    gh:            $(gh --version 2>/dev/null | head -1 | awk '{print $3}' || echo 'yes')" || echo "    gh:            NOT INSTALLED"
+echo ""
+
+echo "  Services:"
+if pg_isready -q 2>/dev/null; then
+  echo "    PostgreSQL:    ready"
+else
+  echo "    PostgreSQL:    NOT RUNNING"
+fi
+if redis-cli ping 2>/dev/null | grep -q PONG; then
+  echo "    Redis:         ready"
+else
+  echo "    Redis:         NOT RUNNING"
+fi
+echo ""
+
+echo "  To install missing tools or start services, see CLAUDE.md"
+echo "  or run: ./tools/bin/setup-claude-web-full.sh"
+echo ""

@@ -28,7 +28,7 @@ Adopt a **strategy pattern** using an enum-based provider abstraction with capab
   - `Message(QueuedMessage<Vec<u8>>)` — RabbitMQ style (full payload delivery)
 - **Dual command variants**: `*FromMessage` (full payload) and `*FromMessageEvent` (signal-only) enable provider-agnostic command routing
 
-Provider implementations live in `tasker-shared/src/messaging/service/providers/`:
+Provider implementations live in `crates/tasker-shared/src/messaging/service/providers/`:
 
 - **PGMQ** (default): Signal-only push, requires fallback polling, supports fetch-by-ID
 - **RabbitMQ** (first-class alternative): Full message push via `lapin` (AMQP 0.9.1), work queue model

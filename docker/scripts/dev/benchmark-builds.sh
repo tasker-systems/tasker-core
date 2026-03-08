@@ -78,7 +78,7 @@ main() {
 
     # Benchmark 3: Incremental build (original)
     print_header "Test 3: Incremental Build - Original (code change)"
-    echo "// benchmark test" >> tasker-orchestration/src/lib.rs
+    echo "// benchmark test" >> crates/tasker-orchestration/src/lib.rs
     start_timer
     docker compose -f docker/docker-compose.test.yml build
     end_timer
@@ -86,7 +86,7 @@ main() {
 
     # Benchmark 4: Incremental build (optimized)
     print_header "Test 4: Incremental Build - Optimized (code change)"
-    echo "// benchmark test 2" >> tasker-orchestration/src/lib.rs
+    echo "// benchmark test 2" >> crates/tasker-orchestration/src/lib.rs
     start_timer
     docker compose -f docker/docker-compose.test-local.yml build
     end_timer
@@ -107,7 +107,7 @@ main() {
     OPTIMIZED_NOOP=$ELAPSED
 
     # Clean up the test changes
-    git checkout -- tasker-orchestration/src/lib.rs 2>/dev/null || true
+    git checkout -- crates/tasker-orchestration/src/lib.rs 2>/dev/null || true
 
     # Print results
     print_header "Benchmark Results"

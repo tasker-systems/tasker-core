@@ -126,8 +126,8 @@ run_test "ffi-core: everything enabled" \
 
 # --- ruby-worker-only ---
 run_test "ruby-worker-only: ruby build + framework, others skipped" \
-    "workers/ruby/lib/tasker_core/handler.rb
-workers/ruby/spec/integration/handler_spec.rb" \
+    "crates/tasker-rb/lib/tasker_core/handler.rb
+crates/tasker-rb/spec/integration/handler_spec.rb" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
     "RUN_BUILD_RUBY=true" \
@@ -140,8 +140,8 @@ workers/ruby/spec/integration/handler_spec.rb" \
 
 # --- python-worker-only ---
 run_test "python-worker-only: python build + framework, others skipped" \
-    "workers/python/python/tasker_core/worker.py
-workers/python/tests/test_worker.py" \
+    "crates/tasker-py/python/tasker_core/worker.py
+crates/tasker-py/tests/test_worker.py" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
     "RUN_BUILD_RUBY=false" \
@@ -154,8 +154,8 @@ workers/python/tests/test_worker.py" \
 
 # --- ts-worker-only ---
 run_test "ts-worker-only: typescript build + framework, others skipped" \
-    "workers/typescript/src/index.ts
-workers/typescript/tests/worker.test.ts" \
+    "crates/tasker-ts/src/index.ts
+crates/tasker-ts/tests/worker.test.ts" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
     "RUN_BUILD_RUBY=false" \
@@ -197,7 +197,7 @@ config/tasker/base/common.toml" \
 # --- mixed docs+ruby: ruby scope (docs don't reduce scope) ---
 run_test "mixed docs+ruby: ruby scope wins" \
     "README.md
-workers/ruby/lib/tasker_core/handler.rb" \
+crates/tasker-rb/lib/tasker_core/handler.rb" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
     "RUN_BUILD_RUBY=true" \
@@ -270,7 +270,7 @@ run_test "docker change: full CI" \
 
 # --- rust-worker-only ---
 run_test "rust-worker-only: rust worker build, no framework tests" \
-    "workers/rust/src/main.rs" \
+    "crates/tasker-example-rs/src/main.rs" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
     "RUN_BUILD_RUST_WORKER=true" \
@@ -302,7 +302,7 @@ run_test ".env change: config scope" \
 run_test "crate-dir docs only: docs-only scope" \
     "tasker-pgmq/CLAUDE.md
 tasker-shared/README.md
-workers/ruby/CHANGELOG.md" \
+crates/tasker-rb/CHANGELOG.md" \
     "RUN_BUILD_POSTGRES=false" \
     "RUN_BUILD_WORKERS=false" \
     "RUN_CODE_QUALITY=false" \
@@ -331,7 +331,7 @@ run_test "tasker-ctl Askama template: codegen validation enabled" \
 
 # --- codegen validation: worker-only changes do NOT trigger it ---
 run_test "ruby worker only: codegen validation disabled" \
-    "workers/ruby/lib/handler.rb" \
+    "crates/tasker-rb/lib/handler.rb" \
     "RUN_CODEGEN_VALIDATION=false"
 
 # --- codegen validation: full CI (proto) triggers it ---
@@ -349,7 +349,7 @@ run_test "scope summary: full-ci" \
     "SCOPE_SUMMARY=full-ci: cross-cutting change detected"
 
 run_test "scope summary: scoped ruby" \
-    "workers/ruby/lib/handler.rb" \
+    "crates/tasker-rb/lib/handler.rb" \
     "SCOPE_SUMMARY=scoped: ruby"
 
 # ---------------------------------------------------------------------------

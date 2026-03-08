@@ -4,7 +4,7 @@
 //! 1. Connecting to running Docker Compose services (postgres, orchestration, worker)
 //! 2. Using tasker-client library to create and execute CSV batch processing tasks
 //! 3. Testing cursor-based CSV row selection with actual file I/O
-//! 4. Validating YAML configuration from workers/ruby/config/task_templates/batch_processing_products_csv.yaml
+//! 4. Validating YAML configuration from crates/tasker-rb/config/task_templates/batch_processing_products_csv.yaml
 //!
 //! Prerequisites:
 //! Run `docker-compose -f docker/docker-compose.test.yml up --build -d` before running tests

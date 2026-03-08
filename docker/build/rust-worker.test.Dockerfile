@@ -6,8 +6,8 @@
 # - Pre-built binaries where available (5-10 min savings)
 # - BuildKit cache mount support for incremental builds
 # - Single-layer binary copy pattern
-# Context: workers/rust/ directory
-# Usage: DOCKER_BUILDKIT=1 docker build -f Dockerfile.test-local -t tasker-worker-rust:test .
+# Context: crates/tasker-example-rs/ directory
+# Usage: DOCKER_BUILDKIT=1 docker build -f Dockerfile.test-local -t tasker-example-rs:test .
 
 # Verify BuildKit is enabled (will fail if not)
 ARG DOCKER_BUILDKIT=1
@@ -59,23 +59,23 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by rust worker
-COPY tasker-shared/ ./tasker-shared/
-COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-cli/
+COPY crates/tasker-shared/ ./tasker-shared/
+COPY crates/tasker-client/ ./tasker-client/
+COPY crates/tasker-ctl/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
-COPY tasker-worker/ ./tasker-worker/
-COPY workers/rust/ ./workers/rust/
+COPY crates/tasker-worker/ ./tasker-worker/
+COPY crates/tasker-example-rs/ ./tasker-example-rs/
 COPY migrations/ ./migrations/
 
 # Copy minimal workspace structure for crates we don't actually need
 # Uses shared stub script to reduce maintenance burden
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/ruby workers/python workers/typescript
-COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY workers/python/Cargo.toml ./workers/python/
-COPY workers/typescript/Cargo.toml ./workers/typescript/
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-rb tasker-py tasker-ts
+COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Generate dependency recipe
 RUN cargo chef prepare --recipe-path recipe.json
@@ -104,22 +104,22 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by rust worker
-COPY tasker-shared/ ./tasker-shared/
-COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-cli/
+COPY crates/tasker-shared/ ./tasker-shared/
+COPY crates/tasker-client/ ./tasker-client/
+COPY crates/tasker-ctl/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
-COPY tasker-worker/ ./tasker-worker/
-COPY workers/rust/ ./workers/rust/
+COPY crates/tasker-worker/ ./tasker-worker/
+COPY crates/tasker-example-rs/ ./tasker-example-rs/
 COPY migrations/ ./migrations/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/ruby workers/python workers/typescript
-COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY workers/python/Cargo.toml ./workers/python/
-COPY workers/typescript/Cargo.toml ./workers/typescript/
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-rb tasker-py tasker-ts
+COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Set offline mode for SQLx
 ENV SQLX_OFFLINE=true
@@ -132,7 +132,7 @@ ENV SQLX_OFFLINE=true
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
-    cargo build --locked --bin rust-worker -p tasker-worker-rust && \
+    cargo build --locked --bin rust-worker -p tasker-example-rs && \
     cp /app/target/debug/rust-worker /app/rust-worker
 
 # =============================================================================
@@ -164,7 +164,7 @@ COPY docker/scripts/worker-entrypoint.sh ./scripts/worker-entrypoint.sh
 RUN chmod +x ./scripts/*.sh
 
 # Set environment variables for the service
-ENV APP_NAME=tasker-worker-rust
+ENV APP_NAME=tasker-example-rs
 
 # Environment variables will be set by docker-compose
 

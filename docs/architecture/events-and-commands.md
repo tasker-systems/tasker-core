@@ -26,7 +26,7 @@ This architecture eliminates polling complexity while maintaining resilience thr
 
 ### EventDrivenSystem Trait
 
-The foundation of the event architecture is defined in `tasker-shared/src/event_system/event_driven.rs` with the `EventDrivenSystem` trait:
+The foundation of the event architecture is defined in `crates/tasker-shared/src/event_system/event_driven.rs` with the `EventDrivenSystem` trait:
 
 ```rust
 #[async_trait]
@@ -156,7 +156,7 @@ sequenceDiagram
 
 ### OrchestrationEventSystem
 
-Implemented in `tasker-orchestration/src/orchestration/event_systems/orchestration_event_system.rs`:
+Implemented in `crates/tasker-orchestration/src/orchestration/event_systems/orchestration_event_system.rs`:
 
 ```rust
 pub struct OrchestrationEventSystem {
@@ -263,7 +263,7 @@ pub struct UnifiedEventCoordinator {
 
 ### WorkerEventSystem
 
-Implemented in `tasker-worker/src/worker/event_systems/worker_event_system.rs`:
+Implemented in `crates/tasker-worker/src/worker/event_systems/worker_event_system.rs`:
 
 ```rust
 pub struct WorkerEventSystem {
@@ -664,7 +664,7 @@ impl Handler<FinalizeTaskMessage> for TaskFinalizerActor {
 The actor pattern integrates seamlessly with the command processor through direct actor calls:
 
 ```rust
-// From: tasker-orchestration/src/orchestration/command_processor.rs
+// From: crates/tasker-orchestration/src/orchestration/command_processor.rs
 
 async fn handle_finalize_task(&self, task_uuid: Uuid) -> TaskerResult<TaskFinalizationResult> {
     // Direct actor-based task finalization

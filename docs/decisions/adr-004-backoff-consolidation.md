@@ -261,13 +261,13 @@ END
 
 1. **Configuration**:
    - `config/tasker/base/orchestration.toml`: max_backoff_seconds = 60
-   - `tasker-shared/src/config/tasker.rs`: jitter_max_percentage = 0.1
+   - `crates/tasker-shared/src/config/tasker.rs`: jitter_max_percentage = 0.1
 
 2. **Database Migration**:
    - `migrations/20250927000000_add_waiting_for_retry_state.sql`: Parameterized functions
 
 3. **Rust Implementation**:
-   - `tasker-orchestration/src/orchestration/backoff_calculator.rs`: Atomic updates
+   - `crates/tasker-orchestration/src/orchestration/backoff_calculator.rs`: Atomic updates
 
 4. **Documentation**:
    - `docs/task-and-step-readiness-and-execution.md`: Backoff section added
@@ -319,7 +319,7 @@ Since this is greenfield alpha:
 
 - [Task and Step Readiness Documentation](../task-and-step-readiness-and-execution.md)
 - [States and Lifecycles Documentation](../states-and-lifecycles.md)
-- [BackoffCalculator Implementation](../../tasker-orchestration/src/orchestration/backoff_calculator.rs)
+- [BackoffCalculator Implementation](../../crates/tasker-orchestration/src/orchestration/backoff_calculator.rs)
 - [SQL Migration 20250927000000](../../migrations/20250927000000_add_waiting_for_retry_state.sql)
 
 ## Related ADRs

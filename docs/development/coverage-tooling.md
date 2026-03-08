@@ -113,7 +113,7 @@ tasker-core/
 +-- COVERAGE.md                            # Auto-generated markdown report
 +-- Makefile.toml                          # Root coverage tasks
 +-- coverage-thresholds.json               # Per-crate threshold config
-+-- cargo-make/
++-- tools/cargo-make/
 |   +-- scripts/
 |       +-- coverage-crate-integrated.sh   # Crate + integration test coverage
 |       +-- coverage-e2e.sh               # E2E coverage with instrumented binaries
@@ -229,7 +229,7 @@ function-level detail; Python and Ruby include line-level detail where available
   "files_total": 143,
   "files": [
     {
-      "path": "tasker-shared/src/config/web.rs",
+      "path": "crates/tasker-shared/src/config/web.rs",
       "lines_covered": 0,
       "lines_total": 44,
       "line_coverage_percent": 0.0,
@@ -241,7 +241,7 @@ function-level detail; Python and Ruby include line-level detail where available
   "uncovered_functions": [
     {
       "name": "<tasker_shared::cache::provider::CacheBackend>::delete",
-      "file": "tasker-shared/src/cache/provider.rs"
+      "file": "crates/tasker-shared/src/cache/provider.rs"
     }
   ]
 }
@@ -328,8 +328,8 @@ with code 1 if any crate is below its threshold.
 ## Normalizer Scripts
 
 The normalizer and aggregation scripts are managed as a uv-backed Python project
-at `cargo-make/scripts/coverage/`. All cargo-make tasks invoke them via
-`uv run --project cargo-make/scripts/coverage` to ensure a consistent environment.
+at `tools/cargo-make/scripts/coverage/`. All cargo-make tasks invoke them via
+`uv run --project tools/cargo-make/scripts/coverage` to ensure a consistent environment.
 
 ### `normalize-rust.py`
 
@@ -345,7 +345,7 @@ Key behaviors:
 - Scopes files and functions to the target crate's `src/` directory
 - Batch-demangles all Rust symbols through `rustfilt` in a single subprocess
 - Deduplicates generic monomorphizations (many mangled names -> one demangled name)
-- Special crate mapping: `tasker-worker-rust` -> `workers/rust/src/`
+- Special crate mapping: `tasker-example-rs` -> `crates/tasker-example-rs/src/`
 - Pass `--crate workspace` for unfiltered workspace-wide output
 
 ### `normalize-python.py`
@@ -414,8 +414,8 @@ Prefers the aggregate report if available; falls back to individual reports.
 | `cargo-nextest` | `cargo install cargo-nextest` | Test runner with per-test process isolation |
 | `rustfilt` | `cargo install rustfilt` | Rust symbol demangling |
 | `uv` | `brew install uv` (in Brewfile) | Python project management |
-| `pytest-cov` | Via `uv` in workers/python | Python coverage |
-| `simplecov` / `simplecov-json` | Via Bundler in workers/ruby | Ruby coverage |
+| `pytest-cov` | Via `uv` in crates/tasker-py | Python coverage |
+| `simplecov` / `simplecov-json` | Via Bundler in crates/tasker-rb | Ruby coverage |
 | `bun` | `brew install bun` (in Brewfile) | TypeScript test runner with LCOV coverage |
 
 The `coverage-tools-setup` task auto-installs `rustfilt` and syncs the uv project.
@@ -426,8 +426,8 @@ The `coverage-tools-setup` task auto-installs `rustfilt` and syncs the uv projec
 
 If a normalizer script needs a new Python package:
 
-1. Add it to `cargo-make/scripts/coverage/pyproject.toml` under `dependencies`
-2. Run `uv sync --project cargo-make/scripts/coverage`
+1. Add it to `tools/cargo-make/scripts/coverage/pyproject.toml` under `dependencies`
+2. Run `uv sync --project tools/cargo-make/scripts/coverage`
 3. Commit `pyproject.toml` and `uv.lock`
 
 ---
@@ -491,7 +491,7 @@ cargo make coverage-e2e-rabbitmq    # RabbitMQ backend only
 
 No `CRATE_NAME` needed -- the script always instruments both `tasker-server` and
 `rust-worker`, runs the same Rust E2E tests per backend, and generates per-crate
-reports for 6 crates: `tasker-orchestration`, `tasker-worker-rust`,
+reports for 6 crates: `tasker-orchestration`, `tasker-example-rs`,
 `tasker-worker`, `tasker-shared`, `tasker-pgmq`, and `tasker-client`. Both
 binaries link these crates as library dependencies, so their execution covers
 code paths only reachable through the full service stack.
@@ -535,7 +535,7 @@ files to avoid colliding with normal service instances.
 
 - `coverage-reports/rust/e2e-raw.json` -- single raw report from all backend passes
 - `coverage-reports/rust/tasker-orchestration-e2e-coverage.json` -- orchestration coverage
-- `coverage-reports/rust/tasker-worker-rust-e2e-coverage.json` -- rust worker coverage
+- `coverage-reports/rust/tasker-example-rs-e2e-coverage.json` -- rust worker coverage
 - `coverage-reports/rust/tasker-worker-e2e-coverage.json` -- tasker-worker library coverage
 - `coverage-reports/rust/tasker-shared-e2e-coverage.json` -- shared library coverage
 - `coverage-reports/rust/tasker-pgmq-e2e-coverage.json` -- PGMQ wrapper coverage

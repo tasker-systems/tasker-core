@@ -16,7 +16,7 @@ The Python worker provides a package-based interface for integrating tasker-core
 ### Installation
 
 ```bash
-cd workers/python
+cd crates/tasker-py
 uv sync                    # Install dependencies
 uv run maturin develop     # Build FFI extension
 ```
@@ -44,7 +44,7 @@ python bin/server.py
 
 ### Server Mode
 
-**Location**: `workers/python/bin/server.py`
+**Location**: `crates/tasker-py/bin/server.py`
 
 The server bootstraps the Rust foundation and manages Python handler execution:
 
@@ -940,7 +940,7 @@ log_info("Processing", context)
 ## File Structure
 
 ```
-workers/python/
+crates/tasker-py/
 ├── bin/
 │   └── server.py              # Production server
 ├── python/
@@ -975,7 +975,7 @@ workers/python/
 ### Unit Tests
 
 ```bash
-cd workers/python
+cd crates/tasker-py
 uv run pytest tests/
 ```
 

@@ -10,7 +10,7 @@ steps:
     type: standard
     dependencies: []
     handler:
-      callable: tasker_worker_rust::step_handlers::conditional_approval_rust::ValidateRequestHandler
+      callable: tasker_example_rs::step_handlers::conditional_approval_rust::ValidateRequestHandler
       initialization: {}
 
   - name: routing_decision
@@ -18,7 +18,7 @@ steps:
     dependencies:
       - validate_request
     handler:
-      callable: tasker_worker_rust::step_handlers::conditional_approval_rust::RoutingDecisionHandler
+      callable: tasker_example_rs::step_handlers::conditional_approval_rust::RoutingDecisionHandler
       initialization: {}
 
   - name: finalize_approval
@@ -28,7 +28,7 @@ steps:
       - manager_approval
       - finance_review
     handler:
-      callable: tasker_worker_rust::step_handlers::conditional_approval_rust::FinalizeApprovalHandler
+      callable: tasker_example_rs::step_handlers::conditional_approval_rust::FinalizeApprovalHandler
       initialization: {}
 
   - name: auto_approve
@@ -36,7 +36,7 @@ steps:
     dependencies:
       - routing_decision
     handler:
-      callable: tasker_worker_rust::step_handlers::conditional_approval_rust::AutoApproveHandler
+      callable: tasker_example_rs::step_handlers::conditional_approval_rust::AutoApproveHandler
       initialization: {}
 
   - name: manager_approval
@@ -44,7 +44,7 @@ steps:
     dependencies:
       - routing_decision
     handler:
-      callable: tasker_worker_rust::step_handlers::conditional_approval_rust::ManagerApprovalHandler
+      callable: tasker_example_rs::step_handlers::conditional_approval_rust::ManagerApprovalHandler
       initialization: {}
 
   - name: finance_review
@@ -52,5 +52,5 @@ steps:
     dependencies:
       - routing_decision
     handler:
-      callable: tasker_worker_rust::step_handlers::conditional_approval_rust::FinanceReviewHandler
+      callable: tasker_example_rs::step_handlers::conditional_approval_rust::FinanceReviewHandler
       initialization: {}

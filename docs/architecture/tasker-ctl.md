@@ -20,7 +20,7 @@ The CLI is built as a single Rust binary with no runtime dependencies beyond the
 ## Module Structure
 
 ```
-tasker-ctl/src/
+crates/tasker-ctl/src/
 ├── main.rs              # CLI definition (Clap derive), arg parsing, command dispatch
 ├── output/              # Styled terminal output (anstream/anstyle)
 │   └── mod.rs

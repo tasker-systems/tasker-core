@@ -44,7 +44,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: workers/typescript
+        working-directory: crates/tasker-ts
 
     steps:
       - name: Checkout code
@@ -68,6 +68,9 @@ jobs:
 
       - name: Setup Rust (for cargo-make + orchestration server)
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
@@ -104,14 +107,14 @@ jobs:
 
       - name: Restore FFI module
         run: |
-          cd ../..
+          cd ../../..
           if [ -d artifacts ]; then
-            ARTIFACTS_DIR=artifacts cargo-make/scripts/ci-restore-typescript-artifacts.sh
+            ARTIFACTS_DIR=artifacts tools/cargo-make/scripts/ci-restore-typescript-artifacts.sh
           else
             echo "No artifacts directory found, FFI tests may skip"
           fi
           # napi CLI places .node files in package root — FfiLayer auto-discovers them
-          ls -la workers/typescript/tasker_ts.*.node 2>/dev/null || echo "No FFI module available"
+          ls -la crates/tasker-ts/tasker_ts.*.node 2>/dev/null || echo "No FFI module available"
 
       # ========================================================================
       # Quality Checks and Unit Tests (no FFI required)
@@ -150,7 +153,7 @@ jobs:
 
       - name: Start orchestration server
         working-directory: .
-        run: cargo-make/scripts/ci-start-orchestration-server.sh
+        run: tools/cargo-make/scripts/ci-start-orchestration-server.sh
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           REDIS_URL: redis://localhost:6379
@@ -175,7 +178,7 @@ jobs:
       - name: Stop orchestration server
         if: always()
         working-directory: .
-        run: cargo-make/scripts/ci-stop-orchestration-server.sh
+        run: tools/cargo-make/scripts/ci-stop-orchestration-server.sh
 
       # ========================================================================
       # Build and Summary
@@ -196,4 +199,4 @@ jobs:
       - name: Display test summary
         if: always()
         working-directory: .
-        run: cargo-make/scripts/ci-display-test-summary.sh typescript
+        run: tools/cargo-make/scripts/ci-display-test-summary.sh typescript

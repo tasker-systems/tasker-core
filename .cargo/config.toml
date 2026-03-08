@@ -9,10 +9,17 @@ lint = "clippy --all-targets --all-features -- -D warnings"
 WORKSPACE_PATH = { value = ".", relative = true }
 
 [profile.dev]
-# Disable incremental when CARGO_TARGET_DIR is on a different filesystem
-# This prevents hard link errors when building to external drives
-incremental = false
-split-debuginfo = "unpacked"  # Can reduce size on macOS
+# TAS-366: Incremental compilation re-enabled (was disabled for external drive hard-link
+# workaround on a machine that no longer exists). This is a significant inner-loop win.
+incremental = true
+split-debuginfo = "unpacked"  # Reduces debug artifact size on macOS
 
 [profile.release]
 incremental = false  # Disable for release builds
+
+# TAS-366: Use mold linker for faster link times on Linux.
+# mold only supports ELF (Linux) — macOS uses the default Apple linker.
+# CI: rui314/setup-mold@v1 installs mold; this config tells cargo to use it.
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]

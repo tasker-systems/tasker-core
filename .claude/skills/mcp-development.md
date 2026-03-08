@@ -168,21 +168,21 @@ Writes are locked to the launch profile (see "Read Anywhere, Write Locked" above
 
 | File | Purpose |
 |------|---------|
-| `tasker-mcp/src/server.rs` | ServerHandler impl, thin tool routing stubs, client resolution, write-profile locking |
-| `tasker-mcp/src/tier.rs` | `ToolTier` enum, `EnabledTiers` resolution, tool name constants (TAS-309) |
-| `tasker-mcp/src/tools/mod.rs` | Module declarations, re-exports `error_json` and `params::*` |
-| `tasker-mcp/src/tools/developer.rs` | Tier 1 offline tool logic (7 pure functions + unit tests) |
-| `tasker-mcp/src/tools/connected.rs` | Tier 2 read-only tool logic (15 async functions) |
-| `tasker-mcp/src/tools/write.rs` | Tier 3 write tool logic (6 async functions, confirmation pattern) |
-| `tasker-mcp/src/tools/helpers.rs` | `error_json()`, `topological_sort()` |
-| `tasker-mcp/src/tools/params.rs` | Parameter and response structs (schemars + serde) |
-| `tasker-mcp/src/lib.rs` | Library target for integration test imports |
-| `tasker-mcp/src/main.rs` | Binary entry point (clap CLI + stdio transport) |
-| `tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 29 tools) |
+| `crates/tasker-mcp/src/server.rs` | ServerHandler impl, thin tool routing stubs, client resolution, write-profile locking |
+| `crates/tasker-mcp/src/tier.rs` | `ToolTier` enum, `EnabledTiers` resolution, tool name constants (TAS-309) |
+| `crates/tasker-mcp/src/tools/mod.rs` | Module declarations, re-exports `error_json` and `params::*` |
+| `crates/tasker-mcp/src/tools/developer.rs` | Tier 1 offline tool logic (7 pure functions + unit tests) |
+| `crates/tasker-mcp/src/tools/connected.rs` | Tier 2 read-only tool logic (15 async functions) |
+| `crates/tasker-mcp/src/tools/write.rs` | Tier 3 write tool logic (6 async functions, confirmation pattern) |
+| `crates/tasker-mcp/src/tools/helpers.rs` | `error_json()`, `topological_sort()` |
+| `crates/tasker-mcp/src/tools/params.rs` | Parameter and response structs (schemars + serde) |
+| `crates/tasker-mcp/src/lib.rs` | Library target for integration test imports |
+| `crates/tasker-mcp/src/main.rs` | Binary entry point (clap CLI + stdio transport) |
+| `crates/tasker-mcp/tests/mcp_protocol_test.rs` | Protocol-level integration tests (all 29 tools) |
 | `tests/mcp_tests.rs` | Connected integration tests entry point (requires running services) |
 | `tests/mcp/harness.rs` | `McpTestHarness` — duplex MCP + IntegrationTestManager for seeding |
 | `tests/mcp/` | 5 persona test files: task_inspection, system_monitoring, dlq_investigation, analytics, write_tools |
-| `tasker-client/src/profile_manager.rs` | ProfileManager, health types, multi-profile sessions |
+| `crates/tasker-client/src/profile_manager.rs` | ProfileManager, health types, multi-profile sessions |
 | `.mcp.json.example` | Example client config (copy to `.mcp.json`) |
 
 ## Test Commands
@@ -200,7 +200,7 @@ cargo test --all-features -p tasker-mcp --test mcp_protocol_test
 # Connected integration tests (requires running services)
 cargo test --features test-services --test mcp_tests -- --nocapture
 # Or via cargo-make:
-cd tasker-mcp && cargo make test-mcp-connected
+cd crates/tasker-mcp && cargo make test-mcp-connected
 
 # Clippy
 cargo clippy --all-targets --all-features -p tasker-mcp
@@ -210,7 +210,7 @@ cargo clippy --all-targets --all-features -p tasker-mcp
 
 ### Adding a New Tool
 
-1. Add parameter struct to `tasker-mcp/src/tools/params.rs` (derive `Deserialize + JsonSchema`)
+1. Add parameter struct to `crates/tasker-mcp/src/tools/params.rs` (derive `Deserialize + JsonSchema`)
 2. Add response struct if needed (derive `Serialize`)
 3. Add business logic function in the appropriate tier module:
    - `tools/developer.rs` — Tier 1 offline (pure `fn`, no client)

@@ -16,7 +16,7 @@ The Rust worker is the native, high-performance implementation for workflow step
 ### Running the Server
 
 ```bash
-cd workers/rust
+cd crates/tasker-example-rs
 cargo run
 ```
 
@@ -40,7 +40,7 @@ TASKER_CONFIG_PATH=/path/to/config.toml cargo run
 
 ### Entry Point
 
-**Location**: `workers/rust/src/main.rs`
+**Location**: `crates/tasker-example-rs/src/main.rs`
 
 ```rust
 #[tokio::main]
@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
 
 ### Bootstrap Process
 
-**Location**: `workers/rust/src/bootstrap.rs`
+**Location**: `crates/tasker-example-rs/src/bootstrap.rs`
 
 The bootstrap process:
 
@@ -148,7 +148,7 @@ The Rust worker uses the `HandlerDispatchService` for non-blocking handler execu
 
 Rust uses traits for handler composition, matching the mixin pattern in Ruby/Python/TypeScript.
 
-**Location**: `tasker-worker/src/handler_capabilities.rs`
+**Location**: `crates/tasker-worker/src/handler_capabilities.rs`
 
 #### APICapable Trait
 
@@ -229,7 +229,7 @@ impl RustStepHandler for CompositeHandler {
 
 ### Handler Trait
 
-**Location**: `workers/rust/src/step_handlers/mod.rs`
+**Location**: `crates/tasker-example-rs/src/step_handlers/mod.rs`
 
 All Rust handlers implement the `RustStepHandler` trait:
 
@@ -304,7 +304,7 @@ impl RustStepHandler for ProcessOrderHandler {
 
 ### Handler Registration
 
-**Location**: `workers/rust/src/step_handlers/registry.rs`
+**Location**: `crates/tasker-example-rs/src/step_handlers/registry.rs`
 
 Handlers are registered in the `RustStepHandlerRegistry`:
 
@@ -359,7 +359,7 @@ impl RustStepHandlerRegistry {
 
 ### Linear Workflow
 
-**Location**: `workers/rust/src/step_handlers/linear_workflow.rs`
+**Location**: `crates/tasker-example-rs/src/step_handlers/linear_workflow.rs`
 
 Simple sequential workflow with 4 steps:
 
@@ -387,7 +387,7 @@ impl RustStepHandler for LinearStep1Handler {
 
 ### Diamond Workflow
 
-**Location**: `workers/rust/src/step_handlers/diamond_workflow.rs`
+**Location**: `crates/tasker-example-rs/src/step_handlers/diamond_workflow.rs`
 
 Parallel branching with convergence:
 
@@ -411,7 +411,7 @@ Parallel branching with convergence:
 
 ### Batch Processing
 
-**Location**: `workers/rust/src/step_handlers/batch_processing_products_csv.rs`
+**Location**: `crates/tasker-example-rs/src/step_handlers/batch_processing_products_csv.rs`
 
 Three-phase batch processing:
 
@@ -452,7 +452,7 @@ impl RustStepHandler for CsvBatchProcessorHandler {
 
 ### Error Injection (Testing)
 
-**Location**: `workers/rust/src/step_handlers/error_injection/`
+**Location**: `crates/tasker-example-rs/src/step_handlers/error_injection/`
 
 Handlers for testing retry behavior:
 
@@ -633,7 +633,7 @@ RUST_LOG=trace cargo run --release
 ## File Structure
 
 ```
-workers/rust/
+crates/tasker-example-rs/
 ├── src/
 │   ├── main.rs                  # Entry point
 │   ├── bootstrap.rs             # Worker initialization

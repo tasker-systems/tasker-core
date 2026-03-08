@@ -8,7 +8,7 @@
 
 ### StepDefinition — where `result_schema` goes
 
-**File:** `tasker-shared/src/models/core/task_template/mod.rs`
+**File:** `crates/tasker-shared/src/models/core/task_template/mod.rs`
 
 `StepDefinition` starts at ~line 465. This is the struct that gets the new `result_schema: Option<serde_json::Value>` field. Follow the existing patterns exactly:
 
@@ -27,29 +27,29 @@ The mod.rs file has extensive round-trip serialization tests starting around lin
 
 ### tasker-ctl — where the new commands go
 
-**File:** `tasker-ctl/src/commands/template.rs`
+**File:** `crates/tasker-ctl/src/commands/template.rs`
 
-The existing `TemplateCommands` enum (defined in `tasker-ctl/src/main.rs` or the CLI definition module) dispatches through `handle_template_command()`. Today it has `List`, `Info`, and `Generate` subcommands.
+The existing `TemplateCommands` enum (defined in `crates/tasker-ctl/src/main.rs` or the CLI definition module) dispatches through `handle_template_command()`. Today it has `List`, `Info`, and `Generate` subcommands.
 
 **Important distinction:** The existing `template generate` command generates project scaffolds from plugin templates (Tera-based, discovered via `tasker-plugin.toml` manifests). The new TAS-280 commands (`generate types`, `generate handler`) are a **different flow** — they read task template YAML files directly and produce typed code from `result_schema` definitions. These are not plugin templates; they are schema-driven code generation.
 
-The template engine (`tasker-ctl/src/template_engine/mod.rs`) uses Tera and has custom filters (`snake_case`, `pascal_case`, `camel_case`, `kebab_case`). You will likely want Tera templates for the generated code (Python models, Ruby structs, TypeScript interfaces), but the input is a parsed `TaskTemplate`, not plugin template parameters.
+The template engine (`crates/tasker-ctl/src/template_engine/mod.rs`) uses Tera and has custom filters (`snake_case`, `pascal_case`, `camel_case`, `kebab_case`). You will likely want Tera templates for the generated code (Python models, Ruby structs, TypeScript interfaces), but the input is a parsed `TaskTemplate`, not plugin template parameters.
 
 ### Worker DSL — the consumer of generated types
 
-**Python** (`workers/python/python/tasker_core/step_handler/functional.py`):
+**Python** (`crates/workers/python/python/tasker_core/step_handler/functional.py`):
 - `@depends_on` decorator (~line 354) already supports typed dependencies: `@depends_on(order=("validate_order", ValidateOrderResult))`
 - Uses Pydantic `model_construct(**raw_dict)` for deserialization
 - `@inputs` decorator (~line 400) supports `@inputs(MyPydanticModel)` for typed input injection
 - **This is the most mature typed DSL** — generated Python code should target this exact pattern
 
-**TypeScript** (`workers/typescript/src/handler/functional.ts`):
+**TypeScript** (`crates/workers/typescript/src/handler/functional.ts`):
 - `defineHandler()` factory with `depends: Record<string, string>` — string-based mapping today
 - TypeScript doesn't need serde-style deserialization modeling — interfaces and type annotations (`: MyCoolInterface`, `: Promise<MyCoolInterface>`) are the natural TypeScript approach
 - The goal for generated TypeScript is to produce **interfaces** that developers attach to their handler parameters and return types, catching incompatibilities at build-and-lint time through the TypeScript compiler — not runtime deserialization
 - Only pursue runtime serde if there's a clear, obvious, TypeScript-natural way of making it more intentional; don't force a pattern from another language
 
-**Ruby** (`workers/ruby/lib/tasker_core/step_handler/functional.rb`):
+**Ruby** (`crates/workers/ruby/lib/tasker_core/step_handler/functional.rb`):
 - Full functional DSL with `step_handler`, `decision_handler`, `batch_analyzer`, `batch_worker`, and `api_handler` block-based patterns
 - **Already supports typed `depends_on`**: `depends_on: { order: ['validate_order', ValidateOrderResult] }` — the tuple syntax deserializes raw dependency results into `Dry::Struct` instances via `model_cls.new(**symbolized.slice(*known))`
 - `inputs:` supports both symbol keys (`inputs: [:payment_info]`) and model classes for typed input injection
@@ -81,9 +81,9 @@ Scope: Remove `task_handler` blocks from all YAML files in `tests/fixtures/task_
 
 ### 2. Rename `TaskTemplateRegistry` → `TaskTemplateRegistry`
 
-The `TaskTemplateRegistry` in `tasker-shared/src/registry/task_template_registry.rs` is the runtime registry that discovers and caches task templates. The name is a holdover — it manages templates, not handlers. Rename to `TaskTemplateRegistry` for clarity:
+The `TaskTemplateRegistry` in `crates/tasker-shared/src/registry/task_template_registry.rs` is the runtime registry that discovers and caches task templates. The name is a holdover — it manages templates, not handlers. Rename to `TaskTemplateRegistry` for clarity:
 
-- `tasker-shared/src/registry/task_template_registry.rs` → `task_template_registry.rs`
+- `crates/tasker-shared/src/registry/task_template_registry.rs` → `task_template_registry.rs`
 - `TaskTemplateRegistry` struct → `TaskTemplateRegistry`
 - `task_template_registry` field on `SystemContext` → `task_template_registry`
 - Update all references across the workspace (re-exports in `registry/mod.rs`, usage in `system_context.rs`, etc.)

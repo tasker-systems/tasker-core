@@ -37,23 +37,23 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by orchestration
-COPY tasker-orchestration/ ./tasker-orchestration/
-COPY tasker-shared/ ./tasker-shared/
-COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-ctl/
-COPY tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-orchestration/ ./tasker-orchestration/
+COPY crates/tasker-shared/ ./tasker-shared/
+COPY crates/tasker-client/ ./tasker-client/
+COPY crates/tasker-ctl/ ./tasker-ctl/
+COPY crates/tasker-pgmq/ ./tasker-pgmq/
 COPY migrations/ ./migrations/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-worker workers/rust workers/ruby workers/python workers/typescript
-COPY tasker-worker/Cargo.toml ./tasker-worker/
-COPY workers/rust/Cargo.toml ./workers/rust/
-COPY workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY workers/python/Cargo.toml ./workers/python/
-COPY workers/typescript/Cargo.toml ./workers/typescript/
+    /tmp/create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts
+COPY crates/tasker-worker/Cargo.toml ./tasker-worker/
+COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Generate dependency recipe
 RUN cargo chef prepare --recipe-path recipe.json
@@ -75,23 +75,23 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by orchestration
-COPY tasker-orchestration/ ./tasker-orchestration/
-COPY tasker-shared/ ./tasker-shared/
-COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-ctl/
-COPY tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-orchestration/ ./tasker-orchestration/
+COPY crates/tasker-shared/ ./tasker-shared/
+COPY crates/tasker-client/ ./tasker-client/
+COPY crates/tasker-ctl/ ./tasker-ctl/
+COPY crates/tasker-pgmq/ ./tasker-pgmq/
 COPY migrations/ ./migrations/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-worker workers/rust workers/ruby workers/python workers/typescript
-COPY tasker-worker/Cargo.toml ./tasker-worker/
-COPY workers/rust/Cargo.toml ./workers/rust/
-COPY workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY workers/python/Cargo.toml ./workers/python/
-COPY workers/typescript/Cargo.toml ./workers/typescript/
+    /tmp/create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts
+COPY crates/tasker-worker/Cargo.toml ./tasker-worker/
+COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Set offline mode for SQLx
 ENV SQLX_OFFLINE=true

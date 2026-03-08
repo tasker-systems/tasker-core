@@ -90,13 +90,13 @@ cargo nextest run --test error_scenarios_test
 
 ## Test Handlers
 
-Test handlers are located in `workers/ruby/spec/handlers/examples/error_scenarios/`:
+Test handlers are located in `crates/tasker-rb/spec/handlers/examples/error_scenarios/`:
 
 - `success_handler.rb` - Always succeeds
 - `permanent_error_handler.rb` - Raises PermanentError (no retries)
 - `retryable_error_handler.rb` - Raises RetryableError (exhausts retries)
 
-Templates are in `workers/ruby/spec/fixtures/templates/error_testing_handler.yaml`.
+Templates are in `crates/tasker-rb/spec/fixtures/templates/error_testing_handler.yaml`.
 
 ## Configuration
 
@@ -107,16 +107,16 @@ Ruby worker discovers handlers via `TASKER_TEMPLATE_PATH` environment variable:
 ```yaml
 # docker-compose.test.yml
 environment:
-  TASKER_TEMPLATE_PATH: /app/workers/ruby/spec/fixtures/templates
+  TASKER_TEMPLATE_PATH: /app/crates/tasker-rb/spec/fixtures/templates
 
 volumes:
-  - ../workers/ruby/spec:/app/workers/ruby/spec:ro
+  - ../crates/tasker-rb/spec:/app/crates/tasker-rb/spec:ro
 ```
 
 Handlers are discovered relative to template path:
 ```
-/app/workers/ruby/spec/fixtures/templates  (templates)
-/app/workers/ruby/spec/handlers/examples   (handlers - discovered relative to templates)
+/app/crates/tasker-rb/spec/fixtures/templates  (templates)
+/app/crates/tasker-rb/spec/handlers/examples   (handlers - discovered relative to templates)
 ```
 
 ### Test Environment Overrides
@@ -151,7 +151,7 @@ docker compose -f docker/docker-compose.test.yml restart
 
 ```bash
 # Verify volume mount
-docker compose -f docker/docker-compose.test.yml exec ruby-worker ls -la /app/workers/ruby/spec/
+docker compose -f docker/docker-compose.test.yml exec ruby-worker ls -la /app/crates/tasker-rb/spec/
 
 # Check template path
 docker compose -f docker/docker-compose.test.yml exec ruby-worker env | grep TASKER_TEMPLATE_PATH
@@ -199,7 +199,7 @@ Assertions (task status, step states, etc.)
 3. **Single Source of Truth** - One test infrastructure, consistent assertions
 4. **Reduced Duplication** - No need for separate RSpec integration harness
 
-Ruby specs (`workers/ruby/spec/`) focus on framework concerns:
+Ruby specs (`crates/tasker-rb/spec/`) focus on framework concerns:
 - FFI layer integration
 - Type wrappers and conversions
 - Event system (dry-events)

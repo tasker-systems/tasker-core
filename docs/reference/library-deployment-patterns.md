@@ -20,7 +20,7 @@ The library deployment patterns feature:
 Four services encapsulate observability logic:
 
 ```
-tasker-worker/src/worker/services/
+crates/tasker-worker/src/worker/services/
 ├── health/          # HealthService - health checks
 ├── metrics/         # MetricsService - metrics collection
 ├── template_query/  # TemplateQueryService - template operations

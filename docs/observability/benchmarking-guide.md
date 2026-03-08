@@ -2,7 +2,7 @@
 
 **Created**: 2025-10-08
 **Status**: ✅ Complete
-**Location**: `tasker-shared/benches/sql_functions.rs`
+**Location**: `crates/tasker-shared/benches/sql_functions.rs`
 
 ---
 

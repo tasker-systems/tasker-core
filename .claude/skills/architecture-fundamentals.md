@@ -21,13 +21,13 @@ tasker-ctl           # CLI binary (config generate/validate, dry-run releases)
 tasker-orchestration # Core orchestration logic (actors, services)
 tasker-shared        # Shared types, traits, utilities, state machines
 tasker-worker        # Worker implementation (handler dispatch, FFI)
-workers/python       # Python FFI bindings (maturin/pyo3)
-workers/ruby         # Ruby FFI bindings (magnus)
-workers/rust         # Rust worker implementation
-workers/typescript   # TypeScript FFI bindings (Bun/Node/Deno)
+tasker-py            # Python FFI bindings (maturin/pyo3)
+tasker-rb            # Ruby FFI bindings (magnus)
+tasker-example-rs    # Example Rust worker implementation
+tasker-ts            # TypeScript FFI bindings (Bun/Node/Deno)
 ```
 
-Crate-level documentation in `tasker-orchestration/AGENTS.md` and `tasker-worker/AGENTS.md`.
+Crate-level documentation in `crates/tasker-orchestration/AGENTS.md` and `crates/tasker-worker/AGENTS.md`.
 
 ## Actor Pattern
 
@@ -139,4 +139,4 @@ Key components:
 - Crate architecture: `docs/architecture/crate-architecture.md`
 - Backpressure: `docs/architecture/backpressure-architecture.md`
 - Circuit breakers: `docs/architecture/circuit-breakers.md`
-- Crate-level: `tasker-orchestration/AGENTS.md`, `tasker-worker/AGENTS.md`
+- Crate-level: `crates/tasker-orchestration/AGENTS.md`, `crates/tasker-worker/AGENTS.md`

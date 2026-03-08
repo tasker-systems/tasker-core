@@ -40,28 +40,28 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by Ruby FFI extension
-COPY tasker-shared/ ./tasker-shared/
-COPY tasker-worker/ ./tasker-worker/
-COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-ctl/
-COPY tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-shared/ ./tasker-shared/
+COPY crates/tasker-worker/ ./tasker-worker/
+COPY crates/tasker-client/ ./tasker-client/
+COPY crates/tasker-ctl/ ./tasker-ctl/
+COPY crates/tasker-pgmq/ ./tasker-pgmq/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/rust workers/python workers/typescript
-COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY workers/rust/Cargo.toml ./workers/rust/
-COPY workers/python/Cargo.toml ./workers/python/
-COPY workers/typescript/Cargo.toml ./workers/typescript/
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs tasker-py tasker-ts
+COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
+COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
+COPY crates/tasker-py/Cargo.toml ./tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Copy Ruby worker source code to proper workspace location
-COPY workers/ruby/ ./workers/ruby/
+COPY crates/tasker-rb/ ./tasker-rb/
 COPY migrations/ ./migrations/
 
 # Install Ruby dependencies
-WORKDIR /app/workers/ruby
+WORKDIR /app/tasker-rb
 RUN bundle config set --local deployment 'true'
 RUN bundle config set --local without 'development'
 RUN bundle install
@@ -102,11 +102,11 @@ RUN apk add --no-cache \
 # OPTIMIZATION: Copy only necessary Ruby worker files (exclude tmp/, spec/, doc/, etc.)
 # This avoids copying 1.3GB of Rust build artifacts from tmp/ directory
 WORKDIR /app/ruby_worker
-COPY --from=ruby_builder /app/workers/ruby/bin ./bin
-COPY --from=ruby_builder /app/workers/ruby/lib ./lib
-COPY --from=ruby_builder /app/workers/ruby/Gemfile* ./
-COPY --from=ruby_builder /app/workers/ruby/*.gemspec ./
-COPY --from=ruby_builder /app/workers/ruby/Rakefile ./
+COPY --from=ruby_builder /app/tasker-rb/bin ./bin
+COPY --from=ruby_builder /app/tasker-rb/lib ./lib
+COPY --from=ruby_builder /app/tasker-rb/Gemfile* ./
+COPY --from=ruby_builder /app/tasker-rb/*.gemspec ./
+COPY --from=ruby_builder /app/tasker-rb/Rakefile ./
 
 # Copy bundled gems from builder (includes compiled extensions and all gems)
 # Chainguard Ruby images use /usr/lib/ruby/gems as the gem home

@@ -58,10 +58,10 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by Python FFI extension
-COPY tasker-shared/ ./tasker-shared/
-COPY tasker-worker/ ./tasker-worker/
-COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-cli/
+COPY crates/tasker-shared/ ./tasker-shared/
+COPY crates/tasker-worker/ ./tasker-worker/
+COPY crates/tasker-client/ ./tasker-client/
+COPY crates/tasker-ctl/ ./tasker-cli/
 COPY pgmq-notify/ ./pgmq-notify/
 
 # Copy minimal workspace structure for crates we don't actually need
@@ -69,19 +69,19 @@ COPY pgmq-notify/ ./pgmq-notify/
 # Uses shared stub script to reduce maintenance burden
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/rust workers/ruby workers/typescript
-COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY workers/rust/Cargo.toml ./workers/rust/
-COPY workers/ruby/ext/tasker_core/Cargo.toml ./workers/ruby/ext/tasker_core/
-COPY workers/typescript/Cargo.toml ./workers/typescript/
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs tasker-rb tasker-ts
+COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
+COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
+COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
 
 # Copy Python worker source code to proper workspace location
-COPY workers/python/ ./workers/python/
+COPY crates/tasker-py/ ./tasker-py/
 COPY migrations/ ./migrations/
 
 # Set working directory and environment for Python worker
 ENV SQLX_OFFLINE=true
-WORKDIR /app/workers/python
+WORKDIR /app/tasker-py
 
 # Create virtual environment using UV
 RUN uv venv /app/.venv
@@ -131,11 +131,11 @@ ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy Python worker source code
-COPY --from=python_builder /app/workers/python/python ./python_worker/python
-COPY --from=python_builder /app/workers/python/bin ./python_worker/bin
+COPY --from=python_builder /app/tasker-py/python ./python_worker/python
+COPY --from=python_builder /app/tasker-py/bin ./python_worker/bin
 
 # Copy test handlers for E2E testing
-COPY --from=python_builder /app/workers/python/tests/handlers ./python_handlers
+COPY --from=python_builder /app/tasker-py/tests/handlers ./python_handlers
 
 # Ensure all Python files are readable
 RUN chmod -R 755 ./python_worker/bin && \

@@ -99,11 +99,11 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy shared crates needed by all FFI extensions
-COPY tasker-shared/ ./tasker-shared/
-COPY tasker-worker/ ./tasker-worker/
-COPY tasker-client/ ./tasker-client/
-COPY tasker-ctl/ ./tasker-ctl/
-COPY tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-shared/ ./tasker-shared/
+COPY crates/tasker-worker/ ./tasker-worker/
+COPY crates/tasker-client/ ./tasker-client/
+COPY crates/tasker-ctl/ ./tasker-ctl/
+COPY crates/tasker-pgmq/ ./tasker-pgmq/
 COPY proto/ ./proto/
 COPY migrations/ ./migrations/
 
@@ -113,24 +113,24 @@ COPY .sqlx/ ./.sqlx/
 # Create workspace stubs for crates we don't build
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/rust
-COPY tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY workers/rust/Cargo.toml ./workers/rust/
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs
+COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
+COPY crates/tasker-example-rs/Cargo.toml ./crates/tasker-example-rs/
 
 # Copy all three FFI worker sources
-COPY workers/python/ ./workers/python/
-COPY workers/ruby/ ./workers/ruby/
-COPY workers/typescript/ ./workers/typescript/
+COPY crates/tasker-py/ ./crates/tasker-py/
+COPY crates/tasker-rb/ ./crates/tasker-rb/
+COPY crates/tasker-ts/ ./crates/tasker-ts/
 
 # Install Ruby bundle dependencies at image build time
-WORKDIR /app/workers/ruby
+WORKDIR /app/crates/tasker-rb
 RUN bundle config set --local without 'development' && bundle install --jobs 4
 
 # Return to workspace root
 WORKDIR /app
 
 # Copy build scripts
-COPY scripts/ffi-build/ ./scripts/ffi-build/
+COPY tools/scripts/ffi-build/ ./scripts/ffi-build/
 RUN chmod +x ./scripts/ffi-build/*.sh ./scripts/ffi-build/lib/common.sh
 
 # SQLx offline mode

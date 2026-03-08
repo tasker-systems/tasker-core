@@ -182,10 +182,10 @@ The SQL function performs in a single call:
 5. **DLQ status** — LEFT JOIN to `tasks_dlq WHERE resolution_status = 'pending'`
 
 Returns a composite type with JSONB fields for template and steps arrays, avoiding
-wide column explosion. The Rust model in `tasker-shared/src/models/orchestration/`
+wide column explosion. The Rust model in `crates/tasker-shared/src/models/orchestration/`
 deserializes these JSONB fields into typed structs.
 
-**Rust model location**: `tasker-shared/src/models/orchestration/task_summary.rs`
+**Rust model location**: `crates/tasker-shared/src/models/orchestration/task_summary.rs`
 
 Following `TaskExecutionContext` pattern:
 
@@ -207,9 +207,9 @@ impl TaskSummary {
 TAS-316's `visualize_template` currently returns pre-rendered Mermaid strings directly.
 We refactor it to use the same structured node/edge architecture as task visualization:
 
-1. **Extract shared types** into `tasker-sdk/src/visualization/types.rs` — `GraphNode`,
+1. **Extract shared types** into `crates/tasker-sdk/src/visualization/types.rs` — `GraphNode`,
    `GraphEdge`, `GraphData`, `VisualCategory`, `TableRow`, `TableData`
-2. **Extract shared renderers** into `tasker-sdk/src/visualization/render.rs` —
+2. **Extract shared renderers** into `crates/tasker-sdk/src/visualization/render.rs` —
    `render_mermaid()`, `render_detail_table()`, `render_markdown()`
 3. **Refactor `visualize_template`** to return structured data, with a convenience method
    that renders to the current output format for backward compatibility
@@ -218,7 +218,7 @@ We refactor it to use the same structured node/edge architecture as task visuali
 Module structure after refactoring:
 
 ```
-tasker-sdk/src/visualization/
+crates/tasker-sdk/src/visualization/
 ├── mod.rs                  # Public API: visualize_template, visualize_task
 ├── types.rs                # Shared types: GraphNode, GraphEdge, VisualCategory, TableRow, etc.
 ├── render.rs               # Shared renderers: render_mermaid, render_detail_table, render_markdown
@@ -592,7 +592,7 @@ tasker-ctl task visualize <task_uuid> [--format mermaid|json|markdown] [--base-u
 Follows existing CLI pattern — client created from profile config via `ClientConfig`:
 
 ```rust
-// In tasker-ctl/src/commands/task.rs
+// In crates/tasker-ctl/src/commands/task.rs
 TaskCommands::Visualize { task_id, format, base_url, output, graph_only } => {
     let orchestration_config = OrchestrationApiConfig {
         base_url: config.orchestration.base_url.clone(),

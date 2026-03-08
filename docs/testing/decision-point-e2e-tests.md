@@ -199,7 +199,7 @@ tests/fixtures/task_templates/ruby/conditional_approval_handler.yaml
 The Ruby handlers are located at:
 
 ```
-workers/ruby/spec/handlers/examples/conditional_approval/
+crates/tasker-rb/spec/handlers/examples/conditional_approval/
 ├── handlers/
 │   └── conditional_approval_handler.rb
 └── step_handlers/

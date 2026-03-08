@@ -118,7 +118,7 @@ impl Handler<ExecuteStepMessage> for StepExecutorActor {
 
 ### WorkerActor Trait
 
-The base trait for all worker actors, defined in `tasker-worker/src/worker/actors/traits.rs`:
+The base trait for all worker actors, defined in `crates/tasker-worker/src/worker/actors/traits.rs`:
 
 ```rust
 /// Base trait for all worker actors
@@ -174,7 +174,7 @@ pub trait Message: Send + 'static {
 
 ## WorkerActorRegistry
 
-The central registry managing all worker actors, defined in `tasker-worker/src/worker/actors/registry.rs`:
+The central registry managing all worker actors, defined in `crates/tasker-worker/src/worker/actors/registry.rs`:
 
 ### Structure
 
@@ -243,7 +243,7 @@ impl WorkerActorRegistry {
 
 Handles step execution from PGMQ messages and events.
 
-**Location**: `tasker-worker/src/worker/actors/step_executor_actor.rs`
+**Location**: `crates/tasker-worker/src/worker/actors/step_executor_actor.rs`
 
 **Messages**:
 
@@ -260,7 +260,7 @@ Handles step execution from PGMQ messages and events.
 
 Handles step completion results from FFI handlers.
 
-**Location**: `tasker-worker/src/worker/actors/ffi_completion_actor.rs`
+**Location**: `crates/tasker-worker/src/worker/actors/ffi_completion_actor.rs`
 
 **Messages**:
 
@@ -275,7 +275,7 @@ Handles step completion results from FFI handlers.
 
 Manages task template caching and refresh.
 
-**Location**: `tasker-worker/src/worker/actors/template_cache_actor.rs`
+**Location**: `crates/tasker-worker/src/worker/actors/template_cache_actor.rs`
 
 **Messages**:
 
@@ -289,7 +289,7 @@ Manages task template caching and refresh.
 
 Dispatches domain events after step completion.
 
-**Location**: `tasker-worker/src/worker/actors/domain_event_actor.rs`
+**Location**: `crates/tasker-worker/src/worker/actors/domain_event_actor.rs`
 
 **Messages**:
 
@@ -303,7 +303,7 @@ Dispatches domain events after step completion.
 
 Provides worker health and status reporting.
 
-**Location**: `tasker-worker/src/worker/actors/worker_status_actor.rs`
+**Location**: `crates/tasker-worker/src/worker/actors/worker_status_actor.rs`
 
 **Messages**:
 

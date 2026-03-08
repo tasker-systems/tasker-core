@@ -138,7 +138,7 @@ After `cargo make coverage-report`, find `coverage-reports/aggregate-coverage.js
 
 ## Normalizer Scripts
 
-Managed as a uv-backed Python project at `cargo-make/scripts/coverage/`. All invoked via `uv run --project cargo-make/scripts/coverage`.
+Managed as a uv-backed Python project at `tools/cargo-make/scripts/coverage/`. All invoked via `uv run --project tools/cargo-make/scripts/coverage`.
 
 Key scripts:
 - `normalize-rust.py` -- llvm-cov JSON to standard schema (with `rustfilt` demangling)

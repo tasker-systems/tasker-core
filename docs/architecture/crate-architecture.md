@@ -29,19 +29,18 @@ The crate structure follows these principles:
 
 ```
 tasker-core/
-├── tasker-pgmq/              # PGMQ wrapper with notification support
-├── tasker-shared/            # Shared types, SQL functions, utilities
-├── tasker-sdk/           # Shared developer tooling (codegen, templates, schema inspection)
-├── tasker-orchestration/     # Task coordination and lifecycle management
-├── tasker-worker/            # Step execution and handler integration
-├── tasker-client/            # API client library (REST + gRPC transport)
-├── tasker-ctl/              # CLI binary (depends on tasker-client, tasker-sdk)
-├── tasker-mcp/              # MCP server for LLM agent integration
-└── workers/
-    ├── python/              # Python FFI bindings (PyO3/maturin)
-    ├── ruby/ext/tasker_core/ # Ruby FFI bindings (Magnus)
-    ├── rust/                 # Rust native worker
-    └── typescript/           # TypeScript FFI bindings (napi-rs)
+├── crates/tasker-pgmq/              # PGMQ wrapper with notification support
+├── crates/tasker-shared/            # Shared types, SQL functions, utilities
+├── crates/tasker-sdk/           # Shared developer tooling (codegen, templates, schema inspection)
+├── crates/tasker-orchestration/     # Task coordination and lifecycle management
+├── crates/tasker-worker/            # Step execution and handler integration
+├── crates/tasker-client/            # API client library (REST + gRPC transport)
+├── crates/tasker-ctl/              # CLI binary (depends on tasker-client, tasker-sdk)
+├── crates/tasker-mcp/              # MCP server for LLM agent integration
+├── crates/tasker-py/               # Python FFI bindings (PyO3/maturin)
+├── crates/tasker-rb/ext/tasker_core/ # Ruby FFI bindings (Magnus)
+├── crates/tasker-example-rs/       # Example Rust worker
+└── crates/tasker-ts/               # TypeScript FFI bindings (napi-rs)
 ```
 
 ### Crate Dependency Graph
@@ -88,17 +87,10 @@ tasker-core/
 ┌──────────────┐   ┌───────┘
 │ tasker-ctl   │   │
 │ (also deps   │   ▼
-│  on client)  │  ┌────────────┬────────────┬────────────┐
-└──────────────┘  │ workers/   │ workers/   │ workers/   │
-                  │ ruby       │ python     │ typescript │
-                  └────────────┴────────────┴────────────┘
-                                    │
-                              ┌─────┘
-                              ▼
-                        ┌────────────┐
-                        │ workers/   │
-                        │ rust       │
-                        └────────────┘
+│  on client)  │  ┌────────────┬────────────┬────────────┬────────────┐
+└──────────────┘  │ tasker-rb  │ tasker-py  │ tasker-ts  │ tasker-    │
+                  │ (Ruby FFI) │(Python FFI)│  (TS FFI)  │ example-rs │
+                  └────────────┴────────────┴────────────┴────────────┘
 ```
 
 > **Note**: `tasker-ctl` depends on both `tasker-client` (API access) and `tasker-sdk` (codegen, template engine). `tasker-mcp` depends on `tasker-sdk` for shared developer tooling capabilities.
@@ -111,7 +103,7 @@ tasker-core/
 
 **Purpose**: Wrapper around PostgreSQL Message Queue (PGMQ) with native PostgreSQL LISTEN/NOTIFY support
 
-**Location**: `tasker-pgmq/`
+**Location**: `crates/tasker-pgmq/`
 
 **Key Responsibilities**:
 
@@ -153,7 +145,7 @@ pub struct PgmqClient {
 
 **Purpose**: Foundation crate containing all shared types, utilities, and SQL function interfaces
 
-**Location**: `tasker-shared/`
+**Location**: `crates/tasker-shared/`
 
 **Key Responsibilities**:
 
@@ -244,7 +236,7 @@ pub mod messaging {
 
 **Purpose**: Task coordination, lifecycle management, and orchestration REST API
 
-**Location**: `tasker-orchestration/`
+**Location**: `crates/tasker-orchestration/`
 
 **Key Responsibilities**:
 
@@ -391,7 +383,7 @@ GrpcState { services: Arc<SharedApiServices>, ... }  // gRPC
 
 **Purpose**: Step execution, handler integration, and worker coordination
 
-**Location**: `tasker-worker/`
+**Location**: `crates/tasker-worker/`
 
 **Key Responsibilities**:
 
@@ -454,7 +446,7 @@ pub mod event_systems {
 
 **Purpose**: Transport-agnostic API client library for REST and gRPC
 
-**Location**: `tasker-client/`
+**Location**: `crates/tasker-client/`
 
 **Key Responsibilities**:
 
@@ -508,7 +500,7 @@ pub trait OrchestrationClient: Send + Sync {
 
 **Purpose**: Shared developer tooling library for codegen, template parsing, and schema inspection (TAS-304)
 
-**Location**: `tasker-sdk/`
+**Location**: `crates/tasker-sdk/`
 
 **Key Responsibilities**:
 
@@ -542,7 +534,7 @@ pub trait OrchestrationClient: Send + Sync {
 
 **Purpose**: Command-line interface for Tasker
 
-**Location**: `tasker-ctl/`
+**Location**: `crates/tasker-ctl/`
 
 **Key Responsibilities**:
 
@@ -588,7 +580,7 @@ tasker-ctl docs generate
 
 **Purpose**: MCP (Model Context Protocol) server exposing Tasker developer tooling to LLM agents (TAS-304)
 
-**Location**: `tasker-mcp/`
+**Location**: `crates/tasker-mcp/`
 
 **Key Responsibilities**:
 
@@ -611,11 +603,11 @@ tasker-ctl docs generate
 
 ## Worker Implementations
 
-### workers/ruby/ext/tasker_core
+### crates/tasker-rb/ext/tasker_core
 
 **Purpose**: Ruby FFI bindings enabling Ruby workers to execute Rust-orchestrated workflows
 
-**Location**: `workers/ruby/ext/tasker_core/`
+**Location**: `crates/tasker-rb/ext/tasker_core/`
 
 **Key Responsibilities**:
 
@@ -632,7 +624,7 @@ tasker-ctl docs generate
 result = TaskerCore::Worker::Bootstrap.start!
 
 # Template registration (automatic)
-# Ruby templates in workers/ruby/app/tasker/tasks/templates/
+# Ruby templates in crates/tasker-rb/app/tasker/tasks/templates/
 
 # Handler execution (automatic via FFI)
 class MyHandler < TaskerCore::StepHandler::Base
@@ -665,11 +657,11 @@ end
 
 ---
 
-### workers/rust
+### crates/tasker-example-rs
 
 **Purpose**: Native Rust worker implementation for maximum performance
 
-**Location**: `workers/rust/`
+**Location**: `crates/tasker-example-rs/`
 
 **Key Responsibilities**:
 
@@ -755,7 +747,7 @@ tasker-worker::event_systems::WorkerEventSystem
   ↓ [Claims step]
 tasker-worker::handlers::execute_handler
   ↓ [FFI or native]
-workers/ruby or workers/rust
+crates/tasker-rb or crates/tasker-example-rs
   ↓ [Returns result]
 tasker-worker::orchestration_result_sender
   ↓ [pgmq_send_with_notify]
@@ -825,13 +817,13 @@ DATABASE_URL="postgresql://..." cargo test --all-features
 # Root workspace features
 [features]
 benchmarks = [
-    "tasker-shared/benchmarks",
+    "crates/tasker-shared/benchmarks",
     # ...
 ]
 test-utils = [
-    "tasker-orchestration/test-utils",
-    "tasker-shared/test-utils",
-    "tasker-worker/test-utils",
+    "crates/tasker-orchestration/test-utils",
+    "crates/tasker-shared/test-utils",
+    "crates/tasker-worker/test-utils",
 ]
 ```
 

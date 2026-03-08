@@ -4,7 +4,7 @@
 //! 1. Connecting to running Docker Compose services (postgres, orchestration, worker)
 //! 2. Using tasker-client library to create and execute hierarchical tree tasks
 //! 3. Testing complex tree structure with multiple branches and convergence using native Rust handlers
-//! 4. Validating YAML configuration from workers/rust/config/tasks/tree_workflow/
+//! 4. Validating YAML configuration from crates/tasker-example-rs/config/tasks/tree_workflow/
 //!
 //! Prerequisites:
 //! Run `docker-compose -f docker/docker-compose.test.yml up --build -d` before running tests
@@ -218,8 +218,10 @@ async fn test_end_to_end_tree_workflow() -> Result<()> {
     println!("✅ Hierarchical branch execution: Working");
     println!("✅ Multi-leaf parallel processing: Working");
     println!("✅ Four-way convergence pattern: Working");
-    println!("✅ Step handlers from workers/rust/src/step_handlers/tree_workflow: Working");
-    println!("✅ YAML config from workers/rust/config/tasks/tree_workflow: Working");
+    println!(
+        "✅ Step handlers from crates/tasker-example-rs/src/step_handlers/tree_workflow: Working"
+    );
+    println!("✅ YAML config from crates/tasker-example-rs/config/tasks/tree_workflow: Working");
     println!("✅ End-to-end tree pattern lifecycle: Working");
 
     Ok(())

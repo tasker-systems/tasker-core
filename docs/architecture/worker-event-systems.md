@@ -108,7 +108,7 @@ This architecture enables true parallel handler execution while maintaining stri
 
 ### 1. WorkerEventSystem
 
-**Location**: `tasker-worker/src/worker/event_systems/worker_event_system.rs`
+**Location**: `crates/tasker-worker/src/worker/event_systems/worker_event_system.rs`
 
 Implements the `EventDrivenSystem` trait for worker namespace queue processing. Supports three deployment modes with provider-agnostic message handling:
 
@@ -153,7 +153,7 @@ match notification {
 
 ### 2. HandlerDispatchService
 
-**Location**: `tasker-worker/src/worker/handlers/dispatch_service.rs`
+**Location**: `crates/tasker-worker/src/worker/handlers/dispatch_service.rs`
 
 Non-blocking handler dispatch with bounded parallelism.
 
@@ -239,7 +239,7 @@ See [Handler Resolution Guide](../guides/handler-resolution.md) for complete doc
 
 ### 3. FfiDispatchChannel
 
-**Location**: `tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs`
+**Location**: `crates/tasker-worker/src/worker/handlers/ffi_dispatch_channel.rs`
 
 Pull-based polling interface for FFI workers (Ruby, Python). Enables language-specific handlers without complex FFI memory management.
 
@@ -274,7 +274,7 @@ Rust                           Ruby/Python
 
 ### 4. CompletionProcessorService
 
-**Location**: `tasker-worker/src/worker/handlers/completion_processor.rs`
+**Location**: `crates/tasker-worker/src/worker/handlers/completion_processor.rs`
 
 Receives completed step results and routes to orchestration queue via `FFICompletionService`.
 
@@ -286,7 +286,7 @@ completion_receiver → CompletionProcessorService → FFICompletionService → 
 
 ### 5. DomainEventSystem
 
-**Location**: `tasker-worker/src/worker/event_systems/domain_event_system.rs`
+**Location**: `crates/tasker-worker/src/worker/event_systems/domain_event_system.rs`
 
 Async system for fire-and-forget domain event publishing.
 
@@ -314,7 +314,7 @@ mpsc::Sender<DomainEventCommand>  →  mpsc::Receiver
 
 ### EventDrivenSystem Trait
 
-**Location**: `tasker-shared/src/event_system/event_driven.rs`
+**Location**: `crates/tasker-shared/src/event_system/event_driven.rs`
 
 Unified trait for all event-driven systems:
 
@@ -342,7 +342,7 @@ pub trait EventDrivenSystem: Send + Sync {
 
 ### Deployment Modes
 
-**Location**: `tasker-shared/src/event_system/deployment.rs`
+**Location**: `crates/tasker-shared/src/event_system/deployment.rs`
 
 ```rust
 pub enum DeploymentMode {
@@ -354,7 +354,7 @@ pub enum DeploymentMode {
 
 ## PostHandlerCallback Trait
 
-**Location**: `tasker-worker/src/worker/handlers/dispatch_service.rs`
+**Location**: `crates/tasker-worker/src/worker/handlers/dispatch_service.rs`
 
 Extensibility point for post-handler actions:
 

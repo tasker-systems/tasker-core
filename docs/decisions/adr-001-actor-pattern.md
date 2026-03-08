@@ -86,6 +86,6 @@ Define `Service` trait and implement on each lifecycle component.
 
 ## References
 
-- See the actor pattern implementation in `tasker-orchestration/`
+- See the actor pattern implementation in `crates/tasker-orchestration/`
 - [Actors Architecture](../architecture/actors.md) - Actor pattern documentation
 - [Events and Commands](../architecture/events-and-commands.md) - Integration context

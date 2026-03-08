@@ -20,7 +20,7 @@ Phase 0 is **substantially complete**. Five of six validation criteria are met. 
 
 TAS-280 is merged (PR #258). The `result_schema` field exists on `StepDefinition` in `tasker-shared` with full serialization support.
 
-Code generation in `tasker-sdk/src/codegen/` produces typed output for all four languages:
+Code generation in `crates/tasker-sdk/src/codegen/` produces typed output for all four languages:
 - **Python**: Pydantic `BaseModel` classes (`codegen/python.rs`)
 - **Ruby**: `Dry::Struct` classes (`codegen/ruby.rs`)
 - **TypeScript**: Zod schemas + TypeScript interfaces (`codegen/typescript_zod.rs`, `codegen/typescript.rs`)
@@ -86,7 +86,7 @@ This criterion asks for observations about "recurring workflow shapes, common ha
 
 **Status: Complete**
 
-Fully implemented in `tasker-sdk/src/schema_comparator/`:
+Fully implemented in `crates/tasker-sdk/src/schema_comparator/`:
 - Producer/consumer schema comparison with recursive nested object walking
 - Finding classification: `MISSING_REQUIRED_FIELD` (breaking), `MISSING_OPTIONAL_FIELD` (non-breaking), `TYPE_MISMATCH` (breaking), `EXTRA_PRODUCER_FIELD` (non-breaking)
 - Compatibility levels: `Compatible`, `CompatibleWithWarnings`, `Incompatible`

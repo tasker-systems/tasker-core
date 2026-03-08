@@ -707,7 +707,7 @@ Example (base=1000ms, max=30000ms):
 
 ### Background Service
 
-**Component**: `tasker-orchestration/src/orchestration/staleness_detector.rs`
+**Component**: `crates/tasker-orchestration/src/orchestration/staleness_detector.rs`
 
 **Configuration**:
 
@@ -1119,8 +1119,8 @@ curl /v1/dlq/staleness | jq '.[] | select(.health_status == "warning") | {
 
 **File Locations**:
 
-- Staleness detector: `tasker-orchestration/src/orchestration/staleness_detector.rs`
-- DLQ models: `tasker-shared/src/models/orchestration/dlq.rs`
+- Staleness detector: `crates/tasker-orchestration/src/orchestration/staleness_detector.rs`
+- DLQ models: `crates/tasker-shared/src/models/orchestration/dlq.rs`
 - SQL functions: `migrations/20251122000004_add_dlq_discovery_function.sql`
 - Database views: `migrations/20251122000003_add_dlq_views.sql`
 

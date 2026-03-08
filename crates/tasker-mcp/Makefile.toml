@@ -1,0 +1,81 @@
+# =============================================================================
+# tasker-mcp - cargo-make Task Definitions
+# =============================================================================
+#
+# MCP server binary exposing Tasker developer tooling to LLM agents.
+#
+# Quick Start:
+#   cargo make check    # Run all quality checks
+#   cargo make test     # Run tests
+#   cargo make fix      # Auto-fix issues
+#   cargo make run      # Run MCP server (stdio transport)
+#
+# =============================================================================
+
+extend = "../../tools/cargo-make/base-tasks.toml"
+
+[config]
+default_to_workspace = false
+
+[env]
+CRATE_NAME = "tasker-mcp"
+
+# =============================================================================
+# Main Tasks
+# =============================================================================
+
+[tasks.default]
+alias = "check"
+
+[tasks.check]
+description = "Run quality checks"
+dependencies = ["format-check", "lint", "test"]
+
+[tasks.format-check]
+extend = "base-rust-format"
+
+[tasks.format-fix]
+extend = "base-rust-format-fix"
+
+[tasks.lint]
+extend = "base-rust-lint"
+
+[tasks.lint-fix]
+extend = "base-rust-lint-fix"
+
+[tasks.test]
+extend = "base-rust-test"
+description = "Run tasker-mcp tests"
+args = ["nextest", "run", "-p", "${CRATE_NAME}", "--all-features"]
+
+[tasks.fix]
+description = "Fix all fixable issues"
+dependencies = ["format-fix", "lint-fix"]
+
+[tasks.clean]
+description = "Clean build artifacts"
+command = "cargo"
+args = ["clean", "-p", "${CRATE_NAME}"]
+
+# =============================================================================
+# Service Tasks
+# =============================================================================
+
+[tasks.run]
+description = "Run MCP server (stdio transport)"
+command = "cargo"
+args = ["run", "-p", "${CRATE_NAME}", "--all-features"]
+
+[tasks.run-release]
+description = "Run MCP server (release build)"
+command = "cargo"
+args = ["run", "-p", "${CRATE_NAME}", "--all-features", "--release"]
+
+# =============================================================================
+# Connected Integration Tests
+# =============================================================================
+
+[tasks.test-mcp-connected]
+description = "MCP connected integration tests (requires running services)"
+command = "cargo"
+args = ["test", "--features", "test-services", "--test", "mcp_tests", "--", "--nocapture"]

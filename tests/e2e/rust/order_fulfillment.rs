@@ -4,7 +4,7 @@
 //! 1. Connecting to running Docker Compose services (postgres, orchestration, worker)
 //! 2. Using tasker-client library to create and execute order fulfillment tasks
 //! 3. Testing sophisticated business workflow with external service integration using native Rust handlers
-//! 4. Validating YAML configuration from workers/rust/config/tasks/order_fulfillment/
+//! 4. Validating YAML configuration from crates/tasker-example-rs/config/tasks/order_fulfillment/
 //!
 //! Prerequisites:
 //! Run `docker-compose -f docker/docker-compose.test.yml up --build -d` before running tests
@@ -293,8 +293,10 @@ async fn test_end_to_end_order_fulfillment_workflow() -> Result<()> {
     println!("✅ Inventory reservation system: Working");
     println!("✅ Payment processing integration: Working");
     println!("✅ Shipping and fulfillment: Working");
-    println!("✅ Step handlers from workers/rust/src/step_handlers/order_fulfillment: Working");
-    println!("✅ YAML config from workers/rust/config/tasks/order_fulfillment: Working");
+    println!("✅ Step handlers from crates/tasker-example-rs/src/step_handlers/order_fulfillment: Working");
+    println!(
+        "✅ YAML config from crates/tasker-example-rs/config/tasks/order_fulfillment: Working"
+    );
     println!("✅ End-to-end business workflow lifecycle: Working");
 
     Ok(())

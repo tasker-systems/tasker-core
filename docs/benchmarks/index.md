@@ -79,7 +79,7 @@ cargo make bench-e2e-all       # All tiers
 
 ### 2. API Performance (`tasker-client`)
 
-**Location**: `tasker-client/benches/task_initialization.rs`
+**Location**: `crates/tasker-client/benches/task_initialization.rs`
 
 Measures orchestration API response times for task creation (HTTP round-trip + DB insert + step initialization).
 
@@ -96,7 +96,7 @@ cargo bench --package tasker-client --features benchmarks
 
 ### 3. SQL Function Performance (`tasker-shared`)
 
-**Location**: `tasker-shared/benches/sql_functions.rs`
+**Location**: `crates/tasker-shared/benches/sql_functions.rs`
 
 Measures critical PostgreSQL function performance for orchestration polling.
 
@@ -114,7 +114,7 @@ DATABASE_URL="..." cargo bench --package tasker-shared --features benchmarks sql
 
 ### 4. Event Propagation (`tasker-shared`)
 
-**Location**: `tasker-shared/benches/event_propagation.rs`
+**Location**: `crates/tasker-shared/benches/event_propagation.rs`
 
 Measures PostgreSQL LISTEN/NOTIFY round-trip latency for real-time coordination.
 

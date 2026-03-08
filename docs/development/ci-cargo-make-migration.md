@@ -31,7 +31,7 @@ These workflows have been updated to use cargo-make:
 
 **Changes Made**:
 
-- [x] Added `test-ci` task to `workers/ruby/Makefile.toml` with JUnit XML output
+- [x] Added `test-ci` task to `crates/tasker-rb/Makefile.toml` with JUnit XML output
 - [x] Updated workflow to call `cargo make test-ci`
 - [x] Output: `../../target/ruby-framework-results.xml`
 
@@ -48,7 +48,7 @@ These workflows have been updated to use cargo-make:
 
 **Changes Made**:
 
-- [x] Added `test-ci` task to `workers/python/Makefile.toml` with `--junitxml` flag
+- [x] Added `test-ci` task to `crates/tasker-py/Makefile.toml` with `--junitxml` flag
 - [x] Updated workflow to call `cargo make test-ci`
 - [x] Output: `../../target/python-framework-results.xml`
 
@@ -70,7 +70,7 @@ These workflows have been updated to use cargo-make:
 
 **Changes Made**:
 
-- [x] Added `test-ci` task to `workers/typescript/Makefile.toml` for unit tests
+- [x] Added `test-ci` task to `crates/tasker-ts/Makefile.toml` for unit tests
 - [x] Consolidated lint and typecheck into single step using `cargo make lint` + `cargo make typecheck`
 - [x] Updated unit test step to use `cargo make test-ci`
 - [x] FFI integration tests remain unchanged (runtime-specific handling with continue-on-error)
@@ -145,7 +145,7 @@ These CI-specific concerns are better handled in the workflow than abstracted in
 
 ### For CI Integration
 
-Added to `workers/python/Makefile.toml`:
+Added to `crates/tasker-py/Makefile.toml`:
 
 ```toml
 [tasks.test-ci]
@@ -157,7 +157,7 @@ uv run pytest tests/ -v --tb=short --junitxml=../../target/python-framework-resu
 '''
 ```
 
-Added to `workers/ruby/Makefile.toml`:
+Added to `crates/tasker-rb/Makefile.toml`:
 
 ```toml
 [tasks.test-ci]
@@ -172,7 +172,7 @@ bundle exec rspec spec/ \
 '''
 ```
 
-Added to `workers/typescript/Makefile.toml`:
+Added to `crates/tasker-ts/Makefile.toml`:
 
 ```toml
 [tasks.test-ci]

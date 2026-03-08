@@ -4,7 +4,7 @@
 //! 1. Connecting to running Docker Compose services (postgres, orchestration, worker)
 //! 2. Using tasker-client library to create and execute complex DAG tasks
 //! 3. Testing mixed dependency patterns: linear, parallel, and convergence using native Rust handlers
-//! 4. Validating YAML configuration from workers/rust/config/tasks/mixed_dag_workflow/
+//! 4. Validating YAML configuration from crates/tasker-example-rs/config/tasks/mixed_dag_workflow/
 //!
 //! Prerequisites:
 //! Run `docker-compose -f docker/docker-compose.test.yml up --build -d` before running tests
@@ -222,8 +222,10 @@ async fn test_end_to_end_mixed_dag_workflow() -> Result<()> {
     println!("✅ Parallel execution patterns: Working");
     println!("✅ Three-way convergence patterns: Working");
     println!("✅ Complex dependency resolution: Working");
-    println!("✅ Step handlers from workers/rust/src/step_handlers/mixed_dag_workflow: Working");
-    println!("✅ YAML config from workers/rust/config/tasks/mixed_dag_workflow: Working");
+    println!("✅ Step handlers from crates/tasker-example-rs/src/step_handlers/mixed_dag_workflow: Working");
+    println!(
+        "✅ YAML config from crates/tasker-example-rs/config/tasks/mixed_dag_workflow: Working"
+    );
     println!("✅ End-to-end mixed DAG lifecycle: Working");
 
     Ok(())

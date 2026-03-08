@@ -44,7 +44,7 @@ steps:
   - name: dlq_step_1
     description: "First step that will be placed in stuck state for testing"
     handler:
-      callable: tasker_worker_rust::step_handlers::test::TestStepHandler
+      callable: tasker_example_rs::step_handlers::test::TestStepHandler
       initialization:
         operation: "return_input"
         test_mode: true
@@ -61,7 +61,7 @@ steps:
   - name: dlq_step_2
     description: "Second step depending on first for dependency testing"
     handler:
-      callable: tasker_worker_rust::step_handlers::test::TestStepHandler
+      callable: tasker_example_rs::step_handlers::test::TestStepHandler
       initialization:
         operation: "return_input"
         test_mode: true

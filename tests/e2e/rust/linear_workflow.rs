@@ -3,8 +3,8 @@
 //! This integration test validates the complete Tasker orchestration system by:
 //! 1. Connecting to running Docker Compose services (postgres, orchestration, worker)
 //! 2. Using tasker-client library to create and execute tasks programmatically
-//! 3. Testing real end-to-end workflow execution with step handlers from workers/rust/
-//! 4. Validating YAML configurations from workers/rust/config/tasks/
+//! 3. Testing real end-to-end workflow execution with step handlers from crates/tasker-example-rs/
+//! 4. Validating YAML configurations from crates/tasker-example-rs/config/tasks/
 //!
 //! Prerequisites:
 //! Run `docker-compose -f docker/docker-compose.test.yml up --build -d` before running tests
@@ -59,7 +59,7 @@ async fn test_end_to_end_linear_workflow_with_rust_worker() -> Result<()> {
     println!("   Task UUID: {}", task_response.task_uuid);
     println!("   Status: {}", task_response.status);
     println!("   Steps: {}", task_response.total_steps);
-    println!("   Expected pattern: Step handlers from workers/rust/src/step_handlers");
+    println!("   Expected pattern: Step handlers from crates/tasker-example-rs/src/step_handlers");
 
     // Step 7: Monitor task execution
     println!("\n⏱️ Step 7: Monitoring task execution...");

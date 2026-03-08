@@ -7,7 +7,7 @@ E2E test infrastructure for validating authentication and permission enforcement
 ## Test Organization
 
 ```
-tasker-orchestration/tests/web/auth/
+crates/tasker-orchestration/tests/web/auth/
 ├── mod.rs                  # Module declarations
 ├── common.rs               # AuthWebTestClient, token generators, constants
 ├── tasks.rs                # Task endpoint auth tests

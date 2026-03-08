@@ -1,6 +1,6 @@
 # Python Best Practices for Tasker Core
 
-**Purpose**: Codify Python-specific coding standards for the tasker-core workers/python project.
+**Purpose**: Codify Python-specific coding standards for the tasker-core crates/tasker-py project.
 
 ---
 

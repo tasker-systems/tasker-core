@@ -39,11 +39,11 @@ Request ──►  Middleware  │  SecurityService              │
 
 | Component | Location | Role |
 |-----------|----------|------|
-| `SecurityService` | `tasker-shared/src/services/security_service.rs` | Unified auth backend: validates JWTs (static key or JWKS) and API keys |
-| `SecurityContext` | `tasker-shared/src/types/security.rs` | Per-request identity + permissions, extracted by handlers |
-| `Permission` enum | `tasker-shared/src/types/permissions.rs` | Compile-time permission vocabulary (`resource:action`) |
-| `Resource`, `Action` | `tasker-shared/src/types/resources.rs` | Resource-based authorization types |
-| `authorize()` wrapper | `tasker-shared/src/web/authorize.rs` | Handler wrapper for declarative permission checks |
+| `SecurityService` | `crates/tasker-shared/src/services/security_service.rs` | Unified auth backend: validates JWTs (static key or JWKS) and API keys |
+| `SecurityContext` | `crates/tasker-shared/src/types/security.rs` | Per-request identity + permissions, extracted by handlers |
+| `Permission` enum | `crates/tasker-shared/src/types/permissions.rs` | Compile-time permission vocabulary (`resource:action`) |
+| `Resource`, `Action` | `crates/tasker-shared/src/types/resources.rs` | Resource-based authorization types |
+| `authorize()` wrapper | `crates/tasker-shared/src/web/authorize.rs` | Handler wrapper for declarative permission checks |
 | Auth middleware | `*/src/web/middleware/auth.rs` | Axum middleware injecting `SecurityContext` |
 | `require_permission()` | `*/src/web/middleware/permission.rs` | Legacy per-handler permission gate (still available) |
 

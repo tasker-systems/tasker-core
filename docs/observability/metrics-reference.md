@@ -94,8 +94,8 @@ enabled = true  # Must be true to export metrics
 
 ## Orchestration Metrics
 
-**Module**: `tasker-shared/src/metrics/orchestration.rs`
-**Instrumentation**: `tasker-orchestration/src/orchestration/lifecycle/*.rs`
+**Module**: `crates/tasker-shared/src/metrics/orchestration.rs`
+**Instrumentation**: `crates/tasker-orchestration/src/orchestration/lifecycle/*.rs`
 
 ### Counters
 
@@ -414,8 +414,8 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_processing_duratio
 
 ## Worker Metrics
 
-**Module**: `tasker-shared/src/metrics/worker.rs`
-**Instrumentation**: `tasker-worker/src/worker/*.rs`
+**Module**: `crates/tasker-shared/src/metrics/worker.rs`
+**Instrumentation**: `crates/tasker-worker/src/worker/*.rs`
 
 ### Counters
 
@@ -751,7 +751,7 @@ histogram_quantile(0.95, sum by (le) (rate(tasker_step_result_submission_duratio
 
 ## Resilience Metrics
 
-**Module**: `tasker-shared/src/metrics/worker.rs`, `tasker-orchestration/src/web/circuit_breaker.rs`
+**Module**: `crates/tasker-shared/src/metrics/worker.rs`, `crates/tasker-orchestration/src/web/circuit_breaker.rs`
 **Instrumentation**: Circuit breakers, MPSC channels
 **Related Docs**: [Circuit Breakers](../circuit-breakers.md) | [Backpressure Architecture](../backpressure-architecture.md)
 
@@ -766,7 +766,7 @@ Circuit breakers provide fault isolation and cascade prevention. These metrics t
 **Values**: 0=Closed, 1=Half-Open, 2=Open
 **Labels**: None
 
-**Instrumented In**: `tasker-orchestration/src/web/circuit_breaker.rs`
+**Instrumented In**: `crates/tasker-orchestration/src/web/circuit_breaker.rs`
 
 **Example Queries**:
 
@@ -814,7 +814,7 @@ count(tasker_circuit_breaker_state == 2)
 
 - `endpoint`: The rejected endpoint path
 
-**Instrumented In**: `tasker-orchestration/src/web/circuit_breaker.rs`
+**Instrumented In**: `crates/tasker-orchestration/src/web/circuit_breaker.rs`
 
 **Example Queries**:
 
@@ -837,7 +837,7 @@ sum by (endpoint) (api_requests_rejected_total)
 **Type**: Counter (u64)
 **Labels**: None
 
-**Instrumented In**: `tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs`
+**Instrumented In**: `crates/tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs`
 
 **Example Queries**:
 
@@ -859,7 +859,7 @@ rate(ffi_completion_slow_sends_total[5m]) > 10
 **Type**: Counter (u64)
 **Labels**: None
 
-**Instrumented In**: `tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs`
+**Instrumented In**: `crates/tasker-worker/src/worker/handlers/ffi_completion_circuit_breaker.rs`
 
 **Example Queries**:
 
@@ -996,7 +996,7 @@ rate(mpsc_channel_full_events_total[5m])
 
 ## Database Metrics
 
-**Module**: `tasker-shared/src/metrics/database.rs`
+**Module**: `crates/tasker-shared/src/metrics/database.rs`
 **Status**: ⚠️ Defined but not yet instrumented
 
 ### Planned Metrics
@@ -1013,7 +1013,7 @@ rate(mpsc_channel_full_events_total[5m])
 
 ## Messaging Metrics
 
-**Module**: `tasker-shared/src/metrics/messaging.rs`
+**Module**: `crates/tasker-shared/src/metrics/messaging.rs`
 **Status**: ⚠️ Defined but not yet instrumented
 
 ### Planned Metrics

@@ -4,7 +4,7 @@
 # Demonstrates sequential mathematical operations using compiled Rust handlers
 #
 # Template: linear_workflow/mathematical_sequence:1.0.0
-# Implementation: Native Rust with tasker-worker-rust
+# Implementation: Native Rust with tasker-example-rs
 # Created: 2025-08-29 (TAS-41 Implementation)
 #
 # Mathematical Pattern:
@@ -48,7 +48,7 @@ steps:
   - name: linear_step_1
     description: "Square the initial even number (Step 1: n → n²)"
     handler:
-      callable: tasker_worker_rust::step_handlers::linear_workflow::LinearStep1Handler
+      callable: tasker_example_rs::step_handlers::linear_workflow::LinearStep1Handler
       initialization:
         operation: square
         step_number: 1
@@ -67,7 +67,7 @@ steps:
   - name: linear_step_2
     description: "Square the result from step 1 (Step 2: n² → n⁴)"
     handler:
-      callable: tasker_worker_rust::step_handlers::linear_workflow::LinearStep2Handler
+      callable: tasker_example_rs::step_handlers::linear_workflow::LinearStep2Handler
       initialization:
         operation: square
         step_number: 2
@@ -87,7 +87,7 @@ steps:
   - name: linear_step_3
     description: "Square the result from step 2 (Step 3: n⁴ → n⁸)"
     handler:
-      callable: tasker_worker_rust::step_handlers::linear_workflow::LinearStep3Handler
+      callable: tasker_example_rs::step_handlers::linear_workflow::LinearStep3Handler
       initialization:
         operation: square
         step_number: 3
@@ -107,7 +107,7 @@ steps:
   - name: linear_step_4
     description: "Square the result from step 3 for final result (Step 4: n⁸ → n¹⁶)"
     handler:
-      callable: tasker_worker_rust::step_handlers::linear_workflow::LinearStep4Handler
+      callable: tasker_example_rs::step_handlers::linear_workflow::LinearStep4Handler
       initialization:
         operation: square
         step_number: 4

@@ -159,4 +159,4 @@ Environment scaling: Test (10) -> Development (25) -> Production (50)
 
 - SQL functions: `docs/reference/task-and-step-readiness-and-execution.md`
 - Configuration: `docs/guides/configuration-management.md`
-- PGMQ crate: `tasker-pgmq/`
+- PGMQ crate: `crates/tasker-pgmq/`

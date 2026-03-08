@@ -20,10 +20,10 @@ The main orchestrator implementing a multi-stage DAG with maximum parallelism.
           code-quality       build-workers        (parallel)
           ┌─────────┐       ┌───────────────────┐
           │ fmt     │       │ 1. core packages  │
-          │ clippy  │       │ 2. workers/rust   │
-          │ audit   │       │ 3. workers/ruby   │
-          │ doc     │       │ 4. workers/python │
-          └─────────┘       │ 5. workers/ts     │
+          │ clippy  │       │ 2. crates/tasker-example-rs   │
+          │ audit   │       │ 3. crates/tasker-rb   │
+          │ doc     │       │ 4. crates/tasker-py │
+          └─────────┘       │ 5. tasker-ts      │
                             │ (warms sccache)   │
                             └────────┬──────────┘
                                      │
@@ -67,10 +67,10 @@ The main orchestrator implementing a multi-stage DAG with maximum parallelism.
 - tasker-client
 
 **Worker Packages** (compiled in build-workers):
-- workers/rust
-- workers/ruby (FFI extension via magnus)
-- workers/python (FFI extension via maturin/pyo3)
-- workers/typescript (TypeScript package via Bun/tsup)
+- crates/tasker-example-rs
+- crates/tasker-rb (FFI extension via magnus)
+- crates/tasker-py (FFI extension via maturin/pyo3)
+- crates/tasker-ts (TypeScript package via Bun/tsup)
 
 ---
 
@@ -129,9 +129,9 @@ cargo test --doc \
 **Purpose**: Compile FFI extensions for Ruby and Python workers
 
 **Builds**:
-- `workers/rust` - Rust worker binary
-- `workers/ruby` - Ruby FFI extension (magnus)
-- `workers/python` - Python FFI extension (maturin/pyo3)
+- `crates/tasker-example-rs` - Rust worker binary
+- `crates/tasker-rb` - Ruby FFI extension (magnus)
+- `crates/tasker-py` - Python FFI extension (maturin/pyo3)
 
 **Key Features**:
 - **Separate workflow**: Runs as its own workflow, not a job within test-integration
@@ -223,9 +223,9 @@ cargo test --doc --all-features \
 **Purpose**: Ruby-specific framework testing with PostgreSQL service
 
 **Runs**:
-- FFI layer tests (`workers/ruby/spec/ffi/`)
-- Type wrapper tests (`workers/ruby/spec/types/`)
-- Worker core tests (`workers/ruby/spec/worker/`)
+- FFI layer tests (`crates/tasker-rb/spec/ffi/`)
+- Type wrapper tests (`crates/tasker-rb/spec/types/`)
+- Worker core tests (`crates/tasker-rb/spec/worker/`)
 
 **Requirements**:
 - Ruby 3.4
@@ -254,11 +254,11 @@ cargo test --doc --all-features \
 **Purpose**: TypeScript-specific framework testing with multi-runtime FFI integration
 
 **Runs**:
-- Unit tests (`workers/typescript/tests/unit/`)
+- Unit tests (`crates/tasker-ts/tests/unit/`)
   - FFI type tests (`tests/unit/ffi/`)
   - Event system tests (`tests/unit/events/`)
   - Runtime detection tests
-- FFI integration tests (`workers/typescript/tests/integration/ffi/`)
+- FFI integration tests (`crates/tasker-ts/tests/integration/ffi/`)
   - Bun FFI tests (required)
   - Node.js FFI tests (optional - requires ffi-napi)
   - Deno FFI tests (optional)
@@ -358,13 +358,13 @@ tests/e2e/
 
 ### Framework Tests (Language-Specific)
 
-**Ruby Location**: `workers/ruby/spec/`
+**Ruby Location**: `crates/tasker-rb/spec/`
 
 **Purpose**: Test Ruby-specific framework concerns
 
 **Structure**:
 ```
-workers/ruby/spec/
+crates/tasker-rb/spec/
 ├── ffi/           # FFI bootstrap and calls
 ├── types/         # Type wrappers
 ├── worker/        # Worker core logic
@@ -376,13 +376,13 @@ workers/ruby/spec/
 
 ---
 
-**TypeScript Location**: `workers/typescript/tests/`
+**TypeScript Location**: `crates/tasker-ts/tests/`
 
 **Purpose**: Test TypeScript-specific framework concerns
 
 **Structure**:
 ```
-workers/typescript/tests/
+crates/tasker-ts/tests/
 ├── unit/
 │   ├── ffi/       # FFI types and runtime detection
 │   │   ├── types.test.ts
@@ -488,7 +488,7 @@ docker compose -f docker/docker-compose.test.yml up -d postgres
 # Wait for PostgreSQL to be ready
 until pg_isready -h localhost -p 5432 -U tasker; do sleep 1; done
 
-cd workers/ruby
+cd crates/tasker-rb
 bundle install
 
 # Compile with database connection for sqlx query validation
@@ -505,7 +505,7 @@ docker compose -f docker/docker-compose.test.yml down
 ### TypeScript Framework Tests
 
 ```bash
-cd workers/typescript
+cd crates/tasker-ts
 
 # Install dependencies
 bun install
@@ -529,7 +529,7 @@ bun run build
 # Requires FFI library to be built first
 cargo build -p tasker-ts --release
 
-cd workers/typescript
+cd crates/tasker-ts
 
 # Run all FFI tests with cargo-make (recommended)
 cargo make test-ffi-all
@@ -591,14 +591,14 @@ async fn test_my_scenario() -> anyhow::Result<()> {
 
 ### Adding Ruby Framework Test
 
-1. Create test file in `workers/ruby/spec/{ffi,types,worker}/`
+1. Create test file in `crates/tasker-rb/spec/{ffi,types,worker}/`
 2. No Docker dependencies
 3. Test runs automatically via `bundle exec rspec spec/`
 4. No CI changes needed
 
 ### Adding TypeScript Framework Test
 
-1. Create test file in `workers/typescript/tests/unit/{ffi,events}/`
+1. Create test file in `crates/tasker-ts/tests/unit/{ffi,events}/`
 2. Use `describe` / `it` / `expect` from `bun:test`
 3. Test runs automatically via `bun test`
 4. No CI changes needed
@@ -658,7 +658,7 @@ describe('MyFeature', () => {
 1. **Check test output**: Download `ruby-framework-test-results` artifact
 2. **Reproduce locally**:
    ```bash
-   cd workers/ruby
+   cd crates/tasker-rb
    bundle exec rake compile
    bundle exec rspec spec/ --exclude-pattern spec/integration/**/*_spec.rb --format documentation
    ```
@@ -668,7 +668,7 @@ describe('MyFeature', () => {
 1. **Check test output**: Download `typescript-framework-test-results` artifact
 2. **Reproduce locally**:
    ```bash
-   cd workers/typescript
+   cd crates/tasker-ts
    bun install
    bun test
    ```
@@ -818,7 +818,7 @@ If needed, create:
 
 - [TAS-42 Specification](../../docs/plans/ticket-specs/TAS-42/TAS-42-ci-and-e2e.md)
 - [E2E Testing Guide](../../docs/testing-e2e.md) (TODO)
-- [Ruby Framework Testing](../../workers/ruby/docs/framework-testing.md) (TODO)
+- [Ruby Framework Testing](../../crates/tasker-rb/docs/framework-testing.md) (TODO)
 
 ---
 

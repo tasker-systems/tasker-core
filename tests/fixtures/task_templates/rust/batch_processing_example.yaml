@@ -34,7 +34,7 @@ steps:
     type: batchable
     dependencies: []
     handler:
-      callable: tasker_worker_rust::step_handlers::batch_processing_example::DatasetAnalyzerHandler
+      callable: tasker_example_rs::step_handlers::batch_processing_example::DatasetAnalyzerHandler
       initialization:
         batch_size: 1000 # Items per batch
         max_workers: 10 # Maximum parallel workers
@@ -69,7 +69,7 @@ steps:
     dependencies:
       - analyze_dataset
     handler:
-      callable: tasker_worker_rust::step_handlers::batch_processing_example::BatchWorkerHandler
+      callable: tasker_example_rs::step_handlers::batch_processing_example::BatchWorkerHandler
       initialization:
         operation: "transform"
         # cursor and batch_metadata will be added by orchestration
@@ -103,7 +103,7 @@ steps:
     dependencies:
       - process_batch  # Depends on worker template (orchestration creates dynamic edges)
     handler:
-      callable: tasker_worker_rust::step_handlers::batch_processing_example::ResultsAggregatorHandler
+      callable: tasker_example_rs::step_handlers::batch_processing_example::ResultsAggregatorHandler
       initialization:
         aggregation_type: "sum"
 #

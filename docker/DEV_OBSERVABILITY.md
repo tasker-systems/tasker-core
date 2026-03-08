@@ -261,7 +261,7 @@ See `config/tasker/base/telemetry.toml` for commented examples of:
 
 ## References
 
-- [TAS-29 Phase 3 Implementation](../tasker-shared/src/logging.rs)
+- [TAS-29 Phase 3 Implementation](../crates/tasker-shared/src/logging.rs)
 - [Grafana Tempo Documentation](https://grafana.com/docs/tempo/latest/)
 - [OpenTelemetry Rust SDK](https://docs.rs/opentelemetry/)
 - [TraceQL Query Language](https://grafana.com/docs/tempo/latest/traceql/)

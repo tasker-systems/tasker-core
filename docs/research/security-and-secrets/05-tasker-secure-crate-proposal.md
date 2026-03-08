@@ -29,16 +29,16 @@ It does **not**:
 
 ```
 tasker-core/
-├── tasker-pgmq/
-├── tasker-shared/
-├── tasker-sdk/
+├── crates/tasker-pgmq/
+├── crates/tasker-shared/
+├── crates/tasker-sdk/
 ├── tasker-secure/          ← new
-├── tasker-grammar/         ← planned (Phase 1)
-├── tasker-orchestration/
-├── tasker-worker/
-├── tasker-client/
-├── tasker-ctl/
-├── tasker-mcp/
+├── crates/tasker-grammar/         ← planned (Phase 1)
+├── crates/tasker-orchestration/
+├── crates/tasker-worker/
+├── crates/tasker-client/
+├── crates/tasker-ctl/
+├── crates/tasker-mcp/
 └── workers/
     ├── composition/        ← planned
     ├── python/

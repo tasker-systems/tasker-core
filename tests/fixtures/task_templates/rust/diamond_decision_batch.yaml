@@ -42,7 +42,7 @@ steps:
     type: standard
     dependencies: []
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::DiamondStartHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::DiamondStartHandler
       initialization: {}
 
   # ============================================================================
@@ -53,7 +53,7 @@ steps:
     dependencies:
       - ddb_diamond_start
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::BranchEvensHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::BranchEvensHandler
       initialization: {}
 
   - name: branch_odds
@@ -61,7 +61,7 @@ steps:
     dependencies:
       - ddb_diamond_start
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::BranchOddsHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::BranchOddsHandler
       initialization: {}
 
   # ============================================================================
@@ -73,7 +73,7 @@ steps:
       - branch_evens
       - branch_odds
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::RoutingDecisionHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::RoutingDecisionHandler
       initialization: {}
 
   # ============================================================================
@@ -84,7 +84,7 @@ steps:
     dependencies:
       - ddb_routing_decision
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::EvenBatchAnalyzerHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::EvenBatchAnalyzerHandler
       initialization:
         batch_size: 2
         max_workers: 10
@@ -95,7 +95,7 @@ steps:
     dependencies:
       - even_batch_analyzer
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::ProcessEvenBatchHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::ProcessEvenBatchHandler
       initialization:
         operation: "sum"
         # cursor will be added by orchestration
@@ -115,7 +115,7 @@ steps:
     dependencies:
       - process_even_batch
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::AggregateEvenResultsHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::AggregateEvenResultsHandler
       initialization:
         validation_mode: "strict"
 
@@ -127,7 +127,7 @@ steps:
     dependencies:
       - ddb_routing_decision
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::OddBatchAnalyzerHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::OddBatchAnalyzerHandler
       initialization:
         batch_size: 2
         max_workers: 10
@@ -138,7 +138,7 @@ steps:
     dependencies:
       - odd_batch_analyzer
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::ProcessOddBatchHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::ProcessOddBatchHandler
       initialization:
         operation: "sum"
         # cursor will be added by orchestration
@@ -158,7 +158,7 @@ steps:
     dependencies:
       - process_odd_batch
     handler:
-      callable: tasker_worker_rust::step_handlers::diamond_decision_batch::AggregateOddResultsHandler
+      callable: tasker_example_rs::step_handlers::diamond_decision_batch::AggregateOddResultsHandler
       initialization:
         validation_mode: "strict"
 

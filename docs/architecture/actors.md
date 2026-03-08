@@ -108,7 +108,7 @@ impl Handler<FinalizeTaskMessage> for TaskFinalizerActor {
 
 ### OrchestrationActor Trait
 
-The base trait for all orchestration actors, defined in `tasker-orchestration/src/actors/traits.rs`:
+The base trait for all orchestration actors, defined in `crates/tasker-orchestration/src/actors/traits.rs`:
 
 ```rust
 /// Base trait for all orchestration actors
@@ -230,7 +230,7 @@ pub trait Message: Send + 'static {
 
 ## ActorRegistry
 
-The central registry managing all orchestration actors, defined in `tasker-orchestration/src/actors/registry.rs`:
+The central registry managing all orchestration actors, defined in `crates/tasker-orchestration/src/actors/registry.rs`:
 
 ### Purpose
 
@@ -385,7 +385,7 @@ impl ActorRegistry {
 
 Handles task initialization requests from external clients.
 
-**Location**: `tasker-orchestration/src/actors/task_request_actor.rs`
+**Location**: `crates/tasker-orchestration/src/actors/task_request_actor.rs`
 
 **Message**: `ProcessTaskRequestMessage`
 
@@ -400,7 +400,7 @@ Handles task initialization requests from external clients.
 
 Processes step execution results from workers.
 
-**Location**: `tasker-orchestration/src/actors/result_processor_actor.rs`
+**Location**: `crates/tasker-orchestration/src/actors/result_processor_actor.rs`
 
 **Message**: `ProcessStepResultMessage`
 
@@ -415,7 +415,7 @@ Processes step execution results from workers.
 
 Manages batch processing of ready tasks.
 
-**Location**: `tasker-orchestration/src/actors/step_enqueuer_actor.rs`
+**Location**: `crates/tasker-orchestration/src/actors/step_enqueuer_actor.rs`
 
 **Message**: `ProcessBatchMessage`
 
@@ -430,7 +430,7 @@ Manages batch processing of ready tasks.
 
 Handles task finalization with atomic claiming.
 
-**Location**: `tasker-orchestration/src/actors/task_finalizer_actor.rs`
+**Location**: `crates/tasker-orchestration/src/actors/task_finalizer_actor.rs`
 
 **Message**: `FinalizeTaskMessage`
 
@@ -445,7 +445,7 @@ Handles task finalization with atomic claiming.
 
 Handles dynamic workflow step creation from decision point results.
 
-**Location**: `tasker-orchestration/src/actors/decision_point_actor.rs`
+**Location**: `crates/tasker-orchestration/src/actors/decision_point_actor.rs`
 
 **Delegation**: Wraps `DecisionPointService`
 
@@ -455,7 +455,7 @@ Handles dynamic workflow step creation from decision point results.
 
 Handles dynamic batch worker step creation.
 
-**Location**: `tasker-orchestration/src/actors/batch_processing_actor.rs`
+**Location**: `crates/tasker-orchestration/src/actors/batch_processing_actor.rs`
 
 **Delegation**: Wraps `BatchProcessingService`
 
@@ -468,7 +468,7 @@ Handles dynamic batch worker step creation.
 The command processor calls actors directly without intermediate wrapper layers:
 
 ```rust
-// From: tasker-orchestration/src/orchestration/command_processor.rs
+// From: crates/tasker-orchestration/src/orchestration/command_processor.rs
 
 /// Handle task initialization using TaskRequestActor directly
 async fn handle_initialize_task(

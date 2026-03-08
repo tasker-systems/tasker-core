@@ -107,7 +107,7 @@ services:
     environment:
       DATABASE_URL: postgresql://tasker:tasker@postgres:5432/tasker_rust_test
       TASKER_ENV: test
-      RUST_LOG: info,tasker_worker_rust::step_handlers=debug
+      RUST_LOG: info,tasker_example_rs::step_handlers=debug
       LOG_LEVEL: info
       RUST_BACKTRACE: 1
       WORKER_ID: test-worker-001
@@ -182,7 +182,7 @@ services:
       # Mount test fixtures for CSV and other data files
       - ../tests/fixtures:/app/tests/fixtures:ro
       # Mount handler source code for discovery (must match Dockerfile structure)
-      - ../workers/ruby/spec/handlers:/app/ruby_worker/spec/handlers:ro
+      - ../crates/tasker-rb/spec/handlers:/app/ruby_worker/spec/handlers:ro
     depends_on:
       postgres:
         condition: service_healthy

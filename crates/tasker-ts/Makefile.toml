@@ -1,0 +1,364 @@
+# =============================================================================
+# Tasker TypeScript Worker - cargo-make Task Definitions
+# =============================================================================
+#
+# This file defines build, test, and quality tasks for the TypeScript worker.
+# Uses Bun for package management and Biome for linting.
+#
+# Usage:
+#   cargo make check       # Run all checks (lint, typecheck, test)
+#   cargo make build       # Build FFI + TypeScript
+#   cargo make test        # Run tests
+#   cargo make fix         # Auto-fix linting issues
+#
+# =============================================================================
+
+[config]
+default_to_workspace = false
+skip_core_tasks = true
+
+[env]
+# Respect CARGO_TARGET_DIR if set, otherwise use workspace default
+TARGET_DIR = { value = "../../target", condition = { env_not_set = ["CARGO_TARGET_DIR"] } }
+
+# =============================================================================
+# Composite Tasks
+# =============================================================================
+
+[tasks.default]
+description = "Default: run all checks"
+alias = "check"
+
+[tasks.check]
+description = "Run all quality checks (lint, typecheck, test)"
+dependencies = ["lint", "typecheck", "test"]
+
+[tasks.build]
+description = "Build napi-rs FFI library and TypeScript package"
+dependencies = ["build-ffi", "build-ts"]
+
+[tasks.fix]
+description = "Auto-fix all fixable issues"
+dependencies = ["format-fix", "lint-fix"]
+
+# =============================================================================
+# Setup Tasks
+# =============================================================================
+
+[tasks.install]
+description = "Install npm dependencies"
+script = '''
+if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules" ]; then
+    echo "📦 Installing dependencies..."
+    bun install --frozen-lockfile
+else
+    echo "✓ Dependencies up to date"
+fi
+'''
+
+[tasks.setup]
+description = "Full setup: install dependencies"
+alias = "install"
+
+# =============================================================================
+# Build Tasks
+# =============================================================================
+
+[tasks.build-ffi]
+description = "Build napi-rs FFI module (debug) — places .node file in package root"
+dependencies = ["install"]
+command = "bun"
+args = ["run", "build:napi"]
+
+[tasks.build-ffi-release]
+description = "Build napi-rs FFI module (release) — places .node file in package root"
+dependencies = ["install"]
+command = "bun"
+args = ["run", "build:napi:release"]
+
+[tasks.build-ts]
+description = "Build TypeScript package"
+dependencies = ["install"]
+command = "bun"
+args = ["run", "build"]
+
+# =============================================================================
+# Quality Tasks
+# =============================================================================
+
+[tasks.lint]
+description = "Run Biome checks (lint + format)"
+dependencies = ["install"]
+command = "bun"
+args = ["run", "check"]
+
+[tasks.lint-fix]
+description = "Fix linting issues with Biome"
+dependencies = ["install"]
+script = '''
+bun run biome check --write .
+'''
+
+[tasks.format-check]
+description = "Check code formatting"
+dependencies = ["install"]
+script = '''
+bun run biome format --check .
+'''
+
+[tasks.format-fix]
+description = "Format code with Biome"
+dependencies = ["install"]
+script = '''
+bun run biome format --write .
+'''
+
+[tasks.typecheck]
+description = "Run TypeScript type checking"
+dependencies = ["install"]
+command = "bun"
+args = ["run", "typecheck"]
+
+# =============================================================================
+# Test Tasks
+# =============================================================================
+
+[tasks.test]
+description = "Run all tests"
+dependencies = ["install"]
+script = '''
+. scripts/load-env.sh
+bun test
+'''
+
+[tasks.test-watch]
+description = "Run tests in watch mode"
+dependencies = ["install"]
+script = '''
+. scripts/load-env.sh
+bun test --watch
+'''
+
+[tasks.test-coverage]
+description = "Run tests with coverage"
+dependencies = ["install"]
+script = '''
+. scripts/load-env.sh
+bun test --coverage
+'''
+
+[tasks.coverage]
+description = "Run coverage and generate normalized JSON (for root delegation)"
+dependencies = ["install"]
+script = '''
+#!/bin/bash
+set -euo pipefail
+
+echo "Running TypeScript coverage..."
+mkdir -p ../../coverage-reports/typescript
+
+# Load environment
+source scripts/load-env.sh
+
+# Run bun test with LCOV coverage output to shared reports directory
+bun test --coverage --coverage-reporter=lcov --coverage-dir=../../coverage-reports/typescript
+
+# Normalize to standard schema
+uv run --project ../../tools/cargo-make/scripts/coverage python3 \
+  ../../tools/cargo-make/scripts/coverage/normalize-typescript.py \
+  ../../coverage-reports/typescript \
+  ../../coverage-reports/typescript/tasker-ts-coverage.json
+
+echo "Coverage complete"
+echo "  Normalized: ../../coverage-reports/typescript/tasker-ts-coverage.json"
+'''
+
+[tasks.coverage-json]
+description = "Generate coverage JSON report (for CI/integration)"
+dependencies = ["install"]
+script = '''
+#!/bin/bash
+set -euo pipefail
+source scripts/load-env.sh
+mkdir -p ../../coverage-reports/typescript
+bun test --coverage --coverage-reporter=lcov --coverage-dir=../../coverage-reports/typescript
+'''
+
+[tasks.test-ci]
+description = "Run tests with CI output format (text logs for artifact upload)"
+dependencies = ["install"]
+script_runner = "bash"
+script = '''
+set -o pipefail
+
+# Ensure target directory exists
+mkdir -p ../../target
+
+# Run unit tests - output captured by CI, also saved to file for artifacts
+bun test tests/unit/ 2>&1 | tee ../../target/typescript-unit-results.txt
+'''
+
+# =============================================================================
+# Clean Tasks
+# =============================================================================
+
+[tasks.clean]
+description = "Clean all build artifacts"
+script = '''
+echo "🧹 Cleaning build artifacts..."
+rm -rf dist/
+rm -rf node_modules/
+rm -f *.node
+cargo clean -p tasker-ts
+echo "✓ Clean complete"
+'''
+
+[tasks.clean-ts]
+description = "Clean TypeScript artifacts only"
+script = '''
+rm -rf dist/
+'''
+
+# =============================================================================
+# Development Tasks
+# =============================================================================
+
+[tasks.watch]
+description = "Watch mode for TypeScript development"
+dependencies = ["install"]
+command = "bun"
+args = ["run", "build:watch"]
+
+[tasks.dev]
+description = "Development mode: build debug FFI and watch TS"
+dependencies = ["build-ffi", "watch"]
+
+# =============================================================================
+# FFI Integration Test Tasks
+# =============================================================================
+# These tests exercise the napi-rs FFI module against the actual Rust library.
+#
+# Prerequisites:
+#   - cargo make build-ffi  (build the FFI library)
+#   - Optional: DATABASE_URL for bootstrap tests
+#
+# Usage:
+#   cargo make test-ffi     # Run napi-rs FFI integration tests
+
+[tasks.test-ffi]
+description = "Run napi-rs FFI integration tests with Bun"
+dependencies = ["build-ffi", "install"]
+script = '''
+source scripts/load-env.sh
+echo "Running napi-rs FFI integration tests..."
+bun test tests/integration/ffi/
+'''
+
+# =============================================================================
+# Client API Integration Test Tasks (TAS-231)
+# =============================================================================
+# Tests the client FFI functions against a running orchestration server.
+# Requires: FFI_CLIENT_TESTS=true, DATABASE_URL, orchestration server running.
+
+[tasks.test-client]
+description = "Run client API integration tests (skips gracefully if FFI_CLIENT_TESTS not set)"
+dependencies = ["build-ffi", "install"]
+script_runner = "bash"
+script = '''
+source scripts/load-env.sh
+echo "🧪 Running client API integration tests..."
+bun test tests/integration/ffi/client-api.test.ts
+'''
+
+[tasks.test-client-ci]
+description = "Run client API integration tests with CI output"
+dependencies = ["build-ffi", "install"]
+script_runner = "bash"
+script = '''
+set -o pipefail
+source scripts/load-env.sh
+mkdir -p ../../target
+echo "🧪 Running client API integration tests (CI)..."
+bun test tests/integration/ffi/client-api.test.ts 2>&1 | tee ../../target/typescript-client-results.txt
+'''
+
+# =============================================================================
+# Service Management Tasks
+# =============================================================================
+# Run the TypeScript worker as a local service for E2E testing.
+# Uses the .env file for configuration.
+#
+# Prerequisites:
+#   - cargo make build (builds FFI library and TypeScript)
+#   - PostgreSQL running on localhost:5432
+#   - Orchestration service running on localhost:8080
+#
+# Usage:
+#   cargo make run      # Start TypeScript worker on port 8085
+#   cargo make stop     # Stop the running worker
+#   cargo make status   # Check worker status
+
+[tasks.run]
+description = "Run TypeScript worker service (port 8085)"
+dependencies = ["build"]
+script = '''
+# Load environment from .env
+source scripts/load-env.sh
+
+# Override PORT for local execution
+export PORT=8085
+
+echo "📘 Starting TypeScript worker..."
+echo "   Port: ${PORT}"
+echo "   Config: ${TASKER_CONFIG_PATH}"
+echo "   FFI Module: ${TASKER_FFI_MODULE_PATH}"
+
+# Start the TypeScript server
+PROJECT_ROOT="$(cd ../.. && pwd)" \
+../../tools/cargo-make/scripts/service-start.sh typescript-worker \
+    bun run bin/server.ts
+'''
+
+[tasks.run-foreground]
+description = "Run TypeScript worker in foreground (for debugging)"
+dependencies = ["build"]
+script = '''
+# Load environment from .env
+source scripts/load-env.sh
+
+# Override PORT for local execution
+export PORT=8085
+
+echo "📘 Starting TypeScript worker (foreground)..."
+echo "   Port: ${PORT}"
+echo "   Config: ${TASKER_CONFIG_PATH}"
+
+# Run directly in foreground
+bun run bin/server.ts
+'''
+
+[tasks.stop]
+description = "Stop running TypeScript worker service"
+script = '''
+PROJECT_ROOT="$(cd ../.. && pwd)" \
+../../tools/cargo-make/scripts/service-stop.sh typescript-worker
+'''
+
+[tasks.status]
+description = "Check TypeScript worker service status"
+script = '''
+PROJECT_ROOT="$(cd ../.. && pwd)" \
+../../tools/cargo-make/scripts/service-status.sh typescript-worker
+'''
+
+[tasks.logs]
+description = "Tail TypeScript worker logs"
+script = '''
+LOG_FILE="../../.logs/typescript-worker.log"
+if [ -f "$LOG_FILE" ]; then
+    tail -f "$LOG_FILE"
+else
+    echo "No log file found at $LOG_FILE"
+    echo "Start the worker first with: cargo make run"
+fi
+'''

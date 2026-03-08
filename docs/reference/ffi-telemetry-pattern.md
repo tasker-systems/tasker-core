@@ -36,7 +36,7 @@ let tracer_provider = SdkTracerProvider::builder()
 During language extension initialization, use console-only logging that requires no Tokio runtime:
 
 ```rust
-// tasker-shared/src/logging.rs
+// crates/tasker-shared/src/logging.rs
 pub fn init_console_only() {
     // Initialize console logging without OpenTelemetry
     // Safe to call from any thread, no async runtime required
@@ -76,13 +76,13 @@ runtime.block_on(async {
 
 **File Structure:**
 
-- `workers/ruby/ext/tasker_core/src/ffi_logging.rs` - Phase 1
-- `workers/ruby/ext/tasker_core/src/bootstrap.rs` - Phase 2
+- `crates/tasker-rb/ext/tasker_core/src/ffi_logging.rs` - Phase 1
+- `crates/tasker-rb/ext/tasker_core/src/bootstrap.rs` - Phase 2
 
 **Phase 1: Magnus Initialization**
 
 ```rust
-// workers/ruby/ext/tasker_core/src/ffi_logging.rs
+// crates/tasker-rb/ext/tasker_core/src/ffi_logging.rs
 
 pub fn init_ffi_logger() -> Result<(), Box<dyn std::error::Error>> {
     // Check if telemetry is enabled
@@ -110,7 +110,7 @@ pub fn init_ffi_logger() -> Result<(), Box<dyn std::error::Error>> {
 **Phase 2: After Runtime Creation**
 
 ```rust
-// workers/ruby/ext/tasker_core/src/bootstrap.rs
+// crates/tasker-rb/ext/tasker_core/src/bootstrap.rs
 
 pub fn bootstrap_worker() -> Result<Value, Error> {
     // Create tokio runtime
@@ -135,7 +135,7 @@ pub fn bootstrap_worker() -> Result<Value, Error> {
 **Phase 1: PyO3 Module Initialization**
 
 ```rust
-// workers/python/src/lib.rs
+// crates/tasker-py/src/lib.rs
 
 #[pymodule]
 fn tasker_core(py: Python, m: &PyModule) -> PyResult<()> {
@@ -159,7 +159,7 @@ fn tasker_core(py: Python, m: &PyModule) -> PyResult<()> {
 **Phase 2: After Runtime Creation**
 
 ```rust
-// workers/python/src/bootstrap.rs
+// crates/tasker-py/src/bootstrap.rs
 
 #[pyfunction]
 pub fn bootstrap_worker() -> PyResult<String> {
@@ -458,7 +458,7 @@ Rust: Create linked span using returned trace_id/span_id
 
 ### Implementation: Rust Side (Phase 1.5a)
 
-**File:** `tasker-worker/src/worker/command_processor.rs`
+**File:** `crates/tasker-worker/src/worker/command_processor.rs`
 
 **Step 1: Create instrumented span with all required attributes**
 
@@ -515,7 +515,7 @@ pub async fn handle_execute_step(&self, step_message: SimpleStepMessage) -> Task
 
 ### Implementation: Data Structures
 
-**File:** `tasker-shared/src/types/base.rs`
+**File:** `crates/tasker-shared/src/types/base.rs`
 
 **Add trace context fields to FFI event structures:**
 
@@ -561,7 +561,7 @@ pub struct StepExecutionCompletionEvent {
 
 ### Implementation: Ruby Side Propagation
 
-**File:** `workers/ruby/lib/tasker_core/event_bridge.rb`
+**File:** `crates/tasker-rb/lib/tasker_core/event_bridge.rb`
 
 **Propagate trace context like correlation_id:**
 
@@ -586,7 +586,7 @@ def wrap_step_execution_event(event_data)
 end
 ```
 
-**File:** `workers/ruby/lib/tasker_core/subscriber.rb`
+**File:** `crates/tasker-rb/lib/tasker_core/subscriber.rb`
 
 **Include trace context in completion:**
 
@@ -619,7 +619,7 @@ end
 
 ### Implementation: Completion Span (Rust)
 
-**File:** `tasker-worker/src/worker/event_subscriber.rs`
+**File:** `crates/tasker-worker/src/worker/event_subscriber.rs`
 
 **Create linked span when receiving Ruby completion:**
 
@@ -755,7 +755,7 @@ The exact same pattern applies to Python workers:
 **Python Side (PyO3):**
 
 ```python
-# workers/python/tasker_core/event_bridge.py
+# crates/tasker-py/tasker_core/event_bridge.py
 
 def wrap_step_execution_event(event_data):
     wrapped = {
@@ -853,8 +853,8 @@ let span = span!(
 
 ## Related Documentation
 
-- `tasker-shared/src/logging.rs` - Core logging implementation
-- `workers/rust/README.md` - Event-driven FFI architecture
+- `crates/tasker-shared/src/logging.rs` - Core logging implementation
+- `crates/tasker-example-rs/README.md` - Event-driven FFI architecture
 - `docs/batch-processing.md` - Distributed tracing integration
 - `docker/docker-compose.test.yml` - Observability stack configuration
 

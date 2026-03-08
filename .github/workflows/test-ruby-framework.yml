@@ -43,7 +43,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: workers/ruby
+        working-directory: crates/tasker-rb
 
     steps:
       - name: Checkout code
@@ -57,10 +57,13 @@ jobs:
         with:
           ruby-version: "3.4"
           bundler-cache: true
-          working-directory: workers/ruby
+          working-directory: crates/tasker-rb
 
       - name: Setup Rust (for sqlx-cli)
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
@@ -96,7 +99,7 @@ jobs:
         run: |
           if [ -d artifacts ] && (ls artifacts/*.bundle 2>/dev/null || ls artifacts/*.so 2>/dev/null); then
             echo "📦 Restoring pre-built Ruby extension..."
-            ARTIFACTS_DIR=artifacts ../../cargo-make/scripts/ci-restore-ruby-extension.sh
+            ARTIFACTS_DIR=artifacts ../../tools/cargo-make/scripts/ci-restore-ruby-extension.sh
           else
             echo "🔨 Building Ruby extension from source..."
             bundle exec rake compile
@@ -127,7 +130,7 @@ jobs:
 
       - name: Start orchestration server
         working-directory: .
-        run: cargo-make/scripts/ci-start-orchestration-server.sh
+        run: tools/cargo-make/scripts/ci-start-orchestration-server.sh
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           REDIS_URL: redis://localhost:6379
@@ -151,7 +154,7 @@ jobs:
       - name: Stop orchestration server
         if: always()
         working-directory: .
-        run: cargo-make/scripts/ci-stop-orchestration-server.sh
+        run: tools/cargo-make/scripts/ci-stop-orchestration-server.sh
 
       # ========================================================================
       # Results
@@ -169,4 +172,4 @@ jobs:
       - name: Display test summary
         if: always()
         working-directory: .
-        run: cargo-make/scripts/ci-display-test-summary.sh ruby
+        run: tools/cargo-make/scripts/ci-display-test-summary.sh ruby
