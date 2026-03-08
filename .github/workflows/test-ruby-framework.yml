@@ -97,9 +97,15 @@ jobs:
 
       - name: Restore or compile Ruby FFI extension
         run: |
-          if [ -d artifacts ] && (ls artifacts/*.bundle 2>/dev/null || ls artifacts/*.so 2>/dev/null); then
+          # Artifact preserves directory structure, so files are nested under artifacts/
+          bundle_file=$(find artifacts -name '*.bundle' -o -name '*.so' 2>/dev/null | head -1)
+          if [ -n "$bundle_file" ]; then
             echo "📦 Restoring pre-built Ruby extension..."
-            ARTIFACTS_DIR=artifacts ../../tools/cargo-make/scripts/ci-restore-ruby-extension.sh
+            mkdir -p lib/tasker_core
+            find artifacts -name '*.bundle' -exec cp {} lib/tasker_core/ \;
+            find artifacts -name '*.so' -exec cp {} lib/tasker_core/ \;
+            echo "  Restored extension files:"
+            ls -lh lib/tasker_core/*.bundle lib/tasker_core/*.so 2>/dev/null || true
           else
             echo "🔨 Building Ruby extension from source..."
             bundle exec rake compile

@@ -7,6 +7,10 @@ set -euo pipefail
 # Restores the Ruby FFI extension (tasker_rb.bundle/.so) from the
 # ruby-extension artifact produced by build-workers.yml
 #
+# upload-artifact preserves directory structure, so files may be nested
+# (e.g., artifacts/crates/tasker-rb/lib/tasker_core/tasker_rb.so).
+# This script uses find to locate them regardless of nesting depth.
+#
 # Environment variables:
 #   ARTIFACTS_DIR - Directory where artifacts were downloaded (default: artifacts/ruby)
 #
@@ -25,13 +29,13 @@ mkdir -p crates/tasker-rb/lib/tasker_core
 if [ -d "${ARTIFACTS_DIR}" ]; then
     restored=false
 
-    # Look for .bundle (macOS) or .so (Linux) files
+    # Look for .bundle (macOS) or .so (Linux) files at any depth
     for ext in bundle so; do
-        if ls "${ARTIFACTS_DIR}"/*.${ext} 2>/dev/null; then
-            cp -f "${ARTIFACTS_DIR}"/*.${ext} crates/tasker-rb/lib/tasker_core/
-            echo "  Restored .${ext} files"
+        while IFS= read -r file; do
+            cp -f "$file" crates/tasker-rb/lib/tasker_core/
+            echo "  Restored $(basename "$file")"
             restored=true
-        fi
+        done < <(find "${ARTIFACTS_DIR}" -name "*.${ext}" 2>/dev/null)
     done
 
     if [ "$restored" = true ]; then
