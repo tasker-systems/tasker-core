@@ -3,8 +3,16 @@ name = "tasker-secure"
 version = "0.1.6"
 edition = "2021"
 description = "Strategy-pattern secrets resolution, resource lifecycle, and data protection for Tasker workflows"
+readme = "README.md"
 repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
+keywords = ["secrets", "encryption", "sops", "security", "workflow"]
+categories = ["authentication", "config", "cryptography"]
+
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lib]
 crate-type = ["rlib"]
