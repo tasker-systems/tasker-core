@@ -16,9 +16,11 @@
 mod config_value;
 mod error;
 mod handle;
+mod registry;
 mod types;
 
 pub use config_value::{ConfigValue, ResourceConfig};
 pub use error::ResourceError;
 pub use handle::{ResourceHandle, ResourceHandleExt};
+pub use registry::ResourceRegistry;
 pub use types::{ResourceDefinition, ResourceSummary, ResourceType};
