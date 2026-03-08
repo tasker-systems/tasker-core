@@ -97,7 +97,7 @@ opentelemetry-otlp = { version = "0.31", features = ["grpc-tonic", "logs"] }
 opentelemetry-prometheus-text-exporter = "0.2"
 # rt-tokio: Telemetry tasks run on shared tokio runtime (lower overhead, sufficient for I/O-bound workloads)
 # Alternative: rt-tokio-current-thread creates separate runtime (higher isolation, higher resource cost)
-# Our choice: rt-tokio works well for async I/O-bound orchestration without CPU-intensive workloads
+# Our choice: rt-tokio works well for async I/O-bound orchestration without CPU-administrative workloads
 opentelemetry_sdk = { version = "0.31", features = [
   "metrics",
   "rt-tokio",
@@ -346,9 +346,12 @@ grpc = ["tasker-client/grpc"]
 [lints]
 workspace = true
 
+# TAS-366: debug = 1 (line numbers only) reduces debug artifact size and link time
+# vs debug = true (full DWARF). Sufficient for most debugging workflows; use
+# the profiling profile when full symbols are needed.
 [profile.dev]
 opt-level = 0
-debug = true
+debug = 1
 
 [profile.release]
 opt-level = 3

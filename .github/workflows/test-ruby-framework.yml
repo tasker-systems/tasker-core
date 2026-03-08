@@ -62,6 +62,9 @@ jobs:
       - name: Setup Rust (for sqlx-cli)
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
 

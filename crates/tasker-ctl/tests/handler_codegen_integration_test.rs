@@ -3,7 +3,7 @@
 //! Tests the full CLI pipeline: YAML parsing → handler extraction → scaffold generation.
 //! Uses the codegen_test_template.yaml fixture.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 /// Get the path to the compiled tasker-ctl binary.

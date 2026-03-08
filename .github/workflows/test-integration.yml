@@ -88,6 +88,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
 
@@ -237,6 +240,9 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
 
       - name: Setup Ruby
         if: inputs.build-ruby

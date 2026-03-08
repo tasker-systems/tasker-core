@@ -7,7 +7,7 @@
 //! The fixture has namespace_name: "codegen_tests", so result types are prefixed
 //! with `CodegenTests` (e.g. `CodegenTestsValidateOrderResult`).
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 /// Get the path to the compiled tasker-ctl binary.

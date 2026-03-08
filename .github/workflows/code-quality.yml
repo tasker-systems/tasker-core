@@ -36,6 +36,9 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
         with:

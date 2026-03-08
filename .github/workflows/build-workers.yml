@@ -69,6 +69,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
 
@@ -152,6 +155,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -216,6 +222,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -275,6 +284,9 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -341,6 +353,9 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@v1
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
