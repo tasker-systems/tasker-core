@@ -30,3 +30,5 @@ pub mod secrets;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod testing;
+
+pub use secrets::SecretValue;

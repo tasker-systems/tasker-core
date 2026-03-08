@@ -15,3 +15,5 @@ mod value;
 
 #[cfg(feature = "sops")]
 mod sops;
+
+pub use value::SecretValue;
