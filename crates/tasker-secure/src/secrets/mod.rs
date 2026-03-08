@@ -7,6 +7,8 @@
 mod chained;
 mod env;
 mod error;
+#[cfg(feature = "sops")]
+pub mod sops;
 mod value;
 
 use std::collections::HashMap;
@@ -15,6 +17,8 @@ use std::fmt;
 pub use chained::ChainedSecretsProvider;
 pub use env::EnvSecretsProvider;
 pub use error::SecretsError;
+#[cfg(feature = "sops")]
+pub use sops::SopsSecretsProvider;
 pub use value::SecretValue;
 
 /// A secrets provider resolves named secret references to their values.

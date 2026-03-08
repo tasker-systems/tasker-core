@@ -31,6 +31,8 @@ pub mod secrets;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod testing;
 
+#[cfg(feature = "sops")]
+pub use secrets::SopsSecretsProvider;
 pub use secrets::{
     ChainedSecretsProvider, EnvSecretsProvider, SecretValue, SecretsError, SecretsProvider,
 };

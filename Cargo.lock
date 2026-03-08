@@ -7632,6 +7632,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "tasker-secure",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
