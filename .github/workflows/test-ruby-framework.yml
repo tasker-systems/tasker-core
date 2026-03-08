@@ -99,7 +99,7 @@ jobs:
         run: |
           if [ -d artifacts ] && (ls artifacts/*.bundle 2>/dev/null || ls artifacts/*.so 2>/dev/null); then
             echo "📦 Restoring pre-built Ruby extension..."
-            ARTIFACTS_DIR=artifacts ../../../tools/cargo-make/scripts/ci-restore-ruby-extension.sh
+            ARTIFACTS_DIR=artifacts ../../tools/cargo-make/scripts/ci-restore-ruby-extension.sh
           else
             echo "🔨 Building Ruby extension from source..."
             bundle exec rake compile
@@ -111,7 +111,7 @@ jobs:
         run: cargo make test-ci
         env:
           TASKER_ENV: test
-          TASKER_CONFIG_PATH: ../../../config/tasker/generated/worker-test.toml
+          TASKER_CONFIG_PATH: ../../config/tasker/generated/worker-test.toml
           TASKER_WEB_BIND_ADDRESS: "0.0.0.0:8182"
           TASKER_WORKER_GRPC_BIND_ADDRESS: "0.0.0.0:9182"
           TASKER_TEMPLATE_PATH: ./spec/fixtures/templates
