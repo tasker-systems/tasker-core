@@ -26,7 +26,7 @@ secrecy = { workspace = true }
 zeroize = { workspace = true }
 
 # Optional dependencies
-rops = { version = "0.1", optional = true }
+rops = { version = "0.1", optional = true, default-features = false, features = ["age", "aes-gcm", "sha2", "yaml"] }
 serde_yaml = { workspace = true, optional = true }
 
 [dev-dependencies]

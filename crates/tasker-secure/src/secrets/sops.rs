@@ -1,23 +1,59 @@
-//! SOPS-encrypted file secrets provider.
+//! SOPS-encrypted file secrets provider using the `rops` crate.
 //!
-//! Loads secrets from YAML/JSON files with dot-separated path navigation.
-//! Values are cached in memory as `SecretValue` after initial load.
+//! Decrypts SOPS-encrypted YAML files at startup using age keys, then caches
+//! all values in memory. Dot-separated paths navigate the decrypted structure:
+//! `"database.orders.password"`.
 //!
-//! Currently supports plaintext YAML loading via `from_plaintext_yaml`.
-//! Encrypted file support via the `rops` crate will be added as a follow-up.
+//! Age private keys are resolved via (in order):
+//! 1. `ROPS_AGE` environment variable (comma-separated)
+//! 2. `ROPS_AGE_KEY_FILE` environment variable (file path override)
+//! 3. `~/.config/rops/age_keys` default file
+//!
+//! Compatible with files encrypted by the Go `sops` CLI — teams already using
+//! SOPS don't change their encrypted files.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use rops::cryptography::cipher::AES256GCM;
+use rops::cryptography::hasher::SHA512;
+use rops::file::format::YamlFileFormat;
+use rops::file::state::{DecryptedFile, EncryptedFile};
+use rops::file::RopsFile;
 use tokio::sync::RwLock;
 
 use super::{SecretValue, SecretsError, SecretsProvider};
 
-/// Secrets provider backed by a SOPS-encrypted (or plaintext) YAML/JSON file.
+/// Type aliases for the rops generic state machine.
+type EncryptedRopsFile = RopsFile<EncryptedFile<AES256GCM, SHA512>, YamlFileFormat>;
+type DecryptedRopsFile = RopsFile<DecryptedFile<SHA512>, YamlFileFormat>;
+
+/// Secrets provider backed by a SOPS-encrypted YAML file.
 ///
-/// Values are loaded and cached at construction time. Dot-separated paths
+/// Values are decrypted and cached at construction time. Dot-separated paths
 /// navigate the decrypted structure: `"database.orders.password"`.
+///
+/// # Age key resolution
+///
+/// The `rops` crate reads age private keys from:
+/// 1. `ROPS_AGE` environment variable (comma-separated key strings)
+/// 2. `ROPS_AGE_KEY_FILE` environment variable (path to key file)
+/// 3. `~/.config/rops/age_keys` (default location)
+///
+/// # Example
+///
+/// ```no_run
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// use tasker_secure::SopsSecretsProvider;
+/// use tasker_secure::SecretsProvider;
+///
+/// // Requires ROPS_AGE env var or ~/.config/rops/age_keys
+/// let provider = SopsSecretsProvider::from_path("config/secrets.enc.yaml").await?;
+/// let db_password = provider.get_secret("database.password").await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct SopsSecretsProvider {
     cache: Arc<RwLock<HashMap<String, SecretValue>>>,
@@ -25,10 +61,11 @@ pub struct SopsSecretsProvider {
 }
 
 impl SopsSecretsProvider {
-    /// Load secrets from a plaintext YAML file (for development/testing).
+    /// Load and decrypt a SOPS-encrypted YAML file.
     ///
-    /// In production, use a constructor that decrypts SOPS-encrypted files.
-    pub async fn from_plaintext_yaml(path: impl AsRef<Path>) -> Result<Self, SecretsError> {
+    /// The age private key must be available via `ROPS_AGE` env var,
+    /// `ROPS_AGE_KEY_FILE`, or `~/.config/rops/age_keys`.
+    pub async fn from_path(path: impl AsRef<Path>) -> Result<Self, SecretsError> {
         let path = path.as_ref();
         let content = tokio::fs::read_to_string(path).await.map_err(|e| {
             SecretsError::ProviderUnavailable {
@@ -36,18 +73,63 @@ impl SopsSecretsProvider {
             }
         })?;
 
-        let value: serde_json::Value =
-            serde_yaml::from_str(&content).map_err(|e| SecretsError::ProviderUnavailable {
-                message: format!("failed to parse SOPS file '{}': {e}", path.display()),
-            })?;
+        let encrypted: EncryptedRopsFile =
+            content
+                .parse()
+                .map_err(|e| SecretsError::ProviderUnavailable {
+                    message: format!("failed to parse SOPS file '{}': {e}", path.display()),
+                })?;
+
+        let decrypted: DecryptedRopsFile =
+            encrypted
+                .decrypt()
+                .map_err(|e| SecretsError::ProviderUnavailable {
+                    message: format!("failed to decrypt SOPS file '{}': {e}", path.display()),
+                })?;
+
+        let yaml_map: serde_yaml::Mapping = decrypted.into_inner_map();
+        let json_value = yaml_mapping_to_json(&yaml_map);
 
         let mut cache = HashMap::new();
-        flatten_value(&value, String::new(), &mut cache);
+        flatten_value(&json_value, String::new(), &mut cache);
 
         Ok(Self {
             cache: Arc::new(RwLock::new(cache)),
             source_path: path.to_path_buf(),
         })
+    }
+}
+
+/// Convert a serde_yaml::Mapping to serde_json::Value for uniform path navigation.
+fn yaml_mapping_to_json(mapping: &serde_yaml::Mapping) -> serde_json::Value {
+    let mut map = serde_json::Map::new();
+    for (key, value) in mapping {
+        if let serde_yaml::Value::String(k) = key {
+            map.insert(k.clone(), yaml_value_to_json(value));
+        }
+    }
+    serde_json::Value::Object(map)
+}
+
+fn yaml_value_to_json(value: &serde_yaml::Value) -> serde_json::Value {
+    match value {
+        serde_yaml::Value::Null => serde_json::Value::Null,
+        serde_yaml::Value::Bool(b) => serde_json::Value::Bool(*b),
+        serde_yaml::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                serde_json::Value::Number(i.into())
+            } else if let Some(f) = n.as_f64() {
+                serde_json::json!(f)
+            } else {
+                serde_json::Value::String(n.to_string())
+            }
+        }
+        serde_yaml::Value::String(s) => serde_json::Value::String(s.clone()),
+        serde_yaml::Value::Sequence(seq) => {
+            serde_json::Value::Array(seq.iter().map(yaml_value_to_json).collect())
+        }
+        serde_yaml::Value::Mapping(m) => yaml_mapping_to_json(m),
+        serde_yaml::Value::Tagged(tagged) => yaml_value_to_json(&tagged.value),
     }
 }
 
