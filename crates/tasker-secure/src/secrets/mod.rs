@@ -4,12 +4,14 @@
 //! to their values. Implementations talk to specific backends (environment
 //! variables, SOPS files, Vault, AWS SSM, etc.).
 
+mod env;
 mod error;
 mod value;
 
 use std::collections::HashMap;
 use std::fmt;
 
+pub use env::EnvSecretsProvider;
 pub use error::SecretsError;
 pub use value::SecretValue;
 
