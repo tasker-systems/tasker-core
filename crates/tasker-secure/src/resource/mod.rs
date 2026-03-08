@@ -16,6 +16,10 @@
 mod config_value;
 mod error;
 mod handle;
+#[cfg(feature = "http")]
+pub mod http;
+#[cfg(feature = "postgres")]
+pub mod postgres;
 mod registry;
 mod types;
 

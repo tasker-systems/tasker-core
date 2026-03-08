@@ -21,8 +21,8 @@ name = "tasker_secure"
 [features]
 default = []
 sops = ["dep:rops", "dep:serde_yaml"]
-postgres = []
-http = []
+postgres = ["dep:sqlx"]
+http = ["dep:reqwest"]
 test-utils = []
 
 [dependencies]
@@ -38,11 +38,14 @@ zeroize = { workspace = true }
 # Optional dependencies
 rops = { version = "0.1", optional = true, default-features = false, features = ["age", "aes-gcm", "sha2", "yaml"] }
 serde_yaml = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 serde_json = { workspace = true }
 toml = { workspace = true }
+url = { workspace = true }
 tasker-secure = { path = ".", features = ["test-utils"] }
 
 [lints]

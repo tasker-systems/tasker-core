@@ -7298,16 +7298,19 @@ name = "tasker-secure"
 version = "0.1.6"
 dependencies = [
  "async-trait",
+ "reqwest 0.12.26",
  "rops",
  "secrecy 0.10.3",
  "serde",
  "serde_json",
  "serde_yaml",
+ "sqlx",
  "tasker-secure",
  "thiserror 2.0.18",
  "tokio",
  "toml 0.9.5",
  "tracing",
+ "url",
  "zeroize",
 ]
 
