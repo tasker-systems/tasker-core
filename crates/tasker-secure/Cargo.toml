@@ -21,6 +21,8 @@ name = "tasker_secure"
 [features]
 default = []
 sops = ["dep:rops", "dep:serde_yaml"]
+postgres = []
+http = []
 test-utils = []
 
 [dependencies]

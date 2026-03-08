@@ -33,7 +33,8 @@ pub mod testing;
 
 pub use config::ConfigString;
 pub use resource::{
-    ConfigValue, ResourceConfig, ResourceDefinition, ResourceError, ResourceSummary, ResourceType,
+    ConfigValue, ResourceConfig, ResourceDefinition, ResourceError, ResourceHandle,
+    ResourceHandleExt, ResourceSummary, ResourceType,
 };
 #[cfg(feature = "sops")]
 pub use secrets::SopsSecretsProvider;
