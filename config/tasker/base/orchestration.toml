@@ -601,6 +601,7 @@ description = "PEM-encoded public key for verifying JWT token signatures"
 type = "String"
 valid_range = "valid PEM public key or empty"
 system_impact = "Required for JWT validation; prefer jwt_public_key_path for file-based key management in production"
+# Future: jwt_public_key = { secret_ref = "auth.jwt_public_key" }  # Resolve via SecretsProvider (tasker-secure)
 
 [orchestration.web.auth._docs.jwt_public_key_path]
 description = "File path to a PEM-encoded public key for JWT verification"
