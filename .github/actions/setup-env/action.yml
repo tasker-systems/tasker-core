@@ -44,6 +44,9 @@ runs:
 
         echo "API_KEY=ff3083e54e01ad76ffc3f791359c1ed92b347bcd613af94f88f0bf4991eaa168" >> $GITHUB_ENV
 
+        # SOPS secrets decryption (TAS-357: age key for tasker-secure test fixtures)
+        echo "ROPS_AGE=AGE-SECRET-KEY-1LD90NYSPG047ENVSRUL93ED39PEFJA2G4WETJ7EPJ5ZKFQK6PD9QJVUTT3" >> $GITHUB_ENV
+
     - name: Display environment setup
       shell: bash
       run: |
@@ -63,3 +66,4 @@ runs:
         echo "- REDIS_URL: $REDIS_URL"
         echo "- API_KEY: ${API_KEY:0:8}..." # Show only first 8 chars for security
         echo "- JWT keys configured: ✅"
+        echo "- ROPS_AGE configured: ✅"

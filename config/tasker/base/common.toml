@@ -24,6 +24,7 @@ related = ["common.database.pool.max_connections", "common.pgmq_database.url"]
 test = { value = "postgresql://tasker:tasker@localhost:5432/tasker_rust_test", rationale = "Isolated test database with known credentials" }
 development = { value = "postgresql://localhost/tasker", rationale = "Local default, no auth" }
 production = { value = "${DATABASE_URL}", rationale = "Always use env var injection for secrets rotation" }
+# Future: url = { secret_ref = "database.url" }  # Resolve via SecretsProvider (tasker-secure)
 
 [common.database.pool]
 max_connections = 25
@@ -87,6 +88,7 @@ type = "String"
 valid_range = "valid PostgreSQL connection URI or empty string"
 system_impact = "Separating PGMQ to its own database isolates messaging I/O from task state queries, reducing contention under heavy load"
 related = ["common.database.url", "common.pgmq_database.enabled"]
+# Future: url = { secret_ref = "pgmq_database.url" }  # Resolve via SecretsProvider (tasker-secure)
 
 [common.pgmq_database._docs.enabled]
 description = "Enable PGMQ messaging subsystem"
@@ -247,6 +249,7 @@ description = "AMQP connection URL for RabbitMQ; %2F is the URL-encoded default 
 type = "String"
 valid_range = "valid AMQP URI"
 system_impact = "Only used when queues.backend = 'rabbitmq'; must be reachable at startup"
+# Future: url = { secret_ref = "rabbitmq.url" }  # Resolve via SecretsProvider (tasker-secure)
 
 [common.queues.rabbitmq._docs.prefetch_count]
 description = "Number of unacknowledged messages RabbitMQ will deliver before waiting for acks"
@@ -505,6 +508,7 @@ description = "Redis connection URL"
 type = "String"
 valid_range = "valid Redis URI"
 system_impact = "Must be reachable when cache is enabled with redis backend"
+# Future: url = { secret_ref = "cache.redis.url" }  # Resolve via SecretsProvider (tasker-secure)
 
 [common.cache.redis._docs.max_connections]
 description = "Maximum number of connections in the Redis connection pool"

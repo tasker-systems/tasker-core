@@ -1,0 +1,52 @@
+[package]
+name = "tasker-secure"
+version = "0.1.6"
+edition = "2021"
+description = "Strategy-pattern secrets resolution, resource lifecycle, and data protection for Tasker workflows"
+readme = "README.md"
+repository = "https://github.com/tasker-systems/tasker-core"
+license = "MIT"
+keywords = ["secrets", "encryption", "sops", "security", "workflow"]
+categories = ["authentication", "config", "cryptography"]
+
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+crate-type = ["rlib"]
+name = "tasker_secure"
+
+[features]
+default = []
+sops = ["dep:rops", "dep:serde_yaml"]
+postgres = ["dep:sqlx"]
+http = ["dep:reqwest"]
+test-utils = []
+
+[dependencies]
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync"] }
+tracing = { workspace = true }
+secrecy = { workspace = true }
+zeroize = { workspace = true }
+
+# Optional dependencies
+rops = { version = "0.1", optional = true, default-features = false, features = ["age", "aes-gcm", "sha2", "yaml"] }
+serde_yaml = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+serde_json = { workspace = true }
+toml = { workspace = true }
+url = { workspace = true }
+tasker-secure = { path = ".", features = ["test-utils"] }
+
+[lints]
+workspace = true
