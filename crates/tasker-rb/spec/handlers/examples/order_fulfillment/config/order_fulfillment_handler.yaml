@@ -209,4 +209,4 @@
     :steps: []
   production:
     :steps: []
-:loaded_from: "/Users/petetaylor/projects/tasker-systems/tasker-core/workers/ruby/spec/handlers/examples/order_fulfillment/config/order_fulfillment_handler.yaml"
+:loaded_from: "/Users/petetaylor/projects/tasker-systems/tasker-core/crates/tasker-rb/spec/handlers/examples/order_fulfillment/config/order_fulfillment_handler.yaml"

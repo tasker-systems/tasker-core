@@ -1,7 +1,7 @@
 //! # Mixed DAG Workflow Handlers
 //!
 //! Native Rust implementation of the mixed DAG workflow pattern that exactly replicates
-//! the Ruby handlers in `workers/ruby/spec/handlers/examples/mixed_dag_workflow/`.
+//! the Ruby handlers in `crates/tasker-rb/spec/handlers/examples/mixed_dag_workflow/`.
 //!
 //! ## Workflow Pattern
 //!

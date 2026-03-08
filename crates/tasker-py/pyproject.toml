@@ -29,7 +29,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/tasker-systems/tasker-core"
 Repository = "https://github.com/tasker-systems/tasker-core"
-Documentation = "https://github.com/tasker-systems/tasker-core/tree/main/workers/python"
+Documentation = "https://github.com/tasker-systems/tasker-core/tree/main/crates/tasker-py"
 "Bug Tracker" = "https://github.com/tasker-systems/tasker-core/issues"
 
 [project.optional-dependencies]

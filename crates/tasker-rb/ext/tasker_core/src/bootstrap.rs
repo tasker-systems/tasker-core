@@ -1,6 +1,6 @@
 //! # Ruby Worker Bootstrap
 //!
-//! TAS-67: Follows the same patterns as workers/rust/src/bootstrap.rs but adapted
+//! TAS-67: Follows the same patterns as crates/tasker-example-rs/src/bootstrap.rs but adapted
 //! for Ruby FFI integration with magnus. Uses FfiDispatchChannel for step event
 //! dispatch instead of the legacy RubyEventHandler.
 //!

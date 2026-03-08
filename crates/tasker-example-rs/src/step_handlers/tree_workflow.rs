@@ -1,7 +1,7 @@
 //! # Tree Workflow Handlers
 //!
 //! Native Rust implementation of the tree workflow pattern that exactly replicates
-//! the Ruby handlers in `workers/ruby/spec/handlers/examples/tree_workflow/`.
+//! the Ruby handlers in `crates/tasker-rb/spec/handlers/examples/tree_workflow/`.
 //!
 //! ## Workflow Pattern
 //!

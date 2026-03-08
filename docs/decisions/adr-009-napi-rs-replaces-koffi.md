@@ -336,7 +336,7 @@ Key files:
 ```diff
 # Build script change
 - cargo build -p tasker-ts --release --locked
-+ cd workers/typescript-napi && npx napi build --release --platform --target $TARGET
++ cd crates/tasker-ts && npx napi build --release --platform --target $TARGET
 ```
 
 The matrix (linux-x64, darwin-arm64) stays the same. Output artifacts change from `.so/.dylib` to `.node`.
@@ -366,7 +366,7 @@ No changes to OIDC, npm environment, or publish command — still `npm publish` 
 
 ```diff
 - cargo make build-ffi  # cargo build -p tasker-ts
-+ cd workers/typescript-napi && npx napi build --platform  # debug build for tests
++ cd crates/tasker-ts && npx napi build --platform  # debug build for tests
 ```
 
 **Docker production build** (`typescript-worker.prod.Dockerfile`):
@@ -374,7 +374,7 @@ No changes to OIDC, npm environment, or publish command — still `npm publish` 
 ```diff
 - cargo build -p tasker-ts --release --locked
 - ENV TASKER_FFI_LIBRARY_PATH=/app/lib/libtasker_ts.so
-+ cd workers/typescript-napi && npx napi build --release --platform
++ cd crates/tasker-ts && npx napi build --release --platform
 + # .node file discovered automatically by napi-rs loader, no env var needed
 ```
 
@@ -480,7 +480,7 @@ The migration is a direct replacement, not incremental. The koffi FFI layer is b
 
 **Phase 4: Cleanup**
 
-1. Remove `workers/typescript-napi/` spike directory
+1. Remove `crates/tasker-ts/` spike directory
 2. Update documentation
 
 ### 11. Risks & Mitigations
@@ -509,7 +509,7 @@ These should be tested during formal implementation.
 ## Files Created
 
 ```
-workers/typescript-napi/
+crates/tasker-ts/
 ├── Cargo.toml          # napi + workspace deps
 ├── build.rs            # napi-build setup
 ├── package.json        # @napi-rs/cli tooling

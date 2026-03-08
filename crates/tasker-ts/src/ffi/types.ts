@@ -46,9 +46,9 @@ export type {
 // requires `T | null` typing with `exactOptionalPropertyTypes: true`.
 //
 // These are the ONLY types that need manual maintenance. They mirror:
-//   workers/typescript/src-rust/bridge.rs :: NapiStepExecutionResult
-//   workers/typescript/src-rust/bridge.rs :: NapiStepExecutionMetadata
-//   workers/typescript/src-rust/bridge.rs :: NapiStepExecutionError
+//   crates/tasker-ts/src-rust/bridge.rs :: NapiStepExecutionResult
+//   crates/tasker-ts/src-rust/bridge.rs :: NapiStepExecutionMetadata
+//   crates/tasker-ts/src-rust/bridge.rs :: NapiStepExecutionError
 // =============================================================================
 
 /**

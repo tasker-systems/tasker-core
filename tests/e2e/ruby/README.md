@@ -107,7 +107,7 @@ Ruby worker discovers handlers via `TASKER_TEMPLATE_PATH` environment variable:
 ```yaml
 # docker-compose.test.yml
 environment:
-  TASKER_TEMPLATE_PATH: /app/workers/ruby/spec/fixtures/templates
+  TASKER_TEMPLATE_PATH: /app/crates/tasker-rb/spec/fixtures/templates
 
 volumes:
   - ../crates/tasker-rb/spec:/app/crates/tasker-rb/spec:ro
@@ -115,8 +115,8 @@ volumes:
 
 Handlers are discovered relative to template path:
 ```
-/app/workers/ruby/spec/fixtures/templates  (templates)
-/app/workers/ruby/spec/handlers/examples   (handlers - discovered relative to templates)
+/app/crates/tasker-rb/spec/fixtures/templates  (templates)
+/app/crates/tasker-rb/spec/handlers/examples   (handlers - discovered relative to templates)
 ```
 
 ### Test Environment Overrides
@@ -151,7 +151,7 @@ docker compose -f docker/docker-compose.test.yml restart
 
 ```bash
 # Verify volume mount
-docker compose -f docker/docker-compose.test.yml exec ruby-worker ls -la /app/workers/ruby/spec/
+docker compose -f docker/docker-compose.test.yml exec ruby-worker ls -la /app/crates/tasker-rb/spec/
 
 # Check template path
 docker compose -f docker/docker-compose.test.yml exec ruby-worker env | grep TASKER_TEMPLATE_PATH

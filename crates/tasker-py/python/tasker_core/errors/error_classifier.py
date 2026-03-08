@@ -4,7 +4,7 @@ This module provides the ErrorClassifier class that determines whether
 an exception should trigger a retry based on its type.
 
 This mirrors the Ruby implementation in:
-workers/ruby/lib/tasker_core/errors/error_classifier.rb
+crates/tasker-rb/lib/tasker_core/errors/error_classifier.rb
 
 Example:
     >>> from tasker_core.errors.error_classifier import ErrorClassifier

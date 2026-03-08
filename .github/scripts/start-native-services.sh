@@ -9,8 +9,8 @@ RUST_TEMPLATE_PATH="$(pwd)/tests/fixtures/task_templates/rust"
 RUBY_TEMPLATE_PATH="$(pwd)/tests/fixtures/task_templates/ruby"
 PYTHON_TEMPLATE_PATH="$(pwd)/tests/fixtures/task_templates/python"
 TYPESCRIPT_TEMPLATE_PATH="$(pwd)/tests/fixtures/task_templates/typescript"
-PYTHON_HANDLER_PATH="$(pwd)/workers/python/tests/handlers"
-TYPESCRIPT_HANDLER_PATH="$(pwd)/workers/typescript/tests/handlers"
+PYTHON_HANDLER_PATH="$(pwd)/crates/tasker-py/tests/handlers"
+TYPESCRIPT_HANDLER_PATH="$(pwd)/crates/tasker-ts/tests/handlers"
 FIXTURE_PATH="$(pwd)/tests/fixtures"
 ORCHESTRATION_PORT="${ORCHESTRATION_PORT:-8080}"
 WORKER_PORT="${WORKER_PORT:-8081}"
@@ -95,7 +95,7 @@ else
   echo "   TASKER_WEB_BIND_ADDRESS=0.0.0.0:$RUBY_WORKER_PORT"
   echo "   Checking worker config file bind_address:"
   grep -A 1 "\[worker.web\]" "$WORKER_CONFIG" | grep bind_address || echo "   bind_address not found in config"
-  cd workers/ruby
+  cd crates/tasker-rb
   TASKER_CONFIG_PATH="$WORKER_CONFIG" \
     DATABASE_URL="$POSTGRES_URL" \
     TASKER_ENV=test \
@@ -115,7 +115,7 @@ if [[ "$SKIP_PYTHON_WORKER" == "true" ]]; then
   PYTHON_WORKER_PID=""
 else
   echo "🐍 Starting Python FFI worker on port $PYTHON_WORKER_PORT..."
-  cd workers/python
+  cd crates/tasker-py
   TASKER_CONFIG_PATH="$WORKER_CONFIG" \
     DATABASE_URL="$POSTGRES_URL" \
     TASKER_ENV=test \
@@ -150,7 +150,7 @@ else
   fi
 
   echo "📜 Starting TypeScript FFI worker on port $TYPESCRIPT_WORKER_PORT..."
-  cd workers/typescript
+  cd crates/tasker-ts
   # napi CLI places .node files in package root — FfiLayer auto-discovers them
   echo "   .node files: $(ls tasker_ts.*.node 2>/dev/null || echo 'none found')"
   TASKER_CONFIG_PATH="$WORKER_CONFIG" \

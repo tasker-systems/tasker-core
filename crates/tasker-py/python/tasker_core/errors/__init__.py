@@ -1,7 +1,7 @@
 """Error classes for Tasker Core Python worker.
 
 This module provides a hierarchy of error classes that mirror the Ruby
-implementation in workers/ruby/lib/tasker_core/errors/common.rb.
+implementation in crates/tasker-rb/lib/tasker_core/errors/common.rb.
 
 The error hierarchy supports automatic retry classification:
 - RetryableError: Transient failures that should be retried

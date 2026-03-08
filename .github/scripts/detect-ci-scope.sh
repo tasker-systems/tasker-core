@@ -173,19 +173,19 @@ if code_changes_match '^(src/|tests/|benches/|build\.rs)'; then
 fi
 
 # Worker directories
-if code_changes_match '^workers/ruby/'; then
+if code_changes_match '^crates/tasker-rb/'; then
     HAS_RUBY_WORKER=true
 fi
 
-if code_changes_match '^workers/python/'; then
+if code_changes_match '^crates/tasker-py/'; then
     HAS_PYTHON_WORKER=true
 fi
 
-if code_changes_match '^workers/typescript/'; then
+if code_changes_match '^crates/tasker-ts/'; then
     HAS_TS_WORKER=true
 fi
 
-if code_changes_match '^workers/rust/'; then
+if code_changes_match '^crates/tasker-example-rs/'; then
     HAS_RUST_WORKER=true
 fi
 

@@ -4,7 +4,7 @@
 //! 1. Connecting to running Docker Compose services (postgres, orchestration, worker)
 //! 2. Using tasker-client library to create and execute diamond pattern tasks
 //! 3. Testing parallel execution followed by convergence using native Rust handlers
-//! 4. Validating YAML configuration from workers/rust/config/tasks/diamond_workflow/
+//! 4. Validating YAML configuration from crates/tasker-example-rs/config/tasks/diamond_workflow/
 //!
 //! Prerequisites:
 //! Run `docker-compose -f docker/docker-compose.test.yml up --build -d` before running tests
@@ -175,8 +175,8 @@ async fn test_end_to_end_diamond_workflow() -> Result<()> {
     println!("✅ Diamond workflow execution: Working");
     println!("✅ Parallel branch execution: Working");
     println!("✅ Diamond convergence pattern: Working");
-    println!("✅ Step handlers from workers/rust/src/step_handlers/diamond_workflow: Working");
-    println!("✅ YAML config from workers/rust/config/tasks/diamond_workflow: Working");
+    println!("✅ Step handlers from crates/tasker-example-rs/src/step_handlers/diamond_workflow: Working");
+    println!("✅ YAML config from crates/tasker-example-rs/config/tasks/diamond_workflow: Working");
     println!("✅ End-to-end diamond pattern lifecycle: Working");
 
     Ok(())

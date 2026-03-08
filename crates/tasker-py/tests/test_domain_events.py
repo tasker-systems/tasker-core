@@ -10,9 +10,9 @@ This module provides comprehensive coverage of:
 - Integration patterns
 
 Test patterns adapted from:
-- workers/ruby/spec/domain_events/base_publisher_spec.rb
-- workers/ruby/spec/domain_events/publisher_registry_spec.rb
-- workers/ruby/spec/domain_events/subscriber_registry_spec.rb
+- crates/tasker-rb/spec/domain_events/base_publisher_spec.rb
+- crates/tasker-rb/spec/domain_events/publisher_registry_spec.rb
+- crates/tasker-rb/spec/domain_events/subscriber_registry_spec.rb
 """
 
 from __future__ import annotations

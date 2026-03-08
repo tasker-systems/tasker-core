@@ -8,7 +8,7 @@ Fields with non-deterministic values (UUIDs, timestamps) are compared structural
 (same keys present, same types) rather than by exact value.
 
 Usage:
-    cd workers/python
+    cd crates/tasker-py
     DATABASE_URL=postgresql://tasker:tasker@localhost/tasker_rust_test \
         uv run python -m pytest tests/test_handler_parity.py -v
 """

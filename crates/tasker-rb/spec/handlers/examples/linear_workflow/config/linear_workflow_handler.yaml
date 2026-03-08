@@ -146,4 +146,4 @@
             timeout_seconds: 10
         :timeout_seconds:
         :retry:
-:loaded_from: "/Users/petetaylor/projects/tasker-systems/tasker-core/workers/ruby/spec/handlers/examples/linear_workflow/config/linear_workflow_handler.yaml"
+:loaded_from: "/Users/petetaylor/projects/tasker-systems/tasker-core/crates/tasker-rb/spec/handlers/examples/linear_workflow/config/linear_workflow_handler.yaml"

@@ -556,7 +556,7 @@ impl RustStepHandler for LinearStep1Handler {
 ```bash
 # Clone the tasker-core repository
 git clone https://github.com/your-org/tasker-core
-cd tasker-core/workers/rust
+cd tasker-core/crates/tasker-example-rs
 
 # Build the Rust worker
 cargo build --release

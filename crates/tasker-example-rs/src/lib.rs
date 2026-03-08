@@ -14,7 +14,7 @@
 //! ## Architecture
 //!
 //! This demonstration proves that tasker-worker works excellently for native Rust development
-//! by implementing all workflow patterns from workers/ruby/spec/handlers/examples/:
+//! by implementing all workflow patterns from crates/tasker-rb/spec/handlers/examples/:
 //! - Linear Workflow (mathematical sequence)
 //! - Diamond Workflow (parallel branches + convergence)
 //! - Tree Workflow (hierarchical branching)

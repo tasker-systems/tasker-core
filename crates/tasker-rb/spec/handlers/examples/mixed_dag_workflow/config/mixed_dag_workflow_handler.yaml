@@ -218,4 +218,4 @@
             timeout_seconds: 15
         :timeout_seconds:
         :retry:
-:loaded_from: "/Users/petetaylor/projects/tasker-systems/tasker-core/workers/ruby/spec/handlers/examples/mixed_dag_workflow/config/mixed_dag_workflow_handler.yaml"
+:loaded_from: "/Users/petetaylor/projects/tasker-systems/tasker-core/crates/tasker-rb/spec/handlers/examples/mixed_dag_workflow/config/mixed_dag_workflow_handler.yaml"

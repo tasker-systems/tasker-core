@@ -44,13 +44,13 @@ tmp/
 *.dll
 *.dylib
 *.dSYM/
-workers/ruby/ext/*/Makefile
-workers/ruby/ext/*/mkmf.log
-workers/ruby/pkg/*/*.gem
-workers/ruby/pkg/*
-workers/ruby/*/*.gem
-workers/ruby/*.gem
-workers/ruby/spec/examples.txt
+crates/tasker-rb/ext/*/Makefile
+crates/tasker-rb/ext/*/mkmf.log
+crates/tasker-rb/pkg/*/*.gem
+crates/tasker-rb/pkg/*
+crates/tasker-rb/*/*.gem
+crates/tasker-rb/*.gem
+crates/tasker-rb/spec/examples.txt
 
 # no rspec results
 rspec_results.json
@@ -65,10 +65,10 @@ rspec_results.json
 coverage-reports/
 *.profraw
 *.profdata
-workers/ruby/coverage/
-workers/python/.coverage
-workers/python/htmlcov/
-workers/typescript/coverage/
+crates/tasker-rb/coverage/
+crates/tasker-py/.coverage
+crates/tasker-py/htmlcov/
+crates/tasker-ts/coverage/
 
 # Python cache
 __pycache__/

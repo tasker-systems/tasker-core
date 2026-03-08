@@ -63,7 +63,7 @@ export const SKIP_DATABASE_MESSAGE = 'Skipping: DATABASE_URL not set';
  * Skip message for tests requiring FFI library.
  */
 export const SKIP_LIBRARY_MESSAGE =
-  'Skipping: No .node module found. Build with: cargo make build-ffi (in workers/typescript/)';
+  'Skipping: No .node module found. Build with: cargo make build-ffi (in crates/tasker-ts/)';
 
 /**
  * Check if client API integration tests should run.

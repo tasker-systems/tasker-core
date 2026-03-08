@@ -113,17 +113,17 @@ COPY .sqlx/ ./.sqlx/
 # Create workspace stubs for crates we don't build
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration workers/rust
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs
 COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY crates/tasker-example-rs/Cargo.toml ./workers/rust/
+COPY crates/tasker-example-rs/Cargo.toml ./crates/tasker-example-rs/
 
 # Copy all three FFI worker sources
-COPY crates/tasker-py/ ./workers/python/
-COPY crates/tasker-rb/ ./workers/ruby/
-COPY crates/tasker-ts/ ./workers/typescript/
+COPY crates/tasker-py/ ./crates/tasker-py/
+COPY crates/tasker-rb/ ./crates/tasker-rb/
+COPY crates/tasker-ts/ ./crates/tasker-ts/
 
 # Install Ruby bundle dependencies at image build time
-WORKDIR /app/workers/ruby
+WORKDIR /app/crates/tasker-rb
 RUN bundle config set --local without 'development' && bundle install --jobs 4
 
 # Return to workspace root

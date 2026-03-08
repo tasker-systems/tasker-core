@@ -1,7 +1,7 @@
 //! # Linear Workflow Handlers
 //!
 //! Native Rust implementation of the linear workflow pattern that exactly replicates
-//! the Ruby handlers in `workers/ruby/spec/handlers/examples/linear_workflow/`.
+//! the Ruby handlers in `crates/tasker-rb/spec/handlers/examples/linear_workflow/`.
 //!
 //! ## Workflow Pattern
 //!

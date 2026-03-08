@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = '>= 3.4.0'
 
   spec.metadata['homepage_uri'] = spec.homepage
-  spec.metadata['source_code_uri'] = 'https://github.com/tasker-systems/tasker-core/tree/main/workers/ruby'
+  spec.metadata['source_code_uri'] = 'https://github.com/tasker-systems/tasker-core/tree/main/crates/tasker-rb'
   spec.metadata['changelog_uri'] = 'https://github.com/tasker-systems/tasker-core/blob/main/CHANGELOG.md'
   spec.metadata['documentation_uri'] = 'https://docs.tasker.systems'
   spec.metadata['bug_tracker_uri'] = 'https://github.com/tasker-systems/tasker-core/issues'

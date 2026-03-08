@@ -1,7 +1,7 @@
 //! # Diamond Workflow Handlers
 //!
 //! Native Rust implementation of the diamond workflow pattern that exactly replicates
-//! the Ruby handlers in `workers/ruby/spec/handlers/examples/diamond_workflow/`.
+//! the Ruby handlers in `crates/tasker-rb/spec/handlers/examples/diamond_workflow/`.
 //!
 //! ## Workflow Pattern
 //!

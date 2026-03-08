@@ -164,14 +164,14 @@ class TemplatePath:
 
         Searches up from current directory for the test fixtures location.
         """
-        # Try relative to current file (workers/python/python/tasker_core/)
+        # Try relative to current file (crates/tasker-py/python/tasker_core/)
         current_file = Path(__file__).resolve()
 
         # Navigate up to find tests/fixtures/task_templates/python
-        # From: workers/python/python/tasker_core/template_discovery.py
+        # From: crates/tasker-py/python/tasker_core/template_discovery.py
         # To:   tests/fixtures/task_templates/python
         search_paths = [
-            # From within workers/python directory
+            # From within crates/tasker-py directory
             current_file.parent.parent.parent.parent
             / "tests"
             / "fixtures"

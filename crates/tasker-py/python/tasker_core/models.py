@@ -2,7 +2,7 @@
 
 This module provides Python-friendly wrappers for the data structures
 received from the Rust FFI layer. These classes mirror the Ruby
-implementation in workers/ruby/lib/tasker_core/models.rb.
+implementation in crates/tasker-rb/lib/tasker_core/models.rb.
 
 The wrappers provide:
 - Type-safe attribute access instead of dictionary key lookups

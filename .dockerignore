@@ -62,14 +62,14 @@ scripts/dev_*
 scripts/local_*
 
 # Ruby bindings build artifacts (keep source but exclude built artifacts)
-workers/ruby/target/
-workers/ruby/ext/tasker_core/target/
-workers/ruby/tmp/
-workers/ruby/pkg/
-workers/ruby/.bundle/
-workers/ruby/vendor/bundle/
-workers/ruby/spec/
-workers/ruby/doc/
+crates/tasker-rb/target/
+crates/tasker-rb/ext/tasker_core/target/
+crates/tasker-rb/tmp/
+crates/tasker-rb/pkg/
+crates/tasker-rb/.bundle/
+crates/tasker-rb/vendor/bundle/
+crates/tasker-rb/spec/
+crates/tasker-rb/doc/
 
 # Cargo registry cache
 .cargo/registry/

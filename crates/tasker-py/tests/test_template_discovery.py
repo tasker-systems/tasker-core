@@ -312,7 +312,7 @@ class TestTemplateDiscoveryIntegration:
     @pytest.fixture
     def fixture_path(self) -> Path:
         """Get path to test fixtures."""
-        # Navigate from workers/python/tests to tests/fixtures/task_templates/python
+        # Navigate from crates/tasker-py/tests to tests/fixtures/task_templates/python
         current_file = Path(__file__).resolve()
         fixture_path = (
             current_file.parent.parent.parent.parent

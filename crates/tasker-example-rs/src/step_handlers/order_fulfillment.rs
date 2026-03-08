@@ -1,7 +1,7 @@
 //! # Order Fulfillment Workflow Handlers
 //!
 //! Native Rust implementation of the order fulfillment workflow pattern that exactly replicates
-//! the Ruby handlers in `workers/ruby/spec/handlers/examples/order_fulfillment/`.
+//! the Ruby handlers in `crates/tasker-rb/spec/handlers/examples/order_fulfillment/`.
 //!
 //! ## Workflow Pattern
 //!

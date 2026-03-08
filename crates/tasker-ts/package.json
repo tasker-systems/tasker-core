@@ -59,7 +59,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tasker-systems/tasker-core.git",
-    "directory": "workers/typescript"
+    "directory": "crates/tasker-ts"
   },
   "napi": {
     "binaryName": "tasker_ts",

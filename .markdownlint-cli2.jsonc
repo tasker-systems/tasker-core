@@ -85,7 +85,7 @@
     "!**/node_modules/**",
     "!**/target/**",
     "!**/.venv/**",
-    "!workers/ruby/doc/**",
+    "!crates/tasker-rb/doc/**",
   ],
 
   // Files to ignore
