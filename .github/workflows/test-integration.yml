@@ -126,6 +126,7 @@ jobs:
             --package tasker-ctl \
             --package tasker-mcp \
             --package tasker-grammar \
+            --package tasker-secure \
             --no-fail-fast
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
@@ -154,7 +155,8 @@ jobs:
             --package tasker-sdk \
             --package tasker-ctl \
             --package tasker-mcp \
-            --package tasker-grammar
+            --package tasker-grammar \
+            --package tasker-secure
         env:
           DATABASE_URL: postgresql://tasker:tasker@localhost:5432/tasker_rust_test
           REDIS_URL: redis://localhost:6379

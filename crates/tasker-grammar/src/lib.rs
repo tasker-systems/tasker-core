@@ -26,10 +26,17 @@
 pub mod capabilities;
 pub mod executor;
 pub mod expression;
+pub mod operations;
 pub mod types;
 pub mod validation;
 
 pub use expression::{ExpressionEngine, ExpressionEngineConfig, ExpressionError};
+pub use operations::{
+    AcquirableResource, AcquireConstraints, AcquireResult, CapturedEmit, CapturedPersist,
+    ConflictStrategy, EmitMetadata, EmitResult, EmittableResource, InMemoryOperationProvider,
+    InMemoryOperations, OperationProvider, PersistConstraints, PersistResult, PersistableResource,
+    ResourceOperationError,
+};
 pub use types::{
     AcquireCategory, AssertCategory, CapabilityDeclaration, CapabilityError, CapabilityExecutor,
     CapabilityInvocation, CompositionCheckpoint, CompositionConstraint, CompositionEnvelope,

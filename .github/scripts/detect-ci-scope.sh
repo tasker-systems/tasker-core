@@ -117,6 +117,7 @@ HAS_RUBY_WORKER=false
 HAS_PYTHON_WORKER=false
 HAS_TS_WORKER=false
 HAS_RUST_WORKER=false
+HAS_GRAMMAR_SECURE=false
 HAS_SELF=false
 HAS_OTHER=false
 
@@ -189,6 +190,11 @@ if code_changes_match '^crates/tasker-example-rs/'; then
     HAS_RUST_WORKER=true
 fi
 
+# Grammar and secure crates (composition architecture)
+if code_changes_match '^crates/tasker-(grammar|secure|runtime)/'; then
+    HAS_GRAMMAR_SECURE=true
+fi
+
 # Self-referential (this detection script itself changed)
 if changes_match '^\.github/scripts/detect-ci-scope'; then
     HAS_SELF=true
@@ -205,7 +211,7 @@ debug "Path groups: docs=$HAS_DOCS ci_tooling=$HAS_CI_TOOLING config=$HAS_CONFIG
 debug "  proto=$HAS_PROTO migrations=$HAS_MIGRATIONS sqlx_cache=$HAS_SQLX_CACHE docker=$HAS_DOCKER"
 debug "  ffi_core=$HAS_FFI_CORE server_core=$HAS_SERVER_CORE root_rust=$HAS_ROOT_RUST"
 debug "  ruby=$HAS_RUBY_WORKER python=$HAS_PYTHON_WORKER ts=$HAS_TS_WORKER rust=$HAS_RUST_WORKER"
-debug "  self=$HAS_SELF other=$HAS_OTHER"
+debug "  grammar_secure=$HAS_GRAMMAR_SECURE self=$HAS_SELF other=$HAS_OTHER"
 
 # ---------------------------------------------------------------------------
 # Escalation logic
@@ -229,7 +235,8 @@ if [ "$HAS_CI_TOOLING" = "true" ] && [ "$DOCS_ONLY" = "false" ]; then
        [ "$HAS_PROTO" = "false" ] && [ "$HAS_MIGRATIONS" = "false" ] && \
        [ "$HAS_SQLX_CACHE" = "false" ] && [ "$HAS_DOCKER" = "false" ] && \
        [ "$HAS_RUBY_WORKER" = "false" ] && [ "$HAS_PYTHON_WORKER" = "false" ] && \
-       [ "$HAS_TS_WORKER" = "false" ] && [ "$HAS_RUST_WORKER" = "false" ]; then
+       [ "$HAS_TS_WORKER" = "false" ] && [ "$HAS_RUST_WORKER" = "false" ] && \
+       [ "$HAS_GRAMMAR_SECURE" = "false" ]; then
         CI_TOOLING_ONLY=true
     fi
 fi
@@ -244,7 +251,8 @@ fi
 
 # Aggregate flags
 ANY_RUST="false"
-if [ "$HAS_FFI_CORE" = "true" ] || [ "$HAS_SERVER_CORE" = "true" ] || [ "$HAS_ROOT_RUST" = "true" ]; then
+if [ "$HAS_FFI_CORE" = "true" ] || [ "$HAS_SERVER_CORE" = "true" ] || \
+   [ "$HAS_ROOT_RUST" = "true" ] || [ "$HAS_GRAMMAR_SECURE" = "true" ]; then
     ANY_RUST="true"
 fi
 
@@ -358,6 +366,7 @@ else
     # Build a summary of what's in scope
     PARTS=""
     if [ "$ANY_RUST" = "true" ]; then PARTS="${PARTS:+$PARTS, }rust-core"; fi
+    if [ "$HAS_GRAMMAR_SECURE" = "true" ]; then PARTS="${PARTS:+$PARTS, }grammar-secure"; fi
     if [ "$HAS_RUBY_WORKER" = "true" ]; then PARTS="${PARTS:+$PARTS, }ruby"; fi
     if [ "$HAS_PYTHON_WORKER" = "true" ]; then PARTS="${PARTS:+$PARTS, }python"; fi
     if [ "$HAS_TS_WORKER" = "true" ]; then PARTS="${PARTS:+$PARTS, }typescript"; fi

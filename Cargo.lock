@@ -7112,6 +7112,7 @@ dependencies = [
 name = "tasker-grammar"
 version = "0.1.6"
 dependencies = [
+ "async-trait",
  "chrono",
  "jaq-core",
  "jaq-json",
@@ -7120,6 +7121,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tokio",
  "validator",
 ]
 
