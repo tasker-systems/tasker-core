@@ -18,5 +18,6 @@
 //! **Tickets**: TAS-324 through TAS-332
 
 pub mod assert;
+pub mod persist;
 pub mod transform;
 pub mod validate;
