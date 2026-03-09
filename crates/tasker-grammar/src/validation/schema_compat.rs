@@ -9,11 +9,95 @@
 //! - Optional fields in the consumer may be absent from the producer
 
 use std::collections::HashMap;
+use std::fmt;
 
 use serde::Deserialize;
 use serde_json::Value;
 
 use crate::types::{Severity, ValidationFinding};
+
+// ---------------------------------------------------------------------------
+// JSON Schema type model
+// ---------------------------------------------------------------------------
+
+/// Well-known JSON Schema primitive types.
+///
+/// Compatibility is expressed through [`JsonType::satisfies`] rather than
+/// string comparisons, making the subtyping rules explicit and exhaustive.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum JsonType {
+    String,
+    Number,
+    Integer,
+    Boolean,
+    Object,
+    Array,
+    Null,
+}
+
+impl JsonType {
+    /// Parse from the JSON Schema type name. Returns `None` for unrecognized types.
+    fn parse(s: &str) -> Option<Self> {
+        match s {
+            "string" => Some(Self::String),
+            "number" => Some(Self::Number),
+            "integer" => Some(Self::Integer),
+            "boolean" => Some(Self::Boolean),
+            "object" => Some(Self::Object),
+            "array" => Some(Self::Array),
+            "null" => Some(Self::Null),
+            _ => None,
+        }
+    }
+
+    /// Whether this producer type satisfies a consumer expecting `consumer_type`.
+    ///
+    /// Structural subtyping rules:
+    /// - Same type always satisfies
+    /// - `Integer` satisfies `Number` (integers are a subset of numbers)
+    fn satisfies(self, consumer_type: Self) -> bool {
+        self == consumer_type || (self == Self::Integer && consumer_type == Self::Number)
+    }
+}
+
+impl fmt::Display for JsonType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::String => write!(f, "string"),
+            Self::Number => write!(f, "number"),
+            Self::Integer => write!(f, "integer"),
+            Self::Boolean => write!(f, "boolean"),
+            Self::Object => write!(f, "object"),
+            Self::Array => write!(f, "array"),
+            Self::Null => write!(f, "null"),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Schema shape model
+// ---------------------------------------------------------------------------
+
+/// JSON Schema `type` field — either `"string"` or `["string", "null"]`.
+///
+/// Deserialized as raw strings, then converted to [`JsonType`] via
+/// [`SchemaTypeDecl::to_json_types`]. Unrecognized type strings are silently
+/// filtered (the schema spec is finite; extensions are ignored).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum SchemaTypeDecl {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+impl SchemaTypeDecl {
+    fn to_json_types(&self) -> Vec<JsonType> {
+        match self {
+            Self::Single(s) => JsonType::parse(s).into_iter().collect(),
+            Self::Multiple(v) => v.iter().filter_map(|s| JsonType::parse(s)).collect(),
+        }
+    }
+}
 
 /// Typed representation of the JSON Schema subset used in compatibility checking.
 ///
@@ -39,36 +123,31 @@ struct SchemaShape {
 }
 
 impl SchemaShape {
-    /// Deserialize from a JSON Schema value, falling back to empty defaults
-    /// for non-object values or unrecognized structures.
-    fn from_value(value: &Value) -> Self {
-        serde_json::from_value(value.clone()).unwrap_or_default()
+    /// Attempt to parse a meaningful schema from a JSON value.
+    ///
+    /// Returns `None` for null values and empty objects (no schema requirements),
+    /// `Some` for non-trivial schemas.
+    fn from_value(value: &Value) -> Option<Self> {
+        if value.is_null() {
+            return None;
+        }
+        if value.as_object().is_some_and(|o| o.is_empty()) {
+            return None;
+        }
+        serde_json::from_value(value.clone()).ok()
     }
 
-    /// Extract the type declarations as a list of strings.
-    fn type_names(&self) -> Vec<String> {
+    /// The declared JSON types, empty if `type` is absent or unrecognized.
+    fn types(&self) -> Vec<JsonType> {
         self.schema_type
             .as_ref()
-            .map_or_else(Vec::new, SchemaTypeDecl::to_vec)
+            .map_or_else(Vec::new, SchemaTypeDecl::to_json_types)
     }
 }
 
-/// JSON Schema `type` field — either `"string"` or `["string", "null"]`.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
-enum SchemaTypeDecl {
-    Single(String),
-    Multiple(Vec<String>),
-}
-
-impl SchemaTypeDecl {
-    fn to_vec(&self) -> Vec<String> {
-        match self {
-            Self::Single(s) => vec![s.clone()],
-            Self::Multiple(v) => v.clone(),
-        }
-    }
-}
+// ---------------------------------------------------------------------------
+// Compatibility checking
+// ---------------------------------------------------------------------------
 
 /// Check that a producer schema is structurally compatible with a consumer schema.
 ///
@@ -82,13 +161,13 @@ pub(crate) fn check_schema_compatibility(
 ) -> Vec<ValidationFinding> {
     let mut findings = Vec::new();
 
-    // If consumer has no schema requirements, everything is compatible
-    if consumer.is_null() || consumer.as_object().is_none_or(|o| o.is_empty()) {
+    let Some(consumer_shape) = SchemaShape::from_value(consumer) else {
+        // Consumer has no schema requirements — everything is compatible
         return findings;
-    }
+    };
 
-    // If producer has no schema but consumer does, that's a problem
-    if producer.is_null() || producer.as_object().is_none_or(|o| o.is_empty()) {
+    let Some(producer_shape) = SchemaShape::from_value(producer) else {
+        // Producer has no schema but consumer does — that's a problem
         findings.push(ValidationFinding {
             severity: Severity::Error,
             code: "MISSING_PRODUCER_SCHEMA".to_owned(),
@@ -99,10 +178,7 @@ pub(crate) fn check_schema_compatibility(
             field_path: None,
         });
         return findings;
-    }
-
-    let producer_shape = SchemaShape::from_value(producer);
-    let consumer_shape = SchemaShape::from_value(consumer);
+    };
 
     // Check required fields
     for field_name in &consumer_shape.required {
@@ -170,11 +246,14 @@ fn check_type_compatibility(
     invocation_index: Option<usize>,
     findings: &mut Vec<ValidationFinding>,
 ) {
-    let producer_shape = SchemaShape::from_value(producer);
-    let consumer_shape = SchemaShape::from_value(consumer);
+    // Parse just the type-relevant fields from each property sub-schema.
+    // from_value returns None for null/empty; unwrap_or_default gives us
+    // empty types() which the early-return below handles.
+    let producer_shape = SchemaShape::from_value(producer).unwrap_or_default();
+    let consumer_shape = SchemaShape::from_value(consumer).unwrap_or_default();
 
-    let producer_types = producer_shape.type_names();
-    let consumer_types = consumer_shape.type_names();
+    let producer_types = producer_shape.types();
+    let consumer_types = consumer_shape.types();
 
     // If either side has no type declaration, skip type checking
     if producer_types.is_empty() || consumer_types.is_empty() {
@@ -185,7 +264,7 @@ fn check_type_compatibility(
     for consumer_type in &consumer_types {
         let compatible = producer_types
             .iter()
-            .any(|pt| types_compatible(pt, consumer_type));
+            .any(|pt| pt.satisfies(*consumer_type));
 
         if !compatible {
             findings.push(ValidationFinding {
@@ -193,7 +272,8 @@ fn check_type_compatibility(
                 code: "TYPE_MISMATCH".to_owned(),
                 invocation_index,
                 message: format!(
-                    "{context_label}: field '{field_name}' type mismatch — producer provides {producer_types:?} but consumer expects '{consumer_type}'"
+                    "{context_label}: field '{field_name}' type mismatch — producer provides [{}] but consumer expects '{consumer_type}'",
+                    format_type_list(&producer_types),
                 ),
                 field_path: Some(field_name.to_owned()),
             });
@@ -201,17 +281,14 @@ fn check_type_compatibility(
     }
 
     // Recurse into nested objects
-    if producer_types.contains(&"object".to_owned())
-        && consumer_types.contains(&"object".to_owned())
-    {
+    if producer_types.contains(&JsonType::Object) && consumer_types.contains(&JsonType::Object) {
         let nested =
             check_schema_compatibility(producer, consumer, context_label, invocation_index);
         findings.extend(nested);
     }
 
     // Check array item compatibility
-    if producer_types.contains(&"array".to_owned()) && consumer_types.contains(&"array".to_owned())
-    {
+    if producer_types.contains(&JsonType::Array) && consumer_types.contains(&JsonType::Array) {
         if let (Some(producer_items), Some(consumer_items)) = (
             producer_shape.items.as_deref(),
             consumer_shape.items.as_deref(),
@@ -228,21 +305,10 @@ fn check_type_compatibility(
     }
 }
 
-/// Check if two JSON Schema types are compatible.
-///
-/// Uses structural subtyping rules:
-/// - Same type is always compatible
-/// - `integer` is compatible with `number` (integers are a subset of numbers)
-/// - `null` in producer is compatible with `null` in consumer (nullable fields)
-fn types_compatible(producer_type: &str, consumer_type: &str) -> bool {
-    if producer_type == consumer_type {
-        return true;
-    }
-
-    // integer → number compatibility (integers are a subset of numbers)
-    if producer_type == "integer" && consumer_type == "number" {
-        return true;
-    }
-
-    false
+fn format_type_list(types: &[JsonType]) -> String {
+    types
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
