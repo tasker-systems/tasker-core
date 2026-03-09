@@ -187,7 +187,7 @@ async fn validate_success_passes_when_truthy() {
     let config = json!({
         "resource": "customer_profile",
         "validate_success": {
-            "expression": ".row_count > 0"
+            "expression": ".record_count > 0"
         }
     });
 
@@ -207,7 +207,7 @@ async fn validate_success_fails_when_falsy() {
         "resource": "customer_profile",
         "validate_success": {
             // InMemory returns 2 records, so row_count > 100 is false
-            "expression": ".row_count > 100"
+            "expression": ".record_count > 100"
         }
     });
 
@@ -246,7 +246,7 @@ async fn result_shape_reshapes_output() {
     let config = json!({
         "resource": "customer_profile",
         "result_shape": {
-            "expression": "{first_name: (.data[0]).name, count: .row_count, total: .total_count}"
+            "expression": "{first_name: (.data[0]).name, count: .record_count, total: .total_count}"
         }
     });
 
@@ -464,7 +464,7 @@ async fn validate_success_and_result_shape_together() {
     let config = json!({
         "resource": "customer_profile",
         "validate_success": {
-            "expression": ".row_count > 0"
+            "expression": ".record_count > 0"
         },
         "result_shape": {
             "expression": "{name: (.data[0]).name, tier: (.data[0]).tier, lifetime_value: (.data[0]).ltv}"
@@ -502,7 +502,7 @@ async fn ticket_example_config_works() {
             "retry": {"max_attempts": 3, "backoff_ms": 100}
         },
         "validate_success": {
-            "expression": ".row_count > 0"
+            "expression": ".record_count > 0"
         },
         "result_shape": {
             "expression": "{name: (.data[0]).name, tier: (.data[0]).tier, lifetime_value: (.data[0]).ltv}"
@@ -558,10 +558,10 @@ async fn full_declarative_config_with_all_options() {
             "timeout_ms": 5000
         },
         "validate_success": {
-            "expression": ".row_count > 0"
+            "expression": ".record_count > 0"
         },
         "result_shape": {
-            "expression": "{orders: .data, count: .row_count}"
+            "expression": "{orders: .data, count: .record_count}"
         }
     });
 

@@ -65,7 +65,7 @@
 //! {
 //!   "data": [ ... ],        // The records returned by the acquire operation
 //!   "total_count": 42,      // Total records available (for pagination), null if unknown
-//!   "row_count": 10         // Number of records in this response (integer, always present)
+//!   "record_count": 10         // Number of records in this response (integer, always present)
 //! }
 //! ```
 //!
@@ -73,7 +73,7 @@
 //! |-------|------|-------------|
 //! | `data` | `array` | The records returned by `AcquirableResource::acquire()`. |
 //! | `total_count` | `integer \| null` | Total count of matching records across all pages. Null if the backend doesn't support total counts. |
-//! | `row_count` | `integer` | Count of records in the current response (length of `data`). Always present. |
+//! | `record_count` | `integer` | Count of records in the current response (length of `data`). Always present. |
 //!
 //! When **no `result_shape`** is provided, the executor returns `data` directly
 //! (not the full envelope). When `result_shape` is provided, its expression
@@ -81,7 +81,7 @@
 //!
 //! ```yaml
 //! result_shape:
-//!   expression: "{records: .data, page_info: {count: .row_count, total: .total_count}}"
+//!   expression: "{records: .data, page_info: {count: .record_count, total: .total_count}}"
 //! ```
 //!
 //! See `docs/composition-architecture/operation-shape-constraints.md` for design
@@ -301,8 +301,8 @@ impl TypedCapabilityExecutor for AcquireExecutor {
         // Fields:
         //   .data         — array of records returned by AcquirableResource::acquire()
         //   .total_count  — nullable total count for pagination
-        //   .row_count    — integer count of records in this response
-        let row_count = if let Value::Array(ref arr) = acquire_result.data {
+        //   .record_count    — integer count of records in this response
+        let record_count = if let Value::Array(ref arr) = acquire_result.data {
             arr.len() as u64
         } else {
             1 // Non-array data counts as 1 record
@@ -311,7 +311,7 @@ impl TypedCapabilityExecutor for AcquireExecutor {
         let raw_result = serde_json::json!({
             "data": acquire_result.data,
             "total_count": acquire_result.total_count,
-            "row_count": row_count,
+            "record_count": record_count,
         });
 
         // 6. Validate success if expression is provided
