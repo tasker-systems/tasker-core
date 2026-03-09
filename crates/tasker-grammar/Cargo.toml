@@ -22,14 +22,13 @@ chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-# soon when we get to acquire, persist, emit
-# tokio = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
 validator = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
-# soon when we get to acquire, persist, emit
-# tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [lints]
 workspace = true
