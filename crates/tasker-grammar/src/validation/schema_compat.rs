@@ -262,9 +262,7 @@ fn check_type_compatibility(
 
     // Check that every consumer type is satisfied by at least one producer type
     for consumer_type in &consumer_types {
-        let compatible = producer_types
-            .iter()
-            .any(|pt| pt.satisfies(*consumer_type));
+        let compatible = producer_types.iter().any(|pt| pt.satisfies(*consumer_type));
 
         if !compatible {
             findings.push(ValidationFinding {
