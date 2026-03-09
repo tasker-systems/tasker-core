@@ -96,8 +96,8 @@ Makefile.toml" \
 
 # --- server-core change ---
 run_test "server-core: builds + integration + codegen validation, no framework tests" \
-    "tasker-orchestration/src/lib.rs
-tasker-client/src/client.rs" \
+    "crates/tasker-orchestration/src/lib.rs
+crates/tasker-client/src/client.rs" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
     "RUN_BUILD_RUST_WORKER=true" \
@@ -110,7 +110,7 @@ tasker-client/src/client.rs" \
 
 # --- ffi-core change (cascades to all workers) ---
 run_test "ffi-core: everything enabled" \
-    "tasker-shared/src/types.rs" \
+    "crates/tasker-shared/src/types.rs" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
     "RUN_BUILD_RUBY=true" \
@@ -300,8 +300,8 @@ run_test ".env change: config scope" \
 
 # --- doc files in crate dirs don't trigger code scope ---
 run_test "crate-dir docs only: docs-only scope" \
-    "tasker-pgmq/CLAUDE.md
-tasker-shared/README.md
+    "crates/tasker-pgmq/CLAUDE.md
+crates/tasker-shared/README.md
 crates/tasker-rb/CHANGELOG.md" \
     "RUN_BUILD_POSTGRES=false" \
     "RUN_BUILD_WORKERS=false" \
@@ -312,7 +312,7 @@ crates/tasker-rb/CHANGELOG.md" \
 # --- ci-tooling + crate-dir docs: ci-tooling scope ---
 run_test "ci-tooling + crate docs: ci-tooling scope" \
     "cargo-make/scripts/ci-sanity-check.sh
-tasker-pgmq/CLAUDE.md" \
+crates/tasker-pgmq/CLAUDE.md" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=false" \
     "RUN_CODE_QUALITY=true" \
@@ -321,12 +321,12 @@ tasker-pgmq/CLAUDE.md" \
 
 # --- codegen validation: tasker-ctl source triggers it ---
 run_test "tasker-ctl codegen source: codegen validation enabled" \
-    "tasker-ctl/src/codegen/python.rs" \
+    "crates/tasker-ctl/src/codegen/python.rs" \
     "RUN_CODEGEN_VALIDATION=true"
 
 # --- codegen validation: Askama templates trigger it ---
 run_test "tasker-ctl Askama template: codegen validation enabled" \
-    "tasker-ctl/templates/codegen/python_models.py" \
+    "crates/tasker-ctl/templates/codegen/python_models.py" \
     "RUN_CODEGEN_VALIDATION=true"
 
 # --- codegen validation: worker-only changes do NOT trigger it ---
@@ -338,6 +338,44 @@ run_test "ruby worker only: codegen validation disabled" \
 run_test "proto change: codegen validation enabled via full CI" \
     "proto/tasker/v1/task.proto" \
     "RUN_CODEGEN_VALIDATION=true"
+
+# --- grammar/secure-only: integration tests but NO FFI builds (TAS-379) ---
+run_test "grammar-only: integration tests, no FFI builds" \
+    "crates/tasker-grammar/src/capabilities/persist/mod.rs
+crates/tasker-grammar/src/capabilities/persist/tests.rs" \
+    "RUN_BUILD_POSTGRES=true" \
+    "RUN_BUILD_WORKERS=true" \
+    "RUN_BUILD_RUBY=false" \
+    "RUN_BUILD_PYTHON=false" \
+    "RUN_BUILD_TYPESCRIPT=false" \
+    "RUN_BUILD_RUST_WORKER=false" \
+    "RUN_CODE_QUALITY=true" \
+    "RUN_INTEGRATION_TESTS=true" \
+    "RUN_RUBY_FRAMEWORK=false" \
+    "RUN_PYTHON_FRAMEWORK=false" \
+    "RUN_TYPESCRIPT_FRAMEWORK=false"
+
+run_test "secure-only: integration tests, no FFI builds" \
+    "crates/tasker-secure/src/handles/postgres.rs" \
+    "RUN_BUILD_POSTGRES=true" \
+    "RUN_BUILD_WORKERS=true" \
+    "RUN_BUILD_RUBY=false" \
+    "RUN_BUILD_PYTHON=false" \
+    "RUN_BUILD_TYPESCRIPT=false" \
+    "RUN_BUILD_RUST_WORKER=false" \
+    "RUN_CODE_QUALITY=true" \
+    "RUN_INTEGRATION_TESTS=true" \
+    "RUN_RUBY_FRAMEWORK=false" \
+    "RUN_PYTHON_FRAMEWORK=false" \
+    "RUN_TYPESCRIPT_FRAMEWORK=false"
+
+run_test "grammar+secure: integration tests, no FFI builds" \
+    "crates/tasker-grammar/src/lib.rs
+crates/tasker-secure/src/lib.rs" \
+    "RUN_BUILD_RUBY=false" \
+    "RUN_BUILD_PYTHON=false" \
+    "RUN_BUILD_TYPESCRIPT=false" \
+    "RUN_INTEGRATION_TESTS=true"
 
 # --- scope summary checks ---
 run_test "scope summary: docs-only" \
@@ -351,6 +389,10 @@ run_test "scope summary: full-ci" \
 run_test "scope summary: scoped ruby" \
     "crates/tasker-rb/lib/handler.rb" \
     "SCOPE_SUMMARY=scoped: ruby"
+
+run_test "scope summary: scoped grammar-secure" \
+    "crates/tasker-grammar/src/lib.rs" \
+    "SCOPE_SUMMARY=scoped: rust-core, grammar-secure"
 
 # ---------------------------------------------------------------------------
 # Results

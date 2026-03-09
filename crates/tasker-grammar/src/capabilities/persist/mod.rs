@@ -48,6 +48,36 @@
 //! `InMemoryOperations` with zero I/O. In production (Phase 3+), it's backed by
 //! a runtime adapter wrapping a secure handle.
 //!
+//! ## Persist result envelope
+//!
+//! After the persist operation completes, the executor constructs a **persist result
+//! envelope** — a structured JSON value that is passed as input to both the
+//! `validate_success` and `result_shape` jaq expressions. This envelope has a fixed
+//! schema:
+//!
+//! ```json
+//! {
+//!   "data": { ... },        // The record data returned by the persist operation
+//!   "affected_rows": 1,     // Number of affected rows (integer, 0 if unknown)
+//!   "affected_count": 1     // Same count as Option (null if unknown)
+//! }
+//! ```
+//!
+//! | Field | Type | Description |
+//! |-------|------|-------------|
+//! | `data` | `object` | The record returned by `PersistableResource::persist()`. For inserts, this is the inserted record (possibly with server-generated fields like `id`, `created_at`). For updates, the updated record. For deletes, the deleted record. |
+//! | `affected_rows` | `integer` | Count of rows affected by the operation. Defaults to `0` when the backend does not report a count. Use this in `validate_success` expressions (e.g., `.affected_rows > 0`). |
+//! | `affected_count` | `integer \| null` | Same as `affected_rows` but preserves the `null` distinction for backends that don't report counts. Prefer `affected_rows` for boolean checks. |
+//!
+//! When **no `result_shape`** is provided, the executor returns `data` directly
+//! (not the full envelope). When `result_shape` is provided, its expression receives
+//! the full envelope and can select from any field:
+//!
+//! ```yaml
+//! result_shape:
+//!   expression: "{id: .data.id, rows: .affected_rows}"
+//! ```
+//!
 //! See `docs/composition-architecture/operation-shape-constraints.md` for design
 //! constraints on what persist does and does not do.
 
@@ -257,7 +287,17 @@ impl TypedCapabilityExecutor for PersistExecutor {
             })
         })?;
 
-        // 5. Build the raw result value for validation and shaping
+        // 5. Build the persist result envelope for validate_success and result_shape.
+        //
+        // This envelope is the input to both jaq expressions. Its schema is documented
+        // in the module-level docs under "Persist result envelope". Any changes to this
+        // structure are a contract change — update the module docs and all tests that
+        // reference these fields.
+        //
+        // Fields:
+        //   .data            — record data returned by PersistableResource::persist()
+        //   .affected_rows   — integer count (0 when unknown), for boolean checks
+        //   .affected_count  — nullable count, preserves null for unknown
         let raw_result = serde_json::json!({
             "data": persist_result.data,
             "affected_rows": persist_result.affected_count.unwrap_or(0),

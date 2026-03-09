@@ -159,12 +159,12 @@ fi
 
 # FFI-facing core crates (changes cascade to all workers)
 # Only non-doc files matter — a README.md or CLAUDE.md in a crate dir doesn't affect builds.
-if code_changes_match '^(tasker-shared|tasker-worker|tasker-pgmq)/'; then
+if code_changes_match '^crates/tasker-(shared|worker|pgmq)/'; then
     HAS_FFI_CORE=true
 fi
 
 # Server/client core crates
-if code_changes_match '^(tasker-orchestration|tasker-client|tasker-ctl|tasker-sdk|tasker-mcp)/'; then
+if code_changes_match '^crates/tasker-(orchestration|client|ctl|sdk|mcp)/'; then
     HAS_SERVER_CORE=true
 fi
 
