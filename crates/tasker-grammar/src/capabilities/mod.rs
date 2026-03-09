@@ -19,6 +19,7 @@
 
 pub mod acquire;
 pub mod assert;
+pub mod emit;
 pub mod persist;
 pub mod transform;
 pub mod validate;
