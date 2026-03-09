@@ -83,7 +83,7 @@ jobs:
 
       - name: Build FFI libraries (Docker)
         if: matrix.target.method == 'docker'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/build/ffi-builder.Dockerfile
