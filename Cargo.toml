@@ -154,7 +154,7 @@ tera = "1.20"
 # Error handling
 thiserror = "2.0"
 # Async runtime and utilities
-tokio = { version = "1.49", features = ["full"] }
+tokio = { version = "1.50", features = ["full"] }
 # Testing tools
 tokio-test = "0.4"
 tokio-util = { version = "0.7", features = ["codec"] }

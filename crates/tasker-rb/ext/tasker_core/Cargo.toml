@@ -71,7 +71,7 @@ tasker-worker = { path = "../../../tasker-worker", version = "=0.1.6" }
 # Error handling
 thiserror = "2.0"
 # Async runtime for blocking on futures in FFI
-tokio = { version = "1.49", features = ["rt-multi-thread"] }
+tokio = { version = "1.50", features = ["rt-multi-thread"] }
 # Logging
 tracing = "0.1"
 # UUID generation for event bridge
