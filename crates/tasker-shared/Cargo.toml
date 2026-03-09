@@ -123,7 +123,7 @@ tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 # tokio-console async debugging (TAS-158)
 # Requires RUSTFLAGS="--cfg tokio_unstable" at compile time
-console-subscriber = { version = "0.4", optional = true }
+console-subscriber = { version = "0.5", optional = true }
 # OpenAPI documentation
 utoipa = { workspace = true, optional = true }
 utoipa-swagger-ui = { workspace = true, optional = true }
