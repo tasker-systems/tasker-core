@@ -8,9 +8,67 @@
 //! - Extra fields in the producer are permitted
 //! - Optional fields in the consumer may be absent from the producer
 
+use std::collections::HashMap;
+
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::types::{Severity, ValidationFinding};
+
+/// Typed representation of the JSON Schema subset used in compatibility checking.
+///
+/// Rather than imperatively picking fields from raw `Value` via `.get()` chains,
+/// we deserialize the known JSON Schema fields into this struct, letting serde
+/// handle missing-field defaults.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct SchemaShape {
+    /// Fields required by this schema.
+    required: Vec<String>,
+
+    /// Property definitions keyed by field name. Values are sub-schemas
+    /// (kept as `Value` for recursive compatibility checking).
+    properties: HashMap<String, Value>,
+
+    /// The `type` declaration — single string or array of strings.
+    #[serde(rename = "type")]
+    schema_type: Option<SchemaTypeDecl>,
+
+    /// Schema for array items (kept as `Value` for recursive checking).
+    items: Option<Box<Value>>,
+}
+
+impl SchemaShape {
+    /// Deserialize from a JSON Schema value, falling back to empty defaults
+    /// for non-object values or unrecognized structures.
+    fn from_value(value: &Value) -> Self {
+        serde_json::from_value(value.clone()).unwrap_or_default()
+    }
+
+    /// Extract the type declarations as a list of strings.
+    fn type_names(&self) -> Vec<String> {
+        self.schema_type
+            .as_ref()
+            .map_or_else(Vec::new, SchemaTypeDecl::to_vec)
+    }
+}
+
+/// JSON Schema `type` field — either `"string"` or `["string", "null"]`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum SchemaTypeDecl {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+impl SchemaTypeDecl {
+    fn to_vec(&self) -> Vec<String> {
+        match self {
+            Self::Single(s) => vec![s.clone()],
+            Self::Multiple(v) => v.clone(),
+        }
+    }
+}
 
 /// Check that a producer schema is structurally compatible with a consumer schema.
 ///
@@ -43,31 +101,12 @@ pub(crate) fn check_schema_compatibility(
         return findings;
     }
 
+    let producer_shape = SchemaShape::from_value(producer);
+    let consumer_shape = SchemaShape::from_value(consumer);
+
     // Check required fields
-    let consumer_required = consumer
-        .get("required")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-
-    let producer_properties = producer
-        .get("properties")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default();
-
-    let consumer_properties = consumer
-        .get("properties")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default();
-
-    for req_field in &consumer_required {
-        let Some(field_name) = req_field.as_str() else {
-            continue;
-        };
-
-        if !producer_properties.contains_key(field_name) {
+    for field_name in &consumer_shape.required {
+        if !producer_shape.properties.contains_key(field_name) {
             findings.push(ValidationFinding {
                 severity: Severity::Error,
                 code: "MISSING_REQUIRED_FIELD".to_owned(),
@@ -75,15 +114,15 @@ pub(crate) fn check_schema_compatibility(
                 message: format!(
                     "{context_label}: consumer requires field '{field_name}' but producer output does not contain it"
                 ),
-                field_path: Some(field_name.to_owned()),
+                field_path: Some(field_name.clone()),
             });
             continue;
         }
 
         // Check type compatibility for shared fields
         if let (Some(producer_prop), Some(consumer_prop)) = (
-            producer_properties.get(field_name),
-            consumer_properties.get(field_name),
+            producer_shape.properties.get(field_name),
+            consumer_shape.properties.get(field_name),
         ) {
             check_type_compatibility(
                 producer_prop,
@@ -97,14 +136,11 @@ pub(crate) fn check_schema_compatibility(
     }
 
     // Check type compatibility for optional shared fields (warnings only)
-    for (field_name, consumer_prop) in &consumer_properties {
-        if consumer_required
-            .iter()
-            .any(|r| r.as_str() == Some(field_name))
-        {
+    for (field_name, consumer_prop) in &consumer_shape.properties {
+        if consumer_shape.required.iter().any(|r| r == field_name) {
             continue; // Already checked above
         }
-        if let Some(producer_prop) = producer_properties.get(field_name) {
+        if let Some(producer_prop) = producer_shape.properties.get(field_name) {
             let mut type_findings = Vec::new();
             check_type_compatibility(
                 producer_prop,
@@ -134,8 +170,11 @@ fn check_type_compatibility(
     invocation_index: Option<usize>,
     findings: &mut Vec<ValidationFinding>,
 ) {
-    let producer_types = extract_types(producer);
-    let consumer_types = extract_types(consumer);
+    let producer_shape = SchemaShape::from_value(producer);
+    let consumer_shape = SchemaShape::from_value(consumer);
+
+    let producer_types = producer_shape.type_names();
+    let consumer_types = consumer_shape.type_names();
 
     // If either side has no type declaration, skip type checking
     if producer_types.is_empty() || consumer_types.is_empty() {
@@ -173,9 +212,10 @@ fn check_type_compatibility(
     // Check array item compatibility
     if producer_types.contains(&"array".to_owned()) && consumer_types.contains(&"array".to_owned())
     {
-        if let (Some(producer_items), Some(consumer_items)) =
-            (producer.get("items"), consumer.get("items"))
-        {
+        if let (Some(producer_items), Some(consumer_items)) = (
+            producer_shape.items.as_deref(),
+            consumer_shape.items.as_deref(),
+        ) {
             let item_context = format!("{context_label}[].{field_name}");
             let nested = check_schema_compatibility(
                 producer_items,
@@ -185,21 +225,6 @@ fn check_type_compatibility(
             );
             findings.extend(nested);
         }
-    }
-}
-
-/// Extract the type(s) declared by a JSON Schema property.
-///
-/// Handles both `"type": "string"` and `"type": ["string", "null"]` forms.
-fn extract_types(schema: &Value) -> Vec<String> {
-    match schema.get("type") {
-        Some(Value::String(s)) => vec![s.clone()],
-        Some(Value::Array(arr)) => arr
-            .iter()
-            .filter_map(Value::as_str)
-            .map(String::from)
-            .collect(),
-        _ => Vec::new(),
     }
 }
 
