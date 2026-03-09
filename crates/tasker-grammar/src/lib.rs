@@ -45,3 +45,4 @@ pub use types::{
     PersistCategory, RegistrationError, Severity, TransformCategory, TypedCapabilityExecutor,
     UnknownCategoryError, UnknownOnFailureError, ValidateCategory, ValidationFinding,
 };
+pub use validation::{CapabilityRegistry, CompositionValidator, ValidationResult};
