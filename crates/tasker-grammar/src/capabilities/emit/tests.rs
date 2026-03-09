@@ -299,8 +299,14 @@ async fn metadata_both_correlation_and_idempotency() {
     executor.execute(&envelope, &config, &ctx).unwrap();
 
     let emits = ops.captured_emits().await;
-    assert_eq!(emits[0].metadata.correlation_id.as_deref(), Some("req-abc-123"));
-    assert_eq!(emits[0].metadata.idempotency_key.as_deref(), Some("emit-101"));
+    assert_eq!(
+        emits[0].metadata.correlation_id.as_deref(),
+        Some("req-abc-123")
+    );
+    assert_eq!(
+        emits[0].metadata.idempotency_key.as_deref(),
+        Some("emit-101")
+    );
 }
 
 // ─── Delivery mode configuration ─────────────────────────────────────────
@@ -613,7 +619,10 @@ async fn full_pipeline_with_all_options() {
     let emits = ops.captured_emits().await;
     assert_eq!(emits.len(), 1);
     assert_eq!(emits[0].topic, "order.confirmed");
-    assert_eq!(emits[0].metadata.correlation_id.as_deref(), Some("req-abc-123"));
+    assert_eq!(
+        emits[0].metadata.correlation_id.as_deref(),
+        Some("req-abc-123")
+    );
     assert_eq!(
         emits[0].metadata.idempotency_key.as_deref(),
         Some("order-confirmed-101")
