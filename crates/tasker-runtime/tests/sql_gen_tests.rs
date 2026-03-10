@@ -1,5 +1,7 @@
 //! Tests for SQL generation and identifier sanitization.
 
+#![cfg(feature = "postgres")]
+
 use tasker_grammar::operations::{
     AcquireConstraints, ConflictStrategy, PersistConstraints, PersistMode,
 };

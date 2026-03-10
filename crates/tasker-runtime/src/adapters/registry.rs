@@ -75,6 +75,10 @@ impl AdapterRegistry {
     /// feature is enabled, and HTTP adapters (persist, acquire, emit) when
     /// the `http` feature is enabled.
     pub fn standard() -> Self {
+        #[cfg_attr(
+            not(any(feature = "postgres", feature = "http")),
+            expect(unused_mut, reason = "mutated inside feature-gated blocks")
+        )]
         let mut registry = Self::new();
 
         #[cfg(feature = "postgres")]

@@ -1,5 +1,7 @@
 //! Tests for HTTP adapter URL and method construction logic.
 
+#![cfg(feature = "http")]
+
 use tasker_grammar::operations::PersistMode;
 use tasker_runtime::adapters::http::http_persist_method;
 
