@@ -4,9 +4,29 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+/// The type of persist operation to perform.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PersistMode {
+    /// INSERT — create new record(s). Fail on conflict.
+    #[default]
+    Insert,
+    /// UPDATE ... WHERE — modify existing record(s) by identity.
+    Update,
+    /// INSERT ... ON CONFLICT DO UPDATE — create or update.
+    Upsert,
+    /// DELETE ... WHERE — remove record(s) by identity.
+    Delete,
+}
+
 /// Constraints for persist operations.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PersistConstraints {
+    /// The type of write operation (insert, update, upsert, delete).
+    #[serde(default)]
+    pub mode: PersistMode,
+    /// Keys that identify the target record(s) for update/upsert/delete.
+    pub identity_keys: Option<Vec<String>>,
     /// Keys for upsert conflict resolution (e.g., ["id"], ["order_id", "line_number"])
     pub upsert_key: Option<Vec<String>>,
     /// Conflict resolution strategy

@@ -21,6 +21,7 @@ fn persist_constraints_serialization_roundtrip() {
         upsert_key: Some(vec!["id".into()]),
         on_conflict: Some(ConflictStrategy::Update),
         idempotency_key: Some("key-123".into()),
+        ..Default::default()
     };
     let json = serde_json::to_value(&constraints).unwrap();
     let back: PersistConstraints = serde_json::from_value(json).unwrap();

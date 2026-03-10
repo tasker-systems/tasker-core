@@ -30,6 +30,9 @@ pub mod sources;
 
 // Re-export primary types for convenience.
 pub use adapters::AdapterRegistry;
-pub use pool_manager::{PoolManagerConfig, ResourcePoolManager};
+pub use pool_manager::{
+    PoolManagerConfig, PoolManagerMetrics, PoolManagerMetricsSnapshot, ResourceAccessMetrics,
+    ResourcePoolManager,
+};
 pub use provider::RuntimeOperationProvider;
 pub use sources::ResourceDefinitionSource;

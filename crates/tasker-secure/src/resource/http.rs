@@ -211,6 +211,12 @@ impl HttpHandle {
         self.auth.apply(self.client.put(&url))
     }
 
+    /// Create a PATCH request to the given path (appended to `base_url`).
+    pub fn patch(&self, path: &str) -> reqwest::RequestBuilder {
+        let url = format!("{}{}", self.base_url, path);
+        self.auth.apply(self.client.patch(&url))
+    }
+
     /// Create a DELETE request to the given path (appended to `base_url`).
     pub fn delete(&self, path: &str) -> reqwest::RequestBuilder {
         let url = format!("{}{}", self.base_url, path);

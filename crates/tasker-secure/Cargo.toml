@@ -10,6 +10,9 @@ keywords = ["secrets", "encryption", "sops", "security", "workflow"]
 categories = ["authentication", "config", "cryptography"]
 
 # docs.rs configuration
+[package.metadata.cargo-machete]
+ignored = ["zeroize"]  # used transitively via secrecy for secret value zeroization
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
