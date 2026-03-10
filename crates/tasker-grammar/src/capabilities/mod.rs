@@ -23,3 +23,45 @@ pub mod emit;
 pub mod persist;
 pub mod transform;
 pub mod validate;
+
+use crate::types::CapabilityError;
+
+/// Maximum length for resource reference and entity strings.
+const MAX_RESOURCE_REF_LEN: usize = 128;
+
+/// Validate a resource reference or entity string.
+///
+/// Resource references are untrusted user input that flows to
+/// [`OperationProvider`] implementations. This function enforces:
+/// - Non-empty
+/// - Maximum length of [`MAX_RESOURCE_REF_LEN`]
+/// - Characters limited to alphanumeric, underscore, hyphen, and period
+///
+/// `OperationProvider` implementations **must** also treat these values
+/// as untrusted input and apply their own validation appropriate to their
+/// storage backend (SQL parameterization, path sanitization, etc.).
+pub(crate) fn validate_resource_ref(
+    value: &str,
+    field_name: &str,
+) -> Result<(), CapabilityError> {
+    if value.is_empty() {
+        return Err(CapabilityError::ConfigValidation(format!(
+            "{field_name} must not be empty"
+        )));
+    }
+    if value.len() > MAX_RESOURCE_REF_LEN {
+        return Err(CapabilityError::ConfigValidation(format!(
+            "{field_name} length {} exceeds maximum of {MAX_RESOURCE_REF_LEN}",
+            value.len()
+        )));
+    }
+    if !value
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.')
+    {
+        return Err(CapabilityError::ConfigValidation(format!(
+            "{field_name} contains invalid characters (allowed: alphanumeric, '_', '-', '.')"
+        )));
+    }
+    Ok(())
+}

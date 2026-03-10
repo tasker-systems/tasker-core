@@ -1277,3 +1277,59 @@ fn too_many_invocations_produces_error() {
         result.errors()
     );
 }
+
+#[test]
+fn overlong_composition_name_produces_error() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("x".repeat(300)),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({"type": "object"}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({"filter": "."}),
+            checkpoint: false,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(
+        result.errors().iter().any(|f| f.code == "FIELD_TOO_LONG"
+            && f.field_path.as_deref() == Some("name")),
+        "should reject overlong name; findings: {:?}",
+        result.errors()
+    );
+}
+
+#[test]
+fn overlong_capability_name_produces_error() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({"type": "object"}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "x".repeat(200),
+            config: json!({"filter": "."}),
+            checkpoint: false,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(
+        result.errors().iter().any(|f| f.code == "FIELD_TOO_LONG"
+            && f.field_path.as_deref() == Some("capability")),
+        "should reject overlong capability name; findings: {:?}",
+        result.errors()
+    );
+}

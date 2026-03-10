@@ -269,9 +269,11 @@ impl TypedCapabilityExecutor for PersistExecutor {
         // 3. Build PersistConstraints from config
         let constraints = self.build_constraints(config);
 
-        // 4. Get the persistable resource and call persist
+        // 4. Validate and get the persistable resource
         let entity = config.resource.entity().to_string();
         let resource_ref = config.resource.resource_ref().to_string();
+        super::validate_resource_ref(&resource_ref, "resource ref")?;
+        super::validate_resource_ref(&entity, "entity")?;
         let persist_result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let persistable = self

@@ -24,6 +24,11 @@ use super::schema_compat::check_schema_compatibility;
 /// but is enforced at design-time validation rather than runtime.
 const MAX_INVOCATION_COUNT: usize = 100;
 
+/// Field length limits for composition spec strings.
+const MAX_NAME_LEN: usize = 256;
+const MAX_DESCRIPTION_LEN: usize = 4096;
+const MAX_CAPABILITY_NAME_LEN: usize = 128;
+
 /// Registry providing capability declarations for validation.
 ///
 /// The validator looks up capabilities by name to obtain their config schemas,
@@ -201,6 +206,48 @@ impl<'a> CompositionValidator<'a> {
                 field_path: None,
             });
             return ValidationResult { findings };
+        }
+
+        // Check 0c: Field length limits
+        if let Some(name) = &spec.name {
+            if name.len() > MAX_NAME_LEN {
+                findings.push(ValidationFinding {
+                    severity: Severity::Error,
+                    code: "FIELD_TOO_LONG".to_owned(),
+                    invocation_index: None,
+                    message: format!(
+                        "composition name length {} exceeds maximum of {MAX_NAME_LEN}",
+                        name.len()
+                    ),
+                    field_path: Some("name".to_owned()),
+                });
+            }
+        }
+        if spec.outcome.description.len() > MAX_DESCRIPTION_LEN {
+            findings.push(ValidationFinding {
+                severity: Severity::Error,
+                code: "FIELD_TOO_LONG".to_owned(),
+                invocation_index: None,
+                message: format!(
+                    "outcome description length {} exceeds maximum of {MAX_DESCRIPTION_LEN}",
+                    spec.outcome.description.len()
+                ),
+                field_path: Some("outcome.description".to_owned()),
+            });
+        }
+        for (idx, invocation) in spec.invocations.iter().enumerate() {
+            if invocation.capability.len() > MAX_CAPABILITY_NAME_LEN {
+                findings.push(ValidationFinding {
+                    severity: Severity::Error,
+                    code: "FIELD_TOO_LONG".to_owned(),
+                    invocation_index: Some(idx),
+                    message: format!(
+                        "capability name length {} exceeds maximum of {MAX_CAPABILITY_NAME_LEN}",
+                        invocation.capability.len()
+                    ),
+                    field_path: Some("capability".to_owned()),
+                });
+            }
         }
 
         // Check 1: Structural validity — capability existence
