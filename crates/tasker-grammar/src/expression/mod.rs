@@ -23,6 +23,10 @@ pub enum ExpressionError {
     #[error("output size {size} bytes exceeds limit of {limit} bytes")]
     OutputTooLarge { size: usize, limit: usize },
 
+    /// Filter produced too many output values.
+    #[error("filter produced {count} outputs, exceeding limit of {limit}")]
+    TooManyOutputs { count: usize, limit: usize },
+
     /// Filter produced no output values.
     #[error("filter produced no output")]
     EmptyOutput,
@@ -32,9 +36,19 @@ pub enum ExpressionError {
 #[derive(Debug, Clone)]
 pub struct ExpressionEngineConfig {
     /// Maximum wall-clock time allowed per filter evaluation.
+    ///
+    /// **Note:** This timeout is cooperative, not preemptive. It is checked
+    /// between jaq iteration steps (i.e., between output values). A single
+    /// jaq computation that takes longer than this limit to produce its first
+    /// result will not be interrupted mid-iteration.
     pub timeout: Duration,
     /// Maximum serialized JSON size (in bytes) for the output value.
     pub max_output_bytes: usize,
+    /// Maximum number of output values allowed from `evaluate_multi`.
+    ///
+    /// Prevents unbounded memory allocation from filters that produce
+    /// excessive output (e.g., `range(1000000000)`). Defaults to 10,000.
+    pub max_outputs: usize,
 }
 
 impl Default for ExpressionEngineConfig {
@@ -42,6 +56,7 @@ impl Default for ExpressionEngineConfig {
         Self {
             timeout: Duration::from_millis(100),
             max_output_bytes: 1_048_576, // 1 MiB
+            max_outputs: 10_000,
         }
     }
 }
@@ -77,6 +92,11 @@ impl ExpressionEngine {
     /// Returns the first output value from the filter. If the filter produces
     /// multiple outputs, only the first is returned. Use `evaluate_multi` to
     /// get all outputs.
+    ///
+    /// **Timeout semantics:** The configured timeout is cooperative — it is
+    /// checked after the first result is produced. A filter that takes longer
+    /// than the timeout to compute its first (and only) output will not be
+    /// interrupted mid-computation.
     pub fn evaluate(&self, filter: &str, input: &Value) -> Result<Value, ExpressionError> {
         let compiled = self.compile_filter(filter)?;
         let start = Instant::now();
@@ -99,6 +119,14 @@ impl ExpressionEngine {
     }
 
     /// Evaluate a jq filter and return all output values.
+    ///
+    /// Returns up to [`ExpressionEngineConfig::max_outputs`] values. If the
+    /// filter produces more, a [`ExpressionError::TooManyOutputs`] error is
+    /// returned.
+    ///
+    /// **Timeout semantics:** The configured timeout is cooperative — it is
+    /// checked between output values. A single computation step that exceeds
+    /// the timeout will not be interrupted mid-iteration.
     pub fn evaluate_multi(
         &self,
         filter: &str,
@@ -114,6 +142,12 @@ impl ExpressionEngine {
         let mut outputs = Vec::new();
         for result in results {
             self.check_timeout(start)?;
+            if outputs.len() >= self.config.max_outputs {
+                return Err(ExpressionError::TooManyOutputs {
+                    count: outputs.len() + 1,
+                    limit: self.config.max_outputs,
+                });
+            }
             match result {
                 Ok(val) => {
                     let output = self.val_to_json(&val)?;

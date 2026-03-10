@@ -27,7 +27,7 @@ use super::categories::{GrammarCategoryKind, MutationProfile};
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CapabilityDeclaration {
     /// Unique identifier (e.g., "http_get", "postgres_upsert", "json_extract").
-    #[validate(length(min = 1))]
+    #[validate(length(min = 1, max = 128))]
     pub name: String,
 
     /// Which grammar category this belongs to. In the 6-capability model,
@@ -54,6 +54,6 @@ pub struct CapabilityDeclaration {
     pub tags: Vec<String>,
 
     /// Semantic version of this capability declaration (e.g., "1.0.0").
-    #[validate(length(min = 1))]
+    #[validate(length(min = 1, max = 64))]
     pub version: String,
 }

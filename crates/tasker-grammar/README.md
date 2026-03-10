@@ -116,6 +116,89 @@ let config = ExpressionEngineConfig {
 };
 ```
 
+## Workflow Examples
+
+The crate ships with three end-to-end workflow compositions that demonstrate real-world usage patterns. Each is available as a programmatic fixture (via `tasker_grammar::fixtures`) and as a YAML reference in `tests/fixtures/workflows/`. Integration tests in `tests/workflow_integration.rs` exercise every scenario listed below.
+
+### E-commerce Order Processing
+
+**Pipeline:** validate → transform (line items) → transform (totals) → transform (routing) → persist → emit
+
+Processes a shopping cart through validation, computes line-item totals, calculates subtotal/tax/shipping, applies business routing rules (priority, warehouse, fraud review), persists the confirmed order, and emits an `order.confirmed` event.
+
+**Capabilities exercised:** validate, transform (×3), persist, emit
+**Checkpoints:** persist (index 4), emit (index 5)
+
+```rust,ignore
+use tasker_grammar::fixtures::{self, WorkflowFixture};
+
+let WorkflowFixture { spec, input, acquire_fixtures } =
+    fixtures::ecommerce_order_processing();
+
+assert_eq!(spec.invocations.len(), 6);
+assert_eq!(spec.invocations[0].capability, "validate");
+assert_eq!(spec.invocations[4].capability, "persist");
+assert!(spec.invocations[4].checkpoint); // persist is a checkpoint
+```
+
+### Payment Reconciliation
+
+**Pipeline:** acquire (external txns) → validate (schema) → transform (matching) → transform (discrepancies) → assert (balance) → persist (report)
+
+Acquires settled transactions from a payment gateway, validates the data schema, matches external transactions against internal records by reference, computes per-transaction variance, asserts that total variance and unmatched count are within configurable thresholds, and persists the reconciliation report.
+
+**Capabilities exercised:** acquire, validate, transform (×2), assert, persist
+**Checkpoints:** persist (index 5)
+
+```rust,ignore
+let WorkflowFixture { spec, input, acquire_fixtures } =
+    fixtures::payment_reconciliation();
+
+// Fixture data includes 4 external transactions, 3 internal records
+// One external transaction has no internal match → unmatched_count = 1
+// One matched pair has a $0.50 variance
+assert_eq!(acquire_fixtures["transactions"].len(), 4);
+```
+
+### Customer Onboarding
+
+**Pipeline:** acquire (CRM profile) → validate (completeness) → transform (tier classification) → transform (reshape/enrich) → persist (upsert) → emit (welcome event)
+
+Acquires a customer profile from CRM, validates required fields (id, email, name), classifies the customer into a loyalty tier (bronze/silver/gold/platinum) based on purchase history, reshapes the profile with tier benefits, persists the enriched record as an upsert, and emits a `customer.onboarded` event.
+
+**Capabilities exercised:** acquire, validate, transform (×2), persist, emit
+**Checkpoints:** persist (index 4), emit (index 5)
+
+```rust,ignore
+let WorkflowFixture { spec, input, acquire_fixtures } =
+    fixtures::customer_onboarding();
+
+// Tier classification: $7500 total + 25 purchases → "gold" tier
+// Gold benefits: 15% discount, free shipping, 2× loyalty multiplier
+```
+
+### Test Coverage
+
+The integration test suite (`tests/workflow_integration.rs`) covers 30 scenarios across these workflows:
+
+| Category | Tests | What's verified |
+|----------|-------|-----------------|
+| Execution correctness | 3 | Full pipeline produces expected outputs |
+| Intermediate outputs | 3 | Each capability stage produces correct data |
+| Cross-step references | 3 | `.prev` / `.context` threading works across capabilities |
+| Checkpoint creation | 3 | Checkpoints capture correct index and accumulated state |
+| Checkpoint resume | 3 | `resume()` from checkpoint skips completed work |
+| Validation passes | 3 | `CompositionValidator` accepts all three specs |
+| Negative cases | 4 | Validation failure, assertion failure, empty items, missing fields |
+| Bulk operations | 3 | All fixtures load, execute, and validate together |
+| Executor errors | 5 | Invalid filters, missing entities, unknown capabilities |
+
+Run with:
+
+```bash
+cargo test --package tasker-grammar --test workflow_integration
+```
+
 ## Features
 
 | Feature | Description | Default |

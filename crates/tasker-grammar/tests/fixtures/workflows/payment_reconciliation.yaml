@@ -1,0 +1,219 @@
+# Payment Reconciliation Composition
+#
+# Origin: docs/action-grammar/case-studies/workflow-patterns.md
+#         Inspired by financial reconciliation patterns
+#
+# This composition models a payment reconciliation pipeline:
+# 1. Acquire external transaction records from the payments gateway (acquire)
+# 2. Validate schema conformance of acquired records (validate)
+# 3. Compute matching — pair external transactions with internal records (transform)
+# 4. Evaluate discrepancies — identify mismatches and compute variance (transform)
+# 5. Assert balance — verify total variance is within acceptable threshold (assert)
+# 6. Persist the reconciliation report to the database (persist) [checkpoint]
+#
+# Capabilities exercised: acquire, validate, transform (x2), assert, persist
+# Checkpoint boundaries: after persist (step 5)
+# Key pattern: acquire feeds into a pure computation pipeline with a gate
+
+name: payment_reconciliation
+outcome:
+  description: >
+    Reconcile external payment gateway transactions against internal records:
+    acquire transactions, validate schema, compute matching, evaluate discrepancies,
+    assert balance within threshold, and persist the reconciliation report.
+  output_schema:
+    type: object
+    properties:
+      reconciliation_id:
+        type: string
+      matched_count:
+        type: integer
+      unmatched_count:
+        type: integer
+      total_variance:
+        type: number
+    required:
+      - matched_count
+      - unmatched_count
+      - total_variance
+
+invocations:
+  # Step 0: Acquire external transaction records from the payment gateway.
+  # Exercises: acquire capability with params expression and result shaping.
+  - capability: acquire
+    config:
+      resource:
+        ref: "payments-gateway"
+        entity: "transactions"
+      params:
+        expression: >
+          {
+            date_from: .context.reconciliation_date,
+            date_to: .context.reconciliation_date,
+            status: "settled"
+          }
+      constraints:
+        limit: 1000
+        timeout_ms: 30000
+      result_shape:
+        expression: >
+          {
+            external_transactions: .data,
+            external_count: .record_count
+          }
+    checkpoint: false
+
+  # Step 1: Validate that acquired records have the expected schema.
+  # Exercises: validate capability on externally-acquired data (trust boundary).
+  - capability: validate
+    config:
+      schema:
+        type: object
+        required:
+          - external_transactions
+          - external_count
+        properties:
+          external_transactions:
+            type: array
+            items:
+              type: object
+              required:
+                - transaction_id
+                - amount
+                - currency
+                - reference
+              properties:
+                transaction_id:
+                  type: string
+                amount:
+                  type: number
+                currency:
+                  type: string
+                reference:
+                  type: string
+                settled_at:
+                  type: string
+          external_count:
+            type: integer
+    checkpoint: false
+
+  # Step 2: Compute matching — pair external transactions with internal records.
+  # The internal records come from .context (pre-loaded by the task).
+  # Exercises: transform with array operations, grouping, and lookup patterns.
+  - capability: transform
+    config:
+      filter: >
+        .context.internal_records as $internal |
+        .prev.external_transactions as $external |
+        [
+          $external[] |
+          . as $ext |
+          {
+            external_id: $ext.transaction_id,
+            external_amount: $ext.amount,
+            reference: $ext.reference,
+            internal_match: (
+              [$internal[] | select(.reference == $ext.reference)] | first
+            ),
+            matched: (
+              [$internal[] | select(.reference == $ext.reference)] | length > 0
+            )
+          }
+        ] as $pairs |
+        {
+          pairs: $pairs,
+          matched: [$pairs[] | select(.matched)],
+          unmatched: [$pairs[] | select(.matched | not)]
+        }
+      output:
+        type: object
+        properties:
+          pairs:
+            type: array
+          matched:
+            type: array
+          unmatched:
+            type: array
+    checkpoint: false
+
+  # Step 3: Evaluate discrepancies — compute variance for matched pairs.
+  # Exercises: transform with arithmetic on matched records and aggregation.
+  - capability: transform
+    config:
+      filter: >
+        .prev as $result |
+        [
+          $result.matched[] |
+          {
+            reference: .reference,
+            external_amount: .external_amount,
+            internal_amount: .internal_match.amount,
+            variance: (.external_amount - .internal_match.amount),
+            variance_pct: (
+              if .internal_match.amount == 0 then 100
+              else (((.external_amount - .internal_match.amount) / .internal_match.amount) * 100)
+              end
+            )
+          }
+        ] as $discrepancies |
+        ($discrepancies | map(.variance) | add // 0) as $total_variance |
+        {
+          matched_count: ($result.matched | length),
+          unmatched_count: ($result.unmatched | length),
+          discrepancies: $discrepancies,
+          total_variance: $total_variance,
+          unmatched_external: [$result.unmatched[] | .external_id]
+        }
+      output:
+        type: object
+        properties:
+          matched_count:
+            type: integer
+          unmatched_count:
+            type: integer
+          total_variance:
+            type: number
+    checkpoint: false
+
+  # Step 4: Assert balance — variance must be within acceptable threshold.
+  # Exercises: assert capability as an execution gate.
+  # The threshold comes from .context.variance_threshold.
+  - capability: assert
+    config:
+      filter: >
+        ((.prev.total_variance | fabs) <= .context.variance_threshold)
+        and (.prev.unmatched_count <= .context.max_unmatched)
+      error: >
+        Reconciliation failed: total variance or unmatched count exceeds threshold
+    checkpoint: false
+
+  # Step 5: Persist the reconciliation report.
+  # Exercises: persist capability with structured data and result shaping.
+  # CHECKPOINT: mutation boundary.
+  - capability: persist
+    config:
+      resource: reconciliation-db
+      mode: insert
+      data:
+        expression: >
+          {
+            reconciliation_date: .context.reconciliation_date,
+            matched_count: .prev.matched_count,
+            unmatched_count: .prev.unmatched_count,
+            total_variance: .prev.total_variance,
+            discrepancies: .prev.discrepancies,
+            unmatched_external: .prev.unmatched_external,
+            status: "completed"
+          }
+      validate_success:
+        expression: ".affected_rows > 0"
+      result_shape:
+        expression: >
+          {
+            reconciliation_id: .data.reconciliation_date,
+            matched_count: .data.matched_count,
+            unmatched_count: .data.unmatched_count,
+            total_variance: .data.total_variance,
+            status: .data.status
+          }
+    checkpoint: true

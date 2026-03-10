@@ -149,6 +149,12 @@ impl SchemaShape {
 // Compatibility checking
 // ---------------------------------------------------------------------------
 
+/// Maximum recursion depth for nested schema compatibility checks.
+///
+/// Prevents stack overflow from pathologically deep schemas. 32 levels is
+/// well beyond any realistic schema nesting while providing a safe upper bound.
+const MAX_SCHEMA_DEPTH: usize = 32;
+
 /// Check that a producer schema is structurally compatible with a consumer schema.
 ///
 /// Returns validation findings for any incompatibilities found. An empty
@@ -159,7 +165,31 @@ pub(crate) fn check_schema_compatibility(
     context_label: &str,
     invocation_index: Option<usize>,
 ) -> Vec<ValidationFinding> {
+    check_schema_compatibility_inner(producer, consumer, context_label, invocation_index, 0)
+}
+
+/// Inner recursive implementation with depth tracking.
+fn check_schema_compatibility_inner(
+    producer: &Value,
+    consumer: &Value,
+    context_label: &str,
+    invocation_index: Option<usize>,
+    depth: usize,
+) -> Vec<ValidationFinding> {
     let mut findings = Vec::new();
+
+    if depth > MAX_SCHEMA_DEPTH {
+        findings.push(ValidationFinding {
+            severity: Severity::Warning,
+            code: "SCHEMA_DEPTH_EXCEEDED".to_owned(),
+            invocation_index,
+            message: format!(
+                "{context_label}: schema nesting exceeds maximum depth of {MAX_SCHEMA_DEPTH}, skipping deeper checks"
+            ),
+            field_path: None,
+        });
+        return findings;
+    }
 
     let Some(consumer_shape) = SchemaShape::from_value(consumer) else {
         // Consumer has no schema requirements — everything is compatible
@@ -207,6 +237,7 @@ pub(crate) fn check_schema_compatibility(
                 context_label,
                 invocation_index,
                 &mut findings,
+                depth,
             );
         }
     }
@@ -225,6 +256,7 @@ pub(crate) fn check_schema_compatibility(
                 context_label,
                 invocation_index,
                 &mut type_findings,
+                depth,
             );
             // Downgrade to warnings for optional fields
             for mut finding in type_findings {
@@ -245,6 +277,7 @@ fn check_type_compatibility(
     context_label: &str,
     invocation_index: Option<usize>,
     findings: &mut Vec<ValidationFinding>,
+    depth: usize,
 ) {
     // Parse just the type-relevant fields from each property sub-schema.
     // from_value returns None for null/empty; unwrap_or_default gives us
@@ -280,8 +313,13 @@ fn check_type_compatibility(
 
     // Recurse into nested objects
     if producer_types.contains(&JsonType::Object) && consumer_types.contains(&JsonType::Object) {
-        let nested =
-            check_schema_compatibility(producer, consumer, context_label, invocation_index);
+        let nested = check_schema_compatibility_inner(
+            producer,
+            consumer,
+            context_label,
+            invocation_index,
+            depth + 1,
+        );
         findings.extend(nested);
     }
 
@@ -292,11 +330,12 @@ fn check_type_compatibility(
             consumer_shape.items.as_deref(),
         ) {
             let item_context = format!("{context_label}[].{field_name}");
-            let nested = check_schema_compatibility(
+            let nested = check_schema_compatibility_inner(
                 producer_items,
                 consumer_items,
                 &item_context,
                 invocation_index,
+                depth + 1,
             );
             findings.extend(nested);
         }

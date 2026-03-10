@@ -678,15 +678,10 @@ fn on_failure_invalid_value_rejected() {
     });
 
     let err = exec(&input, &config).unwrap_err();
-    match &err {
-        CapabilityError::ConfigValidation(msg) => {
-            assert!(
-                msg.contains("panic"),
-                "should mention the invalid value: {msg}"
-            );
-        }
-        other => panic!("expected ConfigValidation, got: {other:?}"),
-    }
+    assert!(
+        matches!(&err, CapabilityError::ConfigValidation(msg) if msg.contains("data type mismatch")),
+        "expected ConfigValidation with data type mismatch, got: {err:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -702,12 +697,10 @@ fn missing_schema_in_config() {
     });
 
     let err = exec(&input, &config).unwrap_err();
-    match &err {
-        CapabilityError::ConfigValidation(msg) => {
-            assert!(msg.contains("schema"), "should mention 'schema': {msg}");
-        }
-        other => panic!("expected ConfigValidation, got: {other:?}"),
-    }
+    assert!(
+        matches!(&err, CapabilityError::ConfigValidation(msg) if msg.contains("validate")),
+        "expected ConfigValidation mentioning validate, got: {err:?}"
+    );
 }
 
 #[test]

@@ -213,8 +213,9 @@ impl TypedCapabilityExecutor for EmitExecutor {
         // 3. Build EmitMetadata from config expressions
         let metadata = self.build_metadata(config, envelope)?;
 
-        // 4. Get the emittable resource and call emit
+        // 4. Validate and get the emittable resource
         let resource_ref = config.resource.as_deref().unwrap_or("events").to_string();
+        super::validate_resource_ref(&resource_ref, "resource")?;
 
         let emit_result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {

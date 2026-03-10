@@ -41,6 +41,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
@@ -112,9 +113,38 @@ pub struct CompositionResult {
 /// let result = executor.execute(&spec, input.clone(), "test_step", 1).unwrap();
 /// assert_eq!(result.output, json!({"doubled": 42}));
 /// ```
+/// Configuration limits for the composition executor.
+///
+/// These limits guard against resource exhaustion from pathologically large
+/// or slow compositions.
+#[derive(Debug, Clone)]
+pub struct CompositionExecutorConfig {
+    /// Maximum number of invocations allowed in a composition.
+    ///
+    /// Prevents unbounded iteration and O(n²) checkpoint memory growth.
+    /// Defaults to 100.
+    pub max_invocation_count: usize,
+
+    /// Maximum wall-clock time for the entire composition execution.
+    ///
+    /// Checked after each invocation completes. Defaults to 30 seconds.
+    pub overall_timeout: Duration,
+}
+
+impl Default for CompositionExecutorConfig {
+    fn default() -> Self {
+        Self {
+            max_invocation_count: 100,
+            overall_timeout: Duration::from_secs(30),
+        }
+    }
+}
+
 pub struct CompositionExecutor {
     /// Registered capability executors, keyed by capability name.
     capabilities: HashMap<String, Box<dyn CapabilityExecutor>>,
+    /// Execution limits.
+    config: CompositionExecutorConfig,
 }
 
 impl fmt::Debug for CompositionExecutor {
@@ -124,6 +154,7 @@ impl fmt::Debug for CompositionExecutor {
                 "capabilities",
                 &self.capabilities.keys().collect::<Vec<_>>(),
             )
+            .field("config", &self.config)
             .finish()
     }
 }
@@ -148,6 +179,7 @@ pub struct CompositionInput {
 #[derive(Debug, Default)]
 pub struct CompositionExecutorBuilder {
     capabilities: HashMap<String, Box<dyn CapabilityExecutor>>,
+    config: CompositionExecutorConfig,
 }
 
 impl CompositionExecutorBuilder {
@@ -160,10 +192,17 @@ impl CompositionExecutorBuilder {
         self
     }
 
+    /// Set the executor configuration (limits).
+    pub fn config(mut self, config: CompositionExecutorConfig) -> Self {
+        self.config = config;
+        self
+    }
+
     /// Build the executor with all registered capabilities.
     pub fn build(self) -> CompositionExecutor {
         CompositionExecutor {
             capabilities: self.capabilities,
+            config: self.config,
         }
     }
 }
@@ -178,6 +217,9 @@ impl CompositionExecutor {
     ///
     /// Returns the final invocation's output and any checkpoints emitted.
     /// An empty composition (zero invocations) returns the context input unchanged.
+    ///
+    /// Returns [`CompositionError::TooManyInvocations`] if the composition
+    /// exceeds [`CompositionExecutorConfig::max_invocation_count`].
     pub fn execute(
         &self,
         spec: &CompositionSpec,
@@ -190,6 +232,14 @@ impl CompositionExecutor {
             return Ok(CompositionResult {
                 output: input.context,
                 checkpoints: Vec::new(),
+            });
+        }
+
+        // Check invocation count limit
+        if spec.invocations.len() > self.config.max_invocation_count {
+            return Err(CompositionError::TooManyInvocations {
+                count: spec.invocations.len(),
+                limit: self.config.max_invocation_count,
             });
         }
 
@@ -256,8 +306,17 @@ impl CompositionExecutor {
     ) -> Result<CompositionResult, CompositionError> {
         let mut prev = initial_prev;
         let mut checkpoints = Vec::new();
+        let start = Instant::now();
 
         for (idx, invocation) in spec.invocations.iter().enumerate().skip(start_index) {
+            // Check overall timeout before each invocation
+            let elapsed = start.elapsed();
+            if elapsed > self.config.overall_timeout {
+                return Err(CompositionError::Timeout {
+                    elapsed,
+                    limit: self.config.overall_timeout,
+                });
+            }
             // Build the envelope for this invocation
             let envelope_value = build_envelope(
                 &input.context,

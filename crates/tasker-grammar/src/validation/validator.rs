@@ -17,6 +17,18 @@ use crate::types::{
 
 use super::schema_compat::check_schema_compatibility;
 
+/// Maximum number of invocations allowed in a composition.
+///
+/// This limit prevents resource exhaustion from pathologically large compositions.
+/// It aligns with the default [`CompositionExecutorConfig::max_invocation_count`]
+/// but is enforced at design-time validation rather than runtime.
+const MAX_INVOCATION_COUNT: usize = 100;
+
+/// Field length limits for composition spec strings.
+const MAX_NAME_LEN: usize = 256;
+const MAX_DESCRIPTION_LEN: usize = 4096;
+const MAX_CAPABILITY_NAME_LEN: usize = 128;
+
 /// Registry providing capability declarations for validation.
 ///
 /// The validator looks up capabilities by name to obtain their config schemas,
@@ -169,7 +181,7 @@ impl<'a> CompositionValidator<'a> {
     pub fn validate(&self, spec: &CompositionSpec) -> ValidationResult {
         let mut findings = Vec::new();
 
-        // Check 0: Empty composition
+        // Check 0a: Empty composition
         if spec.invocations.is_empty() {
             findings.push(ValidationFinding {
                 severity: Severity::Error,
@@ -179,6 +191,63 @@ impl<'a> CompositionValidator<'a> {
                 field_path: None,
             });
             return ValidationResult { findings };
+        }
+
+        // Check 0b: Invocation count limit (prevents resource exhaustion)
+        if spec.invocations.len() > MAX_INVOCATION_COUNT {
+            findings.push(ValidationFinding {
+                severity: Severity::Error,
+                code: "TOO_MANY_INVOCATIONS".to_owned(),
+                invocation_index: None,
+                message: format!(
+                    "composition has {} invocations, exceeding maximum of {MAX_INVOCATION_COUNT}",
+                    spec.invocations.len()
+                ),
+                field_path: None,
+            });
+            return ValidationResult { findings };
+        }
+
+        // Check 0c: Field length limits
+        if let Some(name) = &spec.name {
+            if name.len() > MAX_NAME_LEN {
+                findings.push(ValidationFinding {
+                    severity: Severity::Error,
+                    code: "FIELD_TOO_LONG".to_owned(),
+                    invocation_index: None,
+                    message: format!(
+                        "composition name length {} exceeds maximum of {MAX_NAME_LEN}",
+                        name.len()
+                    ),
+                    field_path: Some("name".to_owned()),
+                });
+            }
+        }
+        if spec.outcome.description.len() > MAX_DESCRIPTION_LEN {
+            findings.push(ValidationFinding {
+                severity: Severity::Error,
+                code: "FIELD_TOO_LONG".to_owned(),
+                invocation_index: None,
+                message: format!(
+                    "outcome description length {} exceeds maximum of {MAX_DESCRIPTION_LEN}",
+                    spec.outcome.description.len()
+                ),
+                field_path: Some("outcome.description".to_owned()),
+            });
+        }
+        for (idx, invocation) in spec.invocations.iter().enumerate() {
+            if invocation.capability.len() > MAX_CAPABILITY_NAME_LEN {
+                findings.push(ValidationFinding {
+                    severity: Severity::Error,
+                    code: "FIELD_TOO_LONG".to_owned(),
+                    invocation_index: Some(idx),
+                    message: format!(
+                        "capability name length {} exceeds maximum of {MAX_CAPABILITY_NAME_LEN}",
+                        invocation.capability.len()
+                    ),
+                    field_path: Some("capability".to_owned()),
+                });
+            }
         }
 
         // Check 1: Structural validity — capability existence

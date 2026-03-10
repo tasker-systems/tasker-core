@@ -250,7 +250,8 @@ impl AssertExecutor {
             Ok(envelope.resolve_target().clone())
         } else {
             Err(CapabilityError::Execution(format!(
-                "assertion failed: {error_msg} (filter: {filter})"
+                "assertion failed: {error_msg} (filter: {})",
+                truncate_expression(filter)
             )))
         }
     }
@@ -306,7 +307,13 @@ impl AssertExecutor {
 
             let details: Vec<String> = failed
                 .iter()
-                .map(|r| format!("'{}' (expression: {})", r.name, r.expression))
+                .map(|r| {
+                    format!(
+                        "'{}' (expression: {})",
+                        r.name,
+                        truncate_expression(r.expression)
+                    )
+                })
                 .collect();
 
             Err(CapabilityError::Execution(format!(
@@ -314,6 +321,26 @@ impl AssertExecutor {
                 details.join(", ")
             )))
         }
+    }
+}
+
+/// Maximum length for expression text in error messages.
+///
+/// Prevents business logic leakage through overly verbose error messages.
+const MAX_ERROR_EXPRESSION_LEN: usize = 200;
+
+/// Truncate an expression string for safe inclusion in error messages.
+fn truncate_expression(expr: &str) -> String {
+    if expr.len() <= MAX_ERROR_EXPRESSION_LEN {
+        expr.to_owned()
+    } else {
+        // Find a valid UTF-8 boundary near the limit
+        let end = expr
+            .char_indices()
+            .take_while(|(i, _)| *i <= MAX_ERROR_EXPRESSION_LEN)
+            .last()
+            .map_or(0, |(i, c)| i + c.len_utf8());
+        format!("{}...", &expr[..end])
     }
 }
 
