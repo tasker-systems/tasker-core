@@ -1,0 +1,41 @@
+[package]
+name = "tasker-runtime"
+version = "0.1.6"
+edition = "2021"
+description = "Runtime adapters bridging tasker-grammar operation traits to tasker-secure resource handles"
+readme = "README.md"
+repository = "https://github.com/tasker-systems/tasker-core"
+license = "MIT"
+keywords = ["runtime", "adapter", "resource", "workflow", "orchestration"]
+categories = ["concurrency", "database"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+crate-type = ["rlib"]
+name = "tasker_runtime"
+
+[features]
+default = []
+postgres = ["tasker-secure/postgres"]
+http = ["tasker-secure/http"]
+sops = ["tasker-secure/sops"]
+
+[dependencies]
+tasker-grammar = { path = "../tasker-grammar", version = "=0.1.6" }
+tasker-secure = { path = "../tasker-secure", version = "=0.1.6" }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

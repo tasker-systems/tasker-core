@@ -34,6 +34,7 @@ members = [
   "crates/tasker-worker",
   "crates/tasker-grammar",  # TAS-321: Action grammar expression engine
   "crates/tasker-secure",   # TAS-357: Strategy-pattern secrets resolution
+  "crates/tasker-runtime",  # TAS-373: Runtime adapters for grammar operations
   "crates/tasker-py",  # TAS-72: PyO3 Python worker
   "crates/tasker-rb/ext/tasker_core",
   "crates/tasker-example-rs",
