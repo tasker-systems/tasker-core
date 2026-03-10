@@ -7190,6 +7190,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tasker-runtime"
+version = "0.1.6"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "tasker-grammar",
+ "tasker-secure",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "tasker-sdk"
 version = "0.1.6"
 dependencies = [
