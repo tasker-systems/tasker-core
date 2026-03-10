@@ -10,6 +10,9 @@ pub mod postgres;
 #[cfg(feature = "http")]
 pub mod http;
 
+#[cfg(feature = "postgres")]
+pub mod sql_gen;
+
 use std::sync::Arc;
 
 use tasker_grammar::operations::{
