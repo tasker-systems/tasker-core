@@ -113,13 +113,13 @@ list_milestones(project: "Tasker Action Grammar")                     # Phase pr
 
 Consult the [roadmap "What Can Start Now" section](roadmap.md#what-can-start-now). As a general rule:
 
-- **Lane 1E** (TAS-335/336: Workflow acceptance tests) — validates Phase 1 end-to-end with 3 real-world workflows
-- **Lanes 2A, 2B, 2C** can start in parallel — all Phase 2 dependencies are met. Scaffold `tasker-runtime` (TAS-373) first.
+- **Lane 1E** (TAS-335/336) — in progress via web agent
+- **Lanes 2A, 2B, 2C** — ready for implementation. `tasker-runtime` scaffolded (TAS-373 ✅, PR #302). Type stubs and trait signatures in place — implement real behavior.
 - **Lane 3C** (validation tooling) is now unblocked by 1D completion
 - **Lane 3A** (TAS-370: StepContext rename) has zero dependencies
 - **Lane 3D** (TAS-369: ConfigString, TAS-359/360: S3/S4) is fully independent
 
-**Phase 1 core complete:** Lanes 1A (expression engine, core types, pure executors), 1B (operation traits, OperationProvider), 1C (persist/acquire/emit executors), 1D (CompositionValidator + CompositionExecutor). Only 1E (acceptance tests) remains.
+**Phase 1 core complete.** Phase 2 crate scaffolded. All lanes 2A-2D have type/trait stubs ready for implementation.
 
 ### Reading the Dependency Graph
 

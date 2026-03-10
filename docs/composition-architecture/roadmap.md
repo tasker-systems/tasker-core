@@ -69,6 +69,7 @@ flowchart LR
     end
 
     subgraph phase2["Phase 2: Runtime Infrastructure"]
+        R2S["2: tasker-runtime\nScaffold (TAS-373) ✅"]
         R2A["2A: Runtime Scaffolding\n& Adapters"]
         R2B["2B: ResourcePool\nManager"]
         R2C["2C: ResourceDefinition\nSource"]
@@ -136,7 +137,7 @@ flowchart LR
 | Phase | Goal | Lanes | Status |
 |-------|------|-------|--------|
 | **1: Grammar Foundations** | All capability executors work with in-memory test doubles. Composition engine chains them. | 1A ✅, 1B ✅, 1C ✅, 1D ✅, 1E | ~95% complete (only 1E acceptance tests remaining) |
-| **2: Runtime Infrastructure** | tasker-runtime crate exists with adapters, pool manager, and operation provider | 2A, 2B, 2C, 2D | Not started (unblocked — 1B complete) |
+| **2: Runtime Infrastructure** | tasker-runtime crate exists with adapters, pool manager, and operation provider | 2A, 2B, 2C, 2D | Scaffolded (TAS-373 ✅, PR #302). Lanes 2A-2D ready for implementation. |
 | **3: Integration & Tooling** | Composition tooling works, StepContext aligned, CompositionExecutionContext exists | 3A, 3B, 3C, 3D | Not started |
 | **4: Worker Dispatch & Queues** | Composition worker binary receives, executes, and completes grammar-composed steps | 4A, 4B, 4C, 4D | Not started |
 
@@ -252,6 +253,7 @@ flowchart TD
         S1["TAS-357\nSecretsProvider ✅"]
         S2["TAS-358\nResourceRegistry ✅"]
         P1B["Phase 1B\nOperation Traits ✅"]
+        SCF["TAS-373\ntasker-runtime scaffold ✅"]
     end
 
     subgraph phase2["Phase 2: Runtime Infrastructure"]
@@ -544,16 +546,15 @@ For quick reference, these lanes have zero unmet dependencies and can begin imme
 
 | Lane | Description | Depends On | Priority |
 |------|-------------|------------|----------|
-| **1E** | Workflow modeling — 3 real-world acceptance tests | 1D ✅ | High — validates Phase 1, proves composition system end-to-end |
-| **2A** | Runtime scaffolding + adapters in tasker-runtime | 1B ✅, TAS-357 ✅, TAS-358 ✅ | High — unblocks 2D |
-| **2B** | ResourcePoolManager in tasker-runtime | TAS-358 ✅ | High — unblocks 2D |
-| **2C** | ResourceDefinitionSource in tasker-runtime | TAS-358 ✅ | Medium |
+| **1E** | Workflow modeling — 3 real-world acceptance tests | 1D ✅ | High — in progress (web agent, TAS-335/336) |
+| **2A** | Adapter implementations in tasker-runtime | TAS-373 ✅ | **High — unblocks 2D** |
+| **2B** | ResourcePoolManager implementation | TAS-373 ✅ | **High — unblocks 2D** |
+| **2C** | ResourceDefinitionSource implementation | TAS-373 ✅ | Medium |
 | **3A** | StepContext rename in tasker-worker | Nothing | Low — pure refactor |
+| **3C** | Validation tooling | 1D ✅ | Medium — now unblocked |
 | **3D** | ConfigString integration / S3 / S4 | TAS-358 ✅ | Low — independent |
 
-**Phase 1 core is complete.** Lane 1E (acceptance tests) validates the grammar system. Phase 2 runtime work can proceed in parallel.
-
-**Note:** Lanes 2A, 2B, 2C all require scaffolding `tasker-runtime` first (TAS-373). Whichever lane starts first should scaffold the crate.
+**Phase 1 core is complete.** Lane 1E is in progress via web agent. Phase 2 crate is scaffolded (TAS-373) — all lanes ready for real implementation.
 
 ---
 
@@ -664,7 +665,7 @@ This appendix maps roadmap lanes to Linear tickets across both projects. Use thi
 |-------------|-------------|---------|
 | ~~1B~~ | ~~Define operation traits~~ | ~~Done (TAS-372, PR #290)~~ |
 | ~~1B~~ | ~~Define OperationProvider interface and InMemoryOperations~~ | ~~Done (TAS-372, PR #290)~~ |
-| 2 | Scaffold tasker-runtime crate with workspace integration (TAS-373) | Action Grammar |
+| ~~2~~ | ~~Scaffold tasker-runtime crate~~ | ~~Done (TAS-373, PR #302)~~ |
 | 2A | Implement adapter pattern (PostgresPersistAdapter, HttpAcquireAdapter, etc.) | Action Grammar or new project |
 | 2A | Implement AdapterRegistry | Action Grammar or new project |
 | 2B | Implement ResourcePoolManager with eviction and backpressure | Action Grammar or new project |
