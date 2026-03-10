@@ -169,7 +169,7 @@ impl PersistableResource for HttpPersistAdapter {
             PersistMode::Upsert => http.put(&path).json(&data),
             PersistMode::Delete => {
                 let req = http.delete(&path);
-                if data.as_object().map_or(false, |o| !o.is_empty()) {
+                if data.as_object().is_some_and(|o| !o.is_empty()) {
                     req.json(&data)
                 } else {
                     req
