@@ -477,7 +477,8 @@ fn sandbox_timeout_infinite_loop_protection() {
     let input = json!(0);
     let result = engine.evaluate_multi("limit(100000; repeat(. + 1))", &input);
     match result {
-        Err(ExpressionError::Timeout { .. }) => {} // expected
+        Err(ExpressionError::Timeout { .. }) => {}         // timeout fired first
+        Err(ExpressionError::TooManyOutputs { .. }) => {}   // output limit fired first
         Ok(values) => {
             // If it completed, the timeout didn't trigger but the filter was bounded by limit()
             assert!(!values.is_empty());
@@ -786,4 +787,40 @@ fn capability_persist_envelope() {
         .unwrap();
     assert_eq!(result["target"], json!("audit_log"));
     assert_eq!(result["data"]["user"], json!("U-123"));
+}
+
+// ─── Output Count Limits ────────────────────────────────────────────────
+
+#[test]
+fn evaluate_multi_respects_max_outputs_limit() {
+    let engine = ExpressionEngine::new(ExpressionEngineConfig {
+        max_outputs: 5,
+        ..Default::default()
+    });
+
+    let result = engine.evaluate_multi("range(100)", &json!(null));
+    assert!(result.is_err(), "should reject excessive outputs");
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, ExpressionError::TooManyOutputs { limit: 5, .. }),
+        "expected TooManyOutputs, got: {err}"
+    );
+}
+
+#[test]
+fn evaluate_multi_allows_within_limit() {
+    let engine = ExpressionEngine::new(ExpressionEngineConfig {
+        max_outputs: 100,
+        ..Default::default()
+    });
+
+    let result = engine.evaluate_multi("range(10)", &json!(null)).unwrap();
+    assert_eq!(result.len(), 10);
+}
+
+#[test]
+fn evaluate_multi_default_limit_handles_reasonable_output() {
+    // Default max_outputs is 10,000 — a filter producing 50 values should be fine
+    let result = engine().evaluate_multi("range(50)", &json!(null)).unwrap();
+    assert_eq!(result.len(), 50);
 }
