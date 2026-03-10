@@ -218,8 +218,6 @@ invocations:
       result_shape:
         expression: >
           {
-            customer_id: .prev.customer_id,
-            tier: .prev.tier,
             event_id: .data.message_id,
             event_name: .event_name
           }

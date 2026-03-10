@@ -16,20 +16,19 @@
 //! # Usage
 //!
 //! ```
-//! use tasker_grammar::fixtures;
+//! use tasker_grammar::fixtures::{self, WorkflowFixture};
 //!
-//! let (spec, input, acquire_data) = fixtures::ecommerce_order_processing();
-//! // spec: CompositionSpec with 6 invocations
-//! // input: CompositionInput for the executor
-//! // acquire_data: HashMap of entity → fixture records (empty for this workflow)
+//! let WorkflowFixture { spec, input, acquire_fixtures } =
+//!     fixtures::ecommerce_order_processing();
+//! assert_eq!(spec.invocations.len(), 6);
 //! ```
 //!
 //! # Design
 //!
-//! Each fixture function returns a tuple of:
-//! - `CompositionSpec` — the composition definition
-//! - `CompositionInput` — realistic test input data
-//! - `HashMap<String, Vec<Value>>` — fixture data for `InMemoryOperations` (acquire)
+//! Each fixture function returns a [`WorkflowFixture`] containing:
+//! - `spec` — the [`CompositionSpec`] definition
+//! - `input` — realistic test input data
+//! - `acquire_fixtures` — fixture data for `InMemoryOperations` (acquire lookups)
 //!
 //! The YAML composition specs in `fixtures/workflows/` are the human-readable
 //! reference. The Rust fixtures here are the programmatic equivalent that tests
@@ -75,11 +74,10 @@ pub fn ecommerce_order_processing() -> WorkflowFixture {
             output_schema: json!({
                 "type": "object",
                 "properties": {
-                    "order_id": {"type": "string"},
                     "event_id": {"type": "string"},
                     "event_name": {"type": "string"}
                 },
-                "required": ["order_id", "event_id", "event_name"]
+                "required": ["event_id", "event_name"]
             }),
         },
         invocations: vec![
@@ -181,7 +179,7 @@ pub fn ecommerce_order_processing() -> WorkflowFixture {
                         }
                     },
                     "result_shape": {
-                        "expression": "{order_id: .prev.order_id, event_id: .data.message_id, event_name: .event_name}"
+                        "expression": "{event_id: .data.message_id, event_name: .event_name}"
                     }
                 }),
                 checkpoint: true,
@@ -485,11 +483,10 @@ pub fn customer_onboarding() -> WorkflowFixture {
             output_schema: json!({
                 "type": "object",
                 "properties": {
-                    "customer_id": {"type": "string"},
-                    "tier": {"type": "string"},
-                    "event_id": {"type": "string"}
+                    "event_id": {"type": "string"},
+                    "event_name": {"type": "string"}
                 },
-                "required": ["customer_id", "tier", "event_id"]
+                "required": ["event_id", "event_name"]
             }),
         },
         invocations: vec![
@@ -597,7 +594,7 @@ pub fn customer_onboarding() -> WorkflowFixture {
                         }
                     },
                     "result_shape": {
-                        "expression": "{customer_id: .prev.customer_id, tier: .prev.tier, event_id: .data.message_id, event_name: .event_name}"
+                        "expression": "{event_id: .data.message_id, event_name: .event_name}"
                     }
                 }),
                 checkpoint: true,

@@ -224,7 +224,6 @@ invocations:
       result_shape:
         expression: >
           {
-            order_id: .prev.order_id,
             event_id: .data.message_id,
             event_name: .event_name
           }
