@@ -136,8 +136,9 @@ impl<T: TypedCapabilityExecutor> CapabilityExecutor for T {
     ) -> Result<Value, CapabilityError> {
         let typed_config: T::Config = serde_json::from_value(config.clone()).map_err(|e| {
             CapabilityError::ConfigValidation(format!(
-                "invalid {} config: {e}",
-                TypedCapabilityExecutor::capability_name(self)
+                "invalid {} config: {}",
+                TypedCapabilityExecutor::capability_name(self),
+                sanitize_serde_error(&e)
             ))
         })?;
         self.execute_typed(envelope, &typed_config, context)
@@ -146,8 +147,9 @@ impl<T: TypedCapabilityExecutor> CapabilityExecutor for T {
     fn validate_config(&self, config: &Value) -> Result<(), CapabilityError> {
         let _typed: T::Config = serde_json::from_value(config.clone()).map_err(|e| {
             CapabilityError::ConfigValidation(format!(
-                "invalid {} config: {e}",
-                TypedCapabilityExecutor::capability_name(self)
+                "invalid {} config: {}",
+                TypedCapabilityExecutor::capability_name(self),
+                sanitize_serde_error(&e)
             ))
         })?;
         Ok(())
@@ -155,6 +157,30 @@ impl<T: TypedCapabilityExecutor> CapabilityExecutor for T {
 
     fn capability_name(&self) -> &str {
         TypedCapabilityExecutor::capability_name(self)
+    }
+}
+
+/// Extract structural information from a serde error without leaking input values.
+///
+/// The `Display` impl of `serde_json::Error` can include fragments of input data
+/// (e.g., `invalid type: string "secret_value", expected u64`). This function
+/// returns only the error category and position.
+fn sanitize_serde_error(e: &serde_json::Error) -> String {
+    use serde_json::error::Category;
+
+    let category = match e.classify() {
+        Category::Io => "I/O error",
+        Category::Syntax => "syntax error",
+        Category::Data => "data type mismatch",
+        Category::Eof => "unexpected end of input",
+    };
+
+    let line = e.line();
+    let column = e.column();
+    if line == 0 && column == 0 {
+        category.to_owned()
+    } else {
+        format!("{category} at line {line} column {column}")
     }
 }
 

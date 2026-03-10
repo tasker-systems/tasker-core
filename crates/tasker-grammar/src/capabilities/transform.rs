@@ -277,8 +277,8 @@ fn format_validation_error(e: &jsonschema::ValidationError<'_>) -> String {
         ValidationErrorKind::OneOfNotValid => "value does not match any 'oneOf' schema".into(),
         ValidationErrorKind::OneOfMultipleValid => "value matches multiple 'oneOf' schemas".into(),
         ValidationErrorKind::Contains => "array does not contain a required element".into(),
-        // Fallback: use Debug which is less likely to embed raw values than Display
-        _ => format!("{:?}", e.kind),
+        // Fallback: generic message to prevent value leakage from unhandled variants
+        _ => "schema constraint violation".into(),
     };
 
     format!("{at}{constraint}")
