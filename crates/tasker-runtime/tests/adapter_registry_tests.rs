@@ -16,6 +16,7 @@ fn expect_err<T>(result: Result<T, ResourceOperationError>) -> ResourceOperation
 }
 
 #[test]
+#[cfg(feature = "postgres")]
 fn standard_registry_has_postgres_persist_factory() {
     let registry = AdapterRegistry::standard();
     let handle = Arc::new(InMemoryResourceHandle::new(
@@ -30,6 +31,7 @@ fn standard_registry_has_postgres_persist_factory() {
 }
 
 #[test]
+#[cfg(feature = "http")]
 fn standard_registry_has_http_emit_factory() {
     let registry = AdapterRegistry::standard();
     let handle = Arc::new(InMemoryResourceHandle::new("webhook", ResourceType::Http));
