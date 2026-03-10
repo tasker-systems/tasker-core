@@ -1,0 +1,226 @@
+# Customer Onboarding Composition
+#
+# Origin: docs/action-grammar/case-studies/workflow-patterns.md
+#         Customer onboarding / profile enrichment patterns
+#
+# This composition models a customer onboarding pipeline:
+# 1. Acquire the customer profile from the CRM system (acquire)
+# 2. Validate profile completeness — required fields present (validate)
+# 3. Evaluate tier classification — assign loyalty tier based on rules (transform)
+# 4. Reshape for downstream systems — normalize and enrich the profile (transform)
+# 5. Persist the enriched profile to the customer database (persist) [checkpoint]
+# 6. Emit customer.onboarded domain event (emit) [checkpoint]
+#
+# Capabilities exercised: acquire, validate, transform (x2), persist, emit
+# Checkpoint boundaries: after persist (step 4), after emit (step 5)
+# Key pattern: acquire → validate → compute → reshape → persist → emit
+
+name: customer_onboarding
+outcome:
+  description: >
+    Onboard a new customer: acquire profile from CRM, validate completeness,
+    classify loyalty tier, reshape for downstream, persist enriched profile,
+    and emit a welcome event.
+  output_schema:
+    type: object
+    properties:
+      customer_id:
+        type: string
+      tier:
+        type: string
+      event_id:
+        type: string
+    required:
+      - customer_id
+      - tier
+      - event_id
+
+invocations:
+  # Step 0: Acquire the customer profile from the CRM.
+  # Exercises: acquire capability with params from context and result shaping.
+  - capability: acquire
+    config:
+      resource:
+        ref: "crm-api"
+        entity: "customers"
+      params:
+        expression: >
+          {
+            customer_id: .context.customer_id,
+            include: "contact,preferences,history"
+          }
+      constraints:
+        timeout_ms: 10000
+      result_shape:
+        expression: >
+          .data[0] // {error: "customer not found"}
+    checkpoint: false
+
+  # Step 1: Validate profile completeness.
+  # Exercises: validate capability at trust boundary (CRM data may be incomplete).
+  - capability: validate
+    config:
+      schema:
+        type: object
+        required:
+          - id
+          - email
+          - first_name
+          - last_name
+        properties:
+          id:
+            type: string
+          email:
+            type: string
+          first_name:
+            type: string
+          last_name:
+            type: string
+          phone:
+            type: string
+          company:
+            type: string
+          signup_date:
+            type: string
+          total_purchases:
+            type: number
+          purchase_count:
+            type: integer
+          preferences:
+            type: object
+    checkpoint: false
+
+  # Step 2: Evaluate tier classification based on business rules.
+  # Exercises: transform with multi-condition rule evaluation.
+  - capability: transform
+    config:
+      filter: >
+        .prev as $profile |
+        ($profile.total_purchases // 0) as $total |
+        ($profile.purchase_count // 0) as $count |
+        (
+          if $total >= 10000 and $count >= 50 then "platinum"
+          elif $total >= 5000 and $count >= 20 then "gold"
+          elif $total >= 1000 and $count >= 5 then "silver"
+          else "bronze"
+          end
+        ) as $tier |
+        (
+          if $tier == "platinum" then 20
+          elif $tier == "gold" then 15
+          elif $tier == "silver" then 10
+          else 5
+          end
+        ) as $discount_pct |
+        {
+          profile: $profile,
+          tier: $tier,
+          discount_pct: $discount_pct,
+          tier_benefits: {
+            free_shipping: ($tier == "platinum" or $tier == "gold"),
+            priority_support: ($tier == "platinum"),
+            loyalty_multiplier: (if $tier == "platinum" then 3 elif $tier == "gold" then 2 elif $tier == "silver" then 1.5 else 1 end)
+          }
+        }
+      output:
+        type: object
+        properties:
+          tier:
+            type: string
+          discount_pct:
+            type: integer
+    checkpoint: false
+
+  # Step 3: Reshape for downstream — build the enriched customer record.
+  # Exercises: transform with data normalization and enrichment.
+  - capability: transform
+    config:
+      filter: >
+        .prev as $classified |
+        $classified.profile as $p |
+        {
+          customer_id: $p.id,
+          email: $p.email,
+          display_name: (($p.first_name // "") + " " + ($p.last_name // "") | ltrimstr(" ") | rtrimstr(" ")),
+          first_name: $p.first_name,
+          last_name: $p.last_name,
+          phone: ($p.phone // null),
+          company: ($p.company // null),
+          signup_date: $p.signup_date,
+          loyalty: {
+            tier: $classified.tier,
+            discount_pct: $classified.discount_pct,
+            benefits: $classified.tier_benefits
+          },
+          preferences: ($p.preferences // {}),
+          onboarding_status: "completed",
+          onboarded_at: .context.onboarding_timestamp
+        }
+      output:
+        type: object
+        properties:
+          customer_id:
+            type: string
+          display_name:
+            type: string
+          loyalty:
+            type: object
+    checkpoint: false
+
+  # Step 4: Persist the enriched customer profile.
+  # Exercises: persist capability with upsert mode and identity.
+  # CHECKPOINT: mutation boundary.
+  - capability: persist
+    config:
+      resource: customers-db
+      mode: upsert
+      data:
+        expression: ".prev"
+      identity:
+        primary_key:
+          - customer_id
+      constraints:
+        on_conflict: update
+      validate_success:
+        expression: ".affected_rows > 0"
+      result_shape:
+        expression: >
+          {
+            customer_id: .data.customer_id,
+            tier: .data.loyalty.tier,
+            display_name: .data.display_name,
+            onboarding_status: .data.onboarding_status
+          }
+    checkpoint: true
+
+  # Step 5: Emit customer.onboarded domain event.
+  # Exercises: emit capability with conditional emission and metadata.
+  # CHECKPOINT: mutation boundary.
+  - capability: emit
+    config:
+      event_name: "customer.onboarded"
+      event_version: "1.0"
+      resource: "event-bus"
+      payload:
+        expression: >
+          {
+            customer_id: .prev.customer_id,
+            tier: .prev.tier,
+            display_name: .prev.display_name,
+            onboarding_status: .prev.onboarding_status
+          }
+      metadata:
+        correlation_id:
+          expression: ".context.customer_id"
+        idempotency_key:
+          expression: >
+            ("onboard-" + .prev.customer_id)
+      result_shape:
+        expression: >
+          {
+            customer_id: .prev.customer_id,
+            tier: .prev.tier,
+            event_id: .data.message_id,
+            event_name: .event_name
+          }
+    checkpoint: true

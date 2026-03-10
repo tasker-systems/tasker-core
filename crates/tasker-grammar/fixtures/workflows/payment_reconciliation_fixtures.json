@@ -1,0 +1,142 @@
+{
+  "workflow": "payment_reconciliation",
+  "description": "Test fixtures for the payment reconciliation composition",
+  "case_study_origin": "docs/action-grammar/case-studies/workflow-patterns.md — Financial reconciliation patterns",
+  "capabilities_exercised": [
+    {"capability": "acquire", "invocation_index": 0, "purpose": "Fetch external transaction records from payment gateway"},
+    {"capability": "validate", "invocation_index": 1, "purpose": "Validate schema of acquired external records (trust boundary)"},
+    {"capability": "transform", "invocation_index": 2, "purpose": "Compute matching — pair external transactions with internal records"},
+    {"capability": "transform", "invocation_index": 3, "purpose": "Evaluate discrepancies — variance computation for matched pairs"},
+    {"capability": "assert", "invocation_index": 4, "purpose": "Assert balance — variance within threshold gate"},
+    {"capability": "persist", "invocation_index": 5, "purpose": "Persist reconciliation report"}
+  ],
+  "checkpoint_boundaries": [5],
+
+  "acquire_fixture_data": {
+    "transactions": [
+      {"transaction_id": "txn-001", "amount": 100.00, "currency": "USD", "reference": "INV-2026-001", "settled_at": "2026-03-10T10:00:00Z"},
+      {"transaction_id": "txn-002", "amount": 250.50, "currency": "USD", "reference": "INV-2026-002", "settled_at": "2026-03-10T11:30:00Z"},
+      {"transaction_id": "txn-003", "amount": 75.25, "currency": "USD", "reference": "INV-2026-003", "settled_at": "2026-03-10T14:15:00Z"},
+      {"transaction_id": "txn-004", "amount": 500.00, "currency": "USD", "reference": "INV-2026-099", "settled_at": "2026-03-10T16:45:00Z"}
+    ]
+  },
+
+  "input": {
+    "context": {
+      "reconciliation_date": "2026-03-10",
+      "variance_threshold": 5.0,
+      "max_unmatched": 2,
+      "internal_records": [
+        {"reference": "INV-2026-001", "amount": 100.00, "status": "paid"},
+        {"reference": "INV-2026-002", "amount": 250.00, "status": "paid"},
+        {"reference": "INV-2026-003", "amount": 75.25, "status": "paid"}
+      ]
+    },
+    "deps": {},
+    "step": {"name": "reconcile_payments"}
+  },
+
+  "expected_intermediate_outputs": {
+    "step_0_acquire": {
+      "description": "External transactions acquired from payment gateway",
+      "output_check": {
+        "external_transactions_count": 4,
+        "external_count": 4
+      }
+    },
+    "step_1_validate": {
+      "description": "Schema validation passes — acquired data has all required fields",
+      "output_check": {
+        "passes": true
+      }
+    },
+    "step_2_matching": {
+      "description": "Transactions matched against internal records",
+      "output_check": {
+        "matched_count": 3,
+        "unmatched_count": 1,
+        "unmatched_reference": "INV-2026-099"
+      },
+      "notes": "txn-004 has reference INV-2026-099 which has no internal match"
+    },
+    "step_3_discrepancies": {
+      "description": "Variance computed for matched pairs",
+      "output_check": {
+        "matched_count": 3,
+        "unmatched_count": 1,
+        "total_variance": 0.50,
+        "discrepancy_detail": "INV-2026-002 has 0.50 variance (250.50 external vs 250.00 internal)"
+      }
+    },
+    "step_4_assert": {
+      "description": "Balance assertion passes — variance 0.50 <= 5.0 threshold, 1 unmatched <= 2 max",
+      "output_check": {
+        "passes": true
+      }
+    }
+  },
+
+  "expected_final_output": {
+    "description": "Reconciliation report persisted with summary",
+    "output_check": {
+      "reconciliation_id_present": true,
+      "matched_count": 3,
+      "unmatched_count": 1,
+      "total_variance": 0.50,
+      "status": "completed"
+    }
+  },
+
+  "failure_cases": {
+    "variance_exceeds_threshold": {
+      "description": "Large variance should fail the assert at step 4",
+      "acquire_fixture_data": {
+        "transactions": [
+          {"transaction_id": "txn-001", "amount": 200.00, "currency": "USD", "reference": "INV-2026-001", "settled_at": "2026-03-10T10:00:00Z"}
+        ]
+      },
+      "input": {
+        "context": {
+          "reconciliation_date": "2026-03-10",
+          "variance_threshold": 5.0,
+          "max_unmatched": 2,
+          "internal_records": [
+            {"reference": "INV-2026-001", "amount": 100.00, "status": "paid"}
+          ]
+        },
+        "deps": {},
+        "step": {"name": "reconcile_payments"}
+      },
+      "expected_error": {
+        "invocation_index": 4,
+        "capability": "assert"
+      },
+      "notes": "Variance of 100.00 exceeds threshold of 5.0"
+    },
+    "too_many_unmatched": {
+      "description": "Exceeding max_unmatched should fail the assert at step 4",
+      "acquire_fixture_data": {
+        "transactions": [
+          {"transaction_id": "txn-001", "amount": 100.00, "currency": "USD", "reference": "NO-MATCH-1", "settled_at": "2026-03-10T10:00:00Z"},
+          {"transaction_id": "txn-002", "amount": 200.00, "currency": "USD", "reference": "NO-MATCH-2", "settled_at": "2026-03-10T11:00:00Z"},
+          {"transaction_id": "txn-003", "amount": 300.00, "currency": "USD", "reference": "NO-MATCH-3", "settled_at": "2026-03-10T12:00:00Z"}
+        ]
+      },
+      "input": {
+        "context": {
+          "reconciliation_date": "2026-03-10",
+          "variance_threshold": 5.0,
+          "max_unmatched": 2,
+          "internal_records": []
+        },
+        "deps": {},
+        "step": {"name": "reconcile_payments"}
+      },
+      "expected_error": {
+        "invocation_index": 4,
+        "capability": "assert"
+      },
+      "notes": "3 unmatched exceeds max_unmatched of 2"
+    }
+  }
+}

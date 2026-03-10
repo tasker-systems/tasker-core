@@ -1,0 +1,132 @@
+{
+  "workflow": "ecommerce_order_processing",
+  "description": "Test fixtures for the e-commerce order processing composition",
+  "case_study_origin": "docs/action-grammar/case-studies/workflow-patterns.md — Workflow 1: E-commerce Order Processing",
+  "capabilities_exercised": [
+    {"capability": "validate", "invocation_index": 0, "purpose": "Schema conformance check on incoming order data"},
+    {"capability": "transform", "invocation_index": 1, "purpose": "Reshape cart items — compute line totals per item"},
+    {"capability": "transform", "invocation_index": 2, "purpose": "Compute order totals — subtotal, tax, shipping, grand total"},
+    {"capability": "transform", "invocation_index": 3, "purpose": "Evaluate business rules for order routing — priority, warehouse, fraud"},
+    {"capability": "persist", "invocation_index": 4, "purpose": "Persist confirmed order to orders-db"},
+    {"capability": "emit", "invocation_index": 5, "purpose": "Emit order.confirmed domain event"}
+  ],
+  "checkpoint_boundaries": [4, 5],
+
+  "input": {
+    "context": {
+      "customer_id": "cust-12345",
+      "items": [
+        {"sku": "WIDGET-001", "name": "Premium Widget", "quantity": 3, "unit_price": 29.99},
+        {"sku": "GADGET-002", "name": "Super Gadget", "quantity": 1, "unit_price": 149.99},
+        {"sku": "CABLE-003", "name": "USB-C Cable", "quantity": 5, "unit_price": 12.99}
+      ],
+      "shipping_address": {
+        "street": "123 Main St",
+        "city": "Portland",
+        "state": "OR",
+        "zip": "97201"
+      }
+    },
+    "deps": {},
+    "step": {"name": "process_order"}
+  },
+
+  "expected_intermediate_outputs": {
+    "step_0_validate": {
+      "description": "Validated order data passes through unchanged",
+      "output": {
+        "customer_id": "cust-12345",
+        "items": [
+          {"sku": "WIDGET-001", "name": "Premium Widget", "quantity": 3, "unit_price": 29.99},
+          {"sku": "GADGET-002", "name": "Super Gadget", "quantity": 1, "unit_price": 149.99},
+          {"sku": "CABLE-003", "name": "USB-C Cable", "quantity": 5, "unit_price": 12.99}
+        ],
+        "shipping_address": {
+          "street": "123 Main St",
+          "city": "Portland",
+          "state": "OR",
+          "zip": "97201"
+        }
+      }
+    },
+    "step_1_reshape": {
+      "description": "Cart items reshaped with computed line totals",
+      "output_check": {
+        "customer_id": "cust-12345",
+        "line_items_count": 3,
+        "first_line_total": 89.97,
+        "second_line_total": 149.99,
+        "third_line_total": 64.95
+      }
+    },
+    "step_2_totals": {
+      "description": "Order totals computed with tax and shipping",
+      "output_check": {
+        "subtotal": 304.91,
+        "tax_approx": 24.3928,
+        "shipping": 0,
+        "total_approx": 329.3028
+      },
+      "notes": "Free shipping because subtotal >= 100. Tax = subtotal * 0.08."
+    },
+    "step_3_routing": {
+      "description": "Business rules evaluated for routing",
+      "output_check": {
+        "routing.priority": "normal",
+        "routing.warehouse": "west",
+        "routing.fraud_review": false
+      },
+      "notes": "Normal priority (100 < total < 500), west warehouse (state=OR), no fraud review (total < 1000)"
+    }
+  },
+
+  "expected_final_output": {
+    "description": "Final output after persist and emit — order confirmation with event metadata",
+    "output_check": {
+      "order_id_present": true,
+      "event_id_present": true,
+      "event_name": "order.confirmed"
+    }
+  },
+
+  "failure_cases": {
+    "missing_items": {
+      "description": "Order with no items should fail validation at step 0",
+      "input": {
+        "context": {
+          "customer_id": "cust-99999",
+          "items": [],
+          "shipping_address": {
+            "street": "456 Elm St",
+            "city": "Seattle",
+            "state": "WA",
+            "zip": "98101"
+          }
+        },
+        "deps": {},
+        "step": {"name": "process_order"}
+      },
+      "expected_error": {
+        "invocation_index": 0,
+        "capability": "validate"
+      }
+    },
+    "missing_required_field": {
+      "description": "Order missing shipping_address should fail validation at step 0",
+      "input": {
+        "context": {
+          "customer_id": "cust-99999",
+          "items": [
+            {"sku": "WIDGET-001", "name": "Widget", "quantity": 1, "unit_price": 10.00}
+          ]
+        },
+        "deps": {},
+        "step": {"name": "process_order"}
+      },
+      "expected_error": {
+        "invocation_index": 0,
+        "capability": "validate"
+      }
+    }
+  }
+}
