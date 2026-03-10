@@ -10,6 +10,8 @@ pub mod postgres;
 #[cfg(feature = "http")]
 pub mod http;
 
+pub mod messaging;
+
 #[cfg(feature = "postgres")]
 pub mod sql_gen;
 
