@@ -564,3 +564,86 @@ fn has_capability_returns_correct_values() {
     assert!(executor.has_capability("transform"));
     assert!(!executor.has_capability("nonexistent"));
 }
+
+// ---------------------------------------------------------------------------
+// Execution limits (security hardening)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn rejects_composition_exceeding_invocation_limit() {
+    use super::CompositionExecutorConfig;
+
+    let executor = CompositionExecutor::builder()
+        .register("transform", TransformExecutor::new(engine()))
+        .config(CompositionExecutorConfig {
+            max_invocation_count: 3,
+            ..Default::default()
+        })
+        .build();
+
+    // Build a composition with 5 invocations (exceeds limit of 3)
+    let invocations: Vec<CapabilityInvocation> = (0..5)
+        .map(|_| CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({"filter": "."}),
+            checkpoint: false,
+        })
+        .collect();
+
+    let spec = make_spec(invocations);
+    let input = default_input(json!({"x": 1}));
+    let result = executor.execute(&spec, input, "test", 1);
+    assert!(
+        matches!(result, Err(CompositionError::TooManyInvocations { count: 5, limit: 3 })),
+        "expected TooManyInvocations, got: {result:?}"
+    );
+}
+
+#[test]
+fn allows_composition_within_invocation_limit() {
+    use super::CompositionExecutorConfig;
+
+    let executor = CompositionExecutor::builder()
+        .register("transform", TransformExecutor::new(engine()))
+        .config(CompositionExecutorConfig {
+            max_invocation_count: 10,
+            ..Default::default()
+        })
+        .build();
+
+    let invocations: Vec<CapabilityInvocation> = (0..3)
+        .map(|_| CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({"filter": "."}),
+            checkpoint: false,
+        })
+        .collect();
+
+    let spec = make_spec(invocations);
+    let input = default_input(json!({"x": 1}));
+    let result = executor.execute(&spec, input, "test", 1);
+    assert!(result.is_ok(), "should succeed within limit: {result:?}");
+}
+
+#[test]
+fn default_config_allows_reasonable_compositions() {
+    // Default limit is 100 — a 5-invocation composition should work fine
+    let executor = make_executor();
+    let invocations = vec![
+        CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({"filter": "{doubled: (.context.value * 2)}"}),
+            checkpoint: false,
+        },
+        CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({"filter": "{result: .prev.doubled}"}),
+            checkpoint: false,
+        },
+    ];
+
+    let spec = make_spec(invocations);
+    let input = default_input(json!({"value": 21}));
+    let result = executor.execute(&spec, input, "test", 1).unwrap();
+    assert_eq!(result.output, json!({"result": 42}));
+}

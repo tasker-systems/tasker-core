@@ -17,6 +17,13 @@ use crate::types::{
 
 use super::schema_compat::check_schema_compatibility;
 
+/// Maximum number of invocations allowed in a composition.
+///
+/// This limit prevents resource exhaustion from pathologically large compositions.
+/// It aligns with the default [`CompositionExecutorConfig::max_invocation_count`]
+/// but is enforced at design-time validation rather than runtime.
+const MAX_INVOCATION_COUNT: usize = 100;
+
 /// Registry providing capability declarations for validation.
 ///
 /// The validator looks up capabilities by name to obtain their config schemas,
@@ -169,13 +176,28 @@ impl<'a> CompositionValidator<'a> {
     pub fn validate(&self, spec: &CompositionSpec) -> ValidationResult {
         let mut findings = Vec::new();
 
-        // Check 0: Empty composition
+        // Check 0a: Empty composition
         if spec.invocations.is_empty() {
             findings.push(ValidationFinding {
                 severity: Severity::Error,
                 code: "EMPTY_COMPOSITION".to_owned(),
                 invocation_index: None,
                 message: "composition has no invocations".to_owned(),
+                field_path: None,
+            });
+            return ValidationResult { findings };
+        }
+
+        // Check 0b: Invocation count limit (prevents resource exhaustion)
+        if spec.invocations.len() > MAX_INVOCATION_COUNT {
+            findings.push(ValidationFinding {
+                severity: Severity::Error,
+                code: "TOO_MANY_INVOCATIONS".to_owned(),
+                invocation_index: None,
+                message: format!(
+                    "composition has {} invocations, exceeding maximum of {MAX_INVOCATION_COUNT}",
+                    spec.invocations.len()
+                ),
                 field_path: None,
             });
             return ValidationResult { findings };

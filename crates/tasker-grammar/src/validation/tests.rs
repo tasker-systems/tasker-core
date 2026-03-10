@@ -1241,3 +1241,39 @@ fn deeply_nested_schema_produces_depth_warning() {
         "should produce depth warning for deeply nested schema; findings: {findings:?}"
     );
 }
+
+#[test]
+fn too_many_invocations_produces_error() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    // Build a composition with 150 invocations (exceeds MAX_INVOCATION_COUNT of 100)
+    let invocations: Vec<CapabilityInvocation> = (0..150)
+        .map(|_| CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({"filter": "."}),
+            checkpoint: false,
+        })
+        .collect();
+
+    let spec = CompositionSpec {
+        name: Some("oversized".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({"type": "object"}),
+        },
+        invocations,
+    };
+
+    let result = validator.validate(&spec);
+    assert!(
+        !result.errors().is_empty(),
+        "should reject oversized composition"
+    );
+    assert!(
+        result.errors().iter().any(|f| f.code == "TOO_MANY_INVOCATIONS"),
+        "should have TOO_MANY_INVOCATIONS error; findings: {:?}",
+        result.errors()
+    );
+}
