@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::expression::ExpressionEngine;
 use crate::types::{
@@ -1210,5 +1210,34 @@ fn empty_consumer_schema_always_compatible() {
     assert!(
         findings.is_empty(),
         "empty consumer should be compatible with anything"
+    );
+}
+
+#[test]
+fn deeply_nested_schema_produces_depth_warning() {
+    use super::schema_compat::check_schema_compatibility;
+
+    // Build a schema nested 40 levels deep (exceeds MAX_SCHEMA_DEPTH of 32)
+    fn nest_schema(depth: usize) -> Value {
+        if depth == 0 {
+            return json!({
+                "type": "object",
+                "required": ["leaf"],
+                "properties": { "leaf": { "type": "string" } }
+            });
+        }
+        let inner = nest_schema(depth - 1);
+        json!({
+            "type": "object",
+            "required": ["nested"],
+            "properties": { "nested": inner }
+        })
+    }
+
+    let schema = nest_schema(40);
+    let findings = check_schema_compatibility(&schema, &schema, "test", None);
+    assert!(
+        findings.iter().any(|f| f.code == "SCHEMA_DEPTH_EXCEEDED"),
+        "should produce depth warning for deeply nested schema; findings: {findings:?}"
     );
 }

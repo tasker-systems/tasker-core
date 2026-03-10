@@ -188,6 +188,11 @@ impl TypedCapabilityExecutor for ValidateExecutor {
     }
 }
 
+/// Maximum recursion depth for coercion and field filtering.
+///
+/// Prevents stack overflow from pathologically deep data structures.
+const MAX_RECURSION_DEPTH: usize = 32;
+
 /// Apply type coercion to data based on schema type expectations.
 ///
 /// Coercion targets:
@@ -197,8 +202,19 @@ impl TypedCapabilityExecutor for ValidateExecutor {
 /// - Number → String: `42` → `"42"` (when schema expects string)
 /// - Boolean → String: `true` → `"true"` (when schema expects string)
 ///
-/// Coercion is applied recursively for objects and arrays.
+/// Coercion is applied recursively for objects and arrays, up to
+/// [`MAX_RECURSION_DEPTH`] levels deep. Beyond that limit, values are
+/// passed through unchanged.
 fn apply_coercion(value: &Value, schema: &Value) -> Value {
+    apply_coercion_inner(value, schema, 0)
+}
+
+/// Inner recursive implementation with depth tracking.
+fn apply_coercion_inner(value: &Value, schema: &Value, depth: usize) -> Value {
+    if depth > MAX_RECURSION_DEPTH {
+        return value.clone();
+    }
+
     match value {
         Value::Object(map) => {
             let properties = schema.get("properties").and_then(Value::as_object);
@@ -206,7 +222,7 @@ fn apply_coercion(value: &Value, schema: &Value) -> Value {
             let mut result = serde_json::Map::new();
             for (key, val) in map {
                 let coerced = if let Some(prop_schema) = properties.and_then(|p| p.get(key)) {
-                    apply_coercion(val, prop_schema)
+                    apply_coercion_inner(val, prop_schema, depth + 1)
                 } else {
                     val.clone()
                 };
@@ -221,7 +237,7 @@ fn apply_coercion(value: &Value, schema: &Value) -> Value {
                 arr.iter()
                     .map(|item| {
                         if let Some(item_schema) = items_schema {
-                            apply_coercion(item, item_schema)
+                            apply_coercion_inner(item, item_schema, depth + 1)
                         } else {
                             item.clone()
                         }
@@ -285,8 +301,19 @@ fn apply_coercion(value: &Value, schema: &Value) -> Value {
 /// Remove fields from `data` that are not declared in the schema's `properties`.
 ///
 /// Only applies to object values where the schema declares `properties`.
-/// Recurses into nested objects whose property schemas also declare `properties`.
+/// Recurses into nested objects whose property schemas also declare `properties`,
+/// up to [`MAX_RECURSION_DEPTH`] levels deep. Beyond that limit, data is left
+/// unchanged.
 fn filter_extra_fields(data: &mut Value, schema: &Value) {
+    filter_extra_fields_inner(data, schema, 0);
+}
+
+/// Inner recursive implementation with depth tracking.
+fn filter_extra_fields_inner(data: &mut Value, schema: &Value, depth: usize) {
+    if depth > MAX_RECURSION_DEPTH {
+        return;
+    }
+
     if let Value::Object(map) = data {
         if let Some(properties) = schema.get("properties").and_then(Value::as_object) {
             map.retain(|key, _| properties.contains_key(key));
@@ -294,7 +321,7 @@ fn filter_extra_fields(data: &mut Value, schema: &Value) {
             // Recurse into nested objects
             for (key, val) in map.iter_mut() {
                 if let Some(prop_schema) = properties.get(key) {
-                    filter_extra_fields(val, prop_schema);
+                    filter_extra_fields_inner(val, prop_schema, depth + 1);
                 }
             }
         }
@@ -304,7 +331,7 @@ fn filter_extra_fields(data: &mut Value, schema: &Value) {
     if let Value::Array(arr) = data {
         if let Some(items_schema) = schema.get("items") {
             for item in arr.iter_mut() {
-                filter_extra_fields(item, items_schema);
+                filter_extra_fields_inner(item, items_schema, depth + 1);
             }
         }
     }
@@ -511,3 +538,116 @@ fn coerce_to_date(s: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod depth_guard_tests {
+    use serde_json::{json, Value};
+
+    use super::{apply_coercion, filter_extra_fields};
+
+    /// Build a JSON object nested `depth` levels deep with a leaf value.
+    fn nest_object(depth: usize, leaf: Value) -> Value {
+        if depth == 0 {
+            return leaf;
+        }
+        json!({ "nested": nest_object(depth - 1, leaf) })
+    }
+
+    /// Build a JSON Schema matching the nested object structure.
+    fn nest_schema(depth: usize, leaf_schema: Value) -> Value {
+        if depth == 0 {
+            return leaf_schema;
+        }
+        json!({
+            "type": "object",
+            "properties": { "nested": nest_schema(depth - 1, leaf_schema) }
+        })
+    }
+
+    #[test]
+    fn coercion_stops_at_max_depth() {
+        // Create a structure 40 levels deep with a string "42" that should
+        // be coerced to integer. Beyond MAX_RECURSION_DEPTH (32), the coercion
+        // should stop and the string should remain unchanged.
+        let data = nest_object(40, json!("42"));
+        let schema = nest_schema(40, json!({"type": "integer"}));
+
+        let result = apply_coercion(&data, &schema);
+
+        // Navigate to the leaf — it should still be a string because
+        // coercion stopped recursing before reaching it.
+        let mut cursor = &result;
+        for _ in 0..40 {
+            cursor = &cursor["nested"];
+        }
+        assert!(
+            cursor.is_string(),
+            "leaf should remain a string when beyond max recursion depth, got: {cursor}"
+        );
+    }
+
+    #[test]
+    fn coercion_works_within_depth_limit() {
+        // 10 levels deep — well within the limit
+        let data = nest_object(10, json!("42"));
+        let schema = nest_schema(10, json!({"type": "integer"}));
+
+        let result = apply_coercion(&data, &schema);
+
+        let mut cursor = &result;
+        for _ in 0..10 {
+            cursor = &cursor["nested"];
+        }
+        assert_eq!(*cursor, json!(42), "leaf should be coerced to integer");
+    }
+
+    #[test]
+    fn filter_extra_fields_stops_at_max_depth() {
+        // Create a structure 40 levels deep with an extra field at the leaf.
+        let mut data = nest_object(40, json!({"keep": 1, "remove": 2}));
+        let schema = nest_schema(
+            40,
+            json!({
+                "type": "object",
+                "properties": { "keep": { "type": "integer" } }
+            }),
+        );
+
+        filter_extra_fields(&mut data, &schema);
+
+        // Navigate to the leaf — "remove" should still be present because
+        // filtering stopped recursing before reaching it.
+        let mut cursor = &data;
+        for _ in 0..40 {
+            cursor = &cursor["nested"];
+        }
+        assert!(
+            cursor.get("remove").is_some(),
+            "extra field should remain when beyond max recursion depth"
+        );
+    }
+
+    #[test]
+    fn filter_extra_fields_works_within_depth_limit() {
+        let mut data = nest_object(10, json!({"keep": 1, "remove": 2}));
+        let schema = nest_schema(
+            10,
+            json!({
+                "type": "object",
+                "properties": { "keep": { "type": "integer" } }
+            }),
+        );
+
+        filter_extra_fields(&mut data, &schema);
+
+        let mut cursor = &data;
+        for _ in 0..10 {
+            cursor = &cursor["nested"];
+        }
+        assert!(
+            cursor.get("remove").is_none(),
+            "extra field should be removed within depth limit"
+        );
+        assert_eq!(cursor["keep"], json!(1));
+    }
+}
