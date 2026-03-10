@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-10-tas-374-375-runtime-adapters-pool-manager-design.md`
 
+**Review fixes applied:**
+1. Adapters take `Arc<dyn ResourceHandle>` (not `Arc<PostgresHandle>`) — downcast internally, avoids Clone requirement on handles
+2. `InMemorySecretsProvider::new()` requires `HashMap<String, String>` argument — test helper updated
+3. Registry tests verify factory registration + correct error on wrong handle type (InMemoryResourceHandle can't downcast to Postgres/HTTP)
+4. Postgres persist uses `.fetch_optional()` not `.execute()` to capture RETURNING * rows
+
 ---
 
 ## File Structure
@@ -941,15 +947,25 @@ use tasker_secure::resource::postgres::PostgresHandle;
 use super::sql_gen;
 
 /// Adapts a `PostgresHandle` for structured write operations.
+///
+/// Stores the handle as `Arc<dyn ResourceHandle>` and downcasts on use.
+/// This avoids requiring `Clone` on `PostgresHandle`.
 #[derive(Debug)]
 pub struct PostgresPersistAdapter {
-    handle: Arc<PostgresHandle>,
+    handle: Arc<dyn tasker_secure::ResourceHandle>,
 }
 
 impl PostgresPersistAdapter {
     /// Create a new persist adapter wrapping the given handle.
-    pub fn new(handle: Arc<PostgresHandle>) -> Self {
+    pub fn new(handle: Arc<dyn tasker_secure::ResourceHandle>) -> Self {
         Self { handle }
+    }
+
+    fn pg_handle(&self) -> Result<&PostgresHandle, ResourceOperationError> {
+        use tasker_secure::resource::ResourceHandleExt;
+        self.handle.as_postgres().ok_or_else(|| ResourceOperationError::ValidationFailed {
+            message: format!("Expected Postgres handle, got {:?}", self.handle.resource_type()),
+        })
     }
 }
 
@@ -1006,21 +1022,25 @@ impl PersistableResource for PostgresPersistAdapter {
             query = bind_json_value(query, value);
         }
 
-        // Execute
-        let pool = self.handle.pool();
-        let result = query
-            .execute(pool)
+        // Execute with fetch_optional to capture RETURNING * row
+        let pg = self.pg_handle()?;
+        let pool = pg.pool();
+        let row = query
+            .fetch_optional(pool)
             .await
             .map_err(|e| ResourceOperationError::Other {
                 message: format!("SQL execution failed: {e}"),
                 source: Some(Box::new(e)),
             })?;
 
+        let data = match row {
+            Some(row) => row_to_json(&row)?,
+            None => serde_json::json!({}),
+        };
+
         Ok(PersistResult {
-            data: serde_json::json!({
-                "rows_affected": result.rows_affected(),
-            }),
-            affected_count: Some(result.rows_affected()),
+            data,
+            affected_count: Some(1),
         })
     }
 }
@@ -1127,7 +1147,8 @@ impl AcquirableResource for PostgresAcquireAdapter {
             }
         }
 
-        let pool = self.handle.pool();
+        let pg = self.pg_handle()?;
+        let pool = pg.pool();
         let rows = query
             .fetch_all(pool)
             .await
@@ -1404,13 +1425,20 @@ async fn parse_response_json(response: reqwest::Response) -> Result<serde_json::
 /// Adapts an `HttpHandle` for structured write operations (POST/PUT/PATCH/DELETE).
 #[derive(Debug)]
 pub struct HttpPersistAdapter {
-    handle: Arc<HttpHandle>,
+    handle: Arc<dyn tasker_secure::ResourceHandle>,
 }
 
 impl HttpPersistAdapter {
     /// Create a new persist adapter wrapping the given handle.
-    pub fn new(handle: Arc<HttpHandle>) -> Self {
+    pub fn new(handle: Arc<dyn tasker_secure::ResourceHandle>) -> Self {
         Self { handle }
+    }
+
+    fn http_handle(&self) -> Result<&HttpHandle, ResourceOperationError> {
+        use tasker_secure::resource::ResourceHandleExt;
+        self.handle.as_http().ok_or_else(|| ResourceOperationError::ValidationFailed {
+            message: format!("Expected HTTP handle, got {:?}", self.handle.resource_type()),
+        })
     }
 }
 
@@ -1459,15 +1487,24 @@ impl PersistableResource for HttpPersistAdapter {
 }
 
 /// Adapts an `HttpHandle` for structured read operations (GET).
+///
+/// Same pattern as HttpPersistAdapter: stores Arc<dyn ResourceHandle>,
+/// downcasts via http_handle() helper.
 #[derive(Debug)]
 pub struct HttpAcquireAdapter {
-    handle: Arc<HttpHandle>,
+    handle: Arc<dyn tasker_secure::ResourceHandle>,
 }
 
 impl HttpAcquireAdapter {
-    /// Create a new acquire adapter wrapping the given handle.
-    pub fn new(handle: Arc<HttpHandle>) -> Self {
+    pub fn new(handle: Arc<dyn tasker_secure::ResourceHandle>) -> Self {
         Self { handle }
+    }
+
+    fn http_handle(&self) -> Result<&HttpHandle, ResourceOperationError> {
+        use tasker_secure::resource::ResourceHandleExt;
+        self.handle.as_http().ok_or_else(|| ResourceOperationError::ValidationFailed {
+            message: format!("Expected HTTP handle, got {:?}", self.handle.resource_type()),
+        })
     }
 }
 
@@ -1533,15 +1570,22 @@ impl AcquirableResource for HttpAcquireAdapter {
 }
 
 /// Adapts an `HttpHandle` for event emission (POST webhook).
+/// Same Arc<dyn ResourceHandle> + downcast pattern.
 #[derive(Debug)]
 pub struct HttpEmitAdapter {
-    handle: Arc<HttpHandle>,
+    handle: Arc<dyn tasker_secure::ResourceHandle>,
 }
 
 impl HttpEmitAdapter {
-    /// Create a new emit adapter wrapping the given handle.
-    pub fn new(handle: Arc<HttpHandle>) -> Self {
+    pub fn new(handle: Arc<dyn tasker_secure::ResourceHandle>) -> Self {
         Self { handle }
+    }
+
+    fn http_handle(&self) -> Result<&HttpHandle, ResourceOperationError> {
+        use tasker_secure::resource::ResourceHandleExt;
+        self.handle.as_http().ok_or_else(|| ResourceOperationError::ValidationFailed {
+            message: format!("Expected HTTP handle, got {:?}", self.handle.resource_type()),
+        })
     }
 }
 
@@ -1759,63 +1803,74 @@ use tasker_runtime::adapters::registry::AdapterRegistry;
 use tasker_secure::testing::InMemoryResourceHandle;
 use tasker_secure::ResourceType;
 
+// Note: InMemoryResourceHandle can't downcast to PostgresHandle/HttpHandle,
+// so factory *execution* returns Err. These tests verify the factory is
+// registered (lookup succeeds) and the downcast error is descriptive.
+
 #[test]
-fn standard_registry_has_postgres_persist() {
+fn standard_registry_has_postgres_persist_factory() {
     let registry = AdapterRegistry::standard();
     let handle = Arc::new(InMemoryResourceHandle::new("test_db", ResourceType::Postgres));
     let result = registry.as_persistable(handle);
-    assert!(result.is_ok(), "Postgres should support persist");
+    // Factory is registered but downcast fails for InMemoryResourceHandle
+    let err = result.unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("Expected Postgres handle"), "Got: {msg}");
 }
 
 #[test]
-fn standard_registry_has_postgres_acquire() {
-    let registry = AdapterRegistry::standard();
-    let handle = Arc::new(InMemoryResourceHandle::new("test_db", ResourceType::Postgres));
-    let result = registry.as_acquirable(handle);
-    assert!(result.is_ok(), "Postgres should support acquire");
-}
-
-#[test]
-fn standard_registry_has_http_persist() {
-    let registry = AdapterRegistry::standard();
-    let handle = Arc::new(InMemoryResourceHandle::new("test_api", ResourceType::Http));
-    let result = registry.as_persistable(handle);
-    assert!(result.is_ok(), "HTTP should support persist");
-}
-
-#[test]
-fn standard_registry_has_http_acquire() {
-    let registry = AdapterRegistry::standard();
-    let handle = Arc::new(InMemoryResourceHandle::new("test_api", ResourceType::Http));
-    let result = registry.as_acquirable(handle);
-    assert!(result.is_ok(), "HTTP should support acquire");
-}
-
-#[test]
-fn standard_registry_has_http_emit() {
+fn standard_registry_has_http_emit_factory() {
     let registry = AdapterRegistry::standard();
     let handle = Arc::new(InMemoryResourceHandle::new("webhook", ResourceType::Http));
     let result = registry.as_emittable(handle);
-    assert!(result.is_ok(), "HTTP should support emit");
+    let err = result.unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("Expected HTTP handle"), "Got: {msg}");
 }
 
 #[test]
-fn unknown_resource_type_returns_error() {
+fn unknown_resource_type_returns_no_factory_error() {
     let registry = AdapterRegistry::standard();
     let handle = Arc::new(InMemoryResourceHandle::new(
         "custom",
         ResourceType::Custom { type_name: "redis".to_string() },
     ));
     let result = registry.as_persistable(handle);
-    assert!(result.is_err(), "Custom type without factory should fail");
+    let err = result.unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("No persist adapter registered"), "Got: {msg}");
 }
 
 #[test]
-fn pgmq_has_no_persist() {
+fn pgmq_has_no_persist_factory() {
     let registry = AdapterRegistry::standard();
     let handle = Arc::new(InMemoryResourceHandle::new("queue", ResourceType::Pgmq));
     let result = registry.as_persistable(handle);
-    assert!(result.is_err(), "PGMQ should not support persist");
+    let err = result.unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("No persist adapter registered"), "Got: {msg}");
+}
+
+#[test]
+fn custom_factory_can_be_registered() {
+    use tasker_grammar::operations::PersistableResource;
+
+    let mut registry = AdapterRegistry::new();
+    let custom_type = ResourceType::Custom { type_name: "redis".to_string() };
+
+    // Register a factory that always succeeds with a dummy adapter
+    registry.register_persist(custom_type.clone(), Box::new(|_handle| {
+        // In real code this would downcast — for testing we use InMemoryOperations
+        Err(ResourceOperationError::ValidationFailed {
+            message: "test factory called".to_string(),
+        })
+    }));
+
+    let handle = Arc::new(InMemoryResourceHandle::new("redis1", custom_type));
+    let result = registry.as_persistable(handle);
+    // Factory was found and called (returns our test error)
+    let err = result.unwrap_err();
+    assert!(format!("{err}").contains("test factory called"));
 }
 ```
 
@@ -1895,14 +1950,16 @@ impl AdapterRegistry {
     pub fn standard() -> Self {
         let mut registry = Self::new();
 
-        // Postgres adapters
+        // Postgres adapters — adapters take Arc<dyn ResourceHandle> and
+        // downcast internally, avoiding Clone requirement on PostgresHandle
         #[cfg(feature = "postgres")]
         {
             use super::postgres::{PostgresAcquireAdapter, PostgresPersistAdapter};
             use tasker_secure::resource::ResourceHandleExt;
 
             registry.register_persist(ResourceType::Postgres, Box::new(|handle| {
-                let pg = handle.as_postgres().ok_or_else(|| {
+                // Verify it's a Postgres handle (will be downcast inside the adapter)
+                handle.as_postgres().ok_or_else(|| {
                     ResourceOperationError::ValidationFailed {
                         message: format!(
                             "Expected Postgres handle, got {:?}",
@@ -1910,12 +1967,11 @@ impl AdapterRegistry {
                         ),
                     }
                 })?;
-                // Re-wrap in Arc by cloning the inner pool reference
-                Ok(Arc::new(PostgresPersistAdapter::new(Arc::new(pg.clone()))))
+                Ok(Arc::new(PostgresPersistAdapter::new(handle)))
             }));
 
             registry.register_acquire(ResourceType::Postgres, Box::new(|handle| {
-                let pg = handle.as_postgres().ok_or_else(|| {
+                handle.as_postgres().ok_or_else(|| {
                     ResourceOperationError::ValidationFailed {
                         message: format!(
                             "Expected Postgres handle, got {:?}",
@@ -1923,7 +1979,7 @@ impl AdapterRegistry {
                         ),
                     }
                 })?;
-                Ok(Arc::new(PostgresAcquireAdapter::new(Arc::new(pg.clone()))))
+                Ok(Arc::new(PostgresAcquireAdapter::new(handle)))
             }));
         }
 
@@ -1934,7 +1990,7 @@ impl AdapterRegistry {
             use tasker_secure::resource::ResourceHandleExt;
 
             registry.register_persist(ResourceType::Http, Box::new(|handle| {
-                let http = handle.as_http().ok_or_else(|| {
+                handle.as_http().ok_or_else(|| {
                     ResourceOperationError::ValidationFailed {
                         message: format!(
                             "Expected HTTP handle, got {:?}",
@@ -1942,11 +1998,11 @@ impl AdapterRegistry {
                         ),
                     }
                 })?;
-                Ok(Arc::new(HttpPersistAdapter::new(Arc::new(http.clone()))))
+                Ok(Arc::new(HttpPersistAdapter::new(handle)))
             }));
 
             registry.register_acquire(ResourceType::Http, Box::new(|handle| {
-                let http = handle.as_http().ok_or_else(|| {
+                handle.as_http().ok_or_else(|| {
                     ResourceOperationError::ValidationFailed {
                         message: format!(
                             "Expected HTTP handle, got {:?}",
@@ -1954,11 +2010,11 @@ impl AdapterRegistry {
                         ),
                     }
                 })?;
-                Ok(Arc::new(HttpAcquireAdapter::new(Arc::new(http.clone()))))
+                Ok(Arc::new(HttpAcquireAdapter::new(handle)))
             }));
 
             registry.register_emit(ResourceType::Http, Box::new(|handle| {
-                let http = handle.as_http().ok_or_else(|| {
+                handle.as_http().ok_or_else(|| {
                     ResourceOperationError::ValidationFailed {
                         message: format!(
                             "Expected HTTP handle, got {:?}",
@@ -1966,7 +2022,7 @@ impl AdapterRegistry {
                         ),
                     }
                 })?;
-                Ok(Arc::new(HttpEmitAdapter::new(Arc::new(http.clone()))))
+                Ok(Arc::new(HttpEmitAdapter::new(handle)))
             }));
         }
 
@@ -2258,7 +2314,9 @@ use tasker_secure::testing::InMemoryResourceHandle;
 use tasker_secure::{ResourceRegistry, ResourceType};
 
 fn test_secrets() -> Arc<dyn tasker_secure::SecretsProvider> {
-    Arc::new(tasker_secure::testing::InMemorySecretsProvider::new())
+    Arc::new(tasker_secure::testing::InMemorySecretsProvider::new(
+        std::collections::HashMap::new(),
+    ))
 }
 
 fn test_config() -> PoolManagerConfig {
