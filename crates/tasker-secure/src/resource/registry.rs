@@ -61,6 +61,16 @@ impl ResourceRegistry {
         map.get(name).cloned()
     }
 
+    /// Remove a resource handle by name, returning it if it existed.
+    ///
+    /// Takes an exclusive write lock. The returned handle can still be
+    /// used by any code that already holds an `Arc` to it — removal
+    /// only prevents future lookups.
+    pub async fn remove(&self, name: &str) -> Option<Arc<dyn ResourceHandle>> {
+        let mut map = self.resources.write().await;
+        map.remove(name)
+    }
+
     /// Return a lightweight summary for every registered resource.
     ///
     /// Uses `try_read()` to avoid blocking. If the lock cannot be acquired
