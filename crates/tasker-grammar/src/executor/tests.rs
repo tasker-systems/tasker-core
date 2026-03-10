@@ -594,7 +594,10 @@ fn rejects_composition_exceeding_invocation_limit() {
     let input = default_input(json!({"x": 1}));
     let result = executor.execute(&spec, input, "test", 1);
     assert!(
-        matches!(result, Err(CompositionError::TooManyInvocations { count: 5, limit: 3 })),
+        matches!(
+            result,
+            Err(CompositionError::TooManyInvocations { count: 5, limit: 3 })
+        ),
         "expected TooManyInvocations, got: {result:?}"
     );
 }

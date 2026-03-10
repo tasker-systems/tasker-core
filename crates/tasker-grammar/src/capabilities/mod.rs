@@ -40,10 +40,7 @@ const MAX_RESOURCE_REF_LEN: usize = 128;
 /// `OperationProvider` implementations **must** also treat these values
 /// as untrusted input and apply their own validation appropriate to their
 /// storage backend (SQL parameterization, path sanitization, etc.).
-pub(crate) fn validate_resource_ref(
-    value: &str,
-    field_name: &str,
-) -> Result<(), CapabilityError> {
+pub(crate) fn validate_resource_ref(value: &str, field_name: &str) -> Result<(), CapabilityError> {
     if value.is_empty() {
         return Err(CapabilityError::ConfigValidation(format!(
             "{field_name} must not be empty"

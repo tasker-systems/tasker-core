@@ -1272,7 +1272,10 @@ fn too_many_invocations_produces_error() {
         "should reject oversized composition"
     );
     assert!(
-        result.errors().iter().any(|f| f.code == "TOO_MANY_INVOCATIONS"),
+        result
+            .errors()
+            .iter()
+            .any(|f| f.code == "TOO_MANY_INVOCATIONS"),
         "should have TOO_MANY_INVOCATIONS error; findings: {:?}",
         result.errors()
     );
@@ -1299,8 +1302,10 @@ fn overlong_composition_name_produces_error() {
 
     let result = validator.validate(&spec);
     assert!(
-        result.errors().iter().any(|f| f.code == "FIELD_TOO_LONG"
-            && f.field_path.as_deref() == Some("name")),
+        result
+            .errors()
+            .iter()
+            .any(|f| f.code == "FIELD_TOO_LONG" && f.field_path.as_deref() == Some("name")),
         "should reject overlong name; findings: {:?}",
         result.errors()
     );
@@ -1327,8 +1332,10 @@ fn overlong_capability_name_produces_error() {
 
     let result = validator.validate(&spec);
     assert!(
-        result.errors().iter().any(|f| f.code == "FIELD_TOO_LONG"
-            && f.field_path.as_deref() == Some("capability")),
+        result
+            .errors()
+            .iter()
+            .any(|f| f.code == "FIELD_TOO_LONG" && f.field_path.as_deref() == Some("capability")),
         "should reject overlong capability name; findings: {:?}",
         result.errors()
     );

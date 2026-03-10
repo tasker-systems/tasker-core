@@ -477,8 +477,8 @@ fn sandbox_timeout_infinite_loop_protection() {
     let input = json!(0);
     let result = engine.evaluate_multi("limit(100000; repeat(. + 1))", &input);
     match result {
-        Err(ExpressionError::Timeout { .. }) => {}         // timeout fired first
-        Err(ExpressionError::TooManyOutputs { .. }) => {}   // output limit fired first
+        Err(ExpressionError::Timeout { .. }) => {} // timeout fired first
+        Err(ExpressionError::TooManyOutputs { .. }) => {} // output limit fired first
         Ok(values) => {
             // If it completed, the timeout didn't trigger but the filter was bounded by limit()
             assert!(!values.is_empty());
