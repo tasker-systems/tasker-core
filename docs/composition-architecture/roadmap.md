@@ -4,7 +4,7 @@
 
 *March 2026 — Supersedes `docs/action-grammar/implementation-phases.md`*
 
-*Branch: `jcoletaylor/resource-handle-traits-and-seams`*
+*All completed work merged to `main`. Active work on feature branches.*
 
 ---
 
@@ -59,12 +59,12 @@ flowchart LR
         S2["S2: ResourceRegistry\n(TAS-358) ✅"]
         G0["Phase 0: Research\nClosure ✅"]
         G1A["1A: Expression Engine\n& Core Types ✅"]
+        G1B["1B: Operation Traits\n& Contracts ✅"]
+        G1C["1C: Side-Effecting\nExecutors ✅"]
+        G1D["1D: Composition\nEngine ✅"]
     end
 
     subgraph phase1["Phase 1: Grammar Foundations"]
-        G1B["1B: Operation Traits\n& Contracts"]
-        G1C["1C: Side-Effecting\nExecutors"]
-        G1D["1D: Composition\nEngine"]
         G1E["1E: Workflow Modeling\n& Acceptance"]
     end
 
@@ -135,16 +135,17 @@ flowchart LR
 
 | Phase | Goal | Lanes | Status |
 |-------|------|-------|--------|
-| **1: Grammar Foundations** | All capability executors work with in-memory test doubles. Composition engine chains them. | 1A ✅, 1B, 1C, 1D, 1E | ~55% complete |
-| **2: Runtime Infrastructure** | tasker-runtime crate exists with adapters, pool manager, and operation provider | 2A, 2B, 2C, 2D | Not started |
+| **1: Grammar Foundations** | All capability executors work with in-memory test doubles. Composition engine chains them. | 1A ✅, 1B ✅, 1C ✅, 1D ✅, 1E | ~95% complete (only 1E acceptance tests remaining) |
+| **2: Runtime Infrastructure** | tasker-runtime crate exists with adapters, pool manager, and operation provider | 2A, 2B, 2C, 2D | Not started (unblocked — 1B complete) |
 | **3: Integration & Tooling** | Composition tooling works, StepContext aligned, CompositionExecutionContext exists | 3A, 3B, 3C, 3D | Not started |
 | **4: Worker Dispatch & Queues** | Composition worker binary receives, executes, and completes grammar-composed steps | 4A, 4B, 4C, 4D | Not started |
 
 **Key parallelism opportunities:**
+- **Lane 1D** is the new critical path — it completes Phase 1 and unblocks 1E and 3C
+- **Lane 2A** is now unblocked (1B complete) — can start alongside 1D
 - Lanes 2B, 2C can start immediately (depend only on completed TAS-358)
 - Lane 3A (StepContext rename) can start anytime — zero dependencies on other lanes
 - Lane 3D (ConfigString, S3/S4) is fully independent of all other lanes
-- Within Phase 1, lane 1B is the critical path — it unblocks both 1C and 2A
 
 ---
 
@@ -160,22 +161,21 @@ flowchart TD
         A1["1A: Expression Engine\njaq-core + sandboxing\n(TAS-321)"]
         A1types["1A: Core Types\nGrammarCategory, CompositionSpec\n(TAS-322, TAS-323)"]
         A1exec["1A: Pure Executors\ntransform, validate, assert\n(TAS-324-329, TAS-356)"]
+        B1["1B: Operation Traits\nPersistableResource, AcquirableResource\nEmittableResource (TAS-372)"]
+        B1provider["1B: OperationProvider\n+ InMemoryOperations (TAS-372)"]
+        C1["1C: Side-Effecting Executors\nPersistExecutor (TAS-330)\nAcquireExecutor (TAS-331)\nEmitExecutor (TAS-332)"]
+        D1["1D: Composition Engine\nCompositionValidator (TAS-333)\nCompositionExecutor (TAS-334)"]
     end
 
-    subgraph active_1["In Progress / Next"]
-        B1["1B: Operation Traits\nPersistableResource\nAcquirableResource\nEmittableResource"]
-        B1types["1B: Constraint & Result Types\nPersistConstraints, AcquireResult\nResourceOperationError"]
-        B1provider["1B: OperationProvider\ninterface + InMemoryOperations\ntest double"]
-        C1["1C: Side-Effecting Executors\nPersistExecutor\nAcquireExecutor\nEmitExecutor"]
-        D1["1D: Composition Engine\nCompositionValidator\nCompositionExecutor"]
-        E1["1E: Workflow Modeling\n3 real-world workflows\nacceptance tests"]
+    subgraph active_1["Next"]
+        E1["1E: Workflow Modeling\n3 real-world workflows\nacceptance tests (TAS-335, TAS-336)"]
     end
 
     A1 --> B1
     A1types --> B1
     A1exec --> D1
 
-    B1 --> B1types --> B1provider --> C1
+    B1 --> B1provider --> C1
     C1 --> D1
     D1 --> E1
 
@@ -192,47 +192,41 @@ All foundational grammar work is done:
 - Pure capability executors: `transform` (projection, arithmetic, aggregation, boolean evaluation, rule-engine patterns), `validate` (schema, coercion, filtering), `assert` (composable execution gates)
 - Comprehensive test coverage across all pure capabilities
 
-### Lane 1B: Operation Traits & Contracts — CRITICAL PATH
+### Lane 1B: Operation Traits & Contracts — COMPLETE
 
-**What:** Define the grammar's interface for resource operations. These are what persist/acquire/emit executors call through. They know nothing about PostgreSQL, HTTP, or any specific backend.
+**Status:** Merged to main (TAS-372, PR #290)
 
-**Where:** `tasker-grammar::operations` module
+**Delivered:**
+- `PersistableResource`, `AcquirableResource`, `EmittableResource` trait definitions in `tasker-grammar::operations::traits`
+- Constraint and result types: `PersistConstraints`, `AcquireConstraints`, `EmitMetadata`, `PersistResult`, `AcquireResult`, `EmitResult`, `ConflictStrategy` in `tasker-grammar::operations::types`
+- `ResourceOperationError` enum in `tasker-grammar::operations::error`
+- `OperationProvider` trait — the seam between grammar and runtime
+- `InMemoryOperations` test double in `tasker-grammar::operations::testing`
 
-**Deliverables:**
-- `PersistableResource`, `AcquirableResource`, `EmittableResource` trait definitions
-- Constraint and result types: `PersistConstraints`, `AcquireConstraints`, `EmitMetadata`, `PersistResult`, `AcquireResult`, `EmitResult`, `ConflictStrategy`
-- `ResourceOperationError` — operation-level errors (distinct from tasker-secure's `ResourceError` which covers initialization)
-- `OperationProvider` trait — the seam between "what the grammar needs" and "how the runtime provides it"
-- `InMemoryOperations` test double — fixture data for acquire, capture lists for persist/emit
-- `InMemoryOperationProvider` — wraps `InMemoryOperations` for executor testing
+**Unblocked:** Lane 1C (executors) ✅, Lane 2A (adapters) ✅
 
-**Why this is the critical path:** Unblocks both lane 1C (executors that call through these traits) and lane 2A (adapters that implement these traits).
+### Lane 1C: Side-Effecting Executors — COMPLETE
 
-**Design reference:** [resource-handle-traits-and-seams.md §Operation-Level Resource Traits](../research/resource-handle-traits-and-seams.md)
+**Status:** All three merged to main
 
-### Lane 1C: Side-Effecting Executors
+**Delivered:**
+- `PersistExecutor` (TAS-330, PR #291) — config parse → jaq expression eval → `PersistableResource::persist()` → validate_success → result_shape
+- `AcquireExecutor` (TAS-331, PR #299) — config parse → jaq expression eval → `AcquirableResource::acquire()` → validate_success → result_shape
+- `EmitExecutor` (TAS-332, PR #299) — config parse → jaq expression eval → `EmittableResource::emit()` → validate_success → result_shape
 
-**What:** Implement `PersistExecutor`, `AcquireExecutor`, `EmitExecutor`. Each owns the full action pipeline: config parse → jaq expression eval → operation call via `OperationProvider` → validate_success → result_shape.
+All executors use `InMemoryOperations` for testing — zero I/O. Full pipeline coverage in each.
 
-**Where:** `tasker-grammar::capabilities`
+**Unblocked:** Lane 1D (composition engine) ✅
 
-**Depends on:** Lane 1B (operation traits and `OperationProvider` interface)
+### Lane 1D: Composition Engine — COMPLETE
 
-**Key design point:** These executors call `context.operations.get_persistable("orders-db")` — they never see handles, pools, or adapters. Tests use `InMemoryOperations` with zero I/O.
+**Status:** Both components merged to main
 
-**Design reference:** [resource-handle-traits-and-seams.md §Full Example: persist Capability Executor](../research/resource-handle-traits-and-seams.md)
+**Delivered:**
+- `CompositionValidator` (TAS-333, PR #300) — validates composition specs end-to-end. JSON Schema contract chaining via `SchemaShape` / `schema_compat` module. ~2100 lines including comprehensive test suite.
+- `CompositionExecutor` (TAS-334, PR #301) — standalone capability chaining with data threading via composition envelope (`.context`, `.deps`, `.prev`, `.step`). ~940 lines including tests.
 
-### Lane 1D: Composition Engine
-
-**What:** `CompositionValidator` (JSON Schema contract chaining, capability compatibility) and standalone `CompositionExecutor` (capability chaining, data threading via composition envelope, checkpoint integration).
-
-**Where:** `tasker-grammar::validation`, `tasker-grammar::executor`
-
-**Depends on:** Lane 1A (types, expression engine), Lane 1C (all executors must exist)
-
-**Can partially start after 1A:** Validator structure and contract chaining logic don't require the side-effecting executors. The executor needs all capabilities to be complete.
-
-**Design reference:** [composition-validation.md](../action-grammar/composition-validation.md), [checkpoint-generalization.md](../action-grammar/checkpoint-generalization.md)
+**Unblocked:** Lane 1E (acceptance tests) ✅, Lane 3C (validation tooling) ✅
 
 ### Lane 1E: Workflow Modeling & Acceptance
 
@@ -257,7 +251,7 @@ flowchart TD
     subgraph deps["Dependencies (completed)"]
         S1["TAS-357\nSecretsProvider ✅"]
         S2["TAS-358\nResourceRegistry ✅"]
-        P1B["Phase 1B\nOperation Traits"]
+        P1B["Phase 1B\nOperation Traits ✅"]
     end
 
     subgraph phase2["Phase 2: Runtime Infrastructure"]
@@ -548,15 +542,18 @@ Phase 4 introduces a new worker type. The operational model:
 
 For quick reference, these lanes have zero unmet dependencies and can begin immediately:
 
-| Lane | Description | Depends On |
-|------|-------------|------------|
-| **1B** | Operation traits & contracts in tasker-grammar | 1A (done) |
-| **2B** | ResourcePoolManager in tasker-runtime | TAS-358 (done) |
-| **2C** | ResourceDefinitionSource in tasker-runtime | TAS-358 (done) |
-| **3A** | StepContext rename in tasker-worker | Nothing |
-| **3D** | ConfigString integration / S3 / S4 | TAS-358 (done) |
+| Lane | Description | Depends On | Priority |
+|------|-------------|------------|----------|
+| **1E** | Workflow modeling — 3 real-world acceptance tests | 1D ✅ | High — validates Phase 1, proves composition system end-to-end |
+| **2A** | Runtime scaffolding + adapters in tasker-runtime | 1B ✅, TAS-357 ✅, TAS-358 ✅ | High — unblocks 2D |
+| **2B** | ResourcePoolManager in tasker-runtime | TAS-358 ✅ | High — unblocks 2D |
+| **2C** | ResourceDefinitionSource in tasker-runtime | TAS-358 ✅ | Medium |
+| **3A** | StepContext rename in tasker-worker | Nothing | Low — pure refactor |
+| **3D** | ConfigString integration / S3 / S4 | TAS-358 ✅ | Low — independent |
 
-**Lane 1B is the critical path** — it unblocks 1C (executors) and 2A (adapters), which in turn unblock everything downstream.
+**Phase 1 core is complete.** Lane 1E (acceptance tests) validates the grammar system. Phase 2 runtime work can proceed in parallel.
+
+**Note:** Lanes 2A, 2B, 2C all require scaffolding `tasker-runtime` first (TAS-373). Whichever lane starts first should scaffold the crate.
 
 ---
 
@@ -628,11 +625,11 @@ This appendix maps roadmap lanes to Linear tickets across both projects. Use thi
 | TAS-324 | Done | 1A | No change. |
 | TAS-325-329 | Done | 1A | No change. |
 | TAS-356 | Done | 1A | No change. |
-| TAS-330 | Backlog | 1C | **Revise.** Update to reference `OperationProvider` pattern. Executor calls `context.operations.get_persistable(...)`, not direct handle access. Tests use `InMemoryOperations`, not `InMemoryResourceHandle`. |
-| TAS-331 | Backlog | 1C | **Revise.** Same as TAS-330 — update for `OperationProvider` pattern. |
-| TAS-332 | Backlog | 1C | **Revise.** Same as TAS-330 — update for `OperationProvider` pattern. |
-| TAS-333 | Backlog | 1D | No major change. CompositionValidator scope is the same. |
-| TAS-334 | Backlog | 1D | No major change. CompositionExecutor scope is the same. Note: standalone, not a StepHandler. |
+| TAS-330 | Done | 1C | Merged (PR #291). PersistExecutor implemented with OperationProvider pattern. |
+| TAS-331 | Done | 1C | Merged (PR #299). AcquireExecutor implemented with OperationProvider pattern. |
+| TAS-332 | Done | 1C | Merged (PR #299). EmitExecutor implemented with OperationProvider pattern. |
+| TAS-333 | Done | 1D | Merged (PR #300). CompositionValidator with JSON Schema contract chaining, SchemaShape typed compatibility. |
+| TAS-334 | Done | 1D | Merged (PR #301). CompositionExecutor with capability chaining + data threading via composition envelope. |
 | TAS-335 | Backlog | 1E | No change. |
 | TAS-336 | Backlog | 1E | No change. |
 | TAS-363 | Backlog | — | **Evaluate.** SIMD JSON spike. Independent research, not on critical path. |
@@ -665,9 +662,9 @@ This appendix maps roadmap lanes to Linear tickets across both projects. Use thi
 
 | Roadmap Lane | Description | Project |
 |-------------|-------------|---------|
-| 1B | Define operation traits (PersistableResource, AcquirableResource, EmittableResource) in tasker-grammar | Action Grammar |
-| 1B | Define OperationProvider interface and InMemoryOperations test double | Action Grammar |
-| 2 | Scaffold tasker-runtime crate with workspace integration | Action Grammar or new project |
+| ~~1B~~ | ~~Define operation traits~~ | ~~Done (TAS-372, PR #290)~~ |
+| ~~1B~~ | ~~Define OperationProvider interface and InMemoryOperations~~ | ~~Done (TAS-372, PR #290)~~ |
+| 2 | Scaffold tasker-runtime crate with workspace integration (TAS-373) | Action Grammar |
 | 2A | Implement adapter pattern (PostgresPersistAdapter, HttpAcquireAdapter, etc.) | Action Grammar or new project |
 | 2A | Implement AdapterRegistry | Action Grammar or new project |
 | 2B | Implement ResourcePoolManager with eviction and backpressure | Action Grammar or new project |
