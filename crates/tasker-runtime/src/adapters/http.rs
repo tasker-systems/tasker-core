@@ -18,6 +18,7 @@ use tasker_secure::resource::http::HttpHandle;
 /// Adapts an `HttpHandle` for structured write operations (POST/PUT).
 #[derive(Debug)]
 pub struct HttpPersistAdapter {
+    #[expect(dead_code, reason = "used in TAS-375 implementation")]
     handle: Arc<HttpHandle>,
 }
 
@@ -43,6 +44,7 @@ impl PersistableResource for HttpPersistAdapter {
 /// Adapts an `HttpHandle` for structured read operations (GET).
 #[derive(Debug)]
 pub struct HttpAcquireAdapter {
+    #[expect(dead_code, reason = "used in TAS-375 implementation")]
     handle: Arc<HttpHandle>,
 }
 
@@ -68,6 +70,7 @@ impl AcquirableResource for HttpAcquireAdapter {
 /// Adapts an `HttpHandle` for event emission (POST webhook).
 #[derive(Debug)]
 pub struct HttpEmitAdapter {
+    #[expect(dead_code, reason = "used in TAS-375 implementation")]
     handle: Arc<HttpHandle>,
 }
 

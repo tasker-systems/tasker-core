@@ -16,6 +16,7 @@ use tasker_secure::resource::postgres::PostgresHandle;
 /// Adapts a `PostgresHandle` for structured write operations.
 #[derive(Debug)]
 pub struct PostgresPersistAdapter {
+    #[expect(dead_code, reason = "used in TAS-375 implementation")]
     handle: Arc<PostgresHandle>,
 }
 
@@ -41,6 +42,7 @@ impl PersistableResource for PostgresPersistAdapter {
 /// Adapts a `PostgresHandle` for structured read operations.
 #[derive(Debug)]
 pub struct PostgresAcquireAdapter {
+    #[expect(dead_code, reason = "used in TAS-375 implementation")]
     handle: Arc<PostgresHandle>,
 }
 

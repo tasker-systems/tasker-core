@@ -6,9 +6,7 @@
 mod lifecycle;
 mod metrics;
 
-pub use lifecycle::{
-    AdmissionStrategy, EvictionStrategy, PoolManagerConfig, ResourceOrigin,
-};
+pub use lifecycle::{AdmissionStrategy, EvictionStrategy, PoolManagerConfig, ResourceOrigin};
 pub use metrics::ResourceAccessMetrics;
 
 use std::sync::Arc;
@@ -24,7 +22,9 @@ use tasker_secure::{ResourceHandle, ResourceRegistry, ResourceSummary};
 /// - Connection budget enforcement across all pools
 #[derive(Debug)]
 pub struct ResourcePoolManager {
+    #[expect(dead_code, reason = "used in TAS-374 implementation")]
     registry: Arc<ResourceRegistry>,
+    #[expect(dead_code, reason = "used in TAS-374 implementation")]
     config: PoolManagerConfig,
 }
 
@@ -44,10 +44,7 @@ impl ResourcePoolManager {
     }
 
     /// Evict a specific resource pool by name.
-    pub async fn evict(
-        &self,
-        _name: &str,
-    ) -> Result<(), tasker_secure::ResourceError> {
+    pub async fn evict(&self, _name: &str) -> Result<(), tasker_secure::ResourceError> {
         unimplemented!("TAS-374: ResourcePoolManager::evict")
     }
 
