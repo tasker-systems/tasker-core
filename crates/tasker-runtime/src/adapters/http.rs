@@ -14,7 +14,7 @@ use tasker_grammar::operations::{
     EmittableResource, PersistConstraints, PersistMode, PersistResult, PersistableResource,
     ResourceOperationError,
 };
-use tasker_secure::resource::http::HttpHandle;
+use tasker_secure::resource::{http::HttpHandle, ResourceHandleExt};
 
 /// Map [`PersistMode`] to the corresponding HTTP method name.
 ///
@@ -131,13 +131,24 @@ async fn parse_response_json(
 /// - `Delete` -> `DELETE /{entity}/{id}`
 #[derive(Debug)]
 pub struct HttpPersistAdapter {
-    handle: Arc<HttpHandle>,
+    handle: Arc<dyn tasker_secure::ResourceHandle>,
 }
 
 impl HttpPersistAdapter {
     /// Create a new persist adapter wrapping the given handle.
-    pub fn new(handle: Arc<HttpHandle>) -> Self {
+    pub fn new(handle: Arc<dyn tasker_secure::ResourceHandle>) -> Self {
         Self { handle }
+    }
+
+    fn http_handle(&self) -> Result<&HttpHandle, ResourceOperationError> {
+        self.handle
+            .as_http()
+            .ok_or_else(|| ResourceOperationError::ValidationFailed {
+                message: format!(
+                    "Expected HTTP handle, got {:?}",
+                    self.handle.resource_type()
+                ),
+            })
     }
 }
 
@@ -149,14 +160,15 @@ impl PersistableResource for HttpPersistAdapter {
         data: serde_json::Value,
         constraints: &PersistConstraints,
     ) -> Result<PersistResult, ResourceOperationError> {
+        let http = self.http_handle()?;
         let path = persist_url(entity, &constraints.mode, &data, constraints);
 
         let request = match constraints.mode {
-            PersistMode::Insert => self.handle.post(&path).json(&data),
-            PersistMode::Update => self.handle.patch(&path).json(&data),
-            PersistMode::Upsert => self.handle.put(&path).json(&data),
+            PersistMode::Insert => http.post(&path).json(&data),
+            PersistMode::Update => http.patch(&path).json(&data),
+            PersistMode::Upsert => http.put(&path).json(&data),
             PersistMode::Delete => {
-                let req = self.handle.delete(&path);
+                let req = http.delete(&path);
                 if data.as_object().map_or(false, |o| !o.is_empty()) {
                     req.json(&data)
                 } else {
@@ -195,13 +207,24 @@ impl PersistableResource for HttpPersistAdapter {
 /// from [`AcquireConstraints`] (limit/offset).
 #[derive(Debug)]
 pub struct HttpAcquireAdapter {
-    handle: Arc<HttpHandle>,
+    handle: Arc<dyn tasker_secure::ResourceHandle>,
 }
 
 impl HttpAcquireAdapter {
     /// Create a new acquire adapter wrapping the given handle.
-    pub fn new(handle: Arc<HttpHandle>) -> Self {
+    pub fn new(handle: Arc<dyn tasker_secure::ResourceHandle>) -> Self {
         Self { handle }
+    }
+
+    fn http_handle(&self) -> Result<&HttpHandle, ResourceOperationError> {
+        self.handle
+            .as_http()
+            .ok_or_else(|| ResourceOperationError::ValidationFailed {
+                message: format!(
+                    "Expected HTTP handle, got {:?}",
+                    self.handle.resource_type()
+                ),
+            })
     }
 }
 
@@ -213,8 +236,9 @@ impl AcquirableResource for HttpAcquireAdapter {
         params: serde_json::Value,
         constraints: &AcquireConstraints,
     ) -> Result<AcquireResult, ResourceOperationError> {
+        let http = self.http_handle()?;
         let path = format!("/{entity}");
-        let mut request = self.handle.get(&path);
+        let mut request = http.get(&path);
 
         // Convert JSON object fields to query parameters, skipping internal keys.
         if let Some(obj) = params.as_object() {
@@ -276,13 +300,24 @@ impl AcquirableResource for HttpAcquireAdapter {
 /// derived from [`EmitMetadata`].
 #[derive(Debug)]
 pub struct HttpEmitAdapter {
-    handle: Arc<HttpHandle>,
+    handle: Arc<dyn tasker_secure::ResourceHandle>,
 }
 
 impl HttpEmitAdapter {
     /// Create a new emit adapter wrapping the given handle.
-    pub fn new(handle: Arc<HttpHandle>) -> Self {
+    pub fn new(handle: Arc<dyn tasker_secure::ResourceHandle>) -> Self {
         Self { handle }
+    }
+
+    fn http_handle(&self) -> Result<&HttpHandle, ResourceOperationError> {
+        self.handle
+            .as_http()
+            .ok_or_else(|| ResourceOperationError::ValidationFailed {
+                message: format!(
+                    "Expected HTTP handle, got {:?}",
+                    self.handle.resource_type()
+                ),
+            })
     }
 }
 
@@ -294,8 +329,9 @@ impl EmittableResource for HttpEmitAdapter {
         payload: serde_json::Value,
         metadata: &EmitMetadata,
     ) -> Result<EmitResult, ResourceOperationError> {
+        let http = self.http_handle()?;
         let path = format!("/{topic}");
-        let mut request = self.handle.post(&path).json(&payload);
+        let mut request = http.post(&path).json(&payload);
 
         if let Some(ref correlation_id) = metadata.correlation_id {
             request = request.header("X-Correlation-ID", correlation_id);
