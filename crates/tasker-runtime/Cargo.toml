@@ -28,11 +28,8 @@ tasker-grammar = { path = "../tasker-grammar", version = "=0.1.6" }
 tasker-secure = { path = "../tasker-secure", version = "=0.1.6" }
 tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
 async-trait = { workspace = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = { workspace = true }
 tokio = { workspace = true }
-tracing = { workspace = true }
 reqwest = { workspace = true, optional = true }
 sqlx = { workspace = true, optional = true }
 
