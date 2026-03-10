@@ -37,6 +37,7 @@ reqwest = { workspace = true, optional = true }
 sqlx = { workspace = true, optional = true }
 
 [dev-dependencies]
+tasker-secure = { path = "../tasker-secure", version = "=0.1.6", features = ["test-utils"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 serde_json = { workspace = true }
 
