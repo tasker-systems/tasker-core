@@ -30,7 +30,7 @@
 //! - `input` — realistic test input data
 //! - `acquire_fixtures` — fixture data for `InMemoryOperations` (acquire lookups)
 //!
-//! The YAML composition specs in `fixtures/workflows/` are the human-readable
+//! The YAML composition specs in `tests/fixtures/workflows/` are the human-readable
 //! reference. The Rust fixtures here are the programmatic equivalent that tests
 //! consume directly.
 

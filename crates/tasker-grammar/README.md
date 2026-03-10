@@ -118,7 +118,7 @@ let config = ExpressionEngineConfig {
 
 ## Workflow Examples
 
-The crate ships with three end-to-end workflow compositions that demonstrate real-world usage patterns. Each is available as a programmatic fixture (via `tasker_grammar::fixtures`) and as a YAML reference in `fixtures/workflows/`. Integration tests in `tests/workflow_integration.rs` exercise every scenario listed below.
+The crate ships with three end-to-end workflow compositions that demonstrate real-world usage patterns. Each is available as a programmatic fixture (via `tasker_grammar::fixtures`) and as a YAML reference in `tests/fixtures/workflows/`. Integration tests in `tests/workflow_integration.rs` exercise every scenario listed below.
 
 ### E-commerce Order Processing
 
