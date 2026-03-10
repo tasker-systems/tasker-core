@@ -23,6 +23,10 @@ postgres = ["tasker-secure/postgres", "dep:sqlx"]
 http = ["tasker-secure/http", "dep:reqwest"]
 sops = ["tasker-secure/sops"]
 
+# Test feature tiers (match workspace convention from TAS-73)
+test-messaging = ["postgres", "http"]
+test-services = ["test-messaging"]
+
 [dependencies]
 tasker-grammar = { path = "../tasker-grammar", version = "=0.1.6" }
 tasker-secure = { path = "../tasker-secure", version = "=0.1.6" }
