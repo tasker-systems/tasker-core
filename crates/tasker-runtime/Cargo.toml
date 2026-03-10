@@ -19,7 +19,7 @@ name = "tasker_runtime"
 
 [features]
 default = []
-postgres = ["tasker-secure/postgres"]
+postgres = ["tasker-secure/postgres", "dep:sqlx"]
 http = ["tasker-secure/http"]
 sops = ["tasker-secure/sops"]
 
@@ -32,6 +32,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+sqlx = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
