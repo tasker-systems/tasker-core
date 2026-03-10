@@ -1,0 +1,230 @@
+# E-commerce Order Processing Composition
+#
+# Origin: docs/action-grammar/case-studies/workflow-patterns.md
+#         Workflow 1 — validate_cart handler + order submission
+#
+# This composition models the core order processing pipeline:
+# 1. Validate incoming order data (validate)
+# 2. Reshape cart items into order line items with computed totals (transform)
+# 3. Compute order totals — subtotal, tax, shipping, grand total (transform)
+# 4. Evaluate business rules for order routing — fraud flags, priority, warehouse (transform)
+# 5. Persist the order to the orders database (persist) [checkpoint]
+# 6. Emit an order.confirmed domain event (emit) [checkpoint]
+#
+# Capabilities exercised: validate, transform (x3), persist, emit
+# Checkpoint boundaries: after persist (step 4), after emit (step 5)
+
+name: ecommerce_order_processing
+outcome:
+  description: >
+    Process an e-commerce order: validate cart, compute totals with tax and
+    shipping, evaluate routing rules, persist the order, and emit a confirmation event.
+  output_schema:
+    type: object
+    properties:
+      order_id:
+        type: string
+      event_id:
+        type: string
+      event_name:
+        type: string
+    required:
+      - order_id
+      - event_id
+      - event_name
+
+invocations:
+  # Step 0: Validate the incoming order has required fields and correct types.
+  # Exercises: validate capability with schema conformance check.
+  - capability: validate
+    config:
+      schema:
+        type: object
+        required:
+          - customer_id
+          - items
+          - shipping_address
+        properties:
+          customer_id:
+            type: string
+          items:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required:
+                - sku
+                - name
+                - quantity
+                - unit_price
+              properties:
+                sku:
+                  type: string
+                name:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: 1
+                unit_price:
+                  type: number
+                  minimum: 0
+          shipping_address:
+            type: object
+            required:
+              - street
+              - city
+              - state
+              - zip
+            properties:
+              street:
+                type: string
+              city:
+                type: string
+              state:
+                type: string
+              zip:
+                type: string
+    checkpoint: false
+
+  # Step 1: Reshape cart items — compute line totals per item.
+  # Exercises: transform capability with array mapping and arithmetic.
+  - capability: transform
+    config:
+      filter: >
+        {
+          customer_id: .prev.customer_id,
+          shipping_address: .prev.shipping_address,
+          line_items: [.prev.items[] | {
+            sku: .sku,
+            name: .name,
+            quantity: .quantity,
+            unit_price: .unit_price,
+            line_total: (.quantity * .unit_price)
+          }]
+        }
+      output:
+        type: object
+        properties:
+          customer_id:
+            type: string
+          line_items:
+            type: array
+    checkpoint: false
+
+  # Step 2: Compute order totals — subtotal, tax, shipping, grand total.
+  # Exercises: transform capability with aggregation (reduce) and conditional logic.
+  - capability: transform
+    config:
+      filter: >
+        .prev as $order |
+        ($order.line_items | map(.line_total) | add) as $subtotal |
+        ($subtotal * 0.08) as $tax |
+        (if $subtotal >= 100 then 0 else 9.99 end) as $shipping |
+        {
+          customer_id: $order.customer_id,
+          shipping_address: $order.shipping_address,
+          line_items: $order.line_items,
+          subtotal: $subtotal,
+          tax: $tax,
+          shipping: $shipping,
+          total: ($subtotal + $tax + $shipping)
+        }
+      output:
+        type: object
+        properties:
+          subtotal:
+            type: number
+          tax:
+            type: number
+          shipping:
+            type: number
+          total:
+            type: number
+    checkpoint: false
+
+  # Step 3: Evaluate business rules for order routing.
+  # Exercises: transform capability with rule-engine patterns (conditional logic).
+  - capability: transform
+    config:
+      filter: >
+        .prev as $order |
+        {
+          customer_id: $order.customer_id,
+          shipping_address: $order.shipping_address,
+          line_items: $order.line_items,
+          subtotal: $order.subtotal,
+          tax: $order.tax,
+          shipping: $order.shipping,
+          total: $order.total,
+          routing: {
+            priority: (if $order.total > 500 then "high" elif $order.total > 100 then "normal" else "low" end),
+            warehouse: (if $order.shipping_address.state == "CA" or $order.shipping_address.state == "OR" or $order.shipping_address.state == "WA" then "west" else "east" end),
+            fraud_review: ($order.total > 1000)
+          }
+        }
+      output:
+        type: object
+    checkpoint: false
+
+  # Step 4: Persist the order to the database.
+  # Exercises: persist capability with insert mode and result shaping.
+  # CHECKPOINT: This is a mutation boundary.
+  - capability: persist
+    config:
+      resource: orders-db
+      mode: insert
+      data:
+        expression: >
+          {
+            customer_id: .prev.customer_id,
+            status: "confirmed",
+            subtotal: .prev.subtotal,
+            tax: .prev.tax,
+            shipping: .prev.shipping,
+            total: .prev.total,
+            priority: .prev.routing.priority,
+            warehouse: .prev.routing.warehouse,
+            fraud_review: .prev.routing.fraud_review,
+            line_items: .prev.line_items,
+            shipping_address: .prev.shipping_address
+          }
+      validate_success:
+        expression: ".affected_rows > 0"
+      result_shape:
+        expression: >
+          {
+            order_id: .data.customer_id,
+            total: .data.total,
+            priority: .data.priority,
+            warehouse: .data.warehouse,
+            status: .data.status
+          }
+    checkpoint: true
+
+  # Step 5: Emit order.confirmed domain event.
+  # Exercises: emit capability with payload expression and metadata.
+  # CHECKPOINT: This is a mutation boundary.
+  - capability: emit
+    config:
+      event_name: "order.confirmed"
+      event_version: "1.0"
+      resource: "event-bus"
+      payload:
+        expression: >
+          {
+            order_id: .prev.order_id,
+            customer_id: .context.customer_id,
+            total: .prev.total,
+            priority: .prev.priority,
+            warehouse: .prev.warehouse
+          }
+      metadata:
+        correlation_id:
+          expression: ".context.customer_id"
+      result_shape:
+        expression: >
+          {
+            event_id: .data.message_id,
+            event_name: .event_name
+          }
+    checkpoint: true

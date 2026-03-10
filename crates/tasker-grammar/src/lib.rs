@@ -26,6 +26,7 @@
 pub mod capabilities;
 pub mod executor;
 pub mod expression;
+pub mod fixtures;
 pub mod operations;
 pub mod types;
 pub mod validation;

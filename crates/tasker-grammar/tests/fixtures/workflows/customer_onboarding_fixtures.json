@@ -1,0 +1,153 @@
+{
+  "workflow": "customer_onboarding",
+  "description": "Test fixtures for the customer onboarding composition",
+  "case_study_origin": "docs/action-grammar/case-studies/workflow-patterns.md — Customer onboarding / profile enrichment",
+  "capabilities_exercised": [
+    {"capability": "acquire", "invocation_index": 0, "purpose": "Fetch customer profile from CRM system"},
+    {"capability": "validate", "invocation_index": 1, "purpose": "Validate profile completeness (trust boundary for CRM data)"},
+    {"capability": "transform", "invocation_index": 2, "purpose": "Evaluate tier classification based on purchase history rules"},
+    {"capability": "transform", "invocation_index": 3, "purpose": "Reshape and enrich profile for downstream systems"},
+    {"capability": "persist", "invocation_index": 4, "purpose": "Persist enriched customer profile via upsert"},
+    {"capability": "emit", "invocation_index": 5, "purpose": "Emit customer.onboarded domain event"}
+  ],
+  "checkpoint_boundaries": [4, 5],
+
+  "acquire_fixture_data": {
+    "customers": [
+      {
+        "id": "cust-67890",
+        "email": "jane.doe@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "phone": "+1-555-0123",
+        "company": "Acme Corp",
+        "signup_date": "2025-06-15",
+        "total_purchases": 7500.00,
+        "purchase_count": 25,
+        "preferences": {
+          "newsletter": true,
+          "sms_notifications": false,
+          "preferred_language": "en"
+        }
+      }
+    ]
+  },
+
+  "input": {
+    "context": {
+      "customer_id": "cust-67890",
+      "onboarding_timestamp": "2026-03-10T08:30:00Z"
+    },
+    "deps": {},
+    "step": {"name": "onboard_customer"}
+  },
+
+  "expected_intermediate_outputs": {
+    "step_0_acquire": {
+      "description": "Customer profile acquired from CRM",
+      "output_check": {
+        "id": "cust-67890",
+        "email": "jane.doe@example.com",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "total_purchases": 7500.00,
+        "purchase_count": 25
+      }
+    },
+    "step_1_validate": {
+      "description": "Profile validation passes — all required fields present",
+      "output_check": {
+        "passes": true
+      }
+    },
+    "step_2_tier_classification": {
+      "description": "Customer classified as gold tier based on purchase history",
+      "output_check": {
+        "tier": "gold",
+        "discount_pct": 15,
+        "tier_benefits.free_shipping": true,
+        "tier_benefits.priority_support": false,
+        "tier_benefits.loyalty_multiplier": 2
+      },
+      "notes": "Gold: total_purchases >= 5000 AND purchase_count >= 20. Not platinum because < 10000 or < 50 purchases."
+    },
+    "step_3_reshape": {
+      "description": "Profile reshaped and enriched for downstream",
+      "output_check": {
+        "customer_id": "cust-67890",
+        "display_name": "Jane Doe",
+        "loyalty.tier": "gold",
+        "loyalty.discount_pct": 15,
+        "onboarding_status": "completed",
+        "onboarded_at": "2026-03-10T08:30:00Z"
+      }
+    }
+  },
+
+  "expected_final_output": {
+    "description": "Final output after persist and emit — customer record with event metadata",
+    "output_check": {
+      "customer_id": "cust-67890",
+      "tier": "gold",
+      "event_id_present": true,
+      "event_name": "customer.onboarded"
+    }
+  },
+
+  "tier_classification_test_cases": {
+    "platinum": {
+      "total_purchases": 15000.00,
+      "purchase_count": 60,
+      "expected_tier": "platinum",
+      "expected_discount": 20
+    },
+    "gold": {
+      "total_purchases": 7500.00,
+      "purchase_count": 25,
+      "expected_tier": "gold",
+      "expected_discount": 15
+    },
+    "silver": {
+      "total_purchases": 2000.00,
+      "purchase_count": 10,
+      "expected_tier": "silver",
+      "expected_discount": 10
+    },
+    "bronze": {
+      "total_purchases": 100.00,
+      "purchase_count": 2,
+      "expected_tier": "bronze",
+      "expected_discount": 5
+    }
+  },
+
+  "failure_cases": {
+    "incomplete_profile": {
+      "description": "Profile missing required email should fail validation at step 1",
+      "acquire_fixture_data": {
+        "customers": [
+          {
+            "id": "cust-incomplete",
+            "first_name": "Bob",
+            "last_name": "Smith",
+            "total_purchases": 0,
+            "purchase_count": 0
+          }
+        ]
+      },
+      "input": {
+        "context": {
+          "customer_id": "cust-incomplete",
+          "onboarding_timestamp": "2026-03-10T09:00:00Z"
+        },
+        "deps": {},
+        "step": {"name": "onboard_customer"}
+      },
+      "expected_error": {
+        "invocation_index": 1,
+        "capability": "validate"
+      },
+      "notes": "Missing required 'email' field triggers validation failure"
+    }
+  }
+}

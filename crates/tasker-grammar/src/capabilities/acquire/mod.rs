@@ -273,9 +273,11 @@ impl TypedCapabilityExecutor for AcquireExecutor {
         // 3. Build AcquireConstraints from config
         let constraints = self.build_constraints(config);
 
-        // 4. Get the acquirable resource and call acquire
+        // 4. Validate and get the acquirable resource
         let entity = config.resource.entity().to_string();
         let resource_ref = config.resource.resource_ref().to_string();
+        super::validate_resource_ref(&resource_ref, "resource ref")?;
+        super::validate_resource_ref(&entity, "entity")?;
         let acquire_result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let acquirable = self

@@ -55,6 +55,17 @@ pub enum CompositionError {
     /// Checkpoint restoration failed during resume.
     #[error("checkpoint restore error: {0}")]
     CheckpointRestore(String),
+
+    /// The composition exceeded the configured overall execution timeout.
+    #[error("composition timed out after {elapsed:?} (limit: {limit:?})")]
+    Timeout {
+        elapsed: std::time::Duration,
+        limit: std::time::Duration,
+    },
+
+    /// The composition exceeded the maximum allowed invocation count.
+    #[error("composition has {count} invocations, exceeding limit of {limit}")]
+    TooManyInvocations { count: usize, limit: usize },
 }
 
 /// Errors that can occur during capability or category registration.

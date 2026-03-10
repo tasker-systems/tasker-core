@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::expression::ExpressionEngine;
 use crate::types::{
@@ -1210,5 +1210,133 @@ fn empty_consumer_schema_always_compatible() {
     assert!(
         findings.is_empty(),
         "empty consumer should be compatible with anything"
+    );
+}
+
+#[test]
+fn deeply_nested_schema_produces_depth_warning() {
+    use super::schema_compat::check_schema_compatibility;
+
+    // Build a schema nested 40 levels deep (exceeds MAX_SCHEMA_DEPTH of 32)
+    fn nest_schema(depth: usize) -> Value {
+        if depth == 0 {
+            return json!({
+                "type": "object",
+                "required": ["leaf"],
+                "properties": { "leaf": { "type": "string" } }
+            });
+        }
+        let inner = nest_schema(depth - 1);
+        json!({
+            "type": "object",
+            "required": ["nested"],
+            "properties": { "nested": inner }
+        })
+    }
+
+    let schema = nest_schema(40);
+    let findings = check_schema_compatibility(&schema, &schema, "test", None);
+    assert!(
+        findings.iter().any(|f| f.code == "SCHEMA_DEPTH_EXCEEDED"),
+        "should produce depth warning for deeply nested schema; findings: {findings:?}"
+    );
+}
+
+#[test]
+fn too_many_invocations_produces_error() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    // Build a composition with 150 invocations (exceeds MAX_INVOCATION_COUNT of 100)
+    let invocations: Vec<CapabilityInvocation> = (0..150)
+        .map(|_| CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({"filter": "."}),
+            checkpoint: false,
+        })
+        .collect();
+
+    let spec = CompositionSpec {
+        name: Some("oversized".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({"type": "object"}),
+        },
+        invocations,
+    };
+
+    let result = validator.validate(&spec);
+    assert!(
+        !result.errors().is_empty(),
+        "should reject oversized composition"
+    );
+    assert!(
+        result
+            .errors()
+            .iter()
+            .any(|f| f.code == "TOO_MANY_INVOCATIONS"),
+        "should have TOO_MANY_INVOCATIONS error; findings: {:?}",
+        result.errors()
+    );
+}
+
+#[test]
+fn overlong_composition_name_produces_error() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("x".repeat(300)),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({"type": "object"}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({"filter": "."}),
+            checkpoint: false,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(
+        result
+            .errors()
+            .iter()
+            .any(|f| f.code == "FIELD_TOO_LONG" && f.field_path.as_deref() == Some("name")),
+        "should reject overlong name; findings: {:?}",
+        result.errors()
+    );
+}
+
+#[test]
+fn overlong_capability_name_produces_error() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({"type": "object"}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "x".repeat(200),
+            config: json!({"filter": "."}),
+            checkpoint: false,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(
+        result
+            .errors()
+            .iter()
+            .any(|f| f.code == "FIELD_TOO_LONG" && f.field_path.as_deref() == Some("capability")),
+        "should reject overlong capability name; findings: {:?}",
+        result.errors()
     );
 }

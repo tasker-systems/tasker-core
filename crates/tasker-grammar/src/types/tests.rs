@@ -712,15 +712,10 @@ fn typed_executor_validate_config_rejects_invalid() {
     let err = executor
         .validate_config(&json!({"wrong_field": 42}))
         .unwrap_err();
-    match &err {
-        CapabilityError::ConfigValidation(msg) => {
-            assert!(
-                msg.contains("greeting"),
-                "should mention the missing field: {msg}"
-            );
-        }
-        other => panic!("expected ConfigValidation, got: {other:?}"),
-    }
+    assert!(
+        matches!(&err, CapabilityError::ConfigValidation(msg) if msg.contains("data type mismatch")),
+        "expected ConfigValidation with data type mismatch, got: {err:?}"
+    );
 }
 
 #[test]
