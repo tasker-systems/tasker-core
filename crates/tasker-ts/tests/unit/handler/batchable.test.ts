@@ -273,6 +273,72 @@ describe('BatchableMixin', () => {
       expect(batchContext?.batchId).toBe('batch-789');
     });
 
+    test('TAS-380: should extract batch context from Rust BatchWorkerInputs in stepInputs', () => {
+      const context = new StepContext({
+        taskUuid: 'task-1',
+        stepUuid: 'step-1',
+        stepInputs: {
+          cursor: {
+            batch_id: 'batch_002',
+            start_cursor: 500,
+            end_cursor: 1000,
+            batch_size: 500,
+          },
+          batch_metadata: {
+            cursor_field: 'id',
+            failure_strategy: 'ContinueOnFailure',
+          },
+          is_no_op: false,
+        },
+      });
+
+      const batchContext = mixin.getBatchContext(context);
+
+      expect(batchContext).not.toBeNull();
+      expect(batchContext?.batchId).toBe('batch_002');
+      expect(batchContext?.cursorConfig.startCursor).toBe(500);
+      expect(batchContext?.cursorConfig.endCursor).toBe(1000);
+      expect(batchContext?.batchMetadata).toEqual({
+        cursor_field: 'id',
+        failure_strategy: 'ContinueOnFailure',
+      });
+    });
+
+    test('TAS-380: Rust BatchWorkerInputs in stepInputs takes priority over legacy batch_context', () => {
+      const context = new StepContext({
+        taskUuid: 'task-1',
+        stepUuid: 'step-1',
+        stepConfig: {
+          batch_context: {
+            batch_id: 'legacy-batch',
+            start_cursor: 0,
+            end_cursor: 50,
+            step_size: 1,
+          },
+        },
+        stepInputs: {
+          cursor: {
+            batch_id: 'rust-batch',
+            start_cursor: 100,
+            end_cursor: 200,
+            batch_size: 100,
+          },
+          batch_metadata: {
+            cursor_field: 'id',
+            failure_strategy: 'ContinueOnFailure',
+          },
+          is_no_op: false,
+        },
+      });
+
+      const batchContext = mixin.getBatchContext(context);
+
+      expect(batchContext).not.toBeNull();
+      // Rust BatchWorkerInputs should take priority
+      expect(batchContext?.batchId).toBe('rust-batch');
+      expect(batchContext?.cursorConfig.startCursor).toBe(100);
+    });
+
     test('should return null when no batch context found', () => {
       const context = new StepContext({
         taskUuid: 'task-1',
