@@ -101,6 +101,7 @@ function makeContext(
     inputData?: Record<string, unknown>;
     dependencyResults?: Record<string, unknown>;
     stepConfig?: Record<string, unknown>;
+    stepInputs?: Record<string, unknown>;
   } = {}
 ): StepContext {
   const event = createFfiEvent();
@@ -113,7 +114,7 @@ function makeContext(
     inputData: overrides.inputData ?? {},
     dependencyResults: overrides.dependencyResults ?? {},
     stepConfig: overrides.stepConfig ?? {},
-    stepInputs: {},
+    stepInputs: overrides.stepInputs ?? {},
     retryCount: 0,
     maxRetries: 3,
   });
@@ -461,6 +462,84 @@ describe('defineBatchWorker', () => {
       start: 100,
       end: 200,
       batchId: 'batch_001',
+    });
+  });
+
+  it('TAS-380: extracts batch context from step_inputs (Rust BatchWorkerInputs)', async () => {
+    const Handler = defineBatchWorker('process_batch', {}, async ({ batchContext }) => {
+      const bc = batchContext ?? { startCursor: 0, endCursor: 0, batchId: '' };
+      return {
+        start: bc.startCursor,
+        end: bc.endCursor,
+        batchId: bc.batchId,
+      };
+    });
+
+    const handler = new Handler();
+    const ctx = makeContext({
+      stepInputs: {
+        cursor: {
+          batch_id: 'batch_002',
+          start_cursor: 500,
+          end_cursor: 1000,
+          batch_size: 500,
+        },
+        batch_metadata: {
+          cursor_field: 'id',
+          failure_strategy: 'ContinueOnFailure',
+        },
+        is_no_op: false,
+      },
+    });
+    const result = await handler.call(ctx);
+    expect(result.success).toBe(true);
+    expect(result.result).toEqual({
+      start: 500,
+      end: 1000,
+      batchId: 'batch_002',
+    });
+  });
+
+  it('TAS-380: batch worker with step_inputs and dependencies', async () => {
+    const Handler = defineBatchWorker(
+      'process_batch',
+      { depends: { analysis: 'analyze_data' } },
+      async ({ batchContext, analysis }) => {
+        const bc = batchContext ?? { startCursor: 0, endCursor: 0 };
+        const a = analysis as Record<string, unknown>;
+        return {
+          start: bc.startCursor,
+          end: bc.endCursor,
+          filePath: a?.file_path,
+        };
+      }
+    );
+
+    const handler = new Handler();
+    const ctx = makeContext({
+      dependencyResults: {
+        analyze_data: { result: { file_path: '/data/input.csv' } },
+      },
+      stepInputs: {
+        cursor: {
+          batch_id: 'batch_001',
+          start_cursor: 0,
+          end_cursor: 100,
+          batch_size: 100,
+        },
+        batch_metadata: {
+          cursor_field: 'id',
+          failure_strategy: 'ContinueOnFailure',
+        },
+        is_no_op: false,
+      },
+    });
+    const result = await handler.call(ctx);
+    expect(result.success).toBe(true);
+    expect(result.result).toEqual({
+      start: 0,
+      end: 100,
+      filePath: '/data/input.csv',
     });
   });
 });

@@ -57,6 +57,7 @@ def _make_context(
     input_data: dict | None = None,
     dependency_results: dict | None = None,
     step_config: dict | None = None,
+    step_inputs: dict | None = None,
 ) -> StepContext:
     """Create a StepContext for testing."""
     task_uuid = str(uuid4())
@@ -68,7 +69,7 @@ def _make_context(
         "task": {"task": {"context": input_data or {}}},
         "dependency_results": dependency_results or {},
         "step_definition": {"handler": {"initialization": step_config or {}}},
-        "workflow_step": {"attempts": 0, "max_attempts": 3, "inputs": {}},
+        "workflow_step": {"attempts": 0, "max_attempts": 3, "inputs": step_inputs or {}},
     }
 
     event = FfiStepEvent(
@@ -462,6 +463,80 @@ class TestBatchWorker:
         assert result.result["start"] == 100
         assert result.result["end"] == 200
         assert result.result["batch_id"] == "batch_001"
+
+    def test_batch_worker_with_step_inputs(self):
+        """TAS-380: Batch worker extracts batch context from step_inputs (Rust BatchWorkerInputs)."""
+
+        @batch_worker("process_batch")
+        def process_batch(batch_context, _context):
+            return {
+                "start": batch_context.start_cursor,
+                "end": batch_context.end_cursor,
+                "batch_id": batch_context.batch_id,
+            }
+
+        handler = process_batch._handler_class()
+        ctx = _make_context(
+            "process_batch",
+            step_inputs={
+                "cursor": {
+                    "batch_id": "batch_002",
+                    "start_cursor": 500,
+                    "end_cursor": 1000,
+                    "batch_size": 500,
+                },
+                "batch_metadata": {
+                    "cursor_field": "id",
+                    "failure_strategy": "ContinueOnFailure",
+                },
+                "is_no_op": False,
+            },
+        )
+        result = _call_sync(handler, ctx)
+        assert result.is_success is True
+        assert result.result is not None
+        assert result.result["start"] == 500
+        assert result.result["end"] == 1000
+        assert result.result["batch_id"] == "batch_002"
+
+    def test_batch_worker_with_step_inputs_and_depends_on(self):
+        """TAS-380: Batch worker with step_inputs also receives dependency results."""
+
+        @batch_worker("process_batch")
+        @depends_on(analysis="analyze_data")
+        def process_batch(batch_context, analysis, _context):
+            return {
+                "start": batch_context.start_cursor,
+                "end": batch_context.end_cursor,
+                "file_path": analysis.get("file_path"),
+            }
+
+        handler = process_batch._handler_class()
+        ctx = _make_context(
+            "process_batch",
+            dependency_results={
+                "analyze_data": {"result": {"file_path": "/data/input.csv"}},
+            },
+            step_inputs={
+                "cursor": {
+                    "batch_id": "batch_001",
+                    "start_cursor": 0,
+                    "end_cursor": 100,
+                    "batch_size": 100,
+                },
+                "batch_metadata": {
+                    "cursor_field": "id",
+                    "failure_strategy": "ContinueOnFailure",
+                },
+                "is_no_op": False,
+            },
+        )
+        result = _call_sync(handler, ctx)
+        assert result.is_success is True
+        assert result.result is not None
+        assert result.result["start"] == 0
+        assert result.result["end"] == 100
+        assert result.result["file_path"] == "/data/input.csv"
 
 
 # ============================================================================

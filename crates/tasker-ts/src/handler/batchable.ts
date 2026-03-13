@@ -573,7 +573,27 @@ export class BatchableMixin implements Batchable {
    * @returns BatchWorkerContext or null if not found
    */
   getBatchContext(context: StepContext): BatchWorkerContext | null {
-    // Look for batch context in step_config or input_data
+    // TAS-380: Check stepInputs for Rust BatchWorkerInputs structure first.
+    // The Rust orchestrator stores batch worker data directly in
+    // workflow_step.inputs with keys: cursor, batch_metadata, is_no_op.
+    if (context.stepInputs && 'cursor' in context.stepInputs) {
+      const cursorData = (context.stepInputs.cursor as Record<string, unknown>) ?? {};
+      const batchData: Record<string, unknown> = {
+        batch_id: cursorData.batch_id,
+        cursor_config: {
+          start_cursor: cursorData.start_cursor,
+          end_cursor: cursorData.end_cursor,
+          step_size: cursorData.step_size ?? cursorData.batch_size ?? 1,
+          metadata: cursorData.metadata ?? {},
+        },
+        batch_index: 0,
+        total_batches: 1,
+        batch_metadata: context.stepInputs.batch_metadata ?? {},
+      };
+      return createBatchWorkerContext(batchData);
+    }
+
+    // Legacy: Look for batch context in step_config or input_data
     let batchData: Record<string, unknown> | undefined;
 
     if (context.stepConfig) {
@@ -584,7 +604,7 @@ export class BatchableMixin implements Batchable {
       batchData = context.inputData.batch_context as Record<string, unknown> | undefined;
     }
 
-    // Also check stepInputs (for cursor config from workflow_step.inputs)
+    // Also check stepInputs for legacy batch_context key
     if (!batchData && context.stepInputs) {
       batchData = context.stepInputs.batch_context as Record<string, unknown> | undefined;
     }
