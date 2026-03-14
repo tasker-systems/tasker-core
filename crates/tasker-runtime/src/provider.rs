@@ -88,7 +88,7 @@ impl OperationProvider for RuntimeOperationProvider {
 
         let handle = self
             .pool_manager
-            .get_or_initialize(resource_ref, self.source.as_ref().map(|s| &**s))
+            .get_or_initialize(resource_ref, self.source.as_deref())
             .await
             .map_err(map_resource_error)?;
 
@@ -109,7 +109,7 @@ impl OperationProvider for RuntimeOperationProvider {
 
         let handle = self
             .pool_manager
-            .get_or_initialize(resource_ref, self.source.as_ref().map(|s| &**s))
+            .get_or_initialize(resource_ref, self.source.as_deref())
             .await
             .map_err(map_resource_error)?;
 
@@ -130,7 +130,7 @@ impl OperationProvider for RuntimeOperationProvider {
 
         let handle = self
             .pool_manager
-            .get_or_initialize(resource_ref, self.source.as_ref().map(|s| &**s))
+            .get_or_initialize(resource_ref, self.source.as_deref())
             .await
             .map_err(map_resource_error)?;
 
