@@ -6,9 +6,9 @@ These diagrams show individual work items within each lane with task-level depen
 
 ---
 
-## Phase 1: Grammar Foundations — Lane Detail
+## Phase 1: Grammar Foundations — Lane Detail (ALL COMPLETE)
 
-### Lane 1B: Operation Traits & Contracts
+### Lane 1B: Operation Traits & Contracts (COMPLETE — TAS-372, PR #290)
 
 ```mermaid
 flowchart TD
@@ -43,7 +43,7 @@ flowchart TD
     B1_9 --> B1_10
 ```
 
-### Lane 1C: Side-Effecting Executors
+### Lane 1C: Side-Effecting Executors (COMPLETE — TAS-330/331/332)
 
 ```mermaid
 flowchart TD
@@ -57,7 +57,7 @@ flowchart TD
     C1_3 --> C1_4
 ```
 
-### Lane 1D: Composition Engine
+### Lane 1D: Composition Engine (COMPLETE — TAS-333/334)
 
 ```mermaid
 flowchart TD
@@ -71,7 +71,7 @@ flowchart TD
     D1_3 --> D1_4
 ```
 
-### Lane 1E: Workflow Modeling & Acceptance
+### Lane 1E: Workflow Modeling & Acceptance (COMPLETE — TAS-335/336, PR #303)
 
 ```mermaid
 flowchart TD
@@ -89,7 +89,7 @@ flowchart TD
 
 ## Phase 2: Runtime Infrastructure — Lane Detail
 
-### Lane 2A: Runtime Scaffolding & Adapters
+### Lane 2A: Runtime Scaffolding & Adapters (COMPLETE — TAS-374/375, PR #304)
 
 ```mermaid
 flowchart TD
@@ -118,7 +118,7 @@ flowchart TD
     A2_8 --> A2_9
 ```
 
-### Lane 2B: ResourcePoolManager
+### Lane 2B: ResourcePoolManager (COMPLETE — TAS-374/375, PR #304)
 
 ```mermaid
 flowchart TD
@@ -141,7 +141,7 @@ flowchart TD
     B2_7 --> B2_8
 ```
 
-### Lane 2C: ResourceDefinitionSource
+### Lane 2C: ResourceDefinitionSource (TAS-376 — scaffolded, ready to implement)
 
 ```mermaid
 flowchart TD
@@ -158,7 +158,7 @@ flowchart TD
     C2_4 --> C2_5
 ```
 
-### Lane 2D: RuntimeOperationProvider
+### Lane 2D: RuntimeOperationProvider (TAS-377 — scaffolded, ready to implement)
 
 ```mermaid
 flowchart TD
@@ -321,18 +321,15 @@ flowchart TD
         S1["S1: SecretsProvider"]
         S2["S2: ResourceRegistry"]
         L1A["1A: Expression Engine\n& Core Types"]
-    end
-
-    subgraph p1["Phase 1: Grammar Foundations"]
         L1B["1B: Operation Traits"]
         L1C["1C: Side-Effecting Executors"]
         L1D["1D: Composition Engine"]
         L1E["1E: Workflow Acceptance"]
+        L2A["2A: Adapters & Registry"]
+        L2B["2B: Pool Manager"]
     end
 
-    subgraph p2["Phase 2: Runtime Infrastructure"]
-        L2A["2A: Adapters"]
-        L2B["2B: Pool Manager"]
+    subgraph p2["Phase 2: Remaining"]
         L2C["2C: Definition Sources"]
         L2D["2D: RuntimeOperationProvider"]
     end
@@ -385,7 +382,6 @@ flowchart TD
     L4C --> L4D
 
     style done fill:#d4edda,stroke:#28a745
-    style p1 fill:#fff3cd,stroke:#ffc107
     style p2 fill:#cce5ff,stroke:#007bff
     style p3 fill:#e2d9f3,stroke:#6f42c1
     style p4 fill:#f8d7da,stroke:#dc3545

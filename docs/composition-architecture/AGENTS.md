@@ -113,10 +113,13 @@ list_milestones(project: "Tasker Action Grammar")                     # Phase pr
 
 Consult the [roadmap "What Can Start Now" section](roadmap.md#what-can-start-now). As a general rule:
 
-- **Lane 1B** (TAS-372: operation traits) is the **critical path** — if it's not done, start there
-- **Lanes 2B, 2C** can start as soon as tasker-runtime is scaffolded (TAS-373)
+- **Lane 2D** (TAS-377: RuntimeOperationProvider) — **highest priority**, both inputs (2A ✅, 2B ✅) complete. Completes Phase 2 and unblocks Phase 3B.
+- **Lane 2C** (TAS-376: ResourceDefinitionSource) — StaticConfigSource and SopsFileWatcher stubs ready to implement. Independent of 2D.
 - **Lane 3A** (TAS-370: StepContext rename) has zero dependencies
+- **Lane 3C** (validation tooling) is unblocked by 1D completion
 - **Lane 3D** (TAS-369: ConfigString, TAS-359/360: S3/S4) is fully independent
+
+**Phase 1 complete.** Phase 2 is ~65% done — adapters and pool manager merged (PR #304). Critical path: **2D → 3B → 4A/4C**.
 
 ### Reading the Dependency Graph
 
