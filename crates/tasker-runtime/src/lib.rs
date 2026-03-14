@@ -23,6 +23,7 @@
 //! - [`context`] — `CompositionExecutionContext` placeholder (Phase 3B).
 
 pub mod adapters;
+mod cache;
 pub mod context;
 pub mod pool_manager;
 pub mod provider;
@@ -35,4 +36,4 @@ pub use pool_manager::{
     ResourcePoolManager,
 };
 pub use provider::RuntimeOperationProvider;
-pub use sources::ResourceDefinitionSource;
+pub use sources::{ResourceDefinitionSource, ResourceHandleResolver};
