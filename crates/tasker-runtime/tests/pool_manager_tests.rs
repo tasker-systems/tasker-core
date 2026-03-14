@@ -3,11 +3,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use tasker_grammar::operations::ResourceOperationError;
 use tasker_runtime::pool_manager::{
     AdmissionStrategy, EvictionStrategy, PoolManagerConfig, ResourceOrigin, ResourcePoolManager,
 };
+use tasker_runtime::ResourceHandleResolver;
 use tasker_secure::testing::InMemoryResourceHandle;
-use tasker_secure::{ResourceRegistry, ResourceType};
+use tasker_secure::{ResourceHandle, ResourceRegistry, ResourceType};
 
 fn test_secrets() -> Arc<dyn tasker_secure::SecretsProvider> {
     Arc::new(tasker_secure::testing::InMemorySecretsProvider::new(
@@ -239,4 +241,92 @@ async fn current_pools_returns_summaries() {
 
     let pools = manager.current_pools();
     assert_eq!(pools.len(), 2);
+}
+
+/// Mock ResourceHandleResolver for testing get_or_initialize.
+#[derive(Debug)]
+struct MockResolver {
+    handle: Arc<dyn ResourceHandle>,
+}
+
+#[async_trait::async_trait]
+impl ResourceHandleResolver for MockResolver {
+    async fn resolve(
+        &self,
+        _resource_ref: &str,
+    ) -> Result<Arc<dyn ResourceHandle>, ResourceOperationError> {
+        Ok(self.handle.clone())
+    }
+}
+
+/// Mock resolver that always fails.
+#[derive(Debug)]
+struct FailingResolver;
+
+#[async_trait::async_trait]
+impl ResourceHandleResolver for FailingResolver {
+    async fn resolve(
+        &self,
+        resource_ref: &str,
+    ) -> Result<Arc<dyn ResourceHandle>, ResourceOperationError> {
+        Err(ResourceOperationError::Unavailable {
+            message: format!("Cannot resolve '{resource_ref}'"),
+        })
+    }
+}
+
+#[tokio::test]
+async fn get_or_initialize_returns_existing_resource() {
+    let registry = Arc::new(ResourceRegistry::new(test_secrets()));
+    let manager = ResourcePoolManager::new(registry, test_config());
+
+    let handle = make_handle("db1");
+    manager
+        .register("db1", handle, ResourceOrigin::Static, 10)
+        .await
+        .unwrap();
+
+    let result = manager.get_or_initialize("db1", None).await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn get_or_initialize_no_source_propagates_not_found() {
+    let registry = Arc::new(ResourceRegistry::new(test_secrets()));
+    let manager = ResourcePoolManager::new(registry, test_config());
+
+    let result = manager.get_or_initialize("nonexistent", None).await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn get_or_initialize_calls_source_when_not_found() {
+    let registry = Arc::new(ResourceRegistry::new(test_secrets()));
+    let manager = ResourcePoolManager::new(registry, test_config());
+
+    let handle = make_handle("new-db");
+    let resolver = MockResolver {
+        handle: handle.clone(),
+    };
+
+    let result = manager.get_or_initialize("new-db", Some(&resolver)).await;
+    assert!(result.is_ok());
+
+    // Subsequent get should find the registered resource
+    let second = manager.get("new-db").await;
+    assert!(second.is_ok());
+}
+
+#[tokio::test]
+async fn get_or_initialize_source_error_maps_to_initialization_failed() {
+    let registry = Arc::new(ResourceRegistry::new(test_secrets()));
+    let manager = ResourcePoolManager::new(registry, test_config());
+
+    let resolver = FailingResolver;
+    let result = manager.get_or_initialize("broken", Some(&resolver)).await;
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("initialization failed"), "Got: {msg}");
 }

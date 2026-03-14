@@ -16,6 +16,7 @@ use std::time::Instant;
 
 use tokio::sync::RwLock;
 
+use crate::sources::ResourceHandleResolver;
 use tasker_secure::{ResourceError, ResourceHandle, ResourceRegistry, ResourceSummary};
 
 /// Manages resource pool lifecycle with eviction and admission control.
@@ -160,6 +161,44 @@ impl ResourcePoolManager {
         }
 
         Ok(handle)
+    }
+
+    /// Get a resource handle by name, or initialize it via the given source.
+    ///
+    /// Flow:
+    /// 1. Try `self.get(name)` — if found, return it
+    /// 2. If `ResourceNotFound` and `source` is `Some`, call `source.resolve(name)`
+    /// 3. Register the returned handle as `Dynamic` with 1 estimated connection
+    /// 4. Return the handle
+    /// 5. If `ResourceNotFound` and `source` is `None`, propagate the error
+    pub async fn get_or_initialize(
+        &self,
+        name: &str,
+        source: Option<&dyn ResourceHandleResolver>,
+    ) -> Result<Arc<dyn ResourceHandle>, ResourceError> {
+        match self.get(name).await {
+            Ok(handle) => Ok(handle),
+            Err(ResourceError::ResourceNotFound { .. }) => {
+                let Some(source) = source else {
+                    return Err(ResourceError::ResourceNotFound {
+                        name: name.to_string(),
+                    });
+                };
+
+                let handle = source.resolve(name).await.map_err(|e| {
+                    ResourceError::InitializationFailed {
+                        name: name.to_string(),
+                        message: e.to_string(),
+                    }
+                })?;
+
+                self.register(name, handle.clone(), ResourceOrigin::Dynamic, 1)
+                    .await?;
+
+                Ok(handle)
+            }
+            Err(other) => Err(other),
+        }
     }
 
     /// Evict a specific resource pool by name.
