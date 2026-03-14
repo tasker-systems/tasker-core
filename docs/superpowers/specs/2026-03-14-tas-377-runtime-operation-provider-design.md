@@ -42,7 +42,7 @@ Grammar executor
 |------|----------|---------|
 | `RuntimeOperationProvider` | `provider.rs` (existing stub) | Implements `OperationProvider`, holds pool manager + adapter registry + cache |
 | `AdapterCache` | `cache.rs` (new) | SWMR per-composition cache for resolved adapters |
-| `ResourceDefinitionSource` | `sources/traits.rs` (new) | Minimal trait — extension point for TAS-376 |
+| `ResourceHandleResolver` | `sources/mod.rs` | Minimal trait — extension point for TAS-376. Distinct from existing `ResourceHandleResolver` (which returns config descriptors, not live handles) |
 
 ### Types Modified
 
@@ -80,18 +80,21 @@ Three separate maps rather than one with an enum wrapper — avoids downcasting 
 - `RwLock<HashMap>` over `DashMap`: simpler, no extra dependency, perfect fit for rare-write/many-read profile
 - Realistically a composition resolves 2-5 resources; the cache avoids redundant pool manager + adapter registry round-trips, not high-throughput optimization
 - Three separate maps: type-safe, no downcasting, independent keying (same resource ref as persistable doesn't satisfy acquirable lookup)
+- Manual `Debug` impl required: trait objects (`dyn PersistableResource` etc.) are not `Debug`, so the impl shows map sizes/keys only. This satisfies the project convention that all public types implement `Debug`
 
 ---
 
-## ResourceDefinitionSource Trait
+## ResourceHandleResolver Trait
 
-Minimal extension point for TAS-376. Defines the seam for lazy resource initialization without over-determining the implementation.
+Minimal extension point for TAS-376. Defines the seam for lazy resource handle initialization without over-determining the implementation.
+
+**Relationship to existing `ResourceDefinitionSource`:** The existing `ResourceDefinitionSource` trait in `sources/mod.rs` returns `Option<ResourceDefinition>` — a configuration descriptor. `ResourceHandleResolver` operates at a higher level: given a resource reference, it returns a live `Arc<dyn ResourceHandle>`. In practice, a TAS-376 implementation would likely use a `ResourceDefinitionSource` internally to look up the definition, then initialize the handle from it. But these are different abstraction levels and should remain separate traits.
 
 ### Definition
 
 ```rust
 #[async_trait]
-pub trait ResourceDefinitionSource: Send + Sync {
+pub trait ResourceHandleResolver: Send + Sync + std::fmt::Debug {
     async fn resolve(
         &self,
         resource_ref: &str,
@@ -99,11 +102,11 @@ pub trait ResourceDefinitionSource: Send + Sync {
 }
 ```
 
-Single method — given a resource reference string, return a handle. No metadata, no type information, no connection estimates. Those concerns belong to TAS-376 when the trait gets its real implementations.
+Single method — given a resource reference string, return a live handle. No metadata, no type information, no connection estimates. Those concerns belong to TAS-376 when the trait gets its real implementations. The `Debug` bound follows the existing `ResourceDefinitionSource` convention and project standards.
 
 ### Location
 
-`crates/tasker-runtime/src/sources/traits.rs` — alongside the existing `sources/` module where `StaticConfigSource` and `SopsFileWatcher` stubs live.
+`crates/tasker-runtime/src/sources/mod.rs` — defined alongside the existing `ResourceDefinitionSource` trait in the sources module.
 
 ---
 
@@ -115,7 +118,7 @@ Single method — given a resource reference string, return a handle. No metadat
 pub async fn get_or_initialize(
     &self,
     name: &str,
-    source: Option<&dyn ResourceDefinitionSource>,
+    source: Option<&dyn ResourceHandleResolver>,
 ) -> Result<Arc<dyn ResourceHandle>, ResourceError>
 ```
 
@@ -132,7 +135,7 @@ pub async fn get_or_initialize(
 - `source` is a parameter, not stored on the pool manager — keeps the pool manager decoupled from the source concept, avoids changing its constructor
 - `Dynamic` origin: lazily-initialized resources are evictable by definition
 - `1` connection estimate: conservative default. When TAS-376 implements richer sources, the source trait can be expanded to return metadata
-- The `resolve()` call returns `ResourceOperationError` which needs mapping to `ResourceError` for the `register()` call — or alternatively, `get_or_initialize` can work with the error types directly since it sits on the boundary
+- Error conversion: `resolve()` returns `ResourceOperationError` but `get_or_initialize` returns `ResourceError`. The method maps source errors into `ResourceError::InitializationFailed` to stay consistent with the pool manager's error domain. The caller (`RuntimeOperationProvider`) then maps that back to `ResourceOperationError` via `map_resource_error`. This double conversion is acceptable — each layer works with its own error type, and the message content is preserved
 
 ---
 
@@ -144,9 +147,12 @@ pub async fn get_or_initialize(
 pub struct RuntimeOperationProvider {
     pool_manager: Arc<ResourcePoolManager>,
     adapter_registry: Arc<AdapterRegistry>,
-    source: Option<Arc<dyn ResourceDefinitionSource>>,
+    source: Option<Arc<dyn ResourceHandleResolver>>,
     cache: AdapterCache,
 }
+
+// Debug: derived if AdapterCache has manual Debug impl
+
 ```
 
 ### Constructors
@@ -161,7 +167,7 @@ impl RuntimeOperationProvider {
     pub fn with_source(
         pool_manager: Arc<ResourcePoolManager>,
         adapter_registry: Arc<AdapterRegistry>,
-        source: Arc<dyn ResourceDefinitionSource>,
+        source: Arc<dyn ResourceHandleResolver>,
     ) -> Self
 }
 ```
@@ -184,7 +190,8 @@ impl OperationProvider for RuntimeOperationProvider {
         }
         // 2. Resolve handle through pool manager
         let handle = self.pool_manager
-            .get_or_initialize(resource_ref, self.source.as_deref())
+            .get_or_initialize(resource_ref, self.source.as_ref().map(|s| s.as_ref()))
+            .await
             .map_err(map_resource_error)?;
         // 3. Wrap with adapter
         let adapter = self.adapter_registry.as_persistable(handle)?;
@@ -210,16 +217,19 @@ fn map_resource_error(err: ResourceError) -> ResourceOperationError
 
 ### Mapping Table
 
+Based on the actual `ResourceError` variants in `crates/tasker-secure/src/resource/error.rs`:
+
 | ResourceError | ResourceOperationError | Rationale |
 |---|---|---|
-| `NotFound { name }` | `EntityNotFound { entity: name }` | Direct semantic match |
-| `AlreadyExists { name }` | `Conflict { entity: name, reason }` | Registration conflict |
-| `ConnectionFailed { .. }` | `Unavailable { message }` | Infrastructure unavailability |
-| `PoolExhausted { .. }` | `Unavailable { message }` | Capacity unavailability |
-| `Timeout { .. }` | `Timeout { timeout_ms }` | Direct match |
-| Everything else | `Other { message, source }` | Catch-all preserving original error |
+| `ResourceNotFound { name }` | `EntityNotFound { entity: name }` | Direct semantic match |
+| `InitializationFailed { name, message }` | `Unavailable { message }` | Infrastructure unavailability |
+| `HealthCheckFailed { name, message }` | `Unavailable { message }` | Resource unhealthy |
+| `CredentialRefreshFailed { name, message }` | `Unavailable { message }` | Cannot authenticate |
+| `WrongResourceType { name, expected, actual }` | `ValidationFailed { message }` | Type mismatch during adapter lookup |
+| `MissingConfigKey { resource, key }` | `ValidationFailed { message }` | Configuration error |
+| `SecretResolution { resource, source }` | `Unavailable { message }` | Secret backend failure |
 
-Original error messages are preserved in all cases for debugging context. The `Other` variant wraps the source error for chain-of-cause inspection.
+Original error messages (including `name`, `resource`, and `message` fields) are preserved in all mapped variants for debugging context.
 
 ---
 
@@ -250,7 +260,7 @@ All tests use in-memory handles and test doubles — no infrastructure required.
   - Cache hit on second call (verify same `Arc` pointer returned)
   - Resource not found propagates as `EntityNotFound`
   - Adapter not registered propagates as `ValidationFailed`
-  - With mock `ResourceDefinitionSource` — verifies lazy initialization when `get()` returns NotFound
+  - With mock `ResourceHandleResolver` — verifies lazy initialization when `get()` returns NotFound
 
 ### Integration Test File
 
@@ -264,7 +274,7 @@ All tests use in-memory handles and test doubles — no infrastructure required.
 |------|--------|---------|
 | `crates/tasker-runtime/src/provider.rs` | Modify | Full `RuntimeOperationProvider` implementation replacing stubs |
 | `crates/tasker-runtime/src/cache.rs` | Create | `AdapterCache` SWMR cache |
-| `crates/tasker-runtime/src/sources/traits.rs` | Modify | Add `ResourceDefinitionSource` trait |
+| `crates/tasker-runtime/src/sources/mod.rs` | Modify | Add `ResourceHandleResolver` trait alongside existing `ResourceDefinitionSource` |
 | `crates/tasker-runtime/src/pool_manager/mod.rs` | Modify | Add `get_or_initialize()` method |
 | `crates/tasker-runtime/src/lib.rs` | Modify | Export new public types |
 | `crates/tasker-runtime/tests/runtime_provider_tests.rs` | Create | Integration tests |
