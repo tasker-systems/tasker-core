@@ -113,13 +113,13 @@ list_milestones(project: "Tasker Action Grammar")                     # Phase pr
 
 Consult the [roadmap "What Can Start Now" section](roadmap.md#what-can-start-now). As a general rule:
 
-- **Lane 1E** (TAS-335/336) — in progress via web agent
-- **Lanes 2A, 2B, 2C** — ready for implementation. `tasker-runtime` scaffolded (TAS-373 ✅, PR #302). Type stubs and trait signatures in place — implement real behavior.
-- **Lane 3C** (validation tooling) is now unblocked by 1D completion
+- **Lane 2D** (TAS-377: RuntimeOperationProvider) — **highest priority**, both inputs (2A ✅, 2B ✅) complete. Completes Phase 2 and unblocks Phase 3B.
+- **Lane 2C** (TAS-376: ResourceDefinitionSource) — StaticConfigSource and SopsFileWatcher stubs ready to implement. Independent of 2D.
 - **Lane 3A** (TAS-370: StepContext rename) has zero dependencies
+- **Lane 3C** (validation tooling) is unblocked by 1D completion
 - **Lane 3D** (TAS-369: ConfigString, TAS-359/360: S3/S4) is fully independent
 
-**Phase 1 core complete.** Phase 2 crate scaffolded. All lanes 2A-2D have type/trait stubs ready for implementation.
+**Phase 1 complete.** Phase 2 is ~65% done — adapters and pool manager merged (PR #304). Critical path: **2D → 3B → 4A/4C**.
 
 ### Reading the Dependency Graph
 

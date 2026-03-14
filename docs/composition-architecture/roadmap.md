@@ -62,18 +62,15 @@ flowchart LR
         G1B["1B: Operation Traits\n& Contracts ✅"]
         G1C["1C: Side-Effecting\nExecutors ✅"]
         G1D["1D: Composition\nEngine ✅"]
-    end
-
-    subgraph phase1["Phase 1: Grammar Foundations"]
-        G1E["1E: Workflow Modeling\n& Acceptance"]
+        G1E["1E: Workflow Modeling\n& Acceptance ✅"]
+        R2S["2: tasker-runtime\nScaffold (TAS-373) ✅"]
+        R2A["2A: Adapters &\nRegistry (TAS-374/375) ✅"]
+        R2B["2B: ResourcePool\nManager (TAS-374/375) ✅"]
     end
 
     subgraph phase2["Phase 2: Runtime Infrastructure"]
-        R2S["2: tasker-runtime\nScaffold (TAS-373) ✅"]
-        R2A["2A: Runtime Scaffolding\n& Adapters"]
-        R2B["2B: ResourcePool\nManager"]
-        R2C["2C: ResourceDefinition\nSource"]
-        R2D["2D: RuntimeOperation\nProvider"]
+        R2C["2C: ResourceDefinition\nSource (TAS-376)"]
+        R2D["2D: RuntimeOperation\nProvider (TAS-377)"]
     end
 
     subgraph phase3["Phase 3: Integration & Tooling"]
@@ -90,26 +87,20 @@ flowchart LR
         W4D["4D: End-to-End\nAcceptance"]
     end
 
-    %% Done → Phase 1
+    %% Completed dependencies (internal)
     G1A --> G1B
     G1A --> G1D
-
-    %% Phase 1 internal
     G1B --> G1C
     G1C --> G1D
     G1D --> G1E
-
-    %% Done → Phase 2
     S1 --> R2A
     S2 --> R2A
     S2 --> R2B
     G1B --> R2A
-
-    %% Phase 2 internal
     R2A --> R2D
     R2B --> R2D
 
-    %% Phase 2/1 → Phase 3
+    %% Phase 2 → Phase 3
     R2D --> I3B
     I3A --> I3B
     G1D --> I3C
@@ -124,7 +115,6 @@ flowchart LR
 
     %% Styling
     style done fill:#d4edda,stroke:#28a745
-    style phase1 fill:#fff3cd,stroke:#ffc107
     style phase2 fill:#cce5ff,stroke:#007bff
     style phase3 fill:#e2d9f3,stroke:#6f42c1
     style phase4 fill:#f8d7da,stroke:#dc3545
@@ -136,17 +126,17 @@ flowchart LR
 
 | Phase | Goal | Lanes | Status |
 |-------|------|-------|--------|
-| **1: Grammar Foundations** | All capability executors work with in-memory test doubles. Composition engine chains them. | 1A ✅, 1B ✅, 1C ✅, 1D ✅, 1E | ~95% complete (only 1E acceptance tests remaining) |
-| **2: Runtime Infrastructure** | tasker-runtime crate exists with adapters, pool manager, and operation provider | 2A, 2B, 2C, 2D | Scaffolded (TAS-373 ✅, PR #302). Lanes 2A-2D ready for implementation. |
+| **1: Grammar Foundations** | All capability executors work with in-memory test doubles. Composition engine chains them. | 1A ✅, 1B ✅, 1C ✅, 1D ✅, 1E ✅ | **COMPLETE** — all lanes merged to main |
+| **2: Runtime Infrastructure** | tasker-runtime crate exists with adapters, pool manager, and operation provider | 2A ✅, 2B ✅, 2C, 2D | ~65% complete. Adapters + pool manager done (PR #304). Sources (2C) and RuntimeOperationProvider (2D) remaining. |
 | **3: Integration & Tooling** | Composition tooling works, StepContext aligned, CompositionExecutionContext exists | 3A, 3B, 3C, 3D | Not started |
 | **4: Worker Dispatch & Queues** | Composition worker binary receives, executes, and completes grammar-composed steps | 4A, 4B, 4C, 4D | Not started |
 
 **Key parallelism opportunities:**
-- **Lane 1D** is the new critical path — it completes Phase 1 and unblocks 1E and 3C
-- **Lane 2A** is now unblocked (1B complete) — can start alongside 1D
-- Lanes 2B, 2C can start immediately (depend only on completed TAS-358)
-- Lane 3A (StepContext rename) can start anytime — zero dependencies on other lanes
-- Lane 3D (ConfigString, S3/S4) is fully independent of all other lanes
+- **Lane 2D** (RuntimeOperationProvider) is the Phase 2 convergence point — both inputs (2A, 2B) are now complete
+- **Lane 2C** (ResourceDefinitionSource) can start immediately — independent of 2A/2B
+- **Lane 3A** (StepContext rename) can start anytime — zero dependencies
+- **Lane 3C** (validation tooling) is unblocked (1D complete)
+- **Lane 3D** (ConfigString, S3/S4) is fully independent of all other lanes
 
 ---
 
@@ -158,7 +148,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    subgraph done_1["✅ Completed"]
+    subgraph done_1["✅ All Complete"]
         A1["1A: Expression Engine\njaq-core + sandboxing\n(TAS-321)"]
         A1types["1A: Core Types\nGrammarCategory, CompositionSpec\n(TAS-322, TAS-323)"]
         A1exec["1A: Pure Executors\ntransform, validate, assert\n(TAS-324-329, TAS-356)"]
@@ -166,9 +156,6 @@ flowchart TD
         B1provider["1B: OperationProvider\n+ InMemoryOperations (TAS-372)"]
         C1["1C: Side-Effecting Executors\nPersistExecutor (TAS-330)\nAcquireExecutor (TAS-331)\nEmitExecutor (TAS-332)"]
         D1["1D: Composition Engine\nCompositionValidator (TAS-333)\nCompositionExecutor (TAS-334)"]
-    end
-
-    subgraph active_1["Next"]
         E1["1E: Workflow Modeling\n3 real-world workflows\nacceptance tests (TAS-335, TAS-336)"]
     end
 
@@ -181,7 +168,6 @@ flowchart TD
     D1 --> E1
 
     style done_1 fill:#d4edda,stroke:#28a745
-    style active_1 fill:#fff3cd,stroke:#ffc107
 ```
 
 ### Lane 1A: Expression Engine & Core Types — COMPLETE
@@ -229,15 +215,17 @@ All executors use `InMemoryOperations` for testing — zero I/O. Full pipeline c
 
 **Unblocked:** Lane 1E (acceptance tests) ✅, Lane 3C (validation tooling) ✅
 
-### Lane 1E: Workflow Modeling & Acceptance
+### Lane 1E: Workflow Modeling & Acceptance — COMPLETE
 
-**What:** Model 3 real-world workflows as composition specs and run them end-to-end through the composition engine with `InMemoryOperations`.
+**Status:** Merged to main (TAS-335/336, PR #303)
 
-**Where:** `tasker-grammar` test suite
+**Delivered:**
+- Three real-world workflow models: e-commerce order processing, data pipeline/ETL, event-driven integration
+- End-to-end acceptance tests running all workflows through `CompositionExecutor` with `InMemoryOperations`
+- Workflow fixtures in `crates/tasker-grammar/tests/fixtures/`
+- Security hardening and integration test coverage
 
-**Depends on:** Lane 1D (composition engine must be functional)
-
-**Purpose:** Validates that the grammar system can express real business logic, not just toy examples. These workflows become the acceptance test suite that guards against regressions.
+**Phase 1 is now fully complete.** All grammar foundations work is merged to main.
 
 ---
 
@@ -249,18 +237,18 @@ All executors use `InMemoryOperations` for testing — zero I/O. Full pipeline c
 
 ```mermaid
 flowchart TD
-    subgraph deps["Dependencies (completed)"]
+    subgraph done_2["✅ Completed"]
         S1["TAS-357\nSecretsProvider ✅"]
         S2["TAS-358\nResourceRegistry ✅"]
         P1B["Phase 1B\nOperation Traits ✅"]
         SCF["TAS-373\ntasker-runtime scaffold ✅"]
+        A2["2A: Adapters & Registry\nPostgres, HTTP, Messaging\nAdapterRegistry, SQL Gen\n(TAS-374/375, PR #304) ✅"]
+        B2["2B: ResourcePoolManager\nEviction, backpressure\nadmission control, metrics\n(TAS-374/375, PR #304) ✅"]
     end
 
-    subgraph phase2["Phase 2: Runtime Infrastructure"]
-        A2["2A: Runtime Scaffolding\n& Adapters\nPostgresPersistAdapter\nHttpAcquireAdapter\nAdapterRegistry"]
-        B2["2B: ResourcePoolManager\nEviction, backpressure\nadmission control\nconnection budgets"]
-        C2["2C: ResourceDefinition\nSource\nStaticConfigSource\nSopsFileWatcher"]
-        D2["2D: RuntimeOperation\nProvider\nBridges pool manager +\nadapter registry →\nOperationProvider"]
+    subgraph phase2["Phase 2: Remaining"]
+        C2["2C: ResourceDefinition\nSource (TAS-376)\nStaticConfigSource\nSopsFileWatcher"]
+        D2["2D: RuntimeOperation\nProvider (TAS-377)\nBridges pool manager +\nadapter registry →\nOperationProvider"]
     end
 
     S1 --> A2
@@ -271,76 +259,75 @@ flowchart TD
     A2 --> D2
     B2 --> D2
 
-    style deps fill:#d4edda,stroke:#28a745
+    style done_2 fill:#d4edda,stroke:#28a745
     style phase2 fill:#cce5ff,stroke:#007bff
 ```
 
-### Lane 2A: Runtime Scaffolding & Adapters
+### Lane 2A: Runtime Scaffolding & Adapters — COMPLETE
 
-**What:** Scaffold `tasker-runtime` crate. Implement the adapter pattern — each adapter wraps a `tasker-secure` handle and implements a `tasker-grammar` operation trait.
+**Status:** Merged to main (TAS-374/375, PR #304)
 
-**Where:** New `tasker-runtime` crate, `adapters/` module
+**Delivered:**
+- `PostgresPersistAdapter` — wraps `PostgresHandle`, implements `PersistableResource` via SQL generation (INSERT/UPDATE/UPSERT/DELETE with parameterized queries)
+- `PostgresAcquireAdapter` — wraps `PostgresHandle`, implements `AcquirableResource` via SELECT generation with filters, column selection, limit/offset
+- `HttpPersistAdapter` — wraps `HttpHandle`, implements `PersistableResource` via POST/PATCH/PUT/DELETE
+- `HttpAcquireAdapter` — wraps `HttpHandle`, implements `AcquirableResource` via GET with query params + pagination
+- `HttpEmitAdapter` — wraps `HttpHandle`, implements `EmittableResource` via POST webhook with correlation/idempotency headers
+- `MessagingEmitAdapter` — wraps `MessagingProvider`, implements `EmittableResource` via PGMQ/RabbitMQ queue send
+- `AdapterRegistry` — closure-based factory pattern mapping `(ResourceType, operation)` to adapter factories. `standard()` auto-registers all built-in adapters behind feature flags
+- `sql_gen` module — parameterized SQL generation with identifier sanitization, supporting all conflict strategies
 
-**Depends on:** Phase 1B (operation traits to implement), TAS-357/358 (handles to wrap — both complete)
+**Test coverage:** 65+ tests across SQL generation, adapter registry dispatch, and HTTP verb mapping
 
-**Deliverables:**
-- `tasker-runtime` crate scaffolded in workspace
-- `PostgresPersistAdapter` — wraps `PostgresHandle`, implements `PersistableResource` via SQL generation
-- `PostgresAcquireAdapter` — wraps `PostgresHandle`, implements `AcquirableResource` via SELECT generation
-- `HttpPersistAdapter` — wraps `HttpHandle`, implements `PersistableResource` via POST/PUT
-- `HttpAcquireAdapter` — wraps `HttpHandle`, implements `AcquirableResource` via GET
-- `HttpEmitAdapter` — wraps `HttpHandle`, implements `EmittableResource` via POST (webhook)
-- `PgmqEmitAdapter` — wraps future `PgmqHandle`, implements `EmittableResource`
-- `AdapterRegistry` — maps `(ResourceType, OperationTrait)` to adapter factories
+**Unblocked:** Lane 2D (RuntimeOperationProvider) ✅
 
-**Key design point:** Each adapter knows exactly two things — the grammar contract and the handle's I/O protocol. Nothing else.
+### Lane 2B: ResourcePoolManager — COMPLETE
 
-**Design reference:** [resource-handle-traits-and-seams.md §Adapters](../research/resource-handle-traits-and-seams.md)
+**Status:** Merged to main (TAS-374/375, PR #304)
 
-### Lane 2B: ResourcePoolManager — CAN START IMMEDIATELY
-
-**What:** Wrap `ResourceRegistry` with lifecycle management for dynamic resource pools. Eviction, backpressure, admission control, connection budgets.
-
-**Where:** `tasker-runtime::pool_manager`
-
-**Depends on:** TAS-358 only (ResourceRegistry — already complete)
-
-**Deliverables:**
-- `ResourcePoolManager` — wraps `ResourceRegistry` with `get_or_initialize()`, eviction sweep, admission control
-- `PoolManagerConfig` — max_pools, max_total_connections, idle_timeout, sweep_interval, eviction/budget strategies
+**Delivered:**
+- `ResourcePoolManager` — wraps `Arc<ResourceRegistry>` with `register()`, `get()`, eviction sweep, admission control
+- `PoolManagerConfig` — max_pools (32), max_total_connections (256), idle_timeout (300s), sweep_interval (60s), configurable eviction/admission strategies
 - `ResourceOrigin` — Static (never evicted) vs Dynamic (subject to eviction)
-- `ResourceAccessMetrics` — per-resource usage tracking for eviction decisions
-- Connection budget enforcement at pool creation time
+- `EvictionStrategy` — LRU, LFU, FIFO with idle timeout enforcement
+- `AdmissionStrategy` — Reject (fail new pools) or EvictOne (evict idle to make room)
+- `ResourceAccessMetrics` — per-resource tracking (creation_time, last_accessed, access_count, active_checkouts, estimated_connections)
+- `PoolManagerMetrics` / `PoolManagerMetricsSnapshot` — atomic counters for observability (total/static/dynamic pools, connection budget, admission rejections, evictions)
+- Connection budget enforcement at registration time
 
-**Why it can start now:** The only dependency is `ResourceRegistry` from TAS-358, which is complete. No dependency on grammar traits or adapters.
+**Test coverage:** 15+ tests covering registration, admission strategies, eviction policies, metrics, and connection budget enforcement
 
-**Design reference:** [resource-handle-traits-and-seams.md §ResourcePoolManager Design](../research/resource-handle-traits-and-seams.md)
+**Unblocked:** Lane 2D (RuntimeOperationProvider) ✅
 
-### Lane 2C: ResourceDefinitionSource — CAN START IMMEDIATELY
+### Lane 2C: ResourceDefinitionSource — SCAFFOLDED, READY TO IMPLEMENT (TAS-376)
 
 **What:** Trait and implementations for resolving resource definitions at runtime, enabling dynamic resource creation from generative workflows.
 
 **Where:** `tasker-runtime::sources`
 
-**Depends on:** TAS-358 only (`ResourceDefinition` type)
+**Depends on:** TAS-358 only (`ResourceDefinition` type — complete)
+
+**Current state:** Trait interface defined, `ResourceDefinitionEvent` enum exists. Both `StaticConfigSource` and `SopsFileWatcher` are stubs with `unimplemented!()` macros.
 
 **Deliverables:**
-- `ResourceDefinitionSource` trait — `resolve(name) → Option<ResourceDefinition>`, optional `watch()` for change events
-- `StaticConfigSource` — reads from `worker.toml` `[[resources]]` sections
-- `SopsFileWatcher` — watches mounted volumes for SOPS-encrypted resource definition files
-- `ResourceDefinitionEvent` — Added/Updated/Removed events for dynamic sources
+- `ResourceDefinitionSource` trait — `resolve(name) → Option<ResourceDefinition>`, `list_names()` (defined ✅)
+- `ResourceDefinitionEvent` — Added/Updated/Removed events (defined ✅)
+- `StaticConfigSource` — reads from `worker.toml` `[[resources]]` sections (stub, TAS-376)
+- `SopsFileWatcher` — watches mounted volumes for SOPS-encrypted resource definition files (stub, TAS-376, feature-gated `sops`)
 
-### Lane 2D: RuntimeOperationProvider — CONVERGENCE POINT
+### Lane 2D: RuntimeOperationProvider — CONVERGENCE POINT, READY TO IMPLEMENT (TAS-377)
 
 **What:** Bridges `ResourcePoolManager` + `AdapterRegistry` into the `OperationProvider` interface that tasker-grammar expects.
 
-**Where:** `tasker-runtime::context`
+**Where:** `tasker-runtime::provider`
 
-**Depends on:** Lanes 2A (adapter registry) + 2B (pool manager)
+**Depends on:** Lanes 2A (adapter registry ✅) + 2B (pool manager ✅) — **both inputs complete**
+
+**Current state:** Struct exists with `pool_manager` and `adapter_registry` fields. Constructor implemented. `OperationProvider` trait methods (`get_persistable`, `get_acquirable`, `get_emittable`) are stubs with `unimplemented!()` macros.
 
 **Deliverables:**
-- `RuntimeOperationProvider` implementing `OperationProvider` trait
-- Resolution flow: `get_persistable("orders-db")` → pool_manager.get_or_initialize → adapter_registry.as_persistable → `Arc<dyn PersistableResource>`
+- `RuntimeOperationProvider` implementing `OperationProvider` trait (struct scaffolded ✅, methods TAS-377)
+- Resolution flow: `get_persistable("orders-db")` → pool_manager.get() → adapter_registry.as_persistable() → `Arc<dyn PersistableResource>`
 - Per-composition caching of resolved adapters
 
 **This is the seam.** Grammar executors call `context.operations.get_persistable(...)` and get back the same trait they tested against with `InMemoryOperations`. The only difference is that now it's a `PostgresPersistAdapter` wrapping a live `PostgresHandle`.
@@ -546,15 +533,13 @@ For quick reference, these lanes have zero unmet dependencies and can begin imme
 
 | Lane | Description | Depends On | Priority |
 |------|-------------|------------|----------|
-| **1E** | Workflow modeling — 3 real-world acceptance tests | 1D ✅ | High — in progress (web agent, TAS-335/336) |
-| **2A** | Adapter implementations in tasker-runtime | TAS-373 ✅ | **High — unblocks 2D** |
-| **2B** | ResourcePoolManager implementation | TAS-373 ✅ | **High — unblocks 2D** |
-| **2C** | ResourceDefinitionSource implementation | TAS-373 ✅ | Medium |
+| **2D** | RuntimeOperationProvider — wire pool manager + adapters into OperationProvider | 2A ✅, 2B ✅ | **High — completes Phase 2, unblocks 3B** |
+| **2C** | ResourceDefinitionSource — StaticConfigSource + SopsFileWatcher | TAS-358 ✅ | Medium — not blocking 2D |
 | **3A** | StepContext rename in tasker-worker | Nothing | Low — pure refactor |
 | **3C** | Validation tooling | 1D ✅ | Medium — now unblocked |
 | **3D** | ConfigString integration / S3 / S4 | TAS-358 ✅ | Low — independent |
 
-**Phase 1 core is complete.** Lane 1E is in progress via web agent. Phase 2 crate is scaffolded (TAS-373) — all lanes ready for real implementation.
+**Phase 1 is complete.** Phase 2 is ~65% done — adapters and pool manager merged (PR #304). The critical path is now **Lane 2D → 3B → 4A/4C**.
 
 ---
 
@@ -631,9 +616,9 @@ This appendix maps roadmap lanes to Linear tickets across both projects. Use thi
 | TAS-332 | Done | 1C | Merged (PR #299). EmitExecutor implemented with OperationProvider pattern. |
 | TAS-333 | Done | 1D | Merged (PR #300). CompositionValidator with JSON Schema contract chaining, SchemaShape typed compatibility. |
 | TAS-334 | Done | 1D | Merged (PR #301). CompositionExecutor with capability chaining + data threading via composition envelope. |
-| TAS-335 | Backlog | 1E | No change. |
-| TAS-336 | Backlog | 1E | No change. |
-| TAS-363 | Backlog | — | **Evaluate.** SIMD JSON spike. Independent research, not on critical path. |
+| TAS-335 | Done | 1E | Merged (PR #303). 3 real-world workflow models. |
+| TAS-336 | Done | 1E | Merged (PR #303). End-to-end composition integration tests. |
+| TAS-363 | Canceled | — | SIMD JSON spike canceled — jaq-core requires `serde_json::Value`, double-conversion negates SIMD gains. |
 
 ### Tasker Action Grammar — Phases 2-4 (Original)
 
@@ -661,17 +646,17 @@ This appendix maps roadmap lanes to Linear tickets across both projects. Use thi
 
 ### New Tickets Needed
 
-| Roadmap Lane | Description | Project |
-|-------------|-------------|---------|
-| ~~1B~~ | ~~Define operation traits~~ | ~~Done (TAS-372, PR #290)~~ |
-| ~~1B~~ | ~~Define OperationProvider interface and InMemoryOperations~~ | ~~Done (TAS-372, PR #290)~~ |
-| ~~2~~ | ~~Scaffold tasker-runtime crate~~ | ~~Done (TAS-373, PR #302)~~ |
-| 2A | Implement adapter pattern (PostgresPersistAdapter, HttpAcquireAdapter, etc.) | Action Grammar or new project |
-| 2A | Implement AdapterRegistry | Action Grammar or new project |
-| 2B | Implement ResourcePoolManager with eviction and backpressure | Action Grammar or new project |
-| 2C | Implement ResourceDefinitionSource trait and StaticConfigSource | Action Grammar or new project |
-| 2D | Implement RuntimeOperationProvider bridging pool manager + adapters → OperationProvider | Action Grammar or new project |
-| 3B | Implement CompositionExecutionContext in tasker-runtime (split from TAS-370) | Secure Foundations or new project |
+| Roadmap Lane | Description | Project | Status |
+|-------------|-------------|---------|--------|
+| ~~1B~~ | ~~Define operation traits~~ | ~~Done (TAS-372, PR #290)~~ | ~~Done~~ |
+| ~~1B~~ | ~~Define OperationProvider interface and InMemoryOperations~~ | ~~Done (TAS-372, PR #290)~~ | ~~Done~~ |
+| ~~2~~ | ~~Scaffold tasker-runtime crate~~ | ~~Done (TAS-373, PR #302)~~ | ~~Done~~ |
+| ~~2A~~ | ~~Implement adapter pattern (PostgresPersistAdapter, HttpAcquireAdapter, etc.)~~ | ~~Done (TAS-374/375, PR #304)~~ | ~~Done~~ |
+| ~~2A~~ | ~~Implement AdapterRegistry~~ | ~~Done (TAS-374/375, PR #304)~~ | ~~Done~~ |
+| ~~2B~~ | ~~Implement ResourcePoolManager with eviction and backpressure~~ | ~~Done (TAS-374/375, PR #304)~~ | ~~Done~~ |
+| 2C | Implement ResourceDefinitionSource — StaticConfigSource and SopsFileWatcher | TAS-376 | Scaffolded |
+| 2D | Implement RuntimeOperationProvider bridging pool manager + adapters → OperationProvider | TAS-377 | Scaffolded |
+| 3B | Implement CompositionExecutionContext in tasker-runtime (split from TAS-370) | Secure Foundations or new project | Not started |
 
 ### Project Organization Question
 
