@@ -7194,13 +7194,13 @@ name = "tasker-runtime"
 version = "0.1.6"
 dependencies = [
  "async-trait",
- "serde",
+ "reqwest 0.12.26",
  "serde_json",
+ "sqlx",
  "tasker-grammar",
  "tasker-secure",
- "thiserror 2.0.18",
+ "tasker-shared",
  "tokio",
- "tracing",
 ]
 
 [[package]]

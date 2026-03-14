@@ -1682,23 +1682,6 @@ class BatchWorkerContext(BaseModel):
             ...     for i in range(batch_context.start_cursor, batch_context.end_cursor):
             ...         process_item(i)
         """
-        # Look for batch context in step_config or input_data
-        batch_data = step_context.step_config.get("batch_context")
-        if batch_data is None:
-            batch_data = step_context.input_data.get("batch_context")
-
-        if batch_data is None:
-            return None
-
-        # Extract cursor config
-        cursor_data = batch_data.get("cursor_config", {})
-        cursor_config = CursorConfig(
-            start_cursor=cursor_data.get("start_cursor", 0),
-            end_cursor=cursor_data.get("end_cursor", 0),
-            step_size=cursor_data.get("step_size", 1),
-            metadata=cursor_data.get("metadata", {}),
-        )
-
         # TAS-125: Extract checkpoint from workflow_step if present
         checkpoint: dict[str, Any] = {}
         if hasattr(step_context, "event") and step_context.event:
@@ -1707,6 +1690,44 @@ class BatchWorkerContext(BaseModel):
                 workflow_step = task_sequence_step.get("workflow_step", {})
                 if isinstance(workflow_step, dict):
                     checkpoint = workflow_step.get("checkpoint") or {}
+
+        # TAS-380: Check step_inputs for Rust BatchWorkerInputs structure.
+        # The Rust orchestrator stores batch worker data directly in
+        # workflow_step.inputs with keys: cursor, batch_metadata, is_no_op.
+        step_inputs = step_context.step_inputs
+        if step_inputs and "cursor" in step_inputs:
+            cursor_data = step_inputs.get("cursor", {})
+            cursor_config = CursorConfig(
+                start_cursor=cursor_data.get("start_cursor", 0),
+                end_cursor=cursor_data.get("end_cursor", 0),
+                step_size=cursor_data.get("step_size", cursor_data.get("batch_size", 1)),
+                metadata=cursor_data.get("metadata", {}),
+            )
+            return cls(
+                batch_id=cursor_data.get("batch_id", ""),
+                cursor_config=cursor_config,
+                batch_index=0,
+                total_batches=1,
+                batch_metadata=step_inputs.get("batch_metadata", {}),
+                checkpoint=checkpoint,
+            )
+
+        # Legacy: Look for batch context in step_config or input_data
+        batch_data = step_context.step_config.get("batch_context")
+        if batch_data is None:
+            batch_data = step_context.input_data.get("batch_context")
+
+        if batch_data is None:
+            return None
+
+        # Extract cursor config from legacy format
+        cursor_data = batch_data.get("cursor_config", {})
+        cursor_config = CursorConfig(
+            start_cursor=cursor_data.get("start_cursor", 0),
+            end_cursor=cursor_data.get("end_cursor", 0),
+            step_size=cursor_data.get("step_size", 1),
+            metadata=cursor_data.get("metadata", {}),
+        )
 
         return cls(
             batch_id=batch_data.get("batch_id", ""),

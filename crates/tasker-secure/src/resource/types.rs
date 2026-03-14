@@ -7,7 +7,7 @@ use serde::Deserialize;
 use super::config_value::ResourceConfig;
 
 /// The kind of infrastructure resource.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ResourceType {
     /// PostgreSQL database connection.
