@@ -42,7 +42,7 @@ Grammar executor
 |------|----------|---------|
 | `RuntimeOperationProvider` | `provider.rs` (existing stub) | Implements `OperationProvider`, holds pool manager + adapter registry + cache |
 | `AdapterCache` | `cache.rs` (new) | SWMR per-composition cache for resolved adapters |
-| `ResourceHandleResolver` | `sources/mod.rs` | Minimal trait — extension point for TAS-376. Distinct from existing `ResourceHandleResolver` (which returns config descriptors, not live handles) |
+| `ResourceHandleResolver` | `sources/mod.rs` | Minimal trait — extension point for TAS-376. Distinct from existing `ResourceDefinitionSource` (which returns config descriptors, not live handles) |
 
 ### Types Modified
 
