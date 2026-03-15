@@ -36,4 +36,7 @@ pub use pool_manager::{
     ResourcePoolManager,
 };
 pub use provider::RuntimeOperationProvider;
-pub use sources::{DefinitionBasedResolver, ResourceDefinitionSource, ResourceHandleResolver};
+pub use sources::{
+    DefinitionBasedResolver, ResourceDefinitionNotifier, ResourceDefinitionSource,
+    ResourceDefinitionWatcher, ResourceHandleResolver,
+};

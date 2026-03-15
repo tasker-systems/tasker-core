@@ -82,6 +82,24 @@ pub trait ResourceDefinitionSource: Send + Sync + std::fmt::Debug {
     }
 }
 
+/// Resolves a resource reference to a live [`ResourceHandle`].
+///
+/// This is the extension point for TAS-376 (ResourceDefinitionSource implementations).
+/// Distinct from [`ResourceDefinitionSource`], which returns configuration descriptors
+/// (`ResourceDefinition`). This trait operates at a higher level — given a resource
+/// reference string, it returns an initialized, ready-to-use handle.
+///
+/// In practice, a TAS-376 implementation would use a `ResourceDefinitionSource` internally
+/// to look up the definition, then initialize the handle from it.
+#[async_trait]
+pub trait ResourceHandleResolver: Send + Sync + std::fmt::Debug {
+    /// Resolve a resource reference to a live handle.
+    async fn resolve(
+        &self,
+        resource_ref: &str,
+    ) -> Result<Arc<dyn ResourceHandle>, ResourceOperationError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -107,22 +125,4 @@ mod tests {
             matches!(received, ResourceDefinitionEvent::Added { name, .. } if name == "test-db")
         );
     }
-}
-
-/// Resolves a resource reference to a live [`ResourceHandle`].
-///
-/// This is the extension point for TAS-376 (ResourceDefinitionSource implementations).
-/// Distinct from [`ResourceDefinitionSource`], which returns configuration descriptors
-/// (`ResourceDefinition`). This trait operates at a higher level — given a resource
-/// reference string, it returns an initialized, ready-to-use handle.
-///
-/// In practice, a TAS-376 implementation would use a `ResourceDefinitionSource` internally
-/// to look up the definition, then initialize the handle from it.
-#[async_trait]
-pub trait ResourceHandleResolver: Send + Sync + std::fmt::Debug {
-    /// Resolve a resource reference to a live handle.
-    async fn resolve(
-        &self,
-        resource_ref: &str,
-    ) -> Result<Arc<dyn ResourceHandle>, ResourceOperationError>;
 }
