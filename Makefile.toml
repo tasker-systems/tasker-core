@@ -2618,7 +2618,7 @@ description = "Prepare a release branch with version bumps (rp)"
 script = '''
 #!/bin/bash
 set -euo pipefail
-./scripts/release/release-prepare.sh --yes
+./tools/scripts/release/release-prepare.sh --yes
 '''
 
 [tasks.rp]
@@ -2630,7 +2630,7 @@ description = "Dry-run of release preparation (rpd)"
 script = '''
 #!/bin/bash
 set -euo pipefail
-./scripts/release/release-prepare.sh --dry-run
+./tools/scripts/release/release-prepare.sh --dry-run
 '''
 
 [tasks.rpd]

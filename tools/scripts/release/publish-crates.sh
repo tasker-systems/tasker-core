@@ -6,11 +6,13 @@
 # Usage:
 #   ./scripts/release/publish-crates.sh VERSION [--dry-run] [--on-duplicate=skip|warn|fail]
 #
-# Publishes six crates in four phases respecting dependency ordering:
+# Publishes nine crates in four phases respecting dependency ordering:
 #   Phase 1: tasker-pgmq
 #   Phase 2: tasker-shared
-#   Phase 3: tasker-client, tasker-orchestration
-#   Phase 4: tasker-worker, tasker-ctl
+#   Phase 3: tasker-client, tasker-orchestration, tasker-sdk
+#   Phase 4: tasker-worker, tasker-ctl, tasker-mcp
+#
+# Not yet published (publish = false): tasker-grammar, tasker-secure, tasker-runtime
 #
 # Requires CARGO_REGISTRY_TOKEN (skipped in dry-run mode).
 # Requires SQLX_OFFLINE=true (no database in release runner).
@@ -55,7 +57,7 @@ fi
 # Publish in dependency order
 # ---------------------------------------------------------------------------
 PHASE_1=("tasker-pgmq")
-PHASE_2=("tasker-shared" "tasker-grammar")
+PHASE_2=("tasker-shared")
 PHASE_3=("tasker-client" "tasker-orchestration" "tasker-sdk")
 PHASE_4=("tasker-worker" "tasker-ctl" "tasker-mcp")
 
