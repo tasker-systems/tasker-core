@@ -1,6 +1,9 @@
 //! Static configuration source for resource definitions.
 //!
-//! Reads resource definitions from worker.toml `[[resources]]` sections.
+//! Reads resource definitions from a pre-loaded list, typically originating
+//! from worker.toml `[[resources]]` sections.
+
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 
@@ -8,28 +11,38 @@ use tasker_secure::ResourceDefinition;
 
 use super::ResourceDefinitionSource;
 
-/// Resolves resource definitions from static configuration (worker.toml).
+/// Resolves resource definitions from static configuration.
 ///
-/// Loaded once at startup. Does not watch for changes.
+/// Loaded once at startup from a `Vec<ResourceDefinition>`.
+/// Does not support watching — `watch()` returns `None`.
 #[derive(Debug)]
 pub struct StaticConfigSource {
-    // Resource definitions will be stored here in TAS-376.
+    definitions: HashMap<String, ResourceDefinition>,
 }
 
 impl StaticConfigSource {
     /// Create a new static config source from a list of definitions.
-    pub fn new(_definitions: Vec<ResourceDefinition>) -> Self {
-        unimplemented!("TAS-376: StaticConfigSource::new")
+    ///
+    /// Indexes by `definition.name`. Duplicate names are resolved by
+    /// last-write-wins (later entries overwrite earlier ones).
+    pub fn new(definitions: Vec<ResourceDefinition>) -> Self {
+        let definitions = definitions
+            .into_iter()
+            .map(|d| (d.name.clone(), d))
+            .collect();
+        Self { definitions }
     }
 }
 
 #[async_trait]
 impl ResourceDefinitionSource for StaticConfigSource {
-    async fn resolve(&self, _name: &str) -> Option<ResourceDefinition> {
-        unimplemented!("TAS-376: StaticConfigSource::resolve")
+    async fn resolve(&self, name: &str) -> Option<ResourceDefinition> {
+        self.definitions.get(name).cloned()
     }
 
     async fn list_names(&self) -> Vec<String> {
-        unimplemented!("TAS-376: StaticConfigSource::list_names")
+        self.definitions.keys().cloned().collect()
     }
+
+    // watch() inherits default None — static source, no rotation
 }
