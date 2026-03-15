@@ -7,6 +7,9 @@
 pub mod resolver;
 pub mod static_config;
 
+// Re-export for convenience.
+pub use resolver::DefinitionBasedResolver;
+
 #[cfg(feature = "sops")]
 pub mod sops;
 
