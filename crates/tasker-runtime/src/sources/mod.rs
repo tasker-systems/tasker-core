@@ -33,6 +33,30 @@ pub enum ResourceDefinitionEvent {
     Removed { name: String },
 }
 
+/// A receiver for resource definition change events.
+///
+/// Wraps `tokio::sync::mpsc::Receiver<ResourceDefinitionEvent>` with a
+/// named type to avoid confusion with other channel receivers in the system.
+#[derive(Debug)]
+pub struct ResourceDefinitionWatcher(pub tokio::sync::mpsc::Receiver<ResourceDefinitionEvent>);
+
+/// The sender half for resource definition change events.
+#[derive(Debug, Clone)]
+pub struct ResourceDefinitionNotifier(pub tokio::sync::mpsc::Sender<ResourceDefinitionEvent>);
+
+impl ResourceDefinitionWatcher {
+    /// Create a bounded channel pair for resource definition events.
+    ///
+    /// Follows project convention: all channels are bounded.
+    pub fn channel(capacity: usize) -> (ResourceDefinitionNotifier, ResourceDefinitionWatcher) {
+        let (tx, rx) = tokio::sync::mpsc::channel(capacity);
+        (
+            ResourceDefinitionNotifier(tx),
+            ResourceDefinitionWatcher(rx),
+        )
+    }
+}
+
 /// A source of resource definitions that can be queried at runtime.
 ///
 /// Implementations resolve named resource definitions from various backends:
@@ -44,6 +68,41 @@ pub trait ResourceDefinitionSource: Send + Sync + std::fmt::Debug {
 
     /// List all resource names known to this source.
     async fn list_names(&self) -> Vec<String>;
+
+    /// Watch for resource definition changes (additions, updates, removals).
+    ///
+    /// Used for credential rotation and dynamic resource lifecycle.
+    /// Sources that don't support watching return `None`.
+    async fn watch(&self) -> Option<ResourceDefinitionWatcher> {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn watcher_channel_sends_and_receives() {
+        let (notifier, mut watcher) = ResourceDefinitionWatcher::channel(8);
+
+        let event = ResourceDefinitionEvent::Added {
+            name: "test-db".to_string(),
+            definition: ResourceDefinition {
+                name: "test-db".to_string(),
+                resource_type: tasker_secure::ResourceType::Postgres,
+                config: tasker_secure::ResourceConfig::default(),
+                secrets_provider: None,
+            },
+        };
+
+        notifier.0.send(event).await.unwrap();
+
+        let received = watcher.0.recv().await.unwrap();
+        assert!(
+            matches!(received, ResourceDefinitionEvent::Added { name, .. } if name == "test-db")
+        );
+    }
 }
 
 /// Resolves a resource reference to a live [`ResourceHandle`].
