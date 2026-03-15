@@ -8,6 +8,7 @@ repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
 keywords = ["grammar", "jq", "expression", "workflow", "orchestration"]
 categories = ["data-structures", "compilers"]
+publish = false  # Not yet ready for crates.io — remove when stabilized
 
 [lib]
 crate-type = ["rlib"]

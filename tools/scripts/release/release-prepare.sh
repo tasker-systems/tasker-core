@@ -109,8 +109,8 @@ echo "  Rust crates to publish:"
 if [[ "$CORE_CHANGED" == "true" ]]; then
     echo "    Phase 1: tasker-pgmq"
     echo "    Phase 2: tasker-shared"
-    echo "    Phase 3: tasker-client, tasker-orchestration"
-    echo "    Phase 4: tasker-worker, tasker-ctl"
+    echo "    Phase 3: tasker-client, tasker-orchestration, tasker-sdk"
+    echo "    Phase 4: tasker-worker, tasker-ctl, tasker-mcp"
 else
     echo "    (none -- no core changes detected)"
 fi

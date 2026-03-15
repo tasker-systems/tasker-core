@@ -8,6 +8,7 @@ repository = "https://github.com/tasker-systems/tasker-core"
 license = "MIT"
 keywords = ["runtime", "adapter", "resource", "workflow", "orchestration"]
 categories = ["concurrency", "database"]
+publish = false  # Not yet ready for crates.io — remove when stabilized
 
 [package.metadata.docs.rs]
 all-features = true
