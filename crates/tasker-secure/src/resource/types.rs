@@ -14,8 +14,9 @@ pub enum ResourceType {
     Postgres,
     /// HTTP/HTTPS endpoint.
     Http,
-    /// PGMQ message queue.
-    Pgmq,
+    /// Messaging provider (PGMQ, RabbitMQ). Provider-agnostic.
+    #[serde(alias = "pgmq")]
+    Messaging,
     /// User-defined resource type.
     Custom {
         /// The name of the custom resource type.
@@ -28,7 +29,7 @@ impl fmt::Display for ResourceType {
         match self {
             Self::Postgres => write!(f, "postgres"),
             Self::Http => write!(f, "http"),
-            Self::Pgmq => write!(f, "pgmq"),
+            Self::Messaging => write!(f, "messaging"),
             Self::Custom { type_name } => write!(f, "{type_name}"),
         }
     }

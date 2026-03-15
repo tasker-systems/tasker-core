@@ -58,9 +58,12 @@ fn unknown_resource_type_returns_no_factory_error() {
 }
 
 #[test]
-fn pgmq_has_no_persist_factory() {
+fn messaging_has_no_persist_factory() {
     let registry = AdapterRegistry::standard();
-    let handle = Arc::new(InMemoryResourceHandle::new("queue", ResourceType::Pgmq));
+    let handle = Arc::new(InMemoryResourceHandle::new(
+        "queue",
+        ResourceType::Messaging,
+    ));
     let result = registry.as_persistable(handle);
     let err = expect_err(result);
     let msg = format!("{err}");

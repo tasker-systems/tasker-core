@@ -71,7 +71,7 @@ fn deserialize_http_resource_definition() {
 }
 
 #[test]
-fn deserialize_pgmq_resource_definition() {
+fn deserialize_messaging_resource_definition() {
     let toml_str = r#"
         name = "task_queue"
         resource_type = "pgmq"
@@ -79,7 +79,7 @@ fn deserialize_pgmq_resource_definition() {
 
     let def: ResourceDefinition = toml::from_str(toml_str).unwrap();
     assert_eq!(def.name, "task_queue");
-    assert_eq!(def.resource_type, ResourceType::Pgmq);
+    assert_eq!(def.resource_type, ResourceType::Messaging);
     assert!(def.config.get("anything").is_none());
 }
 
@@ -174,7 +174,7 @@ fn deserialize_multiple_resource_definitions() {
     }
 
     assert_eq!(list.resources[1].name, "cache_queue");
-    assert_eq!(list.resources[1].resource_type, ResourceType::Pgmq);
+    assert_eq!(list.resources[1].resource_type, ResourceType::Messaging);
 
     assert_eq!(list.resources[2].name, "external_api");
     assert_eq!(list.resources[2].resource_type, ResourceType::Http);
