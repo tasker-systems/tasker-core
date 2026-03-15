@@ -144,7 +144,7 @@ impl OperationProvider for RuntimeOperationProvider {
 
 /// Map a `ResourceError` (tasker-secure domain) to a `ResourceOperationError`
 /// (tasker-grammar domain).
-fn map_resource_error(err: ResourceError) -> ResourceOperationError {
+pub(crate) fn map_resource_error(err: ResourceError) -> ResourceOperationError {
     match err {
         ResourceError::ResourceNotFound { name } => {
             ResourceOperationError::EntityNotFound { entity: name }

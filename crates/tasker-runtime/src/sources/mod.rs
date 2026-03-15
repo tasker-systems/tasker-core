@@ -4,6 +4,7 @@
 //! for resolving resource definitions from configuration files,
 //! encrypted SOPS files, or other backends.
 
+pub mod resolver;
 pub mod static_config;
 
 #[cfg(feature = "sops")]
