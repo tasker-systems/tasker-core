@@ -13,7 +13,7 @@ use tasker_secure::{
 fn resource_type_debug_display() {
     assert_eq!(format!("{}", ResourceType::Postgres), "postgres");
     assert_eq!(format!("{}", ResourceType::Http), "http");
-    assert_eq!(format!("{}", ResourceType::Pgmq), "pgmq");
+    assert_eq!(format!("{}", ResourceType::Messaging), "messaging");
 
     let custom = ResourceType::Custom {
         type_name: "redis".to_string(),
@@ -38,7 +38,18 @@ fn resource_type_deserialize_from_toml() {
     assert_eq!(http.rt, ResourceType::Http);
 
     let pgmq: Wrapper = toml::from_str(r#"rt = "pgmq""#).unwrap();
-    assert_eq!(pgmq.rt, ResourceType::Pgmq);
+    assert_eq!(pgmq.rt, ResourceType::Messaging);
+}
+
+#[test]
+fn resource_type_deserialize_messaging_canonical() {
+    #[derive(serde::Deserialize)]
+    struct Wrapper {
+        rt: ResourceType,
+    }
+
+    let messaging: Wrapper = toml::from_str(r#"rt = "messaging""#).unwrap();
+    assert_eq!(messaging.rt, ResourceType::Messaging);
 }
 
 // ── ConfigValue ─────────────────────────────────────────────────────────────

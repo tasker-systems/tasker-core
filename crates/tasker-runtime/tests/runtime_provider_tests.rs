@@ -231,8 +231,11 @@ async fn no_adapter_registered_maps_to_validation_failed() {
         PoolManagerConfig::default(),
     ));
 
-    // Register a Pgmq handle — no adapter factory exists for Pgmq
-    let handle = Arc::new(InMemoryResourceHandle::new("queue", ResourceType::Pgmq));
+    // Register a Messaging handle — no adapter factory exists for Messaging
+    let handle = Arc::new(InMemoryResourceHandle::new(
+        "queue",
+        ResourceType::Messaging,
+    ));
     pool.register("queue", handle, ResourceOrigin::Static, 1)
         .await
         .unwrap();

@@ -6,7 +6,7 @@
 //!
 //! # Types
 //!
-//! - [`ResourceType`] — the kind of infrastructure resource (Postgres, HTTP, PGMQ, custom).
+//! - [`ResourceType`] — the kind of infrastructure resource (Postgres, HTTP, Messaging, custom).
 //! - [`ResourceDefinition`] — a complete resource definition from configuration.
 //! - [`ResourceConfig`] — key-value configuration with secret/env resolution.
 //! - [`ConfigValue`] — a single config value: literal, secret ref, or env ref.

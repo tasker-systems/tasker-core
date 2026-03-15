@@ -58,7 +58,7 @@ fn in_memory_handle_persist_capture() {
 
 #[test]
 fn in_memory_handle_emit_capture() {
-    let handle = InMemoryResourceHandle::new("events", ResourceType::Pgmq);
+    let handle = InMemoryResourceHandle::new("events", ResourceType::Messaging);
 
     assert!(handle.emitted().is_empty());
 

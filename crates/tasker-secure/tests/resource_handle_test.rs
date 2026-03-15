@@ -81,9 +81,10 @@ fn resource_handle_ext_returns_none_for_wrong_type() {
 
 #[tokio::test]
 async fn resource_handle_dyn_dispatch() {
-    let handle: Arc<dyn ResourceHandle> = Arc::new(TestHandle::new("arc_db", ResourceType::Pgmq));
+    let handle: Arc<dyn ResourceHandle> =
+        Arc::new(TestHandle::new("arc_db", ResourceType::Messaging));
     assert_eq!(handle.resource_name(), "arc_db");
-    assert_eq!(handle.resource_type(), &ResourceType::Pgmq);
+    assert_eq!(handle.resource_type(), &ResourceType::Messaging);
     handle.health_check().await.unwrap();
 
     let secrets = InMemorySecretsProvider::new(std::collections::HashMap::new());
