@@ -37,23 +37,29 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by orchestration
-COPY crates/tasker-orchestration/ ./tasker-orchestration/
-COPY crates/tasker-shared/ ./tasker-shared/
-COPY crates/tasker-client/ ./tasker-client/
-COPY crates/tasker-ctl/ ./tasker-ctl/
-COPY crates/tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-orchestration/ ./crates/tasker-orchestration/
+COPY crates/tasker-shared/ ./crates/tasker-shared/
+COPY crates/tasker-client/ ./crates/tasker-client/
+COPY crates/tasker-ctl/ ./crates/tasker-ctl/
+COPY crates/tasker-pgmq/ ./crates/tasker-pgmq/
 COPY migrations/ ./migrations/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts
-COPY crates/tasker-worker/Cargo.toml ./tasker-worker/
-COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
-COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
-COPY crates/tasker-py/Cargo.toml ./tasker-py/
-COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
+    /tmp/create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts \
+    tasker-sdk tasker-mcp tasker-grammar tasker-secure tasker-runtime
+COPY crates/tasker-worker/Cargo.toml ./crates/tasker-worker/
+COPY crates/tasker-example-rs/Cargo.toml ./crates/tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./crates/tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./crates/tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./crates/tasker-ts/
+COPY crates/tasker-sdk/Cargo.toml ./crates/tasker-sdk/
+COPY crates/tasker-mcp/Cargo.toml ./crates/tasker-mcp/
+COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
+COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
+COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
 
 # Generate dependency recipe
 RUN cargo chef prepare --recipe-path recipe.json
@@ -75,23 +81,29 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by orchestration
-COPY crates/tasker-orchestration/ ./tasker-orchestration/
-COPY crates/tasker-shared/ ./tasker-shared/
-COPY crates/tasker-client/ ./tasker-client/
-COPY crates/tasker-ctl/ ./tasker-ctl/
-COPY crates/tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-orchestration/ ./crates/tasker-orchestration/
+COPY crates/tasker-shared/ ./crates/tasker-shared/
+COPY crates/tasker-client/ ./crates/tasker-client/
+COPY crates/tasker-ctl/ ./crates/tasker-ctl/
+COPY crates/tasker-pgmq/ ./crates/tasker-pgmq/
 COPY migrations/ ./migrations/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts
-COPY crates/tasker-worker/Cargo.toml ./tasker-worker/
-COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
-COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
-COPY crates/tasker-py/Cargo.toml ./tasker-py/
-COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
+    /tmp/create-workspace-stubs.sh tasker-worker tasker-example-rs tasker-rb tasker-py tasker-ts \
+    tasker-sdk tasker-mcp tasker-grammar tasker-secure tasker-runtime
+COPY crates/tasker-worker/Cargo.toml ./crates/tasker-worker/
+COPY crates/tasker-example-rs/Cargo.toml ./crates/tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./crates/tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./crates/tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./crates/tasker-ts/
+COPY crates/tasker-sdk/Cargo.toml ./crates/tasker-sdk/
+COPY crates/tasker-mcp/Cargo.toml ./crates/tasker-mcp/
+COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
+COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
+COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
 
 # Set offline mode for SQLx
 ENV SQLX_OFFLINE=true

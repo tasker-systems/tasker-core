@@ -99,11 +99,11 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy shared crates needed by all FFI extensions
-COPY crates/tasker-shared/ ./tasker-shared/
-COPY crates/tasker-worker/ ./tasker-worker/
-COPY crates/tasker-client/ ./tasker-client/
-COPY crates/tasker-ctl/ ./tasker-ctl/
-COPY crates/tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-shared/ ./crates/tasker-shared/
+COPY crates/tasker-worker/ ./crates/tasker-worker/
+COPY crates/tasker-client/ ./crates/tasker-client/
+COPY crates/tasker-ctl/ ./crates/tasker-ctl/
+COPY crates/tasker-pgmq/ ./crates/tasker-pgmq/
 COPY proto/ ./proto/
 COPY migrations/ ./migrations/
 
@@ -113,9 +113,15 @@ COPY .sqlx/ ./.sqlx/
 # Create workspace stubs for crates we don't build
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs
-COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs \
+    tasker-sdk tasker-mcp tasker-grammar tasker-secure tasker-runtime
+COPY crates/tasker-orchestration/Cargo.toml ./crates/tasker-orchestration/
 COPY crates/tasker-example-rs/Cargo.toml ./crates/tasker-example-rs/
+COPY crates/tasker-sdk/Cargo.toml ./crates/tasker-sdk/
+COPY crates/tasker-mcp/Cargo.toml ./crates/tasker-mcp/
+COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
+COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
+COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
 
 # Copy all three FFI worker sources
 COPY crates/tasker-py/ ./crates/tasker-py/

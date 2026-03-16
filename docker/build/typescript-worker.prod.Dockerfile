@@ -40,31 +40,37 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by TypeScript FFI extension
-COPY crates/tasker-shared/ ./tasker-shared/
-COPY crates/tasker-worker/ ./tasker-worker/
-COPY crates/tasker-client/ ./tasker-client/
-COPY crates/tasker-ctl/ ./tasker-ctl/
-COPY crates/tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-shared/ ./crates/tasker-shared/
+COPY crates/tasker-worker/ ./crates/tasker-worker/
+COPY crates/tasker-client/ ./crates/tasker-client/
+COPY crates/tasker-ctl/ ./crates/tasker-ctl/
+COPY crates/tasker-pgmq/ ./crates/tasker-pgmq/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs tasker-rb tasker-py
-COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
-COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
-COPY crates/tasker-py/Cargo.toml ./tasker-py/
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs tasker-rb tasker-py \
+    tasker-sdk tasker-mcp tasker-grammar tasker-secure tasker-runtime
+COPY crates/tasker-orchestration/Cargo.toml ./crates/tasker-orchestration/
+COPY crates/tasker-example-rs/Cargo.toml ./crates/tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./crates/tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./crates/tasker-py/
+COPY crates/tasker-sdk/Cargo.toml ./crates/tasker-sdk/
+COPY crates/tasker-mcp/Cargo.toml ./crates/tasker-mcp/
+COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
+COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
+COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
 
 # Copy TypeScript worker source code to proper workspace location
-COPY crates/tasker-ts/ ./tasker-ts/
+COPY crates/tasker-ts/ ./crates/tasker-ts/
 COPY migrations/ ./migrations/
 
 # Set environment for build
 ENV SQLX_OFFLINE=true
 
 # Install Bun dependencies (includes @napi-rs/cli for building)
-WORKDIR /app/tasker-ts
+WORKDIR /app/crates/tasker-ts
 RUN bun install --frozen-lockfile
 
 # Build napi-rs FFI module (places .node file in package root)
@@ -99,15 +105,15 @@ COPY --from=typescript_builder /usr/local/bin/bun /usr/local/bin/bun
 
 # Copy TypeScript worker from builder (NOT test handlers — those are volume-mounted)
 WORKDIR /app/typescript_worker
-COPY --from=typescript_builder /app/tasker-ts/bin ./bin
-COPY --from=typescript_builder /app/tasker-ts/src ./src
-COPY --from=typescript_builder /app/tasker-ts/dist ./dist
-COPY --from=typescript_builder /app/tasker-ts/package.json ./
-COPY --from=typescript_builder /app/tasker-ts/tsconfig.json ./
-COPY --from=typescript_builder /app/tasker-ts/node_modules ./node_modules
+COPY --from=typescript_builder /app/crates/tasker-ts/bin ./bin
+COPY --from=typescript_builder /app/crates/tasker-ts/src ./src
+COPY --from=typescript_builder /app/crates/tasker-ts/dist ./dist
+COPY --from=typescript_builder /app/crates/tasker-ts/package.json ./
+COPY --from=typescript_builder /app/crates/tasker-ts/tsconfig.json ./
+COPY --from=typescript_builder /app/crates/tasker-ts/node_modules ./node_modules
 
 # Copy napi-rs .node FFI modules (built by `bunx napi build --platform`)
-COPY --from=typescript_builder /app/tasker-ts/tasker_ts.*.node ./
+COPY --from=typescript_builder /app/crates/tasker-ts/tasker_ts.*.node ./
 
 # Ensure all files are readable
 RUN chmod -R 755 ./bin && \

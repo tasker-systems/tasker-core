@@ -48,29 +48,35 @@ COPY .cargo/ ./.cargo/
 COPY src/ ./src/
 
 # Copy workspace crates needed by Python FFI extension
-COPY crates/tasker-shared/ ./tasker-shared/
-COPY crates/tasker-worker/ ./tasker-worker/
-COPY crates/tasker-client/ ./tasker-client/
-COPY crates/tasker-ctl/ ./tasker-ctl/
-COPY crates/tasker-pgmq/ ./tasker-pgmq/
+COPY crates/tasker-shared/ ./crates/tasker-shared/
+COPY crates/tasker-worker/ ./crates/tasker-worker/
+COPY crates/tasker-client/ ./crates/tasker-client/
+COPY crates/tasker-ctl/ ./crates/tasker-ctl/
+COPY crates/tasker-pgmq/ ./crates/tasker-pgmq/
 COPY proto/ ./proto/
 
 # Copy minimal workspace structure for crates we don't actually need
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs tasker-rb tasker-ts
-COPY crates/tasker-orchestration/Cargo.toml ./tasker-orchestration/
-COPY crates/tasker-example-rs/Cargo.toml ./tasker-example-rs/
-COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./tasker-rb/ext/tasker_core/
-COPY crates/tasker-ts/Cargo.toml ./tasker-ts/
+    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-example-rs tasker-rb tasker-ts \
+    tasker-sdk tasker-mcp tasker-grammar tasker-secure tasker-runtime
+COPY crates/tasker-orchestration/Cargo.toml ./crates/tasker-orchestration/
+COPY crates/tasker-example-rs/Cargo.toml ./crates/tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./crates/tasker-rb/ext/tasker_core/
+COPY crates/tasker-ts/Cargo.toml ./crates/tasker-ts/
+COPY crates/tasker-sdk/Cargo.toml ./crates/tasker-sdk/
+COPY crates/tasker-mcp/Cargo.toml ./crates/tasker-mcp/
+COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
+COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
+COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
 
 # Copy Python worker source code to proper workspace location
-COPY crates/tasker-py/ ./tasker-py/
+COPY crates/tasker-py/ ./crates/tasker-py/
 COPY migrations/ ./migrations/
 
 # Set working directory and environment for Python worker
 ENV SQLX_OFFLINE=true
-WORKDIR /app/tasker-py
+WORKDIR /app/crates/tasker-py
 
 # Create virtual environment using UV
 RUN uv venv /app/.venv
@@ -117,8 +123,8 @@ ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy Python worker source code (NOT test handlers — those are volume-mounted)
-COPY --from=python_builder /app/tasker-py/python ./python_worker/python
-COPY --from=python_builder /app/tasker-py/bin ./python_worker/bin
+COPY --from=python_builder /app/crates/tasker-py/python ./python_worker/python
+COPY --from=python_builder /app/crates/tasker-py/bin ./python_worker/bin
 
 # Ensure all Python files are readable
 RUN chmod -R 755 ./python_worker/bin && \
