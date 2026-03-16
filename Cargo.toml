@@ -1,6 +1,6 @@
 [package]
 name = "tasker-core"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 description = "High-performance Rust core for workflow orchestration"
 readme = "README.md"
@@ -108,8 +108,8 @@ opentelemetry_sdk = { version = "0.31", features = [
 opentelemetry-semantic-conventions = "0.31"
 # Message queue management
 pgmq = "0.32.0"
-tasker-pgmq = { path = "crates/tasker-pgmq", version = "=0.1.6" }
-tasker-sdk = { path = "crates/tasker-sdk", version = "=0.1.6" }
+tasker-pgmq = { path = "crates/tasker-pgmq", version = "=0.1.7" }
+tasker-sdk = { path = "crates/tasker-sdk", version = "=0.1.7" }
 # MCP protocol server (TAS-304)
 rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
 # JSON Schema generation for MCP tool parameters (TAS-304)

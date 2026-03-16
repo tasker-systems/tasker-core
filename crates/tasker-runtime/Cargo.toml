@@ -31,7 +31,7 @@ test-services = ["test-messaging"]
 [dependencies]
 tasker-grammar = { path = "../tasker-grammar", version = "=0.1.6" }
 tasker-secure = { path = "../tasker-secure", version = "=0.1.6" }
-tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
+tasker-shared = { path = "../tasker-shared", version = "=0.1.7" }
 async-trait = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

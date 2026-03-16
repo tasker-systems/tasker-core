@@ -137,6 +137,8 @@ update_workspace_dep_versions() {
         tasker-ctl
         tasker-orchestration
         tasker-worker
+        tasker-sdk
+        tasker-mcp
     )
 
     # Find all Cargo.toml files in the workspace (bash 3.2-compatible)

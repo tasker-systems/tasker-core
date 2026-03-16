@@ -1,6 +1,6 @@
 [package]
 name = "tasker-ctl"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 license = "MIT"
 description = "Command-line interface for the Tasker orchestration system"
@@ -15,9 +15,9 @@ path = "src/main.rs"
 
 [dependencies]
 # Workspace crates
-tasker-client = { path = "../tasker-client", version = "=0.1.6" }
-tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
-tasker-sdk = { path = "../tasker-sdk", version = "=0.1.6" }
+tasker-client = { path = "../tasker-client", version = "=0.1.7" }
+tasker-shared = { path = "../tasker-shared", version = "=0.1.7" }
+tasker-sdk = { path = "../tasker-sdk", version = "=0.1.7" }
 
 # CLI framework
 clap = { workspace = true, features = ["color", "derive", "env"] }
