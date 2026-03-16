@@ -608,6 +608,8 @@ jobs:
             dockerfile: docker/build/python-worker.prod.Dockerfile
           - name: tasker-worker-typescript
             dockerfile: docker/build/typescript-worker.prod.Dockerfile
+          - name: tasker-mcp
+            dockerfile: docker/build/mcp.prod.Dockerfile
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
