@@ -68,13 +68,12 @@ FROM chef AS builder
 
 WORKDIR /app
 
-COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
-
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
 COPY src/ ./src/
+COPY vendor/ ./vendor/
 
+# tasker-mcp depends on: tasker-sdk, tasker-shared, tasker-client
 COPY crates/tasker-mcp/ ./crates/tasker-mcp/
 COPY crates/tasker-sdk/ ./crates/tasker-sdk/
 COPY crates/tasker-shared/ ./crates/tasker-shared/
@@ -98,6 +97,10 @@ COPY crates/tasker-ts/Cargo.toml ./crates/tasker-ts/
 COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
 COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
 COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
+
+# Build dependencies from recipe (cached layer — invalidated only when deps change)
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
 ENV SQLX_OFFLINE=true
 

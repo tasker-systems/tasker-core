@@ -72,10 +72,6 @@ FROM chef AS builder
 
 WORKDIR /app
 
-# Copy recipe and build dependencies (cached layer)
-COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
-
 # Copy workspace root files and all source
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
@@ -106,6 +102,10 @@ COPY crates/tasker-mcp/Cargo.toml ./crates/tasker-mcp/
 COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
 COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
 COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
+
+# Build dependencies from recipe (cached layer — invalidated only when deps change)
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
 # Set offline mode for SQLx
 ENV SQLX_OFFLINE=true
