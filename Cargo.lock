@@ -3884,19 +3884,13 @@ dependencies = [
  "bitflags 2.9.4",
  "ctor",
  "futures",
- "napi-build 2.3.1",
+ "napi-build",
  "napi-sys",
  "nohash-hasher",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
 ]
-
-[[package]]
-name = "napi-build"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebd4419172727423cf30351406c54f6cc1b354a2cfb4f1dba3e6cd07f6d5522b"
 
 [[package]]
 name = "napi-build"
@@ -7325,7 +7319,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "napi",
- "napi-build 1.2.1",
+ "napi-build",
  "napi-derive",
  "serde_json",
  "tasker-shared",

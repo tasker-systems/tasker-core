@@ -46,7 +46,7 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 [build-dependencies]
-napi-build = "1"
+napi-build = "2"
 
 [features]
 default = []
