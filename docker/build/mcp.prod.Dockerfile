@@ -31,6 +31,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
 COPY src/ ./src/
+COPY vendor/ ./vendor/
 
 # tasker-mcp depends on: tasker-sdk, tasker-shared, tasker-client
 COPY crates/tasker-mcp/ ./crates/tasker-mcp/

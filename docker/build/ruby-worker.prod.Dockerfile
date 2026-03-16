@@ -38,6 +38,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
 COPY src/ ./src/
+COPY vendor/ ./vendor/
 
 # Copy workspace crates needed by Ruby FFI extension
 COPY crates/tasker-shared/ ./crates/tasker-shared/
