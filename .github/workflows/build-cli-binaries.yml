@@ -21,21 +21,21 @@ on:
 # =============================================================================
 # Matrix Strategy
 # =============================================================================
-# Builds the tasker-ctl binary for 4 platform/architecture combinations.
-# Uses native compilation where possible, cross-compilation for linux-arm64
-# and darwin-amd64.
+# Builds tasker-ctl and tasker-mcp binaries for 4 platform/architecture
+# combinations. Uses native compilation where possible, cross-compilation
+# for linux-arm64 and darwin-amd64.
 #
-# | Job           | Runner       | Method                    |
-# |---------------|-------------|---------------------------|
-# | linux-amd64   | ubuntu-22.04 | Native cargo build        |
+# | Job           | Runner       | Method                      |
+# |---------------|-------------|-----------------------------|
+# | linux-amd64   | ubuntu-22.04 | Native cargo build          |
 # | linux-arm64   | ubuntu-22.04 | Cross-compile (gcc-aarch64) |
-# | darwin-amd64  | macos-14     | Cross-compile (x86_64)    |
-# | darwin-arm64  | macos-14     | Native cargo build        |
+# | darwin-amd64  | macos-14     | Cross-compile (x86_64)      |
+# | darwin-arm64  | macos-14     | Native cargo build          |
 # =============================================================================
 
 jobs:
   build:
-    name: CLI ${{ matrix.target.name }}
+    name: ${{ matrix.binary.name }} ${{ matrix.target.name }}
     runs-on: ${{ matrix.target.runner }}
     timeout-minutes: 20
     outputs:
@@ -45,6 +45,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        binary:
+          - name: tasker-ctl
+            package: tasker-ctl
+          - name: tasker-mcp
+            package: tasker-mcp
         target:
           - name: linux-amd64
             runner: ubuntu-22.04
@@ -80,6 +85,10 @@ jobs:
       - name: Install protobuf compiler
         uses: ./.github/actions/install-protobuf
 
+      - name: Setup mold linker
+        if: runner.os == 'Linux'
+        uses: rui314/setup-mold@v1
+
       - name: Install cross-compilation toolchain
         if: matrix.target.cross
         run: |
@@ -93,15 +102,15 @@ jobs:
           TRIPLE_UPPER="$(echo '${{ matrix.target.triple }}' | tr '[:lower:]-' '[:upper:]_')"
           echo "CARGO_TARGET_${TRIPLE_UPPER}_LINKER=${{ matrix.target.linker }}" >> "$GITHUB_ENV"
 
-      - name: Build tasker-ctl
+      - name: Build ${{ matrix.binary.name }}
         run: |
-          cargo build --release --package tasker-ctl --target ${{ matrix.target.triple }}
+          cargo build --release --package ${{ matrix.binary.package }} --target ${{ matrix.target.triple }}
 
       - name: Package binary
         run: |
           VERSION="${{ inputs.version || 'dev' }}"
           TARGET="${{ matrix.target.triple }}"
-          BINARY="tasker-ctl"
+          BINARY="${{ matrix.binary.name }}"
 
           # Locate the compiled binary
           BIN_PATH="target/${TARGET}/release/${BINARY}"
@@ -123,7 +132,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: cli-${{ inputs.version || 'dev' }}-${{ matrix.target.triple }}
-          path: tasker-ctl-*.tar.gz
+          name: cli-${{ inputs.version || 'dev' }}-${{ matrix.binary.name }}-${{ matrix.target.triple }}
+          path: ${{ matrix.binary.name }}-*.tar.gz
           retention-days: 7
           if-no-files-found: error
