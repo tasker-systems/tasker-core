@@ -35,6 +35,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
 COPY src/ ./src/
+COPY vendor/ ./vendor/
 
 # Copy workspace crates needed by orchestration
 COPY crates/tasker-orchestration/ ./crates/tasker-orchestration/
@@ -79,6 +80,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
 COPY src/ ./src/
+COPY vendor/ ./vendor/
 
 # Copy workspace crates needed by orchestration
 COPY crates/tasker-orchestration/ ./crates/tasker-orchestration/

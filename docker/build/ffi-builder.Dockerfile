@@ -97,6 +97,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
 COPY src/ ./src/
+COPY vendor/ ./vendor/
 
 # Copy shared crates needed by all FFI extensions
 COPY crates/tasker-shared/ ./crates/tasker-shared/
@@ -135,12 +136,12 @@ RUN bundle config set --local without 'development' && bundle install --jobs 4
 # Return to workspace root
 WORKDIR /app
 
-# Copy build scripts
-COPY tools/scripts/ffi-build/ ./scripts/ffi-build/
-RUN chmod +x ./scripts/ffi-build/*.sh ./scripts/ffi-build/lib/common.sh
+# Copy build scripts (path must match common.sh's ../../.. traversal to repo root)
+COPY tools/scripts/ffi-build/ ./tools/scripts/ffi-build/
+RUN chmod +x ./tools/scripts/ffi-build/*.sh ./tools/scripts/ffi-build/lib/common.sh
 
 # SQLx offline mode
 ENV SQLX_OFFLINE=true
 
 # Default entry point: build all FFI libs for current platform
-ENTRYPOINT ["./scripts/ffi-build/build-all.sh"]
+ENTRYPOINT ["./tools/scripts/ffi-build/build-all.sh"]
