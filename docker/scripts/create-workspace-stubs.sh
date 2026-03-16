@@ -23,16 +23,21 @@ STUB_CONTENT='pub fn stub() {}'
 
 # Map of crate names to their paths in the workspace
 declare -A CRATE_PATHS=(
-    ["tasker-orchestration"]="tasker-orchestration"
-    ["tasker-worker"]="tasker-worker"
-    ["tasker-shared"]="tasker-shared"
-    ["tasker-client"]="tasker-client"
-    ["tasker-ctl"]="tasker-ctl"
-    ["tasker-pgmq"]="tasker-pgmq"
-    ["tasker-example-rs"]="tasker-example-rs"
-    ["tasker-rb"]="tasker-rb/ext/tasker_core"
-    ["tasker-py"]="tasker-py"
-    ["tasker-ts"]="tasker-ts"
+    ["tasker-orchestration"]="crates/tasker-orchestration"
+    ["tasker-worker"]="crates/tasker-worker"
+    ["tasker-shared"]="crates/tasker-shared"
+    ["tasker-client"]="crates/tasker-client"
+    ["tasker-ctl"]="crates/tasker-ctl"
+    ["tasker-pgmq"]="crates/tasker-pgmq"
+    ["tasker-sdk"]="crates/tasker-sdk"
+    ["tasker-mcp"]="crates/tasker-mcp"
+    ["tasker-grammar"]="crates/tasker-grammar"
+    ["tasker-secure"]="crates/tasker-secure"
+    ["tasker-runtime"]="crates/tasker-runtime"
+    ["tasker-example-rs"]="crates/tasker-example-rs"
+    ["tasker-rb"]="crates/tasker-rb/ext/tasker_core"
+    ["tasker-py"]="crates/tasker-py"
+    ["tasker-ts"]="crates/tasker-ts"
 )
 
 create_stub() {
