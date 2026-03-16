@@ -1,6 +1,6 @@
 [package]
 name = "tasker-sdk"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 license = "MIT"
 description = "Shared SDK for Tasker: code generation, template parsing, schema inspection, and operational tooling"
@@ -15,8 +15,8 @@ path = "src/lib.rs"
 
 [dependencies]
 # Workspace crates
-tasker-shared = { path = "../tasker-shared", version = "=0.1.6" }
-tasker-client = { path = "../tasker-client", version = "=0.1.6" }
+tasker-shared = { path = "../tasker-shared", version = "=0.1.7" }
+tasker-client = { path = "../tasker-client", version = "=0.1.7" }
 
 # Serialization & config
 serde = { workspace = true }
