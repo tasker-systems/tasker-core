@@ -96,7 +96,7 @@ RUN uv pip install maturin>=1.7
 # Compile Python FFI extensions
 # NOTE: No BuildKit cache mounts — stale pythonize/serde artifacts cause "can't find crate" errors.
 # IMPORTANT: Use --locked to ensure Cargo.lock is respected (prevents version conflicts)
-RUN maturin develop --release --locked
+RUN maturin develop --release --locked --strip
 
 # =============================================================================
 # Runtime - Python-driven worker image
