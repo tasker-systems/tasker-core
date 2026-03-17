@@ -34,6 +34,8 @@ WORKDIR /app
 # Copy workspace root files
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
+# Strip mold linker config — mold is a dev-only optimization, not available in containers
+RUN sed -i '/\[target\.x86_64/,/^$/d' .cargo/config.toml
 COPY src/ ./src/
 COPY vendor/ ./vendor/
 
@@ -75,6 +77,8 @@ WORKDIR /app
 # Copy workspace root files and all source
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
+# Strip mold linker config — mold is a dev-only optimization, not available in containers
+RUN sed -i '/\[target\.x86_64/,/^$/d' .cargo/config.toml
 COPY src/ ./src/
 COPY vendor/ ./vendor/
 
