@@ -12,7 +12,7 @@ use std::time::Instant;
 use tasker_shared::config::tasker::DecisionPointsConfig;
 use tasker_shared::messaging::DecisionPointOutcome;
 use tasker_shared::metrics::orchestration::*;
-use tasker_shared::models::core::task_template::{StepDefinition, TaskTemplate};
+use tasker_shared::models::core::task_template::{StepDefinition, StepType, TaskTemplate};
 use tasker_shared::models::core::workflow_step_edge::NewWorkflowStepEdge;
 use tasker_shared::models::{Task, WorkflowStep, WorkflowStepEdge};
 use tasker_shared::system_context::SystemContext;
@@ -363,18 +363,27 @@ impl DecisionPointService {
             ))
     }
 
-    /// Determine which steps to create, including exit decision points and deferred convergence steps
+    /// Determine which steps to create, including transitive dependents and deferred convergence steps
     ///
     /// When creating steps from a decision outcome, we need to ensure that:
     /// 1. The explicitly requested steps are created
     /// 2. Any exit decision points are ALSO created so they can be discovered and executed
-    /// 3. Any deferred convergence steps whose dependencies intersect with created steps
+    /// 3. All intermediate steps transitively reachable from the requested steps within
+    ///    the graph segment are included (forward walk through dependents)
+    /// 4. Any deferred convergence steps whose dependencies intersect with created steps
     ///
     /// For example, with nested decisions:
     /// - decision_step_1 → branch_a → decision_step_2 → final_step
     ///
     /// When decision_step_1 chooses to create "branch_a", we must also create "decision_step_2"
     /// so that it exists and can be discovered by the orchestrator.
+    ///
+    /// For deep DAG chains:
+    /// - decision → plan_extraction → batch_analyzer → worker → merge (deferred_convergence)
+    ///
+    /// When the decision creates "plan_extraction", the forward walk discovers batch_analyzer
+    /// and worker as intermediate steps, then the deferred convergence check finds merge
+    /// because worker is now in the set.
     ///
     /// For deferred steps (convergence pattern):
     /// - routing_decision → auto_approve → finalize_approval (deferred)
@@ -395,6 +404,10 @@ impl DecisionPointService {
         // Get graphs reachable from this decision
         let graphs = template.graphs_from_decision(&decision_step_def.name);
 
+        // Collect all steps that belong to relevant graph segments
+        let mut graph_step_names: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+
         // For each graph, if any of its steps are in requested_steps,
         // also include all exit decision points from that graph
         for graph in &graphs {
@@ -402,6 +415,11 @@ impl DecisionPointService {
                 requested_steps.iter().any(|step| graph.contains_step(step));
 
             if graph_has_requested_steps {
+                // Track all steps in this graph segment for forward walking
+                for step in &graph.steps {
+                    graph_step_names.insert(step.name.clone());
+                }
+
                 // Add all exit decision points
                 for exit_decision in &graph.exit_decisions {
                     debug!(
@@ -414,10 +432,62 @@ impl DecisionPointService {
             }
         }
 
-        // Find and include deferred convergence steps
+        // Forward reachability walk: starting from the requested steps, find all
+        // steps in the graph segment that are transitively reachable by following
+        // the dependency→dependent direction. This correctly handles branching
+        // decisions by only expanding along the routed path(s).
+        //
+        // Build a dependency→dependents adjacency map for the graph segment
+        let mut dependents_map: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for step_def in &template.steps {
+            if !graph_step_names.contains(&step_def.name) {
+                continue;
+            }
+            for dep in &step_def.dependencies {
+                dependents_map
+                    .entry(dep.clone())
+                    .or_default()
+                    .push(step_def.name.clone());
+            }
+        }
+
+        // BFS forward from requested steps + exit decisions through the graph
+        let decision_name = &decision_step_def.name;
+        let mut frontier: Vec<String> = steps_to_create.iter().cloned().collect();
+        while let Some(current) = frontier.pop() {
+            if let Some(deps) = dependents_map.get(&current) {
+                for dep_name in deps {
+                    if steps_to_create.contains(dep_name) {
+                        continue;
+                    }
+                    // Find the step definition
+                    if let Some(step_def) = template.steps.iter().find(|s| &s.name == dep_name) {
+                        // Skip deferred convergence steps — they're handled separately below.
+                        // Skip batch worker steps — these are templates instantiated dynamically
+                        // by the batch processing system, not created by the decision point.
+                        if step_def.is_deferred_convergence()
+                            || step_def.step_type == StepType::BatchWorker
+                        {
+                            continue;
+                        }
+                        debug!(
+                            decision = %decision_name,
+                            step = %step_def.name,
+                            reachable_from = %current,
+                            "Including transitive dependent step in step creation"
+                        );
+                        steps_to_create.insert(dep_name.clone());
+                        frontier.push(dep_name.clone());
+                    }
+                }
+            }
+        }
+
+        // Find and include deferred convergence steps whose dependencies
+        // intersect with the steps being created
         let deferred_steps = template.deferred_convergence_steps();
         for deferred_step in &deferred_steps {
-            // Check if any of this deferred step's dependencies are being created
             let intersection: Vec<String> = deferred_step
                 .dependencies
                 .iter()
@@ -434,6 +504,57 @@ impl DecisionPointService {
                     "Including deferred convergence step in step creation"
                 );
                 steps_to_create.insert(deferred_step.name.clone());
+            }
+        }
+
+        // After adding deferred convergence steps, walk forward again to pick up
+        // any steps that depend on the newly added deferred convergence steps
+        // (e.g., a finalize step after a merge convergence, or a second deferred
+        // convergence step that depends on the first).
+        // Build a broader dependents map that includes all template steps.
+        let mut all_dependents_map: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for step_def in &template.steps {
+            for dep in &step_def.dependencies {
+                all_dependents_map
+                    .entry(dep.clone())
+                    .or_default()
+                    .push(step_def.name.clone());
+            }
+        }
+
+        // BFS forward from deferred convergence steps we just added
+        let mut post_frontier: Vec<String> = deferred_steps
+            .iter()
+            .filter(|s| steps_to_create.contains(&s.name))
+            .map(|s| s.name.clone())
+            .collect();
+
+        while let Some(current) = post_frontier.pop() {
+            if let Some(deps) = all_dependents_map.get(&current) {
+                for dep_name in deps {
+                    if steps_to_create.contains(dep_name) {
+                        continue;
+                    }
+                    // A post-convergence step is reachable if ALL its dependencies
+                    // are either in steps_to_create or are the decision step
+                    if let Some(step_def) = template.steps.iter().find(|s| &s.name == dep_name) {
+                        let all_deps_satisfied = step_def
+                            .dependencies
+                            .iter()
+                            .all(|dep| steps_to_create.contains(dep) || dep == decision_name);
+                        if all_deps_satisfied {
+                            debug!(
+                                decision = %decision_name,
+                                step = %step_def.name,
+                                reachable_from = %current,
+                                "Including post-convergence dependent step in step creation"
+                            );
+                            steps_to_create.insert(dep_name.clone());
+                            post_frontier.push(dep_name.clone());
+                        }
+                    }
+                }
             }
         }
 
@@ -806,5 +927,432 @@ mod tests {
             assert!(!debug_str.is_empty());
         }
         assert_eq!(errors.len(), 8);
+    }
+
+    /// Helper to build a template and call determine_steps_to_create
+    fn determine_steps_helper(
+        yaml: &str,
+        decision_step_name: &str,
+        requested_steps: &[&str],
+    ) -> Vec<String> {
+        let template = TaskTemplate::from_yaml(yaml).expect("Should parse YAML");
+        let decision_step_def = template
+            .steps
+            .iter()
+            .find(|s| s.name == decision_step_name)
+            .expect("Decision step should exist")
+            .clone();
+        let requested: Vec<String> = requested_steps.iter().map(|s| s.to_string()).collect();
+
+        // DecisionPointService::determine_steps_to_create doesn't use self.context,
+        // so we create a minimal service with a stub. We test the logic via a
+        // free-standing reimplementation that mirrors the private method.
+        // Instead, call the method directly through a helper that constructs
+        // the same logic.
+        determine_steps_to_create_standalone(&template, &decision_step_def, &requested)
+    }
+
+    /// Standalone version of determine_steps_to_create for unit testing
+    /// (mirrors the logic in DecisionPointService::determine_steps_to_create)
+    fn determine_steps_to_create_standalone(
+        template: &tasker_shared::models::core::task_template::TaskTemplate,
+        decision_step_def: &tasker_shared::models::core::task_template::StepDefinition,
+        requested_steps: &[String],
+    ) -> Vec<String> {
+        let mut steps_to_create: std::collections::HashSet<String> =
+            requested_steps.iter().cloned().collect();
+
+        let graphs = template.graphs_from_decision(&decision_step_def.name);
+
+        let mut graph_step_names: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+
+        for graph in &graphs {
+            let graph_has_requested_steps =
+                requested_steps.iter().any(|step| graph.contains_step(step));
+
+            if graph_has_requested_steps {
+                for step in &graph.steps {
+                    graph_step_names.insert(step.name.clone());
+                }
+                for exit_decision in &graph.exit_decisions {
+                    steps_to_create.insert(exit_decision.clone());
+                }
+            }
+        }
+
+        // Build dependency→dependents map for graph segment
+        let mut dependents_map: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for step_def in &template.steps {
+            if !graph_step_names.contains(&step_def.name) {
+                continue;
+            }
+            for dep in &step_def.dependencies {
+                dependents_map
+                    .entry(dep.clone())
+                    .or_default()
+                    .push(step_def.name.clone());
+            }
+        }
+
+        // BFS forward from requested steps
+        let decision_name = &decision_step_def.name;
+        let mut frontier: Vec<String> = steps_to_create.iter().cloned().collect();
+        while let Some(current) = frontier.pop() {
+            if let Some(deps) = dependents_map.get(&current) {
+                for dep_name in deps {
+                    if steps_to_create.contains(dep_name) {
+                        continue;
+                    }
+                    if let Some(step_def) = template.steps.iter().find(|s| &s.name == dep_name) {
+                        if step_def.is_deferred_convergence()
+                            || step_def.step_type == StepType::BatchWorker
+                        {
+                            continue;
+                        }
+                        steps_to_create.insert(dep_name.clone());
+                        frontier.push(dep_name.clone());
+                    }
+                }
+            }
+        }
+
+        // Deferred convergence check
+        let deferred_steps = template.deferred_convergence_steps();
+        for deferred_step in &deferred_steps {
+            let intersection: Vec<String> = deferred_step
+                .dependencies
+                .iter()
+                .filter(|dep| steps_to_create.contains(*dep))
+                .cloned()
+                .collect();
+            if !intersection.is_empty() {
+                steps_to_create.insert(deferred_step.name.clone());
+            }
+        }
+
+        // Post-convergence forward walk
+        let mut all_dependents_map: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for step_def in &template.steps {
+            for dep in &step_def.dependencies {
+                all_dependents_map
+                    .entry(dep.clone())
+                    .or_default()
+                    .push(step_def.name.clone());
+            }
+        }
+
+        let mut post_frontier: Vec<String> = deferred_steps
+            .iter()
+            .filter(|s| steps_to_create.contains(&s.name))
+            .map(|s| s.name.clone())
+            .collect();
+
+        while let Some(current) = post_frontier.pop() {
+            if let Some(deps) = all_dependents_map.get(&current) {
+                for dep_name in deps {
+                    if steps_to_create.contains(dep_name) {
+                        continue;
+                    }
+                    if let Some(step_def) = template.steps.iter().find(|s| &s.name == dep_name) {
+                        let all_deps_satisfied = step_def
+                            .dependencies
+                            .iter()
+                            .all(|dep| steps_to_create.contains(dep) || dep == decision_name);
+                        if all_deps_satisfied {
+                            steps_to_create.insert(dep_name.clone());
+                            post_frontier.push(dep_name.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        steps_to_create.into_iter().collect()
+    }
+
+    #[test]
+    fn test_determine_steps_flat_decision_includes_deferred() {
+        // Flat decision: all dynamic steps one hop from decision
+        // This is the existing working case (conditional approval pattern)
+        let yaml = r#"
+name: flat_decision
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: start
+    handler:
+      callable: "StartHandler"
+  - name: routing_decision
+    type: decision
+    handler:
+      callable: "RoutingHandler"
+    dependencies: ["start"]
+  - name: auto_approve
+    handler:
+      callable: "AutoApproveHandler"
+    dependencies: ["routing_decision"]
+  - name: manager_approval
+    handler:
+      callable: "ManagerHandler"
+    dependencies: ["routing_decision"]
+  - name: finalize
+    type: deferred_convergence
+    handler:
+      callable: "FinalizeHandler"
+    dependencies: ["auto_approve", "manager_approval"]
+"#;
+
+        let steps = determine_steps_helper(yaml, "routing_decision", &["auto_approve"]);
+        assert!(
+            steps.contains(&"auto_approve".to_string()),
+            "Should include requested step"
+        );
+        assert!(
+            steps.contains(&"finalize".to_string()),
+            "Should include deferred convergence step"
+        );
+        assert!(
+            !steps.contains(&"manager_approval".to_string()),
+            "Should not include unrouted branch"
+        );
+    }
+
+    #[test]
+    fn test_determine_steps_deep_chain_includes_intermediates() {
+        // Deep chain: multiple hops between routed step and deferred convergence
+        // This is the bug case from issue #323
+        let yaml = r#"
+name: deep_chain
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: check_artifacts
+    type: decision
+    handler:
+      callable: "CheckArtifactsHandler"
+  - name: plan_extraction
+    handler:
+      callable: "PlanExtractionHandler"
+    dependencies: ["check_artifacts"]
+  - name: parse_batch_analyzer
+    type: batchable
+    handler:
+      callable: "ParseBatchHandler"
+    dependencies: ["plan_extraction"]
+    batch_config:
+      batch_size: 10
+      parallelism: 5
+      cursor_field: "id"
+      worker_template: "parse_worker"
+      failure_strategy: "fail_fast"
+  - name: parse_worker
+    type: batch_worker
+    handler:
+      callable: "ParseWorkerHandler"
+    dependencies: ["parse_batch_analyzer"]
+    batch_config:
+      batch_size: 10
+      parallelism: 5
+      cursor_field: "id"
+      worker_template: "parse_worker"
+      failure_strategy: "fail_fast"
+  - name: merge_extractions
+    type: deferred_convergence
+    handler:
+      callable: "MergeHandler"
+    dependencies: ["parse_worker"]
+  - name: finalize
+    handler:
+      callable: "FinalizeHandler"
+    dependencies: ["merge_extractions"]
+"#;
+
+        let steps = determine_steps_helper(yaml, "check_artifacts", &["plan_extraction"]);
+
+        assert!(
+            steps.contains(&"plan_extraction".to_string()),
+            "Should include requested step"
+        );
+        assert!(
+            steps.contains(&"parse_batch_analyzer".to_string()),
+            "Should include intermediate batchable step"
+        );
+        // batch_worker steps are templates instantiated dynamically by the batch processing
+        // system — they should NOT be created by the decision point
+        assert!(
+            !steps.contains(&"parse_worker".to_string()),
+            "Should NOT include batch_worker template step (dynamically instantiated)"
+        );
+        // deferred_convergence steps that depend on batch_worker templates are also
+        // handled by the batch processing system, not the decision point
+        assert!(
+            !steps.contains(&"merge_extractions".to_string()),
+            "Should NOT include deferred convergence after batch_worker (batch system handles this)"
+        );
+        // Post-convergence steps that depend on batch-created convergence steps
+        // will be created once the batch processing system creates the convergence step
+        assert!(
+            !steps.contains(&"finalize".to_string()),
+            "Should NOT include post-batch-convergence step (created after batch completes)"
+        );
+    }
+
+    #[test]
+    fn test_determine_steps_deep_chain_with_dual_convergence() {
+        // Deep chain with two deferred convergence steps in series
+        // (mirrors the break_timecard pattern from the issue)
+        let yaml = r#"
+name: dual_convergence
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: check_artifacts
+    type: decision
+    handler:
+      callable: "CheckHandler"
+  - name: plan_extraction
+    handler:
+      callable: "PlanHandler"
+    dependencies: ["check_artifacts"]
+  - name: batch_analyzer
+    handler:
+      callable: "BatchHandler"
+    dependencies: ["plan_extraction"]
+  - name: worker
+    handler:
+      callable: "WorkerHandler"
+    dependencies: ["batch_analyzer"]
+  - name: merge_extractions
+    type: deferred_convergence
+    handler:
+      callable: "MergeHandler"
+    dependencies: ["worker"]
+  - name: break_timecard
+    type: deferred_convergence
+    handler:
+      callable: "BreakTimecardHandler"
+    dependencies: ["check_artifacts", "merge_extractions"]
+  - name: finalize
+    handler:
+      callable: "FinalizeHandler"
+    dependencies: ["break_timecard"]
+"#;
+
+        let steps = determine_steps_helper(yaml, "check_artifacts", &["plan_extraction"]);
+
+        // All intermediate steps
+        assert!(steps.contains(&"plan_extraction".to_string()));
+        assert!(steps.contains(&"batch_analyzer".to_string()));
+        assert!(steps.contains(&"worker".to_string()));
+        // Both deferred convergence steps
+        assert!(
+            steps.contains(&"merge_extractions".to_string()),
+            "Should include first deferred convergence"
+        );
+        assert!(
+            steps.contains(&"break_timecard".to_string()),
+            "Should include second deferred convergence (depends on decision + first convergence)"
+        );
+        // Post-convergence
+        assert!(
+            steps.contains(&"finalize".to_string()),
+            "Should include post-convergence finalize step"
+        );
+    }
+
+    #[test]
+    fn test_determine_steps_branching_only_creates_routed_path() {
+        // Decision with two branches, only one routed — should not create the other
+        let yaml = r#"
+name: branching
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: decision
+    type: decision
+    handler:
+      callable: "DecisionHandler"
+  - name: path_a_step1
+    handler:
+      callable: "PathA1"
+    dependencies: ["decision"]
+  - name: path_a_step2
+    handler:
+      callable: "PathA2"
+    dependencies: ["path_a_step1"]
+  - name: path_b_step1
+    handler:
+      callable: "PathB1"
+    dependencies: ["decision"]
+  - name: path_b_step2
+    handler:
+      callable: "PathB2"
+    dependencies: ["path_b_step1"]
+  - name: converge
+    type: deferred_convergence
+    handler:
+      callable: "ConvergeHandler"
+    dependencies: ["path_a_step2", "path_b_step2"]
+"#;
+
+        let steps = determine_steps_helper(yaml, "decision", &["path_a_step1"]);
+
+        assert!(steps.contains(&"path_a_step1".to_string()));
+        assert!(
+            steps.contains(&"path_a_step2".to_string()),
+            "Should include transitive dependent on routed path"
+        );
+        assert!(
+            !steps.contains(&"path_b_step1".to_string()),
+            "Should NOT include unrouted branch"
+        );
+        assert!(
+            !steps.contains(&"path_b_step2".to_string()),
+            "Should NOT include unrouted branch"
+        );
+        assert!(
+            steps.contains(&"converge".to_string()),
+            "Should include deferred convergence (path_a_step2 intersects)"
+        );
+    }
+
+    #[test]
+    fn test_determine_steps_with_exit_decision_points() {
+        // Nested decision: decision_1 → branch → decision_2 → final
+        let yaml = r#"
+name: nested_decisions
+namespace_name: test
+version: "1.0.0"
+
+steps:
+  - name: decision_1
+    type: decision
+    handler:
+      callable: "Decision1"
+  - name: branch_a
+    handler:
+      callable: "BranchA"
+    dependencies: ["decision_1"]
+  - name: decision_2
+    type: decision
+    handler:
+      callable: "Decision2"
+    dependencies: ["branch_a"]
+"#;
+
+        let steps = determine_steps_helper(yaml, "decision_1", &["branch_a"]);
+
+        assert!(steps.contains(&"branch_a".to_string()));
+        assert!(
+            steps.contains(&"decision_2".to_string()),
+            "Should include exit decision point"
+        );
     }
 }

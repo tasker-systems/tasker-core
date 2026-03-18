@@ -70,6 +70,7 @@ FROM chef AS builder
 
 WORKDIR /app
 
+# Copy workspace root files (needed for cargo chef cook)
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/ ./.cargo/
 # Strip mold linker config — mold is a dev-only optimization, not available in containers
@@ -77,20 +78,19 @@ RUN sed -i '/\[target\.x86_64/,/^$/d' .cargo/config.toml
 COPY src/ ./src/
 COPY vendor/ ./vendor/
 
-# tasker-mcp depends on: tasker-sdk, tasker-shared, tasker-client
-COPY crates/tasker-mcp/ ./crates/tasker-mcp/
-COPY crates/tasker-sdk/ ./crates/tasker-sdk/
-COPY crates/tasker-shared/ ./crates/tasker-shared/
-COPY crates/tasker-client/ ./crates/tasker-client/
-COPY crates/tasker-pgmq/ ./crates/tasker-pgmq/
-COPY proto/ ./proto/
-COPY migrations/ ./migrations/
-
+# Copy minimal workspace structure for ALL crates (stubs satisfy cargo workspace validation)
 COPY docker/scripts/create-workspace-stubs.sh /tmp/
 RUN chmod +x /tmp/create-workspace-stubs.sh && \
-    /tmp/create-workspace-stubs.sh tasker-orchestration tasker-worker tasker-ctl \
+    /tmp/create-workspace-stubs.sh tasker-mcp tasker-sdk tasker-shared tasker-client tasker-pgmq \
+    tasker-orchestration tasker-worker tasker-ctl \
     tasker-example-rs tasker-rb tasker-py tasker-ts \
     tasker-grammar tasker-secure tasker-runtime
+# Copy real Cargo.toml for all stubbed crates (stubs only create src/lib.rs)
+COPY crates/tasker-mcp/Cargo.toml ./crates/tasker-mcp/
+COPY crates/tasker-sdk/Cargo.toml ./crates/tasker-sdk/
+COPY crates/tasker-shared/Cargo.toml ./crates/tasker-shared/
+COPY crates/tasker-client/Cargo.toml ./crates/tasker-client/
+COPY crates/tasker-pgmq/Cargo.toml ./crates/tasker-pgmq/
 COPY crates/tasker-orchestration/Cargo.toml ./crates/tasker-orchestration/
 COPY crates/tasker-worker/Cargo.toml ./crates/tasker-worker/
 COPY crates/tasker-ctl/Cargo.toml ./crates/tasker-ctl/
@@ -101,10 +101,37 @@ COPY crates/tasker-ts/Cargo.toml ./crates/tasker-ts/
 COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
 COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
 COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
+# Proto and migrations needed for dependency compilation (tasker-shared build.rs)
+COPY proto/ ./proto/
+COPY migrations/ ./migrations/
 
 # Build dependencies from recipe (cached layer — invalidated only when deps change)
+# This compiles all dependencies with stub sources; the real source is copied AFTER
+# so that cargo detects source changes and rebuilds the actual binaries.
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
+
+# NOW copy real source for the crates we need (overwrites stubs, triggers rebuild).
+# cargo chef cook overwrites Cargo.toml files with recipe versions that strip
+# [workspace.lints] and use placeholder versions. Re-copy everything needed.
+COPY Cargo.toml Cargo.lock ./
+# tasker-mcp depends on: tasker-sdk, tasker-shared, tasker-client
+COPY crates/tasker-mcp/ ./crates/tasker-mcp/
+COPY crates/tasker-sdk/ ./crates/tasker-sdk/
+COPY crates/tasker-shared/ ./crates/tasker-shared/
+COPY crates/tasker-client/ ./crates/tasker-client/
+COPY crates/tasker-pgmq/ ./crates/tasker-pgmq/
+# Re-copy Cargo.toml for stub crates (chef cook replaces them with v0.0.1 placeholders)
+COPY crates/tasker-orchestration/Cargo.toml ./crates/tasker-orchestration/
+COPY crates/tasker-worker/Cargo.toml ./crates/tasker-worker/
+COPY crates/tasker-ctl/Cargo.toml ./crates/tasker-ctl/
+COPY crates/tasker-example-rs/Cargo.toml ./crates/tasker-example-rs/
+COPY crates/tasker-rb/ext/tasker_core/Cargo.toml ./crates/tasker-rb/ext/tasker_core/
+COPY crates/tasker-py/Cargo.toml ./crates/tasker-py/
+COPY crates/tasker-ts/Cargo.toml ./crates/tasker-ts/
+COPY crates/tasker-grammar/Cargo.toml ./crates/tasker-grammar/
+COPY crates/tasker-secure/Cargo.toml ./crates/tasker-secure/
+COPY crates/tasker-runtime/Cargo.toml ./crates/tasker-runtime/
 
 ENV SQLX_OFFLINE=true
 

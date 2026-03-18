@@ -126,20 +126,23 @@ run_migrations() {
     while [[ $retry_count -lt $max_migration_retries ]]; do
         log_info "Migration attempt $((retry_count + 1))/$max_migration_retries"
 
-        if timeout "$MIGRATION_TIMEOUT" sqlx migrate run \
+        # Capture exit code directly — avoid `local` on the same line as
+        # command substitution, because `local` always returns 0 and masks
+        # the real exit code.  Also, $? after `if cmd; then ... fi` is
+        # always 0 (the if-construct succeeds), so we must capture it with
+        # an explicit `||` pattern instead of relying on $? after the if.
+        local exit_code=0
+        timeout "$MIGRATION_TIMEOUT" sqlx migrate run \
             --database-url "$DATABASE_URL" \
-            --source "$migration_dir"; then
+            --source "$migration_dir" \
+            && { log_success "All migrations completed successfully"; return 0; } \
+            || exit_code=$?
 
-            log_success "All migrations completed successfully"
-            return 0
-        fi
-
-        local exit_code=$?
         retry_count=$((retry_count + 1))
 
         if [[ $exit_code -eq 124 ]]; then
             log_error "Migration timeout after ${MIGRATION_TIMEOUT}s"
-            exit $exit_code
+            exit 124
         fi
 
         log_warn "Migration failed with exit code: $exit_code"
@@ -155,9 +158,14 @@ run_migrations() {
                 --source "$migration_dir" || true
         else
             log_error "All migration attempts failed"
-            exit $exit_code
+            # Guarantee non-zero exit even if exit_code is somehow 0
+            exit "${exit_code:-1}"
         fi
     done
+
+    # Should not be reached, but guard against falling through
+    log_error "Migration loop exited unexpectedly"
+    exit 1
 }
 
 # Check migration status
