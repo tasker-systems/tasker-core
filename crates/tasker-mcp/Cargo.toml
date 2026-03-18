@@ -1,6 +1,6 @@
 [package]
 name = "tasker-mcp"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 license = "MIT"
 description = "MCP server exposing Tasker capabilities to LLM agents and developer tools"
@@ -19,9 +19,9 @@ path = "src/lib.rs"
 
 [dependencies]
 # Workspace crates
-tasker-sdk = { path = "../tasker-sdk", version = "=0.1.7" }
-tasker-shared = { path = "../tasker-shared", version = "=0.1.7" }
-tasker-client = { path = "../tasker-client", version = "=0.1.7" }
+tasker-sdk = { path = "../tasker-sdk", version = "=0.1.8" }
+tasker-shared = { path = "../tasker-shared", version = "=0.1.8" }
+tasker-client = { path = "../tasker-client", version = "=0.1.8" }
 
 # CLI argument parsing
 clap = { workspace = true }
