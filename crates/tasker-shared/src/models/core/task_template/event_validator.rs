@@ -334,6 +334,7 @@ mod tests {
             publishes_events: events,
             batch_config: None,
             result_schema: None,
+            composition: None,
         }
     }
 

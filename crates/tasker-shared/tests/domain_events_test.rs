@@ -91,6 +91,7 @@ fn create_test_task_sequence_step() -> TaskSequenceStep {
             publishes_events: vec![],
             batch_config: None,
             result_schema: None,
+            composition: None,
         },
     }
 }
