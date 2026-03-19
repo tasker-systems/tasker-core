@@ -159,7 +159,7 @@ const MAX_SCHEMA_DEPTH: usize = 32;
 ///
 /// Returns validation findings for any incompatibilities found. An empty
 /// result means the schemas are compatible.
-pub(crate) fn check_schema_compatibility(
+pub fn check_schema_compatibility(
     producer: &Value,
     consumer: &Value,
     context_label: &str,
