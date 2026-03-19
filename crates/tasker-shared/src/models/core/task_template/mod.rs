@@ -567,7 +567,6 @@ pub struct StepDefinition {
     /// `tasker-shared` level — typed validation against `CompositionSpec`
     /// happens in `tasker-sdk::composition_validator`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[builder(default)]
     pub composition: Option<Value>,
 }
 

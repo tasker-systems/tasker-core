@@ -8,14 +8,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 use tasker_shared::models::core::task_template::TaskTemplate;
 
-/// Severity level for a validation finding.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Severity {
-    Error,
-    Warning,
-    Info,
-}
+pub use tasker_grammar::Severity;
 
 /// A single validation finding.
 #[derive(Debug, Clone, Serialize)]

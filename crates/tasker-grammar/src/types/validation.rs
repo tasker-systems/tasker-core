@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Severity level for validation findings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Severity {
     /// Blocks composition acceptance.
     Error,
