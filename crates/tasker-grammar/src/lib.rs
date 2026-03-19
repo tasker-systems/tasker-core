@@ -30,6 +30,7 @@ pub mod fixtures;
 pub mod operations;
 pub mod types;
 pub mod validation;
+pub mod vocabulary;
 
 pub use expression::{ExpressionEngine, ExpressionEngineConfig, ExpressionError};
 pub use operations::{
@@ -46,4 +47,7 @@ pub use types::{
     PersistCategory, RegistrationError, Severity, TransformCategory, TypedCapabilityExecutor,
     UnknownCategoryError, UnknownOnFailureError, ValidateCategory, ValidationFinding,
 };
-pub use validation::{CapabilityRegistry, CompositionValidator, ValidationResult};
+pub use validation::{
+    check_schema_compatibility, CapabilityRegistry, CompositionValidator, ValidationResult,
+};
+pub use vocabulary::standard_capability_registry;
