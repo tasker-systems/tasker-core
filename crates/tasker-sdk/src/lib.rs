@@ -20,6 +20,7 @@
 //! - [`operational`] — Client factory, enum parsing, and shared response types for connected tools
 
 pub mod codegen;
+pub mod composition_validator;
 pub mod operational;
 pub mod schema_comparator;
 pub mod schema_diff;
