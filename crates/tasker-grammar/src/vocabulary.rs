@@ -108,9 +108,11 @@ pub fn standard_capability_registry() -> HashMap<String, CapabilityDeclaration> 
                 "type": "object",
                 "required": ["resource"],
                 "properties": {
-                    "resource": { "type": "object" },
-                    "params": { "type": "string" },
-                    "constraints": { "type": "object" }
+                    "resource": {},
+                    "params": {},
+                    "constraints": { "type": "object" },
+                    "validate_success": { "type": "object" },
+                    "result_shape": { "type": "object" }
                 }
             }),
             mutation_profile: MutationProfile::NonMutating,
@@ -129,9 +131,13 @@ pub fn standard_capability_registry() -> HashMap<String, CapabilityDeclaration> 
                 "type": "object",
                 "required": ["resource", "data"],
                 "properties": {
-                    "resource": { "type": "object" },
-                    "data": { "type": "string" },
-                    "constraints": { "type": "object" }
+                    "resource": {},
+                    "data": {},
+                    "mode": { "type": "string" },
+                    "identity": { "type": "object" },
+                    "constraints": { "type": "object" },
+                    "validate_success": { "type": "object" },
+                    "result_shape": { "type": "object" }
                 }
             }),
             mutation_profile: MutationProfile::Mutating {
@@ -153,8 +159,13 @@ pub fn standard_capability_registry() -> HashMap<String, CapabilityDeclaration> 
                 "required": ["event_name", "payload"],
                 "properties": {
                     "event_name": { "type": "string" },
-                    "payload": { "type": "string" },
-                    "condition": { "type": "string" }
+                    "event_version": { "type": "string" },
+                    "resource": { "type": "string" },
+                    "payload": {},
+                    "condition": { "type": "string" },
+                    "metadata": { "type": "object" },
+                    "result_shape": { "type": "object" },
+                    "validate_success": { "type": "object" }
                 }
             }),
             mutation_profile: MutationProfile::Mutating {

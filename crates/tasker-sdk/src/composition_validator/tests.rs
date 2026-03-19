@@ -449,3 +449,73 @@ steps:
         "custom_cap should be valid with custom registry: {composition_errors:?}"
     );
 }
+
+// ─── Workflow fixture integration tests ──────────────────────────────────
+
+/// Helper: build a template YAML string with a single composition step,
+/// using serde round-tripping to avoid fragile YAML indentation.
+fn template_with_composition_fixture(fixture_yaml: &str, step_name: &str) -> String {
+    // Parse fixture YAML to a serde_json::Value (avoids indentation issues)
+    let composition_value: serde_json::Value =
+        serde_yaml::from_str(fixture_yaml).expect("fixture YAML should parse");
+    // Build a minimal template with the composition embedded
+    let template_value = serde_json::json!({
+        "name": format!("{step_name}_template"),
+        "namespace_name": "test",
+        "version": "1.0.0",
+        "steps": [{
+            "name": step_name,
+            "handler": { "callable": format!("grammar:{step_name}") },
+            "composition": composition_value
+        }]
+    });
+    serde_yaml::to_string(&template_value).expect("should serialize to YAML")
+}
+
+#[test]
+fn workflow_fixture_ecommerce_validates_in_template() {
+    let fixture = include_str!(
+        "../../../../crates/tasker-grammar/tests/fixtures/workflows/ecommerce_order_processing.yaml"
+    );
+    let yaml = template_with_composition_fixture(fixture, "process_order");
+    let template = parse_template_str(&yaml).unwrap();
+    let report = template_validator::validate(&template);
+    let errors: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| f.code.starts_with("COMPOSITION_") && f.severity == Severity::Error)
+        .collect();
+    assert!(errors.is_empty(), "ecommerce fixture errors: {errors:?}");
+}
+
+#[test]
+fn workflow_fixture_payment_reconciliation_validates_in_template() {
+    let fixture = include_str!(
+        "../../../../crates/tasker-grammar/tests/fixtures/workflows/payment_reconciliation.yaml"
+    );
+    let yaml = template_with_composition_fixture(fixture, "reconcile_payments");
+    let template = parse_template_str(&yaml).unwrap();
+    let report = template_validator::validate(&template);
+    let errors: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| f.code.starts_with("COMPOSITION_") && f.severity == Severity::Error)
+        .collect();
+    assert!(errors.is_empty(), "payment fixture errors: {errors:?}");
+}
+
+#[test]
+fn workflow_fixture_customer_onboarding_validates_in_template() {
+    let fixture = include_str!(
+        "../../../../crates/tasker-grammar/tests/fixtures/workflows/customer_onboarding.yaml"
+    );
+    let yaml = template_with_composition_fixture(fixture, "onboard_customer");
+    let template = parse_template_str(&yaml).unwrap();
+    let report = template_validator::validate(&template);
+    let errors: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| f.code.starts_with("COMPOSITION_") && f.severity == Severity::Error)
+        .collect();
+    assert!(errors.is_empty(), "onboarding fixture errors: {errors:?}");
+}
