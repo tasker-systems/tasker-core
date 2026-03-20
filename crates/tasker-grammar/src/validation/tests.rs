@@ -579,6 +579,220 @@ fn emit_condition_expression_validated() {
     assert!(has_error(&result, "INVALID_EXPRESSION"));
 }
 
+#[test]
+fn persist_validate_success_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "persist".to_owned(),
+            config: json!({
+                "resource": { "type": "database" },
+                "data": { "expression": ".prev" },
+                "validate_success": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.validate_success.expression")
+    );
+}
+
+#[test]
+fn persist_result_shape_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "persist".to_owned(),
+            config: json!({
+                "resource": { "type": "database" },
+                "data": { "expression": ".prev" },
+                "result_shape": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.result_shape.expression")
+    );
+}
+
+#[test]
+fn acquire_validate_success_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "acquire".to_owned(),
+            config: json!({
+                "resource": { "type": "database" },
+                "validate_success": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: false,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.validate_success.expression")
+    );
+}
+
+#[test]
+fn acquire_result_shape_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "acquire".to_owned(),
+            config: json!({
+                "resource": { "type": "database" },
+                "result_shape": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: false,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.result_shape.expression")
+    );
+}
+
+#[test]
+fn emit_validate_success_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "emit".to_owned(),
+            config: json!({
+                "event_name": "test.event",
+                "payload": { "expression": ".prev" },
+                "validate_success": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.validate_success.expression")
+    );
+}
+
+#[test]
+fn emit_result_shape_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "emit".to_owned(),
+            config: json!({
+                "event_name": "test.event",
+                "payload": { "expression": ".prev" },
+                "result_shape": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.result_shape.expression")
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Checkpoint coverage
 // ---------------------------------------------------------------------------
