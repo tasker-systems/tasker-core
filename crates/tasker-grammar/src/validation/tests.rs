@@ -524,6 +524,15 @@ fn persist_data_expression_validated() {
 
     let result = validator.validate(&spec);
     assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.data.expression")
+    );
 }
 
 #[test]
@@ -550,6 +559,15 @@ fn emit_payload_expression_validated() {
 
     let result = validator.validate(&spec);
     assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.payload.expression")
+    );
 }
 
 #[test]
@@ -577,6 +595,15 @@ fn emit_condition_expression_validated() {
 
     let result = validator.validate(&spec);
     assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.condition.expression")
+    );
 }
 
 #[test]
