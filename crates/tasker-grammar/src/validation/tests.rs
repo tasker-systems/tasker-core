@@ -90,7 +90,9 @@ fn make_registry() -> HashMap<String, CapabilityDeclaration> {
                 "required": ["resource"],
                 "properties": {
                     "resource": { "type": "object" },
-                    "params": { "type": "string" },
+                    "params": {},
+                    "validate_success": { "type": "object" },
+                    "result_shape": { "type": "object" },
                     "constraints": { "type": "object" }
                 }
             }),
@@ -108,10 +110,12 @@ fn make_registry() -> HashMap<String, CapabilityDeclaration> {
             description: "Write state".to_owned(),
             config_schema: json!({
                 "type": "object",
-                "required": ["resource", "data"],
+                "required": ["resource"],
                 "properties": {
                     "resource": { "type": "object" },
-                    "data": { "type": "string" },
+                    "data": {},
+                    "validate_success": { "type": "object" },
+                    "result_shape": { "type": "object" },
                     "constraints": { "type": "object" }
                 }
             }),
@@ -131,11 +135,14 @@ fn make_registry() -> HashMap<String, CapabilityDeclaration> {
             description: "Fire domain events".to_owned(),
             config_schema: json!({
                 "type": "object",
-                "required": ["event_name", "payload"],
+                "required": ["event_name"],
                 "properties": {
                     "event_name": { "type": "string" },
-                    "payload": { "type": "string" },
-                    "condition": { "type": "string" }
+                    "payload": {},
+                    "condition": {},
+                    "validate_success": { "type": "object" },
+                    "result_shape": { "type": "object" },
+                    "metadata": { "type": "object" }
                 }
             }),
             mutation_profile: MutationProfile::Mutating {
@@ -509,7 +516,7 @@ fn persist_data_expression_validated() {
             capability: "persist".to_owned(),
             config: json!({
                 "resource": { "type": "database" },
-                "data": "broken expression {{{ syntax"
+                "data": { "expression": "broken expression {{{ syntax" }
             }),
             checkpoint: true,
         }],
@@ -517,6 +524,15 @@ fn persist_data_expression_validated() {
 
     let result = validator.validate(&spec);
     assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.data.expression")
+    );
 }
 
 #[test]
@@ -535,7 +551,7 @@ fn emit_payload_expression_validated() {
             capability: "emit".to_owned(),
             config: json!({
                 "event_name": "test.event",
-                "payload": "broken {{{ syntax"
+                "payload": { "expression": "broken {{{ syntax" }
             }),
             checkpoint: true,
         }],
@@ -543,6 +559,15 @@ fn emit_payload_expression_validated() {
 
     let result = validator.validate(&spec);
     assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.payload.expression")
+    );
 }
 
 #[test]
@@ -561,8 +586,8 @@ fn emit_condition_expression_validated() {
             capability: "emit".to_owned(),
             config: json!({
                 "event_name": "test.event",
-                "payload": ".prev",
-                "condition": "broken {{{ syntax"
+                "payload": { "expression": ".prev" },
+                "condition": { "expression": "broken {{{ syntax" }
             }),
             checkpoint: true,
         }],
@@ -570,6 +595,360 @@ fn emit_condition_expression_validated() {
 
     let result = validator.validate(&spec);
     assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.condition.expression")
+    );
+}
+
+#[test]
+fn persist_validate_success_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "persist".to_owned(),
+            config: json!({
+                "resource": { "type": "database" },
+                "data": { "expression": ".prev" },
+                "validate_success": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.validate_success.expression")
+    );
+}
+
+#[test]
+fn persist_result_shape_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "persist".to_owned(),
+            config: json!({
+                "resource": { "type": "database" },
+                "data": { "expression": ".prev" },
+                "result_shape": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.result_shape.expression")
+    );
+}
+
+#[test]
+fn acquire_validate_success_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "acquire".to_owned(),
+            config: json!({
+                "resource": { "type": "database" },
+                "validate_success": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: false,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.validate_success.expression")
+    );
+}
+
+#[test]
+fn acquire_result_shape_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "acquire".to_owned(),
+            config: json!({
+                "resource": { "type": "database" },
+                "result_shape": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: false,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.result_shape.expression")
+    );
+}
+
+#[test]
+fn emit_validate_success_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "emit".to_owned(),
+            config: json!({
+                "event_name": "test.event",
+                "payload": { "expression": ".prev" },
+                "validate_success": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.validate_success.expression")
+    );
+}
+
+#[test]
+fn emit_result_shape_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "emit".to_owned(),
+            config: json!({
+                "event_name": "test.event",
+                "payload": { "expression": ".prev" },
+                "result_shape": { "expression": "broken {{{ syntax" }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.result_shape.expression")
+    );
+}
+
+#[test]
+fn emit_metadata_correlation_id_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "emit".to_owned(),
+            config: json!({
+                "event_name": "test.event",
+                "payload": { "expression": ".prev" },
+                "metadata": {
+                    "correlation_id": { "expression": "broken {{{ syntax" }
+                }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.metadata.correlation_id.expression")
+    );
+}
+
+#[test]
+fn emit_metadata_idempotency_key_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "emit".to_owned(),
+            config: json!({
+                "event_name": "test.event",
+                "payload": { "expression": ".prev" },
+                "metadata": {
+                    "idempotency_key": { "expression": "broken {{{ syntax" }
+                }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.metadata.idempotency_key.expression")
+    );
+}
+
+#[test]
+fn valid_nested_expressions_pass() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![
+            CapabilityInvocation {
+                capability: "acquire".to_owned(),
+                config: json!({
+                    "resource": { "type": "database" },
+                    "params": { "expression": "{customer_id: .context.id}" },
+                    "validate_success": { "expression": ".total_count > 0" },
+                    "result_shape": { "expression": ".data[0]" }
+                }),
+                checkpoint: false,
+            },
+            CapabilityInvocation {
+                capability: "persist".to_owned(),
+                config: json!({
+                    "resource": { "type": "database" },
+                    "data": { "expression": "{id: .prev.order_id}" },
+                    "validate_success": { "expression": ".affected_rows > 0" },
+                    "result_shape": { "expression": "{persisted_id: .id}" }
+                }),
+                checkpoint: true,
+            },
+            CapabilityInvocation {
+                capability: "emit".to_owned(),
+                config: json!({
+                    "event_name": "order.created",
+                    "payload": { "expression": ".prev" },
+                    "condition": { "expression": ".prev.persisted_id != null" },
+                    "validate_success": { "expression": ".delivered" },
+                    "result_shape": { "expression": "{event_id: .message_id}" },
+                    "metadata": {
+                        "correlation_id": { "expression": ".context.request_id" },
+                        "idempotency_key": { "expression": ".prev.persisted_id | tostring" }
+                    }
+                }),
+                checkpoint: true,
+            },
+        ],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(!has_finding(&result, "INVALID_EXPRESSION"));
 }
 
 // ---------------------------------------------------------------------------
