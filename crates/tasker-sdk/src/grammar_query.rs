@@ -214,6 +214,76 @@ pub fn inspect_capability(name: &str) -> Option<CapabilityDetail> {
     })
 }
 
+/// Validate a standalone composition spec from YAML or JSON string.
+///
+/// Parses the input, runs `CompositionValidator` with the standard capability
+/// registry, and returns a structured report.
+pub fn validate_composition_yaml(yaml_str: &str) -> CompositionValidationReport {
+    use tasker_grammar::validation::CompositionValidator;
+    use tasker_grammar::{CompositionSpec, ExpressionEngine, Severity};
+
+    // Try YAML first, then JSON
+    let spec: CompositionSpec = match serde_yaml::from_str(yaml_str) {
+        Ok(s) => s,
+        Err(yaml_err) => match serde_json::from_str(yaml_str) {
+            Ok(s) => s,
+            Err(_) => {
+                return CompositionValidationReport {
+                    valid: false,
+                    findings: vec![CompositionFinding {
+                        severity: "error".to_owned(),
+                        code: "PARSE_ERROR".to_owned(),
+                        message: format!("Failed to parse composition: {yaml_err}"),
+                        invocation_index: None,
+                        field_path: None,
+                    }],
+                    summary: "Composition could not be parsed".to_owned(),
+                };
+            }
+        },
+    };
+
+    let registry = standard_capability_registry();
+    let engine = ExpressionEngine::with_defaults();
+    let validator = CompositionValidator::new(&registry, &engine);
+    let result = validator.validate(&spec);
+
+    let findings: Vec<CompositionFinding> = result
+        .findings
+        .iter()
+        .map(|f| CompositionFinding {
+            severity: match f.severity {
+                Severity::Error => "error",
+                Severity::Warning => "warning",
+                Severity::Info => "info",
+            }
+            .to_owned(),
+            code: f.code.clone(),
+            message: f.message.clone(),
+            invocation_index: f.invocation_index,
+            field_path: f.field_path.clone(),
+        })
+        .collect();
+
+    let error_count = findings.iter().filter(|f| f.severity == "error").count();
+    let warning_count = findings.iter().filter(|f| f.severity == "warning").count();
+    let valid = error_count == 0;
+
+    let summary = if valid && warning_count == 0 {
+        "Composition is valid".to_owned()
+    } else if valid {
+        format!("Composition is valid with {warning_count} warning(s)")
+    } else {
+        format!("Composition has {error_count} error(s) and {warning_count} warning(s)")
+    };
+
+    CompositionValidationReport {
+        valid,
+        findings,
+        summary,
+    }
+}
+
 /// Generate complete vocabulary documentation covering all categories and capabilities.
 pub fn document_vocabulary() -> VocabularyDocumentation {
     let categories = list_grammar_categories();
@@ -240,5 +310,131 @@ pub fn document_vocabulary() -> VocabularyDocumentation {
         categories,
         capabilities,
         total_capabilities,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn list_grammar_categories_returns_all_six() {
+        let categories = list_grammar_categories();
+        assert_eq!(categories.len(), 6);
+        let names: Vec<&str> = categories.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"Transform"));
+        assert!(names.contains(&"Validate"));
+        assert!(names.contains(&"Assert"));
+        assert!(names.contains(&"Acquire"));
+        assert!(names.contains(&"Persist"));
+        assert!(names.contains(&"Emit"));
+        for cat in &categories {
+            assert!(
+                !cat.capabilities.is_empty(),
+                "{} has no capabilities",
+                cat.name
+            );
+        }
+    }
+
+    #[test]
+    fn search_capabilities_by_name() {
+        let results = search_capabilities(Some("trans"), None);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "transform");
+    }
+
+    #[test]
+    fn search_capabilities_by_category() {
+        let results = search_capabilities(None, Some("persist"));
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "persist");
+        assert!(results[0].is_mutating);
+    }
+
+    #[test]
+    fn search_capabilities_no_filter() {
+        let results = search_capabilities(None, None);
+        assert_eq!(results.len(), 6);
+    }
+
+    #[test]
+    fn inspect_capability_found() {
+        let detail = inspect_capability("transform").unwrap();
+        assert_eq!(detail.name, "transform");
+        assert_eq!(detail.category, "Transform");
+        assert_eq!(detail.mutation_profile, "non_mutating");
+        assert!(detail.supports_idempotency_key.is_none());
+        assert!(detail.config_schema.is_object());
+    }
+
+    #[test]
+    fn inspect_capability_not_found() {
+        assert!(inspect_capability("nonexistent").is_none());
+    }
+
+    #[test]
+    fn inspect_capability_mutating_has_idempotency() {
+        let detail = inspect_capability("persist").unwrap();
+        assert_eq!(detail.mutation_profile, "mutating");
+        assert_eq!(detail.supports_idempotency_key, Some(true));
+    }
+
+    #[test]
+    fn document_vocabulary_complete() {
+        let doc = document_vocabulary();
+        assert_eq!(doc.total_capabilities, 6);
+        assert_eq!(doc.categories.len(), 6);
+        assert_eq!(doc.capabilities.len(), 6);
+    }
+
+    #[test]
+    fn validate_composition_yaml_valid() {
+        let yaml = r#"
+name: test
+outcome:
+  description: Test outcome
+  output_schema: {}
+invocations:
+  - capability: transform
+    config:
+      output:
+        type: object
+        properties:
+          x:
+            type: string
+        required: [x]
+      filter: "{x: .context.name}"
+    checkpoint: false
+"#;
+        let report = validate_composition_yaml(yaml);
+        assert!(report.valid, "Expected valid but got: {}", report.summary);
+    }
+
+    #[test]
+    fn validate_composition_yaml_invalid_yaml() {
+        let report = validate_composition_yaml("not: valid: yaml: [[[");
+        assert!(!report.valid);
+        assert_eq!(report.findings[0].code, "PARSE_ERROR");
+    }
+
+    #[test]
+    fn validate_composition_yaml_invalid_spec() {
+        let yaml = r#"
+name: test
+outcome:
+  description: Test
+  output_schema: {}
+invocations:
+  - capability: nonexistent_capability
+    config: {}
+    checkpoint: false
+"#;
+        let report = validate_composition_yaml(yaml);
+        assert!(!report.valid);
+        assert!(report
+            .findings
+            .iter()
+            .any(|f| f.code == "MISSING_CAPABILITY"));
     }
 }
