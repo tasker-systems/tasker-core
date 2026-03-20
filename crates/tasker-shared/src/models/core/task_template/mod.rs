@@ -559,6 +559,15 @@ pub struct StepDefinition {
     /// ```
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub result_schema: Option<Value>,
+
+    /// Optional composition spec for grammar-defined virtual handler steps.
+    ///
+    /// When present, this step's behavior is defined by the composition rather
+    /// than the handler callable. The value is an opaque JSON blob at the
+    /// `tasker-shared` level — typed validation against `CompositionSpec`
+    /// happens in `tasker-sdk::composition_validator`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub composition: Option<Value>,
 }
 
 /// Retry configuration with backoff strategies
@@ -1706,6 +1715,7 @@ steps:
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
             result_schema: None,
+            composition: None,
         };
         assert!(!standard_step.is_decision());
 
@@ -1726,6 +1736,7 @@ steps:
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
             result_schema: None,
+            composition: None,
         };
         assert!(decision_step.is_decision());
     }
@@ -2086,6 +2097,7 @@ steps:
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
             result_schema: None,
+            composition: None,
         };
 
         let result = invalid_decision.validate_decision_constraints();
@@ -2112,6 +2124,7 @@ steps:
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
             result_schema: None,
+            composition: None,
         };
 
         let result = valid_decision.validate_decision_constraints();
@@ -2135,6 +2148,7 @@ steps:
             publishes_events: vec![], // TAS-65: Now Vec<EventDeclaration>
             batch_config: None,
             result_schema: None,
+            composition: None,
         };
 
         let result = standard_step.validate_decision_constraints();

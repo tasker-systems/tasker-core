@@ -152,6 +152,7 @@ fn create_payment_task_sequence_step(
             publishes_events,
             batch_config: None,
             result_schema: None,
+            composition: None,
         },
     }
 }

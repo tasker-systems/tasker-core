@@ -7232,6 +7232,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tasker-client",
+ "tasker-grammar",
  "tasker-shared",
  "tempfile",
  "tera",

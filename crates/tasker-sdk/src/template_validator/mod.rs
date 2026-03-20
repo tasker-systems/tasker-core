@@ -6,16 +6,11 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
+use tasker_grammar::validation::CapabilityRegistry;
+use tasker_grammar::vocabulary::standard_capability_registry;
 use tasker_shared::models::core::task_template::TaskTemplate;
 
-/// Severity level for a validation finding.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Severity {
-    Error,
-    Warning,
-    Info,
-}
+pub use tasker_grammar::Severity;
 
 /// A single validation finding.
 #[derive(Debug, Clone, Serialize)]
@@ -45,6 +40,19 @@ pub struct ValidationReport {
 
 /// Validate a task template and return a detailed report.
 pub fn validate(template: &TaskTemplate) -> ValidationReport {
+    let registry = standard_capability_registry();
+    validate_with_registry(template, &registry)
+}
+
+/// Validate a task template with a custom capability registry.
+///
+/// The registry is used for composition validation — steps with a `composition`
+/// field are validated against the registered capabilities. For batch validation
+/// of many templates, prefer this over [`validate`] to amortize registry construction.
+pub fn validate_with_registry(
+    template: &TaskTemplate,
+    registry: &dyn CapabilityRegistry,
+) -> ValidationReport {
     let mut findings = Vec::new();
     let mut has_cycles = false;
 
@@ -54,6 +62,7 @@ pub fn validate(template: &TaskTemplate) -> ValidationReport {
     check_namespace_length(template, &mut findings);
     check_schemas(template, &mut findings);
     check_orphan_steps(template, &mut findings);
+    check_compositions(template, registry, &mut findings);
 
     if let Some(cycle_findings) = check_cycles(template) {
         has_cycles = true;
@@ -67,6 +76,20 @@ pub fn validate(template: &TaskTemplate) -> ValidationReport {
         findings,
         step_count: template.steps.len(),
         has_cycles,
+    }
+}
+
+fn check_compositions(
+    template: &TaskTemplate,
+    registry: &dyn CapabilityRegistry,
+    findings: &mut Vec<ValidationFinding>,
+) {
+    for step in &template.steps {
+        if step.composition.is_some() {
+            let step_findings =
+                crate::composition_validator::validate_step_composition(step, registry);
+            findings.extend(step_findings);
+        }
     }
 }
 

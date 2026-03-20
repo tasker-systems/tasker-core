@@ -346,6 +346,7 @@ mod tests {
                         publishes_events: vec![],
                         batch_config: None,
                         result_schema: None,
+                        composition: None,
                     },
                 },
                 execution_result: StepExecutionResult {

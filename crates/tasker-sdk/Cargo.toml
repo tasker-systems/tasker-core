@@ -17,6 +17,7 @@ path = "src/lib.rs"
 # Workspace crates
 tasker-shared = { path = "../tasker-shared", version = "=0.1.8" }
 tasker-client = { path = "../tasker-client", version = "=0.1.8" }
+tasker-grammar = { path = "../tasker-grammar" }
 
 # Serialization & config
 serde = { workspace = true }

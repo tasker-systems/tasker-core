@@ -22,6 +22,7 @@
 mod schema_compat;
 mod validator;
 
+pub use schema_compat::check_schema_compatibility;
 pub use validator::{CapabilityRegistry, CompositionValidator, ValidationResult};
 
 #[cfg(test)]

@@ -777,6 +777,7 @@ mod tests {
                 publishes_events: Vec::new(),
                 batch_config: None,
                 result_schema: None,
+                composition: None,
             }],
             environments: HashMap::new(),
             lifecycle: None,

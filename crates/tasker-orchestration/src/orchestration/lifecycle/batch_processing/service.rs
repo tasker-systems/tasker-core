@@ -761,6 +761,7 @@ impl BatchProcessingService {
                 publishes_events: template.publishes_events.clone(),
                 batch_config: None, // Workers don't have batch config
                 result_schema: template.result_schema.clone(),
+                composition: template.composition.clone(),
             };
 
             // Use WorkflowStepCreator for transactional creation
