@@ -165,6 +165,24 @@ impl fmt::Debug for CompositionValidator<'_> {
     }
 }
 
+/// Extract a jaq expression string from a config field value.
+///
+/// Handles two shapes:
+/// - Flat string: `"filter": ".context.name"` → `Some(".context.name")`
+/// - ExpressionField object: `"data": {"expression": ".prev"}` → `Some(".prev")`
+/// - Anything else: `None`
+fn extract_expression(value: &Value) -> Option<&str> {
+    // Flat string (used by transform filter, assert filter)
+    if let Some(s) = value.as_str() {
+        return Some(s);
+    }
+    // ExpressionField object (used by persist/acquire/emit fields)
+    value
+        .as_object()
+        .and_then(|obj| obj.get("expression"))
+        .and_then(|v| v.as_str())
+}
+
 impl<'a> CompositionValidator<'a> {
     /// Create a new validator with the given capability registry and expression engine.
     pub fn new(
@@ -410,17 +428,24 @@ impl<'a> CompositionValidator<'a> {
             };
 
             // Determine which config fields contain jaq expressions based on category
-            let expression_fields = match decl.grammar_category {
-                GrammarCategoryKind::Transform => vec!["filter"],
-                GrammarCategoryKind::Assert => vec!["filter"],
-                GrammarCategoryKind::Persist => vec!["data"],
-                GrammarCategoryKind::Acquire => vec!["params"],
-                GrammarCategoryKind::Emit => vec!["payload", "condition"],
-                GrammarCategoryKind::Validate => vec![], // No jaq expressions
+            let expression_fields: &[&str] = match decl.grammar_category {
+                GrammarCategoryKind::Transform => &["filter"],
+                GrammarCategoryKind::Assert => &["filter"],
+                GrammarCategoryKind::Persist => &["data", "validate_success", "result_shape"],
+                GrammarCategoryKind::Acquire => &["params", "validate_success", "result_shape"],
+                GrammarCategoryKind::Emit => {
+                    &["payload", "condition", "validate_success", "result_shape"]
+                }
+                GrammarCategoryKind::Validate => &[],
             };
 
             for field in expression_fields {
-                if let Some(Value::String(expr)) = invocation.config.get(field) {
+                if let Some(value) = invocation.config.get(*field) {
+                    let (expr, field_path) = match extract_expression(value) {
+                        Some(e) if value.is_string() => (e, format!("config.{field}")),
+                        Some(e) => (e, format!("config.{field}.expression")),
+                        None => continue,
+                    };
                     if let Err(e) = self.expression_engine.validate_syntax(expr) {
                         findings.push(ValidationFinding {
                             severity: Severity::Error,
@@ -428,10 +453,37 @@ impl<'a> CompositionValidator<'a> {
                             invocation_index: Some(idx),
                             message: format!(
                                 "invocation {} ({}) has invalid jaq expression in '{}': {e}",
-                                idx, invocation.capability, field
+                                idx, invocation.capability, field_path
                             ),
-                            field_path: Some(format!("config.{field}")),
+                            field_path: Some(field_path),
                         });
+                    }
+                }
+            }
+
+            // Emit metadata expressions (nested one level deeper).
+            // Metadata fields are always ExpressionField objects in practice.
+            if matches!(decl.grammar_category, GrammarCategoryKind::Emit) {
+                if let Some(metadata) = invocation.config.get("metadata").and_then(Value::as_object)
+                {
+                    for meta_field in &["correlation_id", "idempotency_key"] {
+                        if let Some(value) = metadata.get(*meta_field) {
+                            if let Some(expr) = extract_expression(value) {
+                                let field_path = format!("config.metadata.{meta_field}.expression");
+                                if let Err(e) = self.expression_engine.validate_syntax(expr) {
+                                    findings.push(ValidationFinding {
+                                        severity: Severity::Error,
+                                        code: "INVALID_EXPRESSION".to_owned(),
+                                        invocation_index: Some(idx),
+                                        message: format!(
+                                            "invocation {} ({}) has invalid jaq expression in '{}': {e}",
+                                            idx, invocation.capability, field_path
+                                        ),
+                                        field_path: Some(field_path),
+                                    });
+                                }
+                            }
+                        }
                     }
                 }
             }
