@@ -12,23 +12,27 @@
 ## Problem
 
 The `CompositionValidator::check_expression_syntax` method validates jaq expression
-syntax in composition config fields, but only checks **flat string** fields (`data`,
-`params`, `payload`, `condition`, `filter`). Three capabilities — persist, acquire,
-and emit — also accept jaq expressions in **nested `ExpressionField` objects**
-(`validate_success` and `result_shape`), which have the shape
-`{"expression": "<jaq-expression>"}`. These expressions are currently unchecked at
-design time, meaning syntax errors are only caught at runtime.
+syntax in composition config fields, but only handles **flat string** values
+(`if let Some(Value::String(expr)) = invocation.config.get(field)`). In real
+composition configs, **all** expression-bearing fields use the `ExpressionField`
+object shape `{"expression": "<jaq-expression>"}` — including `data`, `params`,
+`payload`, and `condition`, not just `validate_success` and `result_shape`.
 
-All three workflow fixtures (ecommerce, payment reconciliation, customer onboarding)
-use `validate_success` and `result_shape` expressions. This is a meaningful
-validation gap.
+This means the existing flat-string checks are vacuous for real workflow configs.
+The existing validator tests pass only because they use flat strings in test data
+that don't match the actual `ExpressionField` shape used by the typed executor
+configs and all three workflow fixtures.
+
+Additionally, emit's `metadata.correlation_id` and `metadata.idempotency_key`
+contain jaq expressions but are not checked at all.
 
 ## Scope
 
-Extend `check_expression_syntax` in `crates/tasker-grammar/src/validation/validator.rs`
-to validate jaq expressions in nested `ExpressionField` objects alongside existing
-flat string fields. No SDK changes required — the SDK already bridges all grammar-level
-findings through `validate_composition()`.
+Rewrite `check_expression_syntax` in `crates/tasker-grammar/src/validation/validator.rs`
+to extract jaq expressions from both flat strings and `ExpressionField` objects, add
+`validate_success` and `result_shape` to the per-category field lists, and add
+validation for emit metadata expression fields. No SDK changes required — the SDK
+already bridges all grammar-level findings through `validate_composition()`.
 
 ### Out of Scope
 
@@ -45,17 +49,14 @@ value, handling both shapes that appear in capability configs:
 
 | Config shape | Example | Extracted expression |
 |-------------|---------|---------------------|
-| Flat string | `"data": ".prev.order_id"` | `".prev.order_id"` |
-| ExpressionField object | `"validate_success": {"expression": ".affected_rows > 0"}` | `".affected_rows > 0"` |
+| Flat string | `"filter": "{x: .context.name}"` | `"{x: .context.name}"` |
+| ExpressionField object | `"data": {"expression": ".prev.order_id"}` | `".prev.order_id"` |
 | Non-expression value | `"mode": "upsert"` | `None` (skip) |
 
-The helper returns `Option<&str>` — the jaq expression if one is found, `None` otherwise.
-This keeps the main loop clean: iterate fields, extract expression, validate if present.
+The helper returns `Option<&str>` — the jaq expression if one is found, `None`
+otherwise. This keeps the main loop clean: iterate fields, extract, validate.
 
-### Extended field lists
-
-The per-category field lists in `check_expression_syntax` grow to include the nested
-expression fields:
+### Field lists per category
 
 | Category | Fields checked |
 |----------|---------------|
@@ -66,46 +67,68 @@ expression fields:
 | Acquire | `params`, `validate_success`, `result_shape` |
 | Emit | `payload`, `condition`, `validate_success`, `result_shape` |
 
+### Emit metadata expressions
+
+Emit configs can include `metadata.correlation_id` and `metadata.idempotency_key`,
+both `ExpressionField` objects. These are nested one level deeper than other fields
+(`config.metadata.correlation_id.expression`). Add explicit handling: if
+`config.metadata` exists and is an object, check `correlation_id` and
+`idempotency_key` within it using the same extraction helper.
+
 ### Field path in findings
 
-For flat string fields, `field_path` remains `config.<field>` (e.g., `config.data`).
-For nested ExpressionField objects, `field_path` becomes `config.<field>.expression`
-(e.g., `config.validate_success.expression`) to precisely identify the location.
+The `field_path` always reflects the actual location of the expression:
+
+| Field shape | `field_path` value |
+|------------|-------------------|
+| Flat string `filter` | `config.filter` |
+| ExpressionField `data` | `config.data.expression` |
+| ExpressionField `validate_success` | `config.validate_success.expression` |
+| Nested metadata | `config.metadata.correlation_id.expression` |
 
 ### Error format
 
-Unchanged. Same `INVALID_EXPRESSION` error code, same message pattern:
+Same `INVALID_EXPRESSION` error code. Message pattern unchanged:
 ```
-invocation {idx} ({capability}) has invalid jaq expression in '{field}': {parse_error}
+invocation {idx} ({capability}) has invalid jaq expression in '{field_path}': {parse_error}
 ```
+
+The `field_path` in the message now uses the full dotted path (e.g.,
+`config.validate_success.expression`) rather than the simple field name, so users
+can locate the broken expression precisely.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `crates/tasker-grammar/src/validation/validator.rs` | Add expression extraction helper, extend field lists in `check_expression_syntax` |
-| `crates/tasker-grammar/src/validation/tests.rs` | Add test cases for nested expression field validation |
+| `crates/tasker-grammar/src/validation/validator.rs` | Add extraction helper, rewrite `check_expression_syntax` with extended field lists and metadata handling |
+| `crates/tasker-grammar/src/validation/tests.rs` | Update existing tests to use `ExpressionField` shape, add new tests for validate_success/result_shape/metadata |
 
 ## Test Plan
 
+**Updated existing tests** (use `ExpressionField` object shape instead of flat strings):
+
+- `persist_data_expression_validated` — use `{"expression": "broken {{{ syntax"}` shape
+- `emit_payload_expression_validated` — use ExpressionField shape
+- `emit_condition_expression_validated` — use ExpressionField shape
+
 **New tests** (all in `crates/tasker-grammar/src/validation/tests.rs`):
 
-1. `persist_validate_success_expression_validated` — invalid expression in persist validate_success produces `INVALID_EXPRESSION` error
-2. `persist_result_shape_expression_validated` — invalid expression in persist result_shape produces error
-3. `acquire_validate_success_expression_validated` — invalid expression in acquire validate_success produces error
-4. `acquire_result_shape_expression_validated` — invalid expression in acquire result_shape produces error
-5. `emit_validate_success_expression_validated` — invalid expression in emit validate_success produces error
-6. `emit_result_shape_expression_validated` — invalid expression in emit result_shape produces error
-7. `valid_nested_expressions_pass` — valid expressions in ExpressionField objects produce no findings
+1. `persist_validate_success_expression_validated` — invalid expression in persist validate_success
+2. `persist_result_shape_expression_validated` — invalid expression in persist result_shape
+3. `acquire_validate_success_expression_validated` — invalid expression in acquire validate_success
+4. `acquire_result_shape_expression_validated` — invalid expression in acquire result_shape
+5. `emit_validate_success_expression_validated` — invalid expression in emit validate_success
+6. `emit_result_shape_expression_validated` — invalid expression in emit result_shape
+7. `emit_metadata_correlation_id_expression_validated` — invalid expression in metadata.correlation_id
+8. `emit_metadata_idempotency_key_expression_validated` — invalid expression in metadata.idempotency_key
+9. `valid_nested_expressions_pass` — valid ExpressionField objects produce no findings
 
 **Existing coverage** (unchanged, confirms no regressions):
 
-- `invalid_jaq_expression_produces_error` — transform filter
+- `invalid_jaq_expression_produces_error` — transform filter (flat string, correct for transform)
 - `valid_jaq_expression_passes` — transform filter
-- `assert_filter_syntax_validated` — assert filter
-- `persist_data_expression_validated` — persist data
-- `emit_payload_expression_validated` — emit payload
-- `emit_condition_expression_validated` — emit condition
+- `assert_filter_syntax_validated` — assert filter (flat string, correct for assert)
 - Workflow fixture integration tests (3 fixtures validated end-to-end via TAS-337)
 
 ## Verification
