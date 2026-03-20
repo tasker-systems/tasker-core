@@ -793,6 +793,137 @@ fn emit_result_shape_expression_validated() {
     );
 }
 
+#[test]
+fn emit_metadata_correlation_id_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "emit".to_owned(),
+            config: json!({
+                "event_name": "test.event",
+                "payload": { "expression": ".prev" },
+                "metadata": {
+                    "correlation_id": { "expression": "broken {{{ syntax" }
+                }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.metadata.correlation_id.expression")
+    );
+}
+
+#[test]
+fn emit_metadata_idempotency_key_expression_validated() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "emit".to_owned(),
+            config: json!({
+                "event_name": "test.event",
+                "payload": { "expression": ".prev" },
+                "metadata": {
+                    "idempotency_key": { "expression": "broken {{{ syntax" }
+                }
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(has_error(&result, "INVALID_EXPRESSION"));
+    let finding = result
+        .findings
+        .iter()
+        .find(|f| f.code == "INVALID_EXPRESSION")
+        .unwrap();
+    assert_eq!(
+        finding.field_path.as_deref(),
+        Some("config.metadata.idempotency_key.expression")
+    );
+}
+
+#[test]
+fn valid_nested_expressions_pass() {
+    let registry = make_registry();
+    let engine = make_engine();
+    let validator = make_validator(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![
+            CapabilityInvocation {
+                capability: "acquire".to_owned(),
+                config: json!({
+                    "resource": { "type": "database" },
+                    "params": { "expression": "{customer_id: .context.id}" },
+                    "validate_success": { "expression": ".total_count > 0" },
+                    "result_shape": { "expression": ".data[0]" }
+                }),
+                checkpoint: false,
+            },
+            CapabilityInvocation {
+                capability: "persist".to_owned(),
+                config: json!({
+                    "resource": { "type": "database" },
+                    "data": { "expression": "{id: .prev.order_id}" },
+                    "validate_success": { "expression": ".affected_rows > 0" },
+                    "result_shape": { "expression": "{persisted_id: .id}" }
+                }),
+                checkpoint: true,
+            },
+            CapabilityInvocation {
+                capability: "emit".to_owned(),
+                config: json!({
+                    "event_name": "order.created",
+                    "payload": { "expression": ".prev" },
+                    "condition": { "expression": ".prev.persisted_id != null" },
+                    "validate_success": { "expression": ".delivered" },
+                    "result_shape": { "expression": "{event_id: .message_id}" },
+                    "metadata": {
+                        "correlation_id": { "expression": ".context.request_id" },
+                        "idempotency_key": { "expression": ".prev.persisted_id | tostring" }
+                    }
+                }),
+                checkpoint: true,
+            },
+        ],
+    };
+
+    let result = validator.validate(&spec);
+    assert!(!has_finding(&result, "INVALID_EXPRESSION"));
+}
+
 // ---------------------------------------------------------------------------
 // Checkpoint coverage
 // ---------------------------------------------------------------------------
