@@ -2,7 +2,7 @@
 //!
 //! Uses the real `TaskerMcpServer` from the library target to verify protocol
 //! round-trips: tool discovery via `list_tools` and tool invocation via `call_tool`
-//! for all 30 tools (8 Tier 1/profile + 16 Tier 2 connected + 6 Tier 3 write).
+//! for all 36 tools (13 Tier 1/profile + 16 Tier 2 connected + 6 Tier 3 write).
 
 use rmcp::model::{CallToolRequestParams, ClientInfo};
 use rmcp::service::{RoleClient, RunningService};

@@ -6,6 +6,8 @@
 //! # Modules
 //!
 //! ## Developer Tooling
+//! - [`composition_validator`] — Composition validation bridging grammar-level checks into SDK pipeline
+//! - [`grammar_query`] — Grammar vocabulary discovery and capability inspection
 //! - [`codegen`] — Schema-driven code generation from task template `result_schema` definitions
 //! - [`schema_comparator`] — Producer/consumer schema compatibility checking
 //! - [`schema_diff`] — Temporal schema diff between template versions
