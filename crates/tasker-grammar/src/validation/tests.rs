@@ -90,7 +90,9 @@ fn make_registry() -> HashMap<String, CapabilityDeclaration> {
                 "required": ["resource"],
                 "properties": {
                     "resource": { "type": "object" },
-                    "params": { "type": "string" },
+                    "params": {},
+                    "validate_success": { "type": "object" },
+                    "result_shape": { "type": "object" },
                     "constraints": { "type": "object" }
                 }
             }),
@@ -108,10 +110,12 @@ fn make_registry() -> HashMap<String, CapabilityDeclaration> {
             description: "Write state".to_owned(),
             config_schema: json!({
                 "type": "object",
-                "required": ["resource", "data"],
+                "required": ["resource"],
                 "properties": {
                     "resource": { "type": "object" },
-                    "data": { "type": "string" },
+                    "data": {},
+                    "validate_success": { "type": "object" },
+                    "result_shape": { "type": "object" },
                     "constraints": { "type": "object" }
                 }
             }),
@@ -131,11 +135,14 @@ fn make_registry() -> HashMap<String, CapabilityDeclaration> {
             description: "Fire domain events".to_owned(),
             config_schema: json!({
                 "type": "object",
-                "required": ["event_name", "payload"],
+                "required": ["event_name"],
                 "properties": {
                     "event_name": { "type": "string" },
-                    "payload": { "type": "string" },
-                    "condition": { "type": "string" }
+                    "payload": {},
+                    "condition": {},
+                    "validate_success": { "type": "object" },
+                    "result_shape": { "type": "object" },
+                    "metadata": { "type": "object" }
                 }
             }),
             mutation_profile: MutationProfile::Mutating {
@@ -509,7 +516,7 @@ fn persist_data_expression_validated() {
             capability: "persist".to_owned(),
             config: json!({
                 "resource": { "type": "database" },
-                "data": "broken expression {{{ syntax"
+                "data": { "expression": "broken expression {{{ syntax" }
             }),
             checkpoint: true,
         }],
@@ -535,7 +542,7 @@ fn emit_payload_expression_validated() {
             capability: "emit".to_owned(),
             config: json!({
                 "event_name": "test.event",
-                "payload": "broken {{{ syntax"
+                "payload": { "expression": "broken {{{ syntax" }
             }),
             checkpoint: true,
         }],
@@ -561,8 +568,8 @@ fn emit_condition_expression_validated() {
             capability: "emit".to_owned(),
             config: json!({
                 "event_name": "test.event",
-                "payload": ".prev",
-                "condition": "broken {{{ syntax"
+                "payload": { "expression": ".prev" },
+                "condition": { "expression": "broken {{{ syntax" }
             }),
             checkpoint: true,
         }],
