@@ -741,3 +741,56 @@ pub struct DlqUpdateParams {
     #[serde(default)]
     pub confirm: bool,
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tier 1: Grammar / Composition Tools
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── grammar_list ──
+// No params needed
+
+// ── capability_search ──
+
+/// Parameters for the `capability_search` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CapabilitySearchParams {
+    /// Optional name substring to search for (case-insensitive).
+    #[schemars(
+        description = "Optional capability name substring to search for (case-insensitive)"
+    )]
+    #[serde(default)]
+    pub query: Option<String>,
+    /// Optional grammar category filter (e.g., 'transform', 'persist').
+    #[schemars(
+        description = "Optional grammar category filter (e.g., 'transform', 'persist', 'emit')"
+    )]
+    #[serde(default)]
+    pub category: Option<String>,
+}
+
+// ── capability_inspect ──
+
+/// Parameters for the `capability_inspect` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CapabilityInspectParams {
+    /// Capability name to inspect (e.g., 'transform', 'persist').
+    #[schemars(
+        description = "Capability name to inspect (e.g., 'transform', 'persist', 'acquire')"
+    )]
+    pub name: String,
+}
+
+// ── vocabulary_document ──
+// No params needed
+
+// ── composition_validate ──
+
+/// Parameters for the `composition_validate` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CompositionValidateParams {
+    /// Composition spec as YAML or JSON string.
+    #[schemars(
+        description = "Composition spec as YAML or JSON string. Must include name, outcome (with output_schema), and invocations array."
+    )]
+    pub composition_yaml: String,
+}
