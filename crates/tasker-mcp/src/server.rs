@@ -12,6 +12,11 @@
 //! - `schema_inspect` — Inspect result_schema field details per step
 //! - `schema_compare` — Compare producer/consumer schema compatibility
 //! - `schema_diff` — Detect field-level changes between two template versions
+//! - `grammar_list` — List grammar categories and capabilities
+//! - `capability_search` — Search capabilities by name or category
+//! - `capability_inspect` — Inspect capability config schema and metadata
+//! - `vocabulary_document` — Generate complete vocabulary documentation
+//! - `composition_validate` — Validate a standalone composition spec
 //!
 //! **Profile Management (when profiles configured)**
 //! - `connection_status` — Show profile health and available capabilities
@@ -396,6 +401,60 @@ impl TaskerMcpServer {
     )]
     pub async fn schema_diff(&self, Parameters(params): Parameters<SchemaDiffParams>) -> String {
         developer::schema_diff(params)
+    }
+
+    /// List all grammar categories with descriptions and associated capabilities.
+    #[tool(
+        name = "grammar_list",
+        description = "List all grammar categories (transform, validate, assert, acquire, persist, emit) with descriptions and associated capabilities. Works offline."
+    )]
+    pub async fn grammar_list(&self) -> String {
+        developer::grammar_list()
+    }
+
+    /// Search capabilities by name or category.
+    #[tool(
+        name = "capability_search",
+        description = "Search grammar capabilities by name substring and/or category filter. Both parameters are optional — omit both to list all capabilities. Works offline."
+    )]
+    pub async fn capability_search(
+        &self,
+        Parameters(params): Parameters<CapabilitySearchParams>,
+    ) -> String {
+        developer::capability_search(params)
+    }
+
+    /// Inspect a capability's full configuration schema and metadata.
+    #[tool(
+        name = "capability_inspect",
+        description = "Show full details for a capability: config_schema, mutation_profile, tags, and version. Use grammar_list first to see available capability names. Works offline."
+    )]
+    pub async fn capability_inspect(
+        &self,
+        Parameters(params): Parameters<CapabilityInspectParams>,
+    ) -> String {
+        developer::capability_inspect(params)
+    }
+
+    /// Generate complete vocabulary documentation.
+    #[tool(
+        name = "vocabulary_document",
+        description = "Generate complete documentation for all registered grammar capabilities, organized by category with full config schemas. Works offline."
+    )]
+    pub async fn vocabulary_document(&self) -> String {
+        developer::vocabulary_document()
+    }
+
+    /// Validate a standalone composition spec.
+    #[tool(
+        name = "composition_validate",
+        description = "Validate a standalone CompositionSpec (YAML or JSON) for structural correctness: capability existence, config schemas, expression syntax, contract chaining, and checkpoint coverage. Works offline."
+    )]
+    pub async fn composition_validate(
+        &self,
+        Parameters(params): Parameters<CompositionValidateParams>,
+    ) -> String {
+        developer::composition_validate(params)
     }
 
     // ── Profile Management ──
@@ -973,8 +1032,13 @@ base_url = "http://localhost:8080"
         let tools = server.tool_router.list_all();
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
 
-        // Should have only Tier 1 tools (8), no connection_status (offline)
-        assert_eq!(names.len(), 8, "Expected 8 Tier 1 tools, got: {:?}", names);
+        // Should have only Tier 1 tools (13), no connection_status (offline)
+        assert_eq!(
+            names.len(),
+            13,
+            "Expected 13 Tier 1 tools, got: {:?}",
+            names
+        );
         assert!(names.contains(&"template_validate"));
         assert!(names.contains(&"template_visualize"));
         assert!(names.contains(&"template_inspect"));
@@ -998,11 +1062,11 @@ base_url = "http://localhost:8080"
         let tools = server.tool_router.list_all();
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
 
-        // 8 Tier 1 + 1 connection_status + 16 Tier 2 = 25
+        // 13 Tier 1 + 1 connection_status + 16 Tier 2 = 30
         assert_eq!(
             names.len(),
-            25,
-            "Expected 25 tools (T1+profile+T2), got: {:?}",
+            30,
+            "Expected 30 tools (T1+profile+T2), got: {:?}",
             names
         );
         assert!(names.contains(&"template_validate"));
@@ -1020,8 +1084,8 @@ base_url = "http://localhost:8080"
         let server = TaskerMcpServer::with_profile_manager(pm, false, None);
 
         let tools = server.tool_router.list_all();
-        // 8 T1 + 1 profile + 16 T2 + 6 T3 = 31
-        assert_eq!(tools.len(), 31, "Expected all 31 tools");
+        // 13 T1 + 1 profile + 16 T2 + 6 T3 = 36
+        assert_eq!(tools.len(), 36, "Expected all 36 tools");
     }
 
     #[tokio::test]
@@ -1133,8 +1197,8 @@ base_url = "http://localhost:8080"
         // Should have T1 + profile + T2, no T3
         assert_eq!(
             names.len(),
-            25,
-            "Expected 25 tools from profile config, got: {:?}",
+            30,
+            "Expected 30 tools from profile config, got: {:?}",
             names
         );
         assert!(!names.contains(&"task_submit"));

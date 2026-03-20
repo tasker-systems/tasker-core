@@ -6,6 +6,7 @@
 use std::collections::{HashMap, HashSet};
 
 use tasker_sdk::codegen::{self, TargetLanguage};
+use tasker_sdk::grammar_query;
 use tasker_sdk::schema_comparator;
 use tasker_sdk::schema_diff;
 use tasker_sdk::schema_inspector;
@@ -14,8 +15,9 @@ use tasker_sdk::template_parser::parse_template_str;
 
 use super::helpers::{error_json, topological_sort};
 use super::params::{
-    FieldDetail, HandlerGenerateParams, HandlerGenerateResponse, SchemaCompareParams,
-    SchemaDiffParams, SchemaInspectParams, SchemaInspectResponse, StepInspection, StepSchemaDetail,
+    CapabilityInspectParams, CapabilitySearchParams, CompositionValidateParams, FieldDetail,
+    HandlerGenerateParams, HandlerGenerateResponse, SchemaCompareParams, SchemaDiffParams,
+    SchemaInspectParams, SchemaInspectResponse, StepInspection, StepSchemaDetail,
     TemplateGenerateParams, TemplateInspectParams, TemplateInspectResponse, TemplateValidateParams,
     TemplateVisualizeParams,
 };
@@ -322,6 +324,45 @@ pub fn schema_diff(params: SchemaDiffParams) -> String {
 
     let report = schema_diff::diff_templates(&before, &after, params.step_filter.as_deref());
 
+    serde_json::to_string_pretty(&report)
+        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+}
+
+pub fn grammar_list() -> String {
+    let categories = grammar_query::list_grammar_categories();
+    serde_json::to_string_pretty(&categories)
+        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+}
+
+pub fn capability_search(params: CapabilitySearchParams) -> String {
+    let results =
+        grammar_query::search_capabilities(params.query.as_deref(), params.category.as_deref());
+    serde_json::to_string_pretty(&results)
+        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+}
+
+pub fn capability_inspect(params: CapabilityInspectParams) -> String {
+    match grammar_query::inspect_capability(&params.name) {
+        Some(detail) => serde_json::to_string_pretty(&detail)
+            .unwrap_or_else(|e| error_json("serialization_error", &e.to_string())),
+        None => error_json(
+            "capability_not_found",
+            &format!(
+                "No capability named '{}'. Use grammar_list to see available capabilities.",
+                params.name
+            ),
+        ),
+    }
+}
+
+pub fn vocabulary_document() -> String {
+    let doc = grammar_query::document_vocabulary();
+    serde_json::to_string_pretty(&doc)
+        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+}
+
+pub fn composition_validate(params: CompositionValidateParams) -> String {
+    let report = grammar_query::validate_composition_yaml(&params.composition_yaml);
     serde_json::to_string_pretty(&report)
         .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
 }

@@ -2,7 +2,7 @@
 //!
 //! Uses the real `TaskerMcpServer` from the library target to verify protocol
 //! round-trips: tool discovery via `list_tools` and tool invocation via `call_tool`
-//! for all 30 tools (8 Tier 1/profile + 16 Tier 2 connected + 6 Tier 3 write).
+//! for all 36 tools (13 Tier 1/profile + 16 Tier 2 connected + 6 Tier 3 write).
 
 use rmcp::model::{CallToolRequestParams, ClientInfo};
 use rmcp::service::{RoleClient, RunningService};
@@ -122,6 +122,10 @@ async fn test_list_tools_offline_returns_tier1() -> anyhow::Result<()> {
     assert_eq!(
         names,
         vec![
+            "capability_inspect",
+            "capability_search",
+            "composition_validate",
+            "grammar_list",
             "handler_generate",
             "schema_compare",
             "schema_diff",
@@ -130,9 +134,10 @@ async fn test_list_tools_offline_returns_tier1() -> anyhow::Result<()> {
             "template_inspect",
             "template_validate",
             "template_visualize",
+            "vocabulary_document",
         ]
     );
-    assert_eq!(names.len(), 8, "Expected 8 Tier 1 tools in offline mode");
+    assert_eq!(names.len(), 13, "Expected 13 Tier 1 tools in offline mode");
 
     client.cancel().await?;
     server_handle.await??;
@@ -152,12 +157,16 @@ async fn test_list_tools_connected_returns_all() -> anyhow::Result<()> {
         vec![
             "analytics_bottlenecks",
             "analytics_performance",
+            "capability_inspect",
+            "capability_search",
+            "composition_validate",
             "connection_status",
             "dlq_inspect",
             "dlq_list",
             "dlq_queue",
             "dlq_stats",
             "dlq_update",
+            "grammar_list",
             "handler_generate",
             "schema_compare",
             "schema_diff",
@@ -181,12 +190,13 @@ async fn test_list_tools_connected_returns_all() -> anyhow::Result<()> {
             "template_list_remote",
             "template_validate",
             "template_visualize",
+            "vocabulary_document",
         ]
     );
     assert_eq!(
         names.len(),
-        31,
-        "Expected 31 tools: 8 Tier 1 + 1 profile + 16 Tier 2 connected + 6 Tier 3 write"
+        36,
+        "Expected 36 tools: 13 Tier 1 + 1 profile + 16 Tier 2 connected + 6 Tier 3 write"
     );
 
     client.cancel().await?;
@@ -202,8 +212,8 @@ async fn test_list_tools_tier_filtered() -> anyhow::Result<()> {
     let tools = client.list_tools(None).await?;
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_ref()).collect();
 
-    // 8 T1 + 1 connection_status + 16 T2 = 25
-    assert_eq!(names.len(), 25, "Expected 25 tools (T1+profile+T2)");
+    // 13 T1 + 1 connection_status + 16 T2 = 30
+    assert_eq!(names.len(), 30, "Expected 30 tools (T1+profile+T2)");
     assert!(names.contains(&"template_validate"));
     assert!(names.contains(&"task_list"));
     assert!(names.contains(&"connection_status"));

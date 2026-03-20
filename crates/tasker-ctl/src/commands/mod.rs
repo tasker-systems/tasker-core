@@ -16,11 +16,13 @@ pub(crate) mod task;
 pub(crate) mod template;
 pub(crate) mod worker;
 
+pub(crate) mod grammar;
 pub(crate) use auth::handle_auth_command;
 pub(crate) use config::handle_config_command;
 pub(crate) use dlq::handle_dlq_command;
 pub(crate) use docs::handle_docs_command;
 pub(crate) use generate::handle_generate_command;
+pub(crate) use grammar::handle_grammar_command;
 pub(crate) use init::handle_init_command;
 pub(crate) use plugin::handle_plugin_command;
 pub(crate) use profile::handle_profile_command;

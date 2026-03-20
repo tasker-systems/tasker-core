@@ -20,9 +20,9 @@ use tracing::info;
 
 use commands::{
     handle_auth_command, handle_config_command, handle_dlq_command, handle_docs_command,
-    handle_generate_command, handle_init_command, handle_plugin_command, handle_profile_command,
-    handle_remote_command, handle_system_command, handle_task_command, handle_template_command,
-    handle_worker_command,
+    handle_generate_command, handle_grammar_command, handle_init_command, handle_plugin_command,
+    handle_profile_command, handle_remote_command, handle_system_command, handle_task_command,
+    handle_template_command, handle_worker_command,
 };
 
 #[derive(Parser, Debug)]
@@ -113,6 +113,10 @@ pub(crate) enum Commands {
         #[arg(long)]
         no_contrib: bool,
     },
+
+    /// Grammar discovery and composition validation (TAS-342/343)
+    #[command(subcommand)]
+    Grammar(commands::grammar::GrammarCommands),
 }
 
 #[derive(Debug, Subcommand)]
@@ -967,5 +971,6 @@ async fn main() -> tasker_client::ClientResult<()> {
         Commands::Generate(gen_cmd) => handle_generate_command(gen_cmd).await,
         Commands::Profile(profile_cmd) => handle_profile_command(profile_cmd).await,
         Commands::Init { no_contrib } => handle_init_command(no_contrib).await,
+        Commands::Grammar(grammar_cmd) => handle_grammar_command(grammar_cmd, &cli.format).await,
     }
 }
