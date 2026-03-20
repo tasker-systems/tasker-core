@@ -21,6 +21,7 @@
 
 pub mod codegen;
 pub mod composition_validator;
+pub mod grammar_query;
 pub mod operational;
 pub mod schema_comparator;
 pub mod schema_diff;
