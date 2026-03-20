@@ -45,7 +45,7 @@ MCP (JSON serialization) and CLI (structured formatting).
 
 | Function | Signature | Source |
 |---|---|---|
-| `list_grammar_categories` | `() -> Vec<GrammarCategoryInfo>` | Enumerates `GrammarCategoryKind` variants with descriptions |
+| `list_grammar_categories` | `() -> Vec<GrammarCategoryInfo>` | Enumerates `GrammarCategoryKind` variants, hydrates descriptions via `into_category()`, groups capabilities from `standard_capability_registry()` by category |
 | `search_capabilities` | `(query: Option<&str>, category: Option<&str>) -> Vec<CapabilitySummary>` | Searches `standard_capability_registry()` by name substring and/or category filter. Both optional — no filters returns all. |
 | `inspect_capability` | `(name: &str) -> Option<CapabilityDetail>` | Full detail for one capability: config_schema, mutation_profile, tags, version |
 | `document_vocabulary` | `() -> VocabularyDocumentation` | All capabilities organized by category |
@@ -75,8 +75,8 @@ pub struct CapabilityDetail {
     pub category: String,
     pub description: String,
     pub config_schema: serde_json::Value,
-    pub mutation_profile: String,       // "non_mutating" | "mutating"
-    pub supports_idempotency_key: bool,
+    pub mutation_profile: String,       // "non_mutating" | "mutating" | "config_dependent"
+    pub supports_idempotency_key: Option<bool>,  // Some for mutating, None otherwise
     pub tags: Vec<String>,
     pub version: String,
 }
@@ -125,7 +125,9 @@ JSON string.
 
 Parameter structs in `params.rs` with `Deserialize + JsonSchema` and `#[schemars(description)]`.
 Tool registration in `server.rs` via `#[tool(...)]` macros. No tier constant changes
-needed — Tier 1 is the default for functions without client resolution.
+needed — Tier 1 is the default for functions without client resolution. Existing
+tool count assertions in `server.rs` tests must be updated (8→13 Tier 1 tools,
+total tool counts adjusted accordingly).
 
 ### Layer 3: CLI commands (tasker-ctl)
 
@@ -171,7 +173,14 @@ with it, the command parses a full template YAML, finds the named step's composi
 field, and validates that. Without it, the file is treated as a standalone
 CompositionSpec.
 
-Output respects the existing `--format` global flag (text default, json when piping).
+Output respects the existing `--format` global flag (`table` default, `json` when piping).
+
+**`grammar inspect <category>`** filters the output of `list_grammar_categories()` to
+a single category — no separate SDK function needed.
+
+**`composition validate --step`** uses `tasker_sdk::template_parser::parse_template_str`
+to parse the full template, then extracts the named step's composition field for
+validation. This is CLI-level convenience logic, not an SDK function.
 
 ## Files Changed
 
@@ -181,7 +190,7 @@ Output respects the existing `--format` global flag (text default, json when pip
 | `crates/tasker-sdk/src/lib.rs` | Add `pub mod grammar_query` |
 | `crates/tasker-mcp/src/tools/developer.rs` | Add 5 tool functions |
 | `crates/tasker-mcp/src/tools/params.rs` | Add param + response structs |
-| `crates/tasker-mcp/src/server.rs` | Register 5 new `#[tool(...)]` entries |
+| `crates/tasker-mcp/src/server.rs` | Register 5 new `#[tool(...)]` entries, update tool count assertions in tests |
 | `crates/tasker-ctl/src/main.rs` | Add `Grammar(GrammarCommands)` variant + routing |
 | `crates/tasker-ctl/src/commands/grammar.rs` | New handler module |
 | `crates/tasker-ctl/src/commands/mod.rs` | Add `grammar` module export |
