@@ -87,6 +87,33 @@ impl ExpressionEngine {
         self.compile_filter(filter).map(|_| ())
     }
 
+    /// Extract envelope field references from a jaq expression.
+    ///
+    /// Scans the expression string for path patterns rooted at the four envelope
+    /// fields: `.context`, `.deps`, `.prev`, `.step`. Returns deduplicated paths
+    /// sorted alphabetically.
+    ///
+    /// Uses regex-based extraction (jaq-core compiles to an opaque `Filter` type
+    /// with no walkable AST). Handles common patterns: `.context.field`,
+    /// `.deps.step_name.field`, `.prev.nested.path`. Dynamic patterns like
+    /// `.context | keys` are captured as the root reference (`.context`).
+    pub fn extract_references(&self, expression: &str) -> Result<Vec<String>, ExpressionError> {
+        // First validate syntax so we don't extract from invalid expressions
+        self.validate_syntax(expression)?;
+
+        use std::collections::BTreeSet;
+
+        let pattern = regex::Regex::new(r"\.(context|deps|prev|step)(\.[a-zA-Z_][a-zA-Z0-9_]*)*")
+            .expect("static regex");
+
+        let refs: BTreeSet<String> = pattern
+            .find_iter(expression)
+            .map(|m| m.as_str().to_owned())
+            .collect();
+
+        Ok(refs.into_iter().collect())
+    }
+
     /// Evaluate a jq filter against an input JSON value.
     ///
     /// Returns the first output value from the filter. If the filter produces
