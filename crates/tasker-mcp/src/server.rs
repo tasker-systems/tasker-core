@@ -17,6 +17,7 @@
 //! - `capability_inspect` — Inspect capability config schema and metadata
 //! - `vocabulary_document` — Generate complete vocabulary documentation
 //! - `composition_validate` — Validate a standalone composition spec
+//! - `composition_explain` — Analyze and explain data flow through a composition spec
 //!
 //! **Profile Management (when profiles configured)**
 //! - `connection_status` — Show profile health and available capabilities
@@ -455,6 +456,18 @@ impl TaskerMcpServer {
         Parameters(params): Parameters<CompositionValidateParams>,
     ) -> String {
         developer::composition_validate(params)
+    }
+
+    /// Explain data flow through a composition spec.
+    #[tool(
+        name = "composition_explain",
+        description = "Analyze and explain data flow through a CompositionSpec. Shows how data threads through invocations via the envelope (.context, .deps, .prev, .step), which jaq expressions reference which fields, checkpoint placement, and output schemas. Optionally evaluates expressions against sample data for simulated execution. Works offline."
+    )]
+    pub async fn composition_explain(
+        &self,
+        Parameters(params): Parameters<CompositionExplainParams>,
+    ) -> String {
+        developer::composition_explain(params)
     }
 
     // ── Profile Management ──

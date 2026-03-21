@@ -8,6 +8,10 @@ use serde::Serialize;
 use serde_json::Value;
 use tasker_grammar::{standard_capability_registry, GrammarCategoryKind, MutationProfile};
 
+// Re-export SimulationInput so callers (tasker-mcp, tasker-ctl) don't need
+// a direct dependency on tasker-grammar.
+pub use tasker_grammar::SimulationInput;
+
 // ---------------------------------------------------------------------------
 // Return type structs
 // ---------------------------------------------------------------------------
