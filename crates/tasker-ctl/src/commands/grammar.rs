@@ -67,6 +67,32 @@ pub(crate) enum CompositionCommands {
         #[arg(long)]
         step: Option<String>,
     },
+
+    /// Explain data flow through a composition spec file
+    Explain {
+        /// Path to the composition file
+        path: PathBuf,
+
+        /// Explain only the named step's composition within a full task template
+        #[arg(long)]
+        step: Option<String>,
+
+        /// Sample context data (inline JSON or @path/to/file.json)
+        #[arg(long)]
+        sample_context: Option<String>,
+
+        /// Sample dependency results (inline JSON or @path/to/file.json)
+        #[arg(long)]
+        sample_deps: Option<String>,
+
+        /// Sample step metadata (inline JSON or @path/to/file.json)
+        #[arg(long)]
+        sample_step: Option<String>,
+
+        /// Mock outputs for side-effecting invocations (inline JSON or @path/to/file.json)
+        #[arg(long)]
+        mock_outputs: Option<String>,
+    },
 }
 
 /// Dispatch a grammar command to the appropriate handler.
@@ -85,6 +111,22 @@ pub(crate) async fn handle_grammar_command(cmd: GrammarCommands, format: &str) -
             CompositionCommands::Validate { path, step } => {
                 composition_validate(&path, step.as_deref(), format)
             }
+            CompositionCommands::Explain {
+                path,
+                step,
+                sample_context,
+                sample_deps,
+                sample_step,
+                mock_outputs,
+            } => composition_explain(
+                &path,
+                step.as_deref(),
+                sample_context.as_deref(),
+                sample_deps.as_deref(),
+                sample_step.as_deref(),
+                mock_outputs.as_deref(),
+                format,
+            ),
         },
     }
 }
@@ -359,6 +401,191 @@ fn composition_validate(path: &PathBuf, step: Option<&str>, format: &str) -> Cli
 
     if !report.valid {
         std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+/// Load a JSON argument: if it starts with `@`, read from file; otherwise parse as inline JSON.
+fn load_json_arg(value: &str) -> ClientResult<serde_json::Value> {
+    let content = if let Some(path) = value.strip_prefix('@') {
+        std::fs::read_to_string(path).map_err(|e| {
+            tasker_client::ClientError::Internal(format!("Failed to read {path}: {e}"))
+        })?
+    } else {
+        value.to_owned()
+    };
+    serde_json::from_str(&content)
+        .map_err(|e| tasker_client::ClientError::Internal(format!("Invalid JSON: {e}")))
+}
+
+fn composition_explain(
+    path: &PathBuf,
+    step: Option<&str>,
+    sample_context: Option<&str>,
+    sample_deps: Option<&str>,
+    sample_step: Option<&str>,
+    mock_outputs: Option<&str>,
+    format: &str,
+) -> ClientResult<()> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| tasker_client::ClientError::Internal(format!("Failed to read file: {e}")))?;
+
+    // If --step provided, extract the step's composition from a full template
+    let yaml_to_explain = if let Some(step_name) = step {
+        let template = tasker_sdk::template_parser::parse_template_str(&content).map_err(|e| {
+            tasker_client::ClientError::Internal(format!(
+                "Failed to parse template '{}': {e}",
+                path.display()
+            ))
+        })?;
+
+        let step_def = template
+            .steps
+            .iter()
+            .find(|s| s.name == step_name)
+            .ok_or_else(|| {
+                tasker_client::ClientError::Internal(format!(
+                    "Step '{step_name}' not found in template"
+                ))
+            })?;
+
+        let composition_value = step_def.composition.as_ref().ok_or_else(|| {
+            tasker_client::ClientError::Internal(format!(
+                "Step '{step_name}' has no composition field"
+            ))
+        })?;
+
+        serde_yaml::to_string(composition_value).map_err(|e| {
+            tasker_client::ClientError::Internal(format!(
+                "Failed to serialize composition for step '{step_name}': {e}"
+            ))
+        })?
+    } else {
+        content
+    };
+
+    // Build SimulationInput if any sample data provided
+    let simulation = if sample_context.is_some()
+        || sample_deps.is_some()
+        || sample_step.is_some()
+        || mock_outputs.is_some()
+    {
+        let ctx = sample_context
+            .map(load_json_arg)
+            .transpose()?
+            .unwrap_or(serde_json::Value::Null);
+        let deps = sample_deps
+            .map(load_json_arg)
+            .transpose()?
+            .unwrap_or(serde_json::Value::Null);
+        let step_meta = sample_step
+            .map(load_json_arg)
+            .transpose()?
+            .unwrap_or(serde_json::Value::Null);
+        let mocks: std::collections::HashMap<usize, serde_json::Value> = mock_outputs
+            .map(load_json_arg)
+            .transpose()?
+            .and_then(|v| {
+                v.as_object().map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| k.parse::<usize>().ok().map(|idx| (idx, v.clone())))
+                        .collect()
+                })
+            })
+            .unwrap_or_default();
+
+        Some(tasker_grammar::SimulationInput {
+            context: ctx,
+            deps,
+            step: step_meta,
+            mock_outputs: mocks,
+        })
+    } else {
+        None
+    };
+
+    let explanation = tasker_sdk::grammar_query::explain_composition(&yaml_to_explain, simulation);
+
+    if format == "json" {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&explanation)
+                .map_err(|e| tasker_client::ClientError::Internal(e.to_string()))?
+        );
+    } else {
+        // Table output: show invocation chain summary
+        if let Some(ref name) = explanation.name {
+            output::header(format!("Composition: {name}"));
+        } else {
+            output::header("Composition Explain");
+        }
+
+        println!("Outcome: {}", explanation.outcome.description);
+        if explanation.simulated {
+            output::success("Simulation mode (sample data provided)");
+        }
+        println!();
+
+        // Show invocation chain
+        if !explanation.invocations.is_empty() {
+            println!(
+                "  {:<5} {:<12} {:<12} {:<10} {:<30} {:<5}",
+                "Index", "Capability", "Category", "Checkpoint", ".prev source", "Exprs"
+            );
+            println!("  {}", "-".repeat(75));
+
+            for inv in &explanation.invocations {
+                let prev_src = inv
+                    .envelope_available
+                    .prev_source
+                    .as_deref()
+                    .unwrap_or("(none)");
+                let checkpoint = if inv.checkpoint { "yes" } else { "no" };
+                println!(
+                    "  {:<5} {:<12} {:<12} {:<10} {:<30} {:<5}",
+                    inv.index,
+                    inv.capability,
+                    inv.category,
+                    checkpoint,
+                    prev_src,
+                    inv.expressions.len()
+                );
+
+                // Show simulated values if present
+                if let Some(ref output) = inv.simulated_output {
+                    println!(
+                        "         → simulated output: {}",
+                        serde_json::to_string(output).unwrap_or_else(|_| "?".to_owned())
+                    );
+                }
+            }
+        }
+
+        // Show findings if any
+        if !explanation.findings.is_empty() {
+            println!();
+            for finding in &explanation.findings {
+                let prefix = match finding.severity.as_str() {
+                    "error" => "  ERROR",
+                    "warning" => "  WARN ",
+                    _ => "  INFO ",
+                };
+                let location = match (&finding.invocation_index, &finding.field_path) {
+                    (Some(idx), Some(field)) => format!(" [invocation {idx}, {field}]"),
+                    (Some(idx), None) => format!(" [invocation {idx}]"),
+                    _ => String::new(),
+                };
+                println!(
+                    "{prefix}{location}: [{code}] {msg}",
+                    code = finding.code,
+                    msg = finding.message
+                );
+            }
+        }
+
+        println!();
+        output::dim(&explanation.summary);
     }
 
     Ok(())
