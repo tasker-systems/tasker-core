@@ -34,6 +34,9 @@ New module `explain` in `tasker-grammar` containing the core analysis engine.
 
 #### Core Types
 
+These types live in `tasker-grammar` and use grammar-native types (`GrammarCategoryKind`, etc.).
+The SDK layer converts them to serializable mirrors with string representations (e.g., `GrammarCategoryKind::Transform` → `"Transform"`), following the same pattern as `ValidationResult` → `CompositionValidationReport`.
+
 ```rust
 /// Complete trace of data flow through a composition.
 pub struct ExplanationTrace {
@@ -61,8 +64,9 @@ pub struct InvocationTrace {
     pub index: usize,
     /// Capability name.
     pub capability: String,
-    /// Grammar category (Transform, Persist, etc.).
-    pub category: String,
+    /// Grammar category — uses GrammarCategoryKind enum at grammar layer;
+    /// SDK mirror converts to String.
+    pub category: GrammarCategoryKind,
     /// Whether this is a checkpoint boundary.
     pub checkpoint: bool,
     /// Whether this capability is mutating.
@@ -155,14 +159,26 @@ impl<'a> ExplainAnalyzer<'a> {
 #### Analysis Flow
 
 1. Run `CompositionValidator::validate()` and include findings in the trace.
-2. Walk invocations in order. For each:
+2. **Degenerate inputs**: If the composition is empty (`EMPTY_COMPOSITION`) or exceeds limits (`TOO_MANY_INVOCATIONS`), return a trace with zero invocation entries and the validation findings. The trace is always produced — it may just have an empty `invocations` list.
+3. Walk invocations in order. For each:
    a. Resolve capability from registry (skip if missing, note in validation findings).
    b. Build `EnvelopeSnapshot` — track what `.prev` is based on prior invocation's output.
-   c. Extract jaq expressions from config fields (category-specific: `filter` for transform/assert, `data`/`params`/`payload` for action capabilities, plus `validate_success`, `result_shape`, metadata expressions for emit).
+   c. Extract jaq expressions from config fields. Expression fields are category-specific, matching the validator's existing mapping:
+      - **Transform**: `filter`
+      - **Assert**: `filter`
+      - **Persist**: `data`, `validate_success`, `result_shape`
+      - **Acquire**: `params`, `validate_success`, `result_shape`
+      - **Emit**: `payload`, `condition`, `validate_success`, `result_shape`, plus metadata expressions (`correlation_id`, `idempotency_key`)
+      - **Validate**: no expressions (schema-based, not expression-based)
    d. For each expression, call `ExpressionEngine::extract_references()` to find envelope path references.
    e. Determine output schema (transform: `config.output`; others: future extension).
-   f. **If simulating**: build the envelope from sample data + accumulated outputs, evaluate expressions, record results. For pure capabilities, use evaluated output as next `.prev`. For side-effecting capabilities, use mock output from `SimulationInput` if provided; otherwise `.prev` becomes `null`.
-3. Assemble `ExplanationTrace`.
+   f. **If simulating**: build the envelope from sample data + accumulated outputs, evaluate expressions, record results. Simulation semantics per category:
+      - **Transform**: evaluate the `filter` expression, use result as next `.prev`.
+      - **Validate**: pass `.prev` through unchanged (validate checks conformance, doesn't transform).
+      - **Assert**: pass `.prev` through unchanged (assert is a gate, not a transformer).
+      - **Persist/Acquire/Emit** (side-effecting): evaluate data/params/payload expressions to show what *would* be sent, then use mock output from `SimulationInput.mock_outputs` as next `.prev`. If no mock provided, `.prev` becomes `null` and an info-level finding is recorded.
+   g. **Expression evaluation failures during simulation**: If a jaq expression fails (e.g., `.prev.missing_field` on an object without that field), record the error as an `ExpressionReference.simulated_result` of `null` and add a warning-level finding with the error details. Simulation continues — a single expression failure does not abort the trace.
+4. Assemble `ExplanationTrace`.
 
 #### Expression Reference Extraction
 
@@ -176,9 +192,17 @@ impl ExpressionEngine {
 }
 ```
 
-**Implementation**: Parse the expression using jaq's parser, walk the AST looking for path access chains rooted at `.context`, `.deps`, `.prev`, or `.step`. Extract to practical depth — `.context.order_id` yes, but dynamic expressions like `.context | keys` report `.context` as the reference.
+**Implementation**: Regex-based extraction. jaq-core compiles expressions to an opaque `Filter` type with no walkable AST, so AST-based extraction is not feasible with the current public API. Instead, scan the expression string for envelope path patterns using regex:
 
-**Fallback**: If jaq AST internals prove too unstable, fall back to regex-based extraction scanning for `\.context\b`, `\.deps\b`, `\.prev\b`, `\.step\b` with subsequent dotted path segments. The interface is the same regardless of implementation strategy.
+1. Match patterns rooted at the four envelope fields: `\.context`, `\.deps`, `\.prev`, `\.step`
+2. Follow with dotted path segments and/or bracket notation: `\.context\.order_id`, `\.deps\.step_a\.result`
+3. Deduplicate results
+
+The regex approach handles the common cases well — most jaq expressions in compositions use straightforward field access like `.context.order_id` or `.prev.items`. Dynamic patterns like `.context | keys` are captured as `.context` (the root reference). This is sufficient for data flow visualization.
+
+**Pattern**: `\.(context|deps|prev|step)(\.[a-zA-Z_][a-zA-Z0-9_]*)*`
+
+**Future enhancement**: If jaq-core exposes a public AST in a future version, `extract_references` can switch to AST walking behind the same interface.
 
 ### Layer 2: `tasker-sdk` — Grammar Query Function
 
@@ -191,7 +215,12 @@ pub fn explain_composition(
 ) -> CompositionExplanation;
 ```
 
-`CompositionExplanation` is a `Serialize`-deriving mirror of `ExplanationTrace`, following the same pattern as `CompositionValidationReport`. The function parses YAML/JSON, constructs `ExplainAnalyzer` with the standard capability registry and expression engine, and calls the appropriate analyze method.
+`CompositionExplanation` is a `Serialize`-deriving mirror of `ExplanationTrace`, following the same pattern as `CompositionValidationReport` mirroring `ValidationResult`. The mirror converts grammar-native types to serializable representations:
+- `GrammarCategoryKind` → `String` (e.g., `"Transform"`)
+- `ValidationFinding` (grammar) → `CompositionFinding` (SDK) with `Severity` enum → string
+- All other fields are already serializable (`Value`, `String`, `bool`, `Vec`, `Option`)
+
+The function parses YAML/JSON (trying YAML first, then JSON — same as `validate_composition_yaml`), constructs `ExplainAnalyzer` with the standard capability registry and expression engine, and calls the appropriate analyze method. Parse failures return a `CompositionExplanation` with an empty trace and a parse error finding.
 
 `SimulationInput` is re-exported from `tasker-grammar` since it's just `Value` fields and a `HashMap`.
 
@@ -201,8 +230,8 @@ pub fn explain_composition(
 
 ```rust
 pub struct CompositionExplainParams {
-    /// Composition YAML or JSON string.
-    pub composition: String,
+    /// Composition YAML or JSON string (matches existing composition_yaml field name).
+    pub composition_yaml: String,
     /// Optional sample context data (JSON string, parsed to Value).
     pub sample_context: Option<String>,
     /// Optional sample deps data (JSON string).
@@ -211,11 +240,14 @@ pub struct CompositionExplainParams {
     pub sample_step: Option<String>,
     /// Mock outputs for side-effecting invocations (JSON string).
     /// Object keyed by invocation index: {"2": {"id": 123}, "4": {"status": "sent"}}
+    /// Keys must be valid non-negative integers; invalid keys produce a warning finding
+    /// and are ignored. Keys referencing indices outside the invocation range are also
+    /// warned about but do not prevent analysis.
     pub mock_outputs: Option<String>,
 }
 ```
 
-Handler parses JSON params, constructs `SimulationInput` if any sample data is provided, calls `explain_composition()`, returns JSON.
+Handler parses JSON string params into `Value`/`HashMap`, constructs `SimulationInput` if any sample data is provided, calls `explain_composition()`, returns JSON. Mock output keys that fail to parse as `usize` produce a warning in the response.
 
 Registered alongside the existing 13 Tier 1 tools, bringing the count to 14.
 
@@ -225,6 +257,7 @@ Registered alongside the existing 13 Tier 1 tools, bringing the count to 14.
 tasker-ctl grammar composition explain <path> [--step <name>] \
     [--sample-context <json-or-path>] \
     [--sample-deps <json-or-path>] \
+    [--sample-step <json-or-path>] \
     [--mock-outputs <json-or-path>]
 ```
 
@@ -232,6 +265,7 @@ tasker-ctl grammar composition explain <path> [--step <name>] \
 - `--step <name>` — extract a specific step's composition from a full template (same as `composition validate --step`)
 - `--sample-context` — inline JSON or `@path/to/file.json`
 - `--sample-deps` — inline JSON or `@path/to/file.json`
+- `--sample-step` — inline JSON or `@path/to/file.json` (step metadata: name, attempt count)
 - `--mock-outputs` — inline JSON or `@path/to/file.json`
 
 **Table output**: Shows invocation chain with columns for index, capability, category, checkpoint, `.prev` source, expressions, and (when simulating) simulated values.
@@ -249,6 +283,9 @@ tasker-ctl grammar composition explain <path> [--step <name>] \
 - **Mock outputs**: Side-effecting invocations use mock values as `.prev` for subsequent steps
 - **Missing mock output**: Graceful degradation — `.prev` becomes null, noted in trace
 - **Invalid composition**: Partial trace produced alongside validation findings
+- **Degenerate inputs**: Empty composition produces trace with zero invocations and `EMPTY_COMPOSITION` finding
+- **Validate/assert pass-through**: During simulation, validate and assert pass `.prev` unchanged
+- **Expression evaluation failure**: Failed jaq expression records null result and warning finding, simulation continues
 - **`extract_references`**: Unit tests for various expression patterns (`.context.x`, `.prev | keys`, nested deps access, expressions with no envelope references)
 
 ### `tasker-sdk` (integration)
