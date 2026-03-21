@@ -111,7 +111,7 @@ pgmq = "0.32.0"
 tasker-pgmq = { path = "crates/tasker-pgmq", version = "=0.1.8" }
 tasker-sdk = { path = "crates/tasker-sdk", version = "=0.1.8" }
 # MCP protocol server (TAS-304)
-rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "1.2", features = ["server", "transport-io", "macros"] }
 # JSON Schema generation for MCP tool parameters (TAS-304)
 schemars = "1.0"
 rand = "0.9.1"
