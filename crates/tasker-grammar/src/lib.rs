@@ -25,6 +25,7 @@
 
 pub mod capabilities;
 pub mod executor;
+pub mod explain;
 pub mod expression;
 pub mod fixtures;
 pub mod operations;
@@ -32,6 +33,10 @@ pub mod types;
 pub mod validation;
 pub mod vocabulary;
 
+pub use explain::{
+    EnvelopeSnapshot, ExplainAnalyzer, ExplanationTrace, ExpressionReference, InvocationTrace,
+    OutcomeSummary, SimulationInput,
+};
 pub use expression::{ExpressionEngine, ExpressionEngineConfig, ExpressionError};
 pub use operations::{
     AcquirableResource, AcquireConstraints, AcquireResult, CapturedEmit, CapturedPersist,
