@@ -1045,11 +1045,11 @@ base_url = "http://localhost:8080"
         let tools = server.tool_router.list_all();
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
 
-        // Should have only Tier 1 tools (13), no connection_status (offline)
+        // Should have only Tier 1 tools (14), no connection_status (offline)
         assert_eq!(
             names.len(),
-            13,
-            "Expected 13 Tier 1 tools, got: {:?}",
+            14,
+            "Expected 14 Tier 1 tools, got: {:?}",
             names
         );
         assert!(names.contains(&"template_validate"));
@@ -1075,11 +1075,11 @@ base_url = "http://localhost:8080"
         let tools = server.tool_router.list_all();
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
 
-        // 13 Tier 1 + 1 connection_status + 16 Tier 2 = 30
+        // 14 Tier 1 + 1 connection_status + 16 Tier 2 = 31
         assert_eq!(
             names.len(),
-            30,
-            "Expected 30 tools (T1+profile+T2), got: {:?}",
+            31,
+            "Expected 31 tools (T1+profile+T2), got: {:?}",
             names
         );
         assert!(names.contains(&"template_validate"));
@@ -1097,8 +1097,8 @@ base_url = "http://localhost:8080"
         let server = TaskerMcpServer::with_profile_manager(pm, false, None);
 
         let tools = server.tool_router.list_all();
-        // 13 T1 + 1 profile + 16 T2 + 6 T3 = 36
-        assert_eq!(tools.len(), 36, "Expected all 36 tools");
+        // 14 T1 + 1 profile + 16 T2 + 6 T3 = 37
+        assert_eq!(tools.len(), 37, "Expected all 37 tools");
     }
 
     #[tokio::test]
@@ -1210,8 +1210,8 @@ base_url = "http://localhost:8080"
         // Should have T1 + profile + T2, no T3
         assert_eq!(
             names.len(),
-            30,
-            "Expected 30 tools from profile config, got: {:?}",
+            31,
+            "Expected 31 tools from profile config, got: {:?}",
             names
         );
         assert!(!names.contains(&"task_submit"));
