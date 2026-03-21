@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde_json::json;
 
+use crate::explain::types::SimulationInput;
 use crate::explain::ExplainAnalyzer;
 use crate::types::{
     CapabilityDeclaration, CapabilityInvocation, CompositionSpec, GrammarCategoryKind,
@@ -251,4 +252,233 @@ fn analyze_missing_capability() {
         .validation
         .iter()
         .any(|f| f.code == "MISSING_CAPABILITY"));
+}
+
+#[test]
+fn analyze_with_simulation_threads_data() {
+    let registry = test_registry();
+    let engine = test_engine();
+    let analyzer = ExplainAnalyzer::new(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: Some("sim_test".to_owned()),
+        outcome: OutcomeDeclaration {
+            description: "Simulation".to_owned(),
+            output_schema: json!({"type": "object"}),
+        },
+        invocations: vec![
+            CapabilityInvocation {
+                capability: "transform".to_owned(),
+                config: json!({
+                    "output": {"type": "object"},
+                    "filter": "{doubled: (.context.value * 2)}"
+                }),
+                checkpoint: false,
+            },
+            CapabilityInvocation {
+                capability: "transform".to_owned(),
+                config: json!({
+                    "output": {"type": "object"},
+                    "filter": "{result: (.prev.doubled + 1)}"
+                }),
+                checkpoint: false,
+            },
+        ],
+    };
+
+    let input = SimulationInput {
+        context: json!({"value": 21}),
+        deps: json!({}),
+        step: json!({"name": "test_step"}),
+        mock_outputs: HashMap::new(),
+    };
+
+    let trace = analyzer.analyze_with_simulation(&spec, &input);
+    assert!(trace.simulated);
+
+    let inv0 = &trace.invocations[0];
+    assert_eq!(inv0.simulated_output, Some(json!({"doubled": 42})));
+    assert_eq!(
+        inv0.expressions[0].simulated_result,
+        Some(json!({"doubled": 42}))
+    );
+
+    let inv1 = &trace.invocations[1];
+    assert_eq!(inv1.simulated_output, Some(json!({"result": 43})));
+}
+
+#[test]
+fn analyze_with_simulation_mock_outputs() {
+    let registry = test_registry();
+    let engine = test_engine();
+    let analyzer = ExplainAnalyzer::new(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: None,
+        outcome: OutcomeDeclaration {
+            description: "Mock test".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![
+            CapabilityInvocation {
+                capability: "persist".to_owned(),
+                config: json!({
+                    "resource": {"type": "postgres", "table": "orders"},
+                    "data": {"expression": ".context.order"}
+                }),
+                checkpoint: true,
+            },
+            CapabilityInvocation {
+                capability: "transform".to_owned(),
+                config: json!({
+                    "output": {"type": "object"},
+                    "filter": "{id: .prev.inserted_id}"
+                }),
+                checkpoint: false,
+            },
+        ],
+    };
+
+    let mut mock_outputs = HashMap::new();
+    mock_outputs.insert(0, json!({"inserted_id": 42}));
+
+    let input = SimulationInput {
+        context: json!({"order": {"item": "widget"}}),
+        deps: json!({}),
+        step: json!({"name": "persist_step"}),
+        mock_outputs,
+    };
+
+    let trace = analyzer.analyze_with_simulation(&spec, &input);
+
+    let inv0 = &trace.invocations[0];
+    assert!(inv0.mock_output_used);
+    assert_eq!(inv0.simulated_output, Some(json!({"inserted_id": 42})));
+
+    let inv1 = &trace.invocations[1];
+    assert!(!inv1.mock_output_used);
+    assert_eq!(inv1.simulated_output, Some(json!({"id": 42})));
+}
+
+#[test]
+fn analyze_with_simulation_missing_mock() {
+    let registry = test_registry();
+    let engine = test_engine();
+    let analyzer = ExplainAnalyzer::new(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: None,
+        outcome: OutcomeDeclaration {
+            description: "No mock".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "persist".to_owned(),
+            config: json!({
+                "resource": {"type": "postgres", "table": "orders"},
+                "data": {"expression": ".context.order"}
+            }),
+            checkpoint: true,
+        }],
+    };
+
+    let input = SimulationInput {
+        context: json!({"order": {"item": "widget"}}),
+        deps: json!({}),
+        step: json!({"name": "test"}),
+        mock_outputs: HashMap::new(),
+    };
+
+    let trace = analyzer.analyze_with_simulation(&spec, &input);
+    let inv = &trace.invocations[0];
+    assert!(!inv.mock_output_used);
+    assert!(trace.validation.iter().any(|f| f.message.contains("mock")));
+}
+
+#[test]
+fn analyze_with_simulation_assert_passthrough() {
+    let registry = test_registry();
+    let engine = test_engine();
+    let analyzer = ExplainAnalyzer::new(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: None,
+        outcome: OutcomeDeclaration {
+            description: "Assert passthrough".to_owned(),
+            output_schema: json!({"type": "object"}),
+        },
+        invocations: vec![
+            CapabilityInvocation {
+                capability: "transform".to_owned(),
+                config: json!({
+                    "output": {"type": "object"},
+                    "filter": "{x: .context.value}"
+                }),
+                checkpoint: false,
+            },
+            CapabilityInvocation {
+                capability: "assert".to_owned(),
+                config: json!({"filter": "(.prev.x > 0)", "error": "must be positive"}),
+                checkpoint: false,
+            },
+            CapabilityInvocation {
+                capability: "transform".to_owned(),
+                config: json!({
+                    "output": {"type": "object"},
+                    "filter": "{result: .prev.x}"
+                }),
+                checkpoint: false,
+            },
+        ],
+    };
+
+    let input = SimulationInput {
+        context: json!({"value": 5}),
+        deps: json!({}),
+        step: json!({"name": "test"}),
+        mock_outputs: HashMap::new(),
+    };
+
+    let trace = analyzer.analyze_with_simulation(&spec, &input);
+
+    let assert_inv = &trace.invocations[1];
+    assert_eq!(assert_inv.simulated_output, Some(json!({"x": 5})));
+
+    let final_inv = &trace.invocations[2];
+    assert_eq!(final_inv.simulated_output, Some(json!({"result": 5})));
+}
+
+#[test]
+fn analyze_with_simulation_expression_failure() {
+    let registry = test_registry();
+    let engine = test_engine();
+    let analyzer = ExplainAnalyzer::new(&registry, &engine);
+
+    let spec = CompositionSpec {
+        name: None,
+        outcome: OutcomeDeclaration {
+            description: "Eval failure".to_owned(),
+            output_schema: json!({}),
+        },
+        invocations: vec![CapabilityInvocation {
+            capability: "transform".to_owned(),
+            config: json!({
+                "output": {"type": "object"},
+                "filter": ".prev.missing_field | .nested"
+            }),
+            checkpoint: false,
+        }],
+    };
+
+    let input = SimulationInput {
+        context: json!({}),
+        deps: json!({}),
+        step: json!({"name": "test"}),
+        mock_outputs: HashMap::new(),
+    };
+
+    let trace = analyzer.analyze_with_simulation(&spec, &input);
+    assert!(trace.simulated);
+    // Trace should be produced without panic
+    assert_eq!(trace.invocations.len(), 1);
 }

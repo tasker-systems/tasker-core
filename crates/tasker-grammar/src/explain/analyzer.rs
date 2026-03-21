@@ -1,10 +1,14 @@
+use std::collections::HashMap;
+
 use serde_json::Value;
 
 use crate::explain::types::{
     EnvelopeSnapshot, ExplanationTrace, ExpressionReference, InvocationTrace, OutcomeSummary,
     SimulationInput,
 };
-use crate::types::{CompositionSpec, GrammarCategoryKind, MutationProfile};
+use crate::types::{
+    CompositionSpec, GrammarCategoryKind, MutationProfile, Severity, ValidationFinding,
+};
 use crate::validation::{CapabilityRegistry, CompositionValidator};
 use crate::ExpressionEngine;
 
@@ -36,6 +40,35 @@ fn extract_expression(value: &Value) -> Option<&str> {
         .and_then(|v| v.as_str())
 }
 
+/// Build the envelope for expression evaluation, matching the executor's shape.
+fn build_envelope(
+    context: &Value,
+    deps: &Value,
+    step: &Value,
+    prev: &Value,
+    accumulated: &HashMap<usize, Value>,
+) -> Value {
+    let invocation_outputs: serde_json::Map<String, Value> = accumulated
+        .iter()
+        .map(|(idx, output)| (idx.to_string(), output.clone()))
+        .collect();
+
+    let mut deps_with_invocations = match deps {
+        Value::Object(map) => map.clone(),
+        _ => serde_json::Map::new(),
+    };
+    if !invocation_outputs.is_empty() {
+        deps_with_invocations.insert("invocations".to_owned(), Value::Object(invocation_outputs));
+    }
+
+    serde_json::json!({
+        "context": context,
+        "deps": deps_with_invocations,
+        "step": step,
+        "prev": prev,
+    })
+}
+
 impl<'a> ExplainAnalyzer<'a> {
     /// Create a new analyzer with the given capability registry and expression engine.
     pub fn new(
@@ -50,19 +83,37 @@ impl<'a> ExplainAnalyzer<'a> {
 
     /// Produce a static analysis trace (no expression evaluation).
     pub fn analyze(&self, spec: &CompositionSpec) -> ExplanationTrace {
+        self.analyze_internal(spec, None)
+    }
+
+    /// Produce a trace with simulated expression evaluation.
+    pub fn analyze_with_simulation(
+        &self,
+        spec: &CompositionSpec,
+        input: &SimulationInput,
+    ) -> ExplanationTrace {
+        self.analyze_internal(spec, Some(input))
+    }
+
+    /// Shared implementation for both static analysis and simulated evaluation.
+    fn analyze_internal(
+        &self,
+        spec: &CompositionSpec,
+        simulation: Option<&SimulationInput>,
+    ) -> ExplanationTrace {
+        let is_simulated = simulation.is_some();
+
         // Run validator and capture findings
         let validator = CompositionValidator::new(self.registry, self.expression_engine);
         let validation_result = validator.validate(spec);
-        let findings = validation_result.findings;
+        let mut findings = validation_result.findings;
 
         let outcome = OutcomeSummary {
             description: spec.outcome.description.clone(),
             output_schema: spec.outcome.output_schema.clone(),
         };
 
-        // Handle degenerate cases: empty or over-limit compositions
-        // The validator already returns early for these, so findings will have the error.
-        // We detect this by checking if any finding is a terminal structural error.
+        // Handle degenerate cases
         let is_degenerate = findings
             .iter()
             .any(|f| f.code == "EMPTY_COMPOSITION" || f.code == "TOO_MANY_INVOCATIONS");
@@ -73,7 +124,7 @@ impl<'a> ExplainAnalyzer<'a> {
                 outcome,
                 invocations: vec![],
                 validation: findings,
-                simulated: false,
+                simulated: is_simulated,
             };
         }
 
@@ -81,6 +132,10 @@ impl<'a> ExplainAnalyzer<'a> {
         let mut invocation_traces = Vec::with_capacity(spec.invocations.len());
         let mut prev_schema: Option<Value> = None;
         let mut prev_source: Option<String> = None;
+
+        // Simulation state: tracked .prev value and accumulated outputs
+        let mut sim_prev: Value = Value::Null;
+        let mut accumulated: HashMap<usize, Value> = HashMap::new();
 
         for (idx, invocation) in spec.invocations.iter().enumerate() {
             let decl = self.registry.get_capability(&invocation.capability);
@@ -109,13 +164,24 @@ impl<'a> ExplainAnalyzer<'a> {
                     simulated_output: None,
                     mock_output_used: false,
                 });
-                // Don't update prev_schema — unknown capability produces no output
                 prev_schema = None;
                 prev_source = None;
+                sim_prev = Value::Null;
                 continue;
             };
 
             let is_mutating = matches!(decl.mutation_profile, MutationProfile::Mutating { .. });
+
+            // Build the simulation envelope if in simulation mode
+            let sim_envelope = simulation.map(|input| {
+                build_envelope(
+                    &input.context,
+                    &input.deps,
+                    &input.step,
+                    &sim_prev,
+                    &accumulated,
+                )
+            });
 
             // Extract expressions from category-specific config fields
             let expression_fields: &[&str] = match decl.grammar_category {
@@ -144,11 +210,31 @@ impl<'a> ExplainAnalyzer<'a> {
                         .extract_references(expr)
                         .unwrap_or_default();
 
+                    // Evaluate expression against simulation envelope if available
+                    let simulated_result = sim_envelope.as_ref().and_then(|env| {
+                        match self.expression_engine.evaluate(expr, env) {
+                            Ok(result) => Some(result),
+                            Err(_) => {
+                                findings.push(ValidationFinding {
+                                    severity: Severity::Warning,
+                                    code: "SIMULATION_EVAL_FAILURE".to_owned(),
+                                    invocation_index: Some(idx),
+                                    message: format!(
+                                        "Expression evaluation failed for '{}' at invocation {}",
+                                        expr, idx
+                                    ),
+                                    field_path: Some(field_path.clone()),
+                                });
+                                None
+                            }
+                        }
+                    });
+
                     expressions.push(ExpressionReference {
                         field_path,
                         expression: expr.to_owned(),
                         referenced_paths,
-                        simulated_result: None,
+                        simulated_result,
                     });
                 }
             }
@@ -166,11 +252,15 @@ impl<'a> ExplainAnalyzer<'a> {
                                     .extract_references(expr)
                                     .unwrap_or_default();
 
+                                let simulated_result = sim_envelope.as_ref().and_then(|env| {
+                                    self.expression_engine.evaluate(expr, env).ok()
+                                });
+
                                 expressions.push(ExpressionReference {
                                     field_path,
                                     expression: expr.to_owned(),
                                     referenced_paths,
-                                    simulated_result: None,
+                                    simulated_result,
                                 });
                             }
                         }
@@ -181,7 +271,27 @@ impl<'a> ExplainAnalyzer<'a> {
             // Extract declared output schema
             let output_schema = self.extract_output_schema(invocation, decl);
 
-            // Track for next invocation's envelope
+            // Compute simulated output and update sim_prev for next invocation
+            let (simulated_output, mock_output_used) = if let Some(sim_input) = simulation {
+                self.compute_simulation_output(
+                    idx,
+                    decl.grammar_category,
+                    &expressions,
+                    &sim_prev,
+                    sim_input,
+                    &mut findings,
+                )
+            } else {
+                (None, false)
+            };
+
+            // Update sim_prev for next invocation
+            if let Some(ref output) = simulated_output {
+                sim_prev = output.clone();
+                accumulated.insert(idx, output.clone());
+            }
+
+            // Track for next invocation's envelope (static schema tracking)
             if let Some(ref schema) = output_schema {
                 prev_schema = Some(schema.clone());
                 prev_source = Some(format!(
@@ -189,9 +299,8 @@ impl<'a> ExplainAnalyzer<'a> {
                     idx, invocation.capability
                 ));
             } else {
-                // Assert passes .prev through unchanged; others don't declare output
                 match decl.grammar_category {
-                    GrammarCategoryKind::Assert => {
+                    GrammarCategoryKind::Assert | GrammarCategoryKind::Validate => {
                         // prev_schema and prev_source remain unchanged
                     }
                     _ => {
@@ -210,8 +319,8 @@ impl<'a> ExplainAnalyzer<'a> {
                 envelope_available: envelope,
                 expressions,
                 output_schema,
-                simulated_output: None,
-                mock_output_used: false,
+                simulated_output,
+                mock_output_used,
             });
         }
 
@@ -220,17 +329,63 @@ impl<'a> ExplainAnalyzer<'a> {
             outcome,
             invocations: invocation_traces,
             validation: findings,
-            simulated: false,
+            simulated: is_simulated,
         }
     }
 
-    /// Produce a trace with simulated expression evaluation.
-    pub fn analyze_with_simulation(
+    /// Compute simulated output for an invocation based on its category.
+    ///
+    /// Returns `(simulated_output, mock_output_used)`.
+    fn compute_simulation_output(
         &self,
-        _spec: &CompositionSpec,
-        _input: &SimulationInput,
-    ) -> ExplanationTrace {
-        todo!("Task 4 implements this")
+        idx: usize,
+        category: GrammarCategoryKind,
+        expressions: &[ExpressionReference],
+        prev: &Value,
+        input: &SimulationInput,
+        findings: &mut Vec<ValidationFinding>,
+    ) -> (Option<Value>, bool) {
+        match category {
+            // Transform: the filter expression result IS the simulated output
+            GrammarCategoryKind::Transform => {
+                let output = expressions
+                    .first()
+                    .and_then(|expr_ref| expr_ref.simulated_result.clone())
+                    .unwrap_or(Value::Null);
+                (Some(output), false)
+            }
+            // Assert and Validate: pass .prev through unchanged
+            GrammarCategoryKind::Assert | GrammarCategoryKind::Validate => {
+                (Some(prev.clone()), false)
+            }
+            // Side-effecting: use mock output or null
+            GrammarCategoryKind::Persist
+            | GrammarCategoryKind::Acquire
+            | GrammarCategoryKind::Emit => {
+                if let Some(mock) = input.mock_outputs.get(&idx) {
+                    (Some(mock.clone()), true)
+                } else {
+                    findings.push(ValidationFinding {
+                        severity: Severity::Info,
+                        code: "MISSING_MOCK_OUTPUT".to_owned(),
+                        invocation_index: Some(idx),
+                        message: format!(
+                            "No mock output provided for side-effecting invocation {} ({}); \
+                             .prev will be null for subsequent invocations",
+                            idx,
+                            match category {
+                                GrammarCategoryKind::Persist => "persist",
+                                GrammarCategoryKind::Acquire => "acquire",
+                                GrammarCategoryKind::Emit => "emit",
+                                _ => unreachable!(),
+                            }
+                        ),
+                        field_path: None,
+                    });
+                    (Some(Value::Null), false)
+                }
+            }
+        }
     }
 
     /// Extract the output schema declared by an invocation, if any.
