@@ -2,7 +2,7 @@
 //!
 //! Uses the real `TaskerMcpServer` from the library target to verify protocol
 //! round-trips: tool discovery via `list_tools` and tool invocation via `call_tool`
-//! for all 36 tools (13 Tier 1/profile + 16 Tier 2 connected + 6 Tier 3 write).
+//! for all 37 tools (14 Tier 1/profile + 16 Tier 2 connected + 6 Tier 3 write).
 
 use rmcp::model::{CallToolRequestParams, ClientInfo};
 use rmcp::service::{RoleClient, RunningService};
@@ -124,6 +124,7 @@ async fn test_list_tools_offline_returns_tier1() -> anyhow::Result<()> {
         vec![
             "capability_inspect",
             "capability_search",
+            "composition_explain",
             "composition_validate",
             "grammar_list",
             "handler_generate",
@@ -137,7 +138,7 @@ async fn test_list_tools_offline_returns_tier1() -> anyhow::Result<()> {
             "vocabulary_document",
         ]
     );
-    assert_eq!(names.len(), 13, "Expected 13 Tier 1 tools in offline mode");
+    assert_eq!(names.len(), 14, "Expected 14 Tier 1 tools in offline mode");
 
     client.cancel().await?;
     server_handle.await??;
@@ -159,6 +160,7 @@ async fn test_list_tools_connected_returns_all() -> anyhow::Result<()> {
             "analytics_performance",
             "capability_inspect",
             "capability_search",
+            "composition_explain",
             "composition_validate",
             "connection_status",
             "dlq_inspect",
@@ -195,8 +197,8 @@ async fn test_list_tools_connected_returns_all() -> anyhow::Result<()> {
     );
     assert_eq!(
         names.len(),
-        36,
-        "Expected 36 tools: 13 Tier 1 + 1 profile + 16 Tier 2 connected + 6 Tier 3 write"
+        37,
+        "Expected 37 tools: 14 Tier 1 + 1 profile + 16 Tier 2 connected + 6 Tier 3 write"
     );
 
     client.cancel().await?;
@@ -212,8 +214,8 @@ async fn test_list_tools_tier_filtered() -> anyhow::Result<()> {
     let tools = client.list_tools(None).await?;
     let names: Vec<&str> = tools.tools.iter().map(|t| t.name.as_ref()).collect();
 
-    // 13 T1 + 1 connection_status + 16 T2 = 30
-    assert_eq!(names.len(), 30, "Expected 30 tools (T1+profile+T2)");
+    // 14 T1 + 1 connection_status + 16 T2 = 31
+    assert_eq!(names.len(), 31, "Expected 31 tools (T1+profile+T2)");
     assert!(names.contains(&"template_validate"));
     assert!(names.contains(&"task_list"));
     assert!(names.contains(&"connection_status"));

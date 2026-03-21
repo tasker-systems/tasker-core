@@ -824,3 +824,66 @@ fn evaluate_multi_default_limit_handles_reasonable_output() {
     let result = engine().evaluate_multi("range(50)", &json!(null)).unwrap();
     assert_eq!(result.len(), 50);
 }
+
+// ─── Reference Extraction ────────────────────────────────────────────────
+
+#[test]
+fn extract_references_simple_context() {
+    let engine = ExpressionEngine::with_defaults();
+    let refs = engine.extract_references(".context.order_id").unwrap();
+    assert_eq!(refs, vec![".context.order_id"]);
+}
+
+#[test]
+fn extract_references_prev_field() {
+    let engine = ExpressionEngine::with_defaults();
+    let refs = engine.extract_references(".prev.total").unwrap();
+    assert_eq!(refs, vec![".prev.total"]);
+}
+
+#[test]
+fn extract_references_deps_nested() {
+    let engine = ExpressionEngine::with_defaults();
+    let refs = engine.extract_references(".deps.step_a.result").unwrap();
+    assert_eq!(refs, vec![".deps.step_a.result"]);
+}
+
+#[test]
+fn extract_references_step_metadata() {
+    let engine = ExpressionEngine::with_defaults();
+    let refs = engine.extract_references(".step.name").unwrap();
+    assert_eq!(refs, vec![".step.name"]);
+}
+
+#[test]
+fn extract_references_multiple_paths() {
+    let engine = ExpressionEngine::with_defaults();
+    let mut refs = engine
+        .extract_references("{total: .prev.amount, id: .context.order_id}")
+        .unwrap();
+    refs.sort();
+    assert_eq!(refs, vec![".context.order_id", ".prev.amount"]);
+}
+
+#[test]
+fn extract_references_root_only() {
+    let engine = ExpressionEngine::with_defaults();
+    let refs = engine.extract_references(".context | keys").unwrap();
+    assert_eq!(refs, vec![".context"]);
+}
+
+#[test]
+fn extract_references_no_envelope_paths() {
+    let engine = ExpressionEngine::with_defaults();
+    let refs = engine.extract_references("42").unwrap();
+    assert!(refs.is_empty());
+}
+
+#[test]
+fn extract_references_deduplicates() {
+    let engine = ExpressionEngine::with_defaults();
+    let refs = engine
+        .extract_references("{a: .prev.x, b: .prev.x}")
+        .unwrap();
+    assert_eq!(refs, vec![".prev.x"]);
+}

@@ -794,3 +794,43 @@ pub struct CompositionValidateParams {
     )]
     pub composition_yaml: String,
 }
+
+// ── composition_explain ──
+
+/// Parameters for the `composition_explain` tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CompositionExplainParams {
+    /// Composition spec as YAML or JSON string.
+    #[schemars(
+        description = "Composition spec as YAML or JSON string. Must include name, outcome (with output_schema), and invocations array."
+    )]
+    pub composition_yaml: String,
+
+    /// Optional sample context data as JSON string for simulated evaluation.
+    #[schemars(
+        description = "Sample task-level input data as JSON string. Populates .context in the envelope for simulated evaluation."
+    )]
+    #[serde(default)]
+    pub sample_context: Option<String>,
+
+    /// Optional sample dependency results as JSON string.
+    #[schemars(
+        description = "Sample dependency step results as JSON string. Populates .deps in the envelope."
+    )]
+    #[serde(default)]
+    pub sample_deps: Option<String>,
+
+    /// Optional sample step metadata as JSON string.
+    #[schemars(
+        description = "Sample step metadata as JSON string. Populates .step in the envelope."
+    )]
+    #[serde(default)]
+    pub sample_step: Option<String>,
+
+    /// Mock outputs for side-effecting invocations as JSON string.
+    #[schemars(
+        description = "Mock outputs for side-effecting invocations as JSON object keyed by invocation index (e.g. {\"0\": {\"id\": 123}}). Used as .prev for subsequent invocations."
+    )]
+    #[serde(default)]
+    pub mock_outputs: Option<String>,
+}

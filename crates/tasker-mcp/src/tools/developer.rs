@@ -15,11 +15,11 @@ use tasker_sdk::template_parser::parse_template_str;
 
 use super::helpers::{error_json, topological_sort};
 use super::params::{
-    CapabilityInspectParams, CapabilitySearchParams, CompositionValidateParams, FieldDetail,
-    HandlerGenerateParams, HandlerGenerateResponse, SchemaCompareParams, SchemaDiffParams,
-    SchemaInspectParams, SchemaInspectResponse, StepInspection, StepSchemaDetail,
-    TemplateGenerateParams, TemplateInspectParams, TemplateInspectResponse, TemplateValidateParams,
-    TemplateVisualizeParams,
+    CapabilityInspectParams, CapabilitySearchParams, CompositionExplainParams,
+    CompositionValidateParams, FieldDetail, HandlerGenerateParams, HandlerGenerateResponse,
+    SchemaCompareParams, SchemaDiffParams, SchemaInspectParams, SchemaInspectResponse,
+    StepInspection, StepSchemaDetail, TemplateGenerateParams, TemplateInspectParams,
+    TemplateInspectResponse, TemplateValidateParams, TemplateVisualizeParams,
 };
 
 pub fn template_validate(params: TemplateValidateParams) -> String {
@@ -364,6 +364,57 @@ pub fn vocabulary_document() -> String {
 pub fn composition_validate(params: CompositionValidateParams) -> String {
     let report = grammar_query::validate_composition_yaml(&params.composition_yaml);
     serde_json::to_string_pretty(&report)
+        .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
+}
+
+pub fn composition_explain(params: CompositionExplainParams) -> String {
+    use tasker_sdk::grammar_query::SimulationInput;
+
+    let simulation = if params.sample_context.is_some()
+        || params.sample_deps.is_some()
+        || params.sample_step.is_some()
+        || params.mock_outputs.is_some()
+    {
+        let context = params
+            .sample_context
+            .as_deref()
+            .map(|s| serde_json::from_str(s).unwrap_or(serde_json::Value::Null))
+            .unwrap_or(serde_json::Value::Null);
+        let deps = params
+            .sample_deps
+            .as_deref()
+            .map(|s| serde_json::from_str(s).unwrap_or(serde_json::Value::Null))
+            .unwrap_or(serde_json::Value::Null);
+        let step = params
+            .sample_step
+            .as_deref()
+            .map(|s| serde_json::from_str(s).unwrap_or(serde_json::Value::Null))
+            .unwrap_or(serde_json::Value::Null);
+        let mock_outputs: HashMap<usize, serde_json::Value> = params
+            .mock_outputs
+            .as_deref()
+            .and_then(|s| {
+                serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(s).ok()
+            })
+            .map(|map| {
+                map.into_iter()
+                    .filter_map(|(k, v)| k.parse::<usize>().ok().map(|idx| (idx, v)))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Some(SimulationInput {
+            context,
+            deps,
+            step,
+            mock_outputs,
+        })
+    } else {
+        None
+    };
+
+    let explanation = grammar_query::explain_composition(&params.composition_yaml, simulation);
+    serde_json::to_string_pretty(&explanation)
         .unwrap_or_else(|e| error_json("serialization_error", &e.to_string()))
 }
 
