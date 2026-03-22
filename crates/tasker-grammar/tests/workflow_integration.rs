@@ -28,7 +28,8 @@ use tasker_grammar::types::{
 };
 use tasker_grammar::validation::CompositionValidator;
 use tasker_grammar::{
-    ExpressionEngine, InMemoryOperationProvider, InMemoryOperations, OperationProvider,
+    standard_capability_registry, ExplainAnalyzer, ExplanationTrace, ExpressionEngine,
+    InMemoryOperationProvider, InMemoryOperations, OperationProvider, SimulationInput,
 };
 
 // ---------------------------------------------------------------------------
@@ -217,6 +218,36 @@ fn validate_spec(spec: &CompositionSpec) -> tasker_grammar::validation::Validati
     let e = engine();
     let validator = CompositionValidator::new(&registry, &e);
     validator.validate(spec)
+}
+
+fn standard_registry() -> HashMap<String, CapabilityDeclaration> {
+    standard_capability_registry()
+}
+
+fn validate_with_standard_registry(
+    spec: &CompositionSpec,
+) -> tasker_grammar::validation::ValidationResult {
+    let registry = standard_registry();
+    let e = engine();
+    let validator = CompositionValidator::new(&registry, &e);
+    validator.validate(spec)
+}
+
+fn explain_spec(spec: &CompositionSpec) -> ExplanationTrace {
+    let registry = standard_registry();
+    let e = engine();
+    let analyzer = ExplainAnalyzer::new(&registry, &e);
+    analyzer.analyze(spec)
+}
+
+fn explain_spec_with_simulation(
+    spec: &CompositionSpec,
+    simulation: &SimulationInput,
+) -> ExplanationTrace {
+    let registry = standard_registry();
+    let e = engine();
+    let analyzer = ExplainAnalyzer::new(&registry, &e);
+    analyzer.analyze_with_simulation(spec, simulation)
 }
 
 // ===========================================================================
