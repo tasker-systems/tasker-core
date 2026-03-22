@@ -490,6 +490,152 @@ mod ecommerce {
             }
         });
     }
+
+    #[test]
+    fn validate_report_with_standard_registry_is_clean() {
+        let WorkflowFixture { spec, .. } = fixture();
+        let result = validate_with_standard_registry(&spec);
+        assert!(
+            result.is_valid(),
+            "ecommerce should pass standard registry validation: {:?}",
+            result.errors()
+        );
+        assert_eq!(result.error_count(), 0);
+    }
+
+    #[test]
+    fn explain_static_trace_is_accurate() {
+        let WorkflowFixture { spec, .. } = fixture();
+        let trace = explain_spec(&spec);
+
+        assert_eq!(trace.invocations.len(), 6);
+
+        let capabilities: Vec<&str> = trace
+            .invocations
+            .iter()
+            .map(|inv| inv.capability.as_str())
+            .collect();
+        assert_eq!(
+            capabilities,
+            vec![
+                "validate",
+                "transform",
+                "transform",
+                "transform",
+                "persist",
+                "emit"
+            ]
+        );
+
+        let checkpoints: Vec<usize> = trace
+            .invocations
+            .iter()
+            .filter(|inv| inv.checkpoint)
+            .map(|inv| inv.index)
+            .collect();
+        assert_eq!(checkpoints, vec![4, 5]);
+
+        // has_prev: validate(no schema), transform(sets), transform(sets), transform(sets), persist(resets), emit(resets)
+        assert!(
+            !trace.invocations[0].envelope_available.has_prev,
+            "validate[0]: no prior output"
+        );
+        assert!(
+            !trace.invocations[1].envelope_available.has_prev,
+            "transform[1]: validate has no output_schema"
+        );
+        assert!(
+            trace.invocations[2].envelope_available.has_prev,
+            "transform[2]: transform[1] set output_schema"
+        );
+        assert!(
+            trace.invocations[3].envelope_available.has_prev,
+            "transform[3]: transform[2] set output_schema"
+        );
+        assert!(
+            trace.invocations[4].envelope_available.has_prev,
+            "persist[4]: transform[3] set output_schema"
+        );
+        assert!(
+            !trace.invocations[5].envelope_available.has_prev,
+            "emit[5]: persist reset prev"
+        );
+
+        assert!(trace.invocations[2]
+            .envelope_available
+            .prev_source
+            .is_some());
+        assert!(trace.invocations[3]
+            .envelope_available
+            .prev_source
+            .is_some());
+        assert!(trace.invocations[4]
+            .envelope_available
+            .prev_source
+            .is_some());
+
+        for idx in [1, 2, 3] {
+            assert!(
+                !trace.invocations[idx].expressions.is_empty(),
+                "transform at index {idx} should have expressions"
+            );
+        }
+
+        assert!(!trace.simulated);
+
+        let errors: Vec<_> = trace
+            .validation
+            .iter()
+            .filter(|f| f.severity == tasker_grammar::Severity::Error)
+            .collect();
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn explain_with_simulation_evaluates_expressions() {
+        let WorkflowFixture { spec, input, .. } = fixture();
+
+        let simulation = SimulationInput {
+            context: input.context,
+            deps: json!({}),
+            step: json!({"name": "process_order", "attempt": 1}),
+            mock_outputs: HashMap::from([
+                (4, json!({"order_id": "ORD-001", "status": "confirmed"})),
+                (
+                    5,
+                    json!({"event_id": "evt-001", "event_name": "order.confirmed"}),
+                ),
+            ]),
+        };
+
+        let trace = explain_spec_with_simulation(&spec, &simulation);
+
+        assert!(trace.simulated);
+
+        for idx in [1, 2, 3] {
+            assert!(
+                trace.invocations[idx].simulated_output.is_some(),
+                "transform at index {idx} should have simulated output"
+            );
+        }
+
+        assert!(
+            trace.invocations[4].mock_output_used,
+            "persist at index 4 should use mock output"
+        );
+        assert!(
+            trace.invocations[5].mock_output_used,
+            "emit at index 5 should use mock output"
+        );
+
+        // All transform invocations produce simulated_output (even when expressions reference null prev)
+        for idx in [1, 2, 3] {
+            assert!(
+                trace.invocations[idx].simulated_output.is_some(),
+                "transform at index {idx} should have simulated output"
+            );
+        }
+    }
 }
 
 // ===========================================================================
@@ -689,6 +835,148 @@ mod reconciliation {
             }
         });
     }
+
+    #[test]
+    fn validate_report_with_standard_registry_is_clean() {
+        let WorkflowFixture { spec, .. } = fixture();
+        let result = validate_with_standard_registry(&spec);
+        assert!(
+            result.is_valid(),
+            "reconciliation should pass standard registry validation: {:?}",
+            result.errors()
+        );
+        assert_eq!(result.error_count(), 0);
+    }
+
+    #[test]
+    fn explain_static_trace_is_accurate() {
+        let WorkflowFixture { spec, .. } = fixture();
+        let trace = explain_spec(&spec);
+
+        assert_eq!(trace.invocations.len(), 6);
+
+        let capabilities: Vec<&str> = trace
+            .invocations
+            .iter()
+            .map(|inv| inv.capability.as_str())
+            .collect();
+        assert_eq!(
+            capabilities,
+            vec![
+                "acquire",
+                "validate",
+                "transform",
+                "transform",
+                "assert",
+                "persist"
+            ]
+        );
+
+        let checkpoints: Vec<usize> = trace
+            .invocations
+            .iter()
+            .filter(|inv| inv.checkpoint)
+            .map(|inv| inv.index)
+            .collect();
+        assert_eq!(checkpoints, vec![5]);
+
+        // has_prev: acquire(resets), validate(preserves None), transform(sets), transform(sets), assert(preserves), persist(resets)
+        assert!(
+            !trace.invocations[0].envelope_available.has_prev,
+            "acquire[0]: no prior output"
+        );
+        assert!(
+            !trace.invocations[1].envelope_available.has_prev,
+            "validate[1]: acquire reset prev"
+        );
+        assert!(
+            !trace.invocations[2].envelope_available.has_prev,
+            "transform[2]: validate preserved None"
+        );
+        assert!(
+            trace.invocations[3].envelope_available.has_prev,
+            "transform[3]: transform[2] set output_schema"
+        );
+        assert!(
+            trace.invocations[4].envelope_available.has_prev,
+            "assert[4]: transform[3] set output_schema"
+        );
+        assert!(
+            trace.invocations[5].envelope_available.has_prev,
+            "persist[5]: assert preserved prev"
+        );
+
+        for idx in [2, 3] {
+            assert!(
+                !trace.invocations[idx].expressions.is_empty(),
+                "transform at index {idx} should have expressions"
+            );
+        }
+
+        assert!(
+            !trace.invocations[4].expressions.is_empty(),
+            "assert at index 4 should have expressions"
+        );
+
+        assert!(!trace.simulated);
+
+        let errors: Vec<_> = trace
+            .validation
+            .iter()
+            .filter(|f| f.severity == tasker_grammar::Severity::Error)
+            .collect();
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn explain_with_simulation_evaluates_expressions() {
+        let WorkflowFixture {
+            spec,
+            input,
+            acquire_fixtures,
+        } = fixture();
+
+        let txns = acquire_fixtures
+            .get("transactions")
+            .cloned()
+            .unwrap_or_default();
+        let txn_count = txns.len();
+        let acquire_output = json!({
+            "external_transactions": txns,
+            "external_count": txn_count
+        });
+
+        let simulation = SimulationInput {
+            context: input.context,
+            deps: json!({}),
+            step: json!({"name": "reconcile_payments", "attempt": 1}),
+            mock_outputs: HashMap::from([
+                (0, acquire_output),
+                (5, json!({"report_id": "RPT-001", "status": "completed"})),
+            ]),
+        };
+
+        let trace = explain_spec_with_simulation(&spec, &simulation);
+
+        assert!(trace.simulated);
+
+        assert!(
+            trace.invocations[0].mock_output_used,
+            "acquire at index 0 should use mock output"
+        );
+
+        for idx in [2, 3] {
+            assert!(
+                trace.invocations[idx].simulated_output.is_some(),
+                "transform at index {idx} should have simulated output"
+            );
+        }
+
+        assert!(
+            trace.invocations[5].mock_output_used,
+            "persist at index 5 should use mock output"
+        );
+    }
 }
 
 // ===========================================================================
@@ -867,6 +1155,172 @@ mod onboarding {
                 other => panic!("expected InvocationFailure at validate, got: {other:?}"),
             }
         });
+    }
+
+    #[test]
+    fn validate_report_with_standard_registry_is_clean() {
+        let WorkflowFixture { spec, .. } = fixture();
+        let result = validate_with_standard_registry(&spec);
+        assert!(
+            result.is_valid(),
+            "onboarding should pass standard registry validation: {:?}",
+            result.errors()
+        );
+        assert_eq!(result.error_count(), 0);
+    }
+
+    #[test]
+    fn explain_static_trace_is_accurate() {
+        let WorkflowFixture { spec, .. } = fixture();
+        let trace = explain_spec(&spec);
+
+        assert_eq!(trace.invocations.len(), 6);
+
+        let capabilities: Vec<&str> = trace
+            .invocations
+            .iter()
+            .map(|inv| inv.capability.as_str())
+            .collect();
+        assert_eq!(
+            capabilities,
+            vec![
+                "acquire",
+                "validate",
+                "transform",
+                "transform",
+                "persist",
+                "emit"
+            ]
+        );
+
+        let checkpoints: Vec<usize> = trace
+            .invocations
+            .iter()
+            .filter(|inv| inv.checkpoint)
+            .map(|inv| inv.index)
+            .collect();
+        assert_eq!(checkpoints, vec![4, 5]);
+
+        // has_prev: acquire(resets), validate(preserves None), transform(sets), transform(sets), persist(resets), emit(resets)
+        assert!(
+            !trace.invocations[0].envelope_available.has_prev,
+            "acquire[0]: no prior output"
+        );
+        assert!(
+            !trace.invocations[1].envelope_available.has_prev,
+            "validate[1]: acquire reset prev"
+        );
+        assert!(
+            !trace.invocations[2].envelope_available.has_prev,
+            "transform[2]: validate preserved None"
+        );
+        assert!(
+            trace.invocations[3].envelope_available.has_prev,
+            "transform[3]: transform[2] set output_schema"
+        );
+        assert!(
+            trace.invocations[4].envelope_available.has_prev,
+            "persist[4]: transform[3] set output_schema"
+        );
+        assert!(
+            !trace.invocations[5].envelope_available.has_prev,
+            "emit[5]: persist reset prev"
+        );
+
+        assert!(
+            !trace.invocations[5].expressions.is_empty(),
+            "emit at index 5 should have expressions"
+        );
+
+        for idx in [2, 3] {
+            assert!(
+                trace.invocations[idx].output_schema.is_some(),
+                "transform at index {idx} should have output_schema"
+            );
+        }
+
+        if trace.invocations[2].output_schema.is_some() {
+            assert!(
+                trace.invocations[3]
+                    .envelope_available
+                    .prev_schema
+                    .is_some(),
+                "invocation 3 should see prev_schema from transform at index 2"
+            );
+        }
+
+        assert!(!trace.simulated);
+
+        let errors: Vec<_> = trace
+            .validation
+            .iter()
+            .filter(|f| f.severity == tasker_grammar::Severity::Error)
+            .collect();
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn explain_with_simulation_evaluates_expressions() {
+        let WorkflowFixture {
+            spec,
+            input,
+            acquire_fixtures,
+        } = fixture();
+
+        let customers = acquire_fixtures
+            .get("customers")
+            .cloned()
+            .unwrap_or_default();
+        let acquire_output = if customers.is_empty() {
+            json!({"error": "customer not found"})
+        } else {
+            customers[0].clone()
+        };
+
+        let simulation = SimulationInput {
+            context: input.context,
+            deps: json!({}),
+            step: json!({"name": "onboard_customer", "attempt": 1}),
+            mock_outputs: HashMap::from([
+                (0, acquire_output),
+                (4, json!({"customer_id": "cust-67890", "status": "active"})),
+                (
+                    5,
+                    json!({"event_id": "evt-002", "event_name": "customer.onboarded"}),
+                ),
+            ]),
+        };
+
+        let trace = explain_spec_with_simulation(&spec, &simulation);
+
+        assert!(trace.simulated);
+
+        assert!(
+            trace.invocations[0].mock_output_used,
+            "acquire at index 0 should use mock output"
+        );
+
+        for idx in [2, 3] {
+            assert!(
+                trace.invocations[idx].simulated_output.is_some(),
+                "transform at index {idx} should have simulated output"
+            );
+        }
+
+        assert!(
+            trace.invocations[4].mock_output_used,
+            "persist at index 4 should use mock output"
+        );
+        assert!(
+            trace.invocations[5].mock_output_used,
+            "emit at index 5 should use mock output"
+        );
+
+        // emit at index 5 uses mock output; check that expressions exist on the invocation
+        assert!(
+            !trace.invocations[5].expressions.is_empty(),
+            "emit at index 5 should have expressions defined"
+        );
     }
 }
 
