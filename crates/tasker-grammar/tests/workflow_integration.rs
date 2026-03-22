@@ -1456,6 +1456,84 @@ mod negative_validation {
             result.findings
         );
     }
+
+    #[test]
+    fn missing_capability_produces_actionable_error() {
+        let WorkflowFixture { mut spec, .. } = fixtures::ecommerce_order_processing();
+        spec.invocations[0].capability = "nonexistent_capability".to_owned();
+
+        let result = validate_with_standard_registry(&spec);
+        assert!(!result.is_valid(), "should fail with missing capability");
+
+        let errors = result.errors();
+        assert!(
+            !errors.is_empty(),
+            "should have at least one error for missing capability"
+        );
+
+        let has_actionable_msg = errors
+            .iter()
+            .any(|f| f.message.contains("nonexistent_capability"));
+        assert!(
+            has_actionable_msg,
+            "error should name the unknown capability 'nonexistent_capability': {:?}",
+            errors
+        );
+    }
+
+    #[test]
+    fn schema_mismatch_produces_actionable_error() {
+        let WorkflowFixture { mut spec, .. } = fixtures::ecommerce_order_processing();
+        if let Some(output) = spec.invocations[1].config.get_mut("output") {
+            *output = json!({"type": "string"});
+        }
+
+        let result = validate_with_standard_registry(&spec);
+        let contract_findings: Vec<_> = result
+            .findings
+            .iter()
+            .filter(|f| {
+                f.code.contains("CONTRACT")
+                    || f.code.contains("COMPAT")
+                    || f.code.contains("SCHEMA")
+                    || f.message.to_lowercase().contains("compat")
+                    || f.message.to_lowercase().contains("contract")
+                    || f.message.to_lowercase().contains("schema")
+            })
+            .collect();
+        assert!(
+            !contract_findings.is_empty(),
+            "should flag schema incompatibility between invocations: findings={:?}",
+            result.findings
+        );
+    }
+
+    #[test]
+    fn invalid_expression_produces_actionable_error() {
+        let WorkflowFixture { mut spec, .. } = fixtures::ecommerce_order_processing();
+        let bad_expr = "{invalid syntax [[[";
+        if let Some(filter) = spec.invocations[1].config.get_mut("filter") {
+            *filter = json!(bad_expr);
+        }
+
+        let result = validate_with_standard_registry(&spec);
+        assert!(!result.is_valid(), "should fail with invalid expression");
+
+        let errors = result.errors();
+        let has_actionable_msg = errors.iter().any(|f| {
+            (f.code.contains("EXPRESSION")
+                || f.message.to_lowercase().contains("expression")
+                || f.message.to_lowercase().contains("parse"))
+                && (f.message.contains("invalid syntax")
+                    || f.message.contains("[[[")
+                    || f.field_path.is_some())
+        });
+        assert!(
+            has_actionable_msg,
+            "error should reference the bad expression text or field path: {:?}",
+            errors
+        );
+    }
 }
 
 // ===========================================================================
@@ -1502,6 +1580,61 @@ mod bulk {
                 result.is_valid(),
                 "workflow '{name}' validation errors: {:?}",
                 result.errors()
+            );
+        }
+    }
+
+    #[test]
+    fn all_workflows_pass_validation_with_standard_registry() {
+        for (name, fixture) in fixtures::all_workflow_fixtures() {
+            let result = validate_with_standard_registry(&fixture.spec);
+            assert!(
+                result.is_valid(),
+                "workflow '{name}' failed standard registry validation: {:?}",
+                result.errors()
+            );
+        }
+    }
+
+    #[test]
+    fn all_workflows_produce_valid_explain_traces() {
+        for (name, fixture) in fixtures::all_workflow_fixtures() {
+            let trace = explain_spec(&fixture.spec);
+
+            assert_eq!(
+                trace.invocations.len(),
+                6,
+                "workflow '{name}' should have 6 invocations"
+            );
+
+            let checkpoint_count = trace.invocations.iter().filter(|i| i.checkpoint).count();
+            assert!(
+                checkpoint_count >= 1,
+                "workflow '{name}' should have at least 1 checkpoint, got {checkpoint_count}"
+            );
+
+            assert!(
+                !trace.invocations[0].envelope_available.has_prev,
+                "workflow '{name}': first invocation should not have .prev"
+            );
+
+            let has_prev_count = trace.invocations[1..]
+                .iter()
+                .filter(|i| i.envelope_available.has_prev)
+                .count();
+            assert!(
+                has_prev_count >= 1,
+                "workflow '{name}': at least one invocation should have .prev, got 0"
+            );
+
+            let errors: Vec<_> = trace
+                .validation
+                .iter()
+                .filter(|f| f.severity == tasker_grammar::Severity::Error)
+                .collect();
+            assert!(
+                errors.is_empty(),
+                "workflow '{name}' has unexpected errors: {errors:?}"
             );
         }
     }
