@@ -114,7 +114,7 @@ tasker-sdk = { path = "crates/tasker-sdk", version = "=0.1.8" }
 rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
 # JSON Schema generation for MCP tool parameters (TAS-304)
 schemars = "1.0"
-rand = "0.9.1"
+rand = "0.10.0"
 redis = { version = "1.0", features = ["tokio-comp", "connection-manager"] }
 # In-process cache with TTL support (TAS-168)
 moka = { version = "0.12", features = ["future"] }
