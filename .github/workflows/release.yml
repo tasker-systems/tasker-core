@@ -370,7 +370,7 @@ jobs:
 
       - name: Configure RubyGems credentials (OIDC)
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
-        uses: rubygems/configure-rubygems-credentials@v1.0.0
+        uses: rubygems/configure-rubygems-credentials@v2.0.0
 
       - name: Publish all gems
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
