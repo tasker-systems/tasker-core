@@ -43,7 +43,7 @@ on:
 # | Job           | Runner       | Method                    | sccache Backend      |
 # |---------------|-------------|---------------------------|---------------------|
 # | linux-amd64   | ubuntu-22.04 | Docker (ffi-builder)      | Docker layer cache  |
-# | macos-arm64   | macos-14     | Native scripts            | GHA cache           |
+# | macos-arm64   | macos-15     | Native scripts            | GHA cache           |
 # =============================================================================
 
 jobs:
@@ -64,7 +64,7 @@ jobs:
             platform: linux/amd64
             timeout: 45
           - name: macos-arm64
-            runner: macos-14
+            runner: macos-15
             triple: aarch64-apple-darwin
             method: native
             platform: ''
