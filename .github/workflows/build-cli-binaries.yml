@@ -29,8 +29,8 @@ on:
 # |---------------|-------------|-----------------------------|
 # | linux-amd64   | ubuntu-22.04 | Native cargo build          |
 # | linux-arm64   | ubuntu-22.04 | Cross-compile (gcc-aarch64) |
-# | darwin-amd64  | macos-14     | Cross-compile (x86_64)      |
-# | darwin-arm64  | macos-14     | Native cargo build          |
+# | darwin-amd64  | macos-15     | Cross-compile (x86_64)      |
+# | darwin-arm64  | macos-15     | Native cargo build          |
 # =============================================================================
 
 jobs:
@@ -62,11 +62,11 @@ jobs:
             cross_packages: gcc-aarch64-linux-gnu
             linker: aarch64-linux-gnu-gcc
           - name: darwin-amd64
-            runner: macos-14
+            runner: macos-15
             triple: x86_64-apple-darwin
             cross: false
           - name: darwin-arm64
-            runner: macos-14
+            runner: macos-15
             triple: aarch64-apple-darwin
             cross: false
 
