@@ -134,7 +134,7 @@ jobs:
 
       - name: Setup sccache
         if: matrix.target.method == 'native'
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Set sccache environment
         if: matrix.target.method == 'native'
