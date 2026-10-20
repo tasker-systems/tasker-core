@@ -322,7 +322,7 @@ impl BackoffCalculator {
 
     /// Apply jitter to delay to prevent thundering herd
     fn apply_jitter(&self, delay_seconds: u32) -> u32 {
-        use rand::Rng;
+        use rand::RngExt;
 
         let jitter_range = (delay_seconds as f64 * self.config.max_jitter) as u32;
         if jitter_range == 0 {
