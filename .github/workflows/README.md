@@ -59,7 +59,7 @@ The main orchestrator implementing a multi-stage DAG with maximum parallelism.
 - **Python FFI rebuild**: Uses warm cache for fast rebuild (venvs not portable)
 - **Native-only execution**: Removed Docker mode for simplicity
 
-**Core Packages** (compiled in workspace-compile):
+**Core Packages** (compiled by build-workers' "Build Core Packages" job):
 - tasker-orchestration
 - tasker-shared
 - tasker-worker
@@ -75,27 +75,6 @@ The main orchestrator implementing a multi-stage DAG with maximum parallelism.
 ---
 
 ## Test Workflows
-
-### Workspace Compile (`test-integration.yml` - build-and-unit-tests job)
-
-**Purpose**: Compile core packages and warm sccache for downstream jobs
-
-**Compiles**:
-- tasker-orchestration
-- tasker-shared
-- tasker-worker
-- tasker-pgmq
-- tasker-client
-
-**Key Features**:
-- Uses sccache for distributed compilation caching
-- Uploads compiled binaries as artifacts
-- Creates nextest archive for partitioned test execution
-- Does NOT build FFI extensions (deferred to build-workers)
-
-**Duration**: ~5-8 minutes (faster on cache hit)
-
----
 
 ### Unit Tests (`test-integration.yml` - unit-tests job)
 
@@ -147,18 +126,17 @@ cargo test --doc \
 **Purpose**: End-to-end testing with all services running
 
 **Internal Structure**:
-1. **workspace-compile**: Build core packages, warm sccache
-2. **unit-tests**: Run library tests and doctests
-3. **integration-tests**: E2E tests with all workers
+1. **unit-tests**: Run library tests and doctests
+2. **integration-tests**: E2E tests with all workers
 
 **Execution**:
 - **Mode**: Native binary execution only (Docker mode removed for simplicity)
 - **Duration**: ~20-25 minutes total
 
 **How it works**:
-1. Workspace-compile builds core packages
-2. Unit tests run after compilation
-3. Downloads worker artifacts from build-workers workflow
+1. build-workers (separate workflow) compiles core packages and worker FFI extensions
+2. unit-tests runs library tests and doctests
+3. integration-tests downloads worker artifacts from the build-workers workflow
 4. Starts native services (orchestration, rust-worker, ruby-worker, python-worker)
 5. Runs E2E tests against native services
 
@@ -324,11 +302,11 @@ deno test --allow-ffi --allow-env --allow-read tests/integration/ffi/deno-runtim
 
 ---
 
-### CI Success (`ci-success.yml`)
+### CI Success (`ci.yml` - `ci-success` job)
 
-**Purpose**: Final success gate for branch protection
+**Purpose**: Final success gate; the single required status check for branch protection
 
-**Status**: Passes only if all required jobs succeed
+**Status**: Inline job at the end of `ci.yml` (the `CI Pipeline` workflow) with `needs:` on every upstream job and `if: always()`; fails the pipeline when any in-scope job did not succeed. (A standalone `ci-success.yml` workflow file once held this role but was never wired into the DAG and was removed 2026-10.)
 
 ---
 
@@ -699,7 +677,7 @@ describe('MyFeature', () => {
 | Build PostgreSQL | < 2 min | N/A | Cached image |
 | Code Quality | < 4 min | N/A | Parallel with build-workers |
 | Build Workers | < 10 min | N/A | FFI extensions for all languages |
-| Integration Tests | < 25 min | ~1000+ | workspace-compile → unit-tests → E2E |
+| Integration Tests | < 25 min | ~1000+ | unit-tests → E2E |
 | Ruby Framework | < 5 min | ~77 | Parallel with integration |
 | Python Framework | < 5 min | TBD | Parallel with integration |
 | TypeScript Framework | < 2 min | ~122 | Parallel with integration |
@@ -717,7 +695,7 @@ describe('MyFeature', () => {
 - Cargo registry: Dependencies cached per Cargo.lock hash
 - Bundler: Ruby gems cached per Gemfile.lock
 - uv: Python packages cached per pyproject.toml
-- Bun: TypeScript dependencies cached per bun.lockb
+- Bun: TypeScript dependencies cached per bun.lock
 
 ---
 
@@ -730,7 +708,6 @@ describe('MyFeature', () => {
 **Changes**:
 - ✅ **DAG architecture**: Multi-stage pipeline with parallel job execution
 - ✅ **sccache enabled**: Distributed compilation caching via mozilla-actions/sccache-action
-- ✅ **Nextest partitioning**: Integration tests split across 2 parallel runners
 - ✅ **Deferred FFI builds**: Workers build in parallel with unit tests (not blocking)
 - ✅ **Docker mode removed**: Native-only execution for simplicity
 - ✅ **Python worker support**: Full Python FFI worker in CI pipeline

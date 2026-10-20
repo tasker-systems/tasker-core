@@ -17,12 +17,11 @@ on:
         required: false
         type: string
 
-# =============================================================================
-# FORCED DRY-RUN MODE
-# =============================================================================
-# Set to 'false' when ready to enable real publishing.
-# This overrides all jobs — even tag-triggered runs will only dry-run.
-# =============================================================================
+# Dry-run resolution (see .github/scripts/release/determine-dry-run.sh):
+# - 'true' here forces dry-run for ALL runs, including tag pushes (release-testing
+#   escape hatch).
+# - 'false' (current): tag pushes publish for real; workflow_dispatch follows its
+#   `dry_run` input (default true, above).
 env:
   RELEASE_DRY_RUN: 'false'
 

@@ -258,6 +258,8 @@ jobs:
         if: inputs.build-python
         uses: actions/setup-python@v6
         with:
+          # Deliberate floor pin: 3.10 is the declared requires-python minimum
+          # (crates/tasker-py/pyproject.toml), so integration tests keep covering it.
           python-version: "3.10"
 
       - name: Install uv

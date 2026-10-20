@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@tasker-systems/worker",
+      "name": "@tasker-systems/tasker",
       "dependencies": {
         "eventemitter3": "^5.0.1",
         "pino": "^10.1.0",
