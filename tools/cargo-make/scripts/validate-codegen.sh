@@ -215,7 +215,11 @@ validate_typescript() {
     fi
 
     local output
-    if output="$(${tsc_cmd} --noEmit --skipLibCheck "$check_file" 2>&1)"; then
+    # --strict false: this validates generated-code SYNTAX; the generator emits
+    # untyped destructured handler params by design. TypeScript 7 flipped to
+    # strict-by-default (TS7031 on binding elements), breaking this check through
+    # the unpinned `bun install -g typescript` in validate-codegen.yml.
+    if output="$(${tsc_cmd} --noEmit --skipLibCheck --strict false "$check_file" 2>&1)"; then
         record_pass "$label"
     else
         record_fail "$label" "$output"

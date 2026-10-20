@@ -55,7 +55,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
+          # Supported line (3.10 went EOL 2026-10). Floor coverage at the declared
+          # minimum (>=3.10) is kept in test-integration.yml instead.
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7

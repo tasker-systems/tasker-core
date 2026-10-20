@@ -137,7 +137,7 @@ These CI-specific concerns are better handled in the workflow than abstracted in
 |----------|--------|
 | `ci.yml` | DAG orchestration layer - pure GitHub Actions coordination |
 | `build-postgres.yml` | Docker image building - infrastructure concern |
-| `ci-success.yml` | Branch protection gate - GitHub Actions requirement |
+| `ci.yml` (`ci-success` job) | Branch protection gate - GitHub Actions requirement |
 
 ---
 
