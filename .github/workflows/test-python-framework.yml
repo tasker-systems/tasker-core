@@ -53,7 +53,7 @@ jobs:
         uses: ./.github/actions/free-disk-space
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           # Supported line (3.10 went EOL 2026-10). Floor coverage at the declared
           # minimum (>=3.10) is kept in test-integration.yml instead.

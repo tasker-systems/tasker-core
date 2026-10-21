@@ -256,7 +256,7 @@ jobs:
 
       - name: Set up Python
         if: inputs.build-python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           # Deliberate floor pin: 3.10 is the declared requires-python minimum
           # (crates/tasker-py/pyproject.toml), so integration tests keep covering it.
