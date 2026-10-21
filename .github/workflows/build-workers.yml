@@ -23,6 +23,11 @@ on:
         type: boolean
         default: true
 
+# Least privilege by default: the GITHUB_TOKEN can only read the repo.
+# Any job that needs more declares its own `permissions:` block.
+permissions:
+  contents: read
+
 # =============================================================================
 # Multi-Job Build Strategy
 # =============================================================================

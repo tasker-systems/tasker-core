@@ -7,6 +7,11 @@ on:
         required: true
         type: string
 
+# Least privilege by default: the GITHUB_TOKEN can only read the repo.
+# Any job that needs more declares its own `permissions:` block.
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-22.04

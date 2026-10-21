@@ -17,6 +17,11 @@ on:
         required: false
         type: string
 
+# Least privilege by default: the GITHUB_TOKEN can only read the repo.
+# Any job that needs more declares its own `permissions:` block.
+permissions:
+  contents: read
+
 # Dry-run resolution (see .github/scripts/release/determine-dry-run.sh):
 # - 'true' here forces dry-run for ALL runs, including tag pushes (release-testing
 #   escape hatch).

@@ -27,6 +27,11 @@ on:
         description: "PostgreSQL version used"
         value: ${{ jobs.build-postgres.outputs.version }}
 
+# Least privilege by default: the GITHUB_TOKEN can only read the repo.
+# Any job that needs more declares its own `permissions:` block.
+permissions:
+  contents: read
+
 jobs:
   build-postgres:
     runs-on: ubuntu-22.04

@@ -8,6 +8,11 @@ on:
         required: true
         type: string
 
+# Least privilege by default: the GITHUB_TOKEN can only read the repo.
+# Any job that needs more declares its own `permissions:` block.
+permissions:
+  contents: read
+
 jobs:
   typescript-framework:
     name: TypeScript Framework & Client Tests
