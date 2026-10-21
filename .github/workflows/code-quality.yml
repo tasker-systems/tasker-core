@@ -27,17 +27,18 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Free up disk space
         uses: ./.github/actions/free-disk-space
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           components: rustfmt, clippy
 
       - name: Setup mold linker
-        uses: rui314/setup-mold@v1
+        uses: rui314/setup-mold@339e96b4ff1f3bd865856ba4cbbe8818a7acb038 # v1
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache

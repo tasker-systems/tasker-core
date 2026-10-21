@@ -72,18 +72,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       # =====================================================================
       # Docker-based builds (Linux)
       # =====================================================================
       - name: Set up Docker Buildx
         if: matrix.target.method == 'docker'
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build FFI libraries (Docker)
         if: matrix.target.method == 'docker'
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: docker/build/ffi-builder.Dockerfile
@@ -130,11 +130,13 @@ jobs:
       # =====================================================================
       - name: Setup Rust
         if: matrix.target.method == 'native'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
 
       - name: Setup sccache
         if: matrix.target.method == 'native'
-        uses: mozilla-actions/sccache-action@v0.0.10
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
 
       - name: Set sccache environment
         if: matrix.target.method == 'native'
@@ -149,7 +151,7 @@ jobs:
 
       - name: Setup Python
         if: matrix.target.method == 'native'
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
 
@@ -159,7 +161,7 @@ jobs:
 
       - name: Setup Ruby
         if: matrix.target.method == 'native'
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
         with:
           ruby-version: '3.4'
           bundler-cache: true
@@ -167,7 +169,7 @@ jobs:
 
       - name: Setup Bun
         if: matrix.target.method == 'native'
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
@@ -217,7 +219,7 @@ jobs:
 
       - name: Upload FFI artifacts
         if: steps.check-artifacts.outputs.has_artifacts == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ffi-${{ inputs.version || 'dev' }}-${{ matrix.target.triple }}
           path: artifacts/${{ matrix.target.triple }}/

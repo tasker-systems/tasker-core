@@ -85,7 +85,7 @@ jobs:
       typescript_published: ${{ steps.registry.outputs.typescript_published }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
 
@@ -177,15 +177,16 @@ jobs:
       SQLX_OFFLINE: 'true'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           components: rustfmt, clippy
 
       - name: Setup mold linker
-        uses: rui314/setup-mold@v1
+        uses: rui314/setup-mold@339e96b4ff1f3bd865856ba4cbbe8818a7acb038 # v1
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
@@ -260,13 +261,15 @@ jobs:
       SQLX_OFFLINE: 'true'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
 
       - name: Setup mold linker
-        uses: rui314/setup-mold@v1
+        uses: rui314/setup-mold@339e96b4ff1f3bd865856ba4cbbe8818a7acb038 # v1
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
@@ -325,11 +328,11 @@ jobs:
 
       - name: Checkout code
         if: steps.check-published.outputs.already_published != 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Setup Ruby
         if: steps.check-published.outputs.already_published != 'true'
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
         with:
           ruby-version: '3.4'
 
@@ -337,7 +340,7 @@ jobs:
         if: steps.check-published.outputs.already_published != 'true'
         id: download-artifacts
         continue-on-error: true
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
           path: ffi-artifacts/
@@ -369,7 +372,7 @@ jobs:
 
       - name: Configure RubyGems credentials (OIDC)
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
-        uses: rubygems/configure-rubygems-credentials@v2.1.0
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
 
       - name: Publish all gems
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
@@ -434,7 +437,7 @@ jobs:
 
       - name: Download pre-built wheels
         if: steps.check-published.outputs.already_published != 'true'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
           path: ffi-artifacts/
@@ -457,7 +460,7 @@ jobs:
 
       - name: Publish to PyPI
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
           packages-dir: dist/
           skip-existing: true
@@ -470,7 +473,7 @@ jobs:
 
       - name: Checkout code
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Tag python release
         if: steps.check-published.outputs.already_published != 'true' && needs.detect-and-read.outputs.is_dry_run != 'true'
@@ -512,17 +515,17 @@ jobs:
 
       - name: Checkout code
         if: steps.check-published.outputs.already_published != 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Setup Bun
         if: steps.check-published.outputs.already_published != 'true'
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
       - name: Setup Node.js (npm >= 11.5.1 required for OIDC trusted publishing)
         if: steps.check-published.outputs.already_published != 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
@@ -530,7 +533,7 @@ jobs:
       - name: Download pre-built FFI artifacts
         if: steps.check-published.outputs.already_published != 'true'
         continue-on-error: true
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
           path: ffi-artifacts/
@@ -611,16 +614,16 @@ jobs:
             dockerfile: docker/build/mcp.prod.Dockerfile
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Free disk space
         uses: ./.github/actions/free-disk-space
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -628,7 +631,7 @@ jobs:
 
       - name: Docker metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
           tags: |
@@ -638,7 +641,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ${{ matrix.image.dockerfile }}
@@ -662,11 +665,11 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Download FFI artifacts
         if: needs.build-ffi-libraries.result == 'success'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ffi-${{ needs.detect-and-read.outputs.core_version }}-*
           path: ffi-artifacts/
@@ -674,7 +677,7 @@ jobs:
 
       - name: Download CLI binary artifacts
         if: needs.build-cli-binaries.result == 'success'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: cli-${{ needs.detect-and-read.outputs.core_version }}-*
           path: cli-artifacts/

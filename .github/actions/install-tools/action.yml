@@ -12,7 +12,7 @@ runs:
   using: "composite"
   steps:
     - name: Cache cargo tools
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       id: cargo-tools-cache
       with:
         path: ~/.cargo/bin
@@ -22,7 +22,7 @@ runs:
           cargo-tools-${{ runner.os }}-
     - name: Install cargo-binstall
       if: steps.cargo-tools-cache.outputs.cache-hit != 'true'
-      uses: cargo-bins/cargo-binstall@main
+      uses: cargo-bins/cargo-binstall@8a2045612414e945291083f820cd50b4d8fc2218 # main
 
     - name: Add cargo bin to PATH
       shell: bash
