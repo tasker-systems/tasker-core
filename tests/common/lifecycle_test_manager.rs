@@ -80,7 +80,9 @@ pub struct LifecycleTestManager {
     /// System context for framework operations
     pub system_context: Arc<SystemContext>,
     /// Task handler registry with loaded templates
-    #[expect(
+    // `allow`, not `expect`: this module is compiled into several test binaries and
+    // the field is dead in only some of them (see integration_test_utils.rs).
+    #[allow(
         dead_code,
         reason = "Registry kept for test infrastructure - may be used by future tests"
     )]
@@ -101,7 +103,9 @@ pub struct LifecycleTestManager {
     pub actor_harness: ActorTestHarness,
 
     /// Path to task template fixtures
-    #[expect(
+    // `allow`, not `expect`: this module is compiled into several test binaries and
+    // the field is dead in only some of them (see integration_test_utils.rs).
+    #[allow(
         dead_code,
         reason = "Template path kept for test infrastructure - may be used by future tests"
     )]
@@ -837,7 +841,9 @@ impl LifecycleTestManager {
 /// Step readiness information from SQL function
 #[derive(Debug, Clone)]
 pub struct StepReadiness {
-    #[expect(
+    // `allow`, not `expect`: this module is compiled into several test binaries and
+    // the field is dead in only some of them (see integration_test_utils.rs).
+    #[allow(
         dead_code,
         reason = "Struct field available for test assertions requiring step UUID"
     )]

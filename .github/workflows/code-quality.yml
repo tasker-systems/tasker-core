@@ -65,7 +65,7 @@ jobs:
       # tokio-console requires RUSTFLAGS="--cfg tokio_unstable" and the tokio
       # `tracing` feature, which adds complexity. tokio-console is a local dev tool.
       - name: Run Clippy lints
-        run: cargo clippy --all-targets --features "benchmarks,test-services"
+        run: cargo clippy --all-targets --features "benchmarks,test-services" -- -D warnings
 
       - name: Security audit
         # NOTE: cargo audit may fail due to CVSS 4.0 support issue (rustsec/rustsec#1465)
@@ -77,4 +77,6 @@ jobs:
           cargo audit || echo "⚠️ cargo audit failed - see rustsec/rustsec#1465 for CVSS 4.0 support status"
 
       - name: Check documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
         run: cargo doc --no-deps --document-private-items
