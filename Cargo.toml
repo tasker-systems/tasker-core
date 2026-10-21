@@ -174,7 +174,7 @@ url = "2.5"
 utoipa = { version = "5.4", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
 uuid = { version = "1.22", features = ["serde", "v4", "v7"] }
-validator = { version = "0.20", features = ["derive"] }
+validator = { version = "0.21", features = ["derive"] }
 zeroize = "1.8"
 workspace_tools = { version = "0.11.0", features = ["full"] }
 # gRPC framework and Protocol Buffers (TAS-177)
