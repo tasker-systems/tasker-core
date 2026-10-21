@@ -92,12 +92,10 @@ base_url = "{}"
     pub async fn call_tool(&self, name: &str, args: Value) -> Result<Value> {
         let result = self
             .mcp_client
-            .call_tool(CallToolRequestParams {
-                meta: None,
-                name: name.to_string().into(),
-                arguments: Some(args.as_object().unwrap().clone()),
-                task: None,
-            })
+            .call_tool(
+                CallToolRequestParams::new(name.to_string())
+                    .with_arguments(args.as_object().unwrap().clone()),
+            )
             .await?;
 
         let text = result

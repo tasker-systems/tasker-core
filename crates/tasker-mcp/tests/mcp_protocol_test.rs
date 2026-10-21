@@ -87,12 +87,10 @@ async fn call_tool_text(
     args: serde_json::Value,
 ) -> anyhow::Result<String> {
     let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: name.into(),
-            arguments: Some(args.as_object().unwrap().clone()),
-            task: None,
-        })
+        .call_tool(
+            CallToolRequestParams::new(name.into())
+                .with_arguments(args.as_object().unwrap().clone()),
+        )
         .await?;
 
     let text = result
@@ -800,12 +798,7 @@ async fn test_pruned_tool_returns_not_found() -> anyhow::Result<()> {
 
     // Calling a pruned tool should return an MCP protocol error (not our JSON error)
     let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: "task_list".into(),
-            arguments: Some(serde_json::Map::new()),
-            task: None,
-        })
+        .call_tool(CallToolRequestParams::new("task_list").with_arguments(serde_json::Map::new()))
         .await;
 
     // rmcp returns an error when calling an unknown tool

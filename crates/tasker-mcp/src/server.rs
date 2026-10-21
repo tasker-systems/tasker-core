@@ -279,23 +279,17 @@ impl ServerHandler for TaskerMcpServer {
             )
         };
 
-        ServerInfo {
-            protocol_version: ProtocolVersion::V_2025_03_26,
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            server_info: Implementation {
-                name: "tasker-mcp".to_string(),
-                title: Some("Tasker MCP Server".to_string()),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                description: Some(
-                    "MCP server exposing Tasker developer tooling: template validation, \
-                     code generation, schema inspection, and workflow analysis"
-                        .to_string(),
-                ),
-                icons: None,
-                website_url: None,
-            },
-            instructions: Some(instructions),
-        }
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_protocol_version(ProtocolVersion::V_2025_03_26)
+            .with_server_info(
+                Implementation::new("tasker-mcp", env!("CARGO_PKG_VERSION"))
+                    .with_title("Tasker MCP Server")
+                    .with_description(
+                        "MCP server exposing Tasker developer tooling: template validation, \
+                         code generation, schema inspection, and workflow analysis",
+                    ),
+            )
+            .with_instructions(instructions)
     }
 }
 
