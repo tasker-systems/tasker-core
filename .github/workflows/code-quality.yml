@@ -74,16 +74,16 @@ jobs:
         run: cargo clippy --all-targets --features "benchmarks,test-services" -- -D warnings
 
       - name: Security audit
-        # NOTE: still non-blocking, but no longer because of a tool bug: cargo-audit
-        # 0.22.2 parses CVSS 4.0 fine (rustsec/rustsec#1465 no longer reproduces).
-        # As of 2026-10-21 it reports 37 real, mostly fix-pending advisories
-        # (aws-lc-sys, rustls, rustls-webpki, quinn-proto, h2, time, zip, ...).
-        # Make this blocking once those are bumped or justified in .cargo/audit.toml.
-        continue-on-error: true
+        # Blocking gate. Exceptions live in .cargo/audit.toml — every ignore
+        # there carries a written reason and status; add new ones only in review.
+        # cargo-audit 0.22.2 parses CVSS 4.0 fine (rustsec/rustsec#1465 no longer
+        # reproduces), so a clean exit is a real gate, not a tool quirk.
+        # Findings are dispositioned: semver-compatible fixes are bumped in
+        # Cargo.lock; the remainder are justified in .cargo/audit.toml.
         run: |
           # Clear advisory-db cache to get latest database
           rm -rf ~/.cargo/advisory-db
-          cargo audit || echo "⚠️ cargo audit failed - see rustsec/rustsec#1465 for CVSS 4.0 support status"
+          cargo audit
 
       - name: Check documentation
         env:
