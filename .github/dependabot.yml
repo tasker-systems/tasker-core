@@ -8,7 +8,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     reviewers:
       - "jcoletaylor"
     assignees:
@@ -38,7 +38,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 5
     reviewers:
       - "jcoletaylor"
     assignees:
@@ -46,3 +46,89 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
+
+  # Ruby dependencies (tasker-rb gem)
+  - package-ecosystem: "bundler"
+    directory: "/crates/tasker-rb/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "jcoletaylor"
+    assignees:
+      - "jcoletaylor"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      ruby-dependencies:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Python dependencies (tasker-py bindings + coverage tooling), tracked via uv.lock
+  - package-ecosystem: "uv"
+    directories:
+      - "/crates/tasker-py/"
+      - "/tools/cargo-make/scripts/coverage/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "jcoletaylor"
+    assignees:
+      - "jcoletaylor"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      python-dependencies:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # TypeScript dependencies (tasker-ts bindings, Bun workspace)
+  - package-ecosystem: "bun"
+    directory: "/crates/tasker-ts/"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "jcoletaylor"
+    assignees:
+      - "jcoletaylor"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      typescript-dependencies:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Docker base images (pgmq PostgreSQL images)
+  - package-ecosystem: "docker"
+    directory: "/docker/db/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "jcoletaylor"
+    assignees:
+      - "jcoletaylor"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      docker-base-images:
+        update-types:
+          - "minor"
+          - "patch"
