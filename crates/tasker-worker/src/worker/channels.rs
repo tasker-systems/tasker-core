@@ -116,6 +116,10 @@ pub struct WorkerCommandReceiver(pub(crate) mpsc::Receiver<WorkerCommand>);
 
 impl WorkerCommandSender {
     /// Send a command through the channel.
+    #[expect(
+        clippy::result_large_err,
+        reason = "SendError returns the command for recovery, matching try_send; boxing would complicate error handling"
+    )]
     pub async fn send(
         &self,
         command: WorkerCommand,
