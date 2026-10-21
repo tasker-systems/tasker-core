@@ -32,7 +32,7 @@ jobs:
       scope-summary: ${{ steps.detect.outputs.scope-summary }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -177,7 +177,7 @@ jobs:
         continue-on-error: true
 
       - name: Checkout for scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           sparse-checkout: .github/scripts
 
