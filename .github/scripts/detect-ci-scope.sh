@@ -298,6 +298,15 @@ if any_true "$ANY_RUST" "$ANY_WORKER" "$HAS_CONFIG" "$FULL_CI"; then
     RUN_BUILD_WORKERS="true"
 fi
 
+# RUN_LOCKFILE_CHECK: manifest/lock changes are the only way a committed lock
+# can drift from the committed manifests (root Cargo.toml/Cargo.lock, member
+# crate manifests, Gemfile.lock, uv.lock, bun.lock). Same trigger set as
+# RUN_BUILD_WORKERS.
+RUN_LOCKFILE_CHECK="false"
+if any_true "$ANY_RUST" "$ANY_WORKER" "$HAS_CONFIG" "$FULL_CI"; then
+    RUN_LOCKFILE_CHECK="true"
+fi
+
 # Per-worker build flags
 RUN_BUILD_RUBY="false"
 if any_true "$HAS_FFI_CORE" "$HAS_RUBY_WORKER" "$FULL_CI"; then
@@ -382,6 +391,7 @@ fi
 OUTPUT_VARS="
 RUN_BUILD_POSTGRES=${RUN_BUILD_POSTGRES}
 RUN_BUILD_WORKERS=${RUN_BUILD_WORKERS}
+RUN_LOCKFILE_CHECK=${RUN_LOCKFILE_CHECK}
 RUN_BUILD_RUBY=${RUN_BUILD_RUBY}
 RUN_BUILD_PYTHON=${RUN_BUILD_PYTHON}
 RUN_BUILD_TYPESCRIPT=${RUN_BUILD_TYPESCRIPT}
@@ -410,6 +420,7 @@ if [ "$USE_GITHUB_OUTPUT" = "true" ] && [ -n "${GITHUB_OUTPUT:-}" ]; then
         # Convert to kebab-case for GitHub Actions outputs
         echo "run-build-postgres=${RUN_BUILD_POSTGRES}"
         echo "run-build-workers=${RUN_BUILD_WORKERS}"
+        echo "run-lockfile-check=${RUN_LOCKFILE_CHECK}"
         echo "run-build-ruby=${RUN_BUILD_RUBY}"
         echo "run-build-python=${RUN_BUILD_PYTHON}"
         echo "run-build-typescript=${RUN_BUILD_TYPESCRIPT}"

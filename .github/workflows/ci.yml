@@ -30,6 +30,7 @@ jobs:
     outputs:
       run-build-postgres: ${{ steps.detect.outputs.run-build-postgres }}
       run-build-workers: ${{ steps.detect.outputs.run-build-workers }}
+      run-lockfile-check: ${{ steps.detect.outputs.run-lockfile-check }}
       run-build-ruby: ${{ steps.detect.outputs.run-build-ruby }}
       run-build-python: ${{ steps.detect.outputs.run-build-python }}
       run-build-typescript: ${{ steps.detect.outputs.run-build-typescript }}
@@ -61,6 +62,54 @@ jobs:
       - name: Annotate scope
         run: |
           echo "::notice title=CI Scope::${{ steps.detect.outputs.scope-summary }}"
+
+  # ============================================================================
+  # Stage 0.5: Lockfile Consistency (fast fail)
+  # Fails the pipeline when a committed lockfile would change against the
+  # committed manifests (cargo, bundler, uv). Without this, cargo silently
+  # mutates the lock on build and drift goes unnoticed (the lock drifted for
+  # ~7 months on main before PR #339 fixed it).
+  #
+  # bun.lock is intentionally not re-checked here: test-typescript-framework.yml
+  # already installs with `bun install --frozen-lockfile` for every change under
+  # crates/tasker-ts/ (run-typescript-framework), so drift there already fails
+  # an existing gate.
+  # ============================================================================
+  lockfile-check:
+    name: Lockfile Consistency
+    needs: detect-scope
+    if: needs.detect-scope.outputs.run-lockfile-check == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Check Cargo.lock is consistent with workspace manifests
+        run: cargo metadata --locked --format-version 1 > /dev/null
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
+        with:
+          ruby-version: "3.4"
+          working-directory: crates/tasker-rb
+
+      - name: Check Gemfile.lock is consistent with Gemfile/gemspec
+        # bundler 4 dropped `bundle lock --check`; --print resolves without
+        # writing, so diffing against the committed lock asserts the same thing.
+        run: bundle lock --print | diff - Gemfile.lock
+        working-directory: crates/tasker-rb
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "latest"
+
+      - name: Check uv.lock is consistent with pyproject.toml
+        run: uv lock --check
+        working-directory: crates/tasker-py
 
   # ============================================================================
   # Stage 1: Build PostgreSQL image with PGMQ extension
@@ -223,7 +272,7 @@ jobs:
   # ============================================================================
   ci-success:
     name: CI Success
-    needs: [detect-scope, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, validate-codegen, performance-analysis]
+    needs: [detect-scope, lockfile-check, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, validate-codegen, performance-analysis]
     if: always()
     runs-on: ubuntu-22.04
     steps:
@@ -268,6 +317,10 @@ jobs:
           check_job "build-postgres" \
             "${{ needs.build-postgres.result }}" \
             "${{ needs.detect-scope.outputs.run-build-postgres }}"
+
+          check_job "lockfile-check" \
+            "${{ needs.lockfile-check.result }}" \
+            "${{ needs.detect-scope.outputs.run-lockfile-check }}"
 
           check_job "build-workers" \
             "${{ needs.build-workers.result }}" \
