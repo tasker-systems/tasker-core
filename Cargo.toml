@@ -171,7 +171,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 ts-rs = { version = "11.1", features = ["chrono-impl", "serde-json-impl"] }
 url = "2.5"
 # OpenAPI documentation
-utoipa = { version = "5.4", features = ["axum_extras", "chrono", "uuid"] }
+utoipa = { version = "6.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
 uuid = { version = "1.22", features = ["serde", "v4", "v7"] }
 validator = { version = "0.20", features = ["derive"] }
