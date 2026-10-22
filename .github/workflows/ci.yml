@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # The merge queue. Each queued PR is re-tested as the exact commit that will land (main plus
+  # every entry ahead of it plus this PR) on a `gh-readonly-queue/main/pr-N-<sha>` branch, and
+  # the required `CI Success` check must report on THAT commit before the queue merges it.
+  # Without this trigger the check never reports there, and every queued PR waits out the
+  # queue's status-check timeout and is ejected.
+  merge_group:
+    types: [checks_requested]
 
 # Least privilege by default: the GITHUB_TOKEN can only read the repo.
 # Any job that needs more declares its own `permissions:` block.
@@ -43,9 +50,13 @@ jobs:
 
       - name: Detect change scope
         id: detect
+        env:
+          # Set only on merge_group: the queue commit's base, so scope covers exactly what the
+          # queue entry adds. Empty otherwise, and the script derives the base as before.
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         run: |
           chmod +x .github/scripts/detect-ci-scope.sh
-          .github/scripts/detect-ci-scope.sh --github-output --verbose
+          .github/scripts/detect-ci-scope.sh --github-output --verbose ${MERGE_GROUP_BASE_SHA:+--base "$MERGE_GROUP_BASE_SHA"}
 
       - name: Annotate scope
         run: |
