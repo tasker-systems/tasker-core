@@ -187,7 +187,11 @@ jobs:
   integration-tests:
     name: Integration Tests (${{ matrix.messaging_backend }})
     runs-on: ubuntu-22.04
-    timeout-minutes: 25
+    # 40, not 25: a merge_group run reads only main's caches, so the Python FFI rebuild
+    # and the gRPC-parity compile run colder than on a PR. The pgmq entry once ran every
+    # test green (451 + 23) and was then cancelled at 25 minutes, ejecting its PR from
+    # the merge queue.
+    timeout-minutes: 40
     needs: unit-tests
 
     strategy:
