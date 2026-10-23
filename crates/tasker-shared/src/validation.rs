@@ -223,14 +223,12 @@ fn validate_json_depth(value: &Value, current_depth: usize) -> TaskerResult<()> 
                 validate_json_depth(item, current_depth + 1)?;
             }
         }
-        Value::String(s) => {
-            if s.len() > MAX_JSON_STRING_LENGTH {
-                return Err(TaskerError::InvalidInput(format!(
-                    "JSON string too long: {} chars (max: {})",
-                    s.len(),
-                    MAX_JSON_STRING_LENGTH
-                )));
-            }
+        Value::String(s) if s.len() > MAX_JSON_STRING_LENGTH => {
+            return Err(TaskerError::InvalidInput(format!(
+                "JSON string too long: {} chars (max: {})",
+                s.len(),
+                MAX_JSON_STRING_LENGTH
+            )));
         }
         _ => {} // Numbers, booleans, null are always safe
     }

@@ -187,6 +187,10 @@ impl HealthService {
     /// Checks database connectivity, command processor status, and queue health.
     ///
     /// Returns `Ok(ReadinessResponse)` if ready, `Err(ReadinessResponse)` if not ready.
+    #[expect(
+        clippy::result_large_err,
+        reason = "Err carries the full not-ready response the probe handler renders; Ok and Err are the same type"
+    )]
     pub async fn readiness(&self) -> Result<ReadinessResponse, ReadinessResponse> {
         debug!("Performing worker readiness probe");
 

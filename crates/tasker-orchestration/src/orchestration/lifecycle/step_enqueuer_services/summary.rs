@@ -89,7 +89,7 @@ impl ContinuousOrchestrationSummary {
             }
         }
         // Keep only top 10 namespaces by activity
-        self.top_namespaces.sort_by(|a, b| b.1.cmp(&a.1));
+        self.top_namespaces.sort_by_key(|b| std::cmp::Reverse(b.1));
         self.top_namespaces.truncate(10);
 
         // Aggregate warnings (keep recent 50)

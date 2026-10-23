@@ -7,6 +7,11 @@ on:
         required: true
         type: string
 
+# Least privilege by default: the GITHUB_TOKEN can only read the repo.
+# Any job that needs more declares its own `permissions:` block.
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-22.04
@@ -27,17 +32,18 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Free up disk space
         uses: ./.github/actions/free-disk-space
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           components: rustfmt, clippy
 
       - name: Setup mold linker
-        uses: rui314/setup-mold@v1
+        uses: rui314/setup-mold@339e96b4ff1f3bd865856ba4cbbe8818a7acb038 # v1
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
@@ -65,11 +71,14 @@ jobs:
       # tokio-console requires RUSTFLAGS="--cfg tokio_unstable" and the tokio
       # `tracing` feature, which adds complexity. tokio-console is a local dev tool.
       - name: Run Clippy lints
-        run: cargo clippy --all-targets --features "benchmarks,test-services"
+        run: cargo clippy --all-targets --features "benchmarks,test-services" -- -D warnings
 
       - name: Security audit
-        # NOTE: cargo audit may fail due to CVSS 4.0 support issue (rustsec/rustsec#1465)
-        # Made non-blocking until the rustsec crate is updated to support CVSS 4.0
+        # NOTE: still non-blocking, but no longer because of a tool bug: cargo-audit
+        # 0.22.2 parses CVSS 4.0 fine (rustsec/rustsec#1465 no longer reproduces).
+        # As of 2026-10-21 it reports 37 real, mostly fix-pending advisories
+        # (aws-lc-sys, rustls, rustls-webpki, quinn-proto, h2, time, zip, ...).
+        # Make this blocking once those are bumped or justified in .cargo/audit.toml.
         continue-on-error: true
         run: |
           # Clear advisory-db cache to get latest database
@@ -77,4 +86,6 @@ jobs:
           cargo audit || echo "⚠️ cargo audit failed - see rustsec/rustsec#1465 for CVSS 4.0 support status"
 
       - name: Check documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
         run: cargo doc --no-deps --document-private-items
