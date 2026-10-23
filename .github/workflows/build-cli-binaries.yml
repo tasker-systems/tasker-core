@@ -83,7 +83,11 @@ jobs:
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
-          targets: ${{ matrix.target.triple }}
+
+      # rust-toolchain.toml pins the toolchain that actually builds; the action's
+      # targets input would install std on its floating stable name instead.
+      - name: Add Rust target std
+        run: rustup target add ${{ matrix.target.triple }}
 
       - name: Setup Rust build cache
         uses: ./.github/actions/setup-rust-cache
