@@ -110,8 +110,8 @@ SC-IN-1 = "uncovered: uv/bun latest, unversioned cargo install of sqlx-cli/cargo
 SC-IN-2 = "uncovered: dependabot misses docker/build/ (12 Dockerfiles); other ecosystems covered; nothing checks coverage"
 # ci.yml lockfile-check: cargo metadata --locked, bundle lock --print | diff, uv lock --check (tasker-py); bun --frozen-lockfile in TS jobs; coverage uv.lock unchecked
 SC-IN-3 = "partial: Cargo/Gemfile/tasker-py uv locks gated in ci.yml#lockfile-check, bun.lock via --frozen-lockfile; coverage uv.lock unchecked"
-# No gitleaks, no CodeQL workflow; setup-env action commits test RSA private key and age secret key
-SC-SEC-1 = "uncovered: no gitleaks and no CodeQL in any workflow or hook"
+# CodeQL runs from repository settings (default setup; seen in #380's check runs: Analyze rust/python/ruby/javascript-typescript/actions), not in-tree and outside CI Success. No gitleaks in CI or the pre-commit hook; setup-env commits a test RSA key and an age key.
+SC-SEC-1 = "partial: CodeQL runs per PR from repository settings, outside CI Success; no gitleaks in CI or the pre-commit hook"
 
 # --- Security ---
 # secrecy used in 2 src files; jwt_private_key/api_key are bare String in tasker-shared/src/config/web.rs:30,61 and config/tasker.rs:1491,1551

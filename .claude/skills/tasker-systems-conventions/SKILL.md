@@ -142,7 +142,7 @@ Statuses for **tasker-core**:
 | SC-IN-1 | uncovered: uv/bun latest, unversioned cargo install of sqlx-cli/cargo-make/cargo-audit, binstall nextest, global typescript |
 | SC-IN-2 | uncovered: dependabot misses docker/build/ (12 Dockerfiles); other ecosystems covered; nothing checks coverage |
 | SC-IN-3 | partial: Cargo/Gemfile/tasker-py uv locks gated in ci.yml#lockfile-check, bun.lock via --frozen-lockfile; coverage uv.lock unchecked |
-| SC-SEC-1 | uncovered: no gitleaks and no CodeQL in any workflow or hook |
+| SC-SEC-1 | partial: CodeQL runs per PR from repository settings, outside CI Success; no gitleaks in CI or the pre-commit hook |
 | SEC-AUTH-1 | uncovered: disabled auth only logs at debug level; no check stops a production config with auth off |
 | SEC-AUTH-2 | practiced |
 | SEC-AUTH-3 | convention: existence-hiding is judged per endpoint in review; permissions are route-level |
