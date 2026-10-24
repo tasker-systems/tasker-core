@@ -7,7 +7,7 @@
 #
 # No extension compilation needed - pg18 includes native UUIDv7 support.
 
-FROM ghcr.io/pgmq/pg18-pgmq:v1.8.1 AS base-with-pgmq
+FROM ghcr.io/pgmq/pg18-pgmq:v1.13.1 AS base-with-pgmq
 
 # Switch to root for setup
 USER root
