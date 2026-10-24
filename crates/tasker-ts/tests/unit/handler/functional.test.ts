@@ -333,7 +333,9 @@ describe('defineDecisionHandler', () => {
     expect(outcome.type).toBe('create_steps');
     expect(outcome.step_names).toEqual(['process_premium']);
     // routing_context is at result level (mixin format)
-    expect((result.result?.routing_context as Record<string, unknown>).tier).toBe('premium');
+    expect((result.result?.routing_context as Record<string, unknown> | undefined)?.tier).toBe(
+      'premium'
+    );
   });
 
   it('Decision.skip() creates no_branches outcome', async () => {
