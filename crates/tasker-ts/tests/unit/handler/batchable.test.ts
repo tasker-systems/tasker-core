@@ -835,7 +835,7 @@ describe('BatchAggregationScenario', () => {
 
       expect(result.success).toBe(true);
       expect(result.result?.cursor).toEqual(complexCursor);
-      expect((result.result?.cursor as Record<string, unknown>).page).toBe(5);
+      expect((result.result?.cursor as Record<string, unknown> | undefined)?.page).toBe(5);
     });
 
     test('should include accumulated results when provided', () => {
