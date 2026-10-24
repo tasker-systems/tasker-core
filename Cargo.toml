@@ -165,7 +165,7 @@ tower = { version = "0.5" }
 tower-http = { version = "0.6", features = ["cors", "timeout", "trace"] }
 # Logging and telemetry
 tracing = "0.1"
-tracing-opentelemetry = "0.32"
+tracing-opentelemetry = "0.34"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 # TypeScript binding generation from Rust types
 ts-rs = { version = "11.1", features = ["chrono-impl", "serde-json-impl"] }
