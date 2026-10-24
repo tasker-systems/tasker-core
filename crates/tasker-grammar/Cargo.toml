@@ -18,7 +18,7 @@ name = "tasker_grammar"
 jaq-core = "2.1"
 jaq-std = "2.1"
 jaq-json = { version = "1.1", features = ["serde_json"] }
-jsonschema = "0.28"
+jsonschema = "0.40"
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
