@@ -266,6 +266,10 @@ impl OrchestrationQueueListener {
     ///
     /// TAS-133: This is the core processing loop that handles `MessageNotification`
     /// from any provider and converts them to `OrchestrationQueueEvent`.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the spawned loop takes ownership of each listener resource it reads"
+    )]
     async fn process_subscription_stream(
         mut stream: std::pin::Pin<Box<dyn futures::Stream<Item = MessageNotification> + Send>>,
         sender: OrchestrationNotificationSender,

@@ -71,7 +71,7 @@ class TestApiHandlerComposition:
         """Generated class includes APIMixin."""
 
         @api_handler("fetch_data", base_url="https://api.example.com")
-        def fetch_data(api, context):  # noqa: ARG001
+        def fetch_data(api, context):
             pass
 
         handler_cls = fetch_data._handler_class
@@ -81,7 +81,7 @@ class TestApiHandlerComposition:
         """Handler name and version are set correctly."""
 
         @api_handler("fetch_data", base_url="https://api.example.com", version="2.0.0")
-        def fetch_data(api, context):  # noqa: ARG001
+        def fetch_data(api, context):
             pass
 
         handler = fetch_data._handler_class()
@@ -92,7 +92,7 @@ class TestApiHandlerComposition:
         """base_url is set on the generated class."""
 
         @api_handler("fetch_data", base_url="https://api.example.com")
-        def fetch_data(api, context):  # noqa: ARG001
+        def fetch_data(api, context):
             pass
 
         handler_cls = fetch_data._handler_class
@@ -102,7 +102,7 @@ class TestApiHandlerComposition:
         """Custom timeout is set on the generated class."""
 
         @api_handler("fetch_data", base_url="https://api.example.com", timeout=60.0)
-        def fetch_data(api, context):  # noqa: ARG001
+        def fetch_data(api, context):
             pass
 
         handler_cls = fetch_data._handler_class
@@ -116,7 +116,7 @@ class TestApiHandlerComposition:
             base_url="https://api.example.com",
             default_headers={"Authorization": "Bearer token123"},
         )
-        def fetch_data(api, context):  # noqa: ARG001
+        def fetch_data(api, context):
             pass
 
         handler_cls = fetch_data._handler_class

@@ -319,7 +319,7 @@ class CheckpointYieldAggregatorHandler(StepHandler, Batchable):
 
 
 __all__ = [
+    "CheckpointYieldAggregatorHandler",
     "CheckpointYieldAnalyzerHandler",
     "CheckpointYieldWorkerHandler",
-    "CheckpointYieldAggregatorHandler",
 ]

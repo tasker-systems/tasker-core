@@ -11,7 +11,7 @@ TAS-137 Best Practices:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -93,7 +93,7 @@ class SendWelcomeSequenceHandler(StepHandler):
         template = WELCOME_TEMPLATES.get(plan, WELCOME_TEMPLATES["free"])
         channels_used = []
         messages_sent = []
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Email (send if email_notifications enabled)
         if prefs.get("email_notifications", True):

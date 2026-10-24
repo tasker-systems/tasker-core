@@ -273,23 +273,19 @@ class FFIError(TaskerError):
 
 
 __all__ = [
-    # Base classes
-    "TaskerError",
-    "RetryableError",
-    "PermanentError",
-    # Retryable errors
-    "TimeoutError",
-    "NetworkError",
-    "RateLimitError",
-    "ServiceUnavailableError",
-    "ResourceContentionError",
-    # Permanent errors
-    "ValidationError",
-    "NotFoundError",
     "AuthenticationError",
     "AuthorizationError",
-    "ConfigurationError",
     "BusinessLogicError",
-    # Special
+    "ConfigurationError",
     "FFIError",
+    "NetworkError",
+    "NotFoundError",
+    "PermanentError",
+    "RateLimitError",
+    "ResourceContentionError",
+    "RetryableError",
+    "ServiceUnavailableError",
+    "TaskerError",
+    "TimeoutError",
+    "ValidationError",
 ]

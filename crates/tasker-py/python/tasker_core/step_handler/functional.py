@@ -279,7 +279,7 @@ def _make_handler_class(
                     return transformer(raw_result)
                 except (PermanentError, RetryableError, TaskerError) as exc:
                     return _wrap_exception(exc)
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                     return _wrap_exception(exc)
 
         _copy_fn_metadata(AsyncFunctionalHandler, fn)
@@ -297,7 +297,7 @@ def _make_handler_class(
                     return transformer(raw_result)
                 except (PermanentError, RetryableError, TaskerError) as exc:
                     return _wrap_exception(exc)
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                     return _wrap_exception(exc)
 
         _copy_fn_metadata(SyncFunctionalHandler, fn)
@@ -498,7 +498,7 @@ def decision_handler(
                                     routing_context=outcome.routing_context,
                                 )
                         return _wrap_result(raw_result)
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                         return _wrap_exception(exc)
 
             _copy_fn_metadata(AsyncDecisionHandler, fn)
@@ -528,7 +528,7 @@ def decision_handler(
                                     routing_context=outcome.routing_context,
                                 )
                         return _wrap_result(raw_result)
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                         return _wrap_exception(exc)
 
             _copy_fn_metadata(SyncDecisionHandler, fn)
@@ -593,7 +593,7 @@ def batch_analyzer(
                                 worker_template_name=worker_template,
                             )
                         return _wrap_result(raw_result)
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                         return _wrap_exception(exc)
 
             _copy_fn_metadata(AsyncBatchAnalyzerHandler, fn)
@@ -621,7 +621,7 @@ def batch_analyzer(
                                 worker_template_name=worker_template,
                             )
                         return _wrap_result(raw_result)
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                         return _wrap_exception(exc)
 
             _copy_fn_metadata(SyncBatchAnalyzerHandler, fn)
@@ -676,7 +676,7 @@ def batch_worker(
                         kwargs["batch_context"] = self.get_batch_context(context)
                         raw_result = await fn(**kwargs)
                         return transformer(raw_result)
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                         return _wrap_exception(exc)
 
             _copy_fn_metadata(AsyncBatchHandler, fn)
@@ -693,7 +693,7 @@ def batch_worker(
                         kwargs["batch_context"] = self.get_batch_context(context)
                         raw_result = fn(**kwargs)
                         return transformer(raw_result)
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                         return _wrap_exception(exc)
 
             _copy_fn_metadata(SyncBatchHandler, fn)
@@ -760,7 +760,7 @@ def api_handler(
                         return _wrap_result(raw_result)
                     except (PermanentError, RetryableError, TaskerError) as exc:
                         return _wrap_exception(exc)
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                         return _wrap_exception(exc)
 
             AsyncApiHandler.base_url = base_url
@@ -782,7 +782,7 @@ def api_handler(
                         return _wrap_result(raw_result)
                     except (PermanentError, RetryableError, TaskerError) as exc:
                         return _wrap_exception(exc)
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - handler dispatch boundary: any exception from the user function becomes a step result
                         return _wrap_exception(exc)
 
             SyncApiHandler.base_url = base_url

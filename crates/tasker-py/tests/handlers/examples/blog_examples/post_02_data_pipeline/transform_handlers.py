@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -77,7 +77,7 @@ class TransformSalesHandler(StepHandler):
                 "source_step": "extract_sales_data",
                 "transformation_applied": True,
                 "record_count": transformed["record_count"],
-                "transformed_at": datetime.now(timezone.utc).isoformat(),
+                "transformed_at": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -177,7 +177,7 @@ class TransformInventoryHandler(StepHandler):
                 "source_step": "extract_inventory_data",
                 "transformation_applied": True,
                 "record_count": transformed["record_count"],
-                "transformed_at": datetime.now(timezone.utc).isoformat(),
+                "transformed_at": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -283,7 +283,7 @@ class TransformCustomersHandler(StepHandler):
                 "source_step": "extract_customer_data",
                 "transformation_applied": True,
                 "record_count": transformed["record_count"],
-                "transformed_at": datetime.now(timezone.utc).isoformat(),
+                "transformed_at": datetime.now(UTC).isoformat(),
             },
         )
 

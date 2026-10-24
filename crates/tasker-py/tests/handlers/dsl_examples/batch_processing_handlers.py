@@ -53,7 +53,7 @@ def csv_analyzer(csv_file_path, context):
             reader = csv.reader(f)
             next(reader)  # Skip header
             row_count = sum(1 for _ in reader)
-    except Exception:
+    except (OSError, csv.Error, StopIteration):
         return BatchConfig(total_items=0, batch_size=batch_size)
 
     if row_count == 0:
@@ -231,7 +231,7 @@ class CsvResultsAggregatorDslHandler(StepHandler, Batchable):
 
 
 __all__ = [
-    "csv_analyzer",
     "CsvBatchProcessorDslHandler",
     "CsvResultsAggregatorDslHandler",
+    "csv_analyzer",
 ]

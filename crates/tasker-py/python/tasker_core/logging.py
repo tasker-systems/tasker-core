@@ -164,9 +164,9 @@ def _normalize_fields(
 
 
 __all__ = [
-    "log_error",
-    "log_warn",
-    "log_info",
     "log_debug",
+    "log_error",
+    "log_info",
     "log_trace",
+    "log_warn",
 ]

@@ -14,7 +14,7 @@ import logging
 import random
 import re
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from tasker_core.errors import PermanentError, RetryableError
@@ -115,7 +115,7 @@ def validate_cart(cart_items, _context):
         "shipping": shipping,
         "total": total,
         "item_count": len(validated_items),
-        "validated_at": datetime.now(timezone.utc).isoformat(),
+        "validated_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -178,7 +178,7 @@ def process_payment(payment_info, cart_validation, _context):
         "currency": "USD",
         "payment_method_type": payment_info["method"],
         "transaction_id": transaction_id,
-        "processed_at": datetime.now(timezone.utc).isoformat(),
+        "processed_at": datetime.now(UTC).isoformat(),
         "status": "completed",
     }
 
@@ -237,7 +237,7 @@ def ecommerce_update_inventory(customer_info, cart_validation, _context):
                 "change_type": "reservation",
                 "quantity": -quantity,
                 "reason": "order_checkout",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "reservation_id": reservation_id,
                 "inventory_log_id": f"log_{secrets.token_hex(6)}",
             }
@@ -250,7 +250,7 @@ def ecommerce_update_inventory(customer_info, cart_validation, _context):
         "total_items_reserved": total_items_reserved,
         "inventory_changes": inventory_changes,
         "inventory_log_id": f"log_{secrets.token_hex(8)}",
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -285,10 +285,10 @@ def create_order(customer_info, cart_validation, payment_result, inventory_resul
         )
 
     order_id = random.randint(1000, 9999)
-    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    today = datetime.now(UTC).strftime("%Y%m%d")
     suffix = secrets.token_hex(4).upper()
     order_number = f"ORD-{today}-{suffix}"
-    delivery_date = datetime.now(timezone.utc) + timedelta(days=7)
+    delivery_date = datetime.now(UTC) + timedelta(days=7)
 
     return {
         "order_id": order_id,
@@ -296,7 +296,7 @@ def create_order(customer_info, cart_validation, payment_result, inventory_resul
         "status": "confirmed",
         "total_amount": cart_validation.get("total"),
         "customer_email": customer_info.get("email"),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "estimated_delivery": delivery_date.strftime("%B %d, %Y"),
     }
 
@@ -332,15 +332,15 @@ def send_confirmation(customer_info, order_result, cart_validation, _context):
         "email_sent": True,
         "recipient": customer_email,
         "email_type": "order_confirmation",
-        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "sent_at": datetime.now(UTC).isoformat(),
         "message_id": f"mock_{secrets.token_hex(8)}",
     }
 
 
 __all__ = [
-    "validate_cart",
-    "process_payment",
-    "ecommerce_update_inventory",
     "create_order",
+    "ecommerce_update_inventory",
+    "process_payment",
     "send_confirmation",
+    "validate_cart",
 ]

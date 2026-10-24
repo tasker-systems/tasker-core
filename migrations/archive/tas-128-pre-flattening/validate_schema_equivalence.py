@@ -18,15 +18,14 @@ Unexpected differences (should be reported as errors):
 
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from dataclasses import dataclass, field
-from typing import Dict, List, Set, Tuple, Optional
-from collections import defaultdict
 
 
 @dataclass
 class SchemaObject:
     """Represents a database object extracted from pg_dump output"""
+
     object_type: str  # TABLE, INDEX, FUNCTION, VIEW, CONSTRAINT, TRIGGER
     schema: str
     name: str
@@ -39,7 +38,7 @@ class SchemaObject:
     def normalize_name(self) -> str:
         """Normalize name for comparison (remove tasker_ prefix, lowercase)"""
         name = self.name.lower()
-        if name.startswith('tasker_'):
+        if name.startswith("tasker_"):
             name = name[7:]  # Remove 'tasker_' prefix
         return name
 
@@ -57,105 +56,105 @@ def normalize_definition(definition: str, for_old_schema: bool = True) -> str:
 
     if for_old_schema:
         # Transform public.tasker_tablename -> tasker.tablename
-        text = re.sub(r'public\.tasker_(\w+)', r'tasker.\1', text)
+        text = re.sub(r"public\.tasker_(\w+)", r"tasker.\1", text)
         # Transform just tasker_tablename (without schema) -> tablename
-        text = re.sub(r'\btasker_(\w+)', r'\1', text)
+        text = re.sub(r"\btasker_(\w+)", r"\1", text)
 
     # Normalize schema references
-    text = re.sub(r'\bpublic\.', 'tasker.', text)
+    text = re.sub(r"\bpublic\.", "tasker.", text)
 
     # Remove uuid extension differences (these are expected)
-    text = re.sub(r"CREATE EXTENSION.*pg_uuidv7.*?;", '', text, flags=re.DOTALL)
-    text = re.sub(r"uuid_generate_v7\(\)", 'UUID_V7_FUNC()', text)
-    text = re.sub(r"uuidv7\(\)", 'UUID_V7_FUNC()', text)
+    text = re.sub(r"CREATE EXTENSION.*pg_uuidv7.*?;", "", text, flags=re.DOTALL)
+    text = re.sub(r"uuid_generate_v7\(\)", "UUID_V7_FUNC()", text)
+    text = re.sub(r"uuidv7\(\)", "UUID_V7_FUNC()", text)
 
     # Normalize whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r"\s+", " ", text).strip()
 
     return text
 
 
-def extract_tables(content: str) -> Dict[str, dict]:
+def extract_tables(content: str) -> dict[str, dict]:
     """Extract table definitions from pg_dump output"""
     tables = {}
 
     # Match CREATE TABLE statements
-    pattern = r'CREATE TABLE (\w+)\.(\w+) \((.*?)\);'
+    pattern = r"CREATE TABLE (\w+)\.(\w+) \((.*?)\);"
     for match in re.finditer(pattern, content, re.DOTALL):
         schema, name, columns_def = match.groups()
 
         # Parse columns
         columns = {}
-        for line in columns_def.split(','):
+        for line in columns_def.split(","):
             line = line.strip()
-            if not line or line.startswith('CONSTRAINT'):
+            if not line or line.startswith("CONSTRAINT"):
                 continue
             parts = line.split()
             if len(parts) >= 2:
                 col_name = parts[0].strip('"')
-                col_type = ' '.join(parts[1:])
+                col_type = " ".join(parts[1:])
                 columns[col_name] = col_type
 
         tables[f"{schema}.{name}"] = {
-            'schema': schema,
-            'name': name,
-            'columns': columns,
-            'raw': match.group(0)
+            "schema": schema,
+            "name": name,
+            "columns": columns,
+            "raw": match.group(0),
         }
 
     return tables
 
 
-def extract_constraints(content: str) -> Dict[str, dict]:
+def extract_constraints(content: str) -> dict[str, dict]:
     """Extract constraint definitions from pg_dump output"""
     constraints = {}
 
     # Match ADD CONSTRAINT statements
-    pattern = r'ALTER TABLE ONLY (\w+)\.(\w+)\s+ADD CONSTRAINT (\w+) (.*?);'
+    pattern = r"ALTER TABLE ONLY (\w+)\.(\w+)\s+ADD CONSTRAINT (\w+) (.*?);"
     for match in re.finditer(pattern, content, re.DOTALL):
         schema, table, name, definition = match.groups()
         constraints[f"{schema}.{table}.{name}"] = {
-            'schema': schema,
-            'table': table,
-            'name': name,
-            'definition': definition.strip(),
-            'raw': match.group(0)
+            "schema": schema,
+            "table": table,
+            "name": name,
+            "definition": definition.strip(),
+            "raw": match.group(0),
         }
 
     return constraints
 
 
-def extract_indexes(content: str) -> Dict[str, dict]:
+def extract_indexes(content: str) -> dict[str, dict]:
     """Extract index definitions from pg_dump output"""
     indexes = {}
 
     # Match CREATE INDEX and CREATE UNIQUE INDEX statements
-    pattern = r'CREATE (UNIQUE )?INDEX (\w+) ON (\w+)\.(\w+) (.*?);'
+    pattern = r"CREATE (UNIQUE )?INDEX (\w+) ON (\w+)\.(\w+) (.*?);"
     for match in re.finditer(pattern, content, re.DOTALL):
         unique, name, schema, table, definition = match.groups()
         indexes[f"{schema}.{name}"] = {
-            'schema': schema,
-            'table': table,
-            'name': name,
-            'unique': bool(unique),
-            'definition': definition.strip(),
-            'raw': match.group(0)
+            "schema": schema,
+            "table": table,
+            "name": name,
+            "unique": bool(unique),
+            "definition": definition.strip(),
+            "raw": match.group(0),
         }
 
     return indexes
 
 
-def extract_functions(content: str) -> Dict[str, dict]:
+def extract_functions(content: str) -> dict[str, dict]:
     """Extract function definitions from pg_dump output"""
     functions = {}
 
     # Match CREATE FUNCTION statements - capture function signature
-    pattern = r'CREATE FUNCTION (\w+)\.(\w+)\((.*?)\)\s+RETURNS\s+(\S+)'
+    pattern = r"CREATE FUNCTION (\w+)\.(\w+)\((.*?)\)\s+RETURNS\s+(\S+)"
     for match in re.finditer(pattern, content, re.DOTALL):
         schema, name, params, returns = match.groups()
         # Simplify params for comparison
         param_types = []
-        for p in params.split(','):
+        for p in params.split(","):
             p = p.strip()
             if p:
                 parts = p.split()
@@ -163,22 +162,22 @@ def extract_functions(content: str) -> Dict[str, dict]:
                     param_types.append(parts[-1])  # Just the type
 
         functions[f"{schema}.{name}"] = {
-            'schema': schema,
-            'name': name,
-            'params': param_types,
-            'returns': returns,
-            'signature': f"{name}({', '.join(param_types)}) -> {returns}"
+            "schema": schema,
+            "name": name,
+            "params": param_types,
+            "returns": returns,
+            "signature": f"{name}({', '.join(param_types)}) -> {returns}",
         }
 
     return functions
 
 
-def extract_views(content: str) -> Dict[str, str]:
+def extract_views(content: str) -> dict[str, str]:
     """Extract view definitions from pg_dump output"""
     views = {}
 
     # Match CREATE VIEW statements
-    pattern = r'CREATE VIEW (\w+)\.(\w+) AS\s+(.*?);'
+    pattern = r"CREATE VIEW (\w+)\.(\w+) AS\s+(.*?);"
     for match in re.finditer(pattern, content, re.DOTALL):
         schema, name, definition = match.groups()
         views[f"{schema}.{name}"] = definition.strip()
@@ -186,19 +185,21 @@ def extract_views(content: str) -> Dict[str, str]:
     return views
 
 
-def extract_triggers(content: str) -> Dict[str, dict]:
+def extract_triggers(content: str) -> dict[str, dict]:
     """Extract trigger definitions from pg_dump output"""
     triggers = {}
 
     # Match CREATE TRIGGER statements
-    pattern = r'CREATE TRIGGER (\w+)\s+(.*?)ON\s+(\w+)\.(\w+)\s+.*?EXECUTE\s+FUNCTION\s+(\w+)\.(\w+)\(\)'
+    pattern = (
+        r"CREATE TRIGGER (\w+)\s+(.*?)ON\s+(\w+)\.(\w+)\s+.*?EXECUTE\s+FUNCTION\s+(\w+)\.(\w+)\(\)"
+    )
     for match in re.finditer(pattern, content, re.DOTALL):
         name, timing, schema, table, func_schema, func_name = match.groups()
         triggers[f"{schema}.{table}.{name}"] = {
-            'name': name,
-            'table': f"{schema}.{table}",
-            'function': f"{func_schema}.{func_name}",
-            'timing': timing.strip()
+            "name": name,
+            "table": f"{schema}.{table}",
+            "function": f"{func_schema}.{func_name}",
+            "timing": timing.strip(),
         }
 
     return triggers
@@ -206,23 +207,23 @@ def extract_triggers(content: str) -> Dict[str, dict]:
 
 def normalize_table_name(full_name: str, is_old: bool = True) -> str:
     """Normalize a fully qualified table name for comparison"""
-    schema, name = full_name.split('.', 1)
+    schema, name = full_name.split(".", 1)
 
     # Skip internal tables
-    if name == '_sqlx_migrations':
+    if name == "_sqlx_migrations":
         return None
 
     if is_old:
         # Transform public.tasker_foo -> tasker.foo
-        if schema == 'public' and name.startswith('tasker_'):
+        if schema == "public" and name.startswith("tasker_"):
             return f"tasker.{name[7:]}"
-        elif schema == 'public':
+        elif schema == "public":
             return f"tasker.{name}"
 
     return f"{schema}.{name}"
 
 
-def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str], List[str]]:
+def compare_schemas(old_file: Path, new_file: Path) -> tuple[list[str], list[str], list[str]]:
     """
     Compare two schema exports and return:
     - expected_diffs: Differences that are expected (schema rename, prefix removal)
@@ -241,10 +242,6 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
     old_tables = extract_tables(old_content)
     new_tables = extract_tables(new_content)
 
-    print("Extracting constraints...")
-    old_constraints = extract_constraints(old_content)
-    new_constraints = extract_constraints(new_content)
-
     print("Extracting indexes...")
     old_indexes = extract_indexes(old_content)
     new_indexes = extract_indexes(new_content)
@@ -257,14 +254,10 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
     old_views = extract_views(old_content)
     new_views = extract_views(new_content)
 
-    print("Extracting triggers...")
-    old_triggers = extract_triggers(old_content)
-    new_triggers = extract_triggers(new_content)
-
     # Compare tables
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("COMPARING TABLES")
-    print("="*60)
+    print("=" * 60)
 
     old_table_names = set()
     for name in old_tables:
@@ -275,8 +268,8 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
     new_table_names = set(new_tables.keys())
 
     # Filter out pgmq tables from comparison (they're in a different schema)
-    old_table_names = {t for t in old_table_names if not t.startswith('pgmq.')}
-    new_table_names = {t for t in new_table_names if not t.startswith('pgmq.')}
+    old_table_names = {t for t in old_table_names if not t.startswith("pgmq.")}
+    new_table_names = {t for t in new_table_names if not t.startswith("pgmq.")}
 
     missing_in_new = old_table_names - new_table_names
     extra_in_new = new_table_names - old_table_names
@@ -301,17 +294,17 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
     print(f"  Extra in new: {len(extra_in_new)}")
 
     # Compare functions
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("COMPARING FUNCTIONS")
-    print("="*60)
+    print("=" * 60)
 
     # Normalize old function names
     old_func_normalized = {}
     for name, info in old_functions.items():
-        schema, fname = name.split('.', 1)
-        if schema == 'public':
+        schema, fname = name.split(".", 1)
+        if schema == "public":
             # Check if it's a tasker function or a pgmq function
-            if fname.startswith('tasker_') or not fname.startswith('pgmq'):
+            if fname.startswith("tasker_") or not fname.startswith("pgmq"):
                 new_name = f"tasker.{fname}"
                 old_func_normalized[new_name] = info
             else:
@@ -323,8 +316,8 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
     old_func_names = set(old_func_normalized.keys())
 
     # Filter to only tasker schema for comparison
-    old_func_names = {f for f in old_func_names if f.startswith('tasker.')}
-    new_func_names = {f for f in new_func_names if f.startswith('tasker.')}
+    old_func_names = {f for f in old_func_names if f.startswith("tasker.")}
+    new_func_names = {f for f in new_func_names if f.startswith("tasker.")}
 
     missing_funcs = old_func_names - new_func_names
     extra_funcs = new_func_names - old_func_names
@@ -338,15 +331,15 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
 
     # Expected extra functions: PGMQ wrappers moved to tasker schema, and uuid_generate_v7 compatibility
     expected_extra_funcs = {
-        'tasker.pgmq_auto_add_headers_trigger',
-        'tasker.pgmq_delete_specific_message',
-        'tasker.pgmq_ensure_headers_column',
-        'tasker.pgmq_extend_vt_specific_message',
-        'tasker.pgmq_notify_queue_created',
-        'tasker.pgmq_read_specific_message',
-        'tasker.pgmq_send_batch_with_notify',
-        'tasker.pgmq_send_with_notify',
-        'tasker.uuid_generate_v7',  # Compatibility wrapper for pg18 native uuidv7()
+        "tasker.pgmq_auto_add_headers_trigger",
+        "tasker.pgmq_delete_specific_message",
+        "tasker.pgmq_ensure_headers_column",
+        "tasker.pgmq_extend_vt_specific_message",
+        "tasker.pgmq_notify_queue_created",
+        "tasker.pgmq_read_specific_message",
+        "tasker.pgmq_send_batch_with_notify",
+        "tasker.pgmq_send_with_notify",
+        "tasker.uuid_generate_v7",  # Compatibility wrapper for pg18 native uuidv7()
     }
 
     if missing_funcs:
@@ -364,18 +357,18 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
         matches.append(f"FUNCTION: {f}")
 
     # Compare indexes
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("COMPARING INDEXES")
-    print("="*60)
+    print("=" * 60)
 
     # Normalize old index names
     old_idx_normalized = {}
     for name, info in old_indexes.items():
-        schema, iname = name.split('.', 1)
+        schema, iname = name.split(".", 1)
         # Remove tasker_ prefix from index name if present (e.g., idx_tasker_tasks_* -> idx_tasks_*)
-        if '_tasker_' in iname:
-            iname = iname.replace('_tasker_', '_')
-        if schema == 'public':
+        if "_tasker_" in iname:
+            iname = iname.replace("_tasker_", "_")
+        if schema == "public":
             new_name = f"tasker.{iname}"
             old_idx_normalized[new_name] = info
         else:
@@ -385,8 +378,8 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
     old_idx_names = set(old_idx_normalized.keys())
 
     # Filter to tasker schema
-    old_idx_names = {i for i in old_idx_names if i.startswith('tasker.')}
-    new_idx_names = {i for i in new_idx_names if i.startswith('tasker.')}
+    old_idx_names = {i for i in old_idx_names if i.startswith("tasker.")}
+    new_idx_names = {i for i in new_idx_names if i.startswith("tasker.")}
 
     missing_idx = old_idx_names - new_idx_names
     extra_idx = new_idx_names - old_idx_names
@@ -406,16 +399,16 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
         matches.append(f"INDEX: {i}")
 
     # Compare views
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("COMPARING VIEWS")
-    print("="*60)
+    print("=" * 60)
 
     old_view_normalized = {}
     for name in old_views:
-        schema, vname = name.split('.', 1)
-        if schema == 'public':
+        schema, vname = name.split(".", 1)
+        if schema == "public":
             # Remove tasker_ prefix if present
-            if vname.startswith('tasker_'):
+            if vname.startswith("tasker_"):
                 vname = vname[7:]
             new_name = f"tasker.{vname}"
             old_view_normalized[new_name] = old_views[name]
@@ -426,8 +419,8 @@ def compare_schemas(old_file: Path, new_file: Path) -> Tuple[List[str], List[str
     old_view_names = set(old_view_normalized.keys())
 
     # Filter to tasker schema
-    old_view_names = {v for v in old_view_names if v.startswith('tasker.')}
-    new_view_names = {v for v in new_view_names if v.startswith('tasker.')}
+    old_view_names = {v for v in old_view_names if v.startswith("tasker.")}
+    new_view_names = {v for v in new_view_names if v.startswith("tasker.")}
 
     missing_views = old_view_names - new_view_names
     extra_views = new_view_names - old_view_names
@@ -462,18 +455,18 @@ def main():
         print(f"ERROR: New schema file not found: {new_schema}")
         sys.exit(1)
 
-    print("="*60)
+    print("=" * 60)
     print("TAS-128 SCHEMA VALIDATION")
-    print("="*60)
+    print("=" * 60)
     print(f"Old schema: {old_schema}")
     print(f"New schema: {new_schema}")
     print()
 
     expected_diffs, unexpected_diffs, matches = compare_schemas(old_schema, new_schema)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("VALIDATION RESULTS")
-    print("="*60)
+    print("=" * 60)
 
     print(f"\n✓ MATCHING OBJECTS: {len(matches)}")
     if len(matches) <= 50:

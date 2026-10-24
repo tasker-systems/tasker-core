@@ -179,7 +179,7 @@ class TestModuleScanning:
         class FakeModule:
             some_string = "not a class"
             some_number = 42
-            some_list = [1, 2, 3]
+            some_list = [1, 2, 3]  # noqa: RUF012 - a plain mutable class attribute is the fixture
 
             def some_function():
                 pass

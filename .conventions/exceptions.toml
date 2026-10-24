@@ -1,0 +1,5 @@
+# Every local departure from the pinned baseline, one entry each, with its reason.
+# [[exception]]
+# path = "ruff.toml"
+# key = "target-version"
+# reason = "the plugin's declared floor is py39"

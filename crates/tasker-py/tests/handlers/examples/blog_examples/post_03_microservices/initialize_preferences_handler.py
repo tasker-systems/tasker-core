@@ -10,7 +10,7 @@ TAS-137 Best Practices:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -82,7 +82,7 @@ class InitializePreferencesHandler(StepHandler):
         # Merge custom preferences with defaults (custom takes precedence)
         final_prefs = {**default_prefs, **custom_prefs}
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         preferences_id = f"prefs_{uuid.uuid4().hex[:12]}"
 
         return self.success(

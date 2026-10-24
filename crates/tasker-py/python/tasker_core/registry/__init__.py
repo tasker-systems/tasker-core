@@ -37,18 +37,13 @@ from .resolver_chain import ResolutionError, ResolverChain, ResolverNotFoundErro
 from .resolvers import ClassLookupResolver, ExplicitMappingResolver
 
 __all__ = [
-    # Core types
-    "HandlerDefinition",
-    # Resolver base classes
     "BaseResolver",
+    "ClassLookupResolver",
+    "ExplicitMappingResolver",
+    "HandlerDefinition",
+    "MethodDispatchWrapper",
     "RegistryResolver",
-    # Resolver chain
+    "ResolutionError",
     "ResolverChain",
     "ResolverNotFoundError",
-    "ResolutionError",
-    # Built-in resolvers
-    "ExplicitMappingResolver",
-    "ClassLookupResolver",
-    # Method dispatch
-    "MethodDispatchWrapper",
 ]

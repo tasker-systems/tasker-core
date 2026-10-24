@@ -1,0 +1,28 @@
+# tasker-systems canonical cargo-audit configuration. Copy to `.cargo/audit.toml`.
+# Doctrine: doctrine/supply-chain.md (SC-ADV-1/2).
+#
+# `cargo audit` is BLOCKING in CI: no continue-on-error, no `|| true`. This file is its only escape
+# hatch, and these are its rules:
+#
+#   * Every ignored id has a comment giving:
+#       - what the advisory is;
+#       - its reachability (what `cargo tree -i <crate>` shows, and whether the vulnerable code is
+#         actually compiled in);
+#       - a status: UNFIXABLE (no fixed version, or one we cannot adopt), or FIX-PENDING (a fix
+#         exists; adopting it is its own change).
+#   * When a FIX-PENDING dependency is bumped, its entry is deleted in the same change. cargo audit
+#     reports ignores that no longer match, so a stale entry is visible.
+#   * Adding an id is a security decision, made in review, never to rescue a red build in a hurry.
+#   * Informational warnings (unmaintained, yanked, unsound) are not listed here. They do not fail the
+#     build by default, and they stay visible.
+#
+# Example entry (shape only; each repo keeps its own list):
+#
+#   # rsa (RUSTSEC-2023-0071): Marvin timing side-channel; no fixed release exists.
+#   # Reachability: dependency of sqlx-mysql only. We build sqlx's postgres backend, so
+#   # `cargo tree -i rsa` reports it unreachable; it is in Cargo.lock only because the lock records
+#   # the full resolution graph. Status: UNFIXABLE.
+#   "RUSTSEC-2023-0071",
+
+[advisories]
+ignore = []

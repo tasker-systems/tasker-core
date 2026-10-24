@@ -10,7 +10,7 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -95,10 +95,8 @@ def load_and_merge_reports(reports: list[Path]) -> list[tuple[dict, list[str]]]:
             for file_entry in report.get("files", []):
                 fpath = file_entry.get("path", "")
                 existing = files_by_path.get(fpath)
-                if (
-                    existing is None
-                    or file_entry.get("lines_covered", 0)
-                    > existing.get("lines_covered", 0)
+                if existing is None or file_entry.get("lines_covered", 0) > existing.get(
+                    "lines_covered", 0
                 ):
                     files_by_path[fpath] = file_entry
 
@@ -110,11 +108,7 @@ def load_and_merge_reports(reports: list[Path]) -> list[tuple[dict, list[str]]]:
         functions_covered = sum(f.get("functions_covered", 0) for f in merged_files)
         functions_total = sum(f.get("functions_total", 0) for f in merged_files)
         line_pct = (lines_covered / lines_total * 100) if lines_total > 0 else 0.0
-        function_pct = (
-            (functions_covered / functions_total * 100)
-            if functions_total > 0
-            else 0.0
-        )
+        function_pct = (functions_covered / functions_total * 100) if functions_total > 0 else 0.0
 
         # Use first report's metadata as base
         base_meta = report_list[0][0].get("meta", {})
@@ -137,16 +131,14 @@ def load_and_merge_reports(reports: list[Path]) -> list[tuple[dict, list[str]]]:
     return merged
 
 
-def aggregate_reports(
-    reports: list[Path], thresholds: dict, worst_files_limit: int = 30
-) -> dict:
+def aggregate_reports(reports: list[Path], thresholds: dict, worst_files_limit: int = 30) -> dict:
     """Aggregate all coverage reports into a single summary."""
     git_commit, git_branch = get_git_info()
     merged_reports = load_and_merge_reports(reports)
 
     aggregate = {
         "meta": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "git_commit": git_commit,
             "git_branch": git_branch,
             "report_count": len(merged_reports),
@@ -227,9 +219,7 @@ def aggregate_reports(
     # Sort all files by coverage ascending, take worst N
     # Exclude files with 0 total lines (headers, etc.)
     covered_files = [f for f in all_files if f.get("lines_total", 0) > 0]
-    covered_files.sort(
-        key=lambda f: (f.get("line_coverage_percent", 0.0), f.get("path", ""))
-    )
+    covered_files.sort(key=lambda f: (f.get("line_coverage_percent", 0.0), f.get("path", "")))
     aggregate["lowest_coverage_files"] = covered_files[:worst_files_limit]
 
     # Uncovered files sorted by total lines descending (biggest gaps first)
@@ -281,30 +271,25 @@ def generate_markdown(aggregate: dict) -> str:
         )
 
     # Check if any crates were merged
-    any_merged = any(
-        len(d.get("source_files", [])) > 1 for d in crates.values()
-    )
+    any_merged = any(len(d.get("source_files", [])) > 1 for d in crates.values())
     if any_merged:
         lines.append("")
-        lines.append(
-            "_\\* Merged from multiple reports "
-            "(unit/integration + E2E test coverage)._"
-        )
+        lines.append("_\\* Merged from multiple reports (unit/integration + E2E test coverage)._")
 
     # Lowest coverage files (partial coverage, excluding 0%)
     lowest = aggregate.get("lowest_coverage_files", [])
-    low_partial = [
-        f for f in lowest if f.get("line_coverage_percent", 0) > 0
-    ][:20]
+    low_partial = [f for f in lowest if f.get("line_coverage_percent", 0) > 0][:20]
 
     if low_partial:
-        lines.extend([
-            "",
-            "## Lowest Coverage Files",
-            "",
-            "| Crate | File | Coverage | Lines |",
-            "|-------|------|----------|-------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Lowest Coverage Files",
+                "",
+                "| Crate | File | Coverage | Lines |",
+                "|-------|------|----------|-------|",
+            ]
+        )
         for entry in low_partial:
             pct = entry.get("line_coverage_percent", 0)
             covered = entry.get("lines_covered", 0)
@@ -318,13 +303,15 @@ def generate_markdown(aggregate: dict) -> str:
     # Uncovered files (0% coverage)
     uncovered = aggregate.get("uncovered_files", [])
     if uncovered:
-        lines.extend([
-            "",
-            f"## Uncovered Files ({len(uncovered)} files at 0%)",
-            "",
-            "| Crate | File | Lines |",
-            "|-------|------|-------|",
-        ])
+        lines.extend(
+            [
+                "",
+                f"## Uncovered Files ({len(uncovered)} files at 0%)",
+                "",
+                "| Crate | File | Lines |",
+                "|-------|------|-------|",
+            ]
+        )
         for entry in uncovered[:20]:
             lines.append(
                 f"| {entry.get('crate', '?')} | "
@@ -332,18 +319,18 @@ def generate_markdown(aggregate: dict) -> str:
                 f"{entry.get('lines_total', 0)} |"
             )
         if len(uncovered) > 20:
-            lines.append(
-                f"| | _...and {len(uncovered) - 20} more_ | |"
-            )
+            lines.append(f"| | _...and {len(uncovered) - 20} more_ | |")
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "_See `docs/development/coverage-tooling.md` for tooling details. "
-        "Full data in `coverage-reports/aggregate-coverage.json`._",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "_See `docs/development/coverage-tooling.md` for tooling details. "
+            "Full data in `coverage-reports/aggregate-coverage.json`._",
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -421,10 +408,7 @@ def main():
         print(f"Uncovered files ({len(uncovered)} files with 0% coverage):")
         print("-" * 70)
         for entry in uncovered[:15]:
-            print(
-                f"  [{entry['crate']}] {entry['path']}  "
-                f"({entry.get('lines_total', 0)} lines)"
-            )
+            print(f"  [{entry['crate']}] {entry['path']}  ({entry.get('lines_total', 0)} lines)")
         if len(uncovered) > 15:
             print(f"  ... and {len(uncovered) - 15} more (see JSON report)")
         print()

@@ -294,6 +294,10 @@ impl CompositionExecutor {
     }
 
     /// Core execution loop shared by `execute` and `resume`.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the shared core of execute and resume; each argument is resumable loop state that both callers pass"
+    )]
     fn execute_from(
         &self,
         spec: &CompositionSpec,

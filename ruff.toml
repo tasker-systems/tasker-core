@@ -1,0 +1,9 @@
+# Every .py file in the repository is linted and formatted from here (PY-LINT-1): the tasker-systems
+# canonical configuration, adopted in `extends` mode (.conventions/consumer.toml), so
+# `conventions.py check` fails if this file overrides one of its keys. A package that needs more
+# extends this file; it does not loosen it.
+extend = ".conventions/baseline/python/ruff.toml"
+
+# Askama templates that render Python (tasker-sdk codegen) are not Python until rendered; the
+# code they generate is syntax-checked by validate-codegen.yml.
+extend-exclude = ["crates/tasker-sdk/templates"]

@@ -1,0 +1,16 @@
+{
+  "$comment": "tasker-systems canonical TypeScript compiler options. A package extends it (\"extends\": \"<path>/tsconfig.base.json\") and adds only module, target, lib, paths and output settings. Doctrine: doctrine/typescript.md (TS-CFG-*). Adopting a flag is audit-before-enforce: measure the new errors, fix them, then extend.",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true
+  }
+}

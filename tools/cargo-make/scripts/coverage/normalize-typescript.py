@@ -13,7 +13,7 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -241,15 +241,13 @@ def normalize_bun_coverage(coverage_dir: Path) -> dict:
     functions_total = parsed["functions_total"]
 
     line_pct = (lines_covered / lines_total * 100) if lines_total > 0 else 0.0
-    function_pct = (
-        (functions_covered / functions_total * 100) if functions_total > 0 else 0.0
-    )
+    function_pct = (functions_covered / functions_total * 100) if functions_total > 0 else 0.0
 
     git_commit, git_branch = get_git_info()
 
     return {
         "meta": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "crate": "tasker-ts",
             "language": "typescript",
             "tool": "bun-coverage",

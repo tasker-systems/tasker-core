@@ -9,7 +9,7 @@ TAS-137 Best Practices:
 - Workflow completion validation
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -56,7 +56,7 @@ class UpdateUserStatusHandler(StepHandler):
             user_id, email, plan, user_data, billing_data, preferences_data, welcome_data
         )
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         return self.success(
             {
@@ -114,6 +114,6 @@ class UpdateUserStatusHandler(StepHandler):
 
         # Add timestamps
         summary["user_created_at"] = user_data.get("created_at")
-        summary["registration_completed_at"] = datetime.now(timezone.utc).isoformat()
+        summary["registration_completed_at"] = datetime.now(UTC).isoformat()
 
         return summary

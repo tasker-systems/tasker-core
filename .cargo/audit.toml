@@ -1,5 +1,9 @@
 # cargo-audit configuration — https://github.com/rustsec/rustsec/tree/main/cargo-audit
 #
+# Adopted from the tasker-systems baseline in `superset` mode (.conventions/consumer.toml):
+# `advisories.ignore` is this file's only local slot, so any other key fails
+# `conventions.py check`. cargo audit's defaults fetch the advisory database fresh on each run.
+#
 # The `cargo audit` step in .github/workflows/code-quality.yml is BLOCKING (no
 # continue-on-error). An advisory gate that can never fail is decorative — a PR
 # tripling the crypto surface would pass an audit that cannot report it. So the
@@ -112,8 +116,3 @@ ignore = [
     # the same cargo-llvm-cov major bump.
     "RUSTSEC-2026-0344",
 ]
-
-[database]
-# Fetch advisory database from RustSec
-fetch = true
-stale = false

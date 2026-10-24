@@ -193,7 +193,7 @@ class StepExecutionSubscriber:
                 # Execute handler
                 handler_result = self._execute_handler(event, handler)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - handler dispatch boundary: any failure becomes a failed step result, never a lost one
             log_error(f"Error executing handler {handler_name}: {e}")
             handler_result = self._create_error_result(e)
             self._event_bridge.publish(EventNames.HANDLER_ERROR, event, e)
@@ -398,7 +398,7 @@ class StepExecutionSubscriber:
             "metadata": {
                 "execution_time_ms": 0,
                 "retryable": False,
-                "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "completed_at": datetime.datetime.now(datetime.UTC).isoformat(),
                 "worker_id": self._worker_id,
                 "custom": {
                     "ffi_serialization_error": str(error)[:500],
@@ -484,7 +484,7 @@ class StepExecutionSubscriber:
         # failed rather than silently lost.
         try:
             result_dict = result.model_dump(mode="json")
-        except Exception as ser_error:
+        except Exception as ser_error:  # noqa: BLE001 - handler dispatch boundary: any failure becomes a failed step result, never a lost one
             log_error(
                 f"Pydantic serialization failed for event {event.event_id}: {ser_error}",
                 {"event_id": event.event_id, "step_uuid": event.step_uuid},
@@ -506,7 +506,7 @@ class StepExecutionSubscriber:
                     {"event_id": event.event_id},
                 )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - handler dispatch boundary: any failure becomes a failed step result, never a lost one
             log_error(
                 f"FFI transport failed for event {event.event_id}: {e}",
                 {"event_id": event.event_id, "step_uuid": event.step_uuid},
@@ -613,4 +613,4 @@ class StepExecutionError(Exception):
         self.retryable = retryable
 
 
-__all__ = ["StepExecutionSubscriber", "StepExecutionError"]
+__all__ = ["StepExecutionError", "StepExecutionSubscriber"]

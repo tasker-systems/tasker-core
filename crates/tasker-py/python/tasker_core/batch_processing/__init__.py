@@ -33,6 +33,6 @@ from tasker_core.batch_processing.batchable import (
 
 __all__ = [
     "BatchAggregationScenario",
-    "Batchable",
     "BatchWorkerConfig",
+    "Batchable",
 ]

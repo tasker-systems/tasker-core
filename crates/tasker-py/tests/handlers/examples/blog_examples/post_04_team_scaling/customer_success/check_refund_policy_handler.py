@@ -9,7 +9,7 @@ TAS-137 Best Practices:
 - get_dependency_field(): Extract nested fields (customer_tier, original_purchase_date)
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -61,7 +61,7 @@ class CheckRefundPolicyHandler(StepHandler):
         if policy_error:
             return policy_error
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         return self.success(
             {
@@ -92,7 +92,7 @@ class CheckRefundPolicyHandler(StepHandler):
 
         # Calculate days since purchase
         purchase_date = datetime.fromisoformat(purchase_date_str.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         days_since_purchase = (now - purchase_date).days
 
         # Check if within refund window

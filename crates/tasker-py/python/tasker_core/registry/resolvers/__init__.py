@@ -11,6 +11,6 @@ from .class_lookup import ClassLookupResolver
 from .explicit_mapping import ExplicitMappingResolver
 
 __all__ = [
-    "ExplicitMappingResolver",
     "ClassLookupResolver",
+    "ExplicitMappingResolver",
 ]

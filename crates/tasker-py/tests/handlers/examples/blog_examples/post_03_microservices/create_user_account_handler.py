@@ -10,7 +10,7 @@ TAS-137 Best Practices:
 
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -95,7 +95,7 @@ class CreateUserAccountHandler(StepHandler):
                 )
 
         # Simulate successful user creation
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         user_id = f"user_{uuid.uuid4().hex[:12]}"
 
         return self.success(

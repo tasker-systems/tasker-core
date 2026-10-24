@@ -18,8 +18,8 @@ from .update_payment_records_handler import UpdatePaymentRecordsHandler
 from .validate_payment_eligibility_handler import ValidatePaymentEligibilityHandler
 
 __all__ = [
-    "ValidatePaymentEligibilityHandler",
+    "NotifyCustomerHandler",
     "ProcessGatewayRefundHandler",
     "UpdatePaymentRecordsHandler",
-    "NotifyCustomerHandler",
+    "ValidatePaymentEligibilityHandler",
 ]

@@ -168,6 +168,6 @@ class AlternateMethodHandler(StepHandler):
 
 
 __all__ = [
-    "MultiMethodHandler",
     "AlternateMethodHandler",
+    "MultiMethodHandler",
 ]

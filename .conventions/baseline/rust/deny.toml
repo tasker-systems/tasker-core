@@ -1,0 +1,60 @@
+# tasker-systems canonical cargo-deny configuration. Copy to the workspace root as `deny.toml`.
+# Doctrine: doctrine/supply-chain.md (SC-DENY-1..3).
+#
+# Run as:  cargo deny check sources licenses bans
+# Advisories stay with `cargo audit` and its reviewed `.cargo/audit.toml` (SC-ADV-1/2). A check not
+# named on the command line does not run, so the advisories defaults are inert here.
+
+[graph]
+all-features = true
+
+# SC-DENY-1: every crate comes from crates.io. A dependency from another registry or a git
+# repository is a source nobody reviewed, and fails until it is allowed by name.
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+# SC-DENY-2: a crate's license expression must be satisfiable from this list. It is a policy, not an
+# inventory: an entry no dependency uses is still accepted, so `unused-allowed-license` only warns.
+# Everything here is permissive except MPL-2.0, a file-level copyleft whose obligation (keep the
+# MPL'd files' source available) crates.io meets. A new license, above all a strong copyleft, is a
+# decision before it is added.
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "MIT-0",
+    "CC0-1.0",
+    "BSL-1.0",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    "MPL-2.0",
+    "Unlicense",
+]
+confidence-threshold = 0.9
+unused-allowed-license = "warn"
+
+# `publish = false` crates carry no license field; they ship only inside the binary or deployment,
+# under the workspace's own license.
+[licenses.private]
+ignore = true
+
+# SC-DENY-3.
+[bans]
+# Duplicates are reported, not gated, in v0. Promoting this to "deny" with a reviewed `skip` list
+# is a separate ruling.
+multiple-versions = "warn"
+# `*` version requirements fail. Path dependencies inside the workspace are exempt.
+wildcards = "deny"
+allow-wildcard-paths = true
+# Crates no consuming repository should ever depend on. Each entry has a reason. Empty in v0: the
+# first entries are a ruling (candidates: a second TLS stack, if rustls is ruled the only one).
+deny = []
