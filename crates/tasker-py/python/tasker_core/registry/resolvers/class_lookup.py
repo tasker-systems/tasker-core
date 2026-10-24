@@ -18,10 +18,10 @@ import importlib
 import re
 from typing import TYPE_CHECKING, Any
 
-from ..base_resolver import BaseResolver
+from tasker_core.registry.base_resolver import BaseResolver
 
 if TYPE_CHECKING:
-    from ..handler_definition import HandlerDefinition
+    from tasker_core.registry.handler_definition import HandlerDefinition
 
 
 class ClassLookupResolver(BaseResolver):
@@ -123,7 +123,7 @@ class ClassLookupResolver(BaseResolver):
         except ImportError:
             # Module not found - expected for non-existent paths
             return None
-        except Exception:
+        except Exception:  # noqa: BLE001 - inferential resolver boundary: user code can raise anything; resolution falls through to the next resolver
             # Other import errors (syntax, etc.) - silently fail
             # as this is an inferential resolver; explicit registration
             # should be used if the handler must succeed
@@ -153,7 +153,7 @@ class ClassLookupResolver(BaseResolver):
         except TypeError:
             # Handler requires arguments - fall through to try with config
             pass
-        except Exception:
+        except Exception:  # noqa: BLE001 - inferential resolver boundary: user code can raise anything; resolution falls through to the next resolver
             # Instantiation error (not just missing args) - fail silently
             # as this is an inferential resolver
             return None
@@ -161,7 +161,7 @@ class ClassLookupResolver(BaseResolver):
         # Second try: instantiate with config keyword argument
         try:
             return handler_class(config=definition.initialization or {})
-        except Exception:
+        except Exception:  # noqa: BLE001 - inferential resolver boundary: user code can raise anything; resolution falls through to the next resolver
             # Instantiation failed - handler may have incompatible constructor
             # Fail silently; use explicit registration for handlers that must succeed
             return None

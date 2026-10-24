@@ -21,7 +21,7 @@ Example:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import httpx
 
@@ -167,7 +167,7 @@ class APIMixin:
     # Class attributes - can be overridden by subclasses
     base_url: str = ""
     default_timeout: float = 30.0
-    default_headers: dict[str, str] = {}
+    default_headers: ClassVar[dict[str, str]] = {}
 
     def __init__(self) -> None:
         """Initialize the APIMixin."""

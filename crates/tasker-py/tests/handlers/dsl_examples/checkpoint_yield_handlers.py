@@ -216,7 +216,7 @@ class CheckpointYieldAggregatorDslHandler(StepHandler, Batchable):
 
 
 __all__ = [
-    "checkpoint_yield_analyzer",
-    "CheckpointYieldWorkerDslHandler",
     "CheckpointYieldAggregatorDslHandler",
+    "CheckpointYieldWorkerDslHandler",
+    "checkpoint_yield_analyzer",
 ]

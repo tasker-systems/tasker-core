@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import random
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -159,7 +159,7 @@ class CreateOrderHandler(StepHandler):
         """Create the order record using validated inputs."""
         order_id = random.randint(1000, 9999)
         order_number = self._generate_order_number()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         order_data = {
             "id": order_id,
@@ -199,11 +199,11 @@ class CreateOrderHandler(StepHandler):
 
     def _generate_order_number(self) -> str:
         """Generate a human-readable order number."""
-        today = datetime.now(timezone.utc).strftime("%Y%m%d")
+        today = datetime.now(UTC).strftime("%Y%m%d")
         suffix = secrets.token_hex(4).upper()
         return f"ORD-{today}-{suffix}"
 
     def _calculate_estimated_delivery(self) -> str:
         """Calculate estimated delivery date (7 days from now)."""
-        delivery_date = datetime.now(timezone.utc) + timedelta(days=7)
+        delivery_date = datetime.now(UTC) + timedelta(days=7)
         return delivery_date.strftime("%B %d, %Y")

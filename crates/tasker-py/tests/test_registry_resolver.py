@@ -122,7 +122,7 @@ class TestRegistryResolverResolve:
         """resolve_handler() raises NotImplementedError when not overridden."""
         resolver = PrefixResolver()
         definition = HandlerDefinition(callable="myapp.handler")
-        with pytest.raises(NotImplementedError, match="resolve_handler.*must be implemented"):
+        with pytest.raises(NotImplementedError, match=r"resolve_handler.*must be implemented"):
             resolver.resolve(definition)
 
 

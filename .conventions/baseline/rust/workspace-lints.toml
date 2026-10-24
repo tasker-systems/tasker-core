@@ -1,0 +1,71 @@
+# tasker-systems canonical workspace lint table.
+#
+# Paste into the workspace Cargo.toml, and set `[lints] workspace = true` in every member crate.
+# Doctrine: doctrine/rust.md (RUST-LINT-*, RUST-UNSAFE-*, RUST-TYPE-1).
+#
+# Levels are `warn` because CI runs clippy and rustdoc with `-D warnings` (RUST-LINT-2): a warning
+# fails the build there, while a developer's iterative `cargo check` still finishes.
+#
+# Adopting this table is audit-before-enforce (RUST-LINT-4): fix or `#[expect(..., reason)]` the
+# existing findings first. Do not add a crate-level `#![allow]` to get green.
+#
+# Groups held off in v0 (complexity, perf, style, pedantic) are listed at the bottom, so the
+# decision not to turn them on is visible rather than implied.
+
+[workspace.lints.rust]
+# RUST-UNSAFE-1/2: every crate root also declares `#![forbid(unsafe_code)]`. A crate with a
+# registered exception omits the `forbid`, and this `deny` makes each of its unsafe sites carry
+# `#[expect(unsafe_code, reason = "...")]`. A tripwire pins both sets.
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "warn"
+# RUST-TYPE-1.
+missing_debug_implementations = "warn"
+redundant_imports = "warn"
+# A crate using tokio-console's `--cfg tokio_unstable` (tasker-core's spawn_named!) extends this list
+# in its own copy; the shape is: check-cfg = ['cfg(tokio_unstable)'].
+unexpected_cfgs = { level = "warn", check-cfg = [] }
+
+[workspace.lints.clippy]
+correctness = { level = "warn", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+
+# RUST-LINT-3: silence with #[expect(lint, reason = "...")] only.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+
+# RUST-UNSAFE-2: every unsafe block states its safety argument.
+undocumented_unsafe_blocks = "warn"
+
+dbg_macro = "warn"
+# CONC-BOUND-1 is enforced through `disallowed_methods`, which is on by default and configured in
+# clippy.toml; it is named here so the dependency is visible.
+disallowed_methods = "warn"
+
+# Permanent exceptions in the `cargo` group:
+# Duplicate versions are pervasive and reported by cargo-deny's `bans` (SC-DENY-3) instead.
+multiple_crate_versions = "allow"
+
+# RUST-LINT-5 / RUST-API-3, -4, -5: single lints from the held-off style/complexity groups that
+# hold a written rule. Measured 2026-10-23 on lib and bin targets with clippy 1.99: 0 findings in
+# temper@d530840 and in tasker-core@3888d42, so each lands without an audit.
+ptr_arg = "warn"
+borrowed_box = "warn"
+should_implement_trait = "warn"
+derivable_impls = "warn"
+new_without_default = "warn"
+len_without_is_empty = "warn"
+wrong_self_convention = "warn"
+unnecessary_unwrap = "warn"
+
+# Candidates with findings, held until each repo's audit (RUST-LINT-4). Counts are lib and bin
+# targets, 2026-10-23, temper / tasker-core. Each needs the clippy.toml setting beside it.
+# wildcard_imports = "warn"     # RUST-ORG-1:  4 / 26
+# unwrap_used = "warn"          # RUST-ERR-4: 11 / 76 (clippy.toml: allow-unwrap-in-tests = true)
+# missing_panics_doc = "warn"   # RUST-DOC-1: 25 / 25 (library crates only)
+
+# Held off in v0. Turning any on is a ruling, adopted per RUST-LINT-4.
+# complexity = { level = "warn", priority = -1 }
+# perf       = { level = "warn", priority = -1 }
+# style      = { level = "warn", priority = -1 }
+# pedantic   = { level = "warn", priority = -1 }

@@ -26,16 +26,12 @@ from .transform_handlers import (
 )
 
 __all__ = [
-    # Extract handlers (parallel - no dependencies)
-    "ExtractSalesDataHandler",
-    "ExtractInventoryDataHandler",
-    "ExtractCustomerDataHandler",
-    # Transform handlers (sequential - depend on extracts)
-    "TransformSalesHandler",
-    "TransformInventoryHandler",
-    "TransformCustomersHandler",
-    # Aggregate handler (DAG convergence - depends on all transforms)
     "AggregateMetricsHandler",
-    # Insights handler (final step - depends on aggregate)
+    "ExtractCustomerDataHandler",
+    "ExtractInventoryDataHandler",
+    "ExtractSalesDataHandler",
     "GenerateInsightsHandler",
+    "TransformCustomersHandler",
+    "TransformInventoryHandler",
+    "TransformSalesHandler",
 ]

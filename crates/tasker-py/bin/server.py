@@ -47,12 +47,12 @@ def show_banner() -> None:
     logger.info("=" * 60)
     logger.info("Starting Python Worker Bootstrap System")
     logger.info("=" * 60)
-    logger.info(f"Environment: {os.environ.get('TASKER_ENV', 'development')}")
-    logger.info(f"Python Version: {sys.version.split()[0]}")
-    logger.info(f"Database URL: {'[REDACTED]' if os.environ.get('DATABASE_URL') else 'Not set'}")
-    logger.info(f"Template Path: {os.environ.get('TASKER_TEMPLATE_PATH', 'Not set')}")
-    logger.info(f"Web Bind Address: {os.environ.get('TASKER_WEB_BIND_ADDRESS', 'Not set')}")
-    logger.info(f"Config Path: {os.environ.get('TASKER_CONFIG_PATH', 'Not set')}")
+    logger.info("Environment: %s", os.environ.get("TASKER_ENV", "development"))
+    logger.info("Python Version: %s", sys.version.split()[0])
+    logger.info("Database URL: %s", "[REDACTED]" if os.environ.get("DATABASE_URL") else "Not set")
+    logger.info("Template Path: %s", os.environ.get("TASKER_TEMPLATE_PATH", "Not set"))
+    logger.info("Web Bind Address: %s", os.environ.get("TASKER_WEB_BIND_ADDRESS", "Not set"))
+    logger.info("Config Path: %s", os.environ.get("TASKER_CONFIG_PATH", "Not set"))
 
     logger.info("Configuration:")
     logger.info("  Python will initialize Rust foundation via FFI")
@@ -69,7 +69,7 @@ def health_check() -> dict[str, Any]:
             "healthy": status.running,
             "status": status.model_dump(),
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - worker process boundary: a failure is logged and reported, never raised into the signal handler or main loop
         return {
             "healthy": False,
             "error": str(e),
@@ -91,7 +91,7 @@ def initialize_handler_registry() -> int:
     if handler_path and os.path.isdir(handler_path):
         if handler_path not in sys.path:
             sys.path.insert(0, handler_path)
-        logger.info(f"Added PYTHON_HANDLER_PATH to sys.path: {handler_path}")
+        logger.info("Added PYTHON_HANDLER_PATH to sys.path: %s", handler_path)
 
         # Pre-import handler modules so they're available for preloaded detection
         _import_handlers_from_path(handler_path)
@@ -101,8 +101,8 @@ def initialize_handler_registry() -> int:
     registry = HandlerRegistry.instance()
 
     handler_count = registry.handler_count()
-    logger.info(f"Handler registry initialized: {handler_count} handlers registered")
-    logger.info(f"Registered handlers: {registry.list_handlers()}")
+    logger.info("Handler registry initialized: %s handlers registered", handler_count)
+    logger.info("Registered handlers: %s", registry.list_handlers())
 
     return handler_count
 
@@ -123,7 +123,7 @@ def _import_handlers_from_path(handler_path: str) -> None:
     if not path.is_dir():
         return
 
-    logger.info(f"Scanning for handler modules in: {handler_path}")
+    logger.info("Scanning for handler modules in: %s", handler_path)
 
     # Find the package name by looking at directory structure
     # E.g., /app/python_worker/tests/handlers -> handlers
@@ -145,9 +145,9 @@ def _import_handlers_from_path(handler_path: str) -> None:
                     module = importlib.util.module_from_spec(spec)
                     sys.modules[pkg_name] = module
                     spec.loader.exec_module(module)
-                    logger.info(f"  Imported package: {pkg_name}")
-            except Exception as e:
-                logger.debug(f"  Could not import {pkg_name}: {e}")
+                    logger.info("  Imported package: %s", pkg_name)
+            except Exception as e:  # noqa: BLE001 - worker process boundary: a failure is logged and reported, never raised into the signal handler or main loop
+                logger.debug("  Could not import %s: %s", pkg_name, e)
 
         # Scan for submodules and subpackages
         for item in pkg_path.iterdir():
@@ -168,9 +168,9 @@ def _import_handlers_from_path(handler_path: str) -> None:
                         module = importlib.util.module_from_spec(spec)
                         sys.modules[module_name] = module
                         spec.loader.exec_module(module)
-                        logger.info(f"  Imported module: {module_name}")
-                except Exception as e:
-                    logger.debug(f"  Could not import {module_name}: {e}")
+                        logger.info("  Imported module: %s", module_name)
+                except Exception as e:  # noqa: BLE001 - worker process boundary: a failure is logged and reported, never raised into the signal handler or main loop
+                    logger.debug("  Could not import %s: %s", module_name, e)
 
     # Start the recursive import
     import_package(path, package_name)
@@ -187,7 +187,7 @@ def main() -> int:
     def handle_shutdown(signum: int, _frame: Any) -> None:
         """Handle shutdown signals."""
         sig_name = signal.Signals(signum).name
-        logger.info(f"Received {sig_name} signal, initiating shutdown...")
+        logger.info("Received %s signal, initiating shutdown...", sig_name)
         with shutdown_lock:
             shutdown_event.set()
 
@@ -196,9 +196,9 @@ def main() -> int:
         logger.info("Received SIGUSR1 signal, reporting worker status...")
         try:
             status = get_worker_status()
-            logger.info(f"Worker Status: {status.model_dump()}")
-        except Exception as e:
-            logger.error(f"Failed to get worker status: {e}")
+            logger.info("Worker Status: %s", status.model_dump())
+        except Exception as e:  # noqa: BLE001 - worker process boundary: a failure is logged and reported, never raised into the signal handler or main loop
+            logger.error("Failed to get worker status: %s", e)
 
     # Set up signal handlers
     signal.signal(signal.SIGTERM, handle_shutdown)
@@ -212,7 +212,7 @@ def main() -> int:
         # Discover and register handlers before bootstrap
         logger.info("Discovering Python handlers...")
         handler_count = initialize_handler_registry()
-        logger.info(f"Handler discovery complete: {handler_count} handlers registered")
+        logger.info("Handler discovery complete: %s handlers registered", handler_count)
 
         # Create bootstrap configuration
         config = BootstrapConfig(
@@ -224,7 +224,7 @@ def main() -> int:
         result = bootstrap_worker(config)
 
         if not result.success:
-            logger.error(f"Failed to bootstrap worker: {result.message}")
+            logger.error("Failed to bootstrap worker: %s", result.message)
             return 3
 
         # =================================================================
@@ -248,7 +248,7 @@ def main() -> int:
             worker_id=worker_id,
         )
         step_subscriber.start()
-        logger.info(f"  StepExecutionSubscriber: Started (worker_id={worker_id})")
+        logger.info("  StepExecutionSubscriber: Started (worker_id=%s)", worker_id)
 
         # 3. Create EventPoller with callback that publishes to EventBridge
         def on_step_event(event: FfiStepEvent) -> None:
@@ -257,7 +257,7 @@ def main() -> int:
 
         def on_poller_error(error: Exception) -> None:
             """Log poller errors."""
-            logger.error(f"EventPoller error: {error}")
+            logger.error("EventPoller error: %s", error)
             event_bridge.publish(EventNames.POLLER_ERROR, error)
 
         event_poller = EventPoller(
@@ -300,13 +300,15 @@ def main() -> int:
                 try:
                     health_status = health_check()
                     if health_status["healthy"]:
-                        logger.debug(f"Health check #{loop_count // 60}: OK")
+                        logger.debug("Health check #%s: OK", loop_count // 60)
                     else:
                         logger.warning(
-                            f"Health check #{loop_count // 60}: UNHEALTHY - {health_status.get('error')}"
+                            "Health check #%s: UNHEALTHY - %s",
+                            loop_count // 60,
+                            health_status.get("error"),
                         )
-                except Exception as e:
-                    logger.warning(f"Health check failed: {e}")
+                except Exception as e:  # noqa: BLE001 - worker process boundary: a failure is logged and reported, never raised into the signal handler or main loop
+                    logger.warning("Health check failed: %s", e)
 
         # Shutdown sequence
         logger.info("Starting shutdown sequence...")
@@ -336,15 +338,15 @@ def main() -> int:
                 logger.info("  Rust worker stopped")
 
             logger.info("Python worker shutdown completed successfully")
-        except Exception as e:
-            logger.error(f"Error during shutdown: {e}")
+        except Exception as e:  # noqa: BLE001 - worker process boundary: a failure is logged and reported, never raised into the signal handler or main loop
+            logger.error("Error during shutdown: %s", e)
             return 1
 
         logger.info("Python Worker Server terminated gracefully")
         return 0
 
-    except Exception as e:
-        logger.fatal(f"Unexpected error during startup: {type(e).__name__} - {e}")
+    except Exception as e:  # noqa: BLE001 - worker process boundary: a failure is logged and reported, never raised into the signal handler or main loop
+        logger.fatal("Unexpected error during startup: %s - %s", type(e).__name__, e)
         import traceback
 
         logger.fatal(traceback.format_exc())

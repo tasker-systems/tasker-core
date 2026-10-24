@@ -14,7 +14,7 @@ from tasker_core.examples.checkpoint_yield import (
 )
 
 __all__ = [
+    "CheckpointYieldAggregatorHandler",
     "CheckpointYieldAnalyzerHandler",
     "CheckpointYieldWorkerHandler",
-    "CheckpointYieldAggregatorHandler",
 ]

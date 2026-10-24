@@ -10,7 +10,7 @@ TAS-137 Best Practices:
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -55,7 +55,7 @@ class ValidateRefundRequestHandler(StepHandler):
         if validation_error:
             return validation_error
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         return self.success(
             {
@@ -105,7 +105,7 @@ class ValidateRefundRequestHandler(StepHandler):
             }
         else:
             # Success case - valid ticket
-            purchase_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+            purchase_date = (datetime.now(UTC) - timedelta(days=30)).isoformat()
             return {
                 "status": "open",
                 "ticket_id": ticket_id,
@@ -113,7 +113,7 @@ class ValidateRefundRequestHandler(StepHandler):
                 "customer_tier": self._determine_customer_tier(customer_id),
                 "purchase_date": purchase_date,
                 "payment_id": f"pay_{uuid.uuid4().hex[:12]}",
-                "ticket_created_at": (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+                "ticket_created_at": (datetime.now(UTC) - timedelta(days=2)).isoformat(),
                 "agent_assigned": f"agent_{(hash(ticket_id) % 10) + 1}",
             }
 

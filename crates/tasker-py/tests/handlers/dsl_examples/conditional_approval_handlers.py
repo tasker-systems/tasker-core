@@ -215,10 +215,10 @@ def finalize_approval(auto_result, manager_result, finance_result, _context):
 
 
 __all__ = [
-    "validate_request",
-    "routing_decision",
     "auto_approve",
-    "manager_approval",
-    "finance_review",
     "finalize_approval",
+    "finance_review",
+    "manager_approval",
+    "routing_decision",
+    "validate_request",
 ]

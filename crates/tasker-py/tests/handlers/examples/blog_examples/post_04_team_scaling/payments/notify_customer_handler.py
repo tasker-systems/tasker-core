@@ -12,7 +12,7 @@ TAS-137 Best Practices:
 
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -101,7 +101,7 @@ class NotifyCustomerHandler(StepHandler):
         self, customer_email: str, _refund_id: str, refund_amount: float
     ) -> dict:
         """Simulate notification sending."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Simulate different notification scenarios based on email patterns
         if "@test_bounce" in customer_email:

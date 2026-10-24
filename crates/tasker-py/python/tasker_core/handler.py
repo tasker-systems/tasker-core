@@ -403,7 +403,7 @@ class HandlerRegistry:
             try:
                 module = importlib.import_module(module_name)
                 discovered += self._scan_module_for_handlers(module, base)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - handler discovery boundary: importing user code can raise anything; the module is logged and skipped
                 log_warn(f"Failed to scan module {module_name}: {e}")
 
         log_info(f"Discovered {discovered} handlers in {package_name}")
@@ -535,7 +535,7 @@ class HandlerRegistry:
 
             try:
                 registered_count += self._scan_module_for_handlers(module, StepHandler)  # type: ignore[type-abstract]
-            except Exception:
+            except Exception:  # noqa: BLE001 - handler discovery boundary: importing user code can raise anything; the module is logged and skipped
                 # Skip modules that can't be scanned
                 continue
 
@@ -661,7 +661,7 @@ class HandlerRegistry:
         except ImportError as e:
             log_debug(f"Failed to import module {module_path}: {e}")
             return None
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - handler discovery boundary: importing user code can raise anything; the module is logged and skipped
             log_debug(f"Error loading handler {callable_name}: {e}")
             return None
 
@@ -697,4 +697,4 @@ class HandlerRegistry:
         }
 
 
-__all__ = ["StepHandler", "HandlerRegistry"]
+__all__ = ["HandlerRegistry", "StepHandler"]

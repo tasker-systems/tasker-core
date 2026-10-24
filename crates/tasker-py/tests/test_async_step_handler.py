@@ -75,7 +75,7 @@ class TestSyncHandlerExecution:
         class SyncHandler(StepHandler):
             handler_name = "sync_processor"
 
-            def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
+            def call(self, context: StepContext) -> StepHandlerResult:
                 value = context.input_data.get("value", 0)
                 return StepHandlerResult.success({"processed_value": value * 2})
 
@@ -152,7 +152,7 @@ class TestAsyncHandlerExecution:
         class AsyncHandler(StepHandler):
             handler_name = "async_processor"
 
-            async def call(self, context: StepContext) -> StepHandlerResult:  # noqa: ARG002
+            async def call(self, context: StepContext) -> StepHandlerResult:
                 await asyncio.sleep(0.01)
                 value = context.input_data.get("value", 0)
                 return StepHandlerResult.success({"processed_value": value * 2})

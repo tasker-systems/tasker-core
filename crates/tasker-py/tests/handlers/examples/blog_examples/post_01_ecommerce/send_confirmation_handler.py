@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -83,7 +83,7 @@ class SendConfirmationHandler(StepHandler):
                 "email_sent": True,
                 "recipient": customer_email,
                 "email_type": "order_confirmation",
-                "sent_at": datetime.now(timezone.utc).isoformat(),
+                "sent_at": datetime.now(UTC).isoformat(),
                 "message_id": delivery_result.get("message_id", f"mock_{secrets.token_hex(8)}"),
             },
             metadata={
@@ -161,7 +161,7 @@ class SendConfirmationHandler(StepHandler):
             "delivery_result": delivery_result,
             "customer_email": customer_info.get("email"),
             "email_data": email_data,
-            "sent_timestamp": datetime.now(timezone.utc).isoformat(),
+            "sent_timestamp": datetime.now(UTC).isoformat(),
         }
 
     def _simulate_email_delivery(self, email_data: dict[str, Any]) -> dict[str, Any]:
@@ -181,7 +181,7 @@ class SendConfirmationHandler(StepHandler):
             "status": "sent",
             "message_id": f"msg_{secrets.token_hex(12)}",
             "email": email,
-            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "sent_at": datetime.now(UTC).isoformat(),
         }
 
     def _ensure_email_sent_successfully(self, delivery_result: dict[str, Any]) -> None:

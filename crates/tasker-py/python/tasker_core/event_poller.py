@@ -251,7 +251,7 @@ class EventPoller:
         try:
             metrics_dict = _get_ffi_dispatch_metrics()
             return FfiDispatchMetrics.model_validate(metrics_dict)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - poll-loop boundary: a failure is logged and reported, and polling continues
             log_debug(f"Failed to get FFI dispatch metrics: {e}")
             return None
 
@@ -280,7 +280,7 @@ class EventPoller:
                 if self._poll_count % self._cleanup_interval == 0:
                     self._cleanup_timeouts()
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - poll-loop boundary: a failure is logged and reported, and polling continues
                 self._emit_error(e)
                 # Sleep longer on error to avoid tight error loops
                 time.sleep(self._polling_interval * 10)
@@ -299,14 +299,14 @@ class EventPoller:
             for callback in self._step_event_callbacks:
                 try:
                     callback(event)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - poll-loop boundary: a failure is logged and reported, and polling continues
                     log_error(
                         f"EventPoller: Callback error: {e}",
                         {"event_id": event.event_id},
                     )
                     self._emit_error(e)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - poll-loop boundary: a failure is logged and reported, and polling continues
             log_error(f"EventPoller: Failed to process event: {e}")
             self._emit_error(e)
 
@@ -323,7 +323,7 @@ class EventPoller:
             for callback in self._metrics_callbacks:
                 try:
                     callback(metrics)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - poll-loop boundary: a failure is logged and reported, and polling continues
                     log_debug(f"EventPoller: Metrics callback error: {e}")
 
             if metrics.starvation_detected:
@@ -335,7 +335,7 @@ class EventPoller:
                     },
                 )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - poll-loop boundary: a failure is logged and reported, and polling continues
             # Don't let starvation check errors affect polling
             log_debug(f"EventPoller: Starvation check error (non-fatal): {e}")
 
@@ -348,7 +348,7 @@ class EventPoller:
                     "EventPoller: Cleaned up timed-out events",
                     {"count": str(count)},
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - poll-loop boundary: a failure is logged and reported, and polling continues
             log_debug(f"EventPoller: Cleanup error (non-fatal): {e}")
 
     def _emit_error(self, error: Exception) -> None:

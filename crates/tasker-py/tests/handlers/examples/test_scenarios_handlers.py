@@ -8,7 +8,7 @@ These handlers are useful for testing workflow execution behavior:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -42,7 +42,7 @@ class SuccessStepHandler(StepHandler):
             {
                 "status": "success",
                 "message": message,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "handler": "SuccessStepHandler",
             }
         )
@@ -73,7 +73,7 @@ class RetryableErrorStepHandler(StepHandler):
             retryable=True,
             metadata={
                 "handler": "RetryableErrorStepHandler",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -103,13 +103,13 @@ class PermanentErrorStepHandler(StepHandler):
             retryable=False,
             metadata={
                 "handler": "PermanentErrorStepHandler",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
 
 __all__ = [
-    "SuccessStepHandler",
-    "RetryableErrorStepHandler",
     "PermanentErrorStepHandler",
+    "RetryableErrorStepHandler",
+    "SuccessStepHandler",
 ]

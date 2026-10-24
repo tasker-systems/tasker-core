@@ -9,7 +9,7 @@ TAS-137 Best Practices:
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -65,7 +65,7 @@ class SetupBillingProfileHandler(StepHandler):
 
         if tier_config["billing_required"]:
             # Paid plan - create billing profile
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             next_billing = (now + timedelta(days=30)).isoformat()
             billing_id = f"billing_{uuid.uuid4().hex[:12]}"
 

@@ -1,0 +1,48 @@
+# tasker-systems canonical ruff configuration.
+#
+# A consuming repo puts this at its root as `ruff.toml` (or merges it into the root
+# `pyproject.toml` under [tool.ruff]), so every .py file in the repository is covered (PY-LINT-1).
+# A package that needs more extends it with `extend = "../../ruff.toml"`; it does not loosen it.
+# Doctrine: doctrine/python.md (PY-*).
+#
+# Adopting it is audit-before-enforce (RUST-LINT-4 applies to every linter): fix or reason-annotate
+# the existing findings first. Do not add a blanket per-file ignore to get green.
+
+# The floor every consumer targets today. Raise it together with `requires-python` (PY-VER-1).
+target-version = "py311"
+# The formatter owns line length; E501 is not selected (PY-FMT-1).
+line-length = 100
+
+# Generated code is drift-gated, not linted (PY-GEN-1). Each consumer names its generated trees:
+# extend-exclude = ["clients/temper-py/temper/generated"]
+
+[lint]
+select = [
+    "E", "W",  # pycodestyle (E501 excluded below: the formatter owns it)
+    "F",       # pyflakes
+    "I",       # import sorting
+    "B",       # bugbear: mutable defaults (B006/B008), late-bound closures (B023), raise-from (B904)
+    "C4",      # comprehensions
+    "UP",      # pyupgrade to target-version
+    "SIM",     # simplifications, incl. SIM115 (open without a context manager)
+    "RUF",     # ruff-specific, incl. RUF012 (mutable class defaults) and RUF100 (unused noqa)
+    "PGH",     # PGH003/PGH004: a suppression names its code (PY-LINT-3)
+    "BLE",     # BLE001: broad except only at a declared boundary (PY-ERR-1)
+    "S101",    # no assert as validation outside tests (PY-ERR-2)
+    "G", "LOG", # logging: constant templates (PY-LOG-1)
+    "N",       # pep8-naming
+    "TID252",  # no relative imports from parent packages
+    "PLW0603", # `global` statements carry a reason
+]
+ignore = [
+    "E501", # line length belongs to `ruff format`
+    "N818", # exception names mirror the other-language SDKs (temper-py's `NotFound` = temper-rb's)
+]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["S101"]
+"**/test_*.py" = ["S101"]
+"**/conftest.py" = ["S101"]
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "parents"

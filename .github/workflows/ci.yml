@@ -112,6 +112,98 @@ jobs:
         working-directory: crates/tasker-py
 
   # ============================================================================
+  # Stage 0.6: The tasker-systems conventions baseline, and the gates it adopts
+  # These read only the tree, so they run on every change: no `if:`, no scope.
+  # ============================================================================
+
+  # The tasker-systems conventions baseline, as this repository is pinned to it
+  # (.conventions/consumer.toml; doctrine in .conventions/baseline/doctrine/consuming.md).
+  #
+  # `check` fails when an adopted config drifts from the pinned projection without a reasoned
+  # exception, when the projection itself was hand-edited or the pin is not a commit on the
+  # baseline's main, when a status names a gate that does not exist, when the projected skill or
+  # the entry files' link to it is stale, and when status.toml was not reviewed at the pin. It
+  # reports how far the pin trails the baseline, and never fails on that.
+  #
+  # `witness` is the check's bite test: it seeds one violation per case into a copy of the tree and
+  # requires `check` to refuse each, naming what was seeded. Its control run happens online in an
+  # environment with no credential, which is the evidence that a fork's pull request gets the
+  # same verdict.
+  #
+  # NO `if:`: guidance and adopted config change in docs-only changes too. It reads only files and
+  # the public baseline repository, so this job holds no secret and must not gain one (the witness
+  # fails if it does). Needs python3 >= 3.11 and git.
+  conventions:
+    name: Conventions baseline
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Set up Python (the repository pin, >= 3.11)
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: .python-version
+
+      - name: Python and git versions
+        run: python3 --version && git --version
+
+      - name: Check against the pinned baseline
+        run: python3 -I .conventions/baseline/tools/conventions.py check
+
+      - name: Witness — each check refuses a seeded violation
+        run: python3 -I .conventions/baseline/tools/conventions.py witness
+
+  # Every .py file in the repository, from the root ruff.toml (the baseline's canonical
+  # configuration, PY-LINT-1); tasker-py's pyproject.toml extends it. The version is the one
+  # crates/tasker-py/uv.lock pins, so this job and a local `uv run ruff` agree.
+  python-lint:
+    name: Python lint (ruff, every .py)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      RUFF_VERSION: 0.14.9
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Install ruff (exact version)
+        run: pipx install "ruff==${RUFF_VERSION}"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format --check
+        run: ruff format --check .
+
+  # cargo-deny over the dependency graph (deny.toml, the baseline's canonical file in superset
+  # mode): crate sources (SC-DENY-1), licenses (SC-DENY-2) and bans (SC-DENY-3). Advisories are
+  # cargo audit's, in code-quality.yml, so that there is one reviewed ignore list. Reads only
+  # manifests and the lock; nothing compiles.
+  supply-chain:
+    name: Supply chain (cargo deny)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      CARGO_DENY_VERSION: 0.20.2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@8a2045612414e945291083f820cd50b4d8fc2218 # main
+
+      - name: Install cargo-deny (exact version)
+        run: cargo binstall --no-confirm "cargo-deny@${CARGO_DENY_VERSION}"
+
+      - name: cargo deny check sources licenses bans
+        run: cargo deny --locked check sources licenses bans
+
+  # ============================================================================
   # Stage 1: Build PostgreSQL image with PGMQ extension
   # ============================================================================
   build-postgres:
@@ -272,7 +364,7 @@ jobs:
   # ============================================================================
   ci-success:
     name: CI Success
-    needs: [detect-scope, lockfile-check, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, validate-codegen, performance-analysis]
+    needs: [detect-scope, lockfile-check, conventions, python-lint, supply-chain, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, validate-codegen, performance-analysis]
     if: always()
     runs-on: ubuntu-22.04
     steps:
@@ -313,6 +405,11 @@ jobs:
               fi
             fi
           }
+
+          # Unscoped: these run on every change, so they must always succeed.
+          check_job "conventions" "${{ needs.conventions.result }}" "true"
+          check_job "python-lint" "${{ needs.python-lint.result }}" "true"
+          check_job "supply-chain" "${{ needs.supply-chain.result }}" "true"
 
           check_job "build-postgres" \
             "${{ needs.build-postgres.result }}" \

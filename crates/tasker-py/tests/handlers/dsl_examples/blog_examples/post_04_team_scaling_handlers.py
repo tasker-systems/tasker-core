@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from tasker_core.step_handler.functional import depends_on, inputs, step_handler
 from tasker_core.types import StepHandlerResult
@@ -72,7 +72,7 @@ def cs_validate_refund_request(ticket_id, customer_id, refund_amount, _refund_re
     else:
         customer_tier = "standard"
 
-    purchase_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    purchase_date = (datetime.now(UTC) - timedelta(days=30)).isoformat()
 
     return {
         "request_validated": True,
@@ -82,7 +82,7 @@ def cs_validate_refund_request(ticket_id, customer_id, refund_amount, _refund_re
         "customer_tier": customer_tier,
         "original_purchase_date": purchase_date,
         "payment_id": f"pay_{uuid.uuid4().hex[:12]}",
-        "validation_timestamp": datetime.now(timezone.utc).isoformat(),
+        "validation_timestamp": datetime.now(UTC).isoformat(),
         "namespace": "customer_success",
     }
 
@@ -104,7 +104,7 @@ def cs_check_refund_policy(validation_result, refund_amount, _refund_reason, _co
     policy = REFUND_POLICIES.get(customer_tier, REFUND_POLICIES["standard"])
 
     purchase_date = datetime.fromisoformat(purchase_date_str.replace("Z", "+00:00"))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     days_since_purchase = (now - purchase_date).days
 
     within_window = days_since_purchase <= policy["window_days"]
@@ -156,7 +156,7 @@ def cs_get_manager_approval(
 
     requires_approval = policy_result.get("requires_approval")
     customer_tier = policy_result.get("customer_tier")
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if requires_approval:
         ticket_id = validation_result.get("ticket_id", "") if validation_result else ""
@@ -236,7 +236,7 @@ def cs_execute_refund_workflow(
         correlation_id = f"cs-{uuid.uuid4().hex[:16]}"
 
     task_id = f"task_{uuid.uuid4()}"
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     return {
         "task_delegated": True,
@@ -270,7 +270,7 @@ def cs_update_ticket_status(
     ticket_id = validation_result.get("ticket_id") if validation_result else None
     delegated_task_id = delegation_result.get("delegated_task_id")
     correlation_id = delegation_result.get("correlation_id")
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if ticket_id and "ticket_locked" in ticket_id:
         return StepHandlerResult.failure(
@@ -360,7 +360,7 @@ def pay_validate_payment_eligibility(
         "payment_method": "credit_card",
         "gateway_provider": "MockPaymentGateway",
         "eligibility_status": "eligible",
-        "validation_timestamp": datetime.now(timezone.utc).isoformat(),
+        "validation_timestamp": datetime.now(UTC).isoformat(),
         "namespace": "payments",
     }
 
@@ -393,7 +393,7 @@ def pay_process_gateway_refund(validation_result, refund_reason, _partial_refund
             retryable=False,
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     return {
         "refund_processed": True,
@@ -434,7 +434,7 @@ def pay_update_payment_records(refund_result, _validation_result, refund_reason,
             message="Payment record locked, will retry", error_type="RECORD_LOCKED", retryable=True
         )
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     return {
         "records_updated": True,
@@ -477,7 +477,7 @@ def pay_notify_customer(refund_result, customer_email, _refund_reason, _context)
 
     refund_id = refund_result.get("refund_id")
     refund_amount = refund_result.get("refund_amount")
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     return {
         "notification_sent": True,
@@ -493,15 +493,13 @@ def pay_notify_customer(refund_result, customer_email, _refund_reason, _context)
 
 
 __all__ = [
-    # Customer Success
-    "cs_validate_refund_request",
     "cs_check_refund_policy",
-    "cs_get_manager_approval",
     "cs_execute_refund_workflow",
+    "cs_get_manager_approval",
     "cs_update_ticket_status",
-    # Payments
-    "pay_validate_payment_eligibility",
+    "cs_validate_refund_request",
+    "pay_notify_customer",
     "pay_process_gateway_refund",
     "pay_update_payment_records",
-    "pay_notify_customer",
+    "pay_validate_payment_eligibility",
 ]

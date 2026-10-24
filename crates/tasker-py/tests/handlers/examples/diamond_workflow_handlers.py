@@ -244,8 +244,8 @@ class DiamondEndHandler(StepHandler):
 
 
 __all__ = [
-    "DiamondStartHandler",
     "DiamondBranchBHandler",
     "DiamondBranchCHandler",
     "DiamondEndHandler",
+    "DiamondStartHandler",
 ]

@@ -1,0 +1,70 @@
+# cargo-deny configuration: the tasker-systems canonical file, adopted in `superset` mode
+# (.conventions/consumer.toml). Every key below equals the projection at
+# .conventions/baseline/rust/deny.toml; repo-local content lives only in the slots the baseline
+# declares (.conventions/baseline/tools/slots.toml), here `licenses.exceptions`.
+# `conventions.py check` fails on any other difference.
+#
+# CI runs `cargo deny check sources licenses bans` (code-quality.yml). Advisories are cargo audit's
+# job (.cargo/audit.toml), so that there is one reviewed ignore list.
+
+[graph]
+all-features = true
+
+# SC-DENY-1: every crate comes from crates.io. A dependency from another registry or a git
+# repository is a source nobody reviewed, and fails until it is allowed by name.
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+# SC-DENY-2: a crate's license expression must be satisfiable from this list. It is a policy, not an
+# inventory: an entry no dependency uses is still accepted, so `unused-allowed-license` only warns.
+# Everything here is permissive except MPL-2.0, a file-level copyleft whose obligation (keep the
+# MPL'd files' source available) crates.io meets. A new license, above all a strong copyleft, is a
+# decision before it is added.
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "MIT-0",
+    "CC0-1.0",
+    "BSL-1.0",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    "MPL-2.0",
+    "Unlicense",
+]
+confidence-threshold = 0.9
+unused-allowed-license = "warn"
+
+# `publish = false` crates carry no license field; they ship only inside the binary or deployment,
+# under the workspace's own license.
+# Per-crate license exceptions (a declared local slot), each with its reason.
+exceptions = [
+    # pgmq (PostgreSQL License): the PGMQ client, tasker-core's default message queue. The
+    # PostgreSQL License is OSI-approved and permissive (MIT-like), but not on the shared allow-list,
+    # so it is allowed for this one crate rather than for every crate.
+    { crate = "pgmq", allow = ["PostgreSQL"] },
+]
+
+[licenses.private]
+ignore = true
+
+# SC-DENY-3.
+[bans]
+# Duplicates are reported, not gated, in v0. Promoting this to "deny" with a reviewed `skip` list
+# is a separate ruling.
+multiple-versions = "warn"
+# `*` version requirements fail. Path dependencies inside the workspace are exempt.
+wildcards = "deny"
+allow-wildcard-paths = true
+# Crates no consuming repository should ever depend on. Each entry has a reason. Empty in v0: the
+# first entries are a ruling (candidates: a second TLS stack, if rustls is ruled the only one).
+deny = []

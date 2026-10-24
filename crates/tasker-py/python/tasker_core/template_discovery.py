@@ -440,6 +440,6 @@ class HandlerDiscovery:
 
 __all__ = [
     "HandlerDiscovery",
-    "TemplatePath",
     "TemplateParser",
+    "TemplatePath",
 ]

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -101,7 +101,7 @@ class ProcessPaymentHandler(StepHandler):
                 "currency": payment_result.get("currency", "USD"),
                 "payment_method_type": payment_result.get("payment_method_type", "credit_card"),
                 "transaction_id": payment_result["transaction_id"],
-                "processed_at": datetime.now(timezone.utc).isoformat(),
+                "processed_at": datetime.now(UTC).isoformat(),
                 "status": "completed",
             },
             metadata={

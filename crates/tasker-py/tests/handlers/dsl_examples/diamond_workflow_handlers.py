@@ -233,14 +233,12 @@ def diamond_end(branch_b_output, branch_c_output, _context):
 
 
 __all__ = [
-    # Unit test diamond
-    "diamond_init",
-    "diamond_path_a",
-    "diamond_path_b",
-    "diamond_merge",
-    # E2E diamond
-    "diamond_start",
     "diamond_branch_b",
     "diamond_branch_c",
     "diamond_end",
+    "diamond_init",
+    "diamond_merge",
+    "diamond_path_a",
+    "diamond_path_b",
+    "diamond_start",
 ]

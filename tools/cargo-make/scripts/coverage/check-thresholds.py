@@ -96,9 +96,7 @@ def check_individual_reports(reports_dir: Path, thresholds: dict) -> bool:
         if not lang_path.exists():
             continue
 
-        lang_thresholds = thresholds.get(
-            lang_dir if lang_dir != "typescript" else "typescript", {}
-        )
+        lang_thresholds = thresholds.get(lang_dir if lang_dir != "typescript" else "typescript", {})
 
         for json_file in sorted(lang_path.glob("*-coverage.json")):
             if "-raw" in json_file.stem:
@@ -125,9 +123,7 @@ def check_individual_reports(reports_dir: Path, thresholds: dict) -> bool:
                 icon = "x"
                 all_pass = False
 
-            print(
-                f"[{icon}] {crate_name:<30} {coverage:>6.2f}% >= {threshold:>5.1f}%  [{status}]"
-            )
+            print(f"[{icon}] {crate_name:<30} {coverage:>6.2f}% >= {threshold:>5.1f}%  [{status}]")
 
     print()
     return all_pass
