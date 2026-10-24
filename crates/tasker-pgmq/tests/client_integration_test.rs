@@ -293,7 +293,7 @@ async fn test_client_namespace_operations() {
     let test_db = TestDb::new().await.expect("TestDb::new");
     let client = make_client(&test_db).await;
 
-    let ns = format!("nstest{}", &test_db.test_id);
+    let ns = format!("nstest{}", test_db.test_id);
 
     // Initialize creates worker_{ns}_queue
     client
