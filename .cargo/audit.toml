@@ -37,6 +37,22 @@ ignore = [
     # publishes a patched rsa.
     "RUSTSEC-2023-0071",
 
+    # ── UNFIXABLE IN THIS GRAPH — patched upstream, unreachable by semver ────
+    # crypto-bigint 0.5.5 (RUSTSEC-2026-0387, issued 2026-10-23): timing
+    # variability in operations intended to be constant-time (subtraction,
+    # zero counting, division, Montgomery multiplication, UintRef equality,
+    # MontyForm::invert). Reached only through jsonwebtoken 10.2.0 ->
+    # p256 ^0.13.2 -> ecdsa 0.16.9 -> elliptic-curve 0.13.8 ->
+    # crypto-bigint ^0.5. The patch (crypto-bigint >= 0.7.6) is real, but the
+    # chain cannot adopt it: jsonwebtoken 11.1.0 — the wave-4 bump, PR #370 —
+    # still requires p256 ^0.13.2, and p256 0.14 -> elliptic-curve 0.14.1
+    # (crypto-bigint ^0.7.5) is allowed by nothing in the graph, so cargo
+    # cannot reach 0.7.6 semver-compatibly. Exposure runs through ES256 JWT
+    # verification with attacker-controlled signatures — the same surface as
+    # the rsa entry above. Drop this entry when a jsonwebtoken release moves
+    # to p256 >= 0.14, or the JWT library changes.
+    "RUSTSEC-2026-0387",
+
     # ── UNFIXABLE, and NOT LINKED — a lockfile artifact ──────────────────────
     # h2 0.3.27: unbounded empty DATA frames (fixed in h2 >= 0.4.16). The live
     # graph already has h2 0.4.20, patched. The flagged 0.3.27 copy is reachable
