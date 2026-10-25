@@ -110,10 +110,10 @@ class ConversionError(TaskerError):
 
 
 __all__ = [
-    "TaskerError",
-    "WorkerNotInitializedError",
-    "WorkerBootstrapError",
-    "WorkerAlreadyRunningError",
-    "FFIError",
     "ConversionError",
+    "FFIError",
+    "TaskerError",
+    "WorkerAlreadyRunningError",
+    "WorkerBootstrapError",
+    "WorkerNotInitializedError",
 ]

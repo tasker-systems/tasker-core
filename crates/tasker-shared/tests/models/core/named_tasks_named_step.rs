@@ -246,8 +246,8 @@ async fn test_ntns_find_with_details(pool: PgPool) -> sqlx::Result<()> {
     });
     assert!(our_detail.is_some());
     let detail = our_detail.unwrap();
-    assert_eq!(detail.task_name, format!("test_task_with_details"));
-    assert_eq!(detail.step_name, format!("test_step_with_details"));
+    assert_eq!(detail.task_name, "test_task_with_details");
+    assert_eq!(detail.step_name, "test_step_with_details");
     assert!(detail.default_retryable);
     assert_eq!(detail.default_max_attempts, 5);
 

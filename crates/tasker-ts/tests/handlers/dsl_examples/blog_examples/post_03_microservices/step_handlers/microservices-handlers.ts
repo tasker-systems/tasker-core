@@ -394,7 +394,7 @@ export const SendWelcomeSequenceDslHandler = defineHandler(
     const prefs = validPreferences.preferences || {};
     const template = WELCOME_TEMPLATES[plan] || WELCOME_TEMPLATES.free;
     const channelsUsed: string[] = [];
-    const messagesSent: Array<Record<string, unknown>> = [];
+    const messagesSent: Record<string, unknown>[] = [];
     const now = new Date().toISOString();
 
     if (prefs.email_notifications !== false) {

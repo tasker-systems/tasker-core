@@ -1,0 +1,20 @@
+# tasker-systems canonical clippy configuration. Copy to the workspace root as `clippy.toml`.
+# Doctrine: doctrine/concurrency.md (CONC-BOUND-1), doctrine/rust.md (RUST-TC-1).
+
+# CONC-BOUND-1: no unbounded channels. `allow-invalid` keeps this file valid in a workspace that
+# does not depend on the crate a path names.
+disallowed-methods = [
+    { path = "tokio::sync::mpsc::unbounded_channel", reason = "unbounded queue; use a bounded mpsc::channel sized from config (CONC-BOUND-1)", allow-invalid = true },
+    { path = "std::sync::mpsc::channel", reason = "unbounded queue; use std::sync::mpsc::sync_channel or a bounded tokio channel sized from config (CONC-BOUND-1)", allow-invalid = true },
+    { path = "futures::channel::mpsc::unbounded", reason = "unbounded queue; use futures::channel::mpsc::channel sized from config (CONC-BOUND-1)", allow-invalid = true },
+    { path = "crossbeam_channel::unbounded", reason = "unbounded queue; use crossbeam_channel::bounded sized from config (CONC-BOUND-1)", allow-invalid = true },
+]
+
+# Unbounded-by-default constructors that test code legitimately uses, such as in a mock, take
+# #[expect(clippy::disallowed_methods, reason = "...")] at the call site.
+
+# RUST-ERR-4: tests may unwrap. Inert until `unwrap_used` is turned on in the lint table.
+allow-unwrap-in-tests = true
+
+# RUST-TC-1: clippy reads the MSRV from `rust-version` in Cargo.toml; nothing is set here, so that
+# there is one source for it.

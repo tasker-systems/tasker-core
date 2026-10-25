@@ -235,6 +235,10 @@ impl StepExecutionCompletionEvent {
     }
 
     /// TAS-65 Phase 1.5b: Create a completion event with trace context for distributed tracing
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one argument per field of the completion event plus its trace context"
+    )]
     pub fn with_trace_context(
         event_id: Uuid,
         task_uuid: Uuid,

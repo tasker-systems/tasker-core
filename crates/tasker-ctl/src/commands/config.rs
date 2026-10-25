@@ -469,11 +469,7 @@ pub(crate) async fn handle_config_command(
             // List all parameters — show coverage summary
             else {
                 let (total, documented, per_context) = builder.coverage_stats();
-                let percent = if total > 0 {
-                    (documented * 100) / total
-                } else {
-                    0
-                };
+                let percent = (documented * 100).checked_div(total).unwrap_or(0);
 
                 output::header("Configuration Documentation Overview");
                 output::plain("====================================");
@@ -699,7 +695,7 @@ pub(crate) async fn handle_config_command(
                 .iter()
                 .map(|(field, locations)| (field.clone(), locations.len()))
                 .collect();
-            field_usage_vec.sort_by(|a, b| b.1.cmp(&a.1));
+            field_usage_vec.sort_by_key(|entry| std::cmp::Reverse(entry.1));
 
             // Generate report based on format
             let report = match format.as_str() {

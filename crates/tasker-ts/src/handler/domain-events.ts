@@ -390,7 +390,7 @@ export abstract class BasePublisher {
 export class DefaultPublisher extends BasePublisher {
   readonly publisherName = 'default';
 
-  transformPayload(stepResult: StepResult): Record<string, unknown> {
+  override transformPayload(stepResult: StepResult): Record<string, unknown> {
     return stepResult.result ?? {};
   }
 }

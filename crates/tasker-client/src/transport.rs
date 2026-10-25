@@ -260,11 +260,9 @@ impl OrchestrationClient for RestOrchestrationClient {
 
         // Convert limit/offset to page/per_page
         let per_page = limit as u32;
-        let page = if per_page > 0 {
-            ((offset as u32) / per_page) + 1
-        } else {
-            1
-        };
+        let page = (offset as u32)
+            .checked_div(per_page)
+            .map_or(1, |page_index| page_index + 1);
 
         let query = TaskListQuery {
             page,

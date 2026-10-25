@@ -119,6 +119,10 @@ async fn config_value_resolve_secret_ref() {
 }
 
 #[tokio::test]
+#[expect(
+    unsafe_code,
+    reason = "std::env::set_var and remove_var are unsafe: they race with any concurrent reader of the environment; this test uses a variable no other test reads"
+)]
 async fn config_value_resolve_env_ref() {
     // Use a unique env var name to avoid collisions
     let var_name = "TASKER_SECURE_TEST_ENV_REF_42";

@@ -5,6 +5,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # The merge queue. Each queued PR is re-tested as the exact commit that will land (main plus
+  # every entry ahead of it plus this PR) on a `gh-readonly-queue/main/pr-N-<sha>` branch, and
+  # the required `CI Success` check must report on THAT commit before the queue merges it.
+  # Without this trigger the check never reports there, and every queued PR waits out the
+  # queue's status-check timeout and is ejected.
+  merge_group:
+    types: [checks_requested]
+
+# Least privilege by default: the GITHUB_TOKEN can only read the repo.
+# Any job that needs more declares its own `permissions:` block.
+permissions:
+  contents: read
 
 jobs:
   # ============================================================================
@@ -18,6 +30,7 @@ jobs:
     outputs:
       run-build-postgres: ${{ steps.detect.outputs.run-build-postgres }}
       run-build-workers: ${{ steps.detect.outputs.run-build-workers }}
+      run-lockfile-check: ${{ steps.detect.outputs.run-lockfile-check }}
       run-build-ruby: ${{ steps.detect.outputs.run-build-ruby }}
       run-build-python: ${{ steps.detect.outputs.run-build-python }}
       run-build-typescript: ${{ steps.detect.outputs.run-build-typescript }}
@@ -32,19 +45,163 @@ jobs:
       scope-summary: ${{ steps.detect.outputs.scope-summary }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
 
       - name: Detect change scope
         id: detect
+        env:
+          # Set only on merge_group: the queue commit's base, so scope covers exactly what the
+          # queue entry adds. Empty otherwise, and the script derives the base as before.
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         run: |
           chmod +x .github/scripts/detect-ci-scope.sh
-          .github/scripts/detect-ci-scope.sh --github-output --verbose
+          .github/scripts/detect-ci-scope.sh --github-output --verbose ${MERGE_GROUP_BASE_SHA:+--base "$MERGE_GROUP_BASE_SHA"}
 
       - name: Annotate scope
         run: |
           echo "::notice title=CI Scope::${{ steps.detect.outputs.scope-summary }}"
+
+  # ============================================================================
+  # Stage 0.5: Lockfile Consistency (fast fail)
+  # Fails the pipeline when a committed lockfile would change against the
+  # committed manifests (cargo, bundler, uv). Without this, cargo silently
+  # mutates the lock on build and drift goes unnoticed (the lock drifted for
+  # ~7 months on main before PR #339 fixed it).
+  #
+  # bun.lock is intentionally not re-checked here: test-typescript-framework.yml
+  # already installs with `bun install --frozen-lockfile` for every change under
+  # crates/tasker-ts/ (run-typescript-framework), so drift there already fails
+  # an existing gate.
+  # ============================================================================
+  lockfile-check:
+    name: Lockfile Consistency
+    needs: detect-scope
+    if: needs.detect-scope.outputs.run-lockfile-check == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Check Cargo.lock is consistent with workspace manifests
+        run: cargo metadata --locked --format-version 1 > /dev/null
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
+        with:
+          ruby-version: "3.4"
+          working-directory: crates/tasker-rb
+
+      - name: Check Gemfile.lock is consistent with Gemfile/gemspec
+        # bundler 4 dropped `bundle lock --check`; --print resolves without
+        # writing, so diffing against the committed lock asserts the same thing.
+        run: bundle lock --print | diff - Gemfile.lock
+        working-directory: crates/tasker-rb
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "latest"
+
+      - name: Check uv.lock is consistent with pyproject.toml
+        run: uv lock --check
+        working-directory: crates/tasker-py
+
+  # ============================================================================
+  # Stage 0.6: The tasker-systems conventions baseline, and the gates it adopts
+  # These read only the tree, so they run on every change: no `if:`, no scope.
+  # ============================================================================
+
+  # The tasker-systems conventions baseline, as this repository is pinned to it
+  # (.conventions/consumer.toml; doctrine in .conventions/baseline/doctrine/consuming.md).
+  #
+  # `check` fails when an adopted config drifts from the pinned projection without a reasoned
+  # exception, when the projection itself was hand-edited or the pin is not a commit on the
+  # baseline's main, when a status names a gate that does not exist, when the projected skill or
+  # the entry files' link to it is stale, and when status.toml was not reviewed at the pin. It
+  # reports how far the pin trails the baseline, and never fails on that.
+  #
+  # `witness` is the check's bite test: it seeds one violation per case into a copy of the tree and
+  # requires `check` to refuse each, naming what was seeded. Its control run happens online in an
+  # environment with no credential, which is the evidence that a fork's pull request gets the
+  # same verdict.
+  #
+  # NO `if:`: guidance and adopted config change in docs-only changes too. It reads only files and
+  # the public baseline repository, so this job holds no secret and must not gain one (the witness
+  # fails if it does). Needs python3 >= 3.11 and git.
+  conventions:
+    name: Conventions baseline
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Set up Python (the repository pin, >= 3.11)
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: .python-version
+
+      - name: Python and git versions
+        run: python3 --version && git --version
+
+      - name: Check against the pinned baseline
+        run: python3 -I .conventions/baseline/tools/conventions.py check
+
+      - name: Witness — each check refuses a seeded violation
+        run: python3 -I .conventions/baseline/tools/conventions.py witness
+
+  # Every .py file in the repository, from the root ruff.toml (the baseline's canonical
+  # configuration, PY-LINT-1); tasker-py's pyproject.toml extends it. The version is the one
+  # crates/tasker-py/uv.lock pins, so this job and a local `uv run ruff` agree.
+  python-lint:
+    name: Python lint (ruff, every .py)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      RUFF_VERSION: 0.14.9
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Install ruff (exact version)
+        run: pipx install "ruff==${RUFF_VERSION}"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format --check
+        run: ruff format --check .
+
+  # cargo-deny over the dependency graph (deny.toml, the baseline's canonical file in superset
+  # mode): crate sources (SC-DENY-1), licenses (SC-DENY-2) and bans (SC-DENY-3). Advisories are
+  # cargo audit's, in code-quality.yml, so that there is one reviewed ignore list. Reads only
+  # manifests and the lock; nothing compiles.
+  supply-chain:
+    name: Supply chain (cargo deny)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      CARGO_DENY_VERSION: 0.20.2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@8a2045612414e945291083f820cd50b4d8fc2218 # main
+
+      - name: Install cargo-deny (exact version)
+        run: cargo binstall --no-confirm "cargo-deny@${CARGO_DENY_VERSION}"
+
+      - name: cargo deny check sources licenses bans
+        run: cargo deny --locked check sources licenses bans
 
   # ============================================================================
   # Stage 1: Build PostgreSQL image with PGMQ extension
@@ -52,6 +209,12 @@ jobs:
   build-postgres:
     needs: detect-scope
     if: needs.detect-scope.outputs.run-build-postgres == 'true'
+    # A caller's permissions cap the called workflow's. build-postgres.yml's job
+    # requests `packages: write` to push the test Postgres image to GHCR, so it
+    # must be granted here or the call is rejected.
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/build-postgres.yml
 
   # ============================================================================
@@ -169,7 +332,7 @@ jobs:
       needs.detect-scope.result == 'success'
     steps:
       - name: Download test artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: "*-test-results*"
           merge-multiple: true
@@ -177,7 +340,7 @@ jobs:
         continue-on-error: true
 
       - name: Checkout for scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           sparse-checkout: .github/scripts
 
@@ -187,7 +350,7 @@ jobs:
           .github/scripts/aggregate-performance-metrics.sh performance-data performance-summary.md
 
       - name: Upload performance analysis
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: performance-analysis
           path: |
@@ -201,7 +364,7 @@ jobs:
   # ============================================================================
   ci-success:
     name: CI Success
-    needs: [detect-scope, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, validate-codegen, performance-analysis]
+    needs: [detect-scope, lockfile-check, conventions, python-lint, supply-chain, build-postgres, build-workers, code-quality, integration-tests, ruby-framework-tests, python-framework-tests, typescript-framework-tests, validate-codegen, performance-analysis]
     if: always()
     runs-on: ubuntu-22.04
     steps:
@@ -243,9 +406,18 @@ jobs:
             fi
           }
 
+          # Unscoped: these run on every change, so they must always succeed.
+          check_job "conventions" "${{ needs.conventions.result }}" "true"
+          check_job "python-lint" "${{ needs.python-lint.result }}" "true"
+          check_job "supply-chain" "${{ needs.supply-chain.result }}" "true"
+
           check_job "build-postgres" \
             "${{ needs.build-postgres.result }}" \
             "${{ needs.detect-scope.outputs.run-build-postgres }}"
+
+          check_job "lockfile-check" \
+            "${{ needs.lockfile-check.result }}" \
+            "${{ needs.detect-scope.outputs.run-lockfile-check }}"
 
           check_job "build-workers" \
             "${{ needs.build-workers.result }}" \

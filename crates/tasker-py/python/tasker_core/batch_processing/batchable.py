@@ -32,8 +32,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
+
+from pydantic import ValidationError
 
 from tasker_core.models import DependencyResultsWrapper
 from tasker_core.types import (
@@ -511,7 +514,7 @@ class Batchable:
 
         try:
             return RustBatchWorkerInputs.model_validate(context.step_inputs)
-        except Exception:
+        except ValidationError:
             # Not valid batch worker inputs
             return None
 
@@ -546,7 +549,7 @@ class Batchable:
         if batch_inputs is None or not batch_inputs.is_no_op:
             return None
 
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         return StepHandlerResult.success(
             {
@@ -554,7 +557,7 @@ class Batchable:
                 "no_op": True,
                 "processed_count": 0,
                 "message": "No batches to process",
-                "processed_at": datetime.now(timezone.utc).isoformat(),
+                "processed_at": datetime.now(UTC).isoformat(),
             }
         )
 
@@ -1247,7 +1250,7 @@ class Batchable:
             total_failed += result.get("items_failed", 0)
             total_skipped += result.get("items_skipped", 0)
 
-            if "errors" in result and result["errors"]:
+            if result.get("errors"):
                 all_errors.extend(result["errors"])
 
         return {
@@ -1262,4 +1265,4 @@ class Batchable:
         }
 
 
-__all__ = ["Batchable", "BatchWorkerConfig", "BatchAggregationScenario"]
+__all__ = ["BatchAggregationScenario", "BatchWorkerConfig", "Batchable"]

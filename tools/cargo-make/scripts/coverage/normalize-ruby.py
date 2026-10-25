@@ -10,7 +10,7 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -66,7 +66,7 @@ def normalize_simplecov(input_path: Path) -> dict:
     file_details = []
 
     # Find the test run data (usually "RSpec" key)
-    for run_name, run_data in raw_data.items():
+    for run_data in raw_data.values():
         if not isinstance(run_data, dict):
             continue
         coverage = run_data.get("coverage", {})
@@ -103,9 +103,7 @@ def normalize_simplecov(input_path: Path) -> dict:
                 files_tested += 1
 
             file_line_pct = (
-                (file_lines_covered / file_lines_total * 100)
-                if file_lines_total > 0
-                else 0.0
+                (file_lines_covered / file_lines_total * 100) if file_lines_total > 0 else 0.0
             )
 
             file_details.append(
@@ -127,7 +125,7 @@ def normalize_simplecov(input_path: Path) -> dict:
 
     return {
         "meta": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "crate": "tasker-rb",
             "language": "ruby",
             "tool": "simplecov",

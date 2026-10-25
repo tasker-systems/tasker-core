@@ -59,7 +59,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'activesupport', '~> 8.0'
 
-  spec.add_dependency 'json-schema', '~> 2.4', '>= 2.4.0'
+  spec.add_dependency 'json-schema', '>= 2.4', '< 7.0'
   spec.add_dependency 'logger', '~> 1.6'
 
   spec.add_dependency 'dry-events', '~> 1.1'
@@ -67,8 +67,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'dry-types', '~> 1.8'
   spec.add_dependency 'dry-validation', '~> 1.10'
 
-  spec.add_dependency 'dotenv', '~> 2.8'
-  spec.add_dependency 'faraday', '~> 2.12.2'
+  spec.add_dependency 'dotenv', '>= 2.8', '< 4.0'
+  spec.add_dependency 'faraday', '>= 2.12.2', '< 2.16.0'
   # CSV processing for batch processing handlers (Ruby 3.4+ requires explicit csv gem)
   spec.add_dependency 'csv', '~> 3.3'
   # Concurrent execution support for BatchStepExecutionOrchestrator

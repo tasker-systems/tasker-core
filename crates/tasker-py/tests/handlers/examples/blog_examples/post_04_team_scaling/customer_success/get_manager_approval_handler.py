@@ -10,7 +10,7 @@ TAS-137 Best Practices:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -43,7 +43,7 @@ class GetManagerApprovalHandler(StepHandler):
         refund_amount = context.get_input("refund_amount")
         refund_reason = context.get_input("refund_reason")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         if requires_approval:
             # Simulate approval process
@@ -113,7 +113,7 @@ class GetManagerApprovalHandler(StepHandler):
             }
         else:
             # Success case - approval granted
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             return {
                 "status": "approved",
                 "approval_required": True,

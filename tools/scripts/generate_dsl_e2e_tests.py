@@ -11,9 +11,7 @@ For each existing E2E test file, creates a _dsl variant with:
 """
 
 import re
-import sys
 from pathlib import Path
-
 
 # Language suffixes we recognize
 LANG_SUFFIXES = {"_py", "_ts", "_rb"}
@@ -46,12 +44,9 @@ def build_name_maps(template_dir: Path, lang_suffix: str) -> dict[str, str]:
             stripped = line.strip()
 
             # Top-level name
-            if re.match(r"^name:\s+", line) and not line.startswith(" "):
-                val = line.split(":", 1)[1].strip().strip('"').strip("'")
-                name_map[val] = insert_dsl(val)
-
-            # Namespace name
-            elif re.match(r"^namespace_name:\s+", line):
+            if (re.match(r"^name:\s+", line) and not line.startswith(" ")) or re.match(
+                r"^namespace_name:\s+", line
+            ):
                 val = line.split(":", 1)[1].strip().strip('"').strip("'")
                 name_map[val] = insert_dsl(val)
 
@@ -118,12 +113,12 @@ def transform_e2e_test(content: str, name_map: dict[str, str], lang: str) -> str
     ]:
         result = re.sub(
             rf"(fn {helper_name})(\()",
-            rf"\1_dsl\2",
+            r"\1_dsl\2",
             result,
         )
         result = re.sub(
             rf"({helper_name})(\()",
-            rf"\1_dsl\2",
+            r"\1_dsl\2",
             result,
         )
 

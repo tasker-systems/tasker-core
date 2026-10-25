@@ -243,16 +243,21 @@ config/tasker/environments/{test,development,production}/
 - E2E tests use `TASKER_FIXTURE_PATH` for fixture locations
 - **Never remove assertions to fix compilation or test failures** - this hides problems rather than solving them. If a test assertion requires a dependency (e.g., `bigdecimal`), add the dependency. If an assertion is failing, fix the underlying issue. Removing test coverage to make things "pass" is unacceptable.
 
-### Linting Standards (TAS-58)
+### The engineering baseline
 
-- Microsoft Universal Guidelines + Rust API Guidelines enforced
-- Use `#[expect(lint_name, reason = "...")]` instead of `#[allow]`
-- All public types must implement `Debug`
+tasker-core is pinned to the shared tasker-systems baseline in `.conventions/consumer.toml`. Its
+rules (lints and suppressions, `Debug` on public types, bounded channels, dependencies, CI, tests)
+reach agents as the projected skill
+[`.claude/skills/tasker-systems-conventions`](.claude/skills/tasker-systems-conventions/SKILL.md),
+beside whether a gate enforces each one here. Read it before adding a lint suppression, an
+`unsafe` block, a dependency, a CI workflow or a test exception, and before claiming that a rule
+is enforced. Move the pin with `python3 -I .conventions/baseline/tools/conventions.py bump`; never
+edit `.conventions/baseline/`. The `Conventions baseline` job in `ci.yml` checks all of this.
 
 ### MPSC Channels (TAS-51)
 
-- All channels MUST be bounded (no `unbounded_channel()`)
-- All channels configured via TOML, not hard-coded
+- Channels are bounded (CONC-BOUND-1 in the baseline), and every bound is configured via TOML,
+  not hard-coded
 - See: `docs/development/mpsc-channel-guidelines.md`
 
 ---
@@ -320,6 +325,7 @@ Dual-channel system: dispatch channel + completion channel
 | `project-navigation` | Terminology, investigation patterns, doc routing |
 | `git-workflow` | Commit conventions, branch naming, PR process, git hooks |
 | `mcp-development` | tasker-mcp architecture, tool list, test commands, dev patterns |
+| `tasker-systems-conventions` | The tasker-systems engineering baseline: each rule, why it exists, and whether a gate enforces it here |
 
 ### Core Architecture
 

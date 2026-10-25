@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -92,7 +92,7 @@ class UpdateInventoryHandler(StepHandler):
                 "total_items_reserved": total_items_reserved,
                 "inventory_changes": inventory_changes,
                 "inventory_log_id": reservation_response["inventory_log_id"],
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             },
             metadata={
                 "operation": "update_inventory",
@@ -189,7 +189,7 @@ class UpdateInventoryHandler(StepHandler):
                     "change_type": "reservation",
                     "quantity": -quantity,
                     "reason": "order_checkout",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "reservation_id": reservation_id,
                     "inventory_log_id": f"log_{secrets.token_hex(6)}",
                 }
@@ -198,6 +198,6 @@ class UpdateInventoryHandler(StepHandler):
         return {
             "updated_products": updated_products,
             "inventory_changes": inventory_changes,
-            "reservation_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reservation_timestamp": datetime.now(UTC).isoformat(),
             "inventory_log_id": f"log_{secrets.token_hex(8)}",
         }

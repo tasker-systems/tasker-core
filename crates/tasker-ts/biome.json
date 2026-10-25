@@ -1,5 +1,6 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.10/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "extends": ["../../.conventions/baseline/typescript/biome.json"],
   "assist": {
     "actions": {
       "source": {
@@ -10,21 +11,12 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
       "complexity": {
-        "noExcessiveCognitiveComplexity": "warn"
+        "noExcessiveCognitiveComplexity": "error"
       },
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedVariables": "error"
-      },
-      "style": {
-        "noNonNullAssertion": "warn",
-        "useConst": "error",
-        "useImportType": "error"
-      },
-      "suspicious": {
-        "noExplicitAny": "warn"
       }
     }
   },

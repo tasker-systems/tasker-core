@@ -6,7 +6,7 @@
 //! - Steps are aggregated by (namespace, task_name, version, step_name)
 //! - Tasks are aggregated by (namespace, task_name, version)
 //!
-//! The service is independent of caching - that's handled by [`AnalyticsService`].
+//! The service is independent of caching - that's handled by [`AnalyticsService`](crate::services::AnalyticsService).
 
 use bigdecimal::ToPrimitive;
 use chrono::{DateTime, Duration, Utc};

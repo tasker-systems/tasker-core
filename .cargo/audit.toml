@@ -1,16 +1,118 @@
-# Cargo audit configuration
-# This file specifies which advisories to ignore during security audits
+# cargo-audit configuration — https://github.com/rustsec/rustsec/tree/main/cargo-audit
+#
+# Adopted from the tasker-systems baseline in `superset` mode (.conventions/consumer.toml):
+# `advisories.ignore` is this file's only local slot, so any other key fails
+# `conventions.py check`. cargo audit's defaults fetch the advisory database fresh on each run.
+#
+# The `cargo audit` step in .github/workflows/code-quality.yml is BLOCKING (no
+# continue-on-error). An advisory gate that can never fail is decorative — a PR
+# tripling the crypto surface would pass an audit that cannot report it. So the
+# gate fails the build on any NEW advisory, and this file is the ONLY escape
+# hatch: a short, reviewed ignore list, each entry justified.
+#
+# ── Rules for this list ────────────────────────────────────────────────────
+#   * Every id needs a one-line reason AND a status: UNFIXABLE, or FIX-PENDING
+#     (a patched version exists but adopting it is its own change — a dep bump
+#     that crosses a semver-major and must be validated against the full
+#     DB-backed suite, so it does not ride a quality-of-life PR).
+#   * When a FIX-PENDING dep is bumped, DELETE its line here — do not leave a
+#     stale ignore. cargo audit reports ignores that no longer match, so a dead
+#     entry is visible.
+#   * Adding an id is a security decision. It belongs in review, not in a rush
+#     to green a build. Warnings (unmaintained / yanked / unsound) are NOT
+#     ignored here — cargo audit does not fail the build on them by default, so
+#     they stay visible as advisories without gating.
+#
+# Snapshot when this list was written (2026-10-21): triage of 37 findings — 27
+# fixed in-range via scoped `cargo update -p <crate>` in the same PR; the 11
+# below carry written reasons (1 legacy rsa entry inherited from the previous
+# stub, 10 from this triage — semver-major parent bumps or no released fix).
 
 [advisories]
-# Temporary ignore for RSA timing sidechannel (RUSTSEC-2023-0071)
-# This is a transitive dependency from SQLx and has no fix available yet
-# Risk: Medium severity timing attack - mitigated by our usage pattern
-# Review: Should be reviewed when SQLx updates or alternative becomes available
 ignore = [
-    "RUSTSEC-2023-0071",  # RSA timing sidechannel - no fix available
-]
+    # ── UNFIXABLE — no patched release exists upstream ────────────────────────
+    # rsa 0.9.10: Marvin timing side-channel (RUSTSEC-2023-0071). RustSec still
+    # lists "No fixed upgrade is available" in any rsa release. Unlike some
+    # workspaces, rsa IS linked here (jsonwebtoken 10.2.0 -> rsa, pulled by
+    # tasker-worker/tasker-shared/tasker-orchestration/tasker-ctl), so this is
+    # a real dependency, not a lockfile artifact — but the only remediation
+    # would be dropping RSA-based JWT flows or waiting on an upstream fix,
+    # neither of which belongs in a lockfile-hygiene PR. Revisit when RustSec
+    # publishes a patched rsa.
+    "RUSTSEC-2023-0071",
 
-[database]
-# Fetch advisory database from RustSec
-fetch = true
-stale = false
+    # ── UNFIXABLE IN THIS GRAPH — patched upstream, unreachable by semver ────
+    # crypto-bigint 0.5.5 (RUSTSEC-2026-0387, issued 2026-10-23): timing
+    # variability in operations intended to be constant-time (subtraction,
+    # zero counting, division, Montgomery multiplication, UintRef equality,
+    # MontyForm::invert). Reached only through jsonwebtoken 10.2.0 ->
+    # p256 ^0.13.2 -> ecdsa 0.16.9 -> elliptic-curve 0.13.8 ->
+    # crypto-bigint ^0.5. The patch (crypto-bigint >= 0.7.6) is real, but the
+    # chain cannot adopt it: jsonwebtoken 11.1.0 — the wave-4 bump, PR #370 —
+    # still requires p256 ^0.13.2, and p256 0.14 -> elliptic-curve 0.14.1
+    # (crypto-bigint ^0.7.5) is allowed by nothing in the graph, so cargo
+    # cannot reach 0.7.6 semver-compatibly. Exposure runs through ES256 JWT
+    # verification with attacker-controlled signatures — the same surface as
+    # the rsa entry above. Drop this entry when a jsonwebtoken release moves
+    # to p256 >= 0.14, or the JWT library changes.
+    "RUSTSEC-2026-0387",
+
+    # ── UNFIXABLE, and NOT LINKED — a lockfile artifact ──────────────────────
+    # h2 0.3.27: unbounded empty DATA frames (fixed in h2 >= 0.4.16). The live
+    # graph already has h2 0.4.20, patched. The flagged 0.3.27 copy is reachable
+    # only from hyper 0.14.32 <- reqwest 0.11.27, neither of which is in the
+    # resolved graph (`cargo tree -i h2 --workspace` shows only 0.4.20); they
+    # are orphaned Cargo.lock entries from an old reqwest resolution that cargo
+    # only prunes on a full re-resolve, and a scoped `cargo update -p` cannot
+    # remove them. No real exposure, no in-range fix — prune the orphans at the
+    # next natural full lock rewrite and delete this entry.
+    "RUSTSEC-2026-0258",
+
+    # ── UNFIXABLE, and NOT LINKED — optional dependency, feature never on ────
+    # rkyv 0.7.46: multiple advisories fixed in rkyv >= 0.8.17. Every in-lock
+    # consumer requires rkyv ^0.7 as an OPTIONAL dependency (rust_decimal,
+    # chrono, hashbrown, num-complex, litemap) and none of those features are
+    # enabled: `cargo tree -i rkyv --workspace --target all` prints nothing —
+    # rkyv is not in any build graph, only in the lock (which records optional
+    # deps). rust_decimal 1.40 caps it at ^0.7, so no in-range bump exists.
+    # Drop this entry when rust_decimal moves to a release requiring rkyv 0.8+.
+    "RUSTSEC-2026-0235",
+
+    # ── UNFIXABLE, and BUILD-TIME ONLY — never linked ────────────────────────
+    # zip 3.0.0: extraction applies SUID/SGID bits (RUSTSEC-2026-0367), creates
+    # symlinks pointing outside the destination (RUSTSEC-2026-0368), and applies
+    # Unix permissions through symlinks (RUSTSEC-2026-0369). Each is fixed in
+    # zip >= 9.0.0. `zip` is only a [build-dependency] of `utoipa-swagger-ui`
+    # (`cargo tree -i zip --workspace`); its build script unpacks the Swagger UI
+    # archive bundled by the `vendored` feature — fixed bytes from a pinned
+    # crate, not untrusted input — and zip is not linked into any binary.
+    # utoipa-swagger-ui 9.0.2 requires zip ^3.0, and no released version of
+    # utoipa-swagger-ui allows zip >= 9 (10.0.1, the latest, still requires
+    # zip ^8.6), so there is no fix to adopt today. Drop all three ids once an
+    # utoipa-swagger-ui release moves to zip >= 9.
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
+
+    # ── FIX-PENDING — a patched version exists; adopting it is a tracked bump ─
+    # pyo3 0.27.2 -> >=0.29.0: out-of-bounds read in `PyList`/`PyTuple`
+    # iterator `nth`/`nth_back` (RUSTSEC-2026-0176) and a missing `Sync` bound
+    # on `PyCFunction::new_closure` closures (RUSTSEC-2026-0177). Crosses the
+    # 0.x major 0.27 -> 0.29 and must move pythonize 0.27 -> 0.29 in lockstep
+    # (tasker-py depends on both) — an FFI-surface change validated against the
+    # Python worker suite, not a lockfile bump.
+    "RUSTSEC-2026-0176",
+    "RUSTSEC-2026-0177",
+    # quick-xml 0.37.5 -> >=0.41.0 (quadratic duplicate-attribute check,
+    # RUSTSEC-2026-0194) and (unbounded namespace-decl allocation,
+    # RUSTSEC-2026-0195). Crosses the 0.x major 0.37 -> 0.41; the only consumer
+    # is lcov2cobertura 1.0.6 (req ^0.37.2) under cargo-llvm-cov 0.7.1 — a
+    # coverage dev-tool, not shipped code. Needs a cargo-llvm-cov major bump.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+    # ruzstd 0.8.2 -> >=0.9.1 (advisory RUSTSEC-2026-0344). Crosses the 0.x
+    # major 0.8 -> 0.9; cargo-llvm-cov 0.7.1 caps it at ^0.8 (a scoped bump
+    # reaches only 0.8.3). Same dev-tool-only path as quick-xml above; fixed by
+    # the same cargo-llvm-cov major bump.
+    "RUSTSEC-2026-0344",
+]

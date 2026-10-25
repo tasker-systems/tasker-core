@@ -10,7 +10,7 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -85,9 +85,7 @@ def normalize_pytest_cov(input_path: Path) -> dict:
     raw_files = raw_data.get("files", {})
     files_total = len(raw_files)
     files_tested = sum(
-        1
-        for f_data in raw_files.values()
-        if f_data.get("summary", {}).get("covered_lines", 0) > 0
+        1 for f_data in raw_files.values() if f_data.get("summary", {}).get("covered_lines", 0) > 0
     )
     file_details = extract_file_details(raw_files)
 
@@ -95,7 +93,7 @@ def normalize_pytest_cov(input_path: Path) -> dict:
 
     return {
         "meta": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "crate": "tasker-py",
             "language": "python",
             "tool": "pytest-cov",

@@ -56,7 +56,10 @@ use tracing::debug;
 /// let handler = create_logging_subscriber("[METRICS]");
 /// bus.subscribe("*", handler).unwrap();
 /// ```
-#[allow(dead_code, reason = "dead in --lib, used by test targets")]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "dead in --lib, used by test targets")
+)]
 pub(crate) fn create_logging_subscriber(prefix: &str) -> EventHandler {
     let prefix = prefix.to_string();
 
@@ -90,7 +93,10 @@ pub(crate) fn create_logging_subscriber(prefix: &str) -> EventHandler {
 ///
 /// Same as `create_logging_subscriber` but logs at DEBUG level.
 /// Useful for verbose environments where INFO is too noisy.
-#[allow(dead_code, reason = "dead in --lib, used by test targets")]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "dead in --lib, used by test targets")
+)]
 pub(crate) fn create_debug_logging_subscriber(prefix: &str) -> EventHandler {
     let prefix = prefix.to_string();
 
@@ -120,7 +126,10 @@ pub(crate) fn create_debug_logging_subscriber(prefix: &str) -> EventHandler {
 ///
 /// More verbose logging that includes additional event metadata fields.
 /// Note: Payload data is intentionally excluded to prevent logging sensitive business data.
-#[allow(dead_code, reason = "dead in --lib, used by test targets")]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "dead in --lib, used by test targets")
+)]
 pub(crate) fn create_verbose_logging_subscriber(prefix: &str) -> EventHandler {
     let prefix = prefix.to_string();
 

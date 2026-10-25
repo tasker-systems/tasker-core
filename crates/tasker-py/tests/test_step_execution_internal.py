@@ -195,7 +195,7 @@ class TestExecuteHandler:
         class DataHandler(StepHandler):
             handler_name = "data_handler"
 
-            def call(self, context):  # noqa: ARG002
+            def call(self, context):
                 value = context.input_data.get("value", 0)
                 return StepHandlerResult.success({"doubled": value * 2})
 

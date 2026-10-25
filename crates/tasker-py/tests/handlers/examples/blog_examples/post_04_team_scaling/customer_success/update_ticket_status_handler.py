@@ -10,7 +10,7 @@ TAS-137 Best Practices:
 - get_dependency_field(): Extract nested fields (ticket_id, customer_id, delegated_task_id, correlation_id)
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -84,7 +84,7 @@ class UpdateTicketStatusHandler(StepHandler):
         correlation_id: str,
     ) -> dict:
         """Simulate ticket status update."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Simulate different update scenarios based on ticket_id patterns
         if "ticket_locked" in ticket_id:

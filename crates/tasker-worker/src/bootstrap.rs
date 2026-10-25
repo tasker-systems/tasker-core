@@ -92,6 +92,10 @@ impl std::fmt::Debug for WorkerSystemHandle {
 impl WorkerSystemHandle {
     /// Create new worker system handle (with grpc-api, which implies web-api)
     #[cfg(feature = "grpc-api")]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "assembles the handle from every subsystem the worker bootstrap owns"
+    )]
     pub fn new(
         worker_core: Arc<Mutex<WorkerCore>>,
         shared_services: Option<Arc<SharedWorkerServices>>,
@@ -742,6 +746,10 @@ impl WorkerBootstrap {
 
     /// Create the worker system handle (with grpc-api, which implies web-api).
     #[cfg(feature = "grpc-api")]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "assembles the handle from every subsystem the worker bootstrap owns"
+    )]
     fn create_system_handle(
         worker_core: Arc<Mutex<WorkerCore>>,
         shared_services: Option<Arc<SharedWorkerServices>>,

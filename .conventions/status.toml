@@ -1,0 +1,300 @@
+# This repository's status for each baseline rule, in the register's vocabulary:
+# gated: <path>[#job], partial: …, practiced, convention: …, uncovered, unexamined, n/a.
+#
+# Read from tasker-core's own gates and tree (.github/workflows, .github/actions, the configs),
+# never from the register: the register's tasker-core column is generated from this file. `gated`
+# names the job whose step fails on a violation; the comment above each line is the evidence. Jobs
+# in a reusable workflow are named in that file (code-quality.yml, test-*.yml), all of which fan
+# into `CI Success` in ci.yml. Path-scoped jobs (detect-scope) still count: CI Success fails one
+# that is in scope and did not succeed. conventions, python-lint and supply-chain are unscoped.
+#
+# Clippy and rustdoc reach: code-quality runs `cargo clippy --workspace --all-targets` and
+# `cargo doc --workspace`, so every member and every test target is linted. (Before the lint
+# table's adoption neither had --workspace; the root Cargo.toml is itself a package with no
+# default-members, so they reached only the root package and the libraries it pulled in.)
+#
+# Adoption is in steps (audit-before-enforce): deny.toml, .cargo/audit.toml, .clippy.toml and
+# ruff.toml (tasker-core#380), the Rust workspace lint table, and the TypeScript configs (biome.json
+# and tsconfig.json in crates/tasker-ts, extends mode).
+#
+# `reviewed_at` is the baseline revision these statuses were reviewed against (check F).
+reviewed_at = "af5ffd124e3f0b80d003cc11a3bb96031523eb48"
+[rules]
+# --- Rust ---
+# Cargo.toml [workspace.lints] adopted in table mode (one reasoned exception: the tokio_unstable check-cfg); every member sets [lints] workspace = true, checked by hand.
+RUST-LINT-1 = "partial: the table is the projection's (ci.yml#conventions, check A) and all 16 members inherit it; nothing refuses a new member without [lints] workspace = true"
+# code-quality.yml: cargo clippy --workspace --all-targets -D warnings and RUSTDOCFLAGS=-D warnings cargo doc --workspace; the release pre-flight clippy has no --workspace.
+RUST-LINT-2 = "gated: .github/workflows/code-quality.yml#quality"
+# allow_attributes and allow_attributes_without_reason, denied workspace-wide. Inner #![allow(dead_code, reason)] remains only in tests/common and tests/mcp helpers (the doctrine's exception); tonic's generated code sits under one reasoned #![expect].
+RUST-LINT-3 = "gated: .github/workflows/code-quality.yml#quality"
+# Process rule. The lint table's adoption measured 129 findings (94 sites) first.
+RUST-LINT-4 = "convention: an adoption process judged in review; the table was adopted with every finding fixed or reason-annotated and the dead crate-level #![allow]s removed"
+# The canonical table sets no group off, so clippy's default groups stay on and are denied under -D warnings.
+RUST-LINT-5 = "uncovered: style/complexity/perf still run at clippy's defaults (the canonical table does not turn them off); its named single lints are on"
+# Scoping rule: publish=false only on grammar, runtime, secure, ts; client/shared/pgmq/etc. publishable
+RUST-API-1 = "convention: scoping rule for which crates bind the API rules, applied in review"
+# code-quality.yml:68 cargo fmt --all -- --check; no rustfmt.toml anywhere; runs on every non-docs change
+RUST-FMT-1 = "gated: .github/workflows/code-quality.yml#quality"
+# 72 `use ...::*;` outside `use super::*` (e.g. tasker-grammar/src/operations/mod.rs:23-25); wildcard_imports (pedantic) off
+RUST-ORG-1 = "uncovered: 72 glob imports beyond use super::*; clippy::wildcard_imports not enabled"
+# No lint covers file/module layout
+RUST-ORG-2 = "convention: module layout is judged in review; no lint covers it"
+# grep forbid(unsafe_code): 0. The table's unsafe_code = deny refuses unsafe without a reasoned expect.
+RUST-UNSAFE-1 = "uncovered: no crate root declares #![forbid(unsafe_code)]; unsafe_code is denied by the table instead"
+# Two unsafe blocks, both in tasker-secure/tests/resource_types_test.rs (env set/remove), under #[expect(unsafe_code, reason)].
+RUST-UNSAFE-2 = "partial: unsafe_code and undocumented_unsafe_blocks denied workspace-wide (code-quality.yml#quality); the one site carries a reasoned expect; no register, no tripwire"
+# magnus (tasker-rb), pyo3 (tasker-py), napi-rs (tasker-ts); 0 extern \"C\"/#[no_mangle] in first-party src
+RUST-UNSAFE-3 = "practiced"
+# Libraries define thiserror errors + Result aliases (ClientResult, pgmq Result, ApiResult); tasker-shared has 13 pub fns returning anyhow::Result
+RUST-ERR-1 = "uncovered: mostly followed, but tasker-shared exposes 13 pub fns returning anyhow::Result; nothing checks"
+# 129 unwrap_or_default() calls in crates/src/tests; required-vs-optional needs a reader
+RUST-ERR-2 = "convention: whether a value is required is a semantic judgement; 129 unwrap_or_default() sites unreviewed"
+# 160 panic!( in crates/*/src (incl. inline test modules); missing_panics_doc (pedantic) off
+RUST-ERR-3 = "convention: panic-vs-Result is judged in review; missing_panics_doc not enabled"
+# unwrap_used is held off in the canonical table; unnecessary_unwrap is named there and denied.
+RUST-ERR-4 = "partial: unnecessary_unwrap denied workspace-wide (code-quality.yml#quality); unwrap_used not enabled, ~1.4k unwrap() in src files"
+# release profile panic=abort (Cargo.toml [profile.release]); catch_unwind at tasker-worker dispatch_service.rs:641, orchestration command_processor_actor.rs:150, listener.rs:308
+RUST-PANIC-1 = "uncovered: 3 production catch_unwind containment sites while [profile.release] sets panic = abort; no check"
+# missing_debug_implementations, denied across the workspace by clippy --workspace -D warnings.
+RUST-TYPE-1 = "gated: .github/workflows/code-quality.yml#quality"
+# Judgement; no lint
+RUST-TYPE-2 = "convention: whether values are confusable is judged in review"
+# 0 #[non_exhaustive] in crates/ though tasker-client/shared/pgmq/worker/orchestration are publishable
+RUST-API-2 = "uncovered: 0 #[non_exhaustive] in any crate, including publishable ones; no check"
+# should_implement_trait, derivable_impls, new_without_default, len_without_is_empty: named in the table, denied workspace-wide.
+RUST-API-3 = "gated: .github/workflows/code-quality.yml#quality"
+# ptr_arg and borrowed_box: named in the table, denied workspace-wide.
+RUST-API-4 = "gated: .github/workflows/code-quality.yml#quality"
+# wrong_self_convention is named in the table; the factories' dead allow for it is removed.
+RUST-API-5 = "partial: wrong_self_convention denied workspace-wide (code-quality.yml#quality); naming beyond it by review"
+# 179 #[must_use] in crates/; must_use_candidate (pedantic) off
+RUST-API-6 = "practiced"
+# rust-toolchain.toml pins channel 1.99.0; no [workspace.package] rust-version (only tasker-py 1.70, tasker-ts 1.77)
+RUST-TC-1 = "uncovered: toolchain pinned to 1.99.0 in rust-toolchain.toml; no workspace rust-version (only tasker-py, tasker-ts set one)"
+# No [workspace.package]; every Cargo.toml sets edition = 2021 itself
+RUST-TC-2 = "uncovered: no [workspace.package]; each of 16 manifests sets edition = 2021 on its own"
+# 0 #![feature]; pinned stable toolchain refuses one; grpc-parity step (test-integration.yml) compiles --workspace
+RUST-TC-3 = "gated: .github/workflows/test-integration.yml#integration-tests"
+# missing_docs set nowhere (grep 0); cargo doc --workspace denies rustdoc warnings, not missing docs.
+RUST-DOC-1 = "uncovered: no crate sets missing_docs; rustdoc -D warnings now covers the workspace (code-quality.yml#quality) but only for broken docs"
+RUST-READ-1 = "convention: readability is judged in review"
+RUST-MACRO-1 = "convention: macro use is judged in review"
+# No ctor dependency in any first-party Cargo.toml; napi-rs pulls it in (exempt)
+RUST-INIT-1 = "practiced"
+# 337 query!/query_as! macros (compile-checked; SQLX_OFFLINE worker builds fail on missing .sqlx entries); 81 runtime sqlx::query( in src, no register
+RUST-SQL-1 = "partial: query! macros compile-checked in CI builds; 81 runtime sqlx::query() calls in src are unregistered, no tripwire"
+
+# --- Supply chain ---
+# code-quality.yml:79-85 `cargo audit` (no continue-on-error); skipped only on docs-only changes
+SC-ADV-1 = "gated: .github/workflows/code-quality.yml#quality"
+# .cargo/audit.toml adopted (superset; only advisories.ignore is local). 11 ids, each with reason, reachability and status; the reason is review.
+SC-ADV-2 = "convention: each ignore is reviewed by hand; its reason, reachability and status are not machine-checked"
+# deny.toml adopted (superset, conventions job); supply-chain runs `cargo deny --locked check sources licenses bans` on every change.
+SC-DENY-1 = "gated: .github/workflows/ci.yml#supply-chain"
+# No deny.toml, no license check anywhere
+SC-DENY-2 = "gated: .github/workflows/ci.yml#supply-chain"
+# clippy cargo group (Cargo.toml) includes wildcard_dependencies for clippy-reached crates; no deny.toml ban list
+SC-DENY-3 = "gated: .github/workflows/ci.yml#supply-chain"
+# grep: every external uses: in .github is a 40-char SHA with a comment (cargo-binstall # main, dtolnay # stable); nothing checks
+SC-GHA-1 = "practiced"
+# All 12 workflow files declare top-level permissions: contents: read; nothing checks
+SC-GHA-2 = "practiced"
+# release.yml triggers on tag push + workflow_dispatch; no check pins them
+SC-GHA-3 = "uncovered: release.yml triggers are not pinned by any check"
+# uv version latest (ci.yml:108 etc.), bun-version latest, bun install -g typescript (validate-codegen.yml:53), cargo install nextest/sqlx-cli/cargo-make/cargo-audit unversioned, dragonfly:latest
+SC-IN-1 = "uncovered: uv/bun latest, unversioned cargo install of sqlx-cli/cargo-make/cargo-audit, binstall nextest, global typescript"
+# dependabot.yml: cargo, github-actions, bundler, uv (tasker-py + coverage), bun, docker /docker/db/ only
+SC-IN-2 = "uncovered: dependabot misses docker/build/ (12 Dockerfiles); other ecosystems covered; nothing checks coverage"
+# ci.yml lockfile-check: cargo metadata --locked, bundle lock --print | diff, uv lock --check (tasker-py); bun --frozen-lockfile in TS jobs; coverage uv.lock unchecked
+SC-IN-3 = "partial: Cargo/Gemfile/tasker-py uv locks gated in ci.yml#lockfile-check, bun.lock via --frozen-lockfile; coverage uv.lock unchecked"
+# CodeQL runs from repository settings (default setup; seen in #380's check runs: Analyze rust/python/ruby/javascript-typescript/actions), not in-tree and outside CI Success. No gitleaks in CI or the pre-commit hook; setup-env commits a test RSA key and an age key.
+SC-SEC-1 = "partial: CodeQL runs per PR from repository settings, outside CI Success; no gitleaks in CI or the pre-commit hook"
+
+# --- Security ---
+# secrecy used in 2 src files; jwt_private_key/api_key are bare String in tasker-shared/src/config/web.rs:30,61 and config/tasker.rs:1491,1551
+SEC-CRED-1 = "uncovered: JWT private key and API key held as bare String in tasker-shared config structs"
+# WebAuthConfig derives Debug with jwt_private_key: String (tasker-shared/src/config/web.rs:15-30)
+SEC-CRED-2 = "uncovered: WebAuthConfig derives Debug over jwt_private_key; no tripwire"
+# tasker-shared/src/types/api_key_auth.rs:59 uses subtle ct_eq on key hashes
+SEC-CRED-3 = "practiced"
+SEC-CRED-4 = "convention: secret-per-purpose is a design review matter; JWT keys and API key are separate settings"
+# redact_url duplicated in tasker-shared cache/providers/redis.rs:156 and memcached.rs:150; more redaction in client and rabbitmq
+SEC-RED-1 = "uncovered: redaction helpers duplicated (redact_url in redis.rs and memcached.rs, others in tasker-client); no single module"
+SEC-RED-2 = "convention: redaction policy is judged in review; no single redaction module to anchor a check"
+# Runtime identifiers go through validators: tasker-pgmq config.rs:233 validate_channel_name, tasker-shared validation.rs:104, tasker-runtime sql_gen.rs:16
+SEC-SQL-1 = "practiced"
+SEC-SQL-2 = "convention: permissions are route-level; there is no per-caller row scoping to check"
+# Auth-disabled path logs at debug (tasker-orchestration/src/services/shared.rs:213); no production-config check
+SEC-AUTH-1 = "uncovered: disabled auth only logs at debug level; no check stops a production config with auth off"
+# Permission middleware layered on protected routes (tasker-orchestration/src/web/mod.rs:63,117) runs before handler extractors
+SEC-AUTH-2 = "practiced"
+SEC-AUTH-3 = "convention: existence-hiding is judged per endpoint in review; permissions are route-level"
+# test-utils is a DEFAULT feature of tasker-orchestration (Cargo.toml:136) and tasker-worker (Cargo.toml:147)
+SEC-TEST-1 = "uncovered: test-utils is in the default features of tasker-orchestration and tasker-worker; nothing checks shipped features"
+# SECURITY.md: private email + 48h response; no GitHub private advisory channel, no out-of-scope list
+SEC-RPT-1 = "uncovered: SECURITY.md names email and response time but no GitHub advisory channel and no out-of-scope list"
+
+# --- Concurrency ---
+# .clippy.toml disallowed-methods refuses the unbounded constructors; disallowed_methods is named in the table and denied by clippy --workspace -D warnings.
+CONC-BOUND-1 = "gated: .github/workflows/code-quality.yml#quality"
+# Channels sized from TOML (docs/development/mpsc-channel-guidelines.md); literal at tasker-orchestration/src/grpc/services/tasks.rs:361 channel(10)
+CONC-BOUND-2 = "uncovered: mostly config-driven, but a production literal at grpc/services/tasks.rs:361; no channel-literal check"
+CONC-BOUND-3 = "convention: the at-bound strategy is a design choice judged in review (mpsc-channel-guidelines.md)"
+# tasker-shared/src/monitoring/channel_metrics.rs, ~110 references to channel monitoring in crates/src
+CONC-BOUND-4 = "practiced"
+# Containment exists (3 catch_unwind sites) but release panic=abort defeats it; 26 raw tokio::spawn in crate src
+CONC-FAIL-1 = "uncovered: catch_unwind containment is defeated by release panic = abort; joining of spawned tasks not checked"
+# tasker-example-rs/src/event_subscribers/metrics_subscriber.rs:112-209 recovers poison with into_inner, no comment
+CONC-FAIL-3 = "uncovered: tasker-example-rs metrics_subscriber.rs recovers poisoned locks via into_inner without a reasoned comment"
+# 17 spawn_named! vs 26 raw tokio::spawn/task::spawn in crates/*/src
+CONC-FAIL-2 = "uncovered: 26 unnamed tokio::spawn sites in crate src alongside 17 spawn_named!; no check"
+# SQL functions use FOR UPDATE SKIP LOCKED (migrations/20260110000003_sql_functions.sql); state-machine transitions in SQL
+CONC-DB-1 = "practiced"
+# identity_hash column + constraints (migrations/20260110000001/2), tasker-shared/src/types/base.rs
+CONC-DB-2 = "practiced"
+CONC-DB-3 = "convention: transaction scope is judged in review"
+
+# --- Tripwires ---
+# No tripwire scripts on main (no audit-*.sh; .github/scripts holds only CI plumbing)
+TW-1 = "n/a: tasker-core has no tripwire scripts, so the header format binds nothing"
+TW-2 = "n/a: tasker-core has no tripwire scripts, so there is no baseline to keep"
+TW-3 = "n/a: tasker-core has no tripwire scripts"
+TW-4 = "n/a: tasker-core has no tripwire scripts"
+# The only bite-test-like script, .github/scripts/test-detect-ci-scope.sh, is run by no workflow
+TW-5 = "n/a: tasker-core has no tripwire scripts; test-detect-ci-scope.sh exists but no workflow runs it"
+TW-6 = "uncovered: no tripwire set, glob runner or CI job exists, although rules here call for several"
+TW-7 = "n/a: tasker-core has no tripwire scripts"
+
+# --- Testing and CI ---
+# 11 #[ignore], 3 without = reason; no tripwire
+TEST-1 = "uncovered: 3 of 11 #[ignore] carry no reason; no tripwire pins the set"
+# Judgement; note test-typescript-framework.yml napi FFI step has continue-on-error: true
+TEST-2 = "convention: weakening is caught only in review; note the napi FFI test step in TS framework job is continue-on-error"
+# unit-tests: --lib for 10 pkgs, no features; integration: root --test '*' with test-services; crate tests/ dirs (shared 50, orch 35, secure 12, runtime 8...) never run; test-cluster local only
+TEST-3 = "partial: root tests run with test-services; crate tiers never enabled, tests/ of 10 crates and tasker-runtime never run, test-cluster local"
+# .config/nextest.toml retries = 0 (ci profile inherits), so no pass-on-retry exists to hide
+TEST-4 = "practiced"
+# coverage-thresholds.json exists; no workflow runs coverage; secure/runtime/grammar/sdk/mcp have no floor
+TEST-5 = "uncovered: coverage-thresholds.json is checked by no CI job; 5 crates declare no floor"
+# ci.yml conventions, python-lint, supply-chain need nothing; fmt/audit live in code-quality (needs build-postgres, skipped on docs-only)
+CI-1 = "partial: conventions, ruff and cargo deny run unscoped and first; fmt and audit sit in code-quality behind build-postgres and scope; no machete or tripwires"
+# ci.yml ci-success checks each job against detect-scope; detector change or empty diff forces full CI; branch protection not visible in-tree
+CI-2 = "gated: .github/workflows/ci.yml#ci-success"
+# Only lockfiles (lockfile-check) and missing .sqlx entries (SQLX_OFFLINE builds) are checked; schemas/generated, tasker-ts/index.d.ts, docs/generated, config/tasker/generated not diffed
+CI-3 = "partial: lockfiles and missing .sqlx entries fail CI; OpenAPI specs, index.d.ts, docs/generated, generated configs never diffed"
+# .githooks/pre-commit: runs cargo fmt only when .rs staged, re-stages; no other checks, no secret scan
+CI-4 = "partial: hook selects on staged .rs and runs cargo fmt only; no other file classes and no secret scanning"
+# ci.yml triggers on merge_group and passes merge_group.base_sha to detect-ci-scope.sh; nothing pins the trigger
+CI-5 = "practiced"
+# integration 40m with cold-cache comment (test-integration.yml); code-quality#quality, build-postgres and ci.yml jobs set none (default 360m)
+CI-6 = "practiced"
+
+# --- Agent guidance ---
+# CLAUDE.md is 455 lines (AGENTS.md identical copy) with content inline
+AG-1 = "uncovered: CLAUDE.md is a 455-line monolith (AGENTS.md is a byte copy), not a router"
+# e.g. CLAUDE.md:241 Never use SQLX_OFFLINE=true, Configuration Structure rules state no reason
+AG-2 = "uncovered: many CLAUDE.md rules state no reason (e.g. SQLX_OFFLINE, config layout); no check"
+# CLAUDE.md:241 forbids SQLX_OFFLINE=true while CI sets it in 19 steps. (This PR drops the guidance's unbacked claim that the Microsoft guidelines are enforced.)
+AG-3 = "uncovered: CLAUDE.md forbids SQLX_OFFLINE=true, which CI sets in 19 steps; no check"
+# CLAUDE.md lists 12 crates; workspace has 15 crate members (missing grammar, secure, runtime); hand-kept
+AG-4 = "uncovered: CLAUDE.md crate list has 12 of 15 crates (no grammar/secure/runtime); no drift gate"
+# The projected skill is current and CLAUDE.md (a symlink) and AGENTS.md link it (check E).
+AG-5 = "gated: .github/workflows/ci.yml#conventions"
+# .claude/settings.json SessionStart -> tools/bin/setup-claude-web.sh, which exists; nothing checks it
+AG-6 = "practiced"
+
+# --- Python ---
+# Root ruff.toml covers every .py (askama templates excluded: not Python until rendered); ruff check and ruff format --check.
+PY-LINT-1 = "gated: .github/workflows/ci.yml#python-lint"
+# The root ruff.toml extends the projection (check A); tasker-py's [tool.ruff] extends the root and adds ARG; an override there is review.
+PY-LINT-2 = "partial: the root ruff.toml is pinned to the projection (ci.yml#conventions); an override in crates/tasker-py's [tool.ruff] is caught only in review"
+# PGH004 (a noqa names its code) and RUF100 (an unused one fails); the reason beside it is review.
+PY-LINT-3 = "partial: a suppression without a code, or an unused one, fails (ci.yml#python-lint); its reason is review"
+# [tool.mypy] strict = true but tasker-py excludes tests and CI never runs mypy
+PY-TYPE-1 = "uncovered: mypy strict is configured but no workflow runs it"
+# _tasker_core.pyi hand-kept; mypy override ignore_missing_imports for tasker_core._tasker_core; no stubtest
+PY-TYPE-2 = "uncovered: _tasker_core.pyi is never checked against the built module"
+# E722 and BLE001 over every .py; the 45 boundaries carry noqa: BLE001 with their reason.
+PY-ERR-1 = "gated: .github/workflows/ci.yml#python-lint"
+# S101 outside tests, over every .py.
+PY-ERR-2 = "gated: .github/workflows/ci.yml#python-lint"
+# B006, B008, B023, RUF012, PLW0603 over every .py.
+PY-DEF-1 = "gated: .github/workflows/ci.yml#python-lint"
+# G and LOG over every .py. Caveat: tasker_core's own log_* helpers take a pre-formatted message, which G004 cannot see.
+PY-LOG-1 = "partial: G and LOG refuse f-strings to stdlib loggers (ci.yml#python-lint); tasker_core's log_* helpers take preformatted f-strings unchecked"
+# Codegen Python is produced and syntax-checked in validate-codegen.yml, never committed
+PY-GEN-1 = "n/a: no generated Python is committed; tasker-ctl codegen output is built and syntax-checked in CI only"
+# target-version is the projection's py311 (check A). This PR moves tasker-py requires-python, abi3 and mypy to 3.11; they match by hand.
+PY-VER-1 = "partial: target-version is the projection's (ci.yml#conventions); requires-python, the pyo3 abi3 feature and mypy python_version in tasker-py match it by hand"
+
+# --- TypeScript ---
+# test-typescript-framework.yml: cargo make lint (bun run check: biome check --error-on-warnings) and typecheck (tsc --noEmit); runs when tasker-ts or ffi-core changes.
+TS-TOOL-1 = "partial: biome check and tsc gated in the typescript-framework job (path-scoped to tasker-ts and the FFI core); tsconfig excludes tests/ from tsc"
+# crates/tasker-ts/biome.json extends the projection (check A, ci.yml#conventions) and only adds rules, all at error; the check script runs --error-on-warnings.
+TS-TOOL-2 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# package.json ranges (^2.3.10, ^5.9.3) resolved by bun.lock under --frozen-lockfile; validate-codegen.yml installs unpinned global typescript
+TS-TOOL-3 = "partial: one Biome/TypeScript via bun.lock + --frozen-lockfile; validate-codegen.yml installs an unpinned global typescript"
+# crates/tasker-ts/tsconfig.json extends the projected tsconfig.base.json (check A) and adds only module, target, lib, paths and output settings; tsc --noEmit runs in CI.
+TS-CFG-1 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# erasableSyntaxOnly and verbatimModuleSyntax (tsc) plus noEnum, noNamespace, noParameterProperties (Biome); the two enums became as-const objects and Decision's parameter properties explicit fields.
+TS-CFG-2 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# noExplicitAny at error under Biome; 0 explicit any in src and tests.
+TS-TYPE-1 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# noNonNullAssertion at error; 0 non-null assertions. Type-assertion reasons are not machine-checked.
+TS-TYPE-2 = "partial: noNonNullAssertion is an error (test-typescript-framework.yml#typescript-framework); that a type assertion says why it holds is review"
+# 10 @ts-expect-error in tests, each with a reason; 3 biome-ignore lint/style/noDefaultExport on the default-export fixtures, each with one.
+TS-SUP-1 = "partial: noTsIgnore refuses @ts-ignore and biome-ignore needs an explanation (test-typescript-framework.yml#typescript-framework); whether the reason is a reason is review"
+# noDefaultExport at error, off only for *.config.* (canonical override); the three default-export test fixtures carry a reasoned biome-ignore.
+TS-MOD-1 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# useThrowOnlyError at error under Biome.
+TS-ERR-1 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+TS-NAME-1 = "convention: naming is judged in review; useNamingConvention not configured"
+# index.d.ts/index.js (napi) and src/ffi/generated excluded in biome.json; never regenerated-and-diffed in CI
+TS-GEN-1 = "uncovered: generated files are excluded from Biome but never regenerated and diffed in CI"
+TS-DOC-1 = "convention: Biome has no doc-comment rule; export doc coverage is judged in review"
+
+# --- Shell ---
+# 104 tracked .sh: 75 #!/usr/bin/env bash, 29 #!/bin/bash
+SH-1 = "uncovered: 29 of 104 tracked scripts use #!/bin/bash; no check"
+# 15 of 104 tracked .sh lack set -euo pipefail
+SH-2 = "uncovered: 15 of 104 tracked scripts lack set -euo pipefail; no check"
+# shellcheck only in tools/cargo-make/scripts/ci-sanity-check.sh (cargo make csc), called by no workflow
+SH-3 = "uncovered: ShellCheck runs only in the local ci-sanity-check task; no workflow calls it"
+SH-4 = "uncovered: no ShellCheck (SC2006) in CI; backticks are unchecked"
+# eval of a constructed string at docker/scripts/dev/validate-optimized-builds.sh:30; 11 eval lines total
+SH-5 = "uncovered: eval of constructed command strings (e.g. docker/scripts/dev/validate-optimized-builds.sh:30); no check"
+# 11 occurrences of sed -i/readlink -f/date -d/grep -P/mapfile; CI is Linux-only
+SH-6 = "uncovered: 11 GNU-only constructs (sed -i, readlink -f, date -d, grep -P, mapfile) unchecked; CI runs Linux only"
+SH-7 = "convention: where logic belongs is judged in review"
+
+# --- Docs ---
+# .markdownlint-cli2.jsonc used only by a local Makefile.toml task (line ~1003); no workflow; MD025 off; docs-only PRs skip all CI
+DOC-1 = "uncovered: markdownlint-cli2 runs only as a local cargo-make task; MD025 is off; docs-only PRs skip CI"
+DOC-2 = "uncovered: MD040 is on in the local config, but markdownlint is not run in CI"
+# MD013 false in .markdownlint-cli2.jsonc
+DOC-3 = "uncovered: MD013 is disabled and markdownlint is not run in CI"
+DOC-4 = "uncovered: no offline link check (lychee or equivalent) anywhere"
+
+# --- API JSON ---
+# OpenAPI specs: 23 PascalCase enum values (orchestration), 14 (worker), e.g. Pending, StalenessTimeout
+API-JSON-1 = "uncovered: PascalCase enum values on the wire (23 in orchestration spec, 14 in worker); no check"
+# ApiError schema is an externally tagged oneOf ({NotFound:{message}}, Forbidden) not the wire shape
+API-JSON-2 = "uncovered: spec ApiError is the Rust enum's tagged oneOf, not the wire error shape; no spec-vs-wire test"
+# orchestration spec: 9 of 19 *_at typed date-time; worker 1 of 1
+API-JSON-3 = "uncovered: 9 of 19 *_at fields in the orchestration spec are typed date-time; no check"
+# No unsuffixed duration/timeout/interval properties in either spec
+API-JSON-4 = "practiced"
+# No data envelope; list responses carry total_count/has_next pagination
+API-JSON-5 = "practiced"
+
+# --- Consuming the baseline (conventions.py check and witness) ---
+# CONS-7: lag is reported on every run (check C) and never fails, by design. CONS-8: the witness's
+# control run passes with no credential, and the job references no secret.
+CONS-1 = "gated: .github/workflows/ci.yml#conventions"
+CONS-2 = "gated: .github/workflows/ci.yml#conventions"
+CONS-3 = "gated: .github/workflows/ci.yml#conventions"
+CONS-4 = "gated: .github/workflows/ci.yml#conventions"
+CONS-5 = "gated: .github/workflows/ci.yml#conventions"
+CONS-6 = "gated: .github/workflows/ci.yml#conventions"
+CONS-7 = "gated: .github/workflows/ci.yml#conventions"
+CONS-8 = "gated: .github/workflows/ci.yml#conventions"

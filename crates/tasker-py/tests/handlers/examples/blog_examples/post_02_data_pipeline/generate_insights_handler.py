@@ -11,7 +11,7 @@ TAS-137 Best Practices Demonstrated:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -72,7 +72,7 @@ class GenerateInsightsHandler(StepHandler):
                 "operation": "generate_insights",
                 "source_step": "aggregate_metrics",
                 "insights_generated": len(insights_result["insights"]),
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -145,7 +145,7 @@ class GenerateInsightsHandler(StepHandler):
             "health_score": health_score,
             "total_metrics_analyzed": len(metrics.keys()),
             "pipeline_complete": True,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     def _calculate_health_score(

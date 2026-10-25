@@ -74,6 +74,7 @@ docs/architecture/actors.md
 CHANGELOG.md" \
     "RUN_BUILD_POSTGRES=false" \
     "RUN_BUILD_WORKERS=false" \
+    "RUN_LOCKFILE_CHECK=false" \
     "RUN_CODE_QUALITY=false" \
     "RUN_INTEGRATION_TESTS=false" \
     "RUN_RUBY_FRAMEWORK=false" \
@@ -88,6 +89,7 @@ cargo-make/tasks.toml
 Makefile.toml" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=false" \
+    "RUN_LOCKFILE_CHECK=false" \
     "RUN_CODE_QUALITY=true" \
     "RUN_INTEGRATION_TESTS=false" \
     "RUN_RUBY_FRAMEWORK=false" \
@@ -113,6 +115,7 @@ run_test "ffi-core: everything enabled" \
     "crates/tasker-shared/src/types.rs" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
+    "RUN_LOCKFILE_CHECK=true" \
     "RUN_BUILD_RUBY=true" \
     "RUN_BUILD_PYTHON=true" \
     "RUN_BUILD_TYPESCRIPT=true" \
@@ -287,8 +290,26 @@ run_test "Cargo.lock change: config scope (builds + integration)" \
     "Cargo.lock" \
     "RUN_BUILD_POSTGRES=true" \
     "RUN_BUILD_WORKERS=true" \
+    "RUN_LOCKFILE_CHECK=true" \
     "RUN_CODE_QUALITY=true" \
     "RUN_INTEGRATION_TESTS=true"
+
+# --- lockfile-check: manifest/lock changes must be in scope ---
+run_test "member manifest change: lockfile-check enabled" \
+    "crates/tasker-grammar/Cargo.toml" \
+    "RUN_LOCKFILE_CHECK=true"
+
+run_test "Gemfile.lock change: lockfile-check enabled" \
+    "crates/tasker-rb/Gemfile.lock" \
+    "RUN_LOCKFILE_CHECK=true"
+
+run_test "uv.lock change: lockfile-check enabled" \
+    "crates/tasker-py/uv.lock" \
+    "RUN_LOCKFILE_CHECK=true"
+
+run_test "bun.lock change: lockfile-check enabled" \
+    "crates/tasker-ts/bun.lock" \
+    "RUN_LOCKFILE_CHECK=true"
 
 # --- .env change: config scope ---
 run_test ".env change: config scope" \

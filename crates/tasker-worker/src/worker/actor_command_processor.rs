@@ -121,6 +121,10 @@ impl ActorCommandProcessor {
     /// The dispatch channels include:
     /// - `dispatch_receiver`: Consumed by `HandlerDispatchService`
     /// - `completion_sender`: Used by `HandlerDispatchService` to send results
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "wires each actor dependency and channel bound the processor needs"
+    )]
     pub async fn new(
         context: Arc<SystemContext>,
         worker_id: String,

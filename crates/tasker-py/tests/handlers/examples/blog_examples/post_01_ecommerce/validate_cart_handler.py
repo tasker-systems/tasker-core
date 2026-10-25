@@ -9,7 +9,7 @@ TAS-137 Best Practices Demonstrated:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -92,7 +92,7 @@ class ValidateCartHandler(StepHandler):
                 "shipping": shipping,
                 "total": total,
                 "item_count": len(validated_items),
-                "validated_at": datetime.now(timezone.utc).isoformat(),
+                "validated_at": datetime.now(UTC).isoformat(),
             },
             metadata={
                 "operation": "validate_cart",

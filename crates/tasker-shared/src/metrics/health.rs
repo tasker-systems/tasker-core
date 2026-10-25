@@ -276,6 +276,10 @@ pub fn init() {
 /// * `channel_saturation` - Current channel saturation percentage
 /// * `queue_tier` - Current queue depth tier (as numeric value)
 /// * `queue_depths` - Map of queue names to current depths
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one argument per gauge recorded for an evaluation cycle"
+)]
 pub fn record_evaluation_cycle(
     duration_ms: f64,
     is_backpressure_active: bool,

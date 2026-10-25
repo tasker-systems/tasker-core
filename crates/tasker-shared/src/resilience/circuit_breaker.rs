@@ -83,11 +83,9 @@ impl AtomicCircuitBreakerMetrics {
         let (failure_rate, success_rate, average_duration) = if total_calls > 0 {
             let fr = failure_count as f64 / total_calls as f64;
             let sr = success_count as f64 / total_calls as f64;
-            let avg = if success_count > 0 {
-                Duration::from_nanos(total_duration_nanos / success_count)
-            } else {
-                Duration::ZERO
-            };
+            let avg = total_duration_nanos
+                .checked_div(success_count)
+                .map_or(Duration::ZERO, Duration::from_nanos);
             (fr, sr, avg)
         } else {
             (0.0, 0.0, Duration::ZERO)

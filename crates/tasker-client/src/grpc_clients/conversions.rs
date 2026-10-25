@@ -25,13 +25,13 @@ use crate::error::ClientError;
 // Timestamp Conversions
 // ============================================================================
 
-/// Convert an optional protobuf Timestamp to DateTime<Utc>.
+/// Convert an optional protobuf Timestamp to `DateTime<Utc>`.
 pub fn proto_timestamp_to_datetime(ts: Option<prost_types::Timestamp>) -> DateTime<Utc> {
     ts.and_then(|t| DateTime::from_timestamp(t.seconds, t.nanos as u32))
         .unwrap_or_default()
 }
 
-/// Convert an optional protobuf Timestamp to an optional DateTime<Utc>.
+/// Convert an optional protobuf Timestamp to an optional `DateTime<Utc>`.
 pub fn proto_timestamp_to_datetime_opt(
     ts: Option<prost_types::Timestamp>,
 ) -> Option<DateTime<Utc>> {

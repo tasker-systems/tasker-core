@@ -11,7 +11,7 @@ TAS-137 Best Practices:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -87,7 +87,7 @@ class UpdatePaymentRecordsHandler(StepHandler):
         gateway_transaction_id: str,
     ) -> dict:
         """Simulate payment record update."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Simulate different record update scenarios based on payment_id patterns
         if "pay_test_record_lock" in payment_id:

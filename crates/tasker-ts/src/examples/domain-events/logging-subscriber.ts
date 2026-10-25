@@ -41,7 +41,7 @@ export class AuditLoggingSubscriber extends BaseSubscriber {
   /**
    * Subscribe to ALL events for comprehensive audit logging.
    */
-  static subscribesTo(): string[] {
+  static override subscribesTo(): string[] {
     return ['*'];
   }
 
@@ -88,7 +88,7 @@ export class AuditLoggingSubscriber extends BaseSubscriber {
   /**
    * Record start time for latency tracking.
    */
-  beforeHandle(_event: DomainEvent): boolean {
+  override beforeHandle(_event: DomainEvent): boolean {
     this.startTime = Date.now();
     return true;
   }
@@ -96,7 +96,7 @@ export class AuditLoggingSubscriber extends BaseSubscriber {
   /**
    * Record processing time after successful handling.
    */
-  afterHandle(event: DomainEvent): void {
+  override afterHandle(event: DomainEvent): void {
     const processingTime = Date.now() - this.startTime;
     this.processingTimes.push(processingTime);
 
@@ -118,7 +118,7 @@ export class AuditLoggingSubscriber extends BaseSubscriber {
   /**
    * Track and log errors with context for debugging.
    */
-  onHandleError(event: DomainEvent, error: Error): void {
+  override onHandleError(event: DomainEvent, error: Error): void {
     this.errorCount++;
 
     this.logger.error(
@@ -179,7 +179,7 @@ export class PaymentLoggingSubscriber extends BaseSubscriber {
   /**
    * Subscribe only to payment events.
    */
-  static subscribesTo(): string[] {
+  static override subscribesTo(): string[] {
     return ['payment.*'];
   }
 
@@ -220,7 +220,7 @@ export class PaymentLoggingSubscriber extends BaseSubscriber {
   /**
    * Filter out test transactions from logging.
    */
-  beforeHandle(event: DomainEvent): boolean {
+  override beforeHandle(event: DomainEvent): boolean {
     // Skip test/sandbox transactions
     const isTest =
       event.payload.test === true ||

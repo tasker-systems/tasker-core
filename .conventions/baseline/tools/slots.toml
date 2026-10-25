@@ -1,0 +1,20 @@
+# Local slots: where a consuming repository may hold its own content in a file it adopts in
+# `superset` mode (doctrine/consuming.md, CONS-3). Anything outside a slot must equal the canonical
+# value, or be a recorded exception. Slots are declared here, in the baseline, so that a consumer
+# cannot declare its own divergence legal.
+
+["rust/deny.toml"]
+slots = [
+    "graph.targets",      # the platforms this repo builds for
+    "graph.exclude",      # workspace members excluded from the graph (e.g. examples)
+    "bans.skip",          # reviewed duplicate versions (the multiple-versions ratchet)
+    "bans.skip-tree",
+    "bans.deny",          # crates this repo additionally refuses; stricter is always allowed
+    "licenses.exceptions",# per-crate license exceptions, each with a reason in the file
+    "licenses.clarify",
+]
+
+["rust/audit.toml"]
+slots = [
+    "advisories.ignore",  # the reviewed ignore list (SC-ADV-2): each id carries its reason
+]

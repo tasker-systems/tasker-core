@@ -337,7 +337,7 @@ export class HandlerRegistry {
    *
    * @returns Array of [name, priority] tuples
    */
-  async listResolvers(): Promise<Array<[string, number]>> {
+  async listResolvers(): Promise<[string, number][]> {
     await this.ensureInitialized();
     return this._resolverChain?.listResolvers() ?? [];
   }

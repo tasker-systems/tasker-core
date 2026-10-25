@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -91,7 +91,7 @@ class ValidateOrderHandler(StepHandler):
         return StepHandlerResult.success(
             {
                 "order_id": order_id,
-                "validation_timestamp": datetime.now(timezone.utc).isoformat(),
+                "validation_timestamp": datetime.now(UTC).isoformat(),
                 "validation_checks": validation_checks,
                 "validated": True,
             },
@@ -148,7 +148,7 @@ class ProcessPaymentHandler(StepHandler):
                 metadata={
                     "execution_time_ms": execution_time_ms,
                     "order_id": order_id,
-                    "failed_at": datetime.now(timezone.utc).isoformat(),
+                    "failed_at": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -162,7 +162,7 @@ class ProcessPaymentHandler(StepHandler):
                 "transaction_id": transaction_id,
                 "amount": amount,
                 "payment_method": "credit_card",
-                "processed_at": datetime.now(timezone.utc).isoformat(),
+                "processed_at": datetime.now(UTC).isoformat(),
                 "status": "success",
             },
             metadata={
@@ -221,7 +221,7 @@ class UpdateInventoryHandler(StepHandler):
                 "order_id": order_id,
                 "items": items,
                 "success": True,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             },
             metadata={
                 "execution_time_ms": execution_time_ms,
@@ -271,7 +271,7 @@ class SendNotificationHandler(StepHandler):
                 "notification_id": notification_id,
                 "channel": notification_type,
                 "recipient": customer_id,
-                "sent_at": datetime.now(timezone.utc).isoformat(),
+                "sent_at": datetime.now(UTC).isoformat(),
                 "status": "delivered",
             },
             metadata={
@@ -282,8 +282,8 @@ class SendNotificationHandler(StepHandler):
 
 
 __all__ = [
-    "ValidateOrderHandler",
     "ProcessPaymentHandler",
-    "UpdateInventoryHandler",
     "SendNotificationHandler",
+    "UpdateInventoryHandler",
+    "ValidateOrderHandler",
 ]

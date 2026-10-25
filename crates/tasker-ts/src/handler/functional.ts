@@ -133,12 +133,22 @@ export type HandlerFn = (
  * ```
  */
 export class Decision {
+  readonly type: 'create_steps' | 'no_branches';
+  readonly steps: string[];
+  readonly reason: string | undefined;
+  readonly routingContext: Record<string, unknown>;
+
   private constructor(
-    readonly type: 'create_steps' | 'no_branches',
-    readonly steps: string[],
-    readonly reason?: string,
-    readonly routingContext: Record<string, unknown> = {}
-  ) {}
+    type: 'create_steps' | 'no_branches',
+    steps: string[],
+    reason?: string,
+    routingContext: Record<string, unknown> = {}
+  ) {
+    this.type = type;
+    this.steps = steps;
+    this.reason = reason;
+    this.routingContext = routingContext;
+  }
 
   /**
    * Route to the specified steps.
@@ -317,7 +327,7 @@ export function defineDecisionHandler(
     static override handlerName = name;
     static override handlerVersion = version;
 
-    get capabilities(): string[] {
+    override get capabilities(): string[] {
       return ['process', 'decision', 'routing'];
     }
 

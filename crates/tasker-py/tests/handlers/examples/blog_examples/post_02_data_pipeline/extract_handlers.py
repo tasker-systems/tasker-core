@@ -12,7 +12,7 @@ TAS-137 Best Practices Demonstrated:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from tasker_core import StepHandler, StepHandlerResult
@@ -183,7 +183,7 @@ class ExtractSalesDataHandler(StepHandler):
                 "operation": "extract_sales",
                 "source": "SalesDatabase",
                 "records_extracted": len(sales_data["records"]),
-                "extraction_time": datetime.now(timezone.utc).isoformat(),
+                "extraction_time": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -192,7 +192,7 @@ class ExtractSalesDataHandler(StepHandler):
         dates = [r["date"] for r in SAMPLE_SALES_DATA]
         return {
             "records": SAMPLE_SALES_DATA,
-            "extracted_at": datetime.now(timezone.utc).isoformat(),
+            "extracted_at": datetime.now(UTC).isoformat(),
             "source": "SalesDatabase",
             "total_amount": sum(r["amount"] for r in SAMPLE_SALES_DATA),
             "date_range": {
@@ -245,7 +245,7 @@ class ExtractInventoryDataHandler(StepHandler):
                 "source": "InventorySystem",
                 "records_extracted": len(inventory_data["records"]),
                 "warehouses": inventory_data["warehouses"],
-                "extraction_time": datetime.now(timezone.utc).isoformat(),
+                "extraction_time": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -254,7 +254,7 @@ class ExtractInventoryDataHandler(StepHandler):
         warehouses = list({r["warehouse"] for r in SAMPLE_INVENTORY_DATA})
         return {
             "records": SAMPLE_INVENTORY_DATA,
-            "extracted_at": datetime.now(timezone.utc).isoformat(),
+            "extracted_at": datetime.now(UTC).isoformat(),
             "source": "InventorySystem",
             "total_quantity": sum(r["quantity_on_hand"] for r in SAMPLE_INVENTORY_DATA),
             "warehouses": warehouses,
@@ -305,7 +305,7 @@ class ExtractCustomerDataHandler(StepHandler):
                 "source": "CRMSystem",
                 "records_extracted": len(customer_data["records"]),
                 "customer_tiers": list(customer_data["tier_breakdown"].keys()),
-                "extraction_time": datetime.now(timezone.utc).isoformat(),
+                "extraction_time": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -320,7 +320,7 @@ class ExtractCustomerDataHandler(StepHandler):
         total_ltv = sum(r["lifetime_value"] for r in SAMPLE_CUSTOMER_DATA)
         return {
             "records": SAMPLE_CUSTOMER_DATA,
-            "extracted_at": datetime.now(timezone.utc).isoformat(),
+            "extracted_at": datetime.now(UTC).isoformat(),
             "source": "CRMSystem",
             "total_customers": len(SAMPLE_CUSTOMER_DATA),
             "total_lifetime_value": total_ltv,
