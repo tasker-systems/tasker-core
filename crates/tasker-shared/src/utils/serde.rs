@@ -43,9 +43,12 @@ use serde::{Deserialize, Deserializer};
 ///     timeout_seconds: Option<i32>,
 /// }
 /// ```
-#[allow(
-    dead_code,
-    reason = "serde utility - dead in --lib, used by test targets"
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "serde utility - dead in --lib, used by test targets"
+    )
 )]
 pub fn deserialize_optional_numeric<'de, D>(
     deserializer: D,

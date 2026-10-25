@@ -3,3 +3,8 @@
 # path = "ruff.toml"
 # key = "target-version"
 # reason = "the plugin's declared floor is py39"
+
+[[exception]]
+path = "Cargo.toml"
+key = "workspace.lints.rust.unexpected_cfgs.check-cfg"
+reason = "spawn_named! (tasker-shared) names tasks for tokio-console behind --cfg tokio_unstable; the cfg is declared so builds without it stay warning-free. The canonical table names this extension as the shape tasker-core uses."

@@ -34,7 +34,7 @@
 //! # Error model
 //!
 //! A capability failure at any invocation produces a [`CompositionError::InvocationFailure`]
-//! wrapping the underlying [`CapabilityError`] with the invocation index and
+//! wrapping the underlying [`CapabilityError`](crate::types::CapabilityError) with the invocation index and
 //! capability name for structured error reporting.
 //!
 //! **Ticket**: TAS-334

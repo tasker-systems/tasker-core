@@ -5,7 +5,7 @@
 //!
 //! ## TAS-158: Named Spawn Macro
 //!
-//! The [`spawn_named!`] macro provides named tokio task spawning when `tokio_unstable`
+//! The [`spawn_named!`](crate::spawn_named) macro provides named tokio task spawning when `tokio_unstable`
 //! is enabled, falling back to regular `tokio::spawn` otherwise. This enables
 //! tokio-console visibility for async tasks without breaking normal builds.
 //!

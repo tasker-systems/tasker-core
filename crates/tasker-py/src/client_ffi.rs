@@ -121,7 +121,7 @@ pub fn client_cancel_task(task_uuid: String) -> PyResult<Py<PyAny>> {
 ///     task_uuid: UUID string of the task
 ///
 /// Returns:
-///     list[dict]: Step responses
+///     `list[dict]`: Step responses
 #[pyfunction]
 pub fn client_list_task_steps(task_uuid: String) -> PyResult<Py<PyAny>> {
     let uuid = uuid::Uuid::parse_str(&task_uuid)
@@ -157,7 +157,7 @@ pub fn client_get_step(task_uuid: String, step_uuid: String) -> PyResult<Py<PyAn
 ///     step_uuid: UUID string of the step
 ///
 /// Returns:
-///     list[dict]: Step audit history entries
+///     `list[dict]`: Step audit history entries
 #[pyfunction]
 pub fn client_get_step_audit_history(task_uuid: String, step_uuid: String) -> PyResult<Py<PyAny>> {
     let t_uuid = uuid::Uuid::parse_str(&task_uuid)

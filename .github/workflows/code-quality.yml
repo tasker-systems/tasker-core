@@ -61,6 +61,19 @@ jobs:
       - name: Install protobuf compiler
         uses: ./.github/actions/install-protobuf
 
+      # `--workspace` below compiles every member, including the FFI crates: tasker-rb's
+      # extension needs Ruby's headers (rb-sys), and tasker-py's pyo3 abi3-py311 needs a
+      # Python >= 3.11 interpreter. Same pins and version files as build-workers.yml.
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
+        with:
+          working-directory: crates/tasker-rb
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: .python-version
+
       - name: Setup database
         run: sqlx migrate run
 
@@ -70,8 +83,13 @@ jobs:
       # NOTE: We use explicit features instead of --all-features because
       # tokio-console requires RUSTFLAGS="--cfg tokio_unstable" and the tokio
       # `tracing` feature, which adds complexity. tokio-console is a local dev tool.
+      #
+      # `--workspace` (RUST-LINT-2): the root Cargo.toml is itself a package with no
+      # default-members, so without it clippy lints only the root package and the member
+      # libraries it reaches through dev-dependencies, never tasker-ctl, tasker-secure,
+      # tasker-runtime, the FFI crates, tasker-example-rs or any member's own tests.
       - name: Run Clippy lints
-        run: cargo clippy --all-targets --features "benchmarks,test-services" -- -D warnings
+        run: cargo clippy --workspace --all-targets --features "benchmarks,test-services" -- -D warnings
 
       - name: Security audit
         # Blocking gate. Exceptions live in .cargo/audit.toml — every ignore
@@ -85,7 +103,9 @@ jobs:
           rm -rf ~/.cargo/advisory-db
           cargo audit
 
+      # `--workspace` for the same reason as clippy: without it only the root package is
+      # documented.
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --no-deps --document-private-items
+        run: cargo doc --workspace --no-deps --document-private-items --features "benchmarks,test-services"

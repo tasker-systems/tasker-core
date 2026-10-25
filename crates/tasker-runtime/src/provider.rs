@@ -26,7 +26,7 @@ use crate::sources::ResourceHandleResolver;
 ///
 /// When a grammar capability executor calls `get_persistable("orders-db")`,
 /// this provider:
-/// 1. Checks the per-composition [`AdapterCache`] for a cached adapter
+/// 1. Checks the per-composition `AdapterCache` for a cached adapter
 /// 2. Asks the [`ResourcePoolManager`] to get or initialize the handle
 /// 3. Asks the [`AdapterRegistry`] to wrap the handle in the right adapter
 /// 4. Caches and returns the adapter as `Arc<dyn PersistableResource>`

@@ -26,212 +26,207 @@ only; its templates and example apps are user-owned.
 | Consumer | Column | Source |
 |---|---|---|
 | temper | generated | `tasker-systems/temper` `main`: `.conventions/status.toml` |
-| tasker-core | hand-taken | not adopted; the column is kept as written until it adopts |
+| tasker-core | generated | `tasker-systems/tasker-core` `main`: `.conventions/status.toml` |
 | temper-contrib | generated | `tasker-systems/temper-contrib` `main`: `.conventions/status.toml` |
 | tasker-contrib | not adopted | every rule is unexamined there |
 | storyteller | unread | private; CONSUMERS_READ_TOKEN was not provided |
 
 <!-- consumers:end -->
 
-The temper and tasker-core columns are hand-taken until each adopts. Their provenance: rows for
-the Google style-guide integration (RUST-LINT-5 onward, and the Python, TypeScript,
-Shell, Markdown and API sections) were taken on 2026-10-23 against `temper@d530840` and
-`tasker-core@3888d42`; their counts come from clippy, ruff, Biome, tsc and ShellCheck runs as
-well as grep. Statuses were taken on 2026-10-21 against `temper@f460428` and
-`tasker-core@48ac836`, and amended on 2026-10-23 for tasker-core#376 and temper#1217, from a
-read-only inventory of each repo; counts come from grep. Gated and uncovered cells were checked by
-hand. A `practiced` cell is a reading of the code, not a proof — the first grounding pass on each
-section re-verifies them. A change that alters one of their statuses updates its row in the same
-change.
+Every consumer column above is generated. temper's and tasker-core's were hand-taken until each
+adopted (conventions#9, tasker-core#380); the hand-taken cells were replaced, not merged, because
+each consumer's `status.toml` is a fresh reading of its own gates. At tasker-core's adoption, 135
+of its 139 hand-taken cells disagreed, 69 changed verdict, and four claimed `gated` where its gates
+do not enforce the rule (RUST-LINT-1, RUST-LINT-2, RUST-TYPE-1, TS-TOOL-1).
 
 ## Rust
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| RUST-LINT-1 | One workspace lint table, inherited by every crate | uncovered: no workspace lint table yet; adopting the canonical one is the next step | gated: workspace table, every crate inherits | gated: .github/workflows/ci.yml#conventions |
-| RUST-LINT-2 | Clippy and rustdoc `-D warnings` on PRs | gated: .github/workflows/code-quality.yml#rust-quality | gated: code-quality.yml (tasker-core#376); release pre-flight clippy still lacks it | gated: .github/workflows/ci.yml#desktop |
-| RUST-LINT-3 | `#[expect(reason)]`, never `#[allow]` | uncovered: 43 #[allow] without a reason; the lints that refuse them arrive with the lint table | partial: written rule; lint commented out; ~33 `#[allow]` | gated: .github/workflows/ci.yml#desktop |
-| RUST-LINT-4 | Lint adoption is audit-before-enforce | convention: a review practice; the lint table's adoption is measured first (266 findings) and lands as its own change | convention: same | convention: a review practice; adopting the table here fixed every finding |
-| RUST-LINT-5 | Held-off groups opened lint by lint | n/a: no lint table yet; clippy runs its default groups | convention: same | convention: a review practice |
-| RUST-API-1 | API rules bind library crates, default for application crates | convention: whether a crate is a library or an application is judged in review | convention: same (10 of 14 crates are published, so most are library crates) | unexamined |
-| RUST-FMT-1 | rustfmt defaults, checked in CI | gated: .github/workflows/quality-gate.yml#rust-gate | gated: code-quality.yml `cargo fmt --check` | gated: .github/workflows/ci.yml#desktop |
-| RUST-ORG-1 | No glob imports | uncovered: about 7 non-test glob imports; wildcard_imports is not enabled | uncovered: 26 findings; lint not set | practiced |
-| RUST-ORG-2 | Files named for their item; non-leaf modules only declare | convention: file naming and module layout are judged in review | convention: same; unexamined | unexamined |
-| RUST-UNSAFE-1 | `#![forbid(unsafe_code)]` in every crate root | uncovered: no crate root declares #![forbid(unsafe_code)] | uncovered (no production unsafe, but no forbid) | partial: unsafe_code = deny is in the gated table and both crate roots declare #![forbid(unsafe_code)], but no tripwire pins the forbid |
-| RUST-UNSAFE-2 | Unsafe sites are registered exceptions, with SAFETY comments | uncovered: unsafe in temper-ingest and temper-cli is not a registered exception | partial: `undocumented_unsafe_blocks` lint; no register | gated: .github/workflows/ci.yml#desktop |
-| RUST-UNSAFE-3 | FFI through binding frameworks | n/a: no FFI bindings; the SDKs are generated HTTP clients | practiced (magnus, PyO3, napi-rs) | n/a: no FFI |
-| RUST-ERR-1 | `thiserror` in libraries, `anyhow` at edges | practiced | practiced | unexamined |
-| RUST-ERR-2 | No silent defaults for required values | convention: whether a default stands in for a required value is judged in review | uncovered (~121 `unwrap_or_default`; doctrine exists) | unexamined |
-| RUST-ERR-3 | Panics are for bugs | convention: panic-or-Result and # Panics docs are judged in review | convention: same | unexamined |
-| RUST-ERR-4 | No unchecked `unwrap` outside tests | uncovered: about 10 non-test unwrap() sites; unwrap_used is not enabled | uncovered: 76 findings; `unnecessary_unwrap` 0 | uncovered |
-| RUST-PANIC-1 | `catch_unwind` is defense in depth, and needs `panic = "unwind"` | practiced | **uncovered: violated** — `[profile.release] panic = "abort"` with 3 containment sites | n/a: no catch_unwind |
-| RUST-TYPE-1 | Public types implement `Debug` | uncovered: missing_debug_implementations is not enabled (70 types) | gated: `missing_debug_implementations` (with RUST-LINT-2 once fixed) | gated: .github/workflows/ci.yml#desktop |
-| RUST-TYPE-2 | Confusable values are newtypes; unclear bools are enums | convention: newtype and enum-over-bool choices are judged in review | convention: same | unexamined |
-| RUST-API-2 | Published types `#[non_exhaustive]`; internal types exhaustive | convention: open versus closed sets are judged in review | convention: same; 8 uses, unexamined | n/a: nothing is published (publish = false) |
-| RUST-API-3 | Standard traits and derives over bespoke methods | gated: .github/workflows/code-quality.yml#rust-quality | practiced: same | partial: should_implement_trait, new_without_default, len_without_is_empty and derivable_impls are in the gated table; the rest is review |
-| RUST-API-4 | Accept the most general borrow | gated: .github/workflows/code-quality.yml#rust-quality | practiced: same | partial: ptr_arg and borrowed_box are in the gated table; Option<&T> over &Option<T> is review |
-| RUST-API-5 | Conversion and constructor naming | partial: wrong_self_convention fails under default clippy -D warnings; constructor and getter naming is review | partial: same | partial: wrong_self_convention is in the gated table; the rest is review |
-| RUST-API-6 | `#[must_use]` where ignoring is a bug | convention: where ignoring a value is a bug is judged in review | convention: same (179 uses) | unexamined |
-| RUST-TC-1 | Float stable, declare `rust-version` | uncovered: floats on stable but declares no rust-version | partial: floats; MSRV on two crates only | uncovered: no rust-version and no rust-toolchain file |
-| RUST-TC-2 | Edition is a workspace setting | practiced | practiced | n/a: one package; its edition is in its own manifest |
-| RUST-TC-3 | No unstable features | gated: .github/workflows/code-quality.yml#rust-quality | gated: same (0 sites) | gated: .github/workflows/ci.yml#desktop |
-| RUST-DOC-1 | Library crates document their public API | uncovered: the published library crates do not warn on missing docs | uncovered: same; 25 `missing_panics_doc` | n/a: no library crate |
-| RUST-READ-1 | Readability over cleverness | convention: readability is judged in review | convention: same | unexamined |
-| RUST-MACRO-1 | A macro is the last resort | convention: macro or function is judged in review | convention: same | practiced |
-| RUST-INIT-1 | No first-party code before `main` | practiced | practiced: `ctor` only via napi-rs | practiced |
-| RUST-SQL-1 | Compile-checked queries; runtime queries registered | gated: .github/workflows/quality-gate.yml#rust-gate, .github/workflows/code-quality.yml#rust-quality | partial: macros dominant (~337 vs ~101 runtime); no register | n/a: no SQL |
+| RUST-LINT-1 | One workspace lint table, inherited by every crate | uncovered: no workspace lint table yet; adopting the canonical one is the next step | uncovered: tasker-rb/ext/tasker_core does not inherit the workspace table; table is local, not the canonical one; no check | gated: .github/workflows/ci.yml#conventions |
+| RUST-LINT-2 | Clippy and rustdoc `-D warnings` on PRs | gated: .github/workflows/code-quality.yml#rust-quality | partial: clippy -D warnings gated for root + 8 member libs (no ctl/secure/runtime/py/rb/ts/example, no member tests); rustdoc -D warnings root pkg only | gated: .github/workflows/ci.yml#desktop |
+| RUST-LINT-3 | `#[expect(reason)]`, never `#[allow]` | uncovered: 43 #[allow] without a reason; the lints that refuse them arrive with the lint table | uncovered: 54 #[allow] and 11 reasonless #[expect]; the lints that refuse them arrive with the lint table | gated: .github/workflows/ci.yml#desktop |
+| RUST-LINT-4 | Lint adoption is audit-before-enforce | convention: a review practice; the lint table's adoption is measured first (266 findings) and lands as its own change | convention: an adoption process judged in review; note crate-level #![allow] blankets in tasker-py, tasker-shared, tasker-orchestration lib.rs | convention: a review practice; adopting the table here fixed every finding |
+| RUST-LINT-5 | Held-off groups opened lint by lint | n/a: no lint table yet; clippy runs its default groups | uncovered: groups are not held off: style/complexity/perf run at clippy defaults, cargo group on; no lint-by-lint candidate list | convention: a review practice |
+| RUST-API-1 | API rules bind library crates, default for application crates | convention: whether a crate is a library or an application is judged in review | convention: scoping rule for which crates bind the API rules, applied in review | unexamined |
+| RUST-FMT-1 | rustfmt defaults, checked in CI | gated: .github/workflows/quality-gate.yml#rust-gate | gated: .github/workflows/code-quality.yml#quality | gated: .github/workflows/ci.yml#desktop |
+| RUST-ORG-1 | No glob imports | uncovered: about 7 non-test glob imports; wildcard_imports is not enabled | uncovered: 72 glob imports beyond use super::*; clippy::wildcard_imports not enabled | practiced |
+| RUST-ORG-2 | Files named for their item; non-leaf modules only declare | convention: file naming and module layout are judged in review | convention: module layout is judged in review; no lint covers it | unexamined |
+| RUST-UNSAFE-1 | `#![forbid(unsafe_code)]` in every crate root | uncovered: no crate root declares #![forbid(unsafe_code)] | uncovered: no crate root declares #![forbid(unsafe_code)] | partial: unsafe_code = deny is in the gated table and both crate roots declare #![forbid(unsafe_code)], but no tripwire pins the forbid |
+| RUST-UNSAFE-2 | Unsafe sites are registered exceptions, with SAFETY comments | uncovered: unsafe in temper-ingest and temper-cli is not a registered exception | partial: undocumented_unsafe_blocks denied for clippy-reached libs; unsafe_code not denied, no register, no tripwire | gated: .github/workflows/ci.yml#desktop |
+| RUST-UNSAFE-3 | FFI through binding frameworks | n/a: no FFI bindings; the SDKs are generated HTTP clients | practiced | n/a: no FFI |
+| RUST-ERR-1 | `thiserror` in libraries, `anyhow` at edges | practiced | uncovered: mostly followed, but tasker-shared exposes 13 pub fns returning anyhow::Result; nothing checks | unexamined |
+| RUST-ERR-2 | No silent defaults for required values | convention: whether a default stands in for a required value is judged in review | convention: whether a value is required is a semantic judgement; 129 unwrap_or_default() sites unreviewed | unexamined |
+| RUST-ERR-3 | Panics are for bugs | convention: panic-or-Result and # Panics docs are judged in review | convention: panic-vs-Result is judged in review; missing_panics_doc not enabled | unexamined |
+| RUST-ERR-4 | No unchecked `unwrap` outside tests | uncovered: about 10 non-test unwrap() sites; unwrap_used is not enabled | partial: unnecessary_unwrap denied (clippy default) for clippy-reached libs; unwrap_used not enabled, ~1.4k unwrap() in src files | uncovered |
+| RUST-PANIC-1 | `catch_unwind` is defense in depth, and needs `panic = "unwind"` | practiced | uncovered: 3 production catch_unwind containment sites while [profile.release] sets panic = abort; no check | n/a: no catch_unwind |
+| RUST-TYPE-1 | Public types implement `Debug` | uncovered: missing_debug_implementations is not enabled (70 types) | partial: missing_debug_implementations denied for clippy-reached libs; ctl/secure/runtime/py/rb/ts/example-rs not linted | gated: .github/workflows/ci.yml#desktop |
+| RUST-TYPE-2 | Confusable values are newtypes; unclear bools are enums | convention: newtype and enum-over-bool choices are judged in review | convention: whether values are confusable is judged in review | unexamined |
+| RUST-API-2 | Published types `#[non_exhaustive]`; internal types exhaustive | convention: open versus closed sets are judged in review | uncovered: 0 #[non_exhaustive] in any crate, including publishable ones; no check | n/a: nothing is published (publish = false) |
+| RUST-API-3 | Standard traits and derives over bespoke methods | gated: .github/workflows/code-quality.yml#rust-quality | partial: the named lints run at clippy default and are denied for clippy-reached libs only | partial: should_implement_trait, new_without_default, len_without_is_empty and derivable_impls are in the gated table; the rest is review |
+| RUST-API-4 | Accept the most general borrow | gated: .github/workflows/code-quality.yml#rust-quality | partial: ptr_arg and borrowed_box denied for clippy-reached libs only | partial: ptr_arg and borrowed_box are in the gated table; Option<&T> over &Option<T> is review |
+| RUST-API-5 | Conversion and constructor naming | partial: wrong_self_convention fails under default clippy -D warnings; constructor and getter naming is review | partial: wrong_self_convention denied for clippy-reached libs (allowed in tasker-shared factories); naming beyond it by review | partial: wrong_self_convention is in the gated table; the rest is review |
+| RUST-API-6 | `#[must_use]` where ignoring is a bug | convention: where ignoring a value is a bug is judged in review | practiced | unexamined |
+| RUST-TC-1 | Float stable, declare `rust-version` | uncovered: floats on stable but declares no rust-version | uncovered: toolchain pinned to 1.99.0 in rust-toolchain.toml; no workspace rust-version (only tasker-py, tasker-ts set one) | uncovered: no rust-version and no rust-toolchain file |
+| RUST-TC-2 | Edition is a workspace setting | practiced | uncovered: no [workspace.package]; each of 16 manifests sets edition = 2021 on its own | n/a: one package; its edition is in its own manifest |
+| RUST-TC-3 | No unstable features | gated: .github/workflows/code-quality.yml#rust-quality | gated: .github/workflows/test-integration.yml#integration-tests | gated: .github/workflows/ci.yml#desktop |
+| RUST-DOC-1 | Library crates document their public API | uncovered: the published library crates do not warn on missing docs | uncovered: no crate sets missing_docs; rustdoc gate covers only the root package | n/a: no library crate |
+| RUST-READ-1 | Readability over cleverness | convention: readability is judged in review | convention: readability is judged in review | unexamined |
+| RUST-MACRO-1 | A macro is the last resort | convention: macro or function is judged in review | convention: macro use is judged in review | practiced |
+| RUST-INIT-1 | No first-party code before `main` | practiced | practiced | practiced |
+| RUST-SQL-1 | Compile-checked queries; runtime queries registered | gated: .github/workflows/quality-gate.yml#rust-gate, .github/workflows/code-quality.yml#rust-quality | partial: query! macros compile-checked in CI builds; 81 runtime sqlx::query() calls in src are unregistered, no tripwire | n/a: no SQL |
 
 ## Supply chain
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| SC-ADV-1 | `cargo audit` gates | gated: .github/workflows/quality-gate.yml#rust-gate | uncovered: `continue-on-error` and `\|\| echo` | uncovered: no cargo audit |
-| SC-ADV-2 | Reviewed, reasoned ignores | convention: each ignore is reviewed by hand; five FIX-PENDING entries state no reachability | partial: one ignore, no reason or status | uncovered: no cargo audit |
-| SC-DENY-1 | Only crates.io | gated: .github/workflows/quality-gate.yml#rust-gate | uncovered (no cargo-deny) | uncovered: no cargo deny |
-| SC-DENY-2 | License allowlist | gated: .github/workflows/quality-gate.yml#rust-gate | uncovered | uncovered: no cargo deny |
-| SC-DENY-3 | Bans (wildcards, deny list; duplicates warn) | gated: .github/workflows/quality-gate.yml#rust-gate | uncovered | uncovered: no cargo deny |
-| SC-GHA-1 | Every `uses:` SHA-pinned | partial: SHA pins are required only in privileged jobs (quality-gate.yml#guard-tests); most other uses: are tag refs | practiced: every `uses:` pinned (tasker-core#376); no tripwire | uncovered: every uses: is a tag |
-| SC-GHA-2 | Top-level `permissions:` | uncovered: build-cli-binaries.yml has no top-level permissions; release.yml and release-tag.yml grant write at top level | practiced: 12/12 (tasker-core#376); no tripwire | practiced |
-| SC-GHA-3 | Release-chain triggers pinned | gated: .github/workflows/quality-gate.yml#guard-tests | uncovered | n/a: no release workflow |
-| SC-IN-1 | Tool installs pinned or cooled | uncovered: mise pins and cools, but CI installs several tools unversioned (taiki-e tool lists, setup-bun) | uncovered | partial: gitleaks and actionlint are version- and checksum-pinned, ruff and bun version-pinned; uv (pip install) and tauri-driver (cargo install) are not |
-| SC-IN-2 | Dependency updates for every ecosystem | uncovered: Dependabot misses temper-design (npm, uv), temper-py, temper-rb and the bench Dockerfile | partial: cargo and Actions; PR #341 adds the rest | partial: dependabot covers github-actions, cargo and bun, not the plugin's uv project |
-| SC-IN-3 | Lockfiles match manifests | partial: Cargo.lock, bun.lock and the client npm locks are enforced; the agent workflows run npm install and temper-py commits no lock | partial: PR #342 adds cargo, bundler and uv | partial: bun.lock is gated by bun install --frozen-lockfile; Cargo.lock and uv.lock are not checked |
-| SC-SEC-1 | gitleaks and CodeQL | gated: .github/workflows/secret-scan.yml#secret-scan, .github/workflows/codeql.yml#analyze | uncovered | partial: gitleaks gates in the hygiene job; CodeQL runs on pull requests through the repository's default setup, a setting not readable from this repository |
+| SC-ADV-1 | `cargo audit` gates | gated: .github/workflows/quality-gate.yml#rust-gate | gated: .github/workflows/code-quality.yml#quality | uncovered: no cargo audit |
+| SC-ADV-2 | Reviewed, reasoned ignores | convention: each ignore is reviewed by hand; five FIX-PENDING entries state no reachability | convention: each ignore is reviewed by hand; its reason, reachability and status are not machine-checked | uncovered: no cargo audit |
+| SC-DENY-1 | Only crates.io | gated: .github/workflows/quality-gate.yml#rust-gate | gated: .github/workflows/ci.yml#supply-chain | uncovered: no cargo deny |
+| SC-DENY-2 | License allowlist | gated: .github/workflows/quality-gate.yml#rust-gate | gated: .github/workflows/ci.yml#supply-chain | uncovered: no cargo deny |
+| SC-DENY-3 | Bans (wildcards, deny list; duplicates warn) | gated: .github/workflows/quality-gate.yml#rust-gate | gated: .github/workflows/ci.yml#supply-chain | uncovered: no cargo deny |
+| SC-GHA-1 | Every `uses:` SHA-pinned | partial: SHA pins are required only in privileged jobs (quality-gate.yml#guard-tests); most other uses: are tag refs | practiced | uncovered: every uses: is a tag |
+| SC-GHA-2 | Top-level `permissions:` | uncovered: build-cli-binaries.yml has no top-level permissions; release.yml and release-tag.yml grant write at top level | practiced | practiced |
+| SC-GHA-3 | Release-chain triggers pinned | gated: .github/workflows/quality-gate.yml#guard-tests | uncovered: release.yml triggers are not pinned by any check | n/a: no release workflow |
+| SC-IN-1 | Tool installs pinned or cooled | uncovered: mise pins and cools, but CI installs several tools unversioned (taiki-e tool lists, setup-bun) | uncovered: uv/bun latest, unversioned cargo install of sqlx-cli/cargo-make/cargo-audit, binstall nextest, global typescript | partial: gitleaks and actionlint are version- and checksum-pinned, ruff and bun version-pinned; uv (pip install) and tauri-driver (cargo install) are not |
+| SC-IN-2 | Dependency updates for every ecosystem | uncovered: Dependabot misses temper-design (npm, uv), temper-py, temper-rb and the bench Dockerfile | uncovered: dependabot misses docker/build/ (12 Dockerfiles); other ecosystems covered; nothing checks coverage | partial: dependabot covers github-actions, cargo and bun, not the plugin's uv project |
+| SC-IN-3 | Lockfiles match manifests | partial: Cargo.lock, bun.lock and the client npm locks are enforced; the agent workflows run npm install and temper-py commits no lock | partial: Cargo/Gemfile/tasker-py uv locks gated in ci.yml#lockfile-check, bun.lock via --frozen-lockfile; coverage uv.lock unchecked | partial: bun.lock is gated by bun install --frozen-lockfile; Cargo.lock and uv.lock are not checked |
+| SC-SEC-1 | gitleaks and CodeQL | gated: .github/workflows/secret-scan.yml#secret-scan, .github/workflows/codeql.yml#analyze | partial: CodeQL runs per PR from repository settings, outside CI Success; no gitleaks in CI or the pre-commit hook | partial: gitleaks gates in the hygiene job; CodeQL runs on pull requests through the repository's default setup, a setting not readable from this repository |
 
 ## Security
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| SEC-CRED-1 | Credentials are secret types | uncovered: several credential fields outside temper-client are bare String | partial: tasker-secure exists; one consumer | unexamined |
-| SEC-CRED-2 | Credential `Debug` redacted, proven | gated: .github/workflows/quality-gate.yml#rust-gate | practiced (hand redaction); unproven | unexamined |
+| SEC-CRED-1 | Credentials are secret types | uncovered: several credential fields outside temper-client are bare String | uncovered: JWT private key and API key held as bare String in tasker-shared config structs | unexamined |
+| SEC-CRED-2 | Credential `Debug` redacted, proven | gated: .github/workflows/quality-gate.yml#rust-gate | uncovered: WebAuthConfig derives Debug over jwt_private_key; no tripwire | unexamined |
 | SEC-CRED-3 | Constant-time comparison | practiced | practiced | unexamined |
-| SEC-CRED-4 | One secret per purpose | gated: .github/workflows/quality-gate.yml#rust-gate | uncovered | unexamined |
-| SEC-RED-1 | One redaction module | practiced | uncovered (duplicated `redact_url`) | unexamined |
-| SEC-RED-2 | Redact by origin, deny by default | convention: redaction by origin is a design judgement made in review | uncovered | unexamined |
-| SEC-SQL-1 | Bind values, validate identifiers | partial: values are bound by the query! macros and the runtime-query tripwire (quality-gate.yml#rust-gate); identifier validation is unchecked | practiced (queue and NOTIFY validators) | n/a: no SQL |
-| SEC-SQL-2 | Authorisation inside the query | partial: the visibility-ungated fragments are pinned (audit-ungated-fragments, quality-gate.yml#rust-gate); other scoping is review | convention: unexamined for tasker-core's model | n/a: no SQL |
-| SEC-AUTH-1 | Disabled-auth mode is loud and cannot ship | n/a: temper has no disabled-auth mode | uncovered (auth off by default) | unexamined |
-| SEC-AUTH-2 | Authorise before reading the body | partial: route auth tiers are pinned (audit-route-auth, audit-mcp-route-auth, quality-gate.yml#rust-gate); authorising before a write inside a handler is review | practiced (`authorize()` at the route) | unexamined |
-| SEC-AUTH-3 | Refusal does not reveal existence | convention: refusal versus not-found parity is reviewed per handler | unexamined | unexamined |
-| SEC-TEST-1 | Test doors never ship | gated: .github/workflows/code-quality.yml#rust-quality | uncovered | unexamined |
-| SEC-RPT-1 | SECURITY.md with private reporting | practiced | practiced | uncovered: no SECURITY.md |
+| SEC-CRED-4 | One secret per purpose | gated: .github/workflows/quality-gate.yml#rust-gate | convention: secret-per-purpose is a design review matter; JWT keys and API key are separate settings | unexamined |
+| SEC-RED-1 | One redaction module | practiced | uncovered: redaction helpers duplicated (redact_url in redis.rs and memcached.rs, others in tasker-client); no single module | unexamined |
+| SEC-RED-2 | Redact by origin, deny by default | convention: redaction by origin is a design judgement made in review | convention: redaction policy is judged in review; no single redaction module to anchor a check | unexamined |
+| SEC-SQL-1 | Bind values, validate identifiers | partial: values are bound by the query! macros and the runtime-query tripwire (quality-gate.yml#rust-gate); identifier validation is unchecked | practiced | n/a: no SQL |
+| SEC-SQL-2 | Authorisation inside the query | partial: the visibility-ungated fragments are pinned (audit-ungated-fragments, quality-gate.yml#rust-gate); other scoping is review | convention: permissions are route-level; there is no per-caller row scoping to check | n/a: no SQL |
+| SEC-AUTH-1 | Disabled-auth mode is loud and cannot ship | n/a: temper has no disabled-auth mode | uncovered: disabled auth only logs at debug level; no check stops a production config with auth off | unexamined |
+| SEC-AUTH-2 | Authorise before reading the body | partial: route auth tiers are pinned (audit-route-auth, audit-mcp-route-auth, quality-gate.yml#rust-gate); authorising before a write inside a handler is review | practiced | unexamined |
+| SEC-AUTH-3 | Refusal does not reveal existence | convention: refusal versus not-found parity is reviewed per handler | convention: existence-hiding is judged per endpoint in review; permissions are route-level | unexamined |
+| SEC-TEST-1 | Test doors never ship | gated: .github/workflows/code-quality.yml#rust-quality | uncovered: test-utils is in the default features of tasker-orchestration and tasker-worker; nothing checks shipped features | unexamined |
+| SEC-RPT-1 | SECURITY.md with private reporting | practiced | uncovered: SECURITY.md names email and response time but no GitHub advisory channel and no out-of-scope list | uncovered: no SECURITY.md |
 
 ## Concurrency
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| CONC-BOUND-1 | No unbounded channels | gated: .github/workflows/code-quality.yml#rust-quality | practiced (0 sites); ungated | uncovered |
-| CONC-BOUND-2 | Bounds from configuration | uncovered: pool and channel capacities are literals in production code | practiced (1 literal outside tests); ungated | unexamined |
-| CONC-BOUND-3 | Declared at-bound strategy | convention: the at-bound strategy is a design decision judged in review | practiced (doctrine with recipe) | unexamined |
-| CONC-BOUND-4 | Queues observable | uncovered: no depth or saturation metrics for in-process bounds | practiced (`ChannelMonitor`) | unexamined |
-| CONC-FAIL-1 | Spawned work joined or supervised | practiced | partial: `catch_unwind` at boundaries, inert in release builds (RUST-PANIC-1) | unexamined |
-| CONC-FAIL-3 | A poisoned lock is not quietly recovered | uncovered: shape_loader.rs recovers poisoned locks at six production sites with no comment | practiced: 0 recoveries | unexamined |
-| CONC-FAIL-2 | Concurrent work is named | convention: span-per-act is a code-quality.md review rule; spawns are not named | practiced (`spawn_named!`) | unexamined |
-| CONC-DB-1 | Atomic cross-process state in the database | convention: atomic transitions in the database are reviewed per change | practiced (CAS functions, `SKIP LOCKED`) | n/a: no database |
-| CONC-DB-2 | Idempotent retries by construction | convention: retry idempotency is designed and reviewed per operation | practiced (identity hash) | n/a: no database |
-| CONC-DB-3 | One decision per transaction | convention: transaction scope is judged in review | convention: same | n/a: no database |
+| CONC-BOUND-1 | No unbounded channels | gated: .github/workflows/code-quality.yml#rust-quality | partial: disallowed-methods in .clippy.toml is denied for clippy-reached libs only (no ctl/secure/runtime/py/rb/ts/example, no member tests) | uncovered |
+| CONC-BOUND-2 | Bounds from configuration | uncovered: pool and channel capacities are literals in production code | uncovered: mostly config-driven, but a production literal at grpc/services/tasks.rs:361; no channel-literal check | unexamined |
+| CONC-BOUND-3 | Declared at-bound strategy | convention: the at-bound strategy is a design decision judged in review | convention: the at-bound strategy is a design choice judged in review (mpsc-channel-guidelines.md) | unexamined |
+| CONC-BOUND-4 | Queues observable | uncovered: no depth or saturation metrics for in-process bounds | practiced | unexamined |
+| CONC-FAIL-1 | Spawned work joined or supervised | practiced | uncovered: catch_unwind containment is defeated by release panic = abort; joining of spawned tasks not checked | unexamined |
+| CONC-FAIL-3 | A poisoned lock is not quietly recovered | uncovered: shape_loader.rs recovers poisoned locks at six production sites with no comment | uncovered: tasker-example-rs metrics_subscriber.rs recovers poisoned locks via into_inner without a reasoned comment | unexamined |
+| CONC-FAIL-2 | Concurrent work is named | convention: span-per-act is a code-quality.md review rule; spawns are not named | uncovered: 26 unnamed tokio::spawn sites in crate src alongside 17 spawn_named!; no check | unexamined |
+| CONC-DB-1 | Atomic cross-process state in the database | convention: atomic transitions in the database are reviewed per change | practiced | n/a: no database |
+| CONC-DB-2 | Idempotent retries by construction | convention: retry idempotency is designed and reviewed per operation | practiced | n/a: no database |
+| CONC-DB-3 | One decision per transaction | convention: transaction scope is judged in review | convention: transaction scope is judged in review | n/a: no database |
 
 ## Tripwires
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| TW-1 | Header states why, and what is NOT CHECKED | uncovered: about 7 of 19 tripwires state no NOT CHECKED section | n/a (no tripwires yet) | unexamined |
-| TW-2 | Reviewed baseline, `--list`, `UPDATE_BASELINE` | uncovered: 5 of 19 tripwires lack --list or UPDATE_BASELINE | n/a | unexamined |
-| TW-3 | Empty scan fails | practiced | n/a | unexamined |
-| TW-4 | Fixture override seam | uncovered: audit-handler-authz-drift.sh cannot be pointed at a fixture | n/a | unexamined |
-| TW-5 | Bite test | partial: 18 of 19 tripwires' bite tests run in quality-gate.yml#guard-tests; audit-handler-authz-drift has none, and nothing requires one | n/a | gated: .github/workflows/ci.yml#hygiene, .github/workflows/ci.yml#conventions |
-| TW-6 | Derived set; CI covers all | partial: the glob-and-coverage check is local (cargo make tripwires); CI runs a hand-kept list | n/a | unexamined |
-| TW-7 | Key on the bug, not the shape | convention: what a tripwire keys on is judged when it is written | n/a | unexamined |
+| TW-1 | Header states why, and what is NOT CHECKED | uncovered: about 7 of 19 tripwires state no NOT CHECKED section | n/a: tasker-core has no tripwire scripts, so the header format binds nothing | unexamined |
+| TW-2 | Reviewed baseline, `--list`, `UPDATE_BASELINE` | uncovered: 5 of 19 tripwires lack --list or UPDATE_BASELINE | n/a: tasker-core has no tripwire scripts, so there is no baseline to keep | unexamined |
+| TW-3 | Empty scan fails | practiced | n/a: tasker-core has no tripwire scripts | unexamined |
+| TW-4 | Fixture override seam | uncovered: audit-handler-authz-drift.sh cannot be pointed at a fixture | n/a: tasker-core has no tripwire scripts | unexamined |
+| TW-5 | Bite test | partial: 18 of 19 tripwires' bite tests run in quality-gate.yml#guard-tests; audit-handler-authz-drift has none, and nothing requires one | n/a: tasker-core has no tripwire scripts; test-detect-ci-scope.sh exists but no workflow runs it | gated: .github/workflows/ci.yml#hygiene, .github/workflows/ci.yml#conventions |
+| TW-6 | Derived set; CI covers all | partial: the glob-and-coverage check is local (cargo make tripwires); CI runs a hand-kept list | uncovered: no tripwire set, glob runner or CI job exists, although rules here call for several | unexamined |
+| TW-7 | Key on the bug, not the shape | convention: what a tripwire keys on is judged when it is written | n/a: tasker-core has no tripwire scripts | unexamined |
 
 ## Testing and CI
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| TEST-1 | Ignored tests registered with reasons | gated: .github/workflows/quality-gate.yml#rust-gate | uncovered | partial: every #[ignore] carries a reason; no tripwire pins the set |
-| TEST-2 | Never weaken a test to get green | convention: weakening a test is caught in review; the ignore set is pinned by TEST-1's tripwire | convention: same (in CLAUDE.md) | convention: a review practice |
-| TEST-3 | Every tier runs in CI | partial: every tier but temper-client's integration-tests feature runs in test-rust.yml; nothing checks the mapping | partial: `test-cluster` local only, by design | partial: the hand-run witnesses (#[ignore]) and the parked CSP witness do not run on pull requests |
-| TEST-4 | Retries are reported | gated: .github/workflows/test-rust.yml#unit-tests, .github/workflows/test-rust.yml#integration-tests | uncovered | unexamined |
-| TEST-5 | Coverage floors in CI | partial: coverage floors are enforced nightly (coverage.yml#coverage), not on pull requests | uncovered (local only) | uncovered: no coverage measured |
-| CI-1 | Cheap stage-1 gate | partial: quality-gate runs on every change, but its Rust half is scope-gated and only code-quality and test-rust wait on it | uncovered | uncovered: every job starts at once; none waits on a cheap stage |
-| CI-2 | One required aggregate check | gated: .github/workflows/ci.yml#ci-success | gated: `CI Success` | partial: the CI Success job fans every job in; whether the ruleset requires it is a repository setting, not readable here |
-| CI-3 | Generated artifacts drift-checked | gated: .github/workflows/code-quality.yml#rust-quality, .github/workflows/test-agents-ts.yml#temper-ts, .github/workflows/test-python.yml#test-python, .github/workflows/test-ruby.yml#test-ruby | partial: codegen syntax only | gated: .github/workflows/ci.yml#conventions |
-| CI-4 | Selective pre-commit hook | practiced | partial: fmt only, opt-in | practiced |
-| CI-5 | Required checks run on `merge_group` | practiced | practiced: `ci.yml` `merge_group` trigger (tasker-core#376); first queue merge 2026-10-23; no tripwire | uncovered: no merge_group trigger |
-| CI-6 | Job timeouts budget for cold-cache queue runs | practiced | practiced: integration timeout 25→40 min (tasker-core#376) | practiced |
+| TEST-1 | Ignored tests registered with reasons | gated: .github/workflows/quality-gate.yml#rust-gate | uncovered: 3 of 11 #[ignore] carry no reason; no tripwire pins the set | partial: every #[ignore] carries a reason; no tripwire pins the set |
+| TEST-2 | Never weaken a test to get green | convention: weakening a test is caught in review; the ignore set is pinned by TEST-1's tripwire | convention: weakening is caught only in review; note the napi FFI test step in TS framework job is continue-on-error | convention: a review practice |
+| TEST-3 | Every tier runs in CI | partial: every tier but temper-client's integration-tests feature runs in test-rust.yml; nothing checks the mapping | partial: root tests run with test-services; crate tiers never enabled, tests/ of 10 crates and tasker-runtime never run, test-cluster local | partial: the hand-run witnesses (#[ignore]) and the parked CSP witness do not run on pull requests |
+| TEST-4 | Retries are reported | gated: .github/workflows/test-rust.yml#unit-tests, .github/workflows/test-rust.yml#integration-tests | practiced | unexamined |
+| TEST-5 | Coverage floors in CI | partial: coverage floors are enforced nightly (coverage.yml#coverage), not on pull requests | uncovered: coverage-thresholds.json is checked by no CI job; 5 crates declare no floor | uncovered: no coverage measured |
+| CI-1 | Cheap stage-1 gate | partial: quality-gate runs on every change, but its Rust half is scope-gated and only code-quality and test-rust wait on it | partial: conventions, ruff and cargo deny run unscoped and first; fmt and audit sit in code-quality behind build-postgres and scope; no machete or tripwires | uncovered: every job starts at once; none waits on a cheap stage |
+| CI-2 | One required aggregate check | gated: .github/workflows/ci.yml#ci-success | gated: .github/workflows/ci.yml#ci-success | partial: the CI Success job fans every job in; whether the ruleset requires it is a repository setting, not readable here |
+| CI-3 | Generated artifacts drift-checked | gated: .github/workflows/code-quality.yml#rust-quality, .github/workflows/test-agents-ts.yml#temper-ts, .github/workflows/test-python.yml#test-python, .github/workflows/test-ruby.yml#test-ruby | partial: lockfiles and missing .sqlx entries fail CI; OpenAPI specs, index.d.ts, docs/generated, generated configs never diffed | gated: .github/workflows/ci.yml#conventions |
+| CI-4 | Selective pre-commit hook | practiced | partial: hook selects on staged .rs and runs cargo fmt only; no other file classes and no secret scanning | practiced |
+| CI-5 | Required checks run on `merge_group` | practiced | practiced | uncovered: no merge_group trigger |
+| CI-6 | Job timeouts budget for cold-cache queue runs | practiced | practiced | practiced |
 
 ## Agent guidance
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| AG-1 | Entry file is a router | practiced | uncovered (monolithic CLAUDE.md) | uncovered: AGENTS.md holds its content rather than routing to topic files |
-| AG-2 | Rules state their reason | convention: whether each rule states its reason is judged in review | partial | unexamined |
-| AG-3 | Rules state their enforcement | uncovered: most internal/agents rules do not say whether a gate enforces them | uncovered (`SQLX_OFFLINE` contradiction) | unexamined |
-| AG-4 | Facts derived or checked | partial: README and docs CLI claims and counts are drift-checked (quality-gate.yml#guard-tests, code-quality.yml#rust-quality); internal/agents is not | uncovered (stale crate list) | uncovered: AGENTS.md's layout list is not checked against the tree |
-| AG-5 | Baseline arrives as a projected skill | gated: .github/workflows/quality-gate.yml#conventions | uncovered | gated: .github/workflows/ci.yml#conventions |
-| AG-6 | Hooks point at real paths | practiced | practiced (SessionStart path fixed, tasker-core#376); no check | practiced |
+| AG-1 | Entry file is a router | practiced | uncovered: CLAUDE.md is a 455-line monolith (AGENTS.md is a byte copy), not a router | uncovered: AGENTS.md holds its content rather than routing to topic files |
+| AG-2 | Rules state their reason | convention: whether each rule states its reason is judged in review | uncovered: many CLAUDE.md rules state no reason (e.g. SQLX_OFFLINE, config layout); no check | unexamined |
+| AG-3 | Rules state their enforcement | uncovered: most internal/agents rules do not say whether a gate enforces them | uncovered: CLAUDE.md forbids SQLX_OFFLINE=true, which CI sets in 19 steps; no check | unexamined |
+| AG-4 | Facts derived or checked | partial: README and docs CLI claims and counts are drift-checked (quality-gate.yml#guard-tests, code-quality.yml#rust-quality); internal/agents is not | uncovered: CLAUDE.md crate list has 12 of 15 crates (no grammar/secure/runtime); no drift gate | uncovered: AGENTS.md's layout list is not checked against the tree |
+| AG-5 | Baseline arrives as a projected skill | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | gated: .github/workflows/ci.yml#conventions |
+| AG-6 | Hooks point at real paths | practiced | practiced | practiced |
 
 ## Python
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| PY-LINT-1 | Every `.py` file under ruff check and format in CI | gated: .github/workflows/quality-gate.yml#python-lint | uncovered: CI runs no ruff (`check-python` is local only); `tools/` outside any config | gated: .github/workflows/ci.yml#hygiene |
-| PY-LINT-2 | One canonical ruff selection | partial: the root ruff.toml is pinned to the projection (quality-gate.yml#conventions); an override in clients/temper-py's [tool.ruff] is caught only in review | uncovered: tasker-py 76 findings (37 `BLE001`), tests 186 (mostly autofixable) | gated: .github/workflows/ci.yml#conventions, .github/workflows/ci.yml#hygiene |
-| PY-LINT-3 | Suppressions name code and reason; unused ones fail | partial: a suppression without a code, or an unused one, fails (quality-gate.yml#python-lint); its reason is review | partial: all coded; 140 unused `noqa` | gated: .github/workflows/ci.yml#hygiene |
-| PY-TYPE-1 | Published packages pass `mypy --strict` in CI | gated: .github/workflows/test-python.yml#test-python | practiced: 0 issues locally; not in CI | n/a: no published Python package |
-| PY-TYPE-2 | Native-module stub checked against the module | n/a: no native module | uncovered: `_tasker_core.pyi` hand-written, unchecked | n/a: no native module |
-| PY-ERR-1 | No bare except; broad except only at a declared boundary | gated: .github/workflows/quality-gate.yml#python-lint | partial: 37 `BLE001` sites to audit | gated: .github/workflows/ci.yml#hygiene |
-| PY-ERR-2 | `assert` is not validation | gated: .github/workflows/quality-gate.yml#python-lint | practiced: 0 library sites | gated: .github/workflows/ci.yml#hygiene |
-| PY-DEF-1 | No shared mutable defaults | gated: .github/workflows/quality-gate.yml#python-lint | practiced: 1 `RUF012`, 1 `PLW0603`; ungated | gated: .github/workflows/ci.yml#hygiene |
-| PY-LOG-1 | Log messages are constants; data in fields | gated: .github/workflows/quality-gate.yml#python-lint | uncovered: 73 f-string messages to FFI log helpers | gated: .github/workflows/ci.yml#hygiene |
-| PY-GEN-1 | Generated Python drift-gated, not linted | gated: .github/workflows/test-python.yml#test-python | partial: codegen output only `ast.parse`d | n/a: no generated Python |
-| PY-VER-1 | One Python floor, stated once | partial: target-version is the projection's (quality-gate.yml#conventions); requires-python in clients/temper-py and packages/temper-design, and mypy's python_version, match it by hand | practiced (3.10) | partial: target-version is the projection's (check A); requires-python in plugins/author-tools/pyproject.toml matches it by hand |
+| PY-LINT-1 | Every `.py` file under ruff check and format in CI | gated: .github/workflows/quality-gate.yml#python-lint | gated: .github/workflows/ci.yml#python-lint | gated: .github/workflows/ci.yml#hygiene |
+| PY-LINT-2 | One canonical ruff selection | partial: the root ruff.toml is pinned to the projection (quality-gate.yml#conventions); an override in clients/temper-py's [tool.ruff] is caught only in review | partial: the root ruff.toml is pinned to the projection (ci.yml#conventions); an override in crates/tasker-py's [tool.ruff] is caught only in review | gated: .github/workflows/ci.yml#conventions, .github/workflows/ci.yml#hygiene |
+| PY-LINT-3 | Suppressions name code and reason; unused ones fail | partial: a suppression without a code, or an unused one, fails (quality-gate.yml#python-lint); its reason is review | partial: a suppression without a code, or an unused one, fails (ci.yml#python-lint); its reason is review | gated: .github/workflows/ci.yml#hygiene |
+| PY-TYPE-1 | Published packages pass `mypy --strict` in CI | gated: .github/workflows/test-python.yml#test-python | uncovered: mypy strict is configured but no workflow runs it | n/a: no published Python package |
+| PY-TYPE-2 | Native-module stub checked against the module | n/a: no native module | uncovered: _tasker_core.pyi is never checked against the built module | n/a: no native module |
+| PY-ERR-1 | No bare except; broad except only at a declared boundary | gated: .github/workflows/quality-gate.yml#python-lint | gated: .github/workflows/ci.yml#python-lint | gated: .github/workflows/ci.yml#hygiene |
+| PY-ERR-2 | `assert` is not validation | gated: .github/workflows/quality-gate.yml#python-lint | gated: .github/workflows/ci.yml#python-lint | gated: .github/workflows/ci.yml#hygiene |
+| PY-DEF-1 | No shared mutable defaults | gated: .github/workflows/quality-gate.yml#python-lint | gated: .github/workflows/ci.yml#python-lint | gated: .github/workflows/ci.yml#hygiene |
+| PY-LOG-1 | Log messages are constants; data in fields | gated: .github/workflows/quality-gate.yml#python-lint | partial: G and LOG refuse f-strings to stdlib loggers (ci.yml#python-lint); tasker_core's log_* helpers take preformatted f-strings unchecked | gated: .github/workflows/ci.yml#hygiene |
+| PY-GEN-1 | Generated Python drift-gated, not linted | gated: .github/workflows/test-python.yml#test-python | n/a: no generated Python is committed; tasker-ctl codegen output is built and syntax-checked in CI only | n/a: no generated Python |
+| PY-VER-1 | One Python floor, stated once | partial: target-version is the projection's (quality-gate.yml#conventions); requires-python in clients/temper-py and packages/temper-design, and mypy's python_version, match it by hand | partial: target-version is the projection's (ci.yml#conventions); requires-python, the pyo3 abi3 feature and mypy python_version in tasker-py match it by hand | partial: target-version is the projection's (check A); requires-python in plugins/author-tools/pyproject.toml matches it by hand |
 
 ## TypeScript
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| TS-TOOL-1 | Every package linted and typechecked in CI | partial: temper-cloud, temper-ui and temper-design are linted and typechecked; temper-ts, temper-telemetry-ts and the agent workflows are typechecked only | gated: `cargo make lint` and `typecheck` | gated: .github/workflows/ci.yml#desktop |
-| TS-TOOL-2 | One shared rule set; no rule at `warn` | uncovered: no shared Biome base, and warn-level rules never fail CI | uncovered: same | partial: the canonical rules are errors; biome.json keeps noUnusedVariables at warn and the recommended set's warnings do not fail |
-| TS-TOOL-3 | One pinned TypeScript and Biome version per repo | uncovered: four TypeScript version ranges, one a release candidate; Biome is a range | practiced | practiced |
-| TS-CFG-1 | Packages extend one strict tsconfig base | uncovered: packages set strict only, with no shared base (about 155 errors measured under the canonical one) | partial: all but `noImplicitOverride` | gated: .github/workflows/ci.yml#conventions, .github/workflows/ci.yml#desktop |
-| TS-CFG-2 | Erasable syntax only | uncovered: erasableSyntaxOnly is unset; one namespace in hand-written TS | uncovered: about 6 sites (2 enums, 4 parameter properties) | gated: .github/workflows/ci.yml#desktop |
-| TS-TYPE-1 | No `any` | uncovered: noExplicitAny is warn-only | partial: at warn; 0 sites | gated: .github/workflows/ci.yml#desktop |
-| TS-TYPE-2 | No non-null assertions; assertions justified | uncovered: noNonNullAssertion is warn-only | partial: 0 `!`; `as unknown as` 30, unexamined | partial: noNonNullAssertion gates in the Biome step; type assertions are not checked |
-| TS-SUP-1 | Suppressions name rule and reason | practiced | practiced (10 sites, all reasoned); ungated | partial: Biome requires a reason on biome-ignore and refuses @ts-ignore; @ts-expect-error is not checked |
-| TS-MOD-1 | Named exports | uncovered: noDefaultExport is not enabled; 29 default exports | practiced: test fixtures only | gated: .github/workflows/ci.yml#desktop |
+| TS-TOOL-1 | Every package linted and typechecked in CI | partial: temper-cloud, temper-ui and temper-design are linted and typechecked; temper-ts, temper-telemetry-ts and the agent workflows are typechecked only | partial: biome check and tsc gated in typescript-framework job (path-scoped); tsconfig excludes tests/ from tsc | gated: .github/workflows/ci.yml#desktop |
+| TS-TOOL-2 | One shared rule set; no rule at `warn` | uncovered: no shared Biome base, and warn-level rules never fail CI | uncovered: local biome.json with three rules at warn; biome check runs without --error-on-warnings | partial: the canonical rules are errors; biome.json keeps noUnusedVariables at warn and the recommended set's warnings do not fail |
+| TS-TOOL-3 | One pinned TypeScript and Biome version per repo | uncovered: four TypeScript version ranges, one a release candidate; Biome is a range | partial: one Biome/TypeScript via bun.lock + --frozen-lockfile; validate-codegen.yml installs an unpinned global typescript | practiced |
+| TS-CFG-1 | Packages extend one strict tsconfig base | uncovered: packages set strict only, with no shared base (about 155 errors measured under the canonical one) | partial: tsc gates five of the six flags; noImplicitOverride missing; no shared base to extend | gated: .github/workflows/ci.yml#conventions, .github/workflows/ci.yml#desktop |
+| TS-CFG-2 | Erasable syntax only | uncovered: erasableSyntaxOnly is unset; one namespace in hand-written TS | partial: useImportType is an error under the gated biome check; 2 enums in src; erasableSyntaxOnly and noEnum unset | gated: .github/workflows/ci.yml#desktop |
+| TS-TYPE-1 | No `any` | uncovered: noExplicitAny is warn-only | practiced | gated: .github/workflows/ci.yml#desktop |
+| TS-TYPE-2 | No non-null assertions; assertions justified | uncovered: noNonNullAssertion is warn-only | practiced | partial: noNonNullAssertion gates in the Biome step; type assertions are not checked |
+| TS-SUP-1 | Suppressions name rule and reason | practiced | practiced | partial: Biome requires a reason on biome-ignore and refuses @ts-ignore; @ts-expect-error is not checked |
+| TS-MOD-1 | Named exports | uncovered: noDefaultExport is not enabled; 29 default exports | practiced | gated: .github/workflows/ci.yml#desktop |
 | TS-ERR-1 | Throw only `Error` | practiced | practiced | gated: .github/workflows/ci.yml#desktop |
-| TS-NAME-1 | Language casing; wire casing on wire types | convention: casing is reviewed | practiced: 25 findings | uncovered |
-| TS-GEN-1 | Generated TypeScript drift-gated, not linted | gated: .github/workflows/test-agents-ts.yml#temper-ts, .github/workflows/code-quality.yml#rust-quality | partial: napi `index.d.ts` has no drift check found | n/a: no committed generated TypeScript |
-| TS-DOC-1 | Published exports documented | convention: Biome has no rule for exported doc comments | convention: same | n/a: nothing is published |
+| TS-NAME-1 | Language casing; wire casing on wire types | convention: casing is reviewed | convention: naming is judged in review; useNamingConvention not configured | uncovered |
+| TS-GEN-1 | Generated TypeScript drift-gated, not linted | gated: .github/workflows/test-agents-ts.yml#temper-ts, .github/workflows/code-quality.yml#rust-quality | uncovered: generated files are excluded from Biome but never regenerated and diffed in CI | n/a: no committed generated TypeScript |
+| TS-DOC-1 | Published exports documented | convention: Biome has no rule for exported doc comments | convention: Biome has no doc-comment rule; export doc coverage is judged in review | n/a: nothing is published |
 
 ## Shell
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| SH-1 | Bash via `#!/usr/bin/env bash` | uncovered: 4 zsh and 7 sh executables | partial: 29 `#!/bin/bash`; shebang check exists but not in CI | practiced |
-| SH-2 | Strict mode first | uncovered: about 29 scripts lack strict mode | practiced: 98 of 104 (the rest sourced) | partial: every script but tools/setup-claude-web.sh sets -euo pipefail; nothing checks |
-| SH-3 | ShellCheck gates in CI | uncovered: ShellCheck runs only in the pre-commit hook | partial: clean at `-S warning`, but the pass is not in any workflow | gated: .github/workflows/ci.yml#hygiene |
-| SH-4 | `$(…)`, never backticks | uncovered: backticks remain; SC2006 is not run | practiced: 0 | gated: .github/workflows/ci.yml#hygiene |
-| SH-5 | Commands are arrays; no string `eval` | uncovered: the drift gates eval command strings | practiced: `eval "$(tool …)"` form only | unexamined |
-| SH-6 | Portable between GNU and BSD | uncovered: non-portable constructs present, unchecked | uncovered | unexamined |
-| SH-7 | Shell orchestrates; logic lives elsewhere | convention: the shell-or-program split is judged in review | convention: same | unexamined |
+| SH-1 | Bash via `#!/usr/bin/env bash` | uncovered: 4 zsh and 7 sh executables | uncovered: 29 of 104 tracked scripts use #!/bin/bash; no check | practiced |
+| SH-2 | Strict mode first | uncovered: about 29 scripts lack strict mode | uncovered: 15 of 104 tracked scripts lack set -euo pipefail; no check | partial: every script but tools/setup-claude-web.sh sets -euo pipefail; nothing checks |
+| SH-3 | ShellCheck gates in CI | uncovered: ShellCheck runs only in the pre-commit hook | uncovered: ShellCheck runs only in the local ci-sanity-check task; no workflow calls it | gated: .github/workflows/ci.yml#hygiene |
+| SH-4 | `$(…)`, never backticks | uncovered: backticks remain; SC2006 is not run | uncovered: no ShellCheck (SC2006) in CI; backticks are unchecked | gated: .github/workflows/ci.yml#hygiene |
+| SH-5 | Commands are arrays; no string `eval` | uncovered: the drift gates eval command strings | uncovered: eval of constructed command strings (e.g. docker/scripts/dev/validate-optimized-builds.sh:30); no check | unexamined |
+| SH-6 | Portable between GNU and BSD | uncovered: non-portable constructs present, unchecked | uncovered: 11 GNU-only constructs (sed -i, readlink -f, date -d, grep -P, mapfile) unchecked; CI runs Linux only | unexamined |
+| SH-7 | Shell orchestrates; logic lives elsewhere | convention: the shell-or-program split is judged in review | convention: where logic belongs is judged in review | unexamined |
 
 ## Markdown
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| DOC-1 | One Markdown shape, linted | uncovered: no markdownlint in CI | partial: markdownlint config, not in CI; MD025 off | uncovered: no Markdown lint |
-| DOC-2 | Code blocks declare a language | uncovered: no markdownlint in CI | uncovered: 413 of 3,086; MD040 off | unexamined |
-| DOC-3 | Prose wraps at 100 | uncovered: no markdownlint in CI | uncovered: MD013 off | unexamined |
-| DOC-4 | Intra-repo links resolve | partial: relative links under docs/ are checked offline (quality-gate.yml#guard-tests); README, internal/ and agent guidance are not | uncovered | uncovered: no link check |
+| DOC-1 | One Markdown shape, linted | uncovered: no markdownlint in CI | uncovered: markdownlint-cli2 runs only as a local cargo-make task; MD025 is off; docs-only PRs skip CI | uncovered: no Markdown lint |
+| DOC-2 | Code blocks declare a language | uncovered: no markdownlint in CI | uncovered: MD040 is on in the local config, but markdownlint is not run in CI | unexamined |
+| DOC-3 | Prose wraps at 100 | uncovered: no markdownlint in CI | uncovered: MD013 is disabled and markdownlint is not run in CI | unexamined |
+| DOC-4 | Intra-repo links resolve | partial: relative links under docs/ are checked offline (quality-gate.yml#guard-tests); README, internal/ and agent guidance are not | uncovered: no offline link check (lychee or equivalent) anywhere | uncovered: no link check |
 
 ## HTTP API JSON
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| API-JSON-1 | snake_case names and enum values | uncovered: no casing check; 12 non-snake properties and one non-snake enum value in openapi.json | partial: properties snake_case; PascalCase enum values | n/a: no HTTP API |
-| API-JSON-2 | One error shape, described by the spec | uncovered: one error schema, but no per-variant validation against the spec | uncovered: wire correct, spec wrong (72 references) | n/a: no HTTP API |
-| API-JSON-3 | Timestamps RFC 3339, typed `date-time` | uncovered: 2 of 26 *_at fields lack format date-time | uncovered: 9 of 19 | n/a: no HTTP API |
+| API-JSON-1 | snake_case names and enum values | uncovered: no casing check; 12 non-snake properties and one non-snake enum value in openapi.json | uncovered: PascalCase enum values on the wire (23 in orchestration spec, 14 in worker); no check | n/a: no HTTP API |
+| API-JSON-2 | One error shape, described by the spec | uncovered: one error schema, but no per-variant validation against the spec | uncovered: spec ApiError is the Rust enum's tagged oneOf, not the wire error shape; no spec-vs-wire test | n/a: no HTTP API |
+| API-JSON-3 | Timestamps RFC 3339, typed `date-time` | uncovered: 2 of 26 *_at fields lack format date-time | uncovered: 9 of 19 *_at fields in the orchestration spec are typed date-time; no check | n/a: no HTTP API |
 | API-JSON-4 | Durations are unit-suffixed integers | practiced | practiced | n/a: no HTTP API |
 | API-JSON-5 | No success envelope; lists say if complete | uncovered: 26 list responses are bare arrays that cannot signal truncation | practiced | n/a: no HTTP API |
 
@@ -239,11 +234,11 @@ change.
 
 | Id | Rule | temper | tasker-core | temper-contrib |
 |---|---|---|---|---|
-| CONS-1 | The pin is a full SHA on the baseline's main, read from the consumer | gated: .github/workflows/quality-gate.yml#conventions | uncovered: not adopted | gated: .github/workflows/ci.yml#conventions |
-| CONS-2 | The projection is never hand-edited; compared with the pin | gated: .github/workflows/quality-gate.yml#conventions | uncovered: not adopted | gated: .github/workflows/ci.yml#conventions |
-| CONS-3 | Adopted config matches the projection, apart from exceptions | gated: .github/workflows/quality-gate.yml#conventions | uncovered: not adopted | gated: .github/workflows/ci.yml#conventions |
-| CONS-4 | Exceptions are local, reasoned and alive | gated: .github/workflows/quality-gate.yml#conventions | uncovered: not adopted | gated: .github/workflows/ci.yml#conventions |
-| CONS-5 | Statuses live in the consumer; a named gate exists | gated: .github/workflows/quality-gate.yml#conventions | uncovered: not adopted | gated: .github/workflows/ci.yml#conventions |
-| CONS-6 | Agents receive the projected skill; entry guidance links it | gated: .github/workflows/quality-gate.yml#conventions | uncovered: not adopted | gated: .github/workflows/ci.yml#conventions |
-| CONS-7 | Lag is reported on every run, and never fails | gated: .github/workflows/quality-gate.yml#conventions | uncovered: not adopted | gated: .github/workflows/ci.yml#conventions |
-| CONS-8 | The checks need nothing an outsider lacks | gated: .github/workflows/quality-gate.yml#conventions | uncovered: not adopted | practiced |
+| CONS-1 | The pin is a full SHA on the baseline's main, read from the consumer | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | gated: .github/workflows/ci.yml#conventions |
+| CONS-2 | The projection is never hand-edited; compared with the pin | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | gated: .github/workflows/ci.yml#conventions |
+| CONS-3 | Adopted config matches the projection, apart from exceptions | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | gated: .github/workflows/ci.yml#conventions |
+| CONS-4 | Exceptions are local, reasoned and alive | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | gated: .github/workflows/ci.yml#conventions |
+| CONS-5 | Statuses live in the consumer; a named gate exists | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | gated: .github/workflows/ci.yml#conventions |
+| CONS-6 | Agents receive the projected skill; entry guidance links it | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | gated: .github/workflows/ci.yml#conventions |
+| CONS-7 | Lag is reported on every run, and never fails | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | gated: .github/workflows/ci.yml#conventions |
+| CONS-8 | The checks need nothing an outsider lacks | gated: .github/workflows/quality-gate.yml#conventions | gated: .github/workflows/ci.yml#conventions | practiced |

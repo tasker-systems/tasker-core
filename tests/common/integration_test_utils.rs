@@ -3,7 +3,10 @@
 // Note: Using #[allow(dead_code)] instead of #[expect] because test utility
 // functions may be used by some test targets but not others, causing inconsistent
 // lint behavior between different test compilation units.
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "compiled into several test binaries; each uses a different subset (RUST-LINT-3 exception)"
+)]
 
 use anyhow::Result;
 use std::time::Duration;

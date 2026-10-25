@@ -406,7 +406,7 @@ fn extract_namespace_from_queue(queue_name: &str) -> String {
 /// ## Shared Listener (TAS-149)
 ///
 /// Push notification subscriptions share a single PostgreSQL LISTEN connection
-/// via [`SharedListenerManager`]. This prevents connection pool exhaustion when
+/// via `SharedListenerManager`. This prevents connection pool exhaustion when
 /// subscribing to many queues across namespaces.
 ///
 /// # Example

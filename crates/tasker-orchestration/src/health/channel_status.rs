@@ -83,7 +83,10 @@ pub fn evaluate_channel_status<T>(
 ///
 /// # Returns
 /// `ChannelHealthStatus` with current channel health information
-#[allow(dead_code, reason = "dead in --lib, used by test targets")]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "dead in --lib, used by test targets")
+)]
 pub fn evaluate_channel_status_basic<T>(
     command_sender: &mpsc::Sender<T>,
     buffer_size: usize,

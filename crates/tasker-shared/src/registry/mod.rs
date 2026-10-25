@@ -53,7 +53,6 @@
 //!     Ok(())
 //! }
 //! ```
-//! ```
 
 pub mod method_dispatch;
 pub mod resolver_chain;

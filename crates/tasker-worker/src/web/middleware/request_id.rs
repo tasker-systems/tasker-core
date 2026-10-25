@@ -38,8 +38,7 @@ pub async fn add_request_id(mut request: Request, next: Next) -> Response {
 }
 
 /// Request ID wrapper for extension storage
-// Note: Using #[allow] instead of #[expect] - used by test targets
-#[allow(
+#[expect(
     dead_code,
     reason = "pub(crate) web infrastructure used by route configuration"
 )]
@@ -48,8 +47,7 @@ pub struct RequestId(pub String);
 
 impl RequestId {
     /// Get the request ID string
-    // Note: Using #[allow] instead of #[expect] - used by test targets
-    #[allow(
+    #[expect(
         dead_code,
         reason = "pub(crate) web infrastructure used by route configuration"
     )]

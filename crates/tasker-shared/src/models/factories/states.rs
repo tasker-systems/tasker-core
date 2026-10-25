@@ -5,8 +5,6 @@
 //! This module provides factories for creating WorkflowStepTransition records
 //! with proper state machine adherence and audit trail functionality.
 
-#![allow(clippy::wrong_self_convention)] // Builder pattern methods use `to_*` and `from_*` appropriately
-
 use super::base::*;
 use crate::models::core::workflow_step_transition::NewWorkflowStepTransition;
 use crate::models::WorkflowStepTransition;
