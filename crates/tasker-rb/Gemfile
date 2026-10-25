@@ -13,7 +13,7 @@ group :development, :test do
   gem 'rspec', '~> 3.12'
   gem 'rubocop', '~> 1.92'
   gem 'rubocop-rspec', '~> 2.20'
-  gem 'ruby-prof', '~> 1.0'
+  gem 'ruby-prof', '~> 2.0'
   gem 'yard', '~> 0.9'
 end
 
