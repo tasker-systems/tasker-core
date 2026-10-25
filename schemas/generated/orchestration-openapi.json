@@ -343,10 +343,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DlqResolutionStatus"
                 },
                 {
-                  "$ref": "#/components/schemas/DlqResolutionStatus"
+                  "type": "null"
                 }
               ]
             }
@@ -1937,11 +1937,11 @@
                   "failure_context": {
                     "oneOf": [
                       {
-                        "type": "null"
-                      },
-                      {
                         "$ref": "#/components/schemas/AuthFailureContext",
                         "description": "Machine-readable failure context for gateway signaling headers"
+                      },
+                      {
+                        "type": "null"
                       }
                     ]
                   },
@@ -1967,11 +1967,11 @@
                   "failure_context": {
                     "oneOf": [
                       {
-                        "type": "null"
-                      },
-                      {
                         "$ref": "#/components/schemas/AuthFailureContext",
                         "description": "Machine-readable failure context for gateway signaling headers"
+                      },
+                      {
+                        "type": "null"
                       }
                     ]
                   },
@@ -2463,11 +2463,11 @@
           "pool_utilization": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/PoolUtilizationInfo",
                 "description": "Connection pool utilization details (TAS-164)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -3228,7 +3228,8 @@
         "required": [
           "name",
           "default_retryable",
-          "default_max_attempts"
+          "default_max_attempts",
+          "result_schema"
         ],
         "properties": {
           "default_max_attempts": {
@@ -3250,6 +3251,10 @@
           "name": {
             "type": "string",
             "description": "Step name/handler identifier"
+          },
+          "result_schema": {
+            "type": "object",
+            "description": "Optional JSON Schema describing the expected result payload"
           }
         }
       },
@@ -3706,11 +3711,11 @@
           "recommended_action": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/RecommendedAction",
                 "description": "Proper typed recommended action (was raw string)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -3756,10 +3761,7 @@
           "context",
           "initiator",
           "source_system",
-          "reason",
-          "tags",
-          "requested_at",
-          "correlation_id"
+          "reason"
         ],
         "properties": {
           "context": {
@@ -4109,11 +4111,11 @@
           "resolution_status": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DlqResolutionStatus",
                 "description": "New resolution status (optional)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
