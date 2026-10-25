@@ -4,9 +4,8 @@ name = "tasker-core"
 revision = "79ccef122253b48f94334994d40ac2ef861e1cc7"
 
 # Each adopted canonical file: where it lives here, and how it is compared (exact, extends,
-# table, superset). Not yet adopted, each a measured step of its own (status.toml says so):
-# rust/workspace-lints.toml (the workspace Cargo.toml, table mode), typescript/biome.json and
-# typescript/tsconfig.base.json (crates/tasker-ts, extends mode).
+# table, superset). Not yet adopted, a measured step of its own (status.toml says so):
+# rust/workspace-lints.toml (the workspace Cargo.toml, table mode).
 [[adopted]]
 canonical = "rust/deny.toml"
 path = "deny.toml"
@@ -25,6 +24,16 @@ mode = "exact"
 [[adopted]]
 canonical = "python/ruff.toml"
 path = "ruff.toml"
+mode = "extends"
+
+[[adopted]]
+canonical = "typescript/biome.json"
+path = "crates/tasker-ts/biome.json"
+mode = "extends"
+
+[[adopted]]
+canonical = "typescript/tsconfig.base.json"
+path = "crates/tasker-ts/tsconfig.json"
 mode = "extends"
 
 [guidance]

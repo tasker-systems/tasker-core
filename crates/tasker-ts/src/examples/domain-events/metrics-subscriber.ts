@@ -80,7 +80,7 @@ export class MetricsSubscriber extends BaseSubscriber {
   /**
    * Subscribe to all events for comprehensive metrics.
    */
-  static subscribesTo(): string[] {
+  static override subscribesTo(): string[] {
     return ['*'];
   }
 
@@ -117,7 +117,7 @@ export class MetricsSubscriber extends BaseSubscriber {
   /**
    * Start timing before handling.
    */
-  beforeHandle(_event: DomainEvent): boolean {
+  override beforeHandle(_event: DomainEvent): boolean {
     this.eventStartTime = performance.now();
     return true;
   }
@@ -125,7 +125,7 @@ export class MetricsSubscriber extends BaseSubscriber {
   /**
    * Record latency after handling.
    */
-  afterHandle(_event: DomainEvent): void {
+  override afterHandle(_event: DomainEvent): void {
     const latencyMs = performance.now() - this.eventStartTime;
     this.recordLatency(latencyMs);
   }
@@ -133,7 +133,7 @@ export class MetricsSubscriber extends BaseSubscriber {
   /**
    * Track error metrics.
    */
-  onHandleError(event: DomainEvent, error: Error): void {
+  override onHandleError(event: DomainEvent, error: Error): void {
     MetricsSubscriber.errorCount++;
     this.logger.warn(
       {
@@ -302,7 +302,7 @@ export class PaymentMetricsSubscriber extends BaseSubscriber {
   private static amountByMethod: CounterMap = {};
   private static countByMethod: CounterMap = {};
 
-  static subscribesTo(): string[] {
+  static override subscribesTo(): string[] {
     return ['payment.*'];
   }
 

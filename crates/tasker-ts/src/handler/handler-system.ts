@@ -285,7 +285,7 @@ export class HandlerSystem {
    *
    * @returns Array of [name, priority] tuples
    */
-  async listResolvers(): Promise<Array<[string, number]>> {
+  async listResolvers(): Promise<[string, number][]> {
     return this.registry.listResolvers();
   }
 

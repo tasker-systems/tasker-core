@@ -142,7 +142,7 @@ export class ResolverChain {
    *
    * @returns Array of [name, priority] tuples, sorted by priority
    */
-  listResolvers(): Array<[string, number]> {
+  listResolvers(): [string, number][] {
     return this.resolvers.map((r) => [r.name, r.priority]);
   }
 

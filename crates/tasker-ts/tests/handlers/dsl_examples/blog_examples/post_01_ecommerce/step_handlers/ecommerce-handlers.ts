@@ -236,7 +236,7 @@ export const UpdateInventoryDslHandler = defineHandler(
   async ({ cartValidation }) => {
     const result = cartValidation as Record<string, unknown> | null;
 
-    if (!result || !result.validated_items) {
+    if (!result?.validated_items) {
       return StepHandlerResult.failure(
         'Validated cart items are required but were not found from validate_cart step',
         ErrorType.PERMANENT_ERROR,
@@ -329,7 +329,7 @@ export const CreateOrderDslHandler = defineHandler(
       );
     }
 
-    if (!cart || !cart.validated_items) {
+    if (!cart?.validated_items) {
       return StepHandlerResult.failure(
         'Cart validation results are required but were not found from validate_cart step',
         ErrorType.PERMANENT_ERROR,
@@ -337,7 +337,7 @@ export const CreateOrderDslHandler = defineHandler(
       );
     }
 
-    if (!payment || !payment.payment_id) {
+    if (!payment?.payment_id) {
       return StepHandlerResult.failure(
         'Payment results are required but were not found from process_payment step',
         ErrorType.PERMANENT_ERROR,
@@ -345,7 +345,7 @@ export const CreateOrderDslHandler = defineHandler(
       );
     }
 
-    if (!inventory || !inventory.updated_products) {
+    if (!inventory?.updated_products) {
       return StepHandlerResult.failure(
         'Inventory results are required but were not found from update_inventory step',
         ErrorType.PERMANENT_ERROR,
@@ -413,7 +413,7 @@ export const SendConfirmationDslHandler = defineHandler(
       | ValidatedItem[]
       | null;
 
-    if (!customer || !customer.email) {
+    if (!customer?.email) {
       return StepHandlerResult.failure(
         'Customer email is required but was not provided',
         ErrorType.PERMANENT_ERROR,

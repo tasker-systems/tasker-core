@@ -23,4 +23,5 @@ export class SecondaryHandler extends StepHandler {
   }
 }
 
+// biome-ignore lint/style/noDefaultExport: the class-lookup resolver tests load handlers from a module's default export; this fixture is that case.
 export default PrimaryHandler;
