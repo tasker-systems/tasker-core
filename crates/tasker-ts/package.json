@@ -28,7 +28,7 @@
   "scripts": {
     "build": "tsup",
     "build:watch": "tsup --watch",
-    "check": "biome check .",
+    "check": "biome check --error-on-warnings .",
     "check:fix": "biome check --fix .",
     "format": "biome format --write .",
     "lint": "biome lint .",

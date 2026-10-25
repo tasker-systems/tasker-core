@@ -75,7 +75,7 @@ export { type DecisionPointOutcome, DecisionType } from './mixins/decision.js';
 export abstract class DecisionHandler extends StepHandler {
   private readonly _decisionMixin = new DecisionMixin();
 
-  get capabilities(): string[] {
+  override get capabilities(): string[] {
     return ['process', 'decision', 'routing'];
   }
 

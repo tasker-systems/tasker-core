@@ -14,8 +14,8 @@
 # default-members, so they reached only the root package and the libraries it pulled in.)
 #
 # Adoption is in steps (audit-before-enforce): deny.toml, .cargo/audit.toml, .clippy.toml and
-# ruff.toml first (tasker-core#380), then the Rust workspace lint table. The TypeScript configs are
-# the next step; their rules read as below until they land.
+# ruff.toml (tasker-core#380), the Rust workspace lint table, and the TypeScript configs (biome.json
+# and tsconfig.json in crates/tasker-ts, extends mode).
 #
 # `reviewed_at` is the baseline revision these statuses were reviewed against (check F).
 reviewed_at = "99967726e20b1cb2a94cf6ca7d115472b97d63ff"
@@ -228,26 +228,26 @@ PY-GEN-1 = "n/a: no generated Python is committed; tasker-ctl codegen output is 
 PY-VER-1 = "partial: target-version is the projection's (ci.yml#conventions); requires-python, the pyo3 abi3 feature and mypy python_version in tasker-py match it by hand"
 
 # --- TypeScript ---
-# test-typescript-framework.yml: cargo make lint (biome check .) + typecheck (tsc --noEmit); tsconfig excludes tests/; runs only when tasker-ts or ffi-core changes
-TS-TOOL-1 = "partial: biome check and tsc gated in typescript-framework job (path-scoped); tsconfig excludes tests/ from tsc"
-# biome.json is local; noExplicitAny, noNonNullAssertion, noExcessiveCognitiveComplexity at warn; no --error-on-warnings
-TS-TOOL-2 = "uncovered: local biome.json with three rules at warn; biome check runs without --error-on-warnings"
+# test-typescript-framework.yml: cargo make lint (bun run check: biome check --error-on-warnings) and typecheck (tsc --noEmit); runs when tasker-ts or ffi-core changes.
+TS-TOOL-1 = "partial: biome check and tsc gated in the typescript-framework job (path-scoped to tasker-ts and the FFI core); tsconfig excludes tests/ from tsc"
+# crates/tasker-ts/biome.json extends the projection (check A, ci.yml#conventions) and only adds rules, all at error; the check script runs --error-on-warnings.
+TS-TOOL-2 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
 # package.json ranges (^2.3.10, ^5.9.3) resolved by bun.lock under --frozen-lockfile; validate-codegen.yml installs unpinned global typescript
 TS-TOOL-3 = "partial: one Biome/TypeScript via bun.lock + --frozen-lockfile; validate-codegen.yml installs an unpinned global typescript"
-# tsconfig.json: strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitReturns, noFallthroughCasesInSwitch; no noImplicitOverride; no shared base
-TS-CFG-1 = "partial: tsc gates five of the six flags; noImplicitOverride missing; no shared base to extend"
-# 2 enums: src/types/error-type.ts:9, src/handler/mixins/decision.ts:40; useImportType=error gated; no erasableSyntaxOnly/verbatimModuleSyntax/noEnum
-TS-CFG-2 = "partial: useImportType is an error under the gated biome check; 2 enums in src; erasableSyntaxOnly and noEnum unset"
-# 0 explicit any in src and tests; noExplicitAny is warn so it cannot fail
-TS-TYPE-1 = "practiced"
-# 0 non-null assertions found; noNonNullAssertion is warn
-TS-TYPE-2 = "practiced"
-# 10 @ts-expect-error, all in tests with reasons; 0 @ts-ignore/@ts-nocheck
-TS-SUP-1 = "practiced"
-# export default only in tsup.config.ts and 3 test fixtures that exercise default-export loading; noDefaultExport off
-TS-MOD-1 = "practiced"
-# Every throw in src is new *Error or a caught error; useThrowOnlyError off
-TS-ERR-1 = "practiced"
+# crates/tasker-ts/tsconfig.json extends the projected tsconfig.base.json (check A) and adds only module, target, lib, paths and output settings; tsc --noEmit runs in CI.
+TS-CFG-1 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# erasableSyntaxOnly and verbatimModuleSyntax (tsc) plus noEnum, noNamespace, noParameterProperties (Biome); the two enums became as-const objects and Decision's parameter properties explicit fields.
+TS-CFG-2 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# noExplicitAny at error under Biome; 0 explicit any in src and tests.
+TS-TYPE-1 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# noNonNullAssertion at error; 0 non-null assertions. Type-assertion reasons are not machine-checked.
+TS-TYPE-2 = "partial: noNonNullAssertion is an error (test-typescript-framework.yml#typescript-framework); that a type assertion says why it holds is review"
+# 10 @ts-expect-error in tests, each with a reason; 3 biome-ignore lint/style/noDefaultExport on the default-export fixtures, each with one.
+TS-SUP-1 = "partial: noTsIgnore refuses @ts-ignore and biome-ignore needs an explanation (test-typescript-framework.yml#typescript-framework); whether the reason is a reason is review"
+# noDefaultExport at error, off only for *.config.* (canonical override); the three default-export test fixtures carry a reasoned biome-ignore.
+TS-MOD-1 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
+# useThrowOnlyError at error under Biome.
+TS-ERR-1 = "gated: .github/workflows/test-typescript-framework.yml#typescript-framework"
 TS-NAME-1 = "convention: naming is judged in review; useNamingConvention not configured"
 # index.d.ts/index.js (napi) and src/ffi/generated excluded in biome.json; never regenerated-and-diffed in CI
 TS-GEN-1 = "uncovered: generated files are excluded from Biome but never regenerated and diffed in CI"

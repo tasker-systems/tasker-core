@@ -168,19 +168,19 @@ Statuses for **tasker-core**:
 | TEST-3 | partial: root tests run with test-services; crate tiers never enabled, tests/ of 10 crates and tasker-runtime never run, test-cluster local |
 | TEST-4 | practiced |
 | TEST-5 | uncovered: coverage-thresholds.json is checked by no CI job; 5 crates declare no floor |
-| TS-CFG-1 | partial: tsc gates five of the six flags; noImplicitOverride missing; no shared base to extend |
-| TS-CFG-2 | partial: useImportType is an error under the gated biome check; 2 enums in src; erasableSyntaxOnly and noEnum unset |
+| TS-CFG-1 | gated: .github/workflows/test-typescript-framework.yml#typescript-framework |
+| TS-CFG-2 | gated: .github/workflows/test-typescript-framework.yml#typescript-framework |
 | TS-DOC-1 | convention: Biome has no doc-comment rule; export doc coverage is judged in review |
-| TS-ERR-1 | practiced |
+| TS-ERR-1 | gated: .github/workflows/test-typescript-framework.yml#typescript-framework |
 | TS-GEN-1 | uncovered: generated files are excluded from Biome but never regenerated and diffed in CI |
-| TS-MOD-1 | practiced |
+| TS-MOD-1 | gated: .github/workflows/test-typescript-framework.yml#typescript-framework |
 | TS-NAME-1 | convention: naming is judged in review; useNamingConvention not configured |
-| TS-SUP-1 | practiced |
-| TS-TOOL-1 | partial: biome check and tsc gated in typescript-framework job (path-scoped); tsconfig excludes tests/ from tsc |
-| TS-TOOL-2 | uncovered: local biome.json with three rules at warn; biome check runs without --error-on-warnings |
+| TS-SUP-1 | partial: noTsIgnore refuses @ts-ignore and biome-ignore needs an explanation (test-typescript-framework.yml#typescript-framework); whether the reason is a reason is review |
+| TS-TOOL-1 | partial: biome check and tsc gated in the typescript-framework job (path-scoped to tasker-ts and the FFI core); tsconfig excludes tests/ from tsc |
+| TS-TOOL-2 | gated: .github/workflows/test-typescript-framework.yml#typescript-framework |
 | TS-TOOL-3 | partial: one Biome/TypeScript via bun.lock + --frozen-lockfile; validate-codegen.yml installs an unpinned global typescript |
-| TS-TYPE-1 | practiced |
-| TS-TYPE-2 | practiced |
+| TS-TYPE-1 | gated: .github/workflows/test-typescript-framework.yml#typescript-framework |
+| TS-TYPE-2 | partial: noNonNullAssertion is an error (test-typescript-framework.yml#typescript-framework); that a type assertion says why it holds is review |
 | TW-1 | n/a: tasker-core has no tripwire scripts, so the header format binds nothing |
 | TW-2 | n/a: tasker-core has no tripwire scripts, so there is no baseline to keep |
 | TW-3 | n/a: tasker-core has no tripwire scripts |

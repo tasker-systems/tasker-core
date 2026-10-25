@@ -390,7 +390,7 @@ describe('BatchableMixin', () => {
       const analyzerOutcome = result.result?.batch_analyzer_outcome as Record<string, unknown>;
       expect(analyzerOutcome.total_items).toBe(100);
       expect(analyzerOutcome.batch_metadata).toEqual({ source: 'test' });
-      const configs = analyzerOutcome.cursor_configs as Array<Record<string, unknown>>;
+      const configs = analyzerOutcome.cursor_configs as Record<string, unknown>[];
       expect(configs).toHaveLength(2);
       expect(configs[0].start_cursor).toBe(0);
       expect(configs[0].end_cursor).toBe(50);
@@ -528,7 +528,7 @@ describe('Batchable integration', () => {
       expect(result.success).toBe(true);
       const outcome = result.result?.batch_analyzer_outcome as Record<string, unknown>;
       expect(outcome.total_items).toBe(500);
-      const configs = outcome.cursor_configs as Array<Record<string, unknown>>;
+      const configs = outcome.cursor_configs as Record<string, unknown>[];
       expect(configs).toHaveLength(5);
     });
   });
@@ -1345,7 +1345,7 @@ describe('BatchableStepHandler', () => {
       expect(outcome.type).toBe('create_batches');
       expect(outcome.worker_template_name).toBe('process_batch_ts');
       expect(outcome.worker_count).toBe(2);
-      const configs = outcome.cursor_configs as Array<Record<string, unknown>>;
+      const configs = outcome.cursor_configs as Record<string, unknown>[];
       expect(configs).toHaveLength(2);
       expect(configs[0].batch_id).toBe('001');
       expect(configs[0].start_cursor).toBe(0);

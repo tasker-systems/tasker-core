@@ -215,8 +215,8 @@ export interface Batchable {
     itemsSucceeded?: number,
     itemsFailed?: number,
     itemsSkipped?: number,
-    results?: Array<Record<string, unknown>>,
-    errors?: Array<Record<string, unknown>>,
+    results?: Record<string, unknown>[],
+    errors?: Record<string, unknown>[],
     lastCursor?: number | null,
     batchMetadata?: Record<string, unknown>
   ): BatchWorkerOutcome;
@@ -547,8 +547,8 @@ export class BatchableMixin implements Batchable {
     itemsSucceeded = 0,
     itemsFailed = 0,
     itemsSkipped = 0,
-    results?: Array<Record<string, unknown>>,
-    errors?: Array<Record<string, unknown>>,
+    results?: Record<string, unknown>[],
+    errors?: Record<string, unknown>[],
     lastCursor?: number | null,
     batchMetadata?: Record<string, unknown>
   ): BatchWorkerOutcome {
@@ -1079,8 +1079,8 @@ export abstract class BatchableStepHandler extends StepHandler implements Batcha
     itemsSucceeded?: number,
     itemsFailed?: number,
     itemsSkipped?: number,
-    results?: Array<Record<string, unknown>>,
-    errors?: Array<Record<string, unknown>>,
+    results?: Record<string, unknown>[],
+    errors?: Record<string, unknown>[],
     lastCursor?: number | null,
     batchMetadata?: Record<string, unknown>
   ): BatchWorkerOutcome {

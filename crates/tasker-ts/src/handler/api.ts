@@ -103,7 +103,7 @@ export abstract class ApiHandler extends StepHandler {
     return this._apiMixin;
   }
 
-  get capabilities(): string[] {
+  override get capabilities(): string[] {
     return ['process', 'http', 'api'];
   }
 
