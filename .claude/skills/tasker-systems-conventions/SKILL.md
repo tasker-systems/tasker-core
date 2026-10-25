@@ -66,7 +66,7 @@ Statuses for **tasker-core**:
 | CI-4 | partial: hook selects on staged .rs and runs cargo fmt only; no other file classes and no secret scanning |
 | CI-5 | practiced |
 | CI-6 | practiced |
-| CONC-BOUND-1 | partial: disallowed-methods in .clippy.toml is denied for clippy-reached libs only (no ctl/secure/runtime/py/rb/ts/example, no member tests) |
+| CONC-BOUND-1 | gated: .github/workflows/code-quality.yml#quality |
 | CONC-BOUND-2 | uncovered: mostly config-driven, but a production literal at grpc/services/tasks.rs:361; no channel-literal check |
 | CONC-BOUND-3 | convention: the at-bound strategy is a design choice judged in review (mpsc-channel-guidelines.md) |
 | CONC-BOUND-4 | practiced |
@@ -101,22 +101,22 @@ Statuses for **tasker-core**:
 | PY-VER-1 | partial: target-version is the projection's (ci.yml#conventions); requires-python, the pyo3 abi3 feature and mypy python_version in tasker-py match it by hand |
 | RUST-API-1 | convention: scoping rule for which crates bind the API rules, applied in review |
 | RUST-API-2 | uncovered: 0 #[non_exhaustive] in any crate, including publishable ones; no check |
-| RUST-API-3 | partial: the named lints run at clippy default and are denied for clippy-reached libs only |
-| RUST-API-4 | partial: ptr_arg and borrowed_box denied for clippy-reached libs only |
-| RUST-API-5 | partial: wrong_self_convention denied for clippy-reached libs (allowed in tasker-shared factories); naming beyond it by review |
+| RUST-API-3 | gated: .github/workflows/code-quality.yml#quality |
+| RUST-API-4 | gated: .github/workflows/code-quality.yml#quality |
+| RUST-API-5 | partial: wrong_self_convention denied workspace-wide (code-quality.yml#quality); naming beyond it by review |
 | RUST-API-6 | practiced |
-| RUST-DOC-1 | uncovered: no crate sets missing_docs; rustdoc gate covers only the root package |
+| RUST-DOC-1 | uncovered: no crate sets missing_docs; rustdoc -D warnings now covers the workspace (code-quality.yml#quality) but only for broken docs |
 | RUST-ERR-1 | uncovered: mostly followed, but tasker-shared exposes 13 pub fns returning anyhow::Result; nothing checks |
 | RUST-ERR-2 | convention: whether a value is required is a semantic judgement; 129 unwrap_or_default() sites unreviewed |
 | RUST-ERR-3 | convention: panic-vs-Result is judged in review; missing_panics_doc not enabled |
-| RUST-ERR-4 | partial: unnecessary_unwrap denied (clippy default) for clippy-reached libs; unwrap_used not enabled, ~1.4k unwrap() in src files |
+| RUST-ERR-4 | partial: unnecessary_unwrap denied workspace-wide (code-quality.yml#quality); unwrap_used not enabled, ~1.4k unwrap() in src files |
 | RUST-FMT-1 | gated: .github/workflows/code-quality.yml#quality |
 | RUST-INIT-1 | practiced |
-| RUST-LINT-1 | uncovered: tasker-rb/ext/tasker_core does not inherit the workspace table; table is local, not the canonical one; no check |
-| RUST-LINT-2 | partial: clippy -D warnings gated for root + 8 member libs (no ctl/secure/runtime/py/rb/ts/example, no member tests); rustdoc -D warnings root pkg only |
-| RUST-LINT-3 | uncovered: 54 #[allow] and 11 reasonless #[expect]; the lints that refuse them arrive with the lint table |
-| RUST-LINT-4 | convention: an adoption process judged in review; note crate-level #![allow] blankets in tasker-py, tasker-shared, tasker-orchestration lib.rs |
-| RUST-LINT-5 | uncovered: groups are not held off: style/complexity/perf run at clippy defaults, cargo group on; no lint-by-lint candidate list |
+| RUST-LINT-1 | partial: the table is the projection's (ci.yml#conventions, check A) and all 16 members inherit it; nothing refuses a new member without [lints] workspace = true |
+| RUST-LINT-2 | gated: .github/workflows/code-quality.yml#quality |
+| RUST-LINT-3 | gated: .github/workflows/code-quality.yml#quality |
+| RUST-LINT-4 | convention: an adoption process judged in review; the table was adopted with every finding fixed or reason-annotated and the dead crate-level #![allow]s removed |
+| RUST-LINT-5 | uncovered: style/complexity/perf still run at clippy's defaults (the canonical table does not turn them off); its named single lints are on |
 | RUST-MACRO-1 | convention: macro use is judged in review |
 | RUST-ORG-1 | uncovered: 72 glob imports beyond use super::*; clippy::wildcard_imports not enabled |
 | RUST-ORG-2 | convention: module layout is judged in review; no lint covers it |
@@ -126,10 +126,10 @@ Statuses for **tasker-core**:
 | RUST-TC-1 | uncovered: toolchain pinned to 1.99.0 in rust-toolchain.toml; no workspace rust-version (only tasker-py, tasker-ts set one) |
 | RUST-TC-2 | uncovered: no [workspace.package]; each of 16 manifests sets edition = 2021 on its own |
 | RUST-TC-3 | gated: .github/workflows/test-integration.yml#integration-tests |
-| RUST-TYPE-1 | partial: missing_debug_implementations denied for clippy-reached libs; ctl/secure/runtime/py/rb/ts/example-rs not linted |
+| RUST-TYPE-1 | gated: .github/workflows/code-quality.yml#quality |
 | RUST-TYPE-2 | convention: whether values are confusable is judged in review |
-| RUST-UNSAFE-1 | uncovered: no crate root declares #![forbid(unsafe_code)] |
-| RUST-UNSAFE-2 | partial: undocumented_unsafe_blocks denied for clippy-reached libs; unsafe_code not denied, no register, no tripwire |
+| RUST-UNSAFE-1 | uncovered: no crate root declares #![forbid(unsafe_code)]; unsafe_code is denied by the table instead |
+| RUST-UNSAFE-2 | partial: unsafe_code and undocumented_unsafe_blocks denied workspace-wide (code-quality.yml#quality); the one site carries a reasoned expect; no register, no tripwire |
 | RUST-UNSAFE-3 | practiced |
 | SC-ADV-1 | gated: .github/workflows/code-quality.yml#quality |
 | SC-ADV-2 | convention: each ignore is reviewed by hand; its reason, reachability and status are not machine-checked |

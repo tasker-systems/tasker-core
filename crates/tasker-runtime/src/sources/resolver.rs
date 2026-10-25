@@ -27,7 +27,7 @@ use super::{ResourceDefinitionSource, ResourceHandleResolver};
 /// Resolves resource handles by looking up definitions and initializing handles.
 ///
 /// Given a resource name:
-/// 1. Queries the [`ResourceDefinitionSource`] for a [`ResourceDefinition`]
+/// 1. Queries the [`ResourceDefinitionSource`] for a [`ResourceDefinition`](tasker_secure::ResourceDefinition)
 /// 2. Dispatches to the appropriate `from_config` constructor based on [`ResourceType`]
 /// 3. Returns the initialized handle as `Arc<dyn ResourceHandle>`
 ///

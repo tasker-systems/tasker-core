@@ -4,7 +4,10 @@
 //! server/client pair via in-memory duplex transport. Task seeding uses the shared
 //! `create_task_request` + `wait_for_task_completion` utilities.
 
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "compiled into several test binaries; each uses a different subset (RUST-LINT-3 exception)"
+)]
 
 use anyhow::Result;
 use rmcp::model::{CallToolRequestParams, ClientInfo};

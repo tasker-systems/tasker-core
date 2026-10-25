@@ -160,11 +160,7 @@ async fn handle_coverage(base_dir: &str) -> ClientResult<()> {
     let builder = create_builder(base_dir)?;
     let (total, documented, per_context) = builder.coverage_stats();
 
-    let percent = if total > 0 {
-        (documented * 100) / total
-    } else {
-        0
-    };
+    let percent = (documented * 100).checked_div(total).unwrap_or(0);
 
     output::header("Configuration Documentation Coverage");
     output::plain("====================================");
@@ -229,11 +225,7 @@ async fn handle_index(output: Option<&str>, base_dir: &str) -> ClientResult<()> 
     let worker_sections = builder.build_sections(ConfigContext::Worker);
 
     let (total, documented, _) = builder.coverage_stats();
-    let coverage_percent = if total > 0 {
-        (documented * 100) / total
-    } else {
-        0
-    };
+    let coverage_percent = (documented * 100).checked_div(total).unwrap_or(0);
 
     let rendered = render_index(
         &common_sections,

@@ -84,3 +84,6 @@ tasker-core = { package = "tasker-core", path = "../../../../", version = "=0.1.
 
 [features]
 default = []
+
+[lints]
+workspace = true

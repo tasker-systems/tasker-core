@@ -1,8 +1,8 @@
 //! # Analytics Handlers (TAS-168)
 //!
 //! Read-only endpoints for performance metrics and bottleneck analysis.
-//! These handlers delegate to [`AnalyticsService`] for caching and
-//! [`AnalyticsQueryService`] for database queries.
+//! These handlers delegate to [`AnalyticsService`](crate::services::AnalyticsService) for caching and
+//! [`AnalyticsQueryService`](crate::services::AnalyticsQueryService) for database queries.
 //!
 //! ## Caching
 //!

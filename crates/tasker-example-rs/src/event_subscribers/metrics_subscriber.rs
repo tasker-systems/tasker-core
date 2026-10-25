@@ -35,10 +35,12 @@
 //! - `events_by_namespace` - Event count per namespace
 //! - `events_by_name` - Event count per event name
 //! - `last_event_at` - Timestamp of most recent event
-// Note: Using #[allow] instead of #[expect] at file level - items used by test targets
-#![allow(
-    dead_code,
-    reason = "TAS-65 example event subscribers for domain event metrics"
+#![cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "TAS-65 example event subscribers for domain event metrics; dead in --lib, used by test targets"
+    )
 )]
 
 use std::collections::HashMap;

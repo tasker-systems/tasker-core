@@ -618,11 +618,7 @@ mod tests {
             complete_steps: complete,
             blocked_steps: blocked,
             failed_steps: failed,
-            progress_percentage: if total > 0 {
-                ((complete * 100) / total) as u8
-            } else {
-                0
-            },
+            progress_percentage: (complete * 100).checked_div(total).unwrap_or(0) as u8,
         }
     }
 

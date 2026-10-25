@@ -308,9 +308,12 @@ impl EmitterFactory {
     }
 
     /// Create a no-op emitter
-    #[allow(
-        dead_code,
-        reason = "emitter factory API - module restricted per TAS-187"
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "emitter factory API - module restricted per TAS-187"
+        )
     )]
     pub fn noop(config: PgmqNotifyConfig) -> Result<NoopEmitter> {
         NoopEmitter::new(config)
