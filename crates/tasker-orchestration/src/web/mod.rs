@@ -12,9 +12,9 @@
 //!
 //! ## Core Components
 //!
-//! - [`routes`] - HTTP route definitions and organization
-//! - [`handlers`] - Request handlers for different endpoint groups
-//! - [`middleware`] - Authentication, error handling, operational state middleware
+//! - `routes` - HTTP route definitions and organization
+//! - `handlers` - Request handlers for different endpoint groups
+//! - `middleware` - Authentication, error handling, operational state middleware
 //! - [`state`] - Shared application state and database pools
 //! - JWT authentication and authorization (in middleware module)
 //! - Web-specific error types and responses (in handlers module)

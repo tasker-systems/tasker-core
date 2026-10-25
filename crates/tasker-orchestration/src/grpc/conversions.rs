@@ -39,7 +39,10 @@ pub fn proto_to_task_state(state: proto::TaskState) -> String {
 // ============================================================================
 
 /// Convert step state string to proto (convenience for string-based state storage).
-#[allow(dead_code, reason = "dead in --lib, used by test targets")]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "dead in --lib, used by test targets")
+)]
 pub fn step_state_to_proto(state: &str) -> proto::StepState {
     WorkflowStepState::try_from(state)
         .map(proto::StepState::from)

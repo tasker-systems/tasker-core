@@ -20,7 +20,7 @@ use super::schema_compat::check_schema_compatibility;
 /// Maximum number of invocations allowed in a composition.
 ///
 /// This limit prevents resource exhaustion from pathologically large compositions.
-/// It aligns with the default [`CompositionExecutorConfig::max_invocation_count`]
+/// It aligns with the default [`CompositionExecutorConfig::max_invocation_count`](crate::executor::CompositionExecutorConfig::max_invocation_count)
 /// but is enforced at design-time validation rather than runtime.
 const MAX_INVOCATION_COUNT: usize = 100;
 

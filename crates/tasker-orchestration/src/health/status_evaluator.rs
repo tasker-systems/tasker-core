@@ -112,6 +112,10 @@ impl StatusEvaluator {
     /// * `queue_names` - List of queue names to monitor
     /// * `circuit_breaker` - Circuit breaker for database operations
     /// * `config` - Health evaluation configuration
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one argument per health source the evaluator samples"
+    )]
     pub fn new(
         caches: HealthStatusCaches,
         db_pool: PgPool,

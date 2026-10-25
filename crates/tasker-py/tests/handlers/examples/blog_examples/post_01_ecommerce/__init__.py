@@ -18,9 +18,9 @@ from .update_inventory_handler import UpdateInventoryHandler
 from .validate_cart_handler import ValidateCartHandler
 
 __all__ = [
-    "ValidateCartHandler",
-    "ProcessPaymentHandler",
-    "UpdateInventoryHandler",
     "CreateOrderHandler",
+    "ProcessPaymentHandler",
     "SendConfirmationHandler",
+    "UpdateInventoryHandler",
+    "ValidateCartHandler",
 ]

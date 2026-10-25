@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core.step_handler.functional import inputs, step_handler
 from tasker_core.types import StepHandlerResult
@@ -23,7 +23,7 @@ def success_step(message, _context):
     return {
         "status": "success",
         "message": message,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "handler": "SuccessStepHandler",
     }
 
@@ -41,7 +41,7 @@ def retryable_error_step(error_message, _context):
         retryable=True,
         metadata={
             "handler": "RetryableErrorStepHandler",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     )
 
@@ -59,13 +59,13 @@ def permanent_error_step(error_message, _context):
         retryable=False,
         metadata={
             "handler": "PermanentErrorStepHandler",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     )
 
 
 __all__ = [
-    "success_step",
-    "retryable_error_step",
     "permanent_error_step",
+    "retryable_error_step",
+    "success_step",
 ]

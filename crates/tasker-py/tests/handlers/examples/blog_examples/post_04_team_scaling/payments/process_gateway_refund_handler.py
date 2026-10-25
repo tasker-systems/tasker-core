@@ -11,7 +11,7 @@ TAS-137 Best Practices:
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -80,7 +80,7 @@ class ProcessGatewayRefundHandler(StepHandler):
         self, payment_id: str, refund_amount: float, _refund_reason: str
     ) -> dict:
         """Simulate gateway refund processing."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Simulate different gateway responses based on payment_id patterns
         if "pay_test_gateway_timeout" in payment_id:

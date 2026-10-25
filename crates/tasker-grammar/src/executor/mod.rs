@@ -34,7 +34,7 @@
 //! # Error model
 //!
 //! A capability failure at any invocation produces a [`CompositionError::InvocationFailure`]
-//! wrapping the underlying [`CapabilityError`] with the invocation index and
+//! wrapping the underlying [`CapabilityError`](crate::types::CapabilityError) with the invocation index and
 //! capability name for structured error reporting.
 //!
 //! **Ticket**: TAS-334
@@ -294,6 +294,10 @@ impl CompositionExecutor {
     }
 
     /// Core execution loop shared by `execute` and `resume`.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the shared core of execute and resume; each argument is resumable loop state that both callers pass"
+    )]
     fn execute_from(
         &self,
         spec: &CompositionSpec,

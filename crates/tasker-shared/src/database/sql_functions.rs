@@ -1243,6 +1243,10 @@ impl SqlFunctionExecutor {
     /// # Returns
     ///
     /// UUID of created DLQ entry, or None if creation failed
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one argument per column of the DLQ row this inserts"
+    )]
     pub async fn create_dlq_entry(
         &self,
         task_uuid: Uuid,

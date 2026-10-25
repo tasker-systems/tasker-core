@@ -705,7 +705,7 @@ impl AtomicQueueStats {
 
     /// Record stats to OpenTelemetry metrics
     ///
-    /// Call this periodically (e.g., after [`update_depth()`]) to push current values to metrics.
+    /// Call this periodically (e.g., after [`Self::update_depth`]) to push current values to metrics.
     /// Records both gauges (queue depth, oldest message age) and counter deltas (sent, received, etc.).
     ///
     /// Uses the gauges and counters from [`crate::metrics::messaging`].

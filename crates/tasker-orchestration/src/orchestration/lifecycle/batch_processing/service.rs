@@ -343,6 +343,10 @@ impl BatchProcessingService {
     /// - Execute in parallel
     /// - Feed results to the convergence step when all complete
     #[instrument(skip(self, tx, cursor_configs), fields(task_uuid = %task_uuid, worker_count = %worker_count))]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the transaction and each part of the decision outcome it applies"
+    )]
     async fn handle_create_batches_outcome(
         &self,
         tx: &mut Transaction<'_, Postgres>,
@@ -690,6 +694,10 @@ impl BatchProcessingService {
 
     /// Create worker instances from template with cursor configurations
     #[instrument(skip(self, tx, template, cursor_configs, batch_config))]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the transaction, the template and each cursor parameter it instantiates workers from"
+    )]
     async fn create_worker_instances(
         &self,
         tx: &mut Transaction<'_, Postgres>,

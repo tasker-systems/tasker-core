@@ -305,10 +305,10 @@ class FinalizeApprovalHandler(StepHandler):
 
 
 __all__ = [
-    "ValidateRequestHandler",
-    "RoutingDecisionHandler",
     "AutoApproveHandler",
-    "ManagerApprovalHandler",
-    "FinanceReviewHandler",
     "FinalizeApprovalHandler",
+    "FinanceReviewHandler",
+    "ManagerApprovalHandler",
+    "RoutingDecisionHandler",
+    "ValidateRequestHandler",
 ]

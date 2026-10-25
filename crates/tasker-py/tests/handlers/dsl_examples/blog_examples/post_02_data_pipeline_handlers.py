@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from tasker_core.errors import PermanentError
@@ -139,7 +139,7 @@ def extract_sales_data(_context):
     dates = [r["date"] for r in SAMPLE_SALES_DATA]
     return {
         "records": SAMPLE_SALES_DATA,
-        "extracted_at": datetime.now(timezone.utc).isoformat(),
+        "extracted_at": datetime.now(UTC).isoformat(),
         "source": "SalesDatabase",
         "total_amount": sum(r["amount"] for r in SAMPLE_SALES_DATA),
         "date_range": {"start_date": min(dates), "end_date": max(dates)},
@@ -152,7 +152,7 @@ def extract_inventory_data(_context):
     warehouses = list({r["warehouse"] for r in SAMPLE_INVENTORY_DATA})
     return {
         "records": SAMPLE_INVENTORY_DATA,
-        "extracted_at": datetime.now(timezone.utc).isoformat(),
+        "extracted_at": datetime.now(UTC).isoformat(),
         "source": "InventorySystem",
         "total_quantity": sum(r["quantity_on_hand"] for r in SAMPLE_INVENTORY_DATA),
         "warehouses": warehouses,
@@ -171,7 +171,7 @@ def extract_customer_data(_context):
     total_ltv = sum(r["lifetime_value"] for r in SAMPLE_CUSTOMER_DATA)
     return {
         "records": SAMPLE_CUSTOMER_DATA,
-        "extracted_at": datetime.now(timezone.utc).isoformat(),
+        "extracted_at": datetime.now(UTC).isoformat(),
         "source": "CRMSystem",
         "total_customers": len(SAMPLE_CUSTOMER_DATA),
         "total_lifetime_value": total_ltv,
@@ -457,17 +457,17 @@ def generate_insights(metrics, _context):
         "health_score": health_score,
         "total_metrics_analyzed": len(metrics.keys()),
         "pipeline_complete": True,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
     }
 
 
 __all__ = [
-    "extract_sales_data",
-    "extract_inventory_data",
-    "extract_customer_data",
-    "transform_sales",
-    "transform_inventory",
-    "transform_customers",
     "aggregate_metrics",
+    "extract_customer_data",
+    "extract_inventory_data",
+    "extract_sales_data",
     "generate_insights",
+    "transform_customers",
+    "transform_inventory",
+    "transform_sales",
 ]

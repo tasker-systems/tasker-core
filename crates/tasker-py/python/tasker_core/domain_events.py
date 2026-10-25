@@ -69,6 +69,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from datetime import UTC
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -436,11 +437,11 @@ class BasePublisher(ABC):
         payload = self.transform_payload(ctx)
 
         # Build metadata
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         base_metadata: dict[str, Any] = {
             "publisher": self.publisher_name,
-            "published_at": datetime.now(timezone.utc).isoformat(),
+            "published_at": datetime.now(UTC).isoformat(),
             "task_uuid": ctx.task_uuid,
             "step_uuid": ctx.step_uuid,
             "step_name": ctx.step_name,
@@ -462,7 +463,7 @@ class BasePublisher(ABC):
             self.after_publish(event_name, payload, metadata)
             return True
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - user-supplied hook or subscriber boundary: its failure is reported and must not stop the poller
             self.on_publish_error(event_name, e, payload)
             return False
 
@@ -581,7 +582,7 @@ class BaseSubscriber(ABC):
         """
         return True
 
-    def after_handle(self, event: dict[str, Any]) -> None:  # noqa: ARG002, B027
+    def after_handle(self, event: dict[str, Any]) -> None:  # noqa: B027
         """Hook called after successful handling.
 
         Override for post-processing, metrics, or cleanup.
@@ -689,7 +690,7 @@ class BaseSubscriber(ABC):
             self.handle(event)
             self.after_handle(event)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - user-supplied hook or subscriber boundary: its failure is reported and must not stop the poller
             self.on_handle_error(event, e)
 
 
@@ -905,7 +906,7 @@ class InProcessDomainEventPoller:
                 if events_this_poll == 0:
                     time.sleep(self._polling_interval)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - user-supplied hook or subscriber boundary: its failure is reported and must not stop the poller
                 self._emit_error(e)
                 # Sleep longer on error to avoid tight error loops
                 time.sleep(self._polling_interval * 10)
@@ -927,14 +928,14 @@ class InProcessDomainEventPoller:
             for callback in self._event_callbacks:
                 try:
                     callback(event)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - user-supplied hook or subscriber boundary: its failure is reported and must not stop the poller
                     log_error(
                         f"InProcessDomainEventPoller: Callback error: {e}",
                         {"event_id": str(event.event_id)},
                     )
                     self._emit_error(e)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - user-supplied hook or subscriber boundary: its failure is reported and must not stop the poller
             log_error(f"InProcessDomainEventPoller: Failed to process event: {e}")
             self._emit_error(e)
 
@@ -1246,7 +1247,7 @@ class SubscriberRegistry:
                 self._active_subscribers.append(instance)
                 started += 1
                 log_debug(f"Started subscriber from class: {name}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - user-supplied hook or subscriber boundary: its failure is reported and must not stop the poller
                 log_error(f"Failed to start subscriber {name}: {e}")
 
         # Start pre-configured instance subscribers
@@ -1256,7 +1257,7 @@ class SubscriberRegistry:
                 self._active_subscribers.append(instance)
                 started += 1
                 log_debug(f"Started subscriber instance: {name}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - user-supplied hook or subscriber boundary: its failure is reported and must not stop the poller
                 log_error(f"Failed to start subscriber {name}: {e}")
 
         log_info(f"Started {started} subscribers")
@@ -1274,7 +1275,7 @@ class SubscriberRegistry:
             try:
                 subscriber.stop()
                 stopped += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - user-supplied hook or subscriber boundary: its failure is reported and must not stop the poller
                 log_error(f"Failed to stop subscriber: {e}")
 
         self._active_subscribers.clear()
@@ -1333,19 +1334,14 @@ class SubscriberRegistry:
 
 
 __all__ = [
-    # Cross-language type definitions (TAS-112)
-    "EventDeclaration",
-    "StepResult",
-    "PublishContext",
-    # Step event context
-    "StepEventContext",
-    # Publisher system
     "BasePublisher",
-    "DefaultPublisher",
-    "PublisherRegistry",
-    # Subscriber system
     "BaseSubscriber",
-    "SubscriberRegistry",
-    # Event polling
+    "DefaultPublisher",
+    "EventDeclaration",
     "InProcessDomainEventPoller",
+    "PublishContext",
+    "PublisherRegistry",
+    "StepEventContext",
+    "StepResult",
+    "SubscriberRegistry",
 ]

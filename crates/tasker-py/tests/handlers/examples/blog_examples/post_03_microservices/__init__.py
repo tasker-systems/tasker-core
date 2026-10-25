@@ -24,8 +24,8 @@ from .update_user_status_handler import UpdateUserStatusHandler
 
 __all__ = [
     "CreateUserAccountHandler",
-    "SetupBillingProfileHandler",
     "InitializePreferencesHandler",
     "SendWelcomeSequenceHandler",
+    "SetupBillingProfileHandler",
     "UpdateUserStatusHandler",
 ]

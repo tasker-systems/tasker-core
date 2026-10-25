@@ -55,7 +55,7 @@ export class PaymentEventPublisher extends BasePublisher {
    * Extracts payment-specific fields and normalizes them into
    * a standardized format for downstream consumers.
    */
-  transformPayload(
+  override transformPayload(
     stepResult: StepResult,
     _eventDeclaration?: EventDeclaration,
     _stepContext?: StepEventContext
@@ -91,7 +91,7 @@ export class PaymentEventPublisher extends BasePublisher {
    *
    * Prevents publishing incomplete or invalid payment events.
    */
-  shouldPublish(
+  override shouldPublish(
     stepResult: StepResult,
     _eventDeclaration?: EventDeclaration,
     _stepContext?: StepEventContext
@@ -110,7 +110,7 @@ export class PaymentEventPublisher extends BasePublisher {
   /**
    * Add payment processor metadata.
    */
-  additionalMetadata(
+  override additionalMetadata(
     stepResult: StepResult,
     _eventDeclaration?: EventDeclaration,
     stepContext?: StepEventContext
@@ -133,7 +133,7 @@ export class PaymentEventPublisher extends BasePublisher {
   /**
    * Log and track before publishing.
    */
-  beforePublish(
+  override beforePublish(
     eventName: string,
     payload: Record<string, unknown>,
     _metadata: Record<string, unknown>
@@ -154,7 +154,7 @@ export class PaymentEventPublisher extends BasePublisher {
   /**
    * Update metrics after successful publish.
    */
-  afterPublish(
+  override afterPublish(
     eventName: string,
     payload: Record<string, unknown>,
     _metadata: Record<string, unknown>
@@ -173,7 +173,7 @@ export class PaymentEventPublisher extends BasePublisher {
   /**
    * Handle publish errors with alerting context.
    */
-  onPublishError(eventName: string, error: Error, payload: Record<string, unknown>): void {
+  override onPublishError(eventName: string, error: Error, payload: Record<string, unknown>): void {
     this.logger.error(
       {
         eventName,
@@ -205,7 +205,7 @@ export class PaymentEventPublisher extends BasePublisher {
 export class RefundEventPublisher extends BasePublisher {
   readonly publisherName = 'RefundEventPublisher';
 
-  transformPayload(
+  override transformPayload(
     stepResult: StepResult,
     _eventDeclaration?: EventDeclaration,
     _stepContext?: StepEventContext
@@ -223,13 +223,13 @@ export class RefundEventPublisher extends BasePublisher {
     };
   }
 
-  shouldPublish(stepResult: StepResult): boolean {
+  override shouldPublish(stepResult: StepResult): boolean {
     const result = stepResult.result ?? {};
     // Only publish if we have a refund ID
     return result.refund_id != null || result.refundId != null;
   }
 
-  additionalMetadata(stepResult: StepResult): Record<string, unknown> {
+  override additionalMetadata(stepResult: StepResult): Record<string, unknown> {
     const result = stepResult.result ?? {};
     return {
       refundType: result.refund_type ?? result.refundType ?? 'full',

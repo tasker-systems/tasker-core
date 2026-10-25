@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from tasker_core.step_handler.functional import depends_on, inputs, step_handler
 from tasker_core.types import StepHandlerResult
@@ -135,7 +135,7 @@ def create_user_account(user_info, _context):
                 retryable=False,
             )
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     user_id = f"user_{uuid.uuid4().hex[:12]}"
 
     return {
@@ -166,7 +166,7 @@ def setup_billing_profile(user_data, _context):
     tier_config = BILLING_TIERS.get(plan, BILLING_TIERS["free"])
 
     if tier_config["billing_required"]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         next_billing = (now + timedelta(days=30)).isoformat()
         billing_id = f"billing_{uuid.uuid4().hex[:12]}"
 
@@ -214,7 +214,7 @@ def initialize_preferences(user_data, user_info, _context):
     default_prefs = DEFAULT_PREFERENCES.get(plan, DEFAULT_PREFERENCES["free"])
     final_prefs = {**default_prefs, **custom_prefs}
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     preferences_id = f"prefs_{uuid.uuid4().hex[:12]}"
 
     return {
@@ -259,7 +259,7 @@ def send_welcome_sequence(user_data, billing_data, preferences_data, _context):
 
     channels_used = []
     messages_sent_count = 0
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if prefs.get("email_notifications", True):
         channels_used.append("email")
@@ -314,7 +314,7 @@ def update_user_status(user_data, billing_data, preferences_data, welcome_data, 
     user_id = user_data.get("user_id")
     plan = user_data.get("plan", "free")
     email = user_data.get("email")
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Build registration summary
     summary: dict = {
@@ -353,8 +353,8 @@ def update_user_status(user_data, billing_data, preferences_data, welcome_data, 
 
 __all__ = [
     "create_user_account",
-    "setup_billing_profile",
     "initialize_preferences",
     "send_welcome_sequence",
+    "setup_billing_profile",
     "update_user_status",
 ]

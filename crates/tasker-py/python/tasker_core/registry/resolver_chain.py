@@ -39,8 +39,8 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING, Any
 
-from ..logging import log_debug, log_warn
-from .method_dispatch_wrapper import MethodDispatchWrapper
+from tasker_core.logging import log_debug, log_warn
+from tasker_core.registry.method_dispatch_wrapper import MethodDispatchWrapper
 
 if TYPE_CHECKING:
     from .base_resolver import BaseResolver

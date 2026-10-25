@@ -103,9 +103,9 @@ export interface BatchWorkerOutcome {
   /** Items that were skipped */
   itemsSkipped: number;
   /** Individual item results */
-  results: Array<Record<string, unknown>>;
+  results: Record<string, unknown>[];
   /** Individual item errors */
-  errors: Array<Record<string, unknown>>;
+  errors: Record<string, unknown>[];
   /** Last cursor position processed */
   lastCursor: number | null;
   /** Additional batch metadata */
@@ -543,7 +543,7 @@ export interface BatchAggregationResult {
   /** Success rate (0.0 to 1.0) */
   success_rate: number;
   /** Collected errors from all batches (limited) */
-  errors: Array<Record<string, unknown>>;
+  errors: Record<string, unknown>[];
   /** Total error count (may exceed errors array length) */
   error_count: number;
 }
@@ -575,7 +575,7 @@ export function aggregateBatchResults(
   let totalSucceeded = 0;
   let totalFailed = 0;
   let totalSkipped = 0;
-  const allErrors: Array<Record<string, unknown>> = [];
+  const allErrors: Record<string, unknown>[] = [];
   let batchCount = 0;
 
   for (const result of workerResults) {
@@ -589,7 +589,7 @@ export function aggregateBatchResults(
     totalFailed += (result.items_failed as number) ?? 0;
     totalSkipped += (result.items_skipped as number) ?? 0;
 
-    const errors = result.errors as Array<Record<string, unknown>> | undefined;
+    const errors = result.errors as Record<string, unknown>[] | undefined;
     if (errors && Array.isArray(errors)) {
       allErrors.push(...errors);
     }

@@ -12,7 +12,7 @@ TAS-137 Best Practices:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -73,7 +73,7 @@ class ExecuteRefundWorkflowHandler(StepHandler):
         # Simulate task creation in payments namespace
         delegation_result = self._create_payments_task(delegation_inputs)
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         return self.success(
             {
@@ -109,7 +109,7 @@ class ExecuteRefundWorkflowHandler(StepHandler):
             "namespace": inputs["namespace"],
             "workflow_name": inputs["workflow_name"],
             "workflow_version": inputs["workflow_version"],
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
     def _generate_correlation_id(self) -> str:

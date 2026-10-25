@@ -161,8 +161,8 @@ def is_worker_running() -> bool:
 
 __all__ = [
     "bootstrap_worker",
-    "stop_worker",
     "get_worker_status",
-    "transition_to_graceful_shutdown",
     "is_worker_running",
+    "stop_worker",
+    "transition_to_graceful_shutdown",
 ]

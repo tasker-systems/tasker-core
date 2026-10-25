@@ -262,7 +262,10 @@ impl ResultProcessingContext {
     /// Get the cached task (without loading)
     ///
     /// Returns the task if it has already been loaded.
-    #[allow(dead_code, reason = "Used by tests for context introspection")]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "Used by tests for context introspection")
+    )]
     pub fn task(&self) -> Option<&Task> {
         self.task.as_ref()
     }

@@ -10,14 +10,14 @@ Phases:
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
-class WorkerState(str, Enum):
+class WorkerState(StrEnum):
     """Worker lifecycle states.
 
     These states represent the different phases of the worker lifecycle.
@@ -210,7 +210,7 @@ class LogContext(BaseModel):
 # =============================================================================
 
 
-class ResultStatus(str, Enum):
+class ResultStatus(StrEnum):
     """Step execution result status.
 
     These status values indicate the outcome of a step execution.
@@ -230,7 +230,7 @@ class ResultStatus(str, Enum):
     """Step failed with a permanent error (no retry possible)."""
 
 
-class ErrorType(str, Enum):
+class ErrorType(StrEnum):
     """Standard error types for cross-language consistency.
 
     Using str, Enum allows the value to serialize as a string while
@@ -1359,7 +1359,7 @@ class WorkerConfig(BaseModel):
 # =============================================================================
 
 
-class DecisionType(str, Enum):
+class DecisionType(StrEnum):
     """Type of decision point outcome.
 
     Used by decision handlers to indicate whether to create steps
@@ -1796,7 +1796,7 @@ class BatchWorkerOutcome(BaseModel):
 # =============================================================================
 
 
-class FailureStrategy(str, Enum):
+class FailureStrategy(StrEnum):
     """Failure strategy for batch processing.
 
     Matches Rust's `FailureStrategy` enum in `task_template.rs`.
@@ -2292,57 +2292,50 @@ class ClientHealthResponse(BaseModel):
 
 
 __all__ = [
-    # Phase 2: Bootstrap and lifecycle
-    "WorkerState",
-    "BootstrapConfig",
-    "BootstrapResult",
-    "WorkerStatus",
-    "StepHandlerCallResult",
-    "LogContext",
-    # Phase 3: Event dispatch
-    "ResultStatus",
-    "ErrorType",
-    "StepError",
-    "StepExecutionResult",
-    "FfiStepEvent",
-    "FfiDispatchMetrics",
-    "StarvationWarning",
-    # Phase 4: Handler system
-    "StepContext",
-    "StepHandlerResult",
-    # Phase 5: Domain events & observability
-    "DomainEventMetadata",
-    "ExecutionResult",
-    "InProcessDomainEvent",
-    "ComponentHealth",
-    "HealthCheck",
-    "WorkerMetrics",
-    "WorkerConfig",
-    # Phase 6b: Decision point and batch processing
-    "DecisionType",
-    "DecisionPointOutcome",
-    "CursorConfig",
+    "BatchAggregationResult",
     "BatchAnalyzerOutcome",
+    "BatchMetadata",
+    "BatchProcessingOutcome",
     "BatchWorkerContext",
     "BatchWorkerOutcome",
-    # Phase 7: FFI Boundary Types (TAS-112/TAS-123)
-    "FailureStrategy",
-    "RustCursorConfig",
-    "BatchMetadata",
-    "RustBatchWorkerInputs",
-    "NoBatchesOutcome",
-    "CreateBatchesOutcome",
-    "BatchProcessingOutcome",
-    "no_batches",
-    "create_batches",
-    "BatchAggregationResult",
-    "aggregate_batch_results",
-    # TAS-231: Client API types
-    "ClientStepReadiness",
-    "ClientTaskResponse",
-    "ClientPaginationInfo",
-    "ClientTaskListResponse",
-    "ClientStepResponse",
-    "ClientStepAuditResponse",
+    "BootstrapConfig",
+    "BootstrapResult",
     "ClientHealthResponse",
+    "ClientPaginationInfo",
+    "ClientStepAuditResponse",
+    "ClientStepReadiness",
+    "ClientStepResponse",
+    "ClientTaskListResponse",
+    "ClientTaskResponse",
+    "ComponentHealth",
+    "CreateBatchesOutcome",
+    "CursorConfig",
+    "DecisionPointOutcome",
+    "DecisionType",
+    "DomainEventMetadata",
+    "ErrorType",
+    "ExecutionResult",
+    "FailureStrategy",
+    "FfiDispatchMetrics",
+    "FfiStepEvent",
+    "HealthCheck",
+    "InProcessDomainEvent",
+    "LogContext",
+    "NoBatchesOutcome",
+    "ResultStatus",
+    "RustBatchWorkerInputs",
+    "RustCursorConfig",
+    "StarvationWarning",
+    "StepContext",
+    "StepError",
+    "StepExecutionResult",
+    "StepHandlerCallResult",
+    "StepHandlerResult",
+    "WorkerConfig",
+    "WorkerMetrics",
+    "WorkerState",
+    "WorkerStatus",
+    "aggregate_batch_results",
+    "create_batches",
+    "no_batches",
 ]

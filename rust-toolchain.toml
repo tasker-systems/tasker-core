@@ -1,0 +1,15 @@
+# Exact Rust toolchain pin for local dev and CI (single source).
+# Bumps are deliberate: update the channel, commit, and let rustup install it
+# (rustup auto-installs the channel-named toolchain on next use).
+#
+# Components here are additive to the profile and are what `cargo make check`
+# needs (fmt + clippy); CI jobs resolve this same file, so the components are
+# guaranteed present on the pinned toolchain even when CI's setup action
+# installed a different (floating stable) toolchain name.
+# Cross-compile std targets are intentionally NOT listed: only release
+# packaging needs them, and those jobs add their target explicitly
+# (`rustup target add`, see build-cli-binaries.yml).
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

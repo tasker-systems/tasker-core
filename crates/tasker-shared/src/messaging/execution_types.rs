@@ -429,6 +429,10 @@ impl StepBatchResponse {
 
 impl StepExecutionRequest {
     /// Constructor with all required fields
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one argument per required field of the message; a builder would let a field be forgotten"
+    )]
     pub fn new(
         step_uuid: Uuid,
         task_uuid: Uuid,

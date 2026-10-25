@@ -82,6 +82,10 @@ impl std::fmt::Debug for OrchestrationSystemHandle {
 impl OrchestrationSystemHandle {
     /// Create new orchestration system handle (both web-api and grpc-api)
     #[cfg(all(feature = "web-api", feature = "grpc-api"))]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "assembles the handle from every subsystem the orchestration bootstrap owns"
+    )]
     pub fn new(
         orchestration_core: Arc<OrchestrationCore>,
         unified_event_coordinator: Option<Arc<tokio::sync::Mutex<UnifiedEventCoordinator>>>,
@@ -788,6 +792,10 @@ impl OrchestrationBootstrap {
 
     /// Create the orchestration system handle (both grpc-api and web-api).
     #[cfg(all(feature = "grpc-api", feature = "web-api"))]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "assembles the handle from every subsystem the orchestration bootstrap owns"
+    )]
     fn create_system_handle(
         orchestration_core: Arc<OrchestrationCore>,
         unified_event_coordinator: Option<Arc<tokio::sync::Mutex<UnifiedEventCoordinator>>>,

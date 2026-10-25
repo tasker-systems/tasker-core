@@ -72,7 +72,7 @@ class CsvAnalyzerHandler(StepHandler, Batchable):
                 reader = csv.reader(f)
                 next(reader)  # Skip header
                 row_count = sum(1 for _ in reader)
-        except Exception as e:
+        except (OSError, csv.Error, StopIteration) as e:
             return StepHandlerResult.failure(
                 message=f"Failed to read CSV file: {e}",
                 error_type="file_error",
@@ -164,7 +164,7 @@ class CsvBatchProcessorHandler(StepHandler, Batchable):
         # Process the batch
         try:
             results = self._process_csv_batch(csv_file_path, start_cursor, end_cursor)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - example handler boundary: any batch failure becomes a failed step result
             return StepHandlerResult.failure(
                 message=f"Batch processing failed: {e}",
                 error_type="processing_error",

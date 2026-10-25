@@ -6,37 +6,39 @@
  *
  * @see TAS-92 Cross-Language API Alignment
  */
-export enum ErrorType {
+export const ErrorType = {
   /**
    * Permanent, non-recoverable failure.
    * Examples: invalid input, resource not found, authentication failure.
    */
-  PERMANENT_ERROR = 'permanent_error',
+  PERMANENT_ERROR: 'permanent_error',
 
   /**
    * Transient failure that may succeed on retry.
    * Examples: network timeout, service unavailable, rate limiting.
    */
-  RETRYABLE_ERROR = 'retryable_error',
+  RETRYABLE_ERROR: 'retryable_error',
 
   /**
    * Input validation failure.
    * Examples: missing required field, invalid format, constraint violation.
    */
-  VALIDATION_ERROR = 'validation_error',
+  VALIDATION_ERROR: 'validation_error',
 
   /**
    * Operation timed out.
    * Examples: HTTP request timeout, database query timeout.
    */
-  TIMEOUT = 'timeout',
+  TIMEOUT: 'timeout',
 
   /**
    * Failure within the step handler itself.
    * Examples: unhandled exception, handler misconfiguration.
    */
-  HANDLER_ERROR = 'handler_error',
-}
+  HANDLER_ERROR: 'handler_error',
+} as const;
+
+export type ErrorType = (typeof ErrorType)[keyof typeof ErrorType];
 
 /**
  * Check if an error type is one of the standard values.
@@ -63,5 +65,5 @@ export function isStandardErrorType(errorType: string): boolean {
  * isTypicallyRetryable('permanent_error');  // false
  */
 export function isTypicallyRetryable(errorType: string): boolean {
-  return [ErrorType.RETRYABLE_ERROR, ErrorType.TIMEOUT].includes(errorType as ErrorType);
+  return errorType === ErrorType.RETRYABLE_ERROR || errorType === ErrorType.TIMEOUT;
 }

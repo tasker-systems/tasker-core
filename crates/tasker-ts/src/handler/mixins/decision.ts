@@ -37,10 +37,12 @@ import { StepHandlerResult } from '../../types/step-handler-result.js';
 /**
  * Type of decision point outcome.
  */
-export enum DecisionType {
-  CREATE_STEPS = 'create_steps',
-  NO_BRANCHES = 'no_branches',
-}
+export const DecisionType = {
+  CREATE_STEPS: 'create_steps',
+  NO_BRANCHES: 'no_branches',
+} as const;
+
+export type DecisionType = (typeof DecisionType)[keyof typeof DecisionType];
 
 /**
  * Outcome from a decision point handler.
@@ -54,7 +56,7 @@ export interface DecisionPointOutcome {
   /** Names of steps to execute next */
   nextStepNames: string[];
   /** Optional dynamically created steps */
-  dynamicSteps?: Array<Record<string, unknown>>;
+  dynamicSteps?: Record<string, unknown>[];
   /** Human-readable reason for the decision */
   reason?: string;
   /** Context data for routing */

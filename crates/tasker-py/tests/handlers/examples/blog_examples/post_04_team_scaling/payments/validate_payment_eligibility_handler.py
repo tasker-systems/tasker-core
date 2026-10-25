@@ -11,7 +11,7 @@ TAS-137 Best Practices:
 """
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from tasker_core import StepContext, StepHandler, StepHandlerResult
 
@@ -71,7 +71,7 @@ class ValidatePaymentEligibilityHandler(StepHandler):
         if eligibility_error:
             return eligibility_error
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         return self.success(
             {
@@ -118,7 +118,7 @@ class ValidatePaymentEligibilityHandler(StepHandler):
             }
         else:
             # Success case - payment is eligible
-            transaction_date = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+            transaction_date = (datetime.now(UTC) - timedelta(days=5)).isoformat()
             return {
                 "status": "eligible",
                 "payment_id": payment_id,

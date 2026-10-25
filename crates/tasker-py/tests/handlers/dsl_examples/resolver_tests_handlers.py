@@ -38,6 +38,6 @@ def alternate_method(context):
 
 
 __all__ = [
-    "multi_method",
     "alternate_method",
+    "multi_method",
 ]

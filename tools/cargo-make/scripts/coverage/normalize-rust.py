@@ -10,7 +10,7 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -164,7 +164,7 @@ def extract_uncovered_functions(raw_functions: list) -> list[dict]:
     # (generic monomorphizations). Keep unique (demangled_name, file) pairs.
     seen = set()
     uncovered = []
-    for fn, demangled in zip(raw_uncovered, demangled_names):
+    for fn, demangled in zip(raw_uncovered, demangled_names, strict=True):
         key = (demangled, fn["file"])
         if key not in seen:
             seen.add(key)
@@ -208,9 +208,7 @@ def normalize_llvm_cov(input_path: Path, crate_name: str) -> dict:
 
     # Calculate percentages
     line_pct = (lines_covered / lines_total * 100) if lines_total > 0 else 0.0
-    function_pct = (
-        (functions_covered / functions_total * 100) if functions_total > 0 else 0.0
-    )
+    function_pct = (functions_covered / functions_total * 100) if functions_total > 0 else 0.0
 
     # Extract per-file details (filtered to workspace files only)
     raw_files = data_entry.get("files", [])
@@ -233,11 +231,7 @@ def normalize_llvm_cov(input_path: Path, crate_name: str) -> dict:
         functions_covered = sum(f["functions_covered"] for f in crate_files)
         functions_total = sum(f["functions_total"] for f in crate_files)
         line_pct = (lines_covered / lines_total * 100) if lines_total > 0 else 0.0
-        function_pct = (
-            (functions_covered / functions_total * 100)
-            if functions_total > 0
-            else 0.0
-        )
+        function_pct = (functions_covered / functions_total * 100) if functions_total > 0 else 0.0
 
     files_total = len(crate_files)
     files_tested = sum(1 for f in crate_files if f["lines_covered"] > 0)
@@ -254,7 +248,7 @@ def normalize_llvm_cov(input_path: Path, crate_name: str) -> dict:
 
     return {
         "meta": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "crate": crate_name,
             "language": "rust",
             "tool": "cargo-llvm-cov",

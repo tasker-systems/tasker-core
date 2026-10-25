@@ -10,10 +10,8 @@ Usage:
 """
 
 import json
-import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 
 def extract_per_iteration_times(sample_data: dict) -> list[float]:
@@ -38,7 +36,7 @@ def extract_per_iteration_times(sample_data: dict) -> list[float]:
     if sampling_mode == "Flat":
         # Flat mode: each entry is a separate sample
         # time[i] = total time for iters[i] iterations
-        for batch_iters, batch_time in zip(iters, times):
+        for batch_iters, batch_time in zip(iters, times, strict=True):
             if batch_iters > 0:
                 # Convert nanoseconds to milliseconds
                 avg_time_ms = (batch_time / batch_iters) / 1_000_000
@@ -48,7 +46,7 @@ def extract_per_iteration_times(sample_data: dict) -> list[float]:
         prev_iters = 0
         prev_time = 0.0
 
-        for cum_iters, cum_time in zip(iters, times):
+        for cum_iters, cum_time in zip(iters, times, strict=True):
             delta_iters = cum_iters - prev_iters
             delta_time = cum_time - prev_time
 
@@ -63,7 +61,7 @@ def extract_per_iteration_times(sample_data: dict) -> list[float]:
     return per_iteration_times
 
 
-def calculate_percentiles(times: list[float]) -> dict[str, Optional[float]]:
+def calculate_percentiles(times: list[float]) -> dict[str, float | None]:
     """Calculate p50, p95, p99 percentiles from a list of times."""
     if not times:
         return {"p50": None, "p95": None, "p99": None}
@@ -93,7 +91,7 @@ def find_sample_files(criterion_dir: Path) -> list[tuple[str, Path]]:
         parts = sample_file.parts
         try:
             criterion_idx = parts.index("criterion")
-            bench_parts = parts[criterion_idx + 1:-2]  # Exclude 'new/sample.json'
+            bench_parts = parts[criterion_idx + 1 : -2]  # Exclude 'new/sample.json'
 
             # Clean up the name (e.g., e2e_tier1_core -> tier1_core)
             tier_name = bench_parts[0].replace("e2e_", "")
@@ -138,7 +136,7 @@ def process_benchmark(name: str, sample_file: Path) -> dict:
             "p95_ms": percentiles["p95"],
             "p99_ms": percentiles["p99"],
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - per-benchmark boundary: one unreadable result is reported, and the rest still summarize
         return {"name": name, "error": str(e)}
 
 
@@ -160,7 +158,9 @@ def print_report(results: list[dict]):
     for tier_name, tier_results in sorted(tiers.items()):
         print(f"## {tier_name.upper()}")
         print("-" * 100)
-        print(f"{'Scenario':<40} {'Samples':>8} {'Mean':>10} {'Median':>10} {'P50':>10} {'P95':>10} {'P99':>10}")
+        print(
+            f"{'Scenario':<40} {'Samples':>8} {'Mean':>10} {'Median':>10} {'P50':>10} {'P95':>10} {'P99':>10}"
+        )
         print("-" * 100)
 
         for r in tier_results:
@@ -173,10 +173,12 @@ def print_report(results: list[dict]):
             mean = f"{r['mean_ms']:.1f}ms" if r.get("mean_ms") else "-"
             median = f"{r['median_ms']:.1f}ms" if r.get("median_ms") else "-"
             p50 = f"{r['p50_ms']:.1f}ms" if r.get("p50_ms") else "-"
-            p95 = f"{r['p95_ms']:.1f}ms" if r.get("p95_ms") else f"(n<20)"
-            p99 = f"{r['p99_ms']:.1f}ms" if r.get("p99_ms") else f"(n<100)"
+            p95 = f"{r['p95_ms']:.1f}ms" if r.get("p95_ms") else "(n<20)"
+            p99 = f"{r['p99_ms']:.1f}ms" if r.get("p99_ms") else "(n<100)"
 
-            print(f"{scenario:<40} {samples:>8} {mean:>10} {median:>10} {p50:>10} {p95:>10} {p99:>10}")
+            print(
+                f"{scenario:<40} {samples:>8} {mean:>10} {median:>10} {p50:>10} {p95:>10} {p99:>10}"
+            )
 
         print()
 

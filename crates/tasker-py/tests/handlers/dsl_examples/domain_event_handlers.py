@@ -12,7 +12,7 @@ deterministic fields only.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from tasker_core.step_handler.functional import inputs, step_handler
 
@@ -48,7 +48,7 @@ def validate_order(order_id, customer_id, amount, context):
 
     return {
         "order_id": order_id,
-        "validation_timestamp": datetime.now(timezone.utc).isoformat(),
+        "validation_timestamp": datetime.now(UTC).isoformat(),
         "validation_checks": validation_checks,
         "validated": True,
     }
@@ -74,7 +74,7 @@ def process_payment(order_id, amount, simulate_failure, _context):
             retryable=True,
             metadata={
                 "order_id": order_id,
-                "failed_at": datetime.now(timezone.utc).isoformat(),
+                "failed_at": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -84,7 +84,7 @@ def process_payment(order_id, amount, simulate_failure, _context):
         "transaction_id": transaction_id,
         "amount": amount,
         "payment_method": "credit_card",
-        "processed_at": datetime.now(timezone.utc).isoformat(),
+        "processed_at": datetime.now(UTC).isoformat(),
         "status": "success",
     }
 
@@ -105,7 +105,7 @@ def update_inventory(order_id, _context):
         "order_id": order_id,
         "items": items,
         "success": True,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -124,14 +124,14 @@ def send_notification(customer_id, context):
         "notification_id": notification_id,
         "channel": notification_type,
         "recipient": customer_id,
-        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "sent_at": datetime.now(UTC).isoformat(),
         "status": "delivered",
     }
 
 
 __all__ = [
-    "validate_order",
     "process_payment",
-    "update_inventory",
     "send_notification",
+    "update_inventory",
+    "validate_order",
 ]

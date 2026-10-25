@@ -131,7 +131,7 @@ rust_decimal = { version = "1.40", features = ["serde-with-str"] }
 # IMPORTANT: Pin to 1.0.219 - serde 1.0.220+ has breaking changes that affect pythonize/pyo3
 # See: https://github.com/swc-project/swc/issues/11092
 # NOTE: "std" feature required by pythonize (which uses default-features = false)
-serde = { version = "=1.0.228", features = ["derive", "std"] }
+serde = { version = "=1.0.229", features = ["derive", "std"] }
 serde_json = "1.0"
 secrecy = { version = "0.10", features = ["serde"] }
 serde_yaml = "0.9"
@@ -174,7 +174,7 @@ url = "2.5"
 utoipa = { version = "6.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "10.0", features = ["axum"] }
 uuid = { version = "1.22", features = ["serde", "v4", "v7"] }
-validator = { version = "0.20", features = ["derive"] }
+validator = { version = "0.21", features = ["derive"] }
 zeroize = "1.8"
 workspace_tools = { version = "0.11.0", features = ["full"] }
 # gRPC framework and Protocol Buffers (TAS-177)
@@ -204,70 +204,69 @@ tokio-stream = { version = "0.1", features = ["net"] }
 [patch.crates-io]
 rb-sys-build = { path = "vendor/rb-sys-build" }
 
-# Workspace-level linting configuration (TAS-58)
-# Based on Microsoft Universal Guidelines and Rust API Guidelines
-# See: https://microsoft.github.io/rust-guidelines/guidelines/universal/
-# See: https://rust-lang.github.io/api-guidelines/checklist.html
-#
-# Strategy: Incremental enablement - Start with essentials, enable more over time
-# Current Status: Phase 1 - Essential lints only
-
-[workspace.lints.clippy]
-# Phase 2: Cargo metadata (ENABLED - already fixed)
-cargo = { level = "warn", priority = -1 }
-# Phase 1: Critical categories (ENABLED)
-correctness = { level = "warn", priority = -1 }  # Bug prevention
-# Phase 3: Categories to enable incrementally (COMMENTED OUT)
-# complexity = { level = "warn", priority = -1 }   # Enable when: Ready for complexity refactoring
-# perf = { level = "warn", priority = -1 }        # Enable when: Ready for performance improvements
-# style = { level = "warn", priority = -1 }       # Enable when: Ready for style consistency
-# pedantic = { level = "warn", priority = -1 }    # Enable when: Ready for all pedantic warnings
-# Phase 4: High-priority restriction lints (ENABLED)
-dbg_macro = "warn"  # No debug prints in production
-module_inception = "allow"  # Sometimes necessary for re-exports
-multiple_crate_versions = "allow"  # Expected during migration
-suspicious = { level = "warn", priority = -1 }  # Likely bugs
-undocumented_unsafe_blocks = "warn"  # Safety documentation required
-# Phase 5: Safety and correctness restriction lints (COMMENTED OUT - Enable next)
-# allow_attributes_without_reason = "warn"
-# as_underscore = "warn"
-# map_err_ignore = "warn"
-# unnecessary_safety_comment = "warn"
-# unnecessary_safety_doc = "warn"
-# Phase 6: Code quality restriction lints (COMMENTED OUT - Enable later)
-# assertions_on_result_states = "warn"
-# clone_on_ref_ptr = "warn"
-# deref_by_slicing = "warn"
-# disallowed_script_idents = "warn"
-# empty_drop = "warn"
-# empty_enum_variants_with_brackets = "warn"
-# empty_structs_with_brackets = "warn"
-# fn_to_numeric_cast_any = "warn"
-# if_then_some_else_none = "warn"
-# redundant_type_annotations = "warn"
-# renamed_function_params = "warn"
-# semicolon_outside_block = "warn"
-# string_to_string = "warn"
-# unneeded_field_pattern = "warn"
-# unused_result_ok = "warn"
-# Permanent exceptions (legitimate cases)
-uninlined_format_args = "allow"  # Mixed format args acceptable for readability
+# The tasker-systems canonical workspace lint table, adopted in `table` mode
+# (.conventions/consumer.toml): `conventions.py check` fails if this table differs from the
+# projection at .conventions/baseline/rust/workspace-lints.toml, apart from the one exception
+# recorded in .conventions/exceptions.toml (the tokio_unstable cfg that spawn_named! reads).
+# Every member sets `[lints] workspace = true`.
 
 [workspace.lints.rust]
-# Phase 1: Essential compiler lints (ENABLED)
+# RUST-UNSAFE-1/2: every crate root also declares `#![forbid(unsafe_code)]`. A crate with a
+# registered exception omits the `forbid`, and this `deny` makes each of its unsafe sites carry
+# `#[expect(unsafe_code, reason = "...")]`. A tripwire pins both sets.
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "warn"
+# RUST-TYPE-1.
 missing_debug_implementations = "warn"
 redundant_imports = "warn"
-unsafe_op_in_unsafe_fn = "warn"
-
-# TAS-158: Declare tokio_unstable as expected cfg for spawn_named! macro
-# This suppresses warnings when using the macro without RUSTFLAGS="--cfg tokio_unstable"
+# A crate using tokio-console's `--cfg tokio_unstable` (tasker-core's spawn_named!) extends this list
+# in its own copy; the shape is: check-cfg = ['cfg(tokio_unstable)'].
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
-# Phase 2: Additional compiler lints (COMMENTED OUT - Enable next)
-# ambiguous_negative_literals = "warn"
-# redundant_lifetimes = "warn"
-# trivial_numeric_casts = "warn"
-# unused_lifetimes = "warn"
+[workspace.lints.clippy]
+correctness = { level = "warn", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+
+# RUST-LINT-3: silence with #[expect(lint, reason = "...")] only.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+
+# RUST-UNSAFE-2: every unsafe block states its safety argument.
+undocumented_unsafe_blocks = "warn"
+
+dbg_macro = "warn"
+# CONC-BOUND-1 is enforced through `disallowed_methods`, which is on by default and configured in
+# clippy.toml; it is named here so the dependency is visible.
+disallowed_methods = "warn"
+
+# Permanent exceptions in the `cargo` group:
+# Duplicate versions are pervasive and reported by cargo-deny's `bans` (SC-DENY-3) instead.
+multiple_crate_versions = "allow"
+
+# RUST-LINT-5 / RUST-API-3, -4, -5: single lints from the held-off style/complexity groups that
+# hold a written rule. Measured 2026-10-23 on lib and bin targets with clippy 1.99: 0 findings in
+# temper@d530840 and in tasker-core@3888d42, so each lands without an audit.
+ptr_arg = "warn"
+borrowed_box = "warn"
+should_implement_trait = "warn"
+derivable_impls = "warn"
+new_without_default = "warn"
+len_without_is_empty = "warn"
+wrong_self_convention = "warn"
+unnecessary_unwrap = "warn"
+
+# Candidates with findings, held until each repo's audit (RUST-LINT-4). Counts are lib and bin
+# targets, 2026-10-23, temper / tasker-core. Each needs the clippy.toml setting beside it.
+# wildcard_imports = "warn"     # RUST-ORG-1:  4 / 26
+# unwrap_used = "warn"          # RUST-ERR-4: 11 / 76 (clippy.toml: allow-unwrap-in-tests = true)
+# missing_panics_doc = "warn"   # RUST-DOC-1: 25 / 25 (library crates only)
+
+# Held off in v0. Turning any on is a ruling, adopted per RUST-LINT-4.
+# complexity = { level = "warn", priority = -1 }
+# perf       = { level = "warn", priority = -1 }
+# style      = { level = "warn", priority = -1 }
+# pedantic   = { level = "warn", priority = -1 }
 
 [lib]
 crate-type = ["rlib"]

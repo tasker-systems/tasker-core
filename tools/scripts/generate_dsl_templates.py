@@ -11,9 +11,7 @@ For each existing template, creates a _dsl variant with:
 """
 
 import re
-import sys
 from pathlib import Path
-
 
 # Language suffixes we recognize
 LANG_SUFFIXES = {"_py", "_ts", "_rb"}
@@ -87,10 +85,6 @@ def transform_template(content: str) -> str:
 
     # Build step name mapping
     step_map = {name: insert_dsl(name) for name in step_names}
-
-    # Track context for multi-line processing
-    in_dependencies = False
-    in_env_steps = False
 
     for line in lines:
         stripped = line.strip()
@@ -166,7 +160,11 @@ def transform_template(content: str) -> str:
             # Transform worker_template references
             if "worker_template" in stripped and ":" in stripped:
                 for old_name, new_name in step_map.items():
-                    if f'"{old_name}"' in line or f"'{old_name}'" in line or f" {old_name}" in line.rstrip():
+                    if (
+                        f'"{old_name}"' in line
+                        or f"'{old_name}'" in line
+                        or f" {old_name}" in line.rstrip()
+                    ):
                         line = line.replace(old_name, new_name)
 
             # Transform publisher references (domain events)

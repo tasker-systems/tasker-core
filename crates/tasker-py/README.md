@@ -45,7 +45,7 @@ assert tasker_core.health_check()
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Rust 1.70+
 - uv (recommended) or pip
 

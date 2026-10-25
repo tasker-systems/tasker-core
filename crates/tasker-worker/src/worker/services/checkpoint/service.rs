@@ -67,7 +67,7 @@ impl CheckpointService {
         Self { db_pool }
     }
 
-    /// Create from an Arc<PgPool>
+    /// Create from an `Arc<PgPool>`
     pub fn from_arc(db_pool: Arc<PgPool>) -> Self {
         // Get the inner pool - clone is cheap for PgPool
         Self {

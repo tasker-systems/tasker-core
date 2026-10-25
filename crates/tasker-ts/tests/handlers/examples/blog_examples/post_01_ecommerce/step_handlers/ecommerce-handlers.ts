@@ -329,7 +329,7 @@ export class UpdateInventoryHandler extends StepHandler {
       unknown
     > | null;
 
-    if (!cartValidation || !cartValidation.validated_items) {
+    if (!cartValidation?.validated_items) {
       return this.failure(
         'Validated cart items are required but were not found from validate_cart step',
         ErrorType.PERMANENT_ERROR,
@@ -447,7 +447,7 @@ export class CreateOrderHandler extends StepHandler {
       );
     }
 
-    if (!cartValidation || !cartValidation.validated_items) {
+    if (!cartValidation?.validated_items) {
       return this.failure(
         'Cart validation results are required but were not found from validate_cart step',
         ErrorType.PERMANENT_ERROR,
@@ -455,7 +455,7 @@ export class CreateOrderHandler extends StepHandler {
       );
     }
 
-    if (!paymentResult || !paymentResult.payment_id) {
+    if (!paymentResult?.payment_id) {
       return this.failure(
         'Payment results are required but were not found from process_payment step',
         ErrorType.PERMANENT_ERROR,
@@ -463,7 +463,7 @@ export class CreateOrderHandler extends StepHandler {
       );
     }
 
-    if (!inventoryResult || !inventoryResult.updated_products) {
+    if (!inventoryResult?.updated_products) {
       return this.failure(
         'Inventory results are required but were not found from update_inventory step',
         ErrorType.PERMANENT_ERROR,
@@ -542,7 +542,7 @@ export class SendConfirmationHandler extends StepHandler {
       | null;
 
     // Validate required inputs
-    if (!customerInfo || !customerInfo.email) {
+    if (!customerInfo?.email) {
       return this.failure(
         'Customer email is required but was not provided',
         ErrorType.PERMANENT_ERROR,

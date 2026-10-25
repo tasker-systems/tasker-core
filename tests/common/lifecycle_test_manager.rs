@@ -80,10 +80,6 @@ pub struct LifecycleTestManager {
     /// System context for framework operations
     pub system_context: Arc<SystemContext>,
     /// Task handler registry with loaded templates
-    #[expect(
-        dead_code,
-        reason = "Registry kept for test infrastructure - may be used by future tests"
-    )]
     pub registry: TaskTemplateRegistry,
 
     // ========== Legacy Fields (Backward Compatibility) ==========
@@ -101,10 +97,6 @@ pub struct LifecycleTestManager {
     pub actor_harness: ActorTestHarness,
 
     /// Path to task template fixtures
-    #[expect(
-        dead_code,
-        reason = "Template path kept for test infrastructure - may be used by future tests"
-    )]
     pub template_path: String,
 }
 
@@ -837,10 +829,6 @@ impl LifecycleTestManager {
 /// Step readiness information from SQL function
 #[derive(Debug, Clone)]
 pub struct StepReadiness {
-    #[expect(
-        dead_code,
-        reason = "Struct field available for test assertions requiring step UUID"
-    )]
     pub workflow_step_uuid: Uuid,
     pub name: String,
     pub current_state: Option<String>,

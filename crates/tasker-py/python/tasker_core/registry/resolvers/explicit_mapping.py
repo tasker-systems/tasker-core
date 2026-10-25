@@ -17,10 +17,10 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING, Any
 
-from ..base_resolver import BaseResolver
+from tasker_core.registry.base_resolver import BaseResolver
 
 if TYPE_CHECKING:
-    from ..handler_definition import HandlerDefinition
+    from tasker_core.registry.handler_definition import HandlerDefinition
 
 
 class ExplicitMappingResolver(BaseResolver):
@@ -176,7 +176,7 @@ class ExplicitMappingResolver(BaseResolver):
         except TypeError:
             # Handler requires arguments - fall through to try with config
             pass
-        except Exception:
+        except Exception:  # noqa: BLE001 - resolver boundary: a user handler's constructor can raise anything; the chain continues
             # Instantiation error (not just missing args) - fail silently
             # and return None to allow chain to continue
             return None
@@ -184,7 +184,7 @@ class ExplicitMappingResolver(BaseResolver):
         # Second try: instantiate with config keyword argument
         try:
             return handler_class(config=definition.initialization or {})
-        except Exception:
+        except Exception:  # noqa: BLE001 - resolver boundary: a user handler's constructor can raise anything; the chain continues
             # Instantiation failed - handler may have incompatible constructor
             # Return None to indicate resolution failure
             return None

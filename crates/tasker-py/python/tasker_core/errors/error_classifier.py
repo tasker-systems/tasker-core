@@ -246,7 +246,7 @@ def get_classifier() -> ErrorClassifier:
         >>> classifier.retryable(NetworkError("timeout"))
         True
     """
-    global _default_classifier
+    global _default_classifier  # noqa: PLW0603 - the lazily created module singleton
     if _default_classifier is None:
         _default_classifier = ErrorClassifier()
     return _default_classifier
@@ -289,6 +289,6 @@ def is_permanent(exception: BaseException) -> bool:
 __all__ = [
     "ErrorClassifier",
     "get_classifier",
-    "is_retryable",
     "is_permanent",
+    "is_retryable",
 ]
