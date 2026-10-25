@@ -355,7 +355,7 @@ impl<'a> CompositionValidator<'a> {
                                 "invocation {} ({}) config validation error: {}",
                                 idx, invocation.capability, error
                             ),
-                            field_path: Some(error.instance_path.to_string()),
+                            field_path: Some(error.instance_path().to_string()),
                         });
                     }
                 }

@@ -345,14 +345,14 @@ fn filter_extra_fields_inner(data: &mut Value, schema: &Value, depth: usize) {
 fn format_validation_error(e: &jsonschema::ValidationError<'_>) -> String {
     use jsonschema::error::ValidationErrorKind;
 
-    let path = e.instance_path.to_string();
+    let path = e.instance_path().to_string();
     let at = if path.is_empty() {
         String::new()
     } else {
         format!("at {path}: ")
     };
 
-    let constraint = match &e.kind {
+    let constraint = match e.kind() {
         ValidationErrorKind::Type { kind } => format!("expected type {kind:?}"),
         ValidationErrorKind::Required { property } => {
             format!("missing required property {property}")
@@ -408,9 +408,13 @@ fn format_validation_error(e: &jsonschema::ValidationError<'_>) -> String {
         ValidationErrorKind::UniqueItems => "array contains duplicate items".into(),
         ValidationErrorKind::FalseSchema => "value rejected by false schema".into(),
         ValidationErrorKind::Not { .. } => "value matched a negated schema".into(),
-        ValidationErrorKind::AnyOf => "value does not match any 'anyOf' schemas".into(),
-        ValidationErrorKind::OneOfNotValid => "value does not match any 'oneOf' schema".into(),
-        ValidationErrorKind::OneOfMultipleValid => "value matches multiple 'oneOf' schemas".into(),
+        ValidationErrorKind::AnyOf { .. } => "value does not match any 'anyOf' schemas".into(),
+        ValidationErrorKind::OneOfNotValid { .. } => {
+            "value does not match any 'oneOf' schema".into()
+        }
+        ValidationErrorKind::OneOfMultipleValid { .. } => {
+            "value matches multiple 'oneOf' schemas".into()
+        }
         ValidationErrorKind::Contains => "array does not contain a required element".into(),
         // Fallback: generic message to prevent value leakage from unhandled variants
         _ => "schema constraint violation".into(),
