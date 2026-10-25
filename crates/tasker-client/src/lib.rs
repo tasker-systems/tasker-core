@@ -78,7 +78,7 @@
 //!
 //! - [`api_clients`] - HTTP clients for orchestration and worker APIs
 //! - [`config`] - Configuration management and loading utilities
-//! - [`error`] - Comprehensive error types and handling
+//! - `error` - Comprehensive error types and handling
 //!
 //! ### API Clients
 //!

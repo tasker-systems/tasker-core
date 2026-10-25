@@ -249,14 +249,12 @@ pub fn build_select(
     if let Some(obj) = params.as_object() {
         if !obj.is_empty() {
             let mut where_parts = Vec::new();
-            let mut bind_pos = 1;
             let mut keys: Vec<&String> = obj.keys().collect();
             keys.sort();
-            for key in keys {
+            for (bind_pos, key) in (1..).zip(keys) {
                 let quoted = safe_identifier(key)?;
                 where_parts.push(format!("{quoted} = ${bind_pos}"));
                 bind_columns.push(key.clone());
-                bind_pos += 1;
             }
             sql.push_str(&format!(" WHERE {}", where_parts.join(" AND ")));
         }

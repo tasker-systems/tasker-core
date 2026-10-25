@@ -1,7 +1,7 @@
 //! # Worker Authentication Middleware
 //!
 //! TAS-150: Authentication middleware for the worker web API.
-//! Same pattern as orchestration but adapted for worker's Arc<WorkerWebState>.
+//! Same pattern as orchestration but adapted for worker's `Arc<WorkerWebState>`.
 //!
 //! TAS-76: Permission checking is now consolidated in tasker-shared and re-exported here.
 

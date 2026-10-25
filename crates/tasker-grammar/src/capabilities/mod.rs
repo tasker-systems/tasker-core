@@ -32,7 +32,7 @@ const MAX_RESOURCE_REF_LEN: usize = 128;
 /// Validate a resource reference or entity string.
 ///
 /// Resource references are untrusted user input that flows to
-/// [`OperationProvider`] implementations. This function enforces:
+/// [`OperationProvider`](crate::OperationProvider) implementations. This function enforces:
 /// - Non-empty
 /// - Maximum length of [`MAX_RESOURCE_REF_LEN`]
 /// - Characters limited to alphanumeric, underscore, hyphen, and period

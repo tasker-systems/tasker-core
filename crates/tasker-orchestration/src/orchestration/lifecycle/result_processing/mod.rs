@@ -21,7 +21,10 @@ mod state_transition_handler;
 mod task_coordinator;
 
 /// Error types for result processing operations
-#[allow(dead_code, reason = "dead in --lib, used by test targets")]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "dead in --lib, used by test targets")
+)]
 #[derive(Debug, Clone)]
 pub enum ResultProcessingError {
     /// Failed to process message
