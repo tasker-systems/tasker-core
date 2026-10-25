@@ -18,7 +18,7 @@
 # and tsconfig.json in crates/tasker-ts, extends mode).
 #
 # `reviewed_at` is the baseline revision these statuses were reviewed against (check F).
-reviewed_at = "99967726e20b1cb2a94cf6ca7d115472b97d63ff"
+reviewed_at = "af5ffd124e3f0b80d003cc11a3bb96031523eb48"
 [rules]
 # --- Rust ---
 # Cargo.toml [workspace.lints] adopted in table mode (one reasoned exception: the tokio_unstable check-cfg); every member sets [lints] workspace = true, checked by hand.
