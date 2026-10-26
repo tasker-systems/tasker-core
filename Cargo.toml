@@ -48,7 +48,7 @@ exclude = [
 [workspace.dependencies]
 anyhow = "1.0"
 # ANSI styling for CLI output (already in tree via clap, zero-cost to add directly)
-anstream = "0.6"
+anstream = "1.0"
 anstyle = "1.0"
 # TAS-225: Pin minimum version to fix RUSTSEC-2026-0007 (integer overflow in BytesMut::reserve)
 bytes = "1.11.1"
