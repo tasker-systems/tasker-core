@@ -59,7 +59,6 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'activesupport', '~> 8.0'
 
-  spec.add_dependency 'json-schema', '>= 2.4', '< 7.0'
   spec.add_dependency 'logger', '~> 1.6'
 
   spec.add_dependency 'dry-events', '~> 1.1'
