@@ -25,8 +25,11 @@ path = "src-rust/lib.rs"
 
 [dependencies]
 # napi-rs core (TAS-290: replaces koffi C FFI)
-napi = { version = "3", features = ["napi9", "serde-json"] }
-napi-derive = "3"
+# Floor and napi-derive floor move in lockstep: the derive backend's generated
+# code calls bindgen_prelude functions the runtime only exports from this
+# minor on — a derive-only bump reds the FFI build with E0425 (see #400).
+napi = { version = "3.15", features = ["napi9", "serde-json"] }
+napi-derive = "3.6"
 # Time handling
 chrono = { workspace = true }
 # Environment variable loading
