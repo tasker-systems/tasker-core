@@ -522,11 +522,11 @@
                   "failure_context": {
                     "oneOf": [
                       {
-                        "type": "null"
-                      },
-                      {
                         "$ref": "#/components/schemas/AuthFailureContext",
                         "description": "Machine-readable failure context for gateway signaling headers"
+                      },
+                      {
+                        "type": "null"
                       }
                     ]
                   },
@@ -552,11 +552,11 @@
                   "failure_context": {
                     "oneOf": [
                       {
-                        "type": "null"
-                      },
-                      {
                         "$ref": "#/components/schemas/AuthFailureContext",
                         "description": "Machine-readable failure context for gateway signaling headers"
+                      },
+                      {
+                        "type": "null"
                       }
                     ]
                   },
@@ -747,11 +747,11 @@
           "distributed_cache": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DistributedCacheInfo",
                 "description": "TAS-169: Distributed cache status (moved from /templates/cache/distributed)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -1041,10 +1041,10 @@
           "cache_stats": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/CacheStats"
               },
               {
-                "$ref": "#/components/schemas/CacheStats"
+                "type": "null"
               }
             ]
           },
@@ -1242,11 +1242,11 @@
           "pool_utilization": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/PoolUtilizationInfo",
                 "description": "Connection pool utilization details (TAS-164)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
