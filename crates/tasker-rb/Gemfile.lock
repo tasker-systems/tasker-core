@@ -12,7 +12,6 @@ PATH
       dry-types (~> 1.8)
       dry-validation (~> 1.10)
       faraday (>= 2.12.2, < 2.16.0)
-      json-schema (>= 2.4, < 7.0)
       logger (~> 1.6)
       rb_sys (~> 0.9.39)
 
@@ -138,9 +137,6 @@ GEM
     ice_nine (0.11.2)
     io-console (0.9.4)
     json (3.1.0)
-    json-schema (6.2.1)
-      addressable (~> 2.8)
-      bigdecimal (>= 3.1, < 5)
     language_server-protocol (3.17.0.6)
     lint_roller (1.1.0)
     listen (3.10.1)
@@ -336,7 +332,6 @@ CHECKSUMS
   ice_nine (0.11.2) sha256=5d506a7d2723d5592dc121b9928e4931742730131f22a1a37649df1c1e2e63db
   io-console (0.9.4) sha256=a403304f32928ee85e56d457b4612ca43f2703b561a3258844992bd24085fbb1
   json (3.1.0) sha256=3ce7ccf8fde58960177a3a756c31f292a4c1e1dedee884547096a5b0604e3bd8
-  json-schema (6.2.1) sha256=c0bf6113d772348bfd159fb096950beeb1e1e25aaeea50b676bd45191d8dbdf3
   language_server-protocol (3.17.0.6) sha256=5ef2c0c138f8267e1bc631d3328347d354f96724b0af22f2c79516120443b7f0
   lint_roller (1.1.0) sha256=2c0c845b632a7d172cb849cc90c1bce937a28c5c8ccccb50dfd46a485003cc87
   listen (3.10.1) sha256=4c3f32855657f348747da4dd2372ff3790d90a6b1d3e4f21a3706adb2d04783c
