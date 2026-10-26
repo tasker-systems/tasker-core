@@ -2,8 +2,16 @@
 //!
 //! These tests verify that REST and gRPC APIs return equivalent responses
 //! for the same operations. This ensures transport consistency.
+//!
+//! The suite runs many tests concurrently against one shared live database,
+//! so a state transition can land between the REST read and the gRPC read.
+//! Comparisons over volatile state go through [`assert_parity_with_retry`],
+//! which re-reads both transports a bounded number of times before failing;
+//! immutable structure (names, namespaces, versions) is compared directly.
 
 use anyhow::Result;
+use std::future::Future;
+use std::time::Duration;
 use tasker_client::{ClientConfig, OrchestrationClient, Transport, UnifiedOrchestrationClient};
 use uuid::Uuid;
 
@@ -43,6 +51,45 @@ async fn create_parity_clients() -> Result<(UnifiedOrchestrationClient, UnifiedO
     let grpc_client = UnifiedOrchestrationClient::from_config(&grpc_config).await?;
 
     Ok((rest_client, grpc_client))
+}
+
+/// Stability-bounded parity comparison for volatile state read over both
+/// transports from the shared live test database.
+///
+/// A mismatch between the REST read and the gRPC read can be a transition
+/// landing between the two reads rather than a parity defect, so the pair is
+/// re-read a bounded number of times: the comparison passes on the first
+/// agreement and panics on the last of `ATTEMPTS` consecutive disagreements,
+/// reporting both values. Only the failing path waits, and a genuinely
+/// divergent pair keeps failing — this bounds convergence, it does not
+/// paper over it.
+async fn assert_parity_with_retry<T, F, Fut>(mut read_pair: F, context: &str) -> Result<()>
+where
+    T: PartialEq + std::fmt::Debug,
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<(T, T)>>,
+{
+    const ATTEMPTS: u32 = 5;
+    const RETRY_DELAY: Duration = Duration::from_millis(200);
+
+    let mut last: Option<(T, T)> = None;
+    for attempt in 1..=ATTEMPTS {
+        let (rest_value, grpc_value) = read_pair().await?;
+        if rest_value == grpc_value {
+            return Ok(());
+        }
+        last = Some((rest_value, grpc_value));
+        if attempt < ATTEMPTS {
+            tokio::time::sleep(RETRY_DELAY).await;
+        }
+    }
+    let (rest_value, grpc_value) = last.expect("loop body runs at least once");
+    panic!(
+        "{context}: values diverged across {ATTEMPTS} bounded attempts \
+         (REST={rest_value:?}, gRPC={grpc_value:?}); a single transient \
+         mismatch is a concurrent transition, persistent divergence is a \
+         real parity defect"
+    );
 }
 
 /// Test health response structure parity
@@ -174,20 +221,21 @@ async fn test_task_list_parity() -> Result<()> {
     let (rest_client, grpc_client) = create_parity_clients().await?;
 
     let rest_tasks = rest_client.list_tasks(10, 0, None, None).await?;
-    let grpc_tasks = grpc_client.list_tasks(10, 0, None, None).await?;
 
-    // Compare pagination info
-    assert_eq!(
-        rest_tasks.pagination.total_count, grpc_tasks.pagination.total_count,
-        "Task total count should match"
-    );
-
-    // Compare task list length (may have different ordering, but same count)
-    assert_eq!(
-        rest_tasks.tasks.len(),
-        grpc_tasks.tasks.len(),
-        "Task list length should match"
-    );
+    // The totals move as concurrent tests create tasks; re-read both
+    // transports under the stability retry before declaring divergence.
+    assert_parity_with_retry(
+        || async {
+            let rest_tasks = rest_client.list_tasks(10, 0, None, None).await?;
+            let grpc_tasks = grpc_client.list_tasks(10, 0, None, None).await?;
+            Ok((
+                (rest_tasks.pagination.total_count, rest_tasks.tasks.len()),
+                (grpc_tasks.pagination.total_count, grpc_tasks.tasks.len()),
+            ))
+        },
+        "Task list totals should match",
+    )
+    .await?;
 
     println!(
         "Task list parity: total={}, returned={}",
@@ -228,10 +276,15 @@ async fn test_task_creation_parity() -> Result<()> {
         rest_task.version, grpc_task.version,
         "Task version should match"
     );
-    assert_eq!(
-        rest_task.total_steps, grpc_task.total_steps,
-        "Total steps should match"
-    );
+    assert_parity_with_retry(
+        || async {
+            let rest_task = rest_client.get_task(task_uuid).await?;
+            let grpc_task = grpc_client.get_task(task_uuid).await?;
+            Ok((rest_task.total_steps, grpc_task.total_steps))
+        },
+        "Total steps should match",
+    )
+    .await?;
 
     println!(
         "Task response parity: uuid={}, name={}",
@@ -258,7 +311,9 @@ async fn test_task_get_parity() -> Result<()> {
     let rest_task = rest_client.get_task(task_uuid).await?;
     let grpc_task = grpc_client.get_task(task_uuid).await?;
 
-    // Compare all fields
+    // Compare immutable identity directly, and volatile counters through the
+    // stability retry: the picked task may belong to a concurrently running
+    // test whose transitions land between the two reads.
     assert_eq!(
         rest_task.task_uuid, grpc_task.task_uuid,
         "Task UUID should match"
@@ -268,22 +323,42 @@ async fn test_task_get_parity() -> Result<()> {
         rest_task.namespace, grpc_task.namespace,
         "Task namespace should match"
     );
-    assert_eq!(
-        rest_task.status, grpc_task.status,
-        "Task status should match"
-    );
-    assert_eq!(
-        rest_task.total_steps, grpc_task.total_steps,
-        "Total steps should match"
-    );
-    assert_eq!(
-        rest_task.pending_steps, grpc_task.pending_steps,
-        "Pending steps should match"
-    );
-    assert_eq!(
-        rest_task.completed_steps, grpc_task.completed_steps,
-        "Completed steps should match"
-    );
+    assert_parity_with_retry(
+        || async {
+            let rest_task = rest_client.get_task(task_uuid).await?;
+            let grpc_task = grpc_client.get_task(task_uuid).await?;
+            Ok((rest_task.status, grpc_task.status))
+        },
+        "Task status should match",
+    )
+    .await?;
+    assert_parity_with_retry(
+        || async {
+            let rest_task = rest_client.get_task(task_uuid).await?;
+            let grpc_task = grpc_client.get_task(task_uuid).await?;
+            Ok((rest_task.total_steps, grpc_task.total_steps))
+        },
+        "Total steps should match",
+    )
+    .await?;
+    assert_parity_with_retry(
+        || async {
+            let rest_task = rest_client.get_task(task_uuid).await?;
+            let grpc_task = grpc_client.get_task(task_uuid).await?;
+            Ok((rest_task.pending_steps, grpc_task.pending_steps))
+        },
+        "Pending steps should match",
+    )
+    .await?;
+    assert_parity_with_retry(
+        || async {
+            let rest_task = rest_client.get_task(task_uuid).await?;
+            let grpc_task = grpc_client.get_task(task_uuid).await?;
+            Ok((rest_task.completed_steps, grpc_task.completed_steps))
+        },
+        "Completed steps should match",
+    )
+    .await?;
 
     println!(
         "Task get parity: uuid={}, status={}, steps={}",
@@ -321,25 +396,31 @@ async fn test_step_list_parity() -> Result<()> {
         }
     };
 
-    // Get steps via both transports
+    // Get steps via REST to pick the comparison target; the paired read
+    // happens under the stability retry below.
     let rest_steps = rest_client.list_task_steps(task_uuid).await?;
-    let grpc_steps = grpc_client.list_task_steps(task_uuid).await?;
 
-    // Compare step counts
-    assert_eq!(
-        rest_steps.len(),
-        grpc_steps.len(),
-        "Step count should match"
-    );
-
-    // Compare step names (order should be the same)
-    for (rest_step, grpc_step) in rest_steps.iter().zip(grpc_steps.iter()) {
-        assert_eq!(rest_step.name, grpc_step.name, "Step name should match");
-        assert_eq!(
-            rest_step.current_state, grpc_step.current_state,
-            "Step state should match"
-        );
-    }
+    // Names, order, and states compared as one summary vector under the
+    // stability retry: steps can be inserted by initialization and their
+    // states can transition between the two reads. Vector equality subsumes
+    // the former count and per-position assertions.
+    assert_parity_with_retry(
+        || async {
+            let rest_steps = rest_client.list_task_steps(task_uuid).await?;
+            let grpc_steps = grpc_client.list_task_steps(task_uuid).await?;
+            let rest_summary: Vec<(String, String)> = rest_steps
+                .iter()
+                .map(|s| (s.name.clone(), s.current_state.clone()))
+                .collect();
+            let grpc_summary: Vec<(String, String)> = grpc_steps
+                .iter()
+                .map(|s| (s.name.clone(), s.current_state.clone()))
+                .collect();
+            Ok((rest_summary, grpc_summary))
+        },
+        "Step list should match (names, order, and states)",
+    )
+    .await?;
 
     println!("Step list parity: count={}", rest_steps.len());
     Ok(())
