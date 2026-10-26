@@ -3228,7 +3228,8 @@
         "required": [
           "name",
           "default_retryable",
-          "default_max_attempts"
+          "default_max_attempts",
+          "result_schema"
         ],
         "properties": {
           "default_max_attempts": {
@@ -3250,6 +3251,10 @@
           "name": {
             "type": "string",
             "description": "Step name/handler identifier"
+          },
+          "result_schema": {
+            "type": "object",
+            "description": "Optional JSON Schema describing the expected result payload"
           }
         }
       },
@@ -3756,10 +3761,7 @@
           "context",
           "initiator",
           "source_system",
-          "reason",
-          "tags",
-          "requested_at",
-          "correlation_id"
+          "reason"
         ],
         "properties": {
           "context": {
