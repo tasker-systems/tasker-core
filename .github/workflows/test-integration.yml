@@ -268,7 +268,7 @@ jobs:
 
       - name: Set up Python
         if: inputs.build-python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           # Previously a deliberate 3.10 floor (the pyproject.toml requires-python
           # minimum); 3.10 went EOL 2026-10, so CI now tracks the repo pin file.
