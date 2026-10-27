@@ -62,7 +62,7 @@ bigdecimal = { version = "0.4", features = ["serde"] }
 # Builder pattern with inline defaults for configuration structs
 bon = "3.8"
 # Coverage tools (used in CI)
-cargo-llvm-cov = "0.7"
+cargo-llvm-cov = "0.9"
 # Time and date handling
 chrono = { version = "0.4.44", features = ["serde"] }
 # CLI tool dependencies
