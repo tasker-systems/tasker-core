@@ -1,7 +1,7 @@
 # Extend the official PGMQ PostgreSQL 17 image with UUID v7 support
 # This provides a complete test/CI environment with both PGMQ and UUID v7 extensions
 
-FROM ghcr.io/pgmq/pg17-pgmq:v1.5.1 AS base-with-pgmq
+FROM ghcr.io/pgmq/pg17-pgmq:v1.13.1 AS base-with-pgmq
 
 # Build stage for pg_uuidv7 extension
 FROM base-with-pgmq AS build-stage
