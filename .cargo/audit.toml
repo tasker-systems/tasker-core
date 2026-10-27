@@ -25,8 +25,14 @@
 #
 # Snapshot when this list was written (2026-10-21): triage of 37 findings — 27
 # fixed in-range via scoped `cargo update -p <crate>` in the same PR; the 11
-# below carry written reasons (1 legacy rsa entry inherited from the previous
+# below carried written reasons (1 legacy rsa entry inherited from the previous
 # stub, 10 from this triage — semver-major parent bumps or no released fix).
+#
+# Refreshed 2026-10-27 after lock movement (cargo-llvm-cov 0.9.1 #402,
+# rust_decimal 1.42.1 #394, utoipa-swagger-ui 10.0.2): RUSTSEC-2026-0344 and
+# RUSTSEC-2026-0367/0368/0369 retired — ruzstd 0.9.1 and zip 9.1.0 crossed
+# their fix floors (cargo audit: zero vulnerability findings, 2026-10-27).
+# quick-xml and rkyv entries kept with re-verified premises. 8 entries remain.
 
 [advisories]
 ignore = [
@@ -74,25 +80,11 @@ ignore = [
     # chrono, hashbrown, num-complex, litemap) and none of those features are
     # enabled: `cargo tree -i rkyv --workspace --target all` prints nothing —
     # rkyv is not in any build graph, only in the lock (which records optional
-    # deps). rust_decimal 1.40 caps it at ^0.7, so no in-range bump exists.
+    # deps). rust_decimal caps it at ^0.7, so no in-range bump exists
+    # (re-verified 2026-10-27 on rust_decimal 1.42.1: rkyv still 0.7.46 and
+    # `cargo tree -i rkyv` still prints nothing).
     # Drop this entry when rust_decimal moves to a release requiring rkyv 0.8+.
     "RUSTSEC-2026-0235",
-
-    # ── UNFIXABLE, and BUILD-TIME ONLY — never linked ────────────────────────
-    # zip 3.0.0: extraction applies SUID/SGID bits (RUSTSEC-2026-0367), creates
-    # symlinks pointing outside the destination (RUSTSEC-2026-0368), and applies
-    # Unix permissions through symlinks (RUSTSEC-2026-0369). Each is fixed in
-    # zip >= 9.0.0. `zip` is only a [build-dependency] of `utoipa-swagger-ui`
-    # (`cargo tree -i zip --workspace`); its build script unpacks the Swagger UI
-    # archive bundled by the `vendored` feature — fixed bytes from a pinned
-    # crate, not untrusted input — and zip is not linked into any binary.
-    # utoipa-swagger-ui 9.0.2 requires zip ^3.0, and no released version of
-    # utoipa-swagger-ui allows zip >= 9 (10.0.1, the latest, still requires
-    # zip ^8.6), so there is no fix to adopt today. Drop all three ids once an
-    # utoipa-swagger-ui release moves to zip >= 9.
-    "RUSTSEC-2026-0367",
-    "RUSTSEC-2026-0368",
-    "RUSTSEC-2026-0369",
 
     # ── FIX-PENDING — a patched version exists; adopting it is a tracked bump ─
     # pyo3 0.27.2 -> >=0.29.0: out-of-bounds read in `PyList`/`PyTuple`
@@ -106,13 +98,11 @@ ignore = [
     # quick-xml 0.37.5 -> >=0.41.0 (quadratic duplicate-attribute check,
     # RUSTSEC-2026-0194) and (unbounded namespace-decl allocation,
     # RUSTSEC-2026-0195). Crosses the 0.x major 0.37 -> 0.41; the only consumer
-    # is lcov2cobertura 1.0.6 (req ^0.37.2) under cargo-llvm-cov 0.7.1 — a
-    # coverage dev-tool, not shipped code. Needs a cargo-llvm-cov major bump.
+    # is lcov2cobertura 1.0.6 (req ^0.37.2) under cargo-llvm-cov — a coverage
+    # dev-tool, not shipped code. cargo-llvm-cov 0.9.1 (#402) did NOT move it:
+    # 0.9.1 still depends on lcov2cobertura 1.0.6, so the floor now waits on an
+    # upstream lcov2cobertura release, not on this repo.
+    # (Re-verified 2026-10-27: quick-xml still 0.37.5 in the lock.)
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
-    # ruzstd 0.8.2 -> >=0.9.1 (advisory RUSTSEC-2026-0344). Crosses the 0.x
-    # major 0.8 -> 0.9; cargo-llvm-cov 0.7.1 caps it at ^0.8 (a scoped bump
-    # reaches only 0.8.3). Same dev-tool-only path as quick-xml above; fixed by
-    # the same cargo-llvm-cov major bump.
-    "RUSTSEC-2026-0344",
 ]
