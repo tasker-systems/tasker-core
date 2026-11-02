@@ -53,7 +53,7 @@ anstyle = "1.0"
 # TAS-225: Pin minimum version to fix RUSTSEC-2026-0007 (integer overflow in BytesMut::reserve)
 bytes = "1.11.1"
 # Compile-time template engine (TAS-175: config documentation generation)
-askama = "0.15"
+askama = "0.16"
 async-trait = "0.1"
 # Web framework and HTTP server (TAS-28)
 axum = "0.8"
