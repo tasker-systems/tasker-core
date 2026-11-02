@@ -151,7 +151,7 @@ sqlx = { version = "0.8", features = [
 sysinfo = "0.39"
 tempfile = "3.27"
 # Runtime template engine for CLI plugins (TAS-126)
-tera = "1.20"
+tera = "2.4"
 # Error handling
 thiserror = "2.0"
 # Async runtime and utilities
