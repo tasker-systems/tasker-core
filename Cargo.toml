@@ -107,7 +107,7 @@ opentelemetry_sdk = { version = "0.33", features = [
 ] }
 opentelemetry-semantic-conventions = "0.33"
 # Message queue management
-pgmq = "0.32.0"
+pgmq = "0.33.7"
 tasker-pgmq = { path = "crates/tasker-pgmq", version = "=0.1.8" }
 tasker-sdk = { path = "crates/tasker-sdk", version = "=0.1.8" }
 # MCP protocol server (TAS-304)
