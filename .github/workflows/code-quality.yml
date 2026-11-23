@@ -65,7 +65,7 @@ jobs:
       # extension needs Ruby's headers (rb-sys), and tasker-py's pyo3 abi3-py311 needs a
       # Python >= 3.11 interpreter. Same pins and version files as build-workers.yml.
       - name: Setup Ruby
-        uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1.334.0
+        uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0 # v1.342.0
         with:
           working-directory: crates/tasker-rb
 
